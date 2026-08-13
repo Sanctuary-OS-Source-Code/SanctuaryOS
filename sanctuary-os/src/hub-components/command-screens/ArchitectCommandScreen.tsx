@@ -173,11 +173,11 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
   return (
     <CommandScreenLayout>
       <CommandScreenStats>
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_search")}</span>} number={stats.scoutQueue} label={t("reviewing")} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => onNavigate("queue")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_handyman")}</span>} number={stats.masonQueue} label={t("stat_mason_queue")} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => onNavigate("mason_queue")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_flag")}</span>} number={stats.nexusReports} label={t("title_reports")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => onNavigate("nexus_reports")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_local_activity")}</span>} number={stats.supportTickets} label={t("ql_support")} colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20" onClick={() => onNavigate("support_tickets")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={`${t("stat_nsfw_flags")} / ${t("stat_explicit_reports")}`} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => onNavigate('registry', 'nsfw')} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_search")}</span>} number={stats.scoutQueue} label={t("reviewing")} colorClass="text-blue-500" onClick={() => onNavigate("queue")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_handyman")}</span>} number={stats.masonQueue} label={t("stat_mason_queue")} colorClass="text-emerald-500" onClick={() => onNavigate("mason_queue")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_flag")}</span>} number={stats.nexusReports} label={t("title_reports")} colorClass="text-amber-500" onClick={() => onNavigate("nexus_reports")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_local_activity")}</span>} number={stats.supportTickets} label={t("ql_support")} colorClass="text-indigo-500" onClick={() => onNavigate("support_tickets")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={`${t("stat_nsfw_flags")} / ${t("stat_explicit_reports")}`} colorClass="text-orange-500" onClick={() => onNavigate('registry', 'nsfw')} />
       </CommandScreenStats>
 
       <UrgentBroadcastBanner urgentBroadcast={urgentBroadcast} setViewingPost={setViewingPost} setUrgentBroadcast={setUrgentBroadcast} />
@@ -190,11 +190,11 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
           </div>
           <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <CommandScreenMetricTile value={stats.totalArtifacts} label={t("items")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
-            <CommandScreenMetricTile value={stats.unverifiedMods} label={t("unverified")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
-            <CommandScreenMetricTile value={stats.tier4Conflicts} label={t("stat_tier4")} valueColorClass="text-red-500" hoverBorderClass="hover:border-red-500/30" />
-            <CommandScreenMetricTile value={stats.tier3Conflicts} label={t("stat_tier3")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-orange-500/30" />
-            <CommandScreenMetricTile value={stats.labQueue} label={t("stat_lab_queue")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-blue-500/30" />
+            <CommandScreenMetricTile value={stats.totalArtifacts} label={t("items")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" />
+            <CommandScreenMetricTile value={stats.unverifiedMods} label={t("unverified")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+            <CommandScreenMetricTile value={stats.tier4Conflicts} label={t("stat_tier4")} valueColorClass="text-red-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" />
+            <CommandScreenMetricTile value={stats.tier3Conflicts} label={t("stat_tier3")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" />
+            <CommandScreenMetricTile value={stats.labQueue} label={t("stat_lab_queue")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
 
           </div>
         </CommandScreenMain>
@@ -204,14 +204,14 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
             <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden h-24">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
               <div className="flex items-center gap-5 h-full">
-                <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 text-[var(--danger)] shadow-md">
+                <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] shadow-md">
                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 animate-pulse drop-shadow-md">
                     priority_high
                   </span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0">
-                  <h3 className="text-[11px] font-black uppercase tracking-widest transition-colors truncate text-[var(--danger)] group-hover:text-red-400">{t("title_sanctuary_alerts") || "Sanctuary Alerts"}</h3>
-                  <span className="text-[8px] uppercase font-bold tracking-widest transition-colors flex items-center gap-2 mt-1 text-[var(--danger)]/80 group-hover:text-red-300">
+                  <h3 className="text-[11px] font-black capitalize tracking-widest transition-colors truncate text-[var(--danger)] group-hover:text-red-400">{t("title_sanctuary_alerts")}</h3>
+                  <span className="text-[8px] capitalize font-bold tracking-widest transition-colors flex items-center gap-2 mt-1 text-[color-mix(in_srgb,var(--danger)_80%,transparent)] group-hover:text-red-300">
                     <span className="w-1.5 h-1.5 rounded-full shadow-md bg-[var(--danger)] animate-pulse"></span> {t("urgent_alert")}
                   </span>
                 </div>
@@ -219,16 +219,16 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
             </button>
           )}
 
-          <CommandScreenQuickLink onClick={() => onNavigate("matrix")} icon={t("icon_security")} title={t("ql_conflict")} subtitle={t("ql_logical_issues")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-rose-400" hoverTextColorClass="group-hover:text-rose-300" dotColorClass="bg-rose-400 shadow-md" />
+          <CommandScreenQuickLink onClick={() => onNavigate("matrix")} icon={t("icon_security")} title={t("ql_conflict")} subtitle={t("ql_logical_issues")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-rose-400" hoverTextColorClass="group-hover:text-rose-300" dotColorClass="bg-rose-400 shadow-md" />
 
-          <CommandScreenQuickLink onClick={() => onNavigate("template_oversight")} icon={t("icon_data_object") || "data_object"} title={t("ql_templates")} subtitle={t("ql_templates_desc")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-fuchsia-400" hoverTextColorClass="group-hover:text-fuchsia-300" dotColorClass="bg-fuchsia-400 shadow-md" />
+          <CommandScreenQuickLink onClick={() => onNavigate("template_oversight")} icon={t("icon_data_object")} title={t("ql_templates")} subtitle={t("ql_templates_desc")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-fuchsia-400" hoverTextColorClass="group-hover:text-fuchsia-300" dotColorClass="bg-fuchsia-400 shadow-md" />
 
-          <CommandScreenQuickLink onClick={() => onNavigate("lab")} icon={t("icon_monitor_heart")} title={t("tab_lab")} subtitle={t("ql_system_health")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400 shadow-md" />
+          <CommandScreenQuickLink onClick={() => onNavigate("lab")} icon={t("icon_monitor_heart")} title={t("tab_lab")} subtitle={t("ql_system_health")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400 shadow-md" />
 
-          <CommandScreenQuickLink onClick={() => onNavigate("support_tickets")} icon={t("icon_local_activity")} title={t("ql_support")} subtitle={t("ql_help_requests")} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-md" />
+          <CommandScreenQuickLink onClick={() => onNavigate("support_tickets")} icon={t("icon_local_activity")} title={t("ql_support")} subtitle={t("ql_help_requests")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-md" />
 
           {!urgentBroadcast && (
-            <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon="warning_off" title={t("title_sanctuary_alerts") || "Sanctuary Alerts"} subtitle={t("alert_empty") || "SYSTEM BROADCASTS"} iconBorderHoverClass="group-hover:border-amber-500/30" iconShadowClass="drop-shadow-md" textColorClass="text-amber-500/80" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-md" />
+            <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon="warning_off" title={t("title_sanctuary_alerts")} subtitle={t("alert_empty")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" iconShadowClass="drop-shadow-md" textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-md" />
           )}
         </CommandScreenSidebar>
       </CommandScreenBody>

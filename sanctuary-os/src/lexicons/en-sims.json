@@ -30,5 +30,7 @@
   "tab_vault": "Vault",
   "tab_conflicts": "Conflicts",
   "tab_world": "World State",
-  "tab_linker": "Creators"
+  "tab_linker": "Creators",
+  "select_blueprint": "Select Play Set",
+  "select_blueprint_desc": "Choose a play set to scan for conflicts"
 }

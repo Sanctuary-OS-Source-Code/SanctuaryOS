@@ -36,10 +36,10 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
           {/* Header Section */}
           <div className="flex flex-col gap-3">
             <h1 style={{ fontSize: `${currentTheme.fontSizeHeader || '1.875'}rem`, color: currentTheme.headerText || currentTheme.text, fontWeight: '900', lineHeight: 1.1 }}>
-              {t("forge_preview") || "Sandbox"}
+              {t("forge_preview")}
             </h1>
             <p style={{ fontSize: `${currentTheme.fontSizeText || '1'}rem`, color: currentTheme.subtext, opacity: 0.8 }}>
-              {t("forge_preview_desc") || "Test your typography, glass, and semantic colors live."}
+              {t("forge_preview_desc")}
             </p>
           </div>
 
@@ -53,13 +53,13 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
             boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
           }}>
             <h2 style={{ fontSize: `${currentTheme.fontSizeTitle || '1.25'}rem`, color: currentTheme.text, fontWeight: '800' }}>
-              {t("ui_forge_glass") || "Holographic Glass"}
+              {t("ui_forge_glass")}
             </h2>
             <p style={{ fontSize: `${currentTheme.fontSizeSubtext || '0.75'}rem`, color: currentTheme.subtext, lineHeight: 1.5 }}>
-              {t("ui_forge_glass_desc") || "This hologram reflects your active structural geometry, optical tint, and plasma blur settings."}
+              {t("ui_forge_glass_desc")}
             </p>
 
-            <button className="px-6 py-3 mt-4 w-max text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 border flex items-center justify-center gap-2 group" style={{
+            <button className="px-6 py-3 mt-4 w-max text-[10px] font-black capitalize tracking-widest transition-all hover:scale-105 active:scale-95 border flex items-center justify-center gap-2 group" style={{
               color: currentTheme.accent,
               backgroundColor: `color-mix(in srgb, ${currentTheme.accent} 15%, transparent)`,
               borderColor: `color-mix(in srgb, ${currentTheme.accent} 30%, transparent)`,
@@ -67,14 +67,14 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
               boxShadow: `0 10px 30px rgba(0,0,0,0.3)`
             }}>
               <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform duration-500">add</span>
-              {t("auto_create") || "CREATE"}
+              {t("auto_create")}
             </button>
           </div>
 
           {/* Semantic Alerts */}
           <div className="flex flex-col gap-4">
             <h3 style={{ fontSize: `${currentTheme.fontSizeSubtitle || '1.125'}rem`, color: currentTheme.text, fontWeight: '700' }}>
-              {t("forge_semantic") || "Semantic Colors"}
+              {t("forge_semantic")}
             </h3>
 
             {['success', 'warning', 'danger'].map((sem) => (
@@ -88,7 +88,7 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
                 <span className="material-symbols-outlined !text-[22px]">
                   {sem === 'success' ? 'check_circle' : sem === 'warning' ? 'warning' : 'error'}
                 </span>
-                <span className="text-xs font-black uppercase tracking-widest">{t(`color_${sem}`) || sem} Status</span>
+                <span className="text-xs font-black capitalize tracking-widest">{t(`color_${sem}`) || sem} Status</span>
               </div>
             ))}
           </div>

@@ -216,14 +216,14 @@ export function PushTemplateSidePanel({
       title={t("author_push")}
       subtitle={t("upload_push_subtitle")}
       icon="cloud_upload"
-      iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+      iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
       widthClass="w-[500px]"
       actions={actions}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 p-4 h-full min-h-0 relative">
         
         <div className="flex flex-col gap-3 mt-2">
-          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
+          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
             <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_sync")}</span>
             {t("upload_update_existing")}
           </label>
@@ -239,12 +239,12 @@ export function PushTemplateSidePanel({
         </div>
 
         <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
+          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
             <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_data_object")}</span>
             {t("upload_template_name")}
           </label>
           <div className="relative group">
-            <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-2xl blur-md group-focus-within:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
+            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-2xl blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
             <input 
               type="text" 
               value={name}
@@ -257,12 +257,12 @@ export function PushTemplateSidePanel({
         </div>
 
         <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
+          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
             <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_settings")}</span>
             {t("upload_target_file")}
           </label>
           <div className="relative group">
-            <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-2xl blur-md group-focus-within:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
+            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-2xl blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
             <input 
               type="text" 
               value={targetFile}
@@ -275,9 +275,9 @@ export function PushTemplateSidePanel({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_translate") || "translate"}</span>
-              {t("tab_lexicons") || "Language"}
+            <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_translate")}</span>
+              {t("tab_lexicons")}
             </label>
             <CustomDropdown
               disableTint={true}
@@ -299,12 +299,12 @@ export function PushTemplateSidePanel({
           </div>
 
           <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
+            <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">tag</span>
-              {t("update_version") || "Version"}
+              {t("update_version")}
             </label>
             <div className="relative group">
-              <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-2xl blur-md group-focus-within:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
+              <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-2xl blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
               <input 
                 type="text" 
                 value={version}
@@ -331,12 +331,12 @@ export function PushTemplateSidePanel({
         </div>
         
         <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
+          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
             <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_description")}</span>
             {t("upload_desc")}
           </label>
           <div className="relative group">
-             <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-2xl blur-md group-focus-within:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
+             <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-2xl blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
              <textarea 
                value={description}
                onChange={e => setDescription(e.target.value)}
@@ -347,12 +347,12 @@ export function PushTemplateSidePanel({
         </div>
 
         <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
+          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
             <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">campaign</span>
             {t("whats_new")}
           </label>
           <div className="relative group">
-             <div className="absolute inset-0 bg-[var(--accent)]/5 rounded-2xl blur-md group-focus-within:bg-[var(--accent)]/10 transition-colors pointer-events-none"></div>
+             <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-2xl blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
              <textarea 
                value={releaseNotes}
                onChange={e => setReleaseNotes(e.target.value)}
@@ -371,7 +371,7 @@ export function PushTemplateSidePanel({
            if (!parsed) return null;
            return (
              <div className="flex flex-col gap-4 p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-2 mb-1">
+                <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] flex items-center gap-2 mb-1">
                    <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
                    {t("auto_detected_architecture")}
                 </h4>
@@ -403,13 +403,13 @@ export function PushTemplateSidePanel({
                    {parsed.parser_type && (
                      <div className="flex flex-col gap-1">
                         <span className="text-[var(--subtext)] opacity-60">{t("auto_parser")}</span>
-                        <span className="text-[var(--text)] font-black uppercase">{parsed.parser_type}</span>
+                        <span className="text-[var(--text)] font-black capitalize">{parsed.parser_type}</span>
                      </div>
                    )}
                    {parsed.write_scope && (
                      <div className="flex flex-col gap-1">
                         <span className="text-[var(--subtext)] opacity-60">{t("auto_write_scope")}</span>
-                        <span className="text-[var(--text)] font-black uppercase truncate">{parsed.write_scope}</span>
+                        <span className="text-[var(--text)] font-black capitalize truncate">{parsed.write_scope}</span>
                      </div>
                    )}
                 </div>
@@ -428,7 +428,7 @@ export function PushTemplateSidePanel({
         })()}
 
         <div className="flex flex-col gap-3 relative z-[60]">
-          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
+          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
             <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("auto_extension")}</span>
             {t("upload_attach_mod")}
           </label>

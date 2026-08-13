@@ -14,7 +14,7 @@ export default function AestheticsTab({ config }: any) {
 
   return (
     <>
-      <TabContainer title={t("tab_aesthetics") || "Aesthetics"} icon="format_paint">
+      <TabContainer title={t("tab_aesthetics")} icon="format_paint">
         <SettingsGrid>
           <UniversalCard 
             title={t("chameleon_title")} 
@@ -39,13 +39,13 @@ export default function AestheticsTab({ config }: any) {
             }
           />
           <UniversalCard 
-            title={t("ui_total_glass") || "Total Glass"}
-            subtitle={t("ui_total_glass_desc") || "Remove application backgrounds and render UI directly on your desktop."}
+            title={t("ui_total_glass")}
+            subtitle={t("ui_total_glass_desc")}
             icon={isTotalGlass ? "visibility" : "visibility_off"}
             isActive={isTotalGlass}
             onClick={() => setTotalGlass(!isTotalGlass)}
             actions={
-              <div className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${isTotalGlass ? 'bg-emerald-500/50' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+              <div className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${isTotalGlass ? 'bg-[color-mix(in_srgb,var(--success)_50%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                 <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isTotalGlass ? 'translate-x-6' : ''}`} />
               </div>
             }

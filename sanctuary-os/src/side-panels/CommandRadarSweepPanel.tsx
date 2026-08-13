@@ -122,18 +122,18 @@ export default function CommandRadarSweepPanel({
               disabled={isScanning}
               className={`w-20 h-20 rounded-full flex items-center justify-center border ${c_ringBorder} ${c_ringBg} mb-6 ${c_ringShadow} ${isScanning ? 'animate-pulse opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.3)] transition-all group/radarbtn'}`}
             >
-              <span className={`material-symbols-outlined !text-4xl ${c_ringIcon} ${isScanning ? 'animate-spin' : 'group-hover/radarbtn:scale-110 transition-transform'}`}>{t("icon_radar")}</span>
+              <span className={`material-symbols-outlined ${c_ringIcon} ${isScanning ? 'animate-spin' : 'group-hover/radarbtn:scale-110 transition-transform'}`}>{t("icon_radar")}</span>
             </button>
-            <h3 className={`text-xl font-black uppercase tracking-tighter ${c_titleText} mb-1 flex flex-col gap-1`}>
+            <h3 className={`text-xl font-black capitalize tracking-tighter ${c_titleText} mb-1 flex flex-col gap-1`}>
               {isScanning ? (t("scanning")) : topTitle}
               {!isScanning && <span className="text-sm opacity-80">{subtext}</span>}
             </h3>
-            <span className={`text-[10px] font-bold uppercase tracking-widest ${c_subText} mt-3`}>
+            <span className={`text-[10px] font-bold capitalize tracking-widest ${c_subText} mt-3`}>
               {breakdownText}
             </span>
             {radarState === "critical" ? (
-              <div className="mt-4 px-4 py-1.5 bg-red-500/20 border border-red-500/50 rounded-xl animate-pulse shadow-md">
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-red-400 drop-shadow-md">
+              <div className="mt-4 px-4 py-1.5 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_50%,transparent)] rounded-xl animate-pulse shadow-md">
+                <span className="text-xs font-black capitalize tracking-[0.2em] text-red-400 drop-shadow-md">
                   {bottomText}
                 </span>
               </div>
@@ -149,7 +149,7 @@ export default function CommandRadarSweepPanel({
         <div className="flex flex-col gap-8">
 
           <div className="flex flex-col gap-3">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("citizen_action_required")}</h4>
+            <h4 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("citizen_action_required")}</h4>
             <div className="grid grid-cols-2 gap-3">
               <UniversalCard
                 layout="stat"
@@ -163,7 +163,7 @@ export default function CommandRadarSweepPanel({
                 layout="stat"
                 onClick={onOpenIncompatible}
                 customIcon={<span className={`material-symbols-outlined !text-[22px] transition-colors ${(brokenCount + unstableCount) > 0 ? (brokenCount > 0 ? 'text-red-500' : 'text-orange-500') : 'opacity-50 group-hover:opacity-80'}`}>{brokenCount > 0 ? "gpp_bad" : (unstableCount > 0 ? "gpp_maybe" : "warning_amber")}</span>}
-                statusColor={(brokenCount + unstableCount) > 0 ? (brokenCount > 0 ? 'border-red-500/[30%] bg-red-500/10' : 'border-orange-500/[30%] bg-orange-500/10') : undefined}
+                statusColor={(brokenCount + unstableCount) > 0 ? (brokenCount > 0 ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]') : undefined}
                 subtitle={brokenCount > 0 && unstableCount > 0 ? `${t("status_broken")} / ${t("label_unstable")}` : brokenCount > 0 ? (t("status_broken")) : (unstableCount > 0 ? (t("label_unstable")) : (t("citizen_action_incompatible")))}
                 title={brokenCount > 0 && unstableCount > 0 ? `${brokenCount} / ${unstableCount}` : brokenCount + unstableCount}
               />
@@ -172,7 +172,7 @@ export default function CommandRadarSweepPanel({
                 className="col-span-2"
                 onClick={onOpenConflicts}
                 customIcon={<span className={`material-symbols-outlined !text-[22px] transition-colors ${(tier4Count + tier3Count) > 0 ? (tier4Count > 0 ? 'text-red-500' : 'text-orange-500') : 'opacity-50 group-hover:opacity-80'}`}>{tier4Count > 0 ? "crisis_alert" : (tier3Count > 0 ? "tune" : "radar")}</span>}
-                statusColor={(tier4Count + tier3Count) > 0 ? (tier4Count > 0 ? 'border-red-500/[30%] bg-red-500/10' : 'border-orange-500/[30%] bg-orange-500/10') : undefined}
+                statusColor={(tier4Count + tier3Count) > 0 ? (tier4Count > 0 ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]') : undefined}
                 subtitle={tier4Count > 0 && tier3Count > 0 ? `${t("stat_tier4")} / ${t("stat_tier3")}` : tier4Count > 0 ? (t("stat_tier4")) : (tier3Count > 0 ? (t("stat_tier3")) : (t("tab_matrix")))}
                 title={tier4Count > 0 && tier3Count > 0 ? `${tier4Count} / ${tier3Count}` : tier4Count + tier3Count}
               />
@@ -180,7 +180,7 @@ export default function CommandRadarSweepPanel({
           </div>
 
           <div className="flex flex-col gap-3">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("domain_core")}</h4>
+            <h4 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("domain_core")}</h4>
             <div className="grid grid-cols-2 gap-3">
               <UniversalCard
                 layout="stat"
@@ -199,7 +199,7 @@ export default function CommandRadarSweepPanel({
           </div>
 
           <div className="flex flex-col gap-3">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("domain_vault")}</h4>
+            <h4 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("domain_vault")}</h4>
             <div className="grid grid-cols-2 gap-3">
               <UniversalCard
                 layout="stat"
@@ -213,7 +213,7 @@ export default function CommandRadarSweepPanel({
                 layout="stat"
                 onClick={() => { onClose(); useStore.getState().setView("vault"); window.dispatchEvent(new CustomEvent('navigateVault', { detail: { filterStatus: 'STABLE' } })); }}
                 customIcon={<span className="material-symbols-outlined !text-[22px] transition-colors theme-text-success">{t("icon_verified_user")}</span>}
-                subtitle={t("status_dd_stable") || "STABLE"}
+                subtitle={t("status_dd_stable")}
                 title={stableCount}
               />
               <UniversalCard
@@ -227,7 +227,7 @@ export default function CommandRadarSweepPanel({
           </div>
 
           <div className="flex flex-col gap-3">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("domain_ext")}</h4>
+            <h4 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 ml-2">{t("domain_ext")}</h4>
             <div className="grid grid-cols-2 gap-3">
               <UniversalCard
                 layout="stat"

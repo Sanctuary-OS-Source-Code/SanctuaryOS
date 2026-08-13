@@ -488,9 +488,9 @@ const Vault = React.memo(function Vault(props: any) {
   return (
     <div className="flex-1 overflow-visible pr-4 relative">
       <ViewHeader
-        title={t("vault_title") || "YOUR VAULT"}
-        subtitle={t("vault_subtitle") || "LOCAL LIBRARY, SECURED ASSETS, AND INSTALLED ARTIFACTS"}
-        icon={<span className="material-symbols-outlined !text-3xl text-[var(--accent)]">{t("icon_account_balance") || "account_balance"}</span>}
+        title={t("vault_title")}
+        subtitle={t("vault_subtitle")}
+        icon={<span className="material-symbols-outlined !text-3xl text-[var(--accent)]">{t("icon_account_balance")}</span>}
         breadcrumb={equipFilter !== "OVERVIEW" ? (t(`filter_${equipFilter.toLowerCase()}`) || equipFilter) : undefined}
         onTitleClick={() => setEquipFilter("OVERVIEW")}
       >
@@ -503,31 +503,31 @@ const Vault = React.memo(function Vault(props: any) {
           <CommandScreenLayout>
             <CommandScreenStats>
               <DashboardStatTile
-                icon={<span className="material-symbols-outlined !text-4xl">{t("icon_inventory_2") || "inventory_2"}</span>}
+                icon={<span className="material-symbols-outlined ">{t("icon_inventory_2")}</span>}
                 number={displayModList.length}
-                label={t("title_artifacts") || "ALL SCHEMATICS"}
-                colorClass="border-cyan-500/30 text-cyan-400 hover:border-cyan-500/60 bg-cyan-500/10 hover:bg-cyan-500/20 cursor-pointer shadow-md"
+                label={t("title_artifacts")}
+                colorClass="text-cyan-400 cursor-pointer"
                 onClick={() => { setEquipFilter("ALL"); setFilterStatus("ALL"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
               />
               <DashboardStatTile
-                icon={<span className="material-symbols-outlined !text-4xl">{t("icon_check_circle") || "check_circle"}</span>}
+                icon={<span className="material-symbols-outlined ">{t("icon_check_circle")}</span>}
                 number={equippedDisplayMods.length}
-                label={t("filter_equipped") || "IN BLUEPRINT"}
-                colorClass="border-emerald-500/[30%] text-[var(--success)] hover:border-[var(--success)] bg-emerald-500/[10%] hover:bg-emerald-500/[20%] cursor-pointer"
+                label={t("filter_equipped")}
+                colorClass="text-[var(--success)] cursor-pointer"
                 onClick={() => { setEquipFilter("EQUIPPED"); setFilterStatus("ALL"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
               />
               <DashboardStatTile
-                icon={<span className="material-symbols-outlined !text-4xl">{t("icon_warning") || "warning"}</span>}
+                icon={<span className="material-symbols-outlined ">{t("icon_warning")}</span>}
                 number={unverifiedCount}
-                label={t("status_unverified") || "UNVERIFIED"}
-                colorClass="border-orange-500/[30%] text-[var(--warning)] hover:border-[var(--warning)] bg-orange-500/[10%] hover:bg-orange-500/[20%] cursor-pointer"
+                label={t("status_unverified")}
+                colorClass="text-[var(--warning)] cursor-pointer"
                 onClick={() => { setEquipFilter("ALL"); setFilterStatus("UNVERIFIED"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
               />
               <DashboardStatTile
-                icon={<span className="material-symbols-outlined !text-4xl">{t("icon_folder_shared") || "folder_shared"}</span>}
+                icon={<span className="material-symbols-outlined ">{t("icon_folder_shared")}</span>}
                 number={localFolderCount}
-                label={t("local_folders") || "LOCAL NODES"}
-                colorClass="border-purple-500/30 text-purple-400 hover:border-purple-500/60 bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer shadow-md"
+                label={t("local_folders")}
+                colorClass="text-purple-400 cursor-pointer"
                 onClick={() => { setEquipFilter("ALL"); setActiveCategory("LOCAL_FOLDERS"); }}
               />
             </CommandScreenStats>
@@ -535,7 +535,7 @@ const Vault = React.memo(function Vault(props: any) {
             <CommandScreenBody>
               <CommandScreenMain>
                 <div className="flex flex-col gap-6 w-full">
-                  <CommandScreenSectionHeading title="RECENT ARTIFACT INJECTIONS" icon="history" />
+                  <CommandScreenSectionHeading title="Recent Artifact Injections" icon="history" />
 
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6 w-full">
                     {displayModList.filter((mod: any) => {
@@ -554,7 +554,7 @@ const Vault = React.memo(function Vault(props: any) {
                       const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
                       return !folderExists;
                     }).slice(0, 20).map((item: any, idx: number) => (
-                      <div key={`recent-${idx}`} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[5%] group" onClick={() => {
+                      <div key={`recent-${idx}`} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] overflow-hidden transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group" onClick={() => {
                         if (item.isVirtual && item.isLocalOverride && !item.isCollection) {
                           const targetId = item.dbId || item.familyId || item.setId;
                           if (targetId) window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: targetId }));
@@ -577,25 +577,25 @@ const Vault = React.memo(function Vault(props: any) {
                           )}
 
                           <div className="absolute top-3 right-3 flex gap-2 z-30">
-                            <span className="text-[8px] font-black px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] uppercase tracking-widest">
-                              {t("tab_mods") || "ARTIFACT"}
+                            <span className="text-[8px] font-black px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] capitalize tracking-widest">
+                              {t("tab_mods")}
                             </span>
                           </div>
                         </div>
 
                         <div className="p-4 flex flex-col flex-1">
-                          <h3 className="text-[11px] font-black truncate uppercase tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                          <h3 className="text-[11px] font-black truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
                             {formatDisplayName(item.displayName || item.meta_name || item.name || item.title || "")}
                           </h3>
-                          <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate mb-2">
+                          <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate mb-2">
                             BY {item.meta_author || item.author || t("unknown_mason")}
                           </p>
 
                           <div className="mt-auto pt-3 flex items-center justify-start border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                            <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">
+                            <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">
                               {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
                             </span>
-                            <span className="text-[9px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("btn_view") || "VIEW"} &rarr;</span>
+                            <span className="text-[9px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("btn_view")} &rarr;</span>
                           </div>
                         </div>
                       </div>
@@ -604,12 +604,12 @@ const Vault = React.memo(function Vault(props: any) {
                 </div>
               </CommandScreenMain>
 
-              <CommandScreenSidebar title={t("quick_actions") || "QUICK ACTIONS"} icon="bolt">
+              <CommandScreenSidebar title={t("quick_actions")} icon="bolt">
                 <div className="flex flex-col gap-4">
                   <CommandScreenQuickLink
-                    icon={t("icon_create_new_folder") || "create_new_folder"}
-                    title={t("quick_create_node") || "CREATE LOCAL NODE"}
-                    subtitle={t("quick_create_node_desc") || "SPAWN A NEW LOCAL DIRECTORY TO ORGANIZE ARTIFACTS"}
+                    icon={t("icon_create_new_folder")}
+                    title={t("quick_create_node")}
+                    subtitle={t("quick_create_node_desc")}
                     onClick={() => {
                       const localSets = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
                       const newId = `f_${Date.now()}`;
@@ -627,13 +627,13 @@ const Vault = React.memo(function Vault(props: any) {
                     textColorClass="text-purple-500"
                     hoverTextColorClass="group-hover:text-purple-400"
                     iconShadowClass="drop-shadow-md text-purple-500"
-                    iconBorderHoverClass="group-hover:border-purple-500/30"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                   />
 
                   <CommandScreenQuickLink
-                    icon={t("icon_delete_sweep") || "delete_sweep"}
-                    title={t("purge_archives") || "PURGE ARCHIVES"}
-                    subtitle={t("purge_desc") || "INITIATE IRREVERSIBLE PURGE OF THE SELECTED ARCHIVES FROM LOCAL STORAGE? THIS ACTION CANNOT BE ABORTED."}
+                    icon={t("icon_delete_sweep")}
+                    title={t("purge_archives")}
+                    subtitle={t("purge_desc")}
                     onClick={() => {
                       const allFilesToPurge = new Map<string, string>();
                       displayModList.forEach((mod: any) => {
@@ -675,17 +675,17 @@ const Vault = React.memo(function Vault(props: any) {
                     textColorClass="text-rose-500"
                     hoverTextColorClass="group-hover:text-rose-400"
                     iconShadowClass="drop-shadow-md text-rose-500"
-                    iconBorderHoverClass="group-hover:border-rose-500/30"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
                   />
                   <CommandScreenQuickLink
-                    icon={t("icon_auto_awesome") || "auto_awesome"}
-                    title={t("nexus") || "NEXUS"}
-                    subtitle={t("nexus_core") || "NEXUS CORE"}
+                    icon={t("icon_auto_awesome")}
+                    title={t("nexus")}
+                    subtitle={t("nexus_core")}
                     onClick={() => useStore.getState().setView("nexus")}
                     textColorClass="text-amber-500"
                     hoverTextColorClass="group-hover:text-amber-400"
                     iconShadowClass="drop-shadow-md text-amber-500"
-                    iconBorderHoverClass="group-hover:border-amber-500/30"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
                   />
                 </div>
               </CommandScreenSidebar>
@@ -854,7 +854,7 @@ const Vault = React.memo(function Vault(props: any) {
             return (
               <>
                 <div className="px-4 py-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-2 overflow-hidden">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 truncate block w-full">
+                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60 truncate block w-full">
                     {count > 1 ? `${count} ARTIFACTS SELECTED` : (vaultContextMenu.mod.displayName || vaultContextMenu.mod.name)}
                   </span>
                 </div>
@@ -868,7 +868,7 @@ const Vault = React.memo(function Vault(props: any) {
                       setIsLocalFolderEditorOpen(true);
                       setVaultContextMenu(null);
                     }}
-                    className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[var(--accent)]/[20%] text-[11px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-3 transition-colors mb-1"
+                    className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[11px] font-black capitalize tracking-widest text-[var(--accent)] flex items-center gap-3 transition-colors mb-1"
                   >
                     <span className="material-symbols-outlined !text-[16px]">edit</span>
                     MANAGE NODE
@@ -880,20 +880,20 @@ const Vault = React.memo(function Vault(props: any) {
                   onMouseEnter={() => setActiveSubmenu('blueprint')}
                   onMouseLeave={() => setActiveSubmenu(null)}
                 >
-                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[var(--accent)]/[20%] text-[11px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center justify-start transition-colors">
+                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[11px] font-bold capitalize tracking-widest text-[var(--text)] flex items-center justify-start transition-colors">
                     <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_architecture") || "architecture"}</span>
-                      {t("add_to_blueprint") || "ADD TO BLUEPRINT"}
+                      <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_architecture")}</span>
+                      {t("add_to_blueprint")}
                     </div>
-                    <span className="material-symbols-outlined !text-[16px] opacity-50">{t("icon_chevron_right") || "chevron_right"}</span>
+                    <span className="material-symbols-outlined !text-[16px] opacity-50">{t("icon_chevron_right")}</span>
                   </button>
                   {activeSubmenu === 'blueprint' && (
                     <div className={`absolute top-0 w-56 pt-0 z-50 ${openSubmenuLeft ? 'right-full pr-1' : 'left-full pl-1'}`}>
                       <div className="w-full h-full glass-panel bg-black/90 backdrop-blur-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl py-2 animate-in fade-in zoom-in-95 duration-100">
-                        <button onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); setBulkModal(true); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add")}</span>{t("context_new_blueprint")}</button>
+                        <button onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); setBulkModal(true); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add")}</span>{t("context_new_blueprint")}</button>
                         <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-1" />
                         {playSets.map((ps: any, index: number) => (
-                          <button key={index} onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); invoke('add_to_play_set', { index, modNames: targetMods }).then(() => runRadarSweep(true)); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[var(--accent)]/[20%] text-[10px] font-bold uppercase tracking-widest text-[var(--accent)] truncate block">{ps.name}</button>
+                          <button key={index} onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); invoke('add_to_play_set', { index, modNames: targetMods }).then(() => runRadarSweep(true)); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[10px] font-bold capitalize tracking-widest text-[var(--accent)] truncate block">{ps.name}</button>
                         ))}
                       </div>
                     </div>
@@ -905,12 +905,12 @@ const Vault = React.memo(function Vault(props: any) {
                   onMouseEnter={() => setActiveSubmenu('folder')}
                   onMouseLeave={() => setActiveSubmenu(null)}
                 >
-                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-emerald-500/[20%] text-[11px] font-bold uppercase tracking-widest text-[var(--text)] flex items-center justify-start transition-colors">
+                  <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[11px] font-bold capitalize tracking-widest text-[var(--text)] flex items-center justify-start transition-colors">
                     <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">{t("icon_folder") || "folder"}</span>
-                      {t("btn_group_folder") || "ADD TO FOLDER"}
+                      <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">{t("icon_folder")}</span>
+                      {t("btn_group_folder")}
                     </div>
-                    <span className="material-symbols-outlined !text-[16px] opacity-50">{t("icon_chevron_right") || "chevron_right"}</span>
+                    <span className="material-symbols-outlined !text-[16px] opacity-50">{t("icon_chevron_right")}</span>
                   </button>
                   {activeSubmenu === 'folder' && (
                     <div className={`absolute top-0 w-56 pt-0 z-50 ${openSubmenuLeft ? 'right-full pr-1' : 'left-full pl-1'}`}>
@@ -924,11 +924,11 @@ const Vault = React.memo(function Vault(props: any) {
                           setActiveLocalFolder(newId);
                           setIsLocalFolderEditorOpen(true);
                           runRadarSweep(true);
-                        }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add")}</span>{t("context_new_folder")}</button>
+                        }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add")}</span>{t("context_new_folder")}</button>
                         <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-1" />
                         {(() => {
                           const localSts = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
-                          if (localSts.length === 0) return <div className="px-4 py-2 text-[9px] font-bold text-[var(--subtext)] opacity-50">{t("local_folders_empty") || "NO LOCAL FOLDERS"}</div>;
+                          if (localSts.length === 0) return <div className="px-4 py-2 text-[9px] font-bold text-[var(--subtext)] opacity-50">{t("local_folders_empty")}</div>;
                           return localSts.map((ls: any) => (
                             <button key={ls.id} onClick={(e) => {
                               e.stopPropagation();
@@ -938,7 +938,7 @@ const Vault = React.memo(function Vault(props: any) {
                               setVaultContextMenu(null);
                               setActiveSubmenu(null);
                               runRadarSweep(true);
-                            }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-emerald-500/[20%] text-[10px] font-bold uppercase tracking-widest text-[var(--success)] truncate block">{ls.name}</button>
+                            }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[10px] font-bold capitalize tracking-widest text-[var(--success)] truncate block">{ls.name}</button>
                           ));
                         })()}
                       </div>
@@ -963,7 +963,7 @@ const Vault = React.memo(function Vault(props: any) {
                         });
                         setPurgeTargetFiles(Array.from(allFilesToPurge.entries()).map(([file, name]) => ({ file, name })));
                       }}
-                      className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-red-500/[20%] text-[11px] font-bold uppercase tracking-widest text-[var(--danger)] flex items-center gap-3 transition-colors"
+                      className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[11px] font-bold capitalize tracking-widest text-[var(--danger)] flex items-center gap-3 transition-colors"
                     >
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever")}</span>
                       {t("context_purge")} {count > 1 ? t("context_artifacts") : t("context_artifact")}

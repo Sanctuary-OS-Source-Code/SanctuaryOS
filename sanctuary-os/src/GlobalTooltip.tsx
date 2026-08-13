@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useTooltipStore } from './store/tooltipStore';
 
 export function GlobalTooltip() {
@@ -27,7 +28,7 @@ export function GlobalTooltip() {
   let defaultIconName = 'info';
 
   if (isDanger) {
-    borderColorClass = 'border-[var(--danger)]/30';
+    borderColorClass = 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]';
     textColorClass = 'theme-text-danger';
     defaultIconName = 'error';
   } else if (isInfo) {
@@ -35,11 +36,11 @@ export function GlobalTooltip() {
     textColorClass = 'text-[#3b82f6]';
     defaultIconName = 'info';
   } else if (isAccent) {
-    borderColorClass = 'border-[var(--accent)]/30';
+    borderColorClass = 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)]';
     textColorClass = 'theme-text-accent';
     defaultIconName = 'star';
   } else if (isWarning) {
-    borderColorClass = 'border-[var(--warning)]/30';
+    borderColorClass = 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]';
     textColorClass = 'text-[var(--warning)]';
     defaultIconName = 'warning';
   }
@@ -66,7 +67,7 @@ export function GlobalTooltip() {
     finalLeft = window.innerWidth - size.width - padding;
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[999999] pointer-events-none">
       <div 
         className="absolute pointer-events-none transition-all duration-200"
@@ -92,7 +93,7 @@ export function GlobalTooltip() {
             <div className="absolute inset-0 z-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
 
             <div className="relative z-10 flex flex-col items-start gap-1 w-full">
-              <div className={`${normalFont ? 'text-[11px] font-bold' : 'text-[10px] font-black uppercase tracking-[0.2em]'} flex items-start text-left gap-2 whitespace-pre-line ${textColorClass}`}>
+              <div className={`${normalFont ? 'text-[11px] font-bold' : 'text-[10px] font-black capitalize tracking-[0.2em]'} flex items-start text-left gap-2 whitespace-pre-line ${textColorClass}`}>
                 {!noIcon && <span className="material-symbols-outlined !text-[14px] shrink-0 mt-[1px]">{iconName}</span>}
                 <span className="break-all">{title}</span>
               </div>
@@ -103,6 +104,7 @@ export function GlobalTooltip() {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

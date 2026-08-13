@@ -47,13 +47,13 @@ export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, exec
               onChange={(e) => setBulkName(e.target.value)} 
               onKeyDown={(e) => e.key === "Enter" && executeBulkDraft()} 
               placeholder={t("draft_placeholder")}
-              className="w-full h-full bg-transparent border-none outline-none px-4 pl-12 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text)]"
+              className="w-full h-full bg-transparent border-none outline-none px-4 pl-12 text-[10px] font-black capitalize tracking-[0.2em] text-[var(--text)]"
             />
           </div>
           <button 
              onClick={executeBulkDraft}
              disabled={!bulkName?.trim() || selectedMods?.length === 0}
-             className="h-full px-6 text-[10px] font-black uppercase tracking-widest transition-all bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black flex items-center justify-center gap-2 shrink-0 border-none outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+             className="h-full px-6 text-[10px] font-black capitalize tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black flex items-center justify-center gap-2 shrink-0 border-none outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
              <span className="material-symbols-outlined text-[16px]">add_box</span>
              {t("btn_draft")}
@@ -63,8 +63,8 @@ export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, exec
         {/* Selected Files List */}
         <div className="flex-1 flex flex-col min-h-0 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
           <div className="flex items-center gap-3 mb-6 shrink-0">
-            <span className="material-symbols-outlined !text-[18px] text-[var(--text)]">{t("icon_inventory_2") || "inventory_2"}</span>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("artifacts_linked") || "ARTIFACTS LINKED"} ({(selectedMods || []).length})</h3>
+            <span className="material-symbols-outlined !text-[18px] text-[var(--text)]">{t("icon_inventory_2")}</span>
+            <h3 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)]">{t("artifacts_linked")} ({(selectedMods || []).length})</h3>
           </div>
           
           <div className="flex-1 grid grid-cols-2 gap-2 overflow-y-auto custom-scrollbar pr-2 items-start content-start">
@@ -73,7 +73,7 @@ export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, exec
               return (
                 <div key={i} className="glass-surface p-3 rounded-xl flex items-center gap-4 group/item transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-50">description</span>
-                  <span className="text-[11px] font-black text-[var(--text)] uppercase truncate">{displayName}</span>
+                  <span className="text-[11px] font-black text-[var(--text)] capitalize truncate">{displayName}</span>
                 </div>
               );
             })}

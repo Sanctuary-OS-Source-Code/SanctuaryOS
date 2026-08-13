@@ -374,19 +374,19 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
         {depth > 0 && (
           <div className="absolute top-0 bottom-0 left-[-1.5rem] w-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
         )}
-        <div className={`p-4 rounded-[var(--radius)] border ${c.is_hidden ? 'border-[var(--danger)]/30 bg-[var(--danger)]/5' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all shadow-md'} flex flex-col gap-2 relative`}>
+        <div className={`p-4 rounded-[var(--radius)] border ${c.is_hidden ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all shadow-md'} flex flex-col gap-2 relative`}>
           {depth > 0 && (
             <div className="absolute top-6 left-[-1.5rem] w-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
           )}
           {isCollapsed ? (
             <div className="flex items-center gap-2">
-              <button onClick={toggleCollapse} className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1 flex items-center justify-center">
+              <button onClick={toggleCollapse} className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1 flex items-center justify-center">
                 <span className="material-symbols-outlined !text-[16px]">add</span>
               </button>
               <div className="w-6 h-6 rounded-lg theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                 {c.author?.username?.charAt(0)?.toUpperCase() || '?'}
               </div>
-              <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">{c.author?.username || "Citizen"}</span>
+              <span className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{c.author?.username || "Citizen"}</span>
               <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 ml-2">{allowedReplies.length} {t("auto_replies_hidden")}</span>
             </div>
           ) : editingCommentId === c.id ? (
@@ -397,23 +397,23 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 className="w-full bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] p-3 text-xs text-[var(--text)] outline-none focus:theme-border-accent transition-all resize-none h-20 custom-scrollbar"
               />
               <div className="flex gap-2 justify-end mt-2">
-                <button onClick={() => setEditingCommentId(null)} className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)]">{t("nav_cancel")}</button>
-                <button onClick={() => handleSaveEdit(c.id)} className="text-[8px] font-black uppercase tracking-widest theme-text-accent hover:underline">{t("auto_save")}</button>
+                <button onClick={() => setEditingCommentId(null)} className="text-[8px] font-black capitalize tracking-widest text-[var(--subtext)] hover:text-[var(--text)]">{t("nav_cancel")}</button>
+                <button onClick={() => handleSaveEdit(c.id)} className="text-[8px] font-black capitalize tracking-widest theme-text-accent hover:underline">{t("auto_save")}</button>
               </div>
             </div>
           ) : (
             <>
-              <div className="flex flex-wrap items-center justify-start gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <button onClick={toggleCollapse} className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1 flex items-center justify-center">
+                  <button onClick={toggleCollapse} className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1 flex items-center justify-center">
                     <span className="material-symbols-outlined !text-[16px]">remove</span>
                   </button>
                   <div className="w-6 h-6 rounded-lg theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     {c.author?.username?.charAt(0)?.toUpperCase() || '?'}
                   </div>
-                  <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">{c.author?.username || "Citizen"}</span>
+                  <span className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{c.author?.username || "Citizen"}</span>
                   <span className="text-xs font-mono text-[var(--subtext)] opacity-50">{new Date(c.created_at).toLocaleString()}</span>
-                  {c.is_hidden && <span className="text-[10px] font-black uppercase tracking-widest theme-text-danger ml-2">{t("reply_hidden")}</span>}
+                  {c.is_hidden && <span className="text-[10px] font-black capitalize tracking-widest theme-text-danger ml-2">{t("reply_hidden")}</span>}
                 </div>
                 <div className="flex items-center gap-3">
                   {isMyComment && !c.is_hidden && (
@@ -421,25 +421,25 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       setEditingCommentId(c.id);
                       const draft = useStore.getState().masonCommentDrafts['edit-' + c.id];
                       setEditCommentContent(draft?.editCommentContent ?? c.content);
-                    }} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] hover:text-[var(--text)] transition-colors group">
+                    }} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] hover:text-[var(--text)] transition-colors group">
                       <span className="material-symbols-outlined !text-[14px] opacity-70 group-hover:opacity-100">{t("icon_edit")}</span>
                       {t("emote_edit")}
                     </button>
                   )}
                   {isPostAuthor && (
-                    <button onClick={() => handleHideComment(c.id)} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] hover:text-[var(--text)] transition-colors group">
+                    <button onClick={() => handleHideComment(c.id)} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] hover:text-[var(--text)] transition-colors group">
                       <span className="material-symbols-outlined !text-[14px] opacity-70 group-hover:opacity-100">{c.is_hidden ? 'visibility' : 'visibility_off'}</span>
                       {c.is_hidden ? (t("btn_show")) : (t("btn_hide_reply"))}
                     </button>
                   )}
                   {!c.is_hidden && userId && depth < 4 && (
-                    <button onClick={() => handleReplyTo(c)} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase theme-text-accent hover:scale-105 transition-all group px-3 py-1.5 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[var(--accent)]/[10%] hover:theme-border-accent shadow-sm">
+                    <button onClick={() => handleReplyTo(c)} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest capitalize theme-text-accent hover:scale-105 transition-all group px-3 py-1.5 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:theme-border-accent shadow-sm">
                       <span className="material-symbols-outlined !text-[14px]">{t("icon_reply")}</span>
                       {t("ui_btn_reply")}
                     </button>
                   )}
                   {userId && userId !== c.author_id && !isBanned && (
-                    <button onClick={() => setFlagTarget({ id: c.id, type: 'comment' })} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase theme-text-danger hover:scale-105 transition-all group px-3 py-1.5 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-red-500/[10%] hover:border-[var(--danger)] shadow-sm ml-2">
+                    <button onClick={() => setFlagTarget({ id: c.id, type: 'comment' })} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest capitalize theme-text-danger hover:scale-105 transition-all group px-3 py-1.5 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[var(--danger)] shadow-sm ml-2">
                       <span className="material-symbols-outlined !text-[14px]">{t("icon_flag")}</span>
                       {t("feed_btn_flag")}
                     </button>
@@ -452,7 +452,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                         subtitle={isBanned ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
                         className="group-hover/flagbtn:flex z-[1000]"
                       />
-                      <button disabled className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase theme-text-danger opacity-30 grayscale cursor-not-allowed group px-3 py-1.5 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm ml-2">
+                      <button disabled className="flex items-center gap-1.5 text-[10px] font-black tracking-widest capitalize theme-text-danger opacity-30 grayscale cursor-not-allowed group px-3 py-1.5 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm ml-2">
                         <span className="material-symbols-outlined !text-[14px]">{t("icon_flag")}</span>
                         {t("feed_btn_flag")}
                       </button>
@@ -481,12 +481,12 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           <div className="flex flex-col gap-2 mt-2">
             {visibleReplies.map((r: any) => renderCommentNode(r, depth + 1))}
             {hiddenRepliesCount > 0 && (
-              <button onClick={toggleRepliesExpand} className="text-[9px] font-black uppercase tracking-widest theme-text-accent self-start ml-6 mt-1 hover:underline flex items-center gap-2">
+              <button onClick={toggleRepliesExpand} className="text-[9px] font-black capitalize tracking-widest theme-text-accent self-start ml-6 mt-1 hover:underline flex items-center gap-2">
                 <span className="text-[12px]">↳</span> {t("feed_show_more_replies", { count: hiddenRepliesCount }) || `SHOW ${hiddenRepliesCount} MORE REPLIES`}
               </button>
             )}
             {isRepliesExpanded && allowedReplies.length > 1 && (
-              <button onClick={toggleRepliesExpand} className="text-[9px] font-black uppercase tracking-widest theme-text-accent self-start ml-6 mt-1 hover:underline flex items-center gap-2">
+              <button onClick={toggleRepliesExpand} className="text-[9px] font-black capitalize tracking-widest theme-text-accent self-start ml-6 mt-1 hover:underline flex items-center gap-2">
                 <span className="text-[12px]">↳</span> {t("show_less_replies")}
               </button>
             )}
@@ -503,7 +503,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
         onClose={onClose}
         title={
           post.mason_id === 'system' && post.category?.toLowerCase().includes('alert')
-            ? (t("defcon_alert_title") || "GLOBAL ALERT")
+            ? (t("defcon_alert_title"))
             : (post.category ? "DISPATCH" : "COMM-LINK")
         }
         icon={post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? "priority_high" : "forum"}
@@ -516,8 +516,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
         panelClass={`!border-l-[color-mix(in_srgb,var(--text)_15%,transparent)] ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'danger-accent-override' : ''}`}
         subtitle={
           post.mason_id === 'system' && post.category?.toLowerCase().includes('alert')
-            ? (t("alert_subtitle") || "Critical system override, warnings, and urgent advisories")
-            : (post.category ? (t("dispatch_subtitle") || "Official system updates, information, and event logs") : (t("transmission_subtitle") || "Direct communications and logs from Sanctuary Architects"))
+            ? (t("alert_subtitle"))
+            : (post.category ? (t("dispatch_subtitle")) : (t("transmission_subtitle")))
         }
       >
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
@@ -528,8 +528,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               <div className={`w-full h-64 sm:h-72 relative shrink-0 border-b border-[color-mix(in_srgb,var(--text)_15%,transparent)]`}>
                 {isSystem && (
                   <>
-                    {isAlert && <div className="absolute inset-0 bg-[var(--danger)]/20 z-0" />}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${isAlert ? 'from-[var(--danger)]/20' : 'from-[var(--accent)]/10'} to-transparent z-10 pointer-events-none`} />
+                    {isAlert && <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] z-0" />}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${isAlert ? 'from-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)]'} to-transparent z-10 pointer-events-none`} />
                   </>
                 )}
                 <img src={imageUrl} className={`w-full h-full object-cover object-center relative z-0 ${isSystem ? 'opacity-60 mix-blend-luminosity' : ''}`} alt={t("auto_post_cover")} />
@@ -538,7 +538,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
           })()}
           <div className="px-12 pb-12 pt-8 gap-0 flex flex-col flex-1 relative z-20">
             <div className="flex flex-col gap-4 mb-2">
-              <h1 className={`text-4xl font-black uppercase tracking-tighter drop-shadow-sm leading-tight ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)] drop-shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]' : 'text-[var(--text)]'}`}>
+              <h1 className={`text-4xl font-black capitalize tracking-tighter drop-shadow-sm leading-tight ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)] drop-shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]' : 'text-[var(--text)]'}`}>
                 {renderTextWithIcons(post.title)}
               </h1>
 
@@ -565,10 +565,10 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 <div className="flex flex-col z-20">
                   <div className="flex items-center gap-2">
                     <span 
-                      className="text-[13px] font-black uppercase tracking-widest text-[var(--text)] hover:theme-text-accent cursor-pointer transition-colors"
+                      className="text-[13px] font-black capitalize tracking-widest text-[var(--text)] hover:theme-text-accent cursor-pointer transition-colors"
                       onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}
                     >
-                      {post.mason_id === 'system' ? (post.masons?.name || t("author_sanctuary_team") || "Sanctuary OS Team") : (post.masons?.name || t("unknown_architect") || "Unknown Architect")}
+                      {post.mason_id === 'system' ? (post.masons?.name || t("author_sanctuary_team")) : (post.masons?.name || t("unknown_architect"))}
                     </span>
                     {post.mason_id === 'system' && (
                       <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]" title="Verified System Transmission">verified</span>
@@ -582,7 +582,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                     {post.category && (
                       <>
                         <span className="w-1 h-1 rounded-full bg-[var(--text)] opacity-30"></span>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)]' : 'theme-text-accent'}`}>
+                        <span className={`text-[10px] font-black capitalize tracking-widest ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)]' : 'theme-text-accent'}`}>
                           {post.category}
                         </span>
                       </>
@@ -604,14 +604,14 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
 
                 {post.code_snippet && (
                   <div className="mt-8 p-6 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden group">
-                    <div className="flex items-center justify-start">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center">
                           <span className="material-symbols-outlined text-[24px] theme-text-accent">{t("icon_data_object")}</span>
                         </div>
                         <div>
-                          <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{t("code_snippet")}</h4>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] mt-1">{t("code_desc")}</p>
+                          <h4 className="text-[12px] font-black capitalize tracking-[0.2em] text-[var(--text)]">{t("code_snippet")}</h4>
+                          <p className="text-[10px] font-bold capitalize tracking-widest text-[var(--subtext)] mt-1">{t("code_desc")}</p>
                         </div>
                       </div>
                       <ActionButton onClick={() => setActiveCodeSnippet(post.code_snippet)} variant="accent" icon="visibility" label={t("show_code")} />
@@ -622,7 +622,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
             </div>
 
             <div className="mt-8 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-10 flex flex-col gap-8">
-              <h3 className="text-2xl font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-4">
+              <h3 className="text-2xl font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-4">
                 <span className="material-symbols-outlined theme-text-accent text-[32px]">{t("icon_forum")}</span>
                 {t("ui.replies")}
               </h3>
@@ -630,9 +630,9 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               {userId && localStorage.getItem("sanctuary_blacklisted") !== "true" ? (
                 <form onSubmit={handlePostComment} className="flex flex-col gap-3 relative glass-surface p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl">
                   {replyTargetId && (
-                    <div className="flex items-center justify-start bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] rounded-xl p-4 mb-2 shadow-inner">
+                    <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl p-4 mb-2 shadow-inner">
                       <div className="flex flex-col gap-1 overflow-hidden">
-                        <span className="text-[9px] font-black tracking-widest uppercase theme-text-accent flex items-center gap-2">
+                        <span className="text-[9px] font-black tracking-widest capitalize theme-text-accent flex items-center gap-2">
                           <span className="material-symbols-outlined !text-[14px]">{t("icon_reply")}</span>
                           {t("replying_to")} @{replyTargetUsername}
                         </span>
@@ -662,32 +662,32 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                         className="w-full bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] py-4 pl-6 pr-4 text-[13px] font-mono text-[var(--text)] placeholder-[var(--subtext)] outline-none focus:theme-border-accent transition-all resize-none h-40 custom-scrollbar shadow-inner"
                         spellCheck={false}
                       />
-                      <div className="absolute top-4 right-4 text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-30 pointer-events-none">{t("code_snippet")}</div>
+                      <div className="absolute top-4 right-4 text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-30 pointer-events-none">{t("code_snippet")}</div>
                     </div>
                   )}
-                  <div className="flex items-center justify-start mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="flex items-center gap-3">
-                      <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center gap-2 px-6 py-3 rounded-[calc(var(--radius)-4px)] font-black uppercase tracking-widest text-[10px] transition-all border ${showCodeInput ? 'border-[var(--accent)]/[30%] bg-[var(--accent)]/[10%] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                      <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center gap-2 px-6 py-3 rounded-[calc(var(--radius)-4px)] font-black capitalize tracking-widest text-[10px] transition-all border ${showCodeInput ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                         <span className="material-symbols-outlined !text-[16px]">{showCodeInput ? 'close' : 'data_object'}</span> {showCodeInput ? "HIDE CODE PASTE" : (t("add_code"))}
                       </button>
-                      <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-[calc(var(--radius)-4px)] font-black uppercase tracking-widest text-[10px] transition-all border bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                      <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-[calc(var(--radius)-4px)] font-black capitalize tracking-widest text-[10px] transition-all border bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">link</span> {t("link_asset")}
                       </button>
                     </div>
-                    <ActionButton type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} variant="accent" icon={t("icon_send") || "send"} label={t("btn_send")} />
+                    <ActionButton type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} variant="accent" icon={t("icon_send")} label={t("btn_send")} />
                   </div>
                 </form>
               ) : (
-                <div className="text-center text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] p-6 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                <div className="text-center text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] p-6 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                   {localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("login_required")}
                 </div>
               )}
 
               <div className="flex flex-col gap-6 mt-4">
                 {loading ? (
-                  <div className="text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-50 text-center py-10 animate-pulse">{t("loading_replies")}</div>
+                  <div className="text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] opacity-50 text-center py-10 animate-pulse">{t("loading_replies")}</div>
                 ) : comments.filter(c => !c.is_hidden || isPostAuthor).length === 0 ? (
-                  <EmptyState icon={t("icon_forum") || "forum"} title={t("no_replies")} className="col-span-full py-16" />
+                  <EmptyState icon={t("icon_forum")} title={t("no_replies")} className="col-span-full py-16" />
                 ) : (
                   buildCommentTree(comments).map(c => renderCommentNode(c))
                 )}
@@ -696,7 +696,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
 
             <div className="mt-12 pt-8 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center w-full gap-8">
               <div className="flex items-center gap-4">
-                {post.mason_id !== 'system' && <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50">{t("creator_links")}</span>}
+                {post.mason_id !== 'system' && <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50">{t("creator_links")}</span>}
                 {post.mason_id !== 'system' && (
                   <ActionButton onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }} variant="glass" icon="person" label={t("btn_view_profile")} />
                 )}
@@ -738,7 +738,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                     onClick={onClose} 
                     variant="glass"
                     icon="close"
-                    label={t("btn_close") || "CLOSE"}
+                    label={t("btn_close")}
                   />
                 )}
               </div>
@@ -773,17 +773,17 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 value={assetSearchQuery}
                 onChange={(e) => setAssetSearchQuery(e.target.value)}
                 placeholder={t("search_assets")}
-                className="w-full glass-panel rounded-[var(--radius)] pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
+                className="w-full glass-panel rounded-[var(--radius)] pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40 shadow-inner"
                 autoFocus
               />
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported") || "image_not_supported"} title={t("no_assets")} className="col-span-full py-16" />}
+            {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported")} title={t("no_assets")} className="col-span-full py-16" />}
             {filteredAssets.map(asset => (
               <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-[var(--radius)] glass-surface hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
                 <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
-                <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
+                <span className="text-sm font-black text-[var(--text)] capitalize tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
               </button>
             ))}
           </div>

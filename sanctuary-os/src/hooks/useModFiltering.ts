@@ -72,10 +72,10 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
     const searchLower = searchQuery.toLowerCase();
     const activeCatUpper = activeCategory.toUpperCase();
     const activeSubUpper = activeSubType.toUpperCase();
-    const strStable = (t("status_dd_stable") || "stable").toLowerCase();
-    const strReview = (t("status_dd_review") || "review").toLowerCase();
-    const strUnverified = (t("unverified") || "unverified").toLowerCase();
-    const strLocal = (t("unlinked_badge") || "local").toLowerCase();
+    const strStable = (t("status_dd_stable")).toLowerCase();
+    const strReview = (t("status_dd_review")).toLowerCase();
+    const strUnverified = (t("unverified")).toLowerCase();
+    const strLocal = (t("unlinked_badge")).toLowerCase();
 
     const res = displayModList.reduce((acc: any[], mod: any) => {
       if (!mod) return acc;

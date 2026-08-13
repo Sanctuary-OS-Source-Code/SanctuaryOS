@@ -23,61 +23,61 @@ export function VaultHeader({
     <>
       <CommandScreenStats>
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined !text-4xl">{t("icon_inventory_2") || "inventory_2"}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_inventory_2")}</span>}
           number={modList.length}
-          label={t("title_artifacts") || "TOTAL ARTIFACTS"}
-          colorClass="border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[var(--text)] hover:border-[var(--text)] bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] cursor-pointer"
+          label={t("title_artifacts")}
+          colorClass="text-[var(--text)] cursor-pointer"
           onClick={() => { setViewMode("grid"); setEquipFilter("ALL"); setFilterStatus("ALL"); }}
         />
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined !text-4xl">{t("icon_check_circle") || "check_circle"}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_check_circle")}</span>}
           number={equippedDisplayMods.length}
-          label={t("filter_equipped") || "EQUIPPED"}
-          colorClass="border-emerald-500/[30%] text-[var(--success)] hover:border-[var(--success)] bg-emerald-500/[10%] hover:bg-emerald-500/[20%] cursor-pointer"
+          label={t("filter_equipped")}
+          colorClass="text-[var(--success)] cursor-pointer"
           onClick={() => { setViewMode("grid"); setEquipFilter("EQUIPPED"); setFilterStatus("ALL"); }}
         />
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined !text-4xl">{t("icon_help_outline") || "help_outline"}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_help_outline")}</span>}
           number={unverifiedCount}
-          label={t("unverified") || "UNVERIFIED"}
-          colorClass="border-orange-500/[30%] text-[var(--warning)] hover:border-[var(--warning)] bg-orange-500/[10%] hover:bg-orange-500/[20%] cursor-pointer"
+          label={t("unverified")}
+          colorClass="text-[var(--warning)] cursor-pointer"
           onClick={() => { setViewMode("grid"); setEquipFilter("ALL"); setFilterStatus("UNVERIFIED"); }}
         />
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined !text-4xl">{t("icon_account_tree") || "account_tree"}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_account_tree")}</span>}
           number={localFolderCount}
-          label={t("local_folders") || "LOCAL FOLDERS"}
-          colorClass="border-[color-mix(in_srgb,var(--purple)_30%,transparent)] text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer"
+          label={t("local_folders")}
+          colorClass="text-purple-500 cursor-pointer"
           onClick={() => setLocalFolderModal(true)}
         />
       </CommandScreenStats>
 
-      <CommandScreenSidebar title={t("quick_actions") || "QUICK ACTIONS"} icon="bolt">
+      <CommandScreenSidebar title={t("quick_actions")} icon="bolt">
         <div className="flex flex-col gap-4">
           <CommandScreenQuickLink
-            icon={t("icon_checklist") || "checklist"}
-            title={t("ui_btn_bulk") || "BULK ACTIONS"}
-            subtitle={t("ui_btn_bulk_desc") || "MASS SELECTION AND MANAGEMENT"}
+            icon={t("icon_checklist")}
+            title={t("ui_btn_bulk")}
+            subtitle={t("ui_btn_bulk_desc")}
             onClick={() => { setViewMode("grid"); setIsBulkMode(true); }}
             textColorClass="text-emerald-500"
             hoverTextColorClass="group-hover:text-emerald-400"
             iconShadowClass="drop-shadow-md text-emerald-500"
-            iconBorderHoverClass="group-hover:border-emerald-500/30"
+            iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]"
           />
           <CommandScreenQuickLink
-            icon={t("icon_account_tree") || "account_tree"}
-            title={t("ui_btn_edit_folder") || "CONFIGURE FOLDERS"}
-            subtitle={t("ui_btn_edit_folder_desc") || "MANAGE VIRTUAL DIRECTORIES"}
+            icon={t("icon_account_tree")}
+            title={t("ui_btn_edit_folder")}
+            subtitle={t("ui_btn_edit_folder_desc")}
             onClick={() => setLocalFolderModal(true)}
             textColorClass="text-purple-500"
             hoverTextColorClass="group-hover:text-purple-400"
             iconShadowClass="drop-shadow-md text-purple-500"
-            iconBorderHoverClass="group-hover:border-purple-500/30"
+            iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
           />
           <CommandScreenQuickLink
-            icon={t("icon_delete_sweep") || "delete_sweep"}
-            title={t("btn_purge_archives") || "PURGE ARCHIVES"}
-            subtitle={t("purge_archives_desc") || "CLEAN UP OUTDATED ARTIFACTS"}
+            icon={t("icon_delete_sweep")}
+            title={t("btn_purge_archives")}
+            subtitle={t("purge_archives_desc")}
             onClick={() => {
               const allFilesToPurge = new Map<string, string>();
 
@@ -120,17 +120,17 @@ export function VaultHeader({
             textColorClass="text-rose-500"
             hoverTextColorClass="group-hover:text-rose-400"
             iconShadowClass="drop-shadow-md text-rose-500"
-            iconBorderHoverClass="group-hover:border-rose-500/30"
+            iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
           />
           <CommandScreenQuickLink
-            icon={t("icon_auto_awesome") || "auto_awesome"}
-            title={t("tab_nexus") || "EXPLORE NEXUS"}
-            subtitle={t("hub_title_market") || "DISCOVER NEW ARTIFACTS"}
+            icon={t("icon_auto_awesome")}
+            title={t("tab_nexus")}
+            subtitle={t("hub_title_market")}
             onClick={() => useStore.getState().setView("nexus")}
             textColorClass="text-amber-500"
             hoverTextColorClass="group-hover:text-amber-400"
             iconShadowClass="drop-shadow-md text-amber-500"
-            iconBorderHoverClass="group-hover:border-amber-500/30"
+            iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
           />
         </div>
       </CommandScreenSidebar>

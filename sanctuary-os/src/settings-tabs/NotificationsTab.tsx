@@ -6,7 +6,7 @@ import { ActionButton } from '../shared';
 import { SidePanel } from '../shared';
 import { supabase } from '../supabase';
 
-const standardButtonClass = "px-6 py-3 rounded-2xl glass-surface text-[var(--text)] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
+const standardButtonClass = "px-6 py-3 rounded-2xl glass-surface text-[var(--text)] text-[10px] font-black capitalize tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
 
 export default function NotificationsTab() {
   const { t } = useLexicon();
@@ -89,7 +89,7 @@ export default function NotificationsTab() {
         actions={
           <ActionButton 
             variant="glass"
-            icon={t("icon_notifications") || "notifications"}
+            icon={t("icon_notifications")}
             label={t("notif_per_mason")}
             onClick={() => setShowMasonPanel(true)}
           />
@@ -97,42 +97,42 @@ export default function NotificationsTab() {
       >
         <SettingsGrid>
           <UniversalCard 
-            title={t("ui.replies") || "Replies"} 
+            title={t("ui.replies")} 
             subtitle={t("notify_replies_desc")} 
             icon="chat_bubble"
             onClick={toggleNotifyReplies}
             actions={<SettingsToggle checked={notifyReplies} />}
           />
           <UniversalCard 
-            title={t("btn_new_posts") || "New Posts"} 
+            title={t("btn_new_posts")} 
             subtitle={t("notify_new_posts_desc")} 
             icon="post_add"
             onClick={toggleNotifyNewPosts}
             actions={<SettingsToggle checked={notifyNewPosts} />}
           />
           <UniversalCard 
-            title={t("notify_system_dispatch") || "System Dispatch"} 
+            title={t("notify_system_dispatch")} 
             subtitle={t("notify_system_dispatch_desc")} 
             icon="admin_panel_settings"
             onClick={toggleNotifySystemDispatch}
             actions={<SettingsToggle checked={notifySystemDispatch} />}
           />
           <UniversalCard 
-            title={t("notify_alert_banner") || "Alert Banners"} 
+            title={t("notify_alert_banner")} 
             subtitle={t("notify_alert_banner_desc")} 
             icon="warning"
             onClick={toggleNotifyAlertBanner}
             actions={<SettingsToggle checked={notifyAlertBanner} />}
           />
           <UniversalCard 
-            title={t("notify_support") || "Support Replies"} 
+            title={t("notify_support")} 
             subtitle={t("notify_support_desc")} 
             icon="contact_support"
             onClick={toggleNotifySupport}
             actions={<SettingsToggle checked={notifySupport} />}
           />
           <UniversalCard 
-            title={t("notify_author_only") || "Author Only"} 
+            title={t("notify_author_only")} 
             subtitle={t("notify_author_only_desc")} 
             icon="person"
             onClick={toggleNotifyAuthorOnly}
@@ -150,7 +150,7 @@ export default function NotificationsTab() {
         iconColorClass="theme-text-accent"
       >
         <div className="flex flex-col space-y-4 relative z-10 w-full h-full p-4 overflow-y-auto accent-scrollbar">
-          {followedMasons.length === 0 && <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 text-center mt-12 p-8 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)]">{t("settings_no_masons")}</div>}
+          {followedMasons.length === 0 && <div className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 text-center mt-12 p-8 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)]">{t("settings_no_masons")}</div>}
           <SettingsGrid>
             {followedMasons.map(m => (
               <UniversalCard 

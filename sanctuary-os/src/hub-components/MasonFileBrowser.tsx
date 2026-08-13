@@ -33,7 +33,7 @@ export default function MasonFileBrowser({
    });
 
    if (filteredFiles.length === 0) {
-      return <EmptyState icon={t("icon_folder_off") || "folder_off"} title={t("tools_ide")} className="col-span-full py-16" />;
+      return <EmptyState icon={t("icon_folder_off")} title={t("tools_ide")} className="col-span-full py-16" />;
    }
 
    return (
@@ -45,17 +45,17 @@ export default function MasonFileBrowser({
                <div key={file.path} className="group relative break-inside-avoid">
                   <div
                      onClick={() => !renamingFile && openFile(file)}
-                     className={`w-full text-left p-6 rounded-[var(--radius)] glass-panel bg-[color-mix(in_srgb,var(--text)_2%,transparent)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative group-hover:bg-[var(--accent)]/[5%] cursor-pointer ${openFiles.find((o: any) => o.path === file.path && o.content !== o.originalContent) ? 'border border-amber-500/30 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-500/50 backdrop-blur-xl shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-border-accent shadow-lg'}`}
+                     className={`w-full text-left p-6 rounded-[var(--radius)] glass-panel bg-[color-mix(in_srgb,var(--text)_2%,transparent)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] cursor-pointer ${openFiles.find((o: any) => o.path === file.path && o.content !== o.originalContent) ? 'border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] backdrop-blur-xl shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-border-accent shadow-lg'}`}
                   >
-                     <div className="absolute inset-0 rounded-[var(--radius)] bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                     <div className="absolute inset-0 rounded-[var(--radius)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                      {openFiles.find((o: any) => o.path === file.path && o.content !== o.originalContent) && (
-                        <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/20 border border-[var(--warning)]/40 px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
+                        <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black capitalize tracking-widest text-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
                            <span className="material-symbols-outlined !text-[12px]">{t("icon_warning")}</span>
                            {t("unsaved_changes")}
                         </div>
                      )}
 
-                     <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner group-hover:border-[var(--accent)]/50 transition-colors relative z-10">
+                     <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner group-hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors relative z-10">
                         <span className="material-symbols-outlined !text-2xl text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors">{isLexicon ? "translate" : (isTmpl ? "data_object" : "description")}</span>
                      </div>
 
@@ -77,7 +77,7 @@ export default function MasonFileBrowser({
                                  type="text"
                                  value={renameExt}
                                  onChange={(e) => setRenameExt(e.target.value)}
-                                 className="h-6 w-16 px-2 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)] text-[var(--subtext)] focus:outline-none transition-all placeholder:text-[var(--subtext)]/50 shadow-inner"
+                                 className="h-6 w-16 px-2 rounded-lg text-[10px] font-bold capitalize tracking-widest bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)] text-[var(--subtext)] focus:outline-none transition-all placeholder:text-[color-mix(in_srgb,var(--subtext)_50%,transparent)] shadow-inner"
                                  onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleRenameSubmit(file.path, file.name);
                                     if (e.key === 'Escape') setRenamingFile(null);
@@ -85,18 +85,18 @@ export default function MasonFileBrowser({
                               />
                            </div>
                            <div className="flex flex-col gap-1 shrink-0">
-                              <button onClick={() => handleRenameSubmit(file.path, file.name)} className="shrink-0 w-8 h-8 rounded-xl border border-emerald-500/[30%] text-[var(--success)] bg-emerald-500/[10%] hover:bg-emerald-500/[20%] hover:border-emerald-500/[50%] flex items-center justify-center transition-all shadow-md hover:scale-110 active:scale-95">
-                                 <span className="material-symbols-outlined !text-sm">{t("icon_check") || "check"}</span>
+                              <button onClick={() => handleRenameSubmit(file.path, file.name)} className="shrink-0 w-8 h-8 rounded-xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] flex items-center justify-center transition-all shadow-md hover:scale-110 active:scale-95">
+                                 <span className="material-symbols-outlined !text-sm">{t("icon_check")}</span>
                               </button>
-                              <button onClick={() => setRenamingFile(null)} className="shrink-0 w-8 h-8 rounded-xl border border-red-500/[30%] text-[var(--danger)] bg-red-500/[10%] hover:bg-red-500/[20%] hover:border-red-500/[50%] flex items-center justify-center transition-all shadow-md hover:scale-110 active:scale-95">
-                                 <span className="material-symbols-outlined !text-sm">{t("icon_close") || "close"}</span>
+                              <button onClick={() => setRenamingFile(null)} className="shrink-0 w-8 h-8 rounded-xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] flex items-center justify-center transition-all shadow-md hover:scale-110 active:scale-95">
+                                 <span className="material-symbols-outlined !text-sm">{t("icon_close")}</span>
                               </button>
                            </div>
                         </div>
                      ) : (
                         <div className="flex flex-col gap-1 z-10 pr-10 text-left">
                            <span className="text-sm font-black text-[var(--text)] tracking-wider truncate block">{file.name.lastIndexOf('.') > 0 ? file.name.substring(0, file.name.lastIndexOf('.')) : file.name}</span>
-                           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60 block">{isLexicon ? "Lexicon Pack" : (file.name.lastIndexOf('.') > 0 ? file.name.substring(file.name.lastIndexOf('.')) : (isTmpl ? "JSON File" : "Source File"))}</span>
+                           <span className="text-[10px] font-bold capitalize tracking-widest text-[var(--subtext)] opacity-60 block">{isLexicon ? "Lexicon Pack" : (file.name.lastIndexOf('.') > 0 ? file.name.substring(file.name.lastIndexOf('.')) : (isTmpl ? "JSON File" : "Source File"))}</span>
                         </div>
                      )}
 
@@ -104,11 +104,11 @@ export default function MasonFileBrowser({
                         <div onClick={(e) => e.stopPropagation()} className="absolute bottom-6 right-6 flex items-center gap-2 z-20">
                            {deleteConfirmPath === file.path ? (
                               <>
-                                 <button onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.path); setDeleteConfirmPath(null); }} className="w-8 h-8 rounded-xl border border-[var(--danger)]/50 text-[var(--danger)] bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 hover:border-[var(--danger)]/80 backdrop-blur-[3px] flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-[0_4px_12px_rgba(244,63,94,0.15)]">
-                                    <span className="material-symbols-outlined !text-sm drop-shadow-md">{t("icon_check") || "check"}</span>
+                                 <button onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.path); setDeleteConfirmPath(null); }} className="w-8 h-8 rounded-xl border border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_80%,transparent)] backdrop-blur-[3px] flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-[0_4px_12px_rgba(244,63,94,0.15)]">
+                                    <span className="material-symbols-outlined !text-sm drop-shadow-md">{t("icon_check")}</span>
                                  </button>
                                  <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmPath(null); }} className="w-8 h-8 rounded-xl border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-[3px] flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg">
-                                    <span className="material-symbols-outlined !text-sm">{t("icon_close") || "close"}</span>
+                                    <span className="material-symbols-outlined !text-sm">{t("icon_close")}</span>
                                  </button>
                               </>
                            ) : (
@@ -119,13 +119,13 @@ export default function MasonFileBrowser({
                                           onClick={(e) => { e.stopPropagation(); setRenamingFile(file.path); const d = file.name.lastIndexOf('.'); setRenameInput(d > 0 ? file.name.substring(0, d) : file.name); setRenameExt(d > 0 ? file.name.substring(d) : ''); }}
                                           className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-[var(--text)] transition-all hover:scale-110 active:scale-95 shadow-lg"
                                        >
-                                          <span className="material-symbols-outlined !text-sm">{t("icon_edit") || "edit"}</span>
+                                          <span className="material-symbols-outlined !text-sm">{t("icon_edit")}</span>
                                        </button>
                                        <button
                                           onClick={(e) => { e.stopPropagation(); setDeleteConfirmPath(file.path); }}
-                                          className="w-8 h-8 rounded-xl bg-red-500/[10%] border border-red-500/[30%] flex items-center justify-center text-[var(--danger)] hover:bg-red-500/[20%] hover:border-red-500/[50%] transition-all hover:scale-110 active:scale-95 shadow-lg"
+                                          className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all hover:scale-110 active:scale-95 shadow-lg"
                                        >
-                                          <span className="material-symbols-outlined !text-sm">{t("icon_delete") || "delete"}</span>
+                                          <span className="material-symbols-outlined !text-sm">{t("icon_delete")}</span>
                                        </button>
                                     </>
                                  )}

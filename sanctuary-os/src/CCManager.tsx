@@ -41,12 +41,12 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
         shape="circle"
       >
         <div className="flex flex-col items-end">
-          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("cc_deployed")}</span>
+          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("cc_deployed")}</span>
           <span className="text-2xl font-black theme-text-accent">{equippedCount} / {filteredCC.length}</span>
         </div>
       </ViewHeader>
 
-      <div className="flex flex-col md:flex-row justify-start items-center gap-4 bg-black/40 backdrop-blur-[3px] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-[var(--radius)] shadow-inner shrink-0">
+      <div className="flex flex-col md:flex-row justify-start items-center gap-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-[var(--radius)] shadow-inner shrink-0">
 
         <div className="flex items-center gap-3 glass-panel px-4 py-2 rounded-xl w-full md:w-96">
           <span className="theme-text-accent">{t("_")}</span>
@@ -55,7 +55,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
             placeholder={t("cc_search")}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="bg-transparent border-none outline-none text-[var(--text)] text-sm font-bold w-full placeholder:text-[var(--text)]/20"
+            className="bg-transparent border-none outline-none text-[var(--text)] text-sm font-bold w-full placeholder:text-[color-mix(in_srgb,var(--text)_20%,transparent)]"
           />
         </div>
 
@@ -67,7 +67,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
               <button
                 key={f}
                 onClick={() => setActiveFilter(f)}
-                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                className={`px-6 py-2 rounded-xl text-[10px] font-black capitalize tracking-widest transition-all
                   ${activeFilter === f
                     ? 'theme-bg-accent text-[var(--bg)] shadow-lg'
                     : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
@@ -83,7 +83,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
         {filteredCC.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full opacity-50">
             <span className="text-6xl mb-4 grayscale">{t("_")}</span>
-            <span className="text-sm font-black text-[var(--text)] uppercase tracking-[0.3em]">{t("no_assets")}</span>
+            <span className="text-sm font-black text-[var(--text)] capitalize tracking-[0.3em]">{t("no_assets")}</span>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-4">
@@ -93,7 +93,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
                 <div
                   key={mod.hash || mod.name}
                   onClick={() => toggleInActiveSet(mod.name)}
-                  className={`relative group cursor-pointer rounded-2xl overflow-hidden border transition-all duration-300 aspect-[3/4] flex flex-col bg-black/40
+                  className={`relative group cursor-pointer rounded-2xl overflow-hidden border transition-all duration-300 aspect-[3/4] flex flex-col bg-[color-mix(in_srgb,var(--text)_5%,transparent)]
                     ${isEquipped
                       ? 'theme-border-accent shadow-lg scale-[1.02]'
                       : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] opacity-70 hover:opacity-100'}`}
@@ -116,8 +116,8 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
                   </div>
 
                   <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-col">
-                    <span className="text-[10px] theme-text-accent font-black uppercase tracking-widest mb-0.5 truncate drop-shadow-md">
-                      {mod.author || t("vlocal") || "UNKNOWN"}
+                    <span className="text-[10px] theme-text-accent font-black capitalize tracking-widest mb-0.5 truncate drop-shadow-md">
+                      {mod.author || t("vlocal")}
                     </span>
                     <span className="text-xs text-[var(--text)] font-bold truncate drop-shadow-md leading-tight">
                       {mod.displayName || mod.name.replace(getExtensionRegex(useStore.getState().activeGameSchema), '')}

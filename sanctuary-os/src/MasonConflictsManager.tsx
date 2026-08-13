@@ -163,16 +163,16 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
       >
           <>
             <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex">
-              <button onClick={() => setTierFilter(null)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === null ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ql_all")}</button>
+              <button onClick={() => setTierFilter(null)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${tierFilter === null ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ql_all")}</button>
               {[4, 3].map(tLevel => (
-                <button key={tLevel} onClick={() => setTierFilter(tLevel)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${tierFilter === tLevel ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <button key={tLevel} onClick={() => setTierFilter(tLevel)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${tierFilter === tLevel ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                   {t("ui_icon_logo")}{tLevel}
                 </button>
               ))}
             </div>
             <ActionButton
               onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }}
-              className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]"
+              className="h-12 px-6 shrink-0 font-black capitalize tracking-widest text-[10px]"
               icon={t("icon_add")}
               label={t("auto_create")}
             />
@@ -182,9 +182,9 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 mt-6 pb-24">
           {loading ? (
-            <div className="col-span-full py-12 flex items-center justify-center theme-text-accent font-black tracking-widest text-xs uppercase animate-pulse">{t("hub_loading")}</div>
+            <div className="col-span-full py-12 flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("hub_loading")}</div>
           ) : filteredGhosts.length === 0 ? (
-             <EmptyState icon={t("icon_swords") || "security"} title={t("masonhub_no_conflicts")} className="col-span-full py-16" />
+             <EmptyState icon={t("icon_swords")} title={t("masonhub_no_conflicts")} className="col-span-full py-16" />
           ) : (
             filteredGhosts.map(c => {
               const nameA = c.mod_a?.name || c.mod_a || "UNKNOWN";
@@ -205,15 +205,15 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                     <div className="flex justify-start items-start z-10 relative">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">{isPending ? "hourglass_empty" : "gavel"}</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest opacity-80 text-[var(--subtext)]">{isPending ? t("pending") : t("active_network_directives")}</span>
+                        <span className="text-[10px] font-black capitalize tracking-widest opacity-80 text-[var(--subtext)]">{isPending ? t("pending") : t("active_network_directives")}</span>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm border ${c.severity_rank == 4 ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20'}`}>{t("ui_icon_logo")}{c.severity_rank}</span>
+                      <span className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest backdrop-blur-md shadow-sm border ${c.severity_rank == 4 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]'}`}>{t("ui_icon_logo")}{c.severity_rank}</span>
                     </div>
 
                     {/* A vs B Section */}
                     <div className="flex flex-col gap-2 relative z-10 w-full mt-2">
                       <div className="p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                        <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
+                        <span className={`text-[9px] font-black capitalize tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
                           <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("items")}
                         </span>
                         <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{nameA}</span>
@@ -221,13 +221,13 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
 
                       <div className="relative h-px w-full flex items-center justify-center z-20 my-1">
                         <div className="w-6 h-6 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md flex items-center justify-center bg-[var(--bg)] absolute">
-                          <span className="text-[7px] font-black text-[var(--subtext)] italic uppercase opacity-70">{t("vs")}</span>
+                          <span className="text-[7px] font-black text-[var(--subtext)] italic capitalize opacity-70">{t("vs")}</span>
                         </div>
                         <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
                       </div>
 
                       <div className="p-3 rounded-xl border shadow-inner flex flex-col relative transition-colors duration-500 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                        <span className={`text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
+                        <span className={`text-[9px] font-black capitalize tracking-widest mb-1 flex items-center gap-1.5 opacity-80 ${tierColor}`}>
                           <span className="material-symbols-outlined !text-[12px]">{t("icon_inventory_2")}</span> {t("items")}
                         </span>
                         <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{nameB}</span>
@@ -235,11 +235,11 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                     </div>
 
                     <div className="mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-start items-center w-full relative z-10">
-                      <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
+                      <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
                         <span className="material-symbols-outlined !text-[12px] normal-case">{t("icon_calendar_today")}</span>
                         {new Date(c.created_at).toLocaleDateString()}
                       </span>
-                      <span className="text-[9px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
+                      <span className="text-[9px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
                         {t("btn_review")} <span className="text-lg leading-none">&rarr;</span>
                       </span>
                     </div>
@@ -262,17 +262,17 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
             footer={
               <div className="flex flex-col gap-4 w-full">
                 {deleteConfirmId === editConflictId && editConflictId ? (
-                   <div className="flex flex-col gap-4 p-5 bg-[var(--danger)]/10 rounded-2xl border border-[var(--danger)]/30 backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
-                     <span className="text-sm font-black text-[var(--danger)] uppercase tracking-widest text-center">{t("ui_confirm_delete")}</span>
+                   <div className="flex flex-col gap-4 p-5 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
+                     <span className="text-sm font-black text-[var(--danger)] capitalize tracking-widest text-center">{t("ui_confirm_delete")}</span>
                      <input 
                          type="text" 
                          value={deleteReason} 
                          onChange={e => setDeleteReason(e.target.value)} 
                          placeholder={t("matrix_delete_reason_ph")}
-                         className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[var(--danger)]/50 transition-all text-[var(--text)] border border-[var(--danger)]/30 placeholder:opacity-40"
+                         className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] placeholder:opacity-40"
                      />
                      <div className="flex gap-3">
-                       <ActionButton type="button" disabled={!deleteReason.trim()} onClick={() => handleDeleteConflict(editConflictId)} label={t("purge")} className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]"></ActionButton>
+                       <ActionButton type="button" disabled={!deleteReason.trim()} onClick={() => handleDeleteConflict(editConflictId)} label={t("purge")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"></ActionButton>
                        <ActionButton type="button" onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }} label={t("nav_cancel")}></ActionButton>
                      </div>
                    </div>
@@ -305,7 +305,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                 <form onSubmit={handleAddConflict} className="flex flex-col gap-8 relative z-10">
                   <div className="flex flex-col gap-6">
                     {editingGhost && (
-                       <div className="flex flex-col gap-2 relative z-10 w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-4">
+                       <div className="flex flex-col gap-2 relative z-10 w-full text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] mb-4">
                           <div className="flex justify-start items-center">
                              <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">calendar_today</span>{t("date_created")}</span>
                              <span className="text-[var(--text)] drop-shadow-md">{new Date(editingGhost.created_at).toLocaleDateString()}</span>
@@ -318,7 +318,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                     )}
                     
                 <div className="flex flex-col gap-2 w-full">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
                     {t("items")}
                   </label>
                   <ModSearchDropdown placeholder={t("registry_select_master")} modList={myMods} selectedItem={activeMaster} onSelect={(m: any) => setActiveMaster(m)} onClear={() => setActiveMaster(null)} />
@@ -327,12 +327,12 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                 <div className="relative h-6 w-full flex items-center justify-center z-20 my-2">
                   <div className="absolute left-6 right-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] z-10 pointer-events-none" />
                   <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm relative z-20 text-[var(--subtext)]">
-                    <span className="text-[8px] font-black italic uppercase drop-shadow-md">{t("vs")}</span>
+                    <span className="text-[8px] font-black italic capitalize drop-shadow-md">{t("vs")}</span>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2 w-full">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
                     {t("conflicting_mod")}
                   </label>
                   <ModSearchDropdown placeholder={t("enemy_placeholder")} modList={cloudMods} selectedItem={conflictEnemy} onSelect={(m: any) => setConflictEnemy(m)} onClear={() => setConflictEnemy(null)} />
@@ -340,7 +340,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
               </div>
               
               <div className="flex flex-col gap-2 w-full mt-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
                   {t("label_severity")}
                 </label>
                 <div className="relative z-50">
@@ -349,7 +349,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
               </div>
 
               <div className="flex flex-col gap-2 w-full mt-2 mb-8">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
                   {t("label_notes")}
                 </label>
                 <textarea value={conflictResolution} onChange={(e) => setConflictResolution(e.target.value)} placeholder={t("resolution_placeholder")} className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-border-accent resize-none custom-scrollbar shadow-inner relative z-10 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]" />
@@ -371,8 +371,8 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
   const containerRef = useRef<HTMLDivElement>(null);
 
   const options = [
-    { id: 4, label: t("tier4"), color: 'theme-text-danger', glow: 'theme-bg-danger', activeBg: 'bg-red-500/10' },
-    { id: 3, label: t("tier3"), color: 'theme-text-warning', glow: 'theme-bg-warning', activeBg: 'bg-amber-500/10' },
+    { id: 4, label: t("tier4"), color: 'theme-text-danger', glow: 'theme-bg-danger', activeBg: 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' },
+    { id: 3, label: t("tier3"), color: 'theme-text-warning', glow: 'theme-bg-warning', activeBg: 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]' },
   ];
 
   const selected = options.find(o => o.id === value) || options[0];
@@ -382,7 +382,7 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-12 glass-surface rounded-xl px-5 text-[11px] font-black uppercase tracking-widest focus:outline-none flex justify-start items-center transition-all ${selected.color}`}
+        className={`w-full h-12 glass-surface rounded-xl px-5 text-[11px] font-black capitalize tracking-widest focus:outline-none flex justify-start items-center transition-all ${selected.color}`}
       >
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${selected.glow}`} />
@@ -415,7 +415,7 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
                     className={`w-full text-left px-5 py-4 transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center gap-3 ${value === opt.id ? opt.activeBg + ' ' + opt.color : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-70 hover:opacity-100'}`}
                   >
                     <div className={`w-2 h-2 rounded-full ${opt.glow} ${value === opt.id ? 'animate-pulse' : ''}`} />
-                    <span className="text-[11px] font-black uppercase tracking-widest">{opt.label}</span>
+                    <span className="text-[11px] font-black capitalize tracking-widest">{opt.label}</span>
                   </button>
                 ))}
               </div>

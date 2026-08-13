@@ -270,7 +270,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       title={t("comp_manual_title")}
       subtitle={t("comp_manual_subtitle")}
       icon={t("icon_flag")}
-      iconColorClass={isMalwareOnly ? "text-[var(--danger)] border-[var(--danger)]/30" : "text-[var(--accent)] border-[var(--accent)]/30"}
+      iconColorClass={isMalwareOnly ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" : "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"}
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
             <ActionButton onClick={onClose} label={t("nav_cancel")}>
@@ -294,7 +294,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               label={t("auto_global_registry")} 
               activeTab={activeTab} 
               setTab={setActiveTab} 
-              className={activeTab === 'registry' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : ''}
+              className={activeTab === 'registry' ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)]' : ''}
             />
             <FilterTabButton 
               id="heuristic" 
@@ -302,7 +302,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               label={t("heuristics_tab")} 
               activeTab={activeTab} 
               setTab={setActiveTab} 
-              className={activeTab === 'heuristic' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : ''}
+              className={activeTab === 'heuristic' ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)]' : ''}
             />
           </FilterTabs>
         )}
@@ -319,7 +319,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
             headerColorClass={isMalwareOnly ? "text-[var(--danger)]" : "theme-text-accent"} 
           >
             <div className="flex flex-col gap-2 relative z-[60]">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("comp_manual_search_label")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("comp_manual_search_label")}</label>
               <div className="relative">
                 <input 
                   ref={inputRef}
@@ -327,11 +327,11 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                   onChange={e => setManualSearchQuery(e.target.value)} 
                   readOnly={!!manualSelectedMod}
                   onFocus={() => { if (!manualSelectedMod) setIsDropdownOpen(true); }}
-                  className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40" 
+                  className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40" 
                   placeholder={t("comp_manual_search_placeholder")} 
                 />
                 {manualSelectedMod && (
-                  <button onClick={() => { setManualSelectedMod(null); setManualSearchQuery(""); inputRef.current?.focus(); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] font-black text-[10px] bg-red-500/10 px-2 py-1 rounded-md">{t("_")} {t("clear")}</button>
+                  <button onClick={() => { setManualSelectedMod(null); setManualSearchQuery(""); inputRef.current?.focus(); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] font-black text-[10px] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-2 py-1 rounded-md">{t("_")} {t("clear")}</button>
                 )}
               </div>
 
@@ -345,8 +345,8 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                   }}>
                     {manualSearchResults.map(m => (
                       <button key={m.id} onClick={() => { setManualSelectedMod(m); setIsDropdownOpen(false); }} className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col group transition-all">
-                        <span className="text-[11px] font-black uppercase text-[var(--text)] group-hover:theme-text-accent truncate">{m.name}</span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">{m.master_author || t("vlocal") || "Unknown"}</span>
+                        <span className="text-[11px] font-black capitalize text-[var(--text)] group-hover:theme-text-accent truncate">{m.name}</span>
+                        <span className="text-[9px] font-bold capitalize tracking-widest opacity-60">{m.master_author || t("vlocal")}</span>
                       </button>
                     ))}
                   </div>
@@ -357,7 +357,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
 
             {!isMalwareOnly && (
               <div className="flex flex-col gap-2 relative z-40 mt-4">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("Vault_stat_tier")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("Vault_stat_tier")}</label>
                 <CustomComplianceDropdown value={manualTier} onChange={setManualTier} includeTier3={false} />
               </div>
             )}
@@ -388,7 +388,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
 
               <div className="flex flex-col gap-4 z-[90] relative">
                 <div className="flex flex-col gap-2 relative">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("comp_match_type")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("comp_match_type")}</label>
                   <CustomDropdown
                     value={matchType}
                     options={[
@@ -421,7 +421,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                 />
                 
                 {editingId && (
-                  <button onClick={resetHeuristicForm} className="ml-auto text-[10px] font-black uppercase text-[var(--subtext)] hover:text-white px-3 py-1 rounded-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
+                  <button onClick={resetHeuristicForm} className="ml-auto text-[10px] font-black capitalize text-[var(--subtext)] hover:text-white px-3 py-1 rounded-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
                     {t("nav_cancel")}
                   </button>
                 )}

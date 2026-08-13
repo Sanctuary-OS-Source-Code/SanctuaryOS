@@ -49,7 +49,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
       <UniversalCard key={dir.rustKey} title={dir.label} subtitle={obfuscatePath(dir.value)} icon="folder" onClick={() => pickPath(dir.rustKey, dir.label)}>
         <ActionButton 
           variant="accent" 
-          icon={t("icon_sync") || "sync"} 
+          icon={t("icon_sync")} 
           label={t("btn_calibrate")} 
           className="w-full pointer-events-none mt-2" 
         />
@@ -66,7 +66,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
             {session?.user?.id && (
               <UniversalCard 
                 title={t("auth_user_id")} 
-                subtitle={t("auth_user_id_desc") || "Your unique Sanctuary identifier"} 
+                subtitle={t("auth_user_id_desc")} 
                 icon="badge" 
                 onClick={() => setActivePanel('system_id')} 
               />
@@ -89,7 +89,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
         </TabContainer>
 
         <TabContainer
-          title={t("vault_path") || "MASTER VAULT LOCATION"}
+          title={t("vault_path")}
           icon="account_balance"
         >
           <SettingsGrid>
@@ -103,7 +103,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
           actions={
             <ActionButton 
               variant="accent" 
-              icon={t("icon_troubleshoot") || "troubleshoot"} 
+              icon={t("icon_troubleshoot")} 
               label={t("auto_detect")} 
               onClick={async () => {
                 try {
@@ -133,8 +133,8 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
         icon="mail"
       >
         <div className="flex flex-col gap-6 p-6 h-full relative z-10">
-          <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest leading-relaxed">
-            {t("auth_email_update_desc") || "Update the email address associated with your Sanctuary account. A confirmation link will be sent to both your old and new email addresses."}
+          <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest leading-relaxed">
+            {t("auth_email_update_desc")}
           </p>
           <form onSubmit={(e) => { e.preventDefault(); updateAuth('email'); }} className="flex flex-col gap-4 mt-auto">
             <input
@@ -143,7 +143,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               onChange={e => setEmailInput(e.target.value)}
               placeholder={session?.user?.email || ""}
               autoFocus
-              className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-black/40 transition-all shadow-inner"
+              className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black capitalize tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shadow-inner"
             />
             <ActionButton
               type="submit"
@@ -163,8 +163,8 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
         icon="key"
       >
         <div className="flex flex-col gap-6 p-6 h-full relative z-10">
-          <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest leading-relaxed">
-            {t("auth_password_update_desc") || "Update your Sanctuary account password. For security, you may be required to re-authenticate."}
+          <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest leading-relaxed">
+            {t("auth_password_update_desc")}
           </p>
           <form onSubmit={(e) => { e.preventDefault(); updateAuth('password'); }} className="flex flex-col gap-4 mt-auto">
             <input
@@ -173,7 +173,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               onChange={e => setPasswordInput(e.target.value)}
               placeholder={t("auto_")}
               autoFocus
-              className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-black/40 transition-all shadow-inner"
+              className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black capitalize tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shadow-inner"
             />
             <ActionButton
               type="submit"
@@ -192,24 +192,24 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
         icon="badge"
       >
         <div className="flex flex-col gap-6 p-6 h-full relative z-10">
-          <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest leading-relaxed">
-            {t("auth_user_id_desc") || "Your unique Sanctuary identifier"}
+          <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest leading-relaxed">
+            {t("auth_user_id_desc")}
           </p>
           <div className="flex flex-col gap-4 mt-auto">
             <input
               type="text"
               readOnly
               value={session?.user?.id || ""}
-              className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-black/40 transition-all shadow-inner select-all"
+              className="w-full glass-surface rounded-xl px-5 py-4 text-[12px] font-black capitalize tracking-widest text-[var(--text)] outline-none focus:theme-border-accent focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shadow-inner select-all"
             />
             <ActionButton
               onClick={() => {
                 navigator.clipboard.writeText(session?.user?.id || "");
-                useStore.getState().pushStatus(t("auto_copied_to_clipboard_45") || "Copied to clipboard", 'success');
+                useStore.getState().pushStatus(t("auto_copied_to_clipboard_45"), 'success');
               }}
               variant="accent"
               icon="content_copy"
-              label={t("btn_copy") || "Copy ID"}
+              label={t("btn_copy")}
             />
           </div>
         </div>

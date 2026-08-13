@@ -70,12 +70,12 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
         icon={hasActiveAlert ? "priority_high" : "warning_off"}
         widthClass="w-[1000px]"
         panelClass={hasActiveAlert ? "danger-accent-override" : undefined}
-        title={t("title_sanctuary_alerts") || "Sanctuary Alerts"}
-        subtitle={t("subtitle_sanctuary_alerts") || "System Broadcasts & Urgent Alerts"}
+        title={t("title_sanctuary_alerts")}
+        subtitle={t("subtitle_sanctuary_alerts")}
       >
         <div className="flex flex-col h-full relative z-10">
           <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col sm:flex-row sm:items-center justify-start gap-4 z-10 relative">
-            <h2 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+            <h2 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px]">filter_list</span>
               {t("ui_btn_filter")}
             </h2>
@@ -84,10 +84,10 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] !text-[18px]">search</span>
                 <input
                   type="text"
-                  placeholder={t("ui_placeholder_search") || "Search alerts..."}
+                  placeholder={t("ui_placeholder_search")}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full h-12 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl pl-12 pr-4 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]/50 transition-all placeholder-[var(--subtext)]"
+                  className="w-full h-12 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl pl-12 pr-4 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder-[var(--subtext)]"
                 />
               </div>
               <div className="w-max min-w-48 max-w-xs">
@@ -95,17 +95,17 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                   value={filterCategory}
                   onChange={(v: string[]) => setFilterCategory(v[0])}
                   options={[
-                    { id: "All", label: t("all_classes") || "All Categories" },
-                    { id: "Alert", label: t("category_alert") || "Alert" },
-                    { id: "Game Version Alert", label: t("category_game_version_alert") || "Game Version Alert" },
-                    { id: "Malware Alert", label: t("category_malware_alert") || "Malware Alert" },
-                    { id: "Artifact Alert", label: t("category_artifact_alert") || "Artifact Alert" }
+                    { id: "All", label: t("all_classes") },
+                    { id: "Alert", label: t("category_alert") },
+                    { id: "Game Version Alert", label: t("category_game_version_alert") },
+                    { id: "Malware Alert", label: t("category_malware_alert") },
+                    { id: "Artifact Alert", label: t("category_artifact_alert") }
                   ]}
                 />
               </div>
               <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5">
-                <button onClick={() => setFilterStatus('Active')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'Active' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_active") || "Active"}</button>
-                <button onClick={() => setFilterStatus('Inactive')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'Inactive' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_inactive") || "Inactive"}</button>
+                <button onClick={() => setFilterStatus('Active')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterStatus === 'Active' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_active")}</button>
+                <button onClick={() => setFilterStatus('Inactive')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterStatus === 'Inactive' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_inactive")}</button>
               </div>
             </div>
           </div>
@@ -114,8 +114,8 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
             <div className="p-6 h-full flex flex-col">
               {loading ? (
                 <div className="flex flex-col items-center justify-center h-48 opacity-50">
-                  <span className="material-symbols-outlined animate-spin-slow !text-4xl text-[var(--accent)] mb-4">sync</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">{t("ui_loading")}</span>
+                  <span className="material-symbols-outlined animate-spin-slow text-[var(--accent)] mb-4">sync</span>
+                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)]">{t("ui_loading")}</span>
                 </div>
               ) : filteredPosts.length === 0 ? (
                 <EmptyState icon="satellite_alt" title={t("system_no_broadcasts")} />
@@ -130,7 +130,7 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                         onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })}
                         layout="vertical"
                         statusColor={isPinned ? "var(--danger)" : undefined}
-                        className={`${isPinned ? 'shadow-[0_10px_30px_rgba(239,68,68,0.15)] bg-[var(--danger)]/5' : 'shadow-[0_10px_30px_rgba(0,0,0,0.1)]'} ${isInactive ? 'opacity-60 hover:opacity-100 grayscale-[50%]' : ''}`}
+                        className={`${isPinned ? 'shadow-[0_10px_30px_rgba(239,68,68,0.15)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'shadow-[0_10px_30px_rgba(0,0,0,0.1)]'} ${isInactive ? 'opacity-60 hover:opacity-100 grayscale-[50%]' : ''}`}
                         title={
                           <span className={`transition-colors ${isPinned ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
                             {post.title}
@@ -145,16 +145,16 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                         badges={
                           <>
                             {isPinned && (
-                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/30 shadow-inner flex items-center gap-1">
-                                {t("urgent_alert") || "Urgent Alert"}
+                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest capitalize bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-inner flex items-center gap-1">
+                                {t("urgent_alert")}
                               </span>
                             )}
-                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase border shadow-inner ${isPinned ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20' : 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20'}`}>
-                              {post.category || t("comms_btn_update") || "UPDATE"}
+                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest capitalize border shadow-inner ${isPinned ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}>
+                              {post.category || t("comms_btn_update")}
                             </span>
                             {isInactive && (
-                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase border shadow-inner bg-black/40 text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                                {t("status_inactive") || "Inactive"}
+                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest capitalize border shadow-inner bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                                {t("status_inactive")}
                               </span>
                             )}
                           </>
@@ -162,24 +162,33 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                         footer={
                           <div className="flex justify-start items-center gap-4">
                             <div className="flex items-center gap-4 flex-1 min-w-0">
-                              <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                              <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
                                 <span className="material-symbols-outlined !text-[14px]">groups</span>
                                 {(post.target_audience || "All Elevated").split(',').map((a: string) => a.trim() === 'Senior Architects' ? 'Oversight' : a.trim()).join(', ')}
                               </span>
                             </div>
-                            <span className={`text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1 shrink-0 ${isPinned ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
+                            <span className={`text-[9px] font-black capitalize tracking-widest transition-all flex items-center gap-1 shrink-0 ${isPinned ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
                               {t("wayfinder_read_more")} <span className="text-sm leading-none">&rarr;</span>
                             </span>
                           </div>
                         }
                       >
                         <div className="flex flex-col gap-3">
-                          {extractPostImage(post) && (
-                            <div className="w-full h-32 rounded-xl overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner bg-[var(--bg)]">
-                              <div className="absolute inset-0 bg-[var(--danger)]/20 z-0" />
-                              <div className="absolute inset-0 bg-gradient-to-br from-[var(--danger)]/20 to-transparent z-10 pointer-events-none" />
+                          {extractPostImage(post) ? (
+                            <div className="w-full h-32 rounded-xl overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner bg-[var(--bg)] shrink-0">
+                              <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] z-0" />
+                              <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_20%,transparent)] to-transparent z-10 pointer-events-none" />
                               <img src={extractPostImage(post)} className="w-full h-full object-cover relative z-0 opacity-60 mix-blend-luminosity group-hover:scale-105 group-hover:mix-blend-normal group-hover:opacity-100 transition-all duration-700" />
                               <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-transparent to-transparent opacity-80 z-10 pointer-events-none" />
+                            </div>
+                          ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center py-4 min-h-[128px]">
+                              {/* Floating Organic Icon */}
+                              <div className={`relative z-10 flex items-center justify-center transition-all duration-500 group-hover:scale-110 ${isPinned ? 'text-[var(--danger)] drop-shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_80%,transparent)]' : 'text-[var(--subtext)] group-hover:text-[var(--accent)] drop-shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_80%,transparent)]'}`}>
+                                <span className="material-symbols-outlined !text-[56px] opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+                                  {isPinned ? 'warning' : 'podcasts'}
+                                </span>
+                              </div>
                             </div>
                           )}
 

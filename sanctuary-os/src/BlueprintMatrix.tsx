@@ -162,92 +162,92 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
     >
       <div className="flex flex-col gap-8">
         <div className="grid grid-cols-2 gap-4">
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isPublic ? 'theme-border-success bg-[var(--success)]/10 shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(true)}>
+          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isPublic ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(true)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isPublic ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_public")}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${isPublic ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_public")}</span>
+                <span className={`text-sm font-black capitalize tracking-widest ${isPublic ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_public")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isPublic ? 'theme-border-success' : 'border-[var(--subtext)]/50'}`}>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isPublic ? 'theme-border-success' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
                 {isPublic && <div className="w-3 h-3 rounded-full theme-bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
               {t("matrix_public_desc")}
             </p>
           </div>
 
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isPublic ? 'theme-border-accent bg-[var(--accent)]/10 shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(false)}>
+          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isPublic ? 'theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(false)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isPublic ? 'theme-text-accent' : 'text-[var(--subtext)]'}`}>{t("icon_visibility_off")}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${!isPublic ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_private")}</span>
+                <span className={`text-sm font-black capitalize tracking-widest ${!isPublic ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_private")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isPublic ? 'theme-border-accent' : 'border-[var(--subtext)]/50'}`}>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isPublic ? 'theme-border-accent' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
                 {!isPublic && <div className="w-3 h-3 rounded-full theme-bg-accent shadow-[0_0_10px_rgba(var(--accent-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
               {t("matrix_private_desc")}
             </p>
           </div>
 
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isLocked ? 'theme-border-danger bg-[var(--danger)]/10 shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(true)}>
+          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isLocked ? 'theme-border-danger bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(true)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isLocked ? 'theme-text-danger' : 'text-[var(--subtext)]'}`}>{t("icon_lock")}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${isLocked ? 'theme-text-danger' : 'text-[var(--text)]'}`}>{t("matrix_locked")}</span>
+                <span className={`text-sm font-black capitalize tracking-widest ${isLocked ? 'theme-text-danger' : 'text-[var(--text)]'}`}>{t("matrix_locked")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isLocked ? 'theme-border-danger' : 'border-[var(--subtext)]/50'}`}>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isLocked ? 'theme-border-danger' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
                 {isLocked && <div className="w-3 h-3 rounded-full theme-bg-danger shadow-[0_0_10px_rgba(var(--danger-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
               {t("matrix_locked_desc")}
             </p>
           </div>
 
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isLocked ? 'theme-border-success bg-[var(--success)]/10 shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(false)}>
+          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isLocked ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(false)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isLocked ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_lock_open")}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${!isLocked ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_unlocked")}</span>
+                <span className={`text-sm font-black capitalize tracking-widest ${!isLocked ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_unlocked")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isLocked ? 'theme-border-success' : 'border-[var(--subtext)]/50'}`}>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isLocked ? 'theme-border-success' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
                 {!isLocked && <div className="w-3 h-3 rounded-full theme-bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
               {t("matrix_unlocked_desc")}
             </p>
           </div>
 
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isMarketListed ? 'theme-border-success bg-[var(--success)]/10 shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(true)}>
+          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isMarketListed ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(true)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isMarketListed ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_storefront")}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${isMarketListed ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_market")}</span>
+                <span className={`text-sm font-black capitalize tracking-widest ${isMarketListed ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_market")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isMarketListed ? 'theme-border-success' : 'border-[var(--subtext)]/50'}`}>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isMarketListed ? 'theme-border-success' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
                 {isMarketListed && <div className="w-3 h-3 rounded-full theme-bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
               {t("matrix_market_desc")}
             </p>
           </div>
 
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isMarketListed ? 'theme-border-accent bg-[var(--accent)]/10 shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(false)}>
+          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isMarketListed ? 'theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(false)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--subtext)]'}`}>{t("icon_visibility_off")}</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_market_off")}</span>
+                <span className={`text-sm font-black capitalize tracking-widest ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_market_off")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isMarketListed ? 'theme-border-accent' : 'border-[var(--subtext)]/50'}`}>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isMarketListed ? 'theme-border-accent' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
                 {!isMarketListed && <div className="w-3 h-3 rounded-full theme-bg-accent shadow-[0_0_10px_rgba(var(--accent-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
               {t("matrix_market_off_desc")}
             </p>
           </div>
@@ -256,18 +256,18 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
 
         {blockedMods.length > 0 && (
           <div className="mt-8 p-10 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] flex flex-col gap-6 shadow-2xl relative overflow-hidden transition-all duration-500 animate-in fade-in zoom-in-95 group">
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--danger)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
             <div className="flex items-center gap-5 relative z-10">
-              <div className="w-14 h-14 rounded-2xl bg-red-500/[10%] border border-red-500/[30%] flex items-center justify-center text-[var(--danger)] shadow-[inset_0_0_20px_rgba(var(--danger-rgb),0.1)] shrink-0">
+              <div className="w-14 h-14 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center text-[var(--danger)] shadow-[inset_0_0_20px_rgba(var(--danger-rgb),0.1)] shrink-0">
                 <span className="material-symbols-outlined !text-3xl text-[var(--danger)]">{t("icon_warning_amber")}</span>
               </div>
               <div className="flex flex-col gap-1 w-full">
-                <h4 className="text-xl font-black theme-text-danger uppercase tracking-widest">{t("matrix_tier_warning_title")}</h4>
-                <p className="text-xs font-bold text-[var(--subtext)] opacity-80 uppercase tracking-widest">{t("matrix_tier_warning_desc")}</p>
+                <h4 className="text-xl font-black theme-text-danger capitalize tracking-widest">{t("matrix_tier_warning_title")}</h4>
+                <p className="text-xs font-bold text-[var(--subtext)] opacity-80 capitalize tracking-widest">{t("matrix_tier_warning_desc")}</p>
               </div>
             </div>
             <div className="flex justify-end relative z-10 -mt-2">
-              <button onClick={handleRemoveAllViolating} className="px-4 py-2 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+              <button onClick={handleRemoveAllViolating} className="px-4 py-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl text-[10px] font-black capitalize tracking-widest transition-all shadow-sm">
                 {t("matrix_btn_remove_all")}
               </button>
             </div>
@@ -276,8 +276,8 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
                 <div key={mod.name} className="flex justify-start items-center py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 group">
                   <span className="text-sm font-bold text-[var(--text)] truncate mr-4">{formatDisplayName(mod.name)}</span>
                   <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-black theme-text-danger bg-[var(--danger)]/10 px-4 py-2 rounded-xl shadow-inner whitespace-nowrap">{t("auto_tier")} {mod.compliance_tier}</span>
-                    <button onClick={() => handleRemoveArtifact(mod.name)} className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[var(--danger)]/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--danger)]/30 text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shrink-0">
+                    <span className="text-[10px] font-black theme-text-danger bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-4 py-2 rounded-xl shadow-inner whitespace-nowrap">{t("auto_tier")} {mod.compliance_tier}</span>
+                    <button onClick={() => handleRemoveArtifact(mod.name)} className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shrink-0">
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
                     </button>
                   </div>
@@ -288,13 +288,13 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
         )}
 
         <div className="glass-panel p-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4 shadow-xl">
-          <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest opacity-80">{t("sidebar_uplink")}</span>
+          <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest opacity-80">{t("sidebar_uplink")}</span>
           <div className="flex items-center gap-3">
             <input
               readOnly
               value={generatedCode || ""}
               placeholder={t("matrix_code_placeholder")}
-              className="flex-1 bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 text-[var(--text)] font-mono font-bold tracking-widest text-center focus:outline-none"
+              className="flex-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 text-[var(--text)] font-mono font-bold tracking-widest text-center focus:outline-none"
             />
             <button
               onClick={() => {
@@ -306,21 +306,21 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
                 }
               }}
               disabled={!generatedCode || isCopied}
-              className={`px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all w-28 text-center ${isCopied ? 'bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]/30' : generatedCode ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--text)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}
+              className={`px-6 py-4 rounded-xl font-black text-[10px] capitalize tracking-widest transition-all w-28 text-center ${isCopied ? 'bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)]' : generatedCode ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--text)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}
             >
-              {isCopied ? (t("btn_copied") || "COPIED") : t("ctx_copy")}
+              {isCopied ? (t("btn_copied")) : t("ctx_copy")}
             </button>
           </div>
         </div>
 
-        {uploadError && <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center justify-center gap-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_error")}</span> {uploadError}</span>}
+        {uploadError && <span className="text-[10px] font-black text-red-400 capitalize tracking-widest flex items-center justify-center gap-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_error")}</span> {uploadError}</span>}
         {uploadSuccess && (
           <div className="flex justify-center -mt-2">
-            <div className="px-4 py-2 rounded-full bg-[var(--success)]/10 border border-[var(--success)]/30 shadow-[0_0_20px_rgba(var(--success-rgb),0.2)] flex items-center gap-2 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-300 backdrop-blur-md">
-              <div className="w-5 h-5 rounded-full bg-[var(--success)]/20 flex items-center justify-center border border-[var(--success)]/40 shadow-inner">
+            <div className="px-4 py-2 rounded-full bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-[0_0_20px_rgba(var(--success-rgb),0.2)] flex items-center gap-2 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-300 backdrop-blur-md">
+              <div className="w-5 h-5 rounded-full bg-[color-mix(in_srgb,var(--success)_20%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--success)_40%,transparent)] shadow-inner">
                 <span className="material-symbols-outlined !text-[12px] theme-text-success">{t("icon_check_circle")}</span>
               </div>
-              <span className="text-[10px] font-black theme-text-success uppercase tracking-widest">{t("matrix_uplink_success") || "Upload Successful!"}</span>
+              <span className="text-[10px] font-black theme-text-success capitalize tracking-widest">{t("matrix_uplink_success")}</span>
             </div>
           </div>
         )}

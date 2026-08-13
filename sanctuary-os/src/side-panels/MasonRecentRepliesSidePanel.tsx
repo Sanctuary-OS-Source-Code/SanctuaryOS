@@ -78,15 +78,15 @@ export default function MasonRecentRepliesSidePanel({
             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
                 {isLoading ? (
                     <div className="flex justify-center items-center h-32 opacity-50">
-                        <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("loading_transmissions")}</span>
+                        <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("loading_transmissions")}</span>
                     </div>
                 ) : replies.length === 0 ? (
                     <div className="flex flex-col justify-center items-center h-64 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl group">
                         <span className="text-6xl mb-4 grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:-rotate-12">{t("icon_mail")}</span>
-                        <span className="text-sm font-black text-[var(--subtext)] uppercase tracking-widest text-center px-8 leading-relaxed">
+                        <span className="text-sm font-black text-[var(--subtext)] capitalize tracking-widest text-center px-8 leading-relaxed">
                             {t("no_recent_replies")}
                         </span>
-                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest mt-2">
+                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-50 capitalize tracking-widest mt-2">
                             {t("comm_link_quiet")}
                         </span>
                     </div>
@@ -94,7 +94,7 @@ export default function MasonRecentRepliesSidePanel({
                     replies.map(reply => (
                         <div 
                             key={reply.id}
-                            className="glass-panel rounded-2xl p-6 flex flex-col gap-3 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-emerald-500/30 hover:shadow-md transition-all hover:-translate-y-1"
+                            className="glass-panel rounded-2xl p-6 flex flex-col gap-3 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:shadow-md transition-all hover:-translate-y-1"
                             onClick={() => {
                                 if (onReplyClick && reply.post_id) {
                                     onReplyClick(reply.post_id, reply.id);
@@ -102,13 +102,13 @@ export default function MasonRecentRepliesSidePanel({
                             }}
                         >
                             <div className="flex justify-start items-center mb-1">
-                                <span className="text-xs font-black tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors uppercase flex items-center gap-2">
+                                <span className="text-xs font-black tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors capitalize flex items-center gap-2">
                                     <div className="w-6 h-6 rounded theme-bg-accent/20 flex items-center justify-center text-[10px] theme-text-accent shrink-0">
-                                        {(reply.profiles?.username || t("a_citizen") || "A Citizen").charAt(0).toUpperCase()}
+                                        {(reply.profiles?.username || t("a_citizen")).charAt(0).toUpperCase()}
                                     </div>
-                                    {reply.profiles?.username || t("a_citizen") || "A Citizen"}
+                                    {reply.profiles?.username || t("a_citizen")}
                                 </span>
-                                <span className="text-[9px] font-bold opacity-60 text-[var(--subtext)] uppercase tracking-wider bg-black/30 px-2 py-1 rounded">
+                                <span className="text-[9px] font-bold opacity-60 text-[var(--subtext)] capitalize tracking-wider bg-black/30 px-2 py-1 rounded">
                                     {new Date(reply.created_at).toLocaleString()}
                                 </span>
                             </div>
@@ -119,11 +119,11 @@ export default function MasonRecentRepliesSidePanel({
                             
                             <div className="flex items-center gap-2 mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                                 <span className="material-symbols-outlined text-sm text-[var(--subtext)]">{t("icon_reply")}</span>
-                                <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
+                                <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">
                                     {t("original_post")}: 
                                 </span>
                                 <span className="text-[10px] font-bold text-[var(--text)] truncate max-w-[200px]">
-                                    {reply.mason_posts?.title || t("unknown_mason") || "Unknown Mason"}
+                                    {reply.mason_posts?.title || t("unknown_mason")}
                                 </span>
                                 {reply.mason_posts?.masons && (
                                     <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">

@@ -40,7 +40,7 @@ function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false
         </span>
         {!isCollapsed && (
           <span
-            className="font-black uppercase tracking-[0.15em] truncate leading-none pt-0.5 relative z-10"
+            className="font-black capitalize tracking-[0.15em] truncate leading-none pt-0.5 relative z-10"
             style={{ fontSize: "var(--fontSizeSidebar, 11px)" }}
           >
             {label}
@@ -89,19 +89,52 @@ export function Sidebar({
 
   return (
     <nav
-      className={`${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex flex-col relative z-20 transition-all duration-500`}
+      className={`${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex flex-col relative z-20 transition-all duration-500 glass-panel rounded-3xl`}
       style={{
         width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',
         minWidth: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)'
       }}
     >
+      {/* Revolutionary Watermark Layout */}
       <div
-        className="absolute inset-x-0 bottom-0 z-[-1] glass-panel !border-0 !border-r !rounded-none transition-all duration-500"
-        style={{ top: '50px', boxShadow: '4px 0 30px rgba(0,0,0,0.05)' }}
-      />
+        className="relative flex flex-col justify-center cursor-pointer hover:bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)] transition-colors duration-500 z-[100] shrink-0 group/logo overflow-hidden rounded-t-3xl h-[70px] mb-2"
+        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      >
+        {/* Responsive Watermark Background Icon */}
+        <img
+          src="/icon.png"
+          alt="Watermark"
+          className={`absolute top-1/2 -translate-y-1/2 transition-all duration-700 pointer-events-none ${isSidebarCollapsed
+            ? 'w-8 h-8 left-1/2 -translate-x-1/2 opacity-100 drop-shadow-sm group-hover/logo:scale-110 group-hover/logo:drop-shadow-[0_0_8px_var(--accent)]'
+            : 'w-24 h-24 -left-4 opacity-[0.06] grayscale group-hover/logo:grayscale-0 group-hover/logo:opacity-[0.15] group-hover/logo:scale-110 group-hover/logo:rotate-12 group-hover/logo:drop-shadow-[0_0_15px_var(--accent)]'
+            }`}
+        />
 
-      <div className="h-[50px] shrink-0" />
+        <div className={`flex items-center w-full relative z-10 transition-all duration-500 ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-6'}`}>
+          {!isSidebarCollapsed && (
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col pt-0">
+                {/* Two-Tone Title */}
+                <h1 className="text-[19px] tracking-tighter capitalize leading-none drop-shadow-sm group-hover/logo:opacity-100 transition-colors flex items-center gap-1 whitespace-nowrap">
+                  <span className="font-black text-[var(--sidebartext)]">{t("sidebar_app_title")?.split(' ')[0]}</span>
+                  <span className="font-light text-[var(--sidebartext)] opacity-70">{t("sidebar_app_title")?.split(' ').slice(1).join(' ')}</span>
+                </h1>
+                {/* Subtitle */}
+                <span className="text-[7px] font-black tracking-[0.4em] text-[var(--accent)] opacity-70 capitalize leading-none mt-1 whitespace-nowrap">
+                  {t(`sidebar_app_subtitle_${subtitleIndex}`)}
+                </span>
+              </div>
+            </div>
+          )}
 
+          {/* Explicit Collapse Action Button */}
+          {!isSidebarCollapsed && (
+            <div className="ml-auto w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)] flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-all hover:bg-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--sidebartext)_20%,transparent)] shadow-lg">
+              <span className="material-symbols-outlined text-[16px] text-[var(--sidebartext)] opacity-70 group-hover/logo:opacity-100 transition-opacity">keyboard_double_arrow_left</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="flex-1 pt-2 pb-2 space-y-0.5 overflow-y-auto accent-scrollbar">
         <NavButton
@@ -204,7 +237,7 @@ export function Sidebar({
             <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
             {!isSidebarCollapsed && (
               <div className="px-6 flex items-center gap-2 mb-2">
-                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 uppercase tracking-widest truncate">
+                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 capitalize tracking-widest truncate">
                   {t("mason")}
                 </p>
               </div>
@@ -225,7 +258,7 @@ export function Sidebar({
             <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
             {!isSidebarCollapsed && (
               <div className="px-6 flex items-center gap-2 mb-2">
-                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 uppercase tracking-widest truncate">
+                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 capitalize tracking-widest truncate">
                   {t("tab_architect")}
                 </p>
               </div>
@@ -246,7 +279,7 @@ export function Sidebar({
             <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
             {!isSidebarCollapsed && (
               <div className="px-6 flex items-center gap-2 mb-2">
-                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 uppercase tracking-widest truncate">
+                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 capitalize tracking-widest truncate">
                   {t("stat_oversight")}
                 </p>
               </div>
@@ -267,7 +300,7 @@ export function Sidebar({
             <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
             {!isSidebarCollapsed && (
               <div className="px-6 flex items-center gap-2 mb-2">
-                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 uppercase tracking-widest truncate">
+                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 capitalize tracking-widest truncate">
                   {t("sidebar_wayfinder_tools")}
                 </p>
               </div>
@@ -288,7 +321,7 @@ export function Sidebar({
             <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_30%,transparent)] to-transparent" />
             {!isSidebarCollapsed && (
               <div className="px-6 flex items-center gap-2 mb-2">
-                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 uppercase tracking-widest truncate drop-shadow-sm">
+                <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 capitalize tracking-widest truncate drop-shadow-sm">
                   Sanctuary Foundry
                 </p>
               </div>
@@ -337,16 +370,16 @@ export function Sidebar({
               onMouseEnter={(e) => {
                 if (isSidebarCollapsed) {
                   const rect = e.currentTarget.getBoundingClientRect();
-                  setHoveredTooltip({ label: t("sidebar_quick_launch") || "Quick Launch", top: rect.top + rect.height / 2 });
+                  setHoveredTooltip({ label: t("sidebar_quick_launch"), top: rect.top + rect.height / 2 });
                 }
               }}
               onMouseLeave={() => {
                 if (isSidebarCollapsed) setHoveredTooltip(null);
               }}
               onClick={handleQuickLaunch}
-              className={`relative w-full py-4 rounded-[var(--radius)] bg-transparent backdrop-blur-md text-[10px] font-black uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 shadow-lg group/btn overflow-hidden border ${isPatchDetected || showDefconAlert
-                ? "border-red-500/[30%] text-[var(--danger)] hover:border-red-500/[50%] hover:bg-red-500/[10%]"
-                : "border-[var(--success)]/[30%] text-[var(--success)] hover:border-[var(--success)]/[50%] hover:bg-[var(--success)]/[10%]"
+              className={`relative w-full py-4 rounded-[var(--radius)] bg-transparent backdrop-blur-md text-[10px] font-black capitalize tracking-[0.2em] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 shadow-lg group/btn overflow-hidden border ${isPatchDetected || showDefconAlert
+                ? "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+                : "border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]"
                 }`}
             >
               {/* Dynamic Sweep effect inside button */}
@@ -381,7 +414,7 @@ export function Sidebar({
           <div className="absolute inset-0 z-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
 
           <div className="relative z-10 flex flex-col items-start gap-1 w-full">
-            <div className="text-[10px] font-black uppercase tracking-[0.2em] flex items-start text-left gap-2 whitespace-pre-line text-[var(--text)]">
+            <div className="text-[10px] font-black capitalize tracking-[0.2em] flex items-start text-left gap-2 whitespace-pre-line text-[var(--text)]">
               <span>{hoveredTooltip.label}</span>
             </div>
           </div>

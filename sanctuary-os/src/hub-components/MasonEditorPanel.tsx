@@ -87,8 +87,8 @@ export default function MasonEditorPanel({
          <SidePanel
             isOpen={!!activeFile}
             onClose={() => setActiveFileIndex(-1)}
-            title={isCloudMode ? (isKeepers ? "KEEPERS IDE" : "WAYFINDER IDE") : (t("tools_ide") || "MASON IDE")}
-            subtitle={t("mason_ide_subtitle") || "DEVELOPMENT & LOCALIZATION ENVIRONMENT"}
+            title={isCloudMode ? (isKeepers ? "KEEPERS IDE" : "WAYFINDER IDE") : (t("tools_ide"))}
+            subtitle={t("mason_ide_subtitle")}
             icon="code"
             iconColorClass="theme-text-accent"
             isResizable={!isFullscreen}
@@ -110,18 +110,18 @@ export default function MasonEditorPanel({
                         <button
                            onClick={() => setShowReference(!showReference)}
                            disabled={!activeFile}
-                           className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent font-black ${showReference ? '!opacity-100 bg-[var(--accent)]/[15%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%]' : ''}`}
+                           className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent font-black ${showReference ? '!opacity-100 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}`}
                         >
                            <span className="material-symbols-outlined !text-[18px] normal-case">{showReference ? "vertical_split" : "splitscreen"}</span>
-                           <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_reference") || "Reference"}</span>
+                           <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_reference")}</span>
                         </button>
                         {showReference && (
                            <button
                               onClick={() => setIsScrollLocked(!isScrollLocked)}
-                              className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-black ${isScrollLocked ? '!opacity-100 !bg-[var(--accent)]/[15%] !text-[var(--accent)] hover:!bg-[var(--accent)]/[20%]' : ''}`}
+                              className={`h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-black ${isScrollLocked ? '!opacity-100 !bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !text-[var(--accent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}`}
                            >
                               <span className="material-symbols-outlined !text-[18px] normal-case">{isScrollLocked ? 'lock' : 'lock_open'}</span>
-                              <span className="text-[10px] font-black uppercase tracking-widest">{t("sync_scroll") || "Sync Scroll"}</span>
+                              <span className="text-[10px] font-black capitalize tracking-widest">{t("sync_scroll")}</span>
                            </button>
                         )}
                      </>
@@ -133,7 +133,7 @@ export default function MasonEditorPanel({
                         className="h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent font-black"
                      >
                         <span className="material-symbols-outlined !text-[18px] normal-case">{t("icon_history")}</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_timeline")}</span>
+                        <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_timeline")}</span>
                      </button>
                   )}
                </div>
@@ -149,7 +149,7 @@ export default function MasonEditorPanel({
 
                      <ActionButton
                         onClick={saveFile}
-                        disabled={!activeFile || !isDirty || problemsList.length > 0 || (!isKeepers && validationStats ? validationStats.missing > 0 : false)} label={isCloudMode ? (t("btn_publish") || "Publish") : t("save")}
+                        disabled={!activeFile || !isDirty || problemsList.length > 0 || (!isKeepers && validationStats ? validationStats.missing > 0 : false)} label={isCloudMode ? (t("btn_publish")) : t("save")}
                      >
                         
                         
@@ -163,7 +163,7 @@ export default function MasonEditorPanel({
                         )}
                         <ActionButton
                            onClick={() => handlePublishLexicon(activeFile)}
-                           disabled={problemsList.length > 0 || (validationStats ? validationStats.missing > 0 : false)} label={activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? (t("sandbox_btn_sync") || "SYNC LEXICON") : "SYNC SCHEMA"} icon={t("icon_upload") || "cloud_upload"}
+                           disabled={problemsList.length > 0 || (validationStats ? validationStats.missing > 0 : false)} label={activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? (t("sandbox_btn_sync")) : "SYNC SCHEMA"} icon={t("icon_upload")}
                         >
                            
                            
@@ -184,11 +184,11 @@ export default function MasonEditorPanel({
                            <button
                               key={file.path}
                               onClick={() => setActiveFileIndex(i)}
-                              className={`h-full px-5 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap first:rounded-l-full last:rounded-r-full group shrink-0 ${isActive ? (fileIsDirty ? 'bg-[var(--warning)]/20 text-[var(--warning)]' : 'bg-[var(--accent)]/20 text-[var(--accent)]') : 'bg-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]'}`}
+                              className={`h-full px-5 flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest transition-all whitespace-nowrap first:rounded-l-full last:rounded-r-full group shrink-0 ${isActive ? (fileIsDirty ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)]' : 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]') : 'bg-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]'}`}
                            >
                               <span className="material-symbols-outlined !text-[16px]">{file.name.endsWith('.json') ? 'data_object' : 'description'}</span>
                               {file.name}
-                              <div onClick={(e) => { e.stopPropagation(); closeFile(i, e); }} className={`material-symbols-outlined !text-[14px] p-0.5 rounded-full transition-colors ml-1 ${isActive ? (fileIsDirty ? 'text-[var(--warning)] hover:bg-[var(--warning)]/20' : 'text-[var(--accent)] hover:bg-[var(--accent)]/20') : 'text-transparent group-hover:text-[var(--subtext)] hover:!text-[var(--danger)] hover:!bg-[var(--danger)]/20'}`}>{t("icon_close") || "close"}</div>
+                              <div onClick={(e) => { e.stopPropagation(); closeFile(i, e); }} className={`material-symbols-outlined !text-[14px] p-0.5 rounded-full transition-colors ml-1 ${isActive ? (fileIsDirty ? 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]') : 'text-transparent group-hover:text-[var(--subtext)] hover:!text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}`}>{t("icon_close")}</div>
                            </button>
                         );
                      })}
@@ -199,10 +199,10 @@ export default function MasonEditorPanel({
 
                   <div style={{ width: (showReference && isLexiconActive) ? `${splitRatio}%` : '100%' }} className="flex-shrink-0 relative h-full min-w-0 transition-none">
                      {validationStats && (
-                        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-6 glass-panel rounded-full border px-6 py-3 shadow-md' : 'border-orange-500/[30%] shadow-md'}`}>
+                        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-6 glass-panel rounded-full border px-6 py-3 shadow-md' : 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-md'}`}>
                            <div className="flex items-center gap-3">
 
-                              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] whitespace-nowrap opacity-90">
+                              <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] whitespace-nowrap opacity-90">
                                  <strong>{validationStats.total - validationStats.missing}</strong> {
                                     activeFile?.name.match(/^[a-z]{2}-.+\.json$/i)
                                        ? (t("lexicon_translated_count")?.replace("{translated} / {total}", `/ ${validationStats.total}`) || `/ ${validationStats.total} Translated`)
@@ -217,7 +217,7 @@ export default function MasonEditorPanel({
                                     {!activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) && validationStats.deprecated === 0 && (
                                        <HoverTooltip title="Tip: You can set any value to the JSON 'null' literal (without quotes) to legitimately leave it blank without triggering missing key errors!" variant="warning" className="z-[100] bottom-[120%]" />
                                     )}
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 opacity-90 whitespace-nowrap">
+                                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-2 opacity-90 whitespace-nowrap">
                                        <span className="material-symbols-outlined !text-[16px] text-[var(--warning)]">warning</span>
                                        {validationStats.deprecated > 0
                                           ? `${validationStats.deprecated} ${activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? 'Deprecated Strings' : 'Unrecognized Fields'}`
@@ -227,25 +227,25 @@ export default function MasonEditorPanel({
                                  {validationStats.deprecated > 0 ? (
                                     <button
                                        onClick={purgeDeprecatedStrings}
-                                       className="ml-2 bg-red-500/[10%] border border-red-500/[30%] text-[var(--danger)] hover:bg-red-500/[20%] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
+                                       className="ml-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[9px] font-black capitalize tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
                                     >
                                        <span className="material-symbols-outlined !text-[14px]">delete</span>
-                                       <span>{t("lexicon_purge_keys") || "Purge Keys"} ({validationStats.deprecated})</span>
+                                       <span>{t("lexicon_purge_keys")} ({validationStats.deprecated})</span>
                                     </button>
                                  ) : validationStats.completelyMissing > 0 ? (
                                     <button
                                        onClick={addMissingStrings}
-                                       className="ml-2 bg-[var(--accent)]/[15%] border border-[var(--accent)]/[40%] text-[var(--accent)] hover:bg-[var(--accent)]/[25%] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
+                                       className="ml-2 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[9px] font-black capitalize tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
                                     >
                                        <span className="material-symbols-outlined !text-[14px]">add_circle</span>
-                                       <span>{t("lexicon_add_missing") || "Add Missing Keys"}</span>
+                                       <span>{t("lexicon_add_missing")}</span>
                                     </button>
                                  ) : (
                                     <button
                                        onClick={jumpToNextEmpty}
-                                       className="ml-2 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
+                                       className="ml-2 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-black capitalize tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
                                     >
-                                       <span>{t("lexicon_next_empty") || "Next Empty"}</span>
+                                       <span>{t("lexicon_next_empty")}</span>
                                        <span className="material-symbols-outlined !text-[14px]">arrow_downward</span>
                                     </button>
                                  )}
@@ -298,12 +298,12 @@ export default function MasonEditorPanel({
                      <>
                         <div
                            onMouseDown={(e) => { e.preventDefault(); isResizing.current = true; document.body.style.cursor = 'col-resize'; }}
-                           className="w-4 cursor-col-resize hover:bg-[var(--accent)]/10 active:bg-[var(--accent)]/20 transition-colors z-50 flex items-center justify-center -ml-2 mr-2 relative group shrink-0"
+                           className="w-4 cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] active:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors z-50 flex items-center justify-center -ml-2 mr-2 relative group shrink-0"
                         >
-                           <div className="w-[2px] h-12 bg-[var(--text)]/20 group-hover:bg-[var(--accent)] transition-colors rounded-full" />
+                           <div className="w-[2px] h-12 bg-[color-mix(in_srgb,var(--text)_20%,transparent)] group-hover:bg-[var(--accent)] transition-colors rounded-full" />
                         </div>
                         <div style={{ width: `${100 - splitRatio}%` }} className="flex-1 relative h-full min-w-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] pl-2 transition-none">
-                           <div className="absolute top-4 right-6 z-10 glass-panel px-4 py-1.5 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black tracking-widest uppercase text-[var(--subtext)] shadow-md">{referenceLabel}</div>
+                           <div className="absolute top-4 right-6 z-10 glass-panel px-4 py-1.5 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] shadow-md">{referenceLabel}</div>
                            <Editor
                               height="100%"
                               language="json"
@@ -333,23 +333,23 @@ export default function MasonEditorPanel({
                </div>
 
                {problemsList.length > 0 && (
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[var(--radius)] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-red-500/[60%] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
-                     <div className="flex items-center justify-start px-6 py-3 border-b border-[var(--danger)]/30 bg-red-500/[10%] shrink-0">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[var(--radius)] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
+                     <div className="flex items-center justify-start px-6 py-3 border-b border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
+                        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
                            <span className="material-symbols-outlined !text-[16px]">{t("icon_error")}</span>
                            {t("problems")} ({problemsList.length})
                         </span>
-                        <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-red-500/[20%] transition-colors">
+                        <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
                            <span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span>
                         </button>
                      </div>
                      <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
                         {problemsList.map((p: any, i: number) => (
-                           <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-red-500/[10%] cursor-pointer group transition-colors">
+                           <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
                               <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("nav_cancel")}</span>
                               <div className="flex flex-col gap-0.5 min-w-0">
                                  <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
-                                 <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
+                                 <span className="text-[9px] text-[var(--subtext)] font-mono capitalize tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
                               </div>
                            </div>
                         ))}

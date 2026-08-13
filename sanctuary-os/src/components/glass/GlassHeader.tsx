@@ -16,17 +16,17 @@ export function GlassHeader({ title, subtitle, icon, actions, children }: GlassH
       <div className="relative px-8 py-6 flex flex-col md:flex-row md:items-center justify-start gap-4">
         <div className="flex items-center gap-4">
           {icon && (
-            <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">
+            <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">
               <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">{icon}</span>
             </div>
           )}
           
           <div className="flex flex-col">
-            <h1 className="text-[24px] font-black uppercase tracking-[0.1em] text-[var(--text)] leading-tight drop-shadow-sm">
+            <h1 className="text-[24px] font-black capitalize tracking-[0.1em] text-[var(--text)] leading-tight drop-shadow-sm">
               {title}
             </h1>
             {subtitle && (
-              <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-70">
+              <h2 className="text-[11px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] opacity-70">
                 {subtitle}
               </h2>
             )}

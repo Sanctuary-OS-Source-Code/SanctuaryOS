@@ -144,11 +144,11 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
     >
       <div className="flex flex-col gap-3">
         {loading ? (
-          <div className="p-12 text-center text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 glass-panel rounded-[var(--radius)]">
+          <div className="p-12 text-center text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 glass-panel rounded-[var(--radius)]">
             {t("loading")}
           </div>
         ) : notifications.length === 0 ? (
-          <div className="p-12 text-center text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 glass-panel rounded-[var(--radius)]">
+          <div className="p-12 text-center text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 glass-panel rounded-[var(--radius)]">
             {t("notif_empty")}
           </div>
         ) : (
@@ -158,22 +158,22 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
               onClick={() => handleNotificationClick(n)}
               className={`p-5 rounded-[var(--radius)] cursor-pointer transition-all border group relative shadow-lg ${n.is_read
                   ? "bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-70 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)]"
-                  : "theme-bg-accent/10 theme-border-accent hover:theme-bg-accent/20"
+                  : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[var(--accent)]"
                 }`}
             >
               <div className="flex justify-start items-start mb-3">
                 <div className="flex items-center gap-3">
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${n.is_read ? 'text-[var(--text)] opacity-80' : 'theme-text-accent'}`}>
+                  <span className={`text-[10px] font-black capitalize tracking-widest ${n.is_read ? 'text-[var(--text)] opacity-80' : 'theme-text-accent'}`}>
                     {n.type === "reply" ? (t("ui_btn_reply")) : n.type === "support_reply" ? (t("notif_type_support")) : n.type === "new_post" ? (t("post_broadcast")) : (t("category_system"))}
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">
+                  <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
                     {formatTime(n.created_at)}
                   </span>
                   <button
                     onClick={(e) => clearNotification(e, n.id)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/20 hover:text-red-500 text-[var(--subtext)]"
+                    className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-red-500 text-[var(--subtext)]"
                   >
                     <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
                   </button>

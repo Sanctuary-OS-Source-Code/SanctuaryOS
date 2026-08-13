@@ -4,10 +4,11 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
   DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker, StatTile,
+  CustomComplianceDropdown, CustomDatePicker,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton, ScreenUtilityBar,
+  FilterTabs, FilterTabButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
   fetchAllPaginated, CustomTierDropdown, loadDLCMap
 } from "../shared";
@@ -168,38 +169,38 @@ export function GameManagementOversight() {
         searchPlaceholder={activeTab === 'versions' ? "Search Patches..." : "Search DLC..."}
         className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full"
       >
-          {activeTab === 'dlc' && (
-            <div className="w-max min-w-[192px] max-w-xs z-40 shrink-0">
-              <CustomDropdown disableTint={true}
-                value={dlcTypeFilter}
-                onChange={(v: string[]) => setDlcTypeFilter(v[0])}
-                options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? "ALL TYPES" : x }))}
-                placeholder={t("gm_type_filter_placeholder")}
-              />
-            </div>
-          )}
-
-          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] h-12 shrink-0 z-40">
-            <button
-              onClick={() => setActiveTab("versions")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'versions' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-            >
-              {t("sa_game_versions")}
-            </button>
-            <button
-              onClick={() => setActiveTab("dlc")}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'dlc' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-            >
-              {t("dlc_registry")}
-            </button>
+        {activeTab === 'dlc' && (
+          <div className="w-max min-w-[192px] max-w-xs z-40 shrink-0">
+            <CustomDropdown disableTint={true}
+              value={dlcTypeFilter}
+              onChange={(v: string[]) => setDlcTypeFilter(v[0])}
+              options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? "ALL TYPES" : x }))}
+              placeholder={t("gm_type_filter_placeholder")}
+            />
           </div>
+        )}
 
-          <ActionButton
-            onClick={() => openPanel(activeTab === 'versions' ? 'add_version' : 'add_dlc')}
-            className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
-            icon={t("icon_add")}
-            label={activeTab === 'versions' ? "REGISTER PATCH" : `REGISTER DLC`}
+        <FilterTabs className="h-12 z-40 shrink-0">
+          <FilterTabButton
+            id="versions"
+            label={t("sa_game_versions")}
+            activeTab={activeTab}
+            setTab={setActiveTab}
           />
+          <FilterTabButton
+            id="dlc"
+            label={t("dlc_registry")}
+            activeTab={activeTab}
+            setTab={setActiveTab}
+          />
+        </FilterTabs>
+
+        <ActionButton
+          onClick={() => openPanel(activeTab === 'versions' ? 'add_version' : 'add_dlc')}
+          className="shrink-0 h-12 px-6 font-black capitalize tracking-widest text-[10px]"
+          icon={t("icon_add")}
+          label={activeTab === 'versions' ? "REGISTER PATCH" : `REGISTER DLC`}
+        />
       </ScreenUtilityBar>
 
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-8 animate-in fade-in">
@@ -218,18 +219,18 @@ export function GameManagementOversight() {
                   subtitle={t("patch_release")}
                   footer={
                     <div className="flex justify-start items-center w-full">
-                      <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                      <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
                         <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
                         {v.release_date ? new Date(v.release_date).toLocaleDateString() : (v.created_at ? new Date(v.created_at).toLocaleDateString() : "UNKNOWN")}
                       </span>
-                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
                         {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
                       </button>
                     </div>
                   }
                 />
               ))}
-              {filteredVersions.length === 0 && <EmptyState icon={t("icon_gamepad") || "gamepad"} title={t("no_versions")} className="col-span-full py-16" />}
+              {filteredVersions.length === 0 && <EmptyState icon={t("icon_gamepad")} title={t("no_versions")} className="col-span-full py-16" />}
             </div>
           </>
         )}
@@ -246,24 +247,24 @@ export function GameManagementOversight() {
                   title={d.name}
                   subtitle={d.type ? (t(`sa_dlc_type_${d.type.toLowerCase().replace(/ /g, '_')}`) || `${d.type}PACK`) : "UNKNOWN"}
                   badges={[
-                    <span key="dlc-id" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20">
+                    <span key="dlc-id" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
                       {d.id}
                     </span>
                   ]}
                   footer={
                     <div className="flex justify-start items-center w-full">
-                      <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                      <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
                         <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
                         {d.release_date ? new Date(d.release_date).toLocaleDateString() : d.id}
                       </span>
-                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
                         {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
                       </button>
                     </div>
                   }
                 />
               ))}
-              {filteredDlcs.length === 0 && <EmptyState icon={t("icon_extension_off") || "extension_off"} title={t("no_dlc")} className="col-span-full py-16" />}
+              {filteredDlcs.length === 0 && <EmptyState icon={t("icon_extension_off")} title={t("no_dlc")} className="col-span-full py-16" />}
             </div>
           </>
         )}
@@ -295,9 +296,9 @@ export function GameManagementOversight() {
               <ActionButton
                 disabled={!panelReason.trim() || isPanelSubmitting}
                 onClick={() => handlePanelCommit(true)}
-                label={isPanelSubmitting ? t("ui_btn_processing") : (t("purge") || "PURGE")}
+                label={isPanelSubmitting ? t("ui_btn_processing") : (t("purge"))}
                 icon="delete"
-                className="flex-1 !theme-bg-danger/20 !theme-text-danger !border-[var(--danger)]/50"
+                className="flex-1 !theme-bg-danger/20 !theme-text-danger !border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
               />
             )}
             <ActionButton
@@ -308,9 +309,9 @@ export function GameManagementOversight() {
                 ((sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && !panelInput1.trim()) ||
                 ((sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (!panelInput1.trim() || !panelInput2.trim()))
               }
-              label={isPanelSubmitting ? (t("ui_btn_processing") || "PROCESSING...") : (t("ui_btn_commit") || "COMMIT CHANGES")}
+              label={isPanelSubmitting ? (t("ui_btn_processing")) : (t("ui_btn_commit"))}
               icon="save"
-              className="flex-1 !theme-bg-success/20 !theme-text-success !border-[var(--success)]/50"
+              className="flex-1 !theme-bg-success/20 !theme-text-success !border-[color-mix(in_srgb,var(--success)_50%,transparent)]"
             />
           </div>
         }
@@ -319,11 +320,11 @@ export function GameManagementOversight() {
           <div className="flex flex-col gap-6">
             {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && panelTarget && (
               <div className="flex flex-col gap-3 shrink-0 mb-6">
-                <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest truncate">
+                <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
                   {panelTarget?.name || panelTarget}
                 </h2>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-[var(--subtext)] opacity-50 uppercase tracking-widest">{t("ql_targeting")}</span>
+                  <span className="text-[10px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{t("ql_targeting")}</span>
                 </div>
               </div>
             )}
@@ -331,7 +332,7 @@ export function GameManagementOversight() {
             {(sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && (
               <div className="flex flex-col gap-6 relative">
                 <div className="flex flex-col gap-2 relative z-10">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("game_version")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_version")}</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("icon_gamepad")}</span>
                     <input
@@ -348,20 +349,20 @@ export function GameManagementOversight() {
             {(sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (
               <div className="flex flex-col gap-6 relative">
                 <div className="flex flex-col gap-2 relative z-50">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("dlc_id_code")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dlc_id_code")}</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("icon_fingerprint")}</span>
                     <input
                       value={panelInput1}
                       onChange={e => setPanelInput1(e.target.value)}
                       placeholder={t("ph_pack_code")}
-                      className="glass-surface rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] uppercase bg-transparent"
+                      className="glass-surface rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] capitalize bg-transparent"
                     />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2 relative z-40">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("pack_type")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("pack_type")}</label>
                   <CustomDropdown disableTint={true}
                     value={panelInput3}
                     onChange={(v: string[]) => setPanelInput3(v[0])}
@@ -375,7 +376,7 @@ export function GameManagementOversight() {
 
                 {panelInput3 === "CUSTOM" && (
                   <div className="flex flex-col gap-2 relative z-30 animate-in fade-in slide-in-from-top-2">
-                    <label className="text-[9px] font-black theme-text-accent uppercase tracking-widest ml-2 flex items-center gap-2 drop-shadow-md">
+                    <label className="text-[9px] font-black theme-text-accent capitalize tracking-widest ml-2 flex items-center gap-2 drop-shadow-md">
                       <span className="material-symbols-outlined !text-[12px]">{t("icon_edit")}</span>
                       {t("auto_new_pack_type")}
                     </label>
@@ -384,21 +385,21 @@ export function GameManagementOversight() {
                         value={panelInput4}
                         onChange={e => setPanelInput4(e.target.value.toUpperCase())}
                         placeholder={t("ph_pack_type")}
-                        className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] uppercase bg-[var(--accent)]/[5%]"
+                        className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] capitalize bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
                       />
                     </div>
                   </div>
                 )}
 
                 <div className="flex flex-col gap-2 relative z-30">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("pack_name")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("pack_name")}</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("icon_badge")}</span>
                     <input
                       value={panelInput2}
                       onChange={e => setPanelInput2(e.target.value)}
                       placeholder={t("ph_pack_name")}
-                      className="glass-surface rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] uppercase bg-transparent"
+                      className="glass-surface rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] capitalize bg-transparent"
                     />
                   </div>
                 </div>
@@ -407,7 +408,7 @@ export function GameManagementOversight() {
 
 
             <div className="flex flex-col gap-2 mt-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-2">
+              <label className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest ml-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_5px_var(--danger)]"></span>
                 {t("audit_reason_req")}
               </label>

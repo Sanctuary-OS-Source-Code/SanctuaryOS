@@ -54,11 +54,11 @@ export function VaultModals(props: any) {
             <div className="grid grid-cols-1 gap-2">
               {purgeTargetFiles.map((target: any) => (
                 <div key={target.file} className="flex items-center gap-4 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] glass-panel group">
-                  <div className="w-8 h-8 rounded-full bg-[var(--danger)]/10 text-[var(--danger)] flex items-center justify-center shrink-0 shadow-md">
+                  <div className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0 shadow-md">
                     <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100 transition-opacity">delete</span>
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-[11px] font-black text-[var(--text)] uppercase truncate">
+                    <span className="text-[11px] font-black text-[var(--text)] capitalize truncate">
                       {target.name}
                     </span>
                     <span className="text-[9px] font-bold text-[var(--subtext)] truncate opacity-60 font-mono">

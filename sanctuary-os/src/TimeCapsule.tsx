@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
 import { ViewHeader, HubTabButton, SearchBar, ScreenUtilityBar, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton, HoverTabDrawer, VerticalTabButton } from "./shared";
@@ -117,9 +117,9 @@ export default function TimeCapsule({
     const icon = isEngine ? t("icon_settings") : t("icon_public");
 
     const themeColor = isEngine ? 'text-rose-500' : 'text-indigo-500';
-    const themeBg = isEngine ? 'bg-rose-500/10' : 'bg-indigo-500/10';
-    const themeBorder = isEngine ? 'border-rose-500/20' : 'border-indigo-500/20';
-    const themeHoverBorder = isEngine ? 'hover:border-rose-500/40' : 'hover:border-indigo-500/40';
+    const themeBg = isEngine ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]';
+    const themeBorder = isEngine ? 'border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
+    const themeHoverBorder = isEngine ? 'hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' : 'hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]';
     const themeGradient = isEngine ? 'from-rose-500/5' : 'from-indigo-500/5';
     const themeLed = isEngine ? 'bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.8)]' : 'bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.8)]';
 
@@ -132,19 +132,19 @@ export default function TimeCapsule({
             <span className={`material-symbols-outlined !text-[24px] ${themeColor} opacity-90 drop-shadow-lg`}>{icon}</span>
           </div>
 
-          <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 px-2.5 py-1 rounded-lg">
+          <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 px-2.5 py-1 rounded-lg">
             {sizeMb < 1 ? (sizeMb * 1024).toFixed(2) + " MB" : (sizeMb / 1024).toFixed(2) + " " + t("unit_gb")}
           </span>
         </div>
 
         <div className="flex flex-col relative z-10 mt-1">
-          <h3 className="text-lg font-black text-[var(--text)] tracking-tighter uppercase leading-none mb-2.5 truncate">{title}</h3>
+          <h3 className="text-lg font-black text-[var(--text)] tracking-tighter capitalize leading-none mb-2.5 truncate">{title}</h3>
           <div className="flex items-center gap-2">
-            <span className={`text-[9px] font-black ${themeColor} uppercase tracking-widest`}>{sig ? sig.version : backupName.replace(".tar.zst", "")}</span>
+            <span className={`text-[9px] font-black ${themeColor} capitalize tracking-widest`}>{sig ? sig.version : backupName.replace(".tar.zst", "")}</span>
             {sig?.timestamp && sig.timestamp !== "0" && (
               <>
                 <span className="text-[var(--subtext)] opacity-50">&bull;</span>
-                <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">{new Date(Number(sig.timestamp) * 1000).toLocaleDateString()}</span>
+                <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest">{new Date(Number(sig.timestamp) * 1000).toLocaleDateString()}</span>
               </>
             )}
           </div>
@@ -155,20 +155,20 @@ export default function TimeCapsule({
           <div className={`absolute inset-0 flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName || confirmDeleteBackup === backupName ? 'opacity-0 translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
             <button
               onClick={() => setConfirmRestoreBackup(backupName)}
-              className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:${themeColor} bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all rounded-xl shadow-sm backdrop-blur-md`}
+              className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${themeColor} bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all rounded-xl shadow-sm backdrop-blur-md`}
             >
               <span className={`material-symbols-outlined !text-sm`}>{t("icon_restore")}</span>
               {t("btn_restore")}
             </button>
             <button
               onClick={() => { setSelectedBackupForInspection(backupName); setIsSidePanelOpen(true); }}
-              className="flex-[1] h-full flex items-center justify-center text-[var(--text)]/80 hover:text-[var(--text)] bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-[var(--text)]/30 transition-all rounded-xl shadow-sm backdrop-blur-md group/ins"
+              className="flex-[1] h-full flex items-center justify-center text-[color-mix(in_srgb,var(--text)_80%,transparent)] hover:text-[var(--text)] bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all rounded-xl shadow-sm backdrop-blur-md group/ins"
             >
               <span className="material-symbols-outlined !text-sm group-hover/ins:scale-110 transition-transform">search</span>
             </button>
             <button
               onClick={() => setConfirmDeleteBackup(backupName)}
-              className="flex-[1] h-full flex items-center justify-center text-red-500/80 hover:text-red-500 bg-black/5 dark:bg-white/5 hover:bg-red-500/10 border border-black/10 dark:border-white/10 hover:border-red-500/30 transition-all rounded-xl shadow-sm backdrop-blur-md group/del"
+              className="flex-[1] h-full flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_80%,transparent)] hover:text-red-500 bg-black/5 dark:bg-white/5 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-black/10 dark:border-white/10 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all rounded-xl shadow-sm backdrop-blur-md group/del"
             >
               <span className="material-symbols-outlined !text-sm group-hover/del:scale-110 transition-transform">{t("icon_delete")}</span>
             </button>
@@ -177,11 +177,11 @@ export default function TimeCapsule({
           <div className={`absolute inset-0 flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
             <button
               onClick={() => { setConfirmRestoreBackup(null); useModalStore.getState().setRestoreType(isEngine ? 'engine' : 'world'); if (restoreGameBackup) restoreGameBackup(backupName); }}
-              className={`flex-[2] h-full ${themeColor} ${themeBg} hover:brightness-110 border ${themeBorder} transition-all text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm backdrop-blur-md`}
+              className={`flex-[2] h-full ${themeColor} ${themeBg} hover:brightness-110 border ${themeBorder} transition-all text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm backdrop-blur-md`}
             >
               {isEngine ? t("confirm_restore_engine_card") : t("confirm_restore_state")}
             </button>
-            <button onClick={() => setConfirmRestoreBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] uppercase tracking-widest rounded-xl shadow-sm backdrop-blur-md">
+            <button onClick={() => setConfirmRestoreBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm backdrop-blur-md">
               {t("btn_cancel")}
             </button>
           </div>
@@ -189,11 +189,11 @@ export default function TimeCapsule({
           <div className={`absolute inset-0 flex gap-2 transition-all duration-300 ${confirmDeleteBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
             <button
               onClick={() => { setConfirmDeleteBackup(null); if (deleteBackup) deleteBackup(backupName); }}
-              className="flex-[2] h-full text-red-500 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm backdrop-blur-md"
+              className="flex-[2] h-full text-red-500 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm backdrop-blur-md"
             >
               {isEngine ? t("confirm_delete_engine_card") : t("confirm_delete_state")}
             </button>
-            <button onClick={() => setConfirmDeleteBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] uppercase tracking-widest rounded-xl shadow-sm backdrop-blur-md">
+            <button onClick={() => setConfirmDeleteBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm backdrop-blur-md">
               {t("btn_cancel")}
             </button>
           </div>
@@ -209,13 +209,13 @@ export default function TimeCapsule({
         title={t("backups_title")}
         subtitle={t("backups_subtitle")}
         icon={t("icon_history")}
-        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         breadcrumb={activeTab !== "LANDING" ? (activeTab === "WORLD" ? t("world_state") : t("engine_core")) : undefined}
         onTitleClick={() => setActiveTab("LANDING")}
       />
 
       <HoverTabDrawer title="Time Capsule" activeTab={activeTab} setTab={setActiveTab}>
-        <VerticalTabButton id="LANDING" icon="dashboard" label={t("tab_landing") || "LANDING"} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="LANDING" icon="dashboard" label={t("tab_landing")} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="WORLD" icon="public" label={t("world_state")} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="ENGINE" icon="settings" label={t("engine_full")} activeTab={activeTab} setTab={setActiveTab} />
       </HoverTabDrawer>
@@ -223,30 +223,30 @@ export default function TimeCapsule({
       {activeTab === "LANDING" && (
         <div className="flex flex-wrap gap-6 w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-6">
           <DashboardStatTile
-            icon={<span className="material-symbols-outlined !text-4xl">{t("icon_verified_user")}</span>}
+            icon={<span className="material-symbols-outlined ">{t("icon_verified_user")}</span>}
             number={selectedVersion || t("status_unknown")}
             label={t("target_patch")}
-            colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
+            colorClass="text-emerald-500"
           />
           <DashboardStatTile
-            icon={<span className="material-symbols-outlined !text-4xl">{t("icon_public")}</span>}
+            icon={<span className="material-symbols-outlined ">{t("icon_public")}</span>}
             number={(totalWorldSize / 1024).toFixed(2)}
             label={`${t("unit_gb")} / ${t("world_space")}`}
-            colorClass="border-indigo-500/30 text-indigo-500 hover:border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 cursor-pointer"
+            colorClass="text-indigo-500 cursor-pointer"
             onClick={() => setActiveTab("WORLD")}
           />
           <DashboardStatTile
-            icon={<span className="material-symbols-outlined !text-4xl">{t("icon_settings")}</span>}
+            icon={<span className="material-symbols-outlined ">{t("icon_settings")}</span>}
             number={(totalEngineSize / 1024).toFixed(2)}
             label={`${t("unit_gb")} / ${t("engine_space")}`}
-            colorClass="border-rose-500/30 text-rose-500 hover:border-rose-500 bg-rose-500/10 hover:bg-rose-500/20 cursor-pointer"
+            colorClass="text-rose-500 cursor-pointer"
             onClick={() => setActiveTab("ENGINE")}
           />
           <DashboardStatTile
-            icon={<span className="material-symbols-outlined !text-4xl">{t("icon_storage")}</span>}
+            icon={<span className="material-symbols-outlined ">{t("icon_storage")}</span>}
             number={(totalSpace / 1024).toFixed(2)}
             label={`${t("unit_gb")} / ${t("total_space")}`}
-            colorClass="border-cyan-500/30 text-cyan-500 hover:border-cyan-500 bg-cyan-500/10 hover:bg-cyan-500/20"
+            colorClass="text-cyan-500"
           />
         </div>
       )}
@@ -273,14 +273,14 @@ export default function TimeCapsule({
             <CustomDatePicker
               value={startDate}
               onChange={setStartDate}
-              placeholder={t("filter_start_date") || "Start Date"}
+              placeholder={t("filter_start_date")}
             />
           </div>
           <div className="w-max min-w-[150px] shrink-0">
             <CustomDatePicker
               value={endDate}
               onChange={setEndDate}
-              placeholder={t("filter_end_date") || "End Date"}
+              placeholder={t("filter_end_date")}
             />
           </div>
 
@@ -347,11 +347,11 @@ export default function TimeCapsule({
                 {worldBackups.length > 0 && (
                   <div className="flex flex-col gap-6">
                     <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-                      <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.2em] flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-indigo-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                      <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined !text-[24px] text-indigo-500 opacity-90 drop-shadow-lg">{t("icon_public")}</span>
                         </div>
-                        {t("recent_world_states") || "RECENT WORLD STATES"}
+                        {t("recent_world_states")}
                       </h3>
                       {!confirmSealWorld ? (
                         <ActionButton
@@ -385,11 +385,11 @@ export default function TimeCapsule({
                 {engineBackups.length > 0 && (
                   <div className="flex flex-col gap-6">
                     <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-                      <h3 className="text-sm font-black text-[var(--text)] uppercase tracking-[0.2em] flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-rose-500/30 shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                      <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined !text-[24px] text-rose-500 opacity-90 drop-shadow-lg">{t("icon_settings")}</span>
                         </div>
-                        {t("recent_engine_cores") || "RECENT ENGINE CORES"}
+                        {t("recent_engine_cores")}
                       </h3>
                       {!confirmSealEngine ? (
                         <ActionButton
@@ -440,7 +440,7 @@ export default function TimeCapsule({
 
             {activeTab === "LANDING" && worldBackups.length === 0 && engineBackups.length === 0 && (
               <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
-                <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
+                <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
                   <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
                   {t("timecapsule_no_backups")}
                 </span>
@@ -449,7 +449,7 @@ export default function TimeCapsule({
 
             {activeTab === "WORLD" && worldBackups.length === 0 && (
               <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
-                <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
+                <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
                   <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
                   {t("timecapsule_no_backups")}
                 </span>
@@ -458,7 +458,7 @@ export default function TimeCapsule({
 
             {activeTab === "ENGINE" && engineBackups.length === 0 && (
               <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
-                <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
+                <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
                   <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
                   {t("timecapsule_no_backups")}
                 </span>
@@ -467,7 +467,7 @@ export default function TimeCapsule({
           </>
         ) : (
           <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl">
-            <span className="text-[var(--subtext)] font-black uppercase tracking-widest opacity-60 flex items-center gap-4">
+            <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
               <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
               {t("timecapsule_no_backups")}
             </span>

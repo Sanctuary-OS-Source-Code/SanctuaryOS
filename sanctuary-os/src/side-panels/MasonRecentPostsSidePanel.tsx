@@ -24,9 +24,9 @@ export default function MasonRecentPostsSidePanel({
     <SidePanel 
         isOpen={isOpen} 
         onClose={onClose} 
-        title={t("feed_stat_replies") || "Recent Posts"}
-        subtitle={t("recent_transmissions_sub") || "COMM-LINK DISPATCHES"}
-        icon={t("icon_dynamic_feed") || "dynamic_feed"}
+        title={t("feed_stat_replies")}
+        subtitle={t("recent_transmissions_sub")}
+        icon={t("icon_dynamic_feed")}
         widthClass="w-[1000px]"
     >
         <div className="flex flex-col gap-6 w-full pb-8">
@@ -34,11 +34,11 @@ export default function MasonRecentPostsSidePanel({
                 {posts.length === 0 ? (
                     <div className="flex flex-col justify-center items-center h-64 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl group col-span-2">
                         <span className="text-6xl mb-4 grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:-rotate-12">{t("icon_mail")}</span>
-                        <span className="text-sm font-black text-[var(--subtext)] uppercase tracking-widest text-center px-8 leading-relaxed">
-                            {t("no_posts") || "No posts found."}
+                        <span className="text-sm font-black text-[var(--subtext)] capitalize tracking-widest text-center px-8 leading-relaxed">
+                            {t("no_posts")}
                         </span>
-                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest mt-2">
-                            {t("comm_link_quiet") || "Awaiting signals."}
+                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-50 capitalize tracking-widest mt-2">
+                            {t("comm_link_quiet")}
                         </span>
                     </div>
                 ) : (

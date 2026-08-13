@@ -656,18 +656,18 @@ export function VaultGrid(props: any) {
                   {/* Unified Full-Width Header */}
                   <div className="flex flex-wrap gap-4 items-center justify-start pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
                     <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
+                      <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
                         <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">folder_open</span>
                       </div>
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-3">
-                          <h3 className="text-2xl md:text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-none">
+                          <h3 className="text-2xl md:text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-none">
                             {formatDisplayName(renderedMod.displayName || renderedMod.name)}
                           </h3>
                         </div>
-                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
+                        <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
                           <span className="material-symbols-outlined !text-[14px]">account_tree</span>
-                          {t("nav_exploring") || "EXPLORING"} {(renderedMod.flavors || []).length} {t("items") || "ARTIFACTS"}
+                          {t("nav_exploring")} {(renderedMod.flavors || []).length} {t("items")}
                         </span>
                       </div>
                     </div>
@@ -676,36 +676,21 @@ export function VaultGrid(props: any) {
                         <SearchBar
                           value={drawerSearchQuery}
                           onChange={(v: string) => setDrawerSearchQuery(v)}
-                          placeholder={t("search_ph") || "Search Artifacts..."}
+                          placeholder={t("search_ph")}
                         />
                       </div>
-                      <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-red-500/[10%] hover:text-[var(--danger)] hover:border-[var(--danger)]/30 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
+                      <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
                         <span className="material-symbols-outlined !text-[24px]">close</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Content Area: Left Card + Right Grid */}
-                  <div className="flex flex-col xl:flex-row gap-10 relative z-10">
-
-                    {/* Left Side: The Parent Card */}
-                    <div className="w-full xl:w-[350px] shrink-0 flex flex-col relative">
-                      <div className="w-full relative">
-                        {React.cloneElement(renderedModCard, { hideHitBox: true })}
-                        {/* Subtle anchor gradient behind the card */}
-                        <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-[var(--accent)]/10 blur-[50px] rounded-full pointer-events-none z-[-1]" />
-                      </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="hidden xl:block w-px bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_10%,transparent)] via-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
-
-                    {/* Right Side: The Folder Contents */}
-                    <div className="flex-1 min-w-0">
-                      <DeferredRender>
-                        {/* Inner Grid */}
-                        <div className="grid grid-cols-1 xl:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 max-h-[500px] xl:max-h-[600px] overflow-y-auto custom-scrollbar p-6">
-                        {(renderedMod.flavors || [])
+                  {/* Content Area: Right Grid Only */}
+                  <div className="w-full relative z-10">
+                    <DeferredRender>
+                      {/* Inner Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 max-h-[500px] lg:max-h-[600px] overflow-y-auto custom-scrollbar p-2 lg:p-6">
+                      {(renderedMod.flavors || [])
                           .filter((flavor: any) => {
                             if (!drawerSearchQuery) return true;
                             const query = drawerSearchQuery.toLowerCase();
@@ -770,7 +755,6 @@ export function VaultGrid(props: any) {
                           )}
                         </div>
                       </DeferredRender>
-                    </div>
                   </div>
                 </div>
                 </AccordionDrawer>
@@ -784,17 +768,17 @@ export function VaultGrid(props: any) {
           <button
             onClick={() => setCurrentPage((p: number) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-6 py-3 glass-surface rounded-xl overflow-hidden font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+            className="px-6 py-3 glass-surface rounded-xl overflow-hidden font-black text-[10px] capitalize tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
             {t("nav_prev")}
           </button>
-          <span className="text-[12px] font-black uppercase tracking-widest text-[var(--subtext)] px-4">
+          <span className="text-[12px] font-black capitalize tracking-widest text-[var(--subtext)] px-4">
             {currentPage} / {totalPages}
           </span>
           <button
             onClick={() => setCurrentPage((p: number) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-6 py-3 glass-surface rounded-xl overflow-hidden font-black text-[10px] uppercase tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+            className="px-6 py-3 glass-surface rounded-xl overflow-hidden font-black text-[10px] capitalize tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
             {t("nav_next")}
           </button>

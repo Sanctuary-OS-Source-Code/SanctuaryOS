@@ -29,7 +29,7 @@ export const UniversalInjectableSearch = ({
           <SearchBar 
             value={search} 
             onChange={setSearch} 
-            placeholder={searchPlaceholder || t("btn_search") || "SEARCH..."} 
+            placeholder={searchPlaceholder || t("btn_search")} 
           />
         </div>
         {targets.length > 1 && (
@@ -65,7 +65,7 @@ export const UniversalInjectableSearch = ({
                 )}
               </div>
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[13px] font-bold text-[var(--text)] uppercase truncate tracking-wide">
+                <span className="text-[13px] font-bold text-[var(--text)] capitalize truncate tracking-wide">
                   {formatDisplayName(art.displayName || art.name)}
                 </span>
                 {art.author && (
@@ -74,7 +74,7 @@ export const UniversalInjectableSearch = ({
                   </span>
                 )}
               </div>
-              <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-[var(--text)]/5 text-[var(--text)]/50 group-hover:bg-[var(--text)]/20 group-hover:text-[var(--text)] transition-colors">
+              <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[color-mix(in_srgb,var(--text)_50%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] group-hover:text-[var(--text)] transition-colors">
                 <span className="material-symbols-outlined !text-[18px]">add</span>
               </div>
             </div>
@@ -96,9 +96,9 @@ export const UniversalBucketEditor = ({
   
   const flatItems: { hash: string, type: string, label: string, colorVar: string }[] = [];
   
-  if (items.core) flatItems.push({ hash: items.core, type: 'core', label: t('editor_core') || 'CORE', colorVar: '--subtext' });
-  (items.twins || []).forEach((h: string) => flatItems.push({ hash: h, type: 'twins', label: t('editor_twin') || 'TWIN', colorVar: '--success' }));
-  (items.addons || []).forEach((h: string) => flatItems.push({ hash: h, type: 'addons', label: t('editor_addon') || 'ADDON', colorVar: '--warning' }));
+  if (items.core) flatItems.push({ hash: items.core, type: 'core', label: t('editor_core'), colorVar: '--subtext' });
+  (items.twins || []).forEach((h: string) => flatItems.push({ hash: h, type: 'twins', label: t('editor_twin'), colorVar: '--success' }));
+  (items.addons || []).forEach((h: string) => flatItems.push({ hash: h, type: 'addons', label: t('editor_addon'), colorVar: '--warning' }));
 
   return (
     <div className="glass-panel rounded-full overflow-hidden flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10">
@@ -123,7 +123,7 @@ export const UniversalBucketEditor = ({
 
             {/* Title & Author */}
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-[13px] font-bold text-[var(--text)] uppercase truncate tracking-wide">
+              <span className="text-[13px] font-bold text-[var(--text)] capitalize truncate tracking-wide">
                 {formatDisplayName(art.displayName || art.name)}
               </span>
               {art.author && (
@@ -136,7 +136,7 @@ export const UniversalBucketEditor = ({
             {/* Badge */}
             <div className="shrink-0 flex items-center">
               <span 
-                className="text-[9px] font-black uppercase px-2.5 py-1 rounded-full border tracking-widest"
+                className="text-[9px] font-black capitalize px-2.5 py-1 rounded-full border tracking-widest"
                 style={{ color: `var(${item.colorVar})`, backgroundColor: `color-mix(in srgb, var(${item.colorVar}) 10%, transparent)`, borderColor: `color-mix(in srgb, var(${item.colorVar}) 20%, transparent)` }}
               >
                 {item.label}
@@ -146,7 +146,7 @@ export const UniversalBucketEditor = ({
             {/* Remove Button */}
             <button
               onClick={(e) => { e.stopPropagation(); onRemove(item.hash, item.type); }}
-              className="w-8 h-8 rounded-full text-[var(--danger)] hover:bg-[var(--danger)]/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 ml-1 shrink-0"
+              className="w-8 h-8 rounded-full text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 ml-1 shrink-0"
             >
               <span className="material-symbols-outlined !text-[18px]">close</span>
             </button>
@@ -187,7 +187,7 @@ export const UniversalListEditor = ({
             </div>
             
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-[13px] font-bold text-[var(--text)] uppercase truncate tracking-wide">
+              <span className="text-[13px] font-bold text-[var(--text)] capitalize truncate tracking-wide">
                 {formatDisplayName(art.displayName || art.name)}
               </span>
               {art.author && (
@@ -199,7 +199,7 @@ export const UniversalListEditor = ({
 
             <button
               onClick={(e) => { e.stopPropagation(); onRemove(hash); }}
-              className="w-8 h-8 rounded-full text-[var(--danger)] hover:bg-[var(--danger)]/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 ml-1 shrink-0"
+              className="w-8 h-8 rounded-full text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 ml-1 shrink-0"
             >
               <span className="material-symbols-outlined !text-[18px]">close</span>
             </button>
@@ -219,8 +219,8 @@ export const UniversalListPicker = ({
   if (!items || items.length === 0) {
     return (
       <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full glass-panel">
-        <span className="material-symbols-outlined !text-[32px] mb-2 opacity-50">{emptyStateIcon || 'inventory_2'}</span>
-        <span className="text-[10px] font-black uppercase tracking-widest">{emptyStateTitle || "EMPTY"}</span>
+        <span className="material-symbols-outlined mb-2 opacity-50">{emptyStateIcon || 'inventory_2'}</span>
+        <span className="text-[10px] font-black capitalize tracking-widest">{emptyStateTitle || "EMPTY"}</span>
       </div>
     );
   }
@@ -244,11 +244,11 @@ export const UniversalListPicker = ({
           </div>
           <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center justify-start gap-2">
-              <span className="text-[13px] font-bold text-[var(--text)] uppercase truncate tracking-wide">
+              <span className="text-[13px] font-bold text-[var(--text)] capitalize truncate tracking-wide">
                 {item.title}
               </span>
               {item.topRightBadge && (
-                <span className="text-[9px] font-black text-[var(--accent)] uppercase px-2 py-0.5 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/20 truncate max-w-[120px]">
+                <span className="text-[9px] font-black text-[var(--accent)] capitalize px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] truncate max-w-[120px]">
                   {item.topRightBadge}
                 </span>
               )}
@@ -259,7 +259,7 @@ export const UniversalListPicker = ({
                 {item.metaTags.map((tag: any, i: number) => (
                   <div key={i} className="flex items-center gap-1 text-[var(--subtext)] opacity-80" title={tag.label}>
                     <span className="material-symbols-outlined !text-[12px]">{tag.icon}</span>
-                    <span className="text-[9px] font-bold uppercase truncate max-w-[100px]">{tag.value}</span>
+                    <span className="text-[9px] font-bold capitalize truncate max-w-[100px]">{tag.value}</span>
                   </div>
                 ))}
               </div>
@@ -287,8 +287,8 @@ export const UniversalGridPicker = ({
   if (!items || items.length === 0) {
     return (
       <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full glass-panel col-span-full">
-        <span className="material-symbols-outlined !text-[32px] mb-2 opacity-50">{emptyStateIcon || 'inventory_2'}</span>
-        <span className="text-[10px] font-black uppercase tracking-widest">{emptyStateTitle || "EMPTY"}</span>
+        <span className="material-symbols-outlined mb-2 opacity-50">{emptyStateIcon || 'inventory_2'}</span>
+        <span className="text-[10px] font-black capitalize tracking-widest">{emptyStateTitle || "EMPTY"}</span>
       </div>
     );
   }
@@ -303,20 +303,20 @@ export const UniversalGridPicker = ({
             onClick={() => onSelect(item.id, item.originalItem || item)}
             className={`glass-panel border transition-all duration-300 rounded-full p-4 flex flex-col cursor-pointer group hover:-translate-y-0.5
               ${isSelected 
-                ? 'border-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] bg-[var(--accent)]/5' 
+                ? 'border-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]' 
                 : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
           >
             <div className="w-full aspect-square rounded-xl bg-black/20 flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden mb-3">
               {item.imageUrl ? (
                 <img src={item.imageUrl} className="w-full h-full object-cover" />
               ) : (
-                <span className={`material-symbols-outlined !text-[32px] transition-colors duration-300 ${isSelected ? 'text-[var(--accent)]' : 'text-[var(--accent)] opacity-70 group-hover:opacity-100'}`}>
+                <span className={`material-symbols-outlined transition-colors duration-300 ${isSelected ? 'text-[var(--accent)]' : 'text-[var(--accent)] opacity-70 group-hover:opacity-100'}`}>
                   {item.icon || 'extension'}
                 </span>
               )}
             </div>
             
-            <span className={`text-[11px] font-black uppercase truncate tracking-wider mb-1 transition-colors duration-300 ${isSelected ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>
+            <span className={`text-[11px] font-black capitalize truncate tracking-wider mb-1 transition-colors duration-300 ${isSelected ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>
               {item.title}
             </span>
             

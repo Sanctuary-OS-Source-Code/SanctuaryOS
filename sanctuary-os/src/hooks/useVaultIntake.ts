@@ -19,7 +19,7 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
   const handleDroppedFiles = async (paths: string[]): Promise<boolean> => {
     const schemaFeatures = activeGameSchema?.features || { has_cc: true };
     if (!schemaFeatures.has_cc) {
-      setStatus(t("status_not_supported") || "Active game does not support custom content intake.");
+      setStatus(t("status_not_supported"));
       return false;
     }
 

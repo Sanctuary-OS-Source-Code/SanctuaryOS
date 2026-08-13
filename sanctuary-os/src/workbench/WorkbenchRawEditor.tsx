@@ -148,23 +148,23 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
          />
 
          {problemsList.length > 0 && (
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[var(--radius)] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-red-500/[60%] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
-               <div className="flex items-center justify-start px-6 py-3 border-b border-[var(--danger)]/30 bg-red-500/[10%] shrink-0">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[var(--radius)] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
+               <div className="flex items-center justify-start px-6 py-3 border-b border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
+                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
                      <span className="material-symbols-outlined !text-[16px]">{t("icon_error")}</span>
                      {t("problems")} ({problemsList.length})
                   </span>
-                  <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-red-500/[20%] transition-colors">
+                  <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
                      <span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span>
                   </button>
                </div>
                <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
                   {problemsList.map((p, i) => (
-                     <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-red-500/[10%] cursor-pointer group transition-colors">
+                     <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
                         <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("nav_cancel")}</span>
                         <div className="flex flex-col gap-0.5 min-w-0">
                            <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
-                           <span className="text-[9px] text-[var(--subtext)] font-mono uppercase tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
+                           <span className="text-[9px] text-[var(--subtext)] font-mono capitalize tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
                         </div>
                      </div>
                   ))}

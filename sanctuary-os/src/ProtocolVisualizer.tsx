@@ -43,7 +43,7 @@ function ServerModSearchDropdown({ onSelect, selectedItem, placeholder, masonId,
 
   return (
     <div className="relative w-full">
-      <div className={`relative flex items-center glass-surface ${className || 'rounded-full border border-transparent'} focus-within:border-[var(--accent)]/[50%] hover:border-[var(--accent)]/[30%] transition-all shadow-inner group w-full h-12 z-[10]`}>
+      <div className={`relative flex items-center glass-surface ${className || 'rounded-full border border-transparent'} focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all shadow-inner group w-full h-12 z-[10]`}>
         <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
           <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-focus-within:text-[var(--accent)] transition-colors">search</span>
         </div>
@@ -55,11 +55,11 @@ function ServerModSearchDropdown({ onSelect, selectedItem, placeholder, masonId,
           onFocus={() => { if (!selectedItem) setIsOpen(true); }}
           placeholder={placeholder}
           readOnly={!!selectedItem}
-          className="w-full bg-transparent border-none px-2 py-2 text-[11px] font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-50 tracking-[0.2em] uppercase min-w-0"
+          className="w-full bg-transparent border-none px-2 py-2 text-[11px] font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-50 tracking-[0.2em] capitalize min-w-0"
         />
         {selectedItem ? (
           <button className="pr-4 pl-2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold flex items-center justify-center" onClick={onClear}>
-            <span className="material-symbols-outlined !text-[18px]">{t("icon_close") || "close"}</span>
+            <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
           </button>
         ) : (
           <button className="pr-4 pl-2 text-[var(--subtext)] opacity-60 flex items-center justify-center" onClick={() => setIsOpen(!isOpen)}>
@@ -90,9 +90,9 @@ function ServerModSearchDropdown({ onSelect, selectedItem, placeholder, masonId,
                     className="w-full text-left px-5 py-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col gap-0.5"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-black text-[var(--text)] uppercase">{m.displayName || m.name.split('/').pop()}</span>
+                      <span className="text-[11px] font-black text-[var(--text)] capitalize">{m.displayName || m.name.split('/').pop()}</span>
                       {(m.file_extension || m.sub_type) && (
-                        <span className="px-1.5 py-0.5 rounded bg-[var(--text)]/10 text-[8px] font-mono opacity-80 uppercase border border-[var(--text)]/20">
+                        <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-mono opacity-80 capitalize border border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
                           {(m.file_extension || m.sub_type).replace(".", "")}
                         </span>
                       )}
@@ -102,7 +102,7 @@ function ServerModSearchDropdown({ onSelect, selectedItem, placeholder, masonId,
                     </span>
                   </button>
                 ))}
-                {results.length === 0 && <div className="p-5 text-center text-[10px] text-[var(--subtext)] font-bold uppercase">{query ? (t("link_no_results") || "No results found") : "Type to search Supabase..."}</div>}
+                {results.length === 0 && <div className="p-5 text-center text-[10px] text-[var(--subtext)] font-bold capitalize">{query ? (t("link_no_results")) : "Type to search Supabase..."}</div>}
               </div>
             </>
           );
@@ -583,22 +583,22 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
 
         setActivePanel(panelType);
       }}
-      className="group glass-panel rounded-3xl p-8 shadow-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/[5%] transition-all text-left flex flex-col justify-start h-56 relative overflow-hidden hover:scale-[1.02] active:scale-[0.98]"
+      className="group glass-panel rounded-3xl p-8 shadow-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all text-left flex flex-col justify-start h-56 relative overflow-hidden hover:scale-[1.02] active:scale-[0.98]"
     >
       <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[var(--accent)] opacity-[0.05] group-hover:opacity-[0.15] transition-opacity pointer-events-none rounded-full blur-2xl group-hover:scale-150 duration-700" />
 
       <div className="flex justify-start items-start w-full relative z-10">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[var(--text)]/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-[var(--accent)]/20 group-hover:border-[var(--accent)]/50 transition-all shadow-inner">
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all shadow-inner">
           <span className="material-symbols-outlined !text-[28px] text-[var(--text)] group-hover:text-[var(--accent)] transition-colors drop-shadow-md">{icon}</span>
         </div>
-        <div className="px-4 py-1.5 rounded-full bg-[var(--text)]/5 text-[11px] font-black uppercase tracking-widest text-[var(--subtext)] group-hover:bg-[var(--accent)]/20 group-hover:text-[var(--accent)] transition-colors border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[var(--accent)]/30 shadow-sm">
-          {count} {t("items") || "ITEMS"}
+        <div className="px-4 py-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[11px] font-black capitalize tracking-widest text-[var(--subtext)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:text-[var(--accent)] transition-colors border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-sm">
+          {count} {t("items")}
         </div>
       </div>
 
       <div className="flex flex-col gap-2 relative z-10 mt-auto">
-        <h3 className="text-lg font-black uppercase tracking-[0.1em] text-[var(--text)]">{title}</h3>
-        <p className="text-[11px] font-bold text-[var(--subtext)] opacity-70 uppercase tracking-widest leading-relaxed line-clamp-2">{desc}</p>
+        <h3 className="text-lg font-black capitalize tracking-[0.1em] text-[var(--text)]">{title}</h3>
+        <p className="text-[11px] font-bold text-[var(--subtext)] opacity-70 capitalize tracking-widest leading-relaxed line-clamp-2">{desc}</p>
       </div>
     </button>
   );
@@ -615,20 +615,20 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
 
         {/* Left Side: The Master Hero Card */}
         <div className="w-full xl:w-[380px] shrink-0 flex flex-col relative z-10 h-full">
-          <div className="w-full h-full glass-panel rounded-[32px] p-6 border border-[var(--accent)]/[20%] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
+          <div className="w-full h-full glass-panel rounded-[32px] p-6 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
 
             {/* Hero Background Effects */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)]/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-[var(--text)]/5 rounded-full blur-[60px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full blur-[60px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
 
             {/* Hero Header is removed as it's redundant with the Panel Title */}
 
             <div className="flex items-center justify-start pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">
-              <h3 className="text-[14px] font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
+              <h3 className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">check_circle</span>
-                {t("assigned_artifacts") || "ACTIVE PROTOCOLS"}
+                {t("assigned_artifacts")}
               </h3>
-              <span className="px-3 py-1 rounded-md bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] text-[10px] font-black text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]">{activeFiltered.length}</span>
+              <span className="px-3 py-1 rounded-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[10px] font-black text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]">{activeFiltered.length}</span>
             </div>
 
             {/* Filter Tabs for Left Pane */}
@@ -637,12 +637,12 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                 {[
                   { id: 'All', label: 'All' },
                   ...(type === 'twins' ? [
-                    { id: 'twin', label: t('link_twin') || 'Twins' },
-                    { id: 'addon', label: t('link_addon') || 'Addons' }
+                    { id: 'twin', label: t('link_twin') },
+                    { id: 'addon', label: t('link_addon') }
                   ] : []),
                   ...(type === 'flavors' ? [
-                    { id: 'flavor', label: t('link_flavor') || 'Flavors' },
-                    { id: 'beta', label: t('link_beta') || 'Betas' }
+                    { id: 'flavor', label: t('link_flavor') },
+                    { id: 'beta', label: t('link_beta') }
                   ] : [])
                 ].map(tab => (
                   <FilterTabButton key={tab.id} id={tab.id} label={tab.label} activeTab={leftTab} setTab={setLeftTab} />
@@ -653,7 +653,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
             {type === 'flavors' && (
               <div className="mb-4 relative z-10">
                 {activeFlavorGroup ? (
-                  <div className="flex items-center gap-4 bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] px-4 py-3 rounded-xl w-full justify-start shadow-inner">
+                  <div className="flex items-center gap-4 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-4 py-3 rounded-xl w-full justify-start shadow-inner">
                     <div className="flex items-center gap-3 w-full max-w-[200px]">
                       <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">{t("icon_hub")}</span>
                       {editingGroupId === activeFlavorGroup.id ? (
@@ -664,26 +664,26 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                           onKeyDown={(e) => { if (e.key === 'Enter') handleRenameGroup(activeFlavorGroup.id, 'flavor'); if (e.key === 'Escape') setEditingGroupId(null); }}
                           onBlur={() => handleRenameGroup(activeFlavorGroup.id, 'flavor')}
                           autoFocus
-                          className="bg-transparent border-b border-[var(--accent)] text-[var(--accent)] text-[12px] font-black uppercase tracking-wider px-1 py-0 w-full focus:outline-none"
+                          className="bg-transparent border-b border-[var(--accent)] text-[var(--accent)] text-[12px] font-black capitalize tracking-wider px-1 py-0 w-full focus:outline-none"
                         />
                       ) : (
                         <span
                           onClick={() => { setEditingGroupId(activeFlavorGroup.id); setEditGroupName(activeFlavorGroup.name); }}
-                          className="text-[12px] font-black uppercase text-[var(--text)] tracking-wider truncate cursor-text hover:text-[var(--accent)] transition-colors"
+                          className="text-[12px] font-black capitalize text-[var(--text)] tracking-wider truncate cursor-text hover:text-[var(--accent)] transition-colors"
                           title="Click to rename"
                         >
                           {activeFlavorGroup.name}
                         </span>
                       )}
                     </div>
-                    <button onClick={handleLeaveFlavorGroup} className="w-8 h-8 flex items-center justify-center text-[var(--danger)] hover:bg-red-500/[20%] rounded-lg transition-all relative group/btn">
+                    <button onClick={handleLeaveFlavorGroup} className="w-8 h-8 flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] rounded-lg transition-all relative group/btn">
                       <span className="material-symbols-outlined !text-[18px]">{t("icon_link_off")}</span>
-                      <HoverTooltip title={t("nav_leave_group") || "Leave Group"} variant="danger" />
+                      <HoverTooltip title={t("nav_leave_group")} variant="danger" />
                     </button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] px-4 py-3 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <span className="text-[11px] font-black uppercase text-[var(--text)] tracking-wider opacity-60">{t("no_variant_group")}</span>
+                    <span className="text-[11px] font-black capitalize text-[var(--text)] tracking-wider opacity-60">{t("no_variant_group")}</span>
                   </div>
                 )}
               </div>
@@ -692,9 +692,9 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
             {type === 'community' && (
               <div className="mb-4 relative z-10">
                 {activeCommunityGroup ? (
-                  <div className="flex items-center gap-4 bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] px-4 py-3 rounded-xl w-full justify-start shadow-inner">
+                  <div className="flex items-center gap-4 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-4 py-3 rounded-xl w-full justify-start shadow-inner">
                     <div className="flex items-center gap-3 w-full max-w-[200px]">
-                      <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">{t("icon_community_groups") || "category"}</span>
+                      <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">{t("icon_community_groups")}</span>
                       {editingGroupId === activeCommunityGroup.id ? (
                         <input
                           type="text"
@@ -703,21 +703,21 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                           onKeyDown={(e) => { if (e.key === 'Enter') handleRenameGroup(activeCommunityGroup.id, 'community'); if (e.key === 'Escape') setEditingGroupId(null); }}
                           onBlur={() => handleRenameGroup(activeCommunityGroup.id, 'community')}
                           autoFocus
-                          className="bg-transparent border-b border-[var(--accent)] text-[var(--accent)] text-[12px] font-black uppercase tracking-wider px-1 py-0 w-full focus:outline-none"
+                          className="bg-transparent border-b border-[var(--accent)] text-[var(--accent)] text-[12px] font-black capitalize tracking-wider px-1 py-0 w-full focus:outline-none"
                         />
                       ) : (
                         <span
                           onClick={() => { setEditingGroupId(activeCommunityGroup.id); setEditGroupName(activeCommunityGroup.name); }}
-                          className="text-[12px] font-black uppercase text-[var(--text)] tracking-wider truncate cursor-text hover:text-[var(--accent)] transition-colors"
+                          className="text-[12px] font-black capitalize text-[var(--text)] tracking-wider truncate cursor-text hover:text-[var(--accent)] transition-colors"
                           title="Click to rename"
                         >
                           {activeCommunityGroup.name}
                         </span>
                       )}
                     </div>
-                    <button onClick={handleLeaveCommunityGroup} className="w-8 h-8 flex items-center justify-center text-[var(--danger)] hover:bg-red-500/[20%] rounded-lg transition-all relative group/btn">
+                    <button onClick={handleLeaveCommunityGroup} className="w-8 h-8 flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] rounded-lg transition-all relative group/btn">
                       <span className="material-symbols-outlined !text-[18px]">{t("icon_link_off")}</span>
-                      <HoverTooltip title={t("nav_leave_group") || "Leave Group"} variant="danger" />
+                      <HoverTooltip title={t("nav_leave_group")} variant="danger" />
                     </button>
                   </div>
                 ) : (
@@ -729,22 +729,22 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                           value={newCommunityGroupName}
                           onChange={(e) => setNewCommunityGroupName(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleCreateCommunityGroup(); if (e.key === 'Escape') { setShowCommunityGroupModal(false); setNewCommunityGroupName(''); } }}
-                          placeholder={t("modal_community_group_name_placeholder") || "Name..."}
+                          placeholder={t("modal_community_group_name_placeholder")}
                           autoFocus
-                          className="flex-1 min-w-0 bg-transparent border-b border-[var(--accent)] text-[var(--accent)] text-[12px] font-black uppercase tracking-wider px-1 py-1 focus:outline-none placeholder:text-[var(--text)]/30 placeholder:tracking-widest"
+                          className="flex-1 min-w-0 bg-transparent border-b border-[var(--accent)] text-[var(--accent)] text-[12px] font-black capitalize tracking-wider px-1 py-1 focus:outline-none placeholder:text-[color-mix(in_srgb,var(--text)_30%,transparent)] placeholder:tracking-widest"
                         />
                         <button
                           onClick={handleCreateCommunityGroup}
                           disabled={!newCommunityGroupName.trim()}
-                          className="px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest hover:bg-[var(--accent)]/[15%] hover:border-[var(--accent)]/[50%] hover:text-[var(--accent)] hover:shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all shrink-0 disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black capitalize tracking-widest hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)] hover:shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all shrink-0 disabled:opacity-50"
                         >
-                          {t("nav_save") || "Save"}
+                          {t("nav_save")}
                         </button>
                         <button
                           onClick={() => { setShowCommunityGroupModal(false); setNewCommunityGroupName(''); }}
-                          className="px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-widest hover:bg-red-500/[15%] hover:border-red-500/[50%] hover:text-[var(--danger)] hover:shadow-[inset_0_0_15px_rgba(var(--danger-rgb),0.2)] transition-all shrink-0"
+                          className="px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black capitalize tracking-widest hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] hover:shadow-[inset_0_0_15px_rgba(var(--danger-rgb),0.2)] transition-all shrink-0"
                         >
-                          {t("nav_cancel") || "Cancel"}
+                          {t("nav_cancel")}
                         </button>
                       </div>
                     ) : (
@@ -755,14 +755,14 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                             value=""
                             options={allCommunityGroups.map(g => ({ label: g.name, value: g.id }))}
                             onChange={(val: string) => { if (val) handleJoinCommunityGroup(val); }}
-                            placeholder={t("community_groups_select") || "Select a Community Group..."}
+                            placeholder={t("community_groups_select")}
                           />
                         </div>
                         <button
                           onClick={() => setShowCommunityGroupModal(true)}
-                          className="w-12 h-12 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[var(--accent)]/[15%] hover:border-[var(--accent)]/[50%] text-[var(--text)] hover:text-[var(--accent)] hover:shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center shrink-0 relative group"
+                          className="w-12 h-12 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center shrink-0 relative group"
                         >
-                          <HoverTooltip title={t("community_groups_create") || "Create"} />
+                          <HoverTooltip title={t("community_groups_create")} />
                           <span className="material-symbols-outlined !text-[20px]">{t("icon_add")}</span>
                         </button>
                       </>
@@ -776,29 +776,29 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 transform-gpu pb-10">
               {activeFiltered.length === 0 ? (
                 <div className="w-full h-full flex items-center justify-center opacity-30 py-10">
-                  <span className="text-[11px] font-black uppercase tracking-[0.3em] text-center px-4 leading-relaxed">{t("no_links") || "NO ASSIGNED PROTOCOLS FOUND"}</span>
+                  <span className="text-[11px] font-black capitalize tracking-[0.3em] text-center px-4 leading-relaxed">{t("no_links")}</span>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4 pb-4">
                   {activeFiltered.map((item) => (
-                    <div key={item.id} className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-red-500/[30%] hover:shadow-[0_10px_30px_rgba(var(--danger-rgb),0.15)] hover:bg-red-500/[5%] transition-all duration-300 isolate">
+                    <div key={item.id} className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--danger-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] transition-all duration-300 isolate">
                       
                       {/* Top Row: Icon + Badge */}
                       <div className="flex items-start justify-start gap-3 mb-4">
                         <div className="w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
-                          {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">{type === 'dlc' ? 'widgets' : (t("icon_deployed_code") || "extension")}</span>}
+                          {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">{type === 'dlc' ? 'widgets' : (t("icon_deployed_code"))}</span>}
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           {item._rel_type && (
-                             <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest leading-none border ${
-                               item._rel_type === 'twin' ? 'bg-[var(--accent)]/[15%] text-[var(--accent)] border-[var(--accent)]/[30%] shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.1)]' :
+                             <span className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest leading-none border ${
+                               item._rel_type === 'twin' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.1)]' :
                                item._rel_type === 'addon' ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]' :
                                'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
                              }`}>
                                {item._rel_type}
                              </span>
                           )}
-                          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase mt-1">
+                          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize mt-1">
                             {type === 'dlc' ? getDlcAbbreviation(item.type) : (item.latest_version ? `v${item.latest_version}` : 'PACKAGE')}
                           </span>
                         </div>
@@ -806,16 +806,16 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                       
                       {/* Middle Row: Name */}
                       <div className="flex flex-col min-w-0 flex-1 justify-center relative z-10 mb-4">
-                        <span className="text-[13px] font-black text-[var(--text)] uppercase tracking-widest leading-tight group-hover/item:text-[var(--danger)] transition-colors duration-300 break-words line-clamp-2">{cleanSearchName(item.name || item.id, activeGameSchema)}</span>
+                        <span className="text-[13px] font-black text-[var(--text)] capitalize tracking-widest leading-tight group-hover/item:text-[var(--danger)] transition-colors duration-300 break-words line-clamp-2">{cleanSearchName(item.name || item.id, activeGameSchema)}</span>
                       </div>
 
                       {/* Bottom Row: Actions */}
                       <div className="flex items-center gap-2 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10 opacity-60 group-hover/item:opacity-100 transition-opacity duration-300">
                         <ActionButton
                           onClick={() => type === 'dlc' ? handleToggleDLC(item.id, true) : handleRemoveLink(item.id, type)}
-                          className="w-full !px-2 !py-2 !h-10 !rounded-xl !text-[9px] hover:!bg-red-500/[15%] hover:!text-[var(--danger)] hover:!border-[var(--danger)]/50 hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]"
+                          className="w-full !px-2 !py-2 !h-10 !rounded-xl !text-[9px] hover:!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:!text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--danger-rgb),0.4)]"
                           icon="close"
-                          label={t("nav_unlink") || "Unlink"}
+                          label={t("nav_unlink")}
                         />
                       </div>
                     </div>
@@ -825,28 +825,28 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
             </div>
           </div>
           {/* Subtle anchor gradient behind the master card */}
-          <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-[var(--accent)]/10 blur-[60px] rounded-full pointer-events-none z-[-1]" />
+          <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] blur-[60px] rounded-full pointer-events-none z-[-1]" />
         </div>
 
         {/* Right Side: Available Artifacts */}
-        <div className="flex-1 flex flex-col h-full min-w-0 relative z-10 glass-panel rounded-[32px] p-6 border border-[var(--accent)]/[20%] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
+        <div className="flex-1 flex flex-col h-full min-w-0 relative z-10 glass-panel rounded-[32px] p-6 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
 
           {/* Right Master Card Background Effects */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--accent)]/5 rounded-full blur-[100px] pointer-events-none -translate-y-1/3 translate-x-1/3" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-[var(--text)]/5 rounded-full blur-[80px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-full blur-[100px] pointer-events-none -translate-y-1/3 translate-x-1/3" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full blur-[80px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
 
           {/* Header for Right Pane */}
           <div className="shrink-0 flex items-center justify-start pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">
-            <h3 className="text-[14px] font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
+            <h3 className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
               <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">apps</span>
-              {t("available_lists") || "AVAILABLE ARTIFACTS"}
+              {t("available_lists")}
             </h3>
 
             <div className="w-full md:w-[280px]">
               <SearchBar
                 value={type === 'dlc' ? dlcSearch : availableSearch}
                 onChange={(v) => type === 'dlc' ? setDlcSearch(v) : setAvailableSearch(v)}
-                placeholder={t("search_ph") || "Search Artifacts..."}
+                placeholder={t("search_ph")}
                 className="w-full text-[11px]"
               />
             </div>
@@ -874,45 +874,45 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
             {availableItems.length === 0 ? (
               <div className="w-full h-full flex flex-col items-center justify-center gap-6 opacity-30">
                 <span className="material-symbols-outlined !text-[48px] text-[var(--text)]">apps</span>
-                <span className="text-[12px] font-black uppercase tracking-[0.3em] text-center max-w-sm leading-relaxed">{t("no_artifact") || "NO COMPATIBLE ARTIFACTS AVAILABLE TO ASSIGN"}</span>
+                <span className="text-[12px] font-black capitalize tracking-[0.3em] text-center max-w-sm leading-relaxed">{t("no_artifact")}</span>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 min-[2000px]:grid-cols-4 gap-4 pb-4">
                 {availableItems.map((item) => (
-                  <div key={item.id} className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 isolate">
+                  <div key={item.id} className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate">
 
                     {/* Top Row: Icon + Badge */}
                     <div className="flex items-start justify-start gap-3 mb-4">
                       <div className="w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
-                        {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">{type === 'dlc' ? 'widgets' : (t("icon_deployed_code") || "extension")}</span>}
+                        {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">{type === 'dlc' ? 'widgets' : (t("icon_deployed_code"))}</span>}
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--text)] text-right break-words max-w-[100px] leading-tight">
+                        <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-black capitalize tracking-widest text-[var(--text)] text-right break-words max-w-[100px] leading-tight">
                           {type === 'dlc' ? getDlcAbbreviation(item.type) : (item.file_extension || item.sub_type || 'PACKAGE').replace(".", "")}
                         </span>
                         {item.latest_version && (
-                          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase">v{item.latest_version}</span>
+                          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize">v{item.latest_version}</span>
                         )}
                       </div>
                     </div>
 
                     {/* Middle Row: Name */}
                     <div className="flex flex-col min-w-0 flex-1 justify-center relative z-10 mb-4">
-                      <span className="text-[13px] font-black text-[var(--text)] uppercase tracking-widest leading-tight group-hover/item:text-[var(--accent)] transition-colors duration-300 break-words line-clamp-2">{cleanSearchName(item.name || item.id, activeGameSchema)}</span>
+                      <span className="text-[13px] font-black text-[var(--text)] capitalize tracking-widest leading-tight group-hover/item:text-[var(--accent)] transition-colors duration-300 break-words line-clamp-2">{cleanSearchName(item.name || item.id, activeGameSchema)}</span>
                     </div>
 
                     {/* Bottom Row: Actions */}
                     <div className="flex flex-wrap items-center gap-2 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10 opacity-60 group-hover/item:opacity-100 transition-opacity duration-300">
                       {type === 'twins' && (
                         <>
-                          <ActionButton onClick={() => handleAddLink(item.id, 'twin')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl !text-[9px]" icon="device_hub" label={t("link_twin") || "Twin"} />
-                          <ActionButton onClick={() => handleAddLink(item.id, 'addon')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl !text-[9px]" icon="extension" label={t("link_addon") || "Addon"} />
+                          <ActionButton onClick={() => handleAddLink(item.id, 'twin')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl !text-[9px]" icon="device_hub" label={t("link_twin")} />
+                          <ActionButton onClick={() => handleAddLink(item.id, 'addon')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl !text-[9px]" icon="extension" label={t("link_addon")} />
                         </>
                       )}
                       {type === 'flavors' && (
                         <>
-                          <ActionButton onClick={() => handleAddLink(item.id, 'flavor')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl !text-[9px]" icon="alt_route" label={t("link_flavor") || "Flavor"} />
-                          <ActionButton onClick={() => handleAddLink(item.id, 'beta')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl !text-[9px]" icon="science" label={t("link_beta") || "Beta"} />
+                          <ActionButton onClick={() => handleAddLink(item.id, 'flavor')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl !text-[9px]" icon="alt_route" label={t("link_flavor")} />
+                          <ActionButton onClick={() => handleAddLink(item.id, 'beta')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl !text-[9px]" icon="science" label={t("link_beta")} />
                         </>
                       )}
                       {(type === 'dependencies' || type === 'dlc' || (type === 'community' && activeCommunityGroup)) && (
@@ -924,7 +924,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                           }}
                           className="w-full !px-2 !py-2 !h-10 !rounded-xl !text-[9px]"
                           icon={type === 'dlc' ? 'add_circle' : (type === 'community' ? 'category' : 'account_tree')}
-                          label={t("btn_add_link") || "Assign"}
+                          label={t("btn_add_link")}
                         />
                       )}
                     </div>
@@ -1043,7 +1043,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
         }
       >
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[var(--subtext)] uppercase tracking-widest">{t("modal_group_name_label")}</label>
+          <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("modal_group_name_label")}</label>
           <input
             autoFocus
             type="text"

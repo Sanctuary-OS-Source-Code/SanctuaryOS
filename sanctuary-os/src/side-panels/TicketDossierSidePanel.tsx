@@ -159,20 +159,20 @@ export default function TicketDossierSidePanel({
       }
     >
       <div className="flex flex-col gap-8">
-        <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest">
+        <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest">
           {ticket.title}
         </h2>
 
         {ticket.metadata?.restricted_violations && ticket.metadata.restricted_violations.length > 0 && (
-          <div className="bg-rose-500/10 border border-rose-500/30 p-5 rounded-2xl flex flex-col gap-3 relative overflow-hidden group">
+          <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] p-5 rounded-2xl flex flex-col gap-3 relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
             <div className="flex items-center gap-3 relative z-10">
               <span className="material-symbols-outlined !text-[20px] text-rose-500">{t("icon_warning")}</span>
-              <span className="text-rose-400 font-black text-[10px] tracking-widest uppercase">{t("dossier_restricted_detected")}</span>
+              <span className="text-rose-400 font-black text-[10px] tracking-widest capitalize">{t("dossier_restricted_detected")}</span>
             </div>
             <div className="flex flex-wrap gap-2 relative z-10">
               {ticket.metadata.restricted_violations.map((v: string, i: number) => (
-                <div key={i} className="flex items-center gap-2 text-rose-200/90 text-[10px] font-mono bg-rose-500/10 py-1.5 px-3 rounded-md border border-rose-500/20">
+                <div key={i} className="flex items-center gap-2 text-rose-200/90 text-[10px] font-mono bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
                   <span className="material-symbols-outlined !text-[12px] opacity-70">{t("auto_extension")}</span>
                   <span>{v.replace(/[-_]/g, ' ')}</span>
                 </div>
@@ -181,10 +181,10 @@ export default function TicketDossierSidePanel({
           </div>
         )}
 
-        <UniversalGroup title={t("dossier_ticket_details") || "TICKET DETAILS"} icon={t("icon_receipt_long") || "receipt_long"}>
+        <UniversalGroup title={t("dossier_ticket_details")} icon={t("icon_receipt_long")}>
           
-          <div className="flex justify-start items-center relative z-10">
-            <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+          <div className="flex justify-between items-center w-full relative z-10">
+            <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_person")}</span> {(t("dossier_author")).replace(/^[^\w]*/, '').trim()}
             </span>
             <span className="text-xs font-black text-[var(--text)] flex items-center gap-2">
@@ -193,38 +193,38 @@ export default function TicketDossierSidePanel({
             </span>
           </div>
 
-          <div className="flex justify-start items-center relative z-10">
-            <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+          <div className="flex justify-between items-center w-full relative z-10">
+            <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_info")}</span> {(t("status")).replace(/^[^\w]*/, '').trim()}
             </span>
-            <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-lg border shadow-inner shrink-0 inline-block transition-colors
-              ${ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[inset_0_0_10px_rgba(var(--danger-rgb),0.2)]' : ''}
-              ${ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[inset_0_0_10px_rgba(var(--success-rgb),0.2)]' : ''}
-              ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[inset_0_0_10px_rgba(var(--warning-rgb),0.2)]' : ''}
+            <span className={`text-[9px] font-black capitalize tracking-[0.2em] px-3 py-1.5 rounded-lg border shadow-inner shrink-0 inline-block transition-colors
+              ${ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-rose-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[inset_0_0_10px_rgba(var(--danger-rgb),0.2)]' : ''}
+              ${ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-400 border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[inset_0_0_10px_rgba(var(--success-rgb),0.2)]' : ''}
+              ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)] shadow-[inset_0_0_10px_rgba(var(--warning-rgb),0.2)]' : ''}
               ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.2)]' : ''}
-              ${!['open', 'new', 'resolved', 'closed', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20' : ''}
+              ${!['open', 'new', 'resolved', 'closed', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
             `}>
               {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? 'NEW' : ticket.status}
             </span>
           </div>
 
-          <div className="flex justify-start items-center relative z-10">
-            <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+          <div className="flex justify-between items-center w-full relative z-10">
+            <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_label")}</span> {(t("category")).replace(/^[^\w]*/, '').trim()}
             </span>
             <span className="text-xs font-bold text-[var(--text)] capitalize opacity-90">{(ticket.category || ticket.ticket_type || "general").replace('_', ' ')}</span>
           </div>
 
           {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
-            <div className="flex justify-start items-center relative z-10 mt-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-              <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+            <div className="flex justify-between items-center w-full relative z-10 mt-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+              <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_extension")}</span> {t("target_artifact")}
               </span>
               <div className="flex items-center gap-2">
                 {onEditMetadata ? (
                   <button
                     onClick={() => onEditMetadata(ticket.target_mod_id || ticket.metadata?.target_mod_id)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] hover:border-[var(--accent)]/[40%] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] transition-all active:scale-95 max-w-[250px] shrink-0"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] transition-all active:scale-95 max-w-[250px] shrink-0"
                   >
                     <span className="text-[10px] font-mono font-black tracking-wider truncate">{ticket.target_mod_name || fetchedTargetModName || ticket.target_mod_id || ticket.metadata?.target_mod_id}</span>
                     <span className="material-symbols-outlined !text-[14px] shrink-0">{t("icon_edit")}</span>
@@ -238,8 +238,8 @@ export default function TicketDossierSidePanel({
             </div>
           )}
 
-          <div className="flex justify-start items-center relative z-10 mt-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-            <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+          <div className="flex justify-between items-center w-full relative z-10 mt-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_calendar_today")}</span> {(t("dossier_created_at")).replace(/^[^\w]*/, '').trim()}
             </span>
             <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80">
@@ -249,7 +249,7 @@ export default function TicketDossierSidePanel({
         </UniversalGroup>
 
         <div className="flex flex-col gap-3 mt-4">
-          <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+          <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
             <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] drop-shadow-md">{t("icon_description")}</span> {t("upload_desc")}
           </label>
           <div className="w-full glass-surface rounded-2xl px-6 py-5 text-[var(--text)] text-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_2px_15px_rgba(0,0,0,0.2)] min-h-32 whitespace-pre-wrap leading-relaxed relative overflow-hidden">
@@ -259,7 +259,7 @@ export default function TicketDossierSidePanel({
 
         {ticket.metadata?.logs && ticket.metadata.logs !== "null" && ticket.metadata.logs.trim() !== "" && (
           <div className="flex flex-col gap-3 mt-4">
-            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+            <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
               <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_terminal")}</span> {t("dossier_attached_logs")}
             </label>
             <TicketLogViewer logs={ticket.metadata.logs} />
@@ -268,13 +268,13 @@ export default function TicketDossierSidePanel({
 
         {replies.length > 0 && (
           <div className="flex flex-col gap-4 mt-6">
-            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 ml-2">
+            <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2 ml-2">
               <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_forum")}</span> {t("dossier_transmissions")}
             </label>
             {replies.map((r, idx) => (
               <div
                 key={idx}
-                className="relative group w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[40%] shadow-lg"
+                className="relative group w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-lg"
               >
                 <div className="absolute inset-0 glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
@@ -282,16 +282,16 @@ export default function TicketDossierSidePanel({
                 <div className="relative p-5 flex flex-col gap-4 z-10">
                   <div className="flex justify-start items-start gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-[0.75rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[var(--accent)]/[30%]">
+                      <div className="w-10 h-10 rounded-[0.75rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
                         <span className="text-[14px] font-black theme-text-accent">
                           {(r.author || "U").charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-black text-[var(--text)] uppercase tracking-widest group-hover:theme-text-accent transition-colors">
+                        <span className="text-xs font-black text-[var(--text)] capitalize tracking-widest group-hover:theme-text-accent transition-colors">
                           {r.author}
                         </span>
-                        <span className="text-[9px] font-bold opacity-50 text-[var(--text)] uppercase tracking-wider">
+                        <span className="text-[9px] font-bold opacity-50 text-[var(--text)] capitalize tracking-wider">
                           {r.time ? new Date(r.time).toLocaleString() : t("date_unknown")}
                         </span>
                       </div>
@@ -309,7 +309,7 @@ export default function TicketDossierSidePanel({
 
         {canReply && !isReadOnly && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '') && (
           <div className="flex flex-col gap-3 mt-6">
-            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("dossier_add_reply")}</label>
+            <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("dossier_add_reply")}</label>
             <div className="flex flex-col gap-3 relative glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl">
               <textarea
                 value={replyText}
@@ -330,13 +330,13 @@ export default function TicketDossierSidePanel({
 
         {(!isReadOnly && onTakeAction && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '')) && (
           <div className="flex flex-col gap-4 mt-6 p-6 glass-panel rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden group">
-             <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/5 to-transparent pointer-events-none" />
+             <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none" />
              <div className="flex items-center gap-2 relative z-10 mb-2">
                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] drop-shadow-md">admin_panel_settings</span>
-                <span className="text-[12px] font-black uppercase tracking-widest text-[var(--text)]">{t("admin_actions") || "ADMIN ACTIONS"}</span>
+                <span className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{t("admin_actions")}</span>
              </div>
              <div className="flex flex-col gap-2 relative z-10">
-               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+               <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
                  <span className="material-symbols-outlined !text-[14px] opacity-70">{t("icon_gavel")}</span> {t("dossier_action_reason")} <span className="text-rose-500">*</span>
                </label>
                <input
@@ -348,7 +348,7 @@ export default function TicketDossierSidePanel({
                />
              </div>
              <div className="flex flex-col gap-2 relative z-[70] mt-2">
-               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("action") || "ACTION"}</label>
+               <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("action")}</label>
                <CustomDropdown disableTint={true}  
                   value={selectedAction}
                   options={availableActions.map(action => ({

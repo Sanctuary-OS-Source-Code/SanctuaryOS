@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { WayfinderCommandScreen } from "./hub-components/CommandScreens";
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, ActionButton, VerticalTabDropdown, SidePanel, extractPostImage, stripMarkdown, EmptyState } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, ActionButton, SidebarFooterButton, VerticalTabDropdown, SidePanel, extractPostImage, stripMarkdown, EmptyState } from './shared';
 import ArchitectSupportTickets from './hub-components/ArchitectSupportTickets';
 
 
@@ -54,16 +54,16 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
         setTab={setActiveTab}
         footer={
           <>
-            <ActionButton
+            <SidebarFooterButton
               icon={t("icon_verified_user")}
               label={t("wf_hub_verify")}
               variant="glass"
               className="w-full"
               onClick={() => setIsVerifyPanelOpen(true)}
             />
-            <ActionButton
+            <SidebarFooterButton
               icon={defconLevel === 1 ? "warning" : "security"}
-              label={<span className="truncate">{t("defcon_title") || "DEFCON OVERRIDE".replace("🚨 ", "").replace("⚠️ ", "")}</span>}
+              label={<span className="truncate">{t("defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>}
               variant={defconLevel === 1 ? "danger" : "glass"}
               className={`w-full ${defconLevel === 1 ? 'animate-pulse' : ''}`}
               onClick={() => setDefconOpen(true)}
@@ -110,7 +110,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
         {activeTab === "ide" && <MasonIDE isCloudMode={true} cloudTarget="sanctuary_lexicons" />}
         {activeTab === "chameleons" && <WayfinderChameleons />}
         {activeTab !== "command_center" && activeTab !== "wf_comms_title" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "malware_oversight" && activeTab !== "reports" && activeTab !== "oversight_reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "audit_logs" && activeTab !== "ide" && activeTab !== "chameleons" && (
-          <EmptyState icon={t("icon_construction") || "construction"} title={t("wf_under_construction")} className="col-span-full py-16" />
+          <EmptyState icon={t("icon_construction")} title={t("wf_under_construction")} className="col-span-full py-16" />
         )}
       </div>
 

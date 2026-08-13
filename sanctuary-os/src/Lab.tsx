@@ -228,7 +228,7 @@ export default function Lab({
     totalRan: totalRanCount,
     passed: passedCount,
     failed: failedCount,
-    lastTest: testHistory.length > 0 ? (t("time_just_now") || "JUST NOW") : "--"
+    lastTest: testHistory.length > 0 ? (t("time_just_now")) : "--"
   };
 
   let reportsToList = [...testHistory];
@@ -265,7 +265,7 @@ export default function Lab({
         title={t("lab_title")}
         subtitle={t("lab_subtitle")}
         icon={t("icon_science")}
-        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         breadcrumb={activeTab !== "DASHBOARD" ? (t(`tab_lab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
         onTitleClick={() => setActiveTab("DASHBOARD")}
       />
@@ -280,56 +280,56 @@ export default function Lab({
         <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full">
           <div className="flex flex-col gap-10 w-full">
             <CommandScreenStats>
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">help</span>} number={realStats.untested} label={t("stat_mods_untested")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">play_circle</span>} number={realStats.totalRan} label={t("stat_total_tests")} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">check_circle</span>} number={realStats.passed} label={t("stat_tests_passed")} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">warning</span>} number={realStats.failed} label={t("stat_tests_failed")} colorClass="border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined">help</span>} number={realStats.untested} label={t("stat_mods_untested")} colorClass="text-amber-500" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined">play_circle</span>} number={realStats.totalRan} label={t("stat_total_tests")} colorClass="text-purple-500" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined">check_circle</span>} number={realStats.passed} label={t("stat_tests_passed")} colorClass="text-emerald-500" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined">warning</span>} number={realStats.failed} label={t("stat_tests_failed")} colorClass="text-red-500" />
             </CommandScreenStats>
 
             <CommandScreenBody>
               <CommandScreenMain>
                 <div className="flex flex-col gap-6 w-full">
-                  <CommandScreenSectionHeading title={t("recent_tests_title") || "RECENT TELEMETRY"} icon="history" />
+                  <CommandScreenSectionHeading title={t("recent_tests_title")} icon="history" />
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4">
                   {testHistory.length > 0 ? (
                     testHistory.slice(0, 10).map((test: any, index: number) => (
-                      <div key={test.id || index} onClick={() => setSelectedReport(test)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-colors flex flex-col gap-3 relative overflow-hidden group cursor-pointer ${test.errorFound ? 'border-[var(--danger)]/30 hover:border-[var(--danger)]/50 bg-red-500/[5%]' : 'border-[var(--success)]/30 hover:border-[var(--success)]/50'}`}>
-                        <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${test.errorFound ? 'bg-[var(--danger)]/10' : 'bg-[var(--success)]/10'}`} />
+                      <div key={test.id || index} onClick={() => setSelectedReport(test)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-colors flex flex-col gap-3 relative overflow-hidden group cursor-pointer ${test.errorFound ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]'}`}>
+                        <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${test.errorFound ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)]'}`} />
 
                         <div className="flex items-center gap-3 relative z-10">
                           <span className={`material-symbols-outlined !text-[20px] ${test.errorFound ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>{test.errorFound ? 'warning' : 'check_circle'}</span>
-                          <span className={`text-xs font-black uppercase tracking-widest ${test.errorFound ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>{test.errorFound ? t("fatal_collision") : t("successful_injection")}</span>
+                          <span className={`text-xs font-black capitalize tracking-widest ${test.errorFound ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>{test.errorFound ? t("fatal_collision") : t("successful_injection")}</span>
                           <span className="text-[10px] font-bold opacity-50 ml-auto">{new Date(test.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <div className="text-sm font-bold text-[var(--text)] opacity-90 pl-8 line-clamp-1 relative z-10">
-                          {test.mod ? getModName(test.mod) : (t("ecosystem_forge") || "ECOSYSTEM FORGE")}
+                          {test.mod ? getModName(test.mod) : (t("ecosystem_forge"))}
                         </div>
                         <div className="pl-8 text-xs opacity-60 relative z-10 font-mono line-clamp-1">
-                          {test.conflictTarget ? `vs ${getModName(test.conflictTarget)}` : t("target_engine_core") || "Target: Engine Core"}
+                          {test.conflictTarget ? `vs ${getModName(test.conflictTarget)}` : t("target_engine_core")}
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center opacity-50 space-y-4 shadow-inner">
                       <span className="material-symbols-outlined !text-[48px] text-[var(--subtext)]">history</span>
-                      <div className="text-sm font-black uppercase tracking-widest text-[var(--text)]">{t("no_recent_telemetry") || "NO RECENT TELEMETRY"}</div>
+                      <div className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("no_recent_telemetry")}</div>
                     </div>
                   )}
                 </div>
               </div>
               </CommandScreenMain>
 
-              <CommandScreenSidebar title={t("wf_quick_links") || "QUICK LINKS"} icon="bolt">
+              <CommandScreenSidebar title={t("wf_quick_links")} icon="bolt">
                 <div className="flex flex-col gap-3">
                   <CommandScreenQuickLink
                     icon="science"
-                    title={t("tab_lab_builder") || "Run Test"}
+                    title={t("tab_lab_builder")}
                     subtitle={testHistory.length > 0 ? `Last scan: ${new Date(testHistory[0].time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "Ecosystem Forge"}
                     onClick={() => setActiveTab("BUILDER")}
                   />
                   <CommandScreenQuickLink
                     icon="terminal"
-                    title={t("tab_lab_reports") || "View Past Tests"}
+                    title={t("tab_lab_reports")}
                     subtitle="All Telemetry Logs"
                     onClick={() => { setActiveTab("REPORTS"); setLogFilter("all"); }}
                   />
@@ -340,7 +340,7 @@ export default function Lab({
                     onClick={() => { setActiveTab("REPORTS"); setLogFilter("pass"); }}
                     textColorClass="text-[var(--success)]"
                     hoverTextColorClass="group-hover:text-[var(--success)]"
-                    iconBorderHoverClass="group-hover:border-[var(--success)]/50 group-hover:bg-[var(--success)]/10"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]"
                   />
                   <CommandScreenQuickLink
                     icon="warning"
@@ -349,7 +349,7 @@ export default function Lab({
                     onClick={() => { setActiveTab("REPORTS"); setLogFilter("errors"); }}
                     textColorClass="text-[var(--danger)]"
                     hoverTextColorClass="group-hover:text-[var(--danger)]"
-                    iconBorderHoverClass="group-hover:border-[var(--danger)]/50 group-hover:bg-[var(--danger)]/10"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
                   />
                 </div>
               </CommandScreenSidebar>
@@ -365,17 +365,17 @@ export default function Lab({
             {activeLabMod && (
               <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
                 <div className="hidden lg:flex flex-col items-end gap-1 px-4 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("payload") || "PAYLOAD"}</span>
-                  <span className="text-xs font-black text-[var(--text)] tracking-widest uppercase">
-                    {t("core_plus") || "1 CORE + "}{stagedExtras.length + (conflictTarget ? 1 : 0) + conflictExtras.length}{t("injected") || " INJECTED"}
+                  <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("payload")}</span>
+                  <span className="text-xs font-black text-[var(--text)] tracking-widest capitalize">
+                    {t("core_plus")}{stagedExtras.length + (conflictTarget ? 1 : 0) + conflictExtras.length}{t("injected")}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-4 pl-2">
                   {!shelterActive ? (
-                    <ActionButton icon="bolt" label={t("btn_initiate_swap") || "CONDUCT EXPERIMENT"} onClick={runCombinedHotSwap} />
+                    <ActionButton icon="bolt" label={t("btn_initiate_swap")} onClick={runCombinedHotSwap} />
                   ) : (
-                    <ActionButton icon="science" label={t("btn_view_test") || "VIEW ACTIVE TEST"} onClick={() => setShowTestPanel(true)} className="!bg-emerald-500/[10%] !border-[var(--success)]/30 !text-[var(--success)] hover:!bg-emerald-500/[20%]" />
+                    <ActionButton icon="science" label={t("btn_view_test")} onClick={() => setShowTestPanel(true)} className="!bg-[color-mix(in_srgb,var(--success)_10%,transparent)] !border-[color-mix(in_srgb,var(--success)_30%,transparent)] !text-[var(--success)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)]" />
                   )}
                 </div>
               </div>
@@ -390,11 +390,11 @@ export default function Lab({
                 <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-50 pointer-events-none" />
 
                 <div className="flex flex-col items-center justify-center text-center p-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
-                  <div className="w-20 h-20 rounded-full bg-[var(--accent)]/[10%] flex items-center justify-center border border-[var(--accent)]/[20%] shrink-0 mb-4 shadow-md">
+                  <div className="w-20 h-20 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shrink-0 mb-4 shadow-md">
                     <span className="material-symbols-outlined text-[var(--accent)] !text-[40px] animate-pulse">{t("icon_science")}</span>
                   </div>
-                  <h3 className="text-2xl font-black text-[var(--text)] uppercase tracking-[0.2em]">{t("mount_subject")}</h3>
-                  <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 mt-2">{t("mount_desc")}</p>
+                  <h3 className="text-2xl font-black text-[var(--text)] capitalize tracking-[0.2em]">{t("mount_subject")}</h3>
+                  <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 mt-2">{t("mount_desc")}</p>
                 </div>
 
                 <div className="p-8 flex-1 flex flex-col justify-center relative z-10">
@@ -407,15 +407,15 @@ export default function Lab({
                       placeholder={t("filter_dna")}
                     />
                   ) : (
-                    <div className="relative overflow-hidden bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] p-8 rounded-2xl shadow-md flex flex-col items-center text-center group/core h-full justify-center">
+                    <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-8 rounded-2xl shadow-md flex flex-col items-center text-center group/core h-full justify-center">
                       <div className="absolute inset-0 border-[2px] border-dashed border-[var(--accent)] opacity-20 rounded-2xl animate-[spin_20s_linear_infinite] pointer-events-none scale-150" />
                       <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)] opacity-10 blur-[50px] rounded-full pointer-events-none" />
 
                       <span className="material-symbols-outlined !text-[64px] text-[var(--accent)] drop-shadow-md mb-6">view_in_ar</span>
 
                       <div className="flex flex-col gap-2 relative z-10 w-full px-4">
-                        <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-[0.3em] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] py-1 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] w-max mx-auto px-4">{t("subject_isolation")}</span>
-                        <span className="text-2xl font-black uppercase text-[var(--text)] break-words mt-4">{getModName(activeLabMod)}</span>
+                        <span className="text-[10px] font-black text-[var(--accent)] capitalize tracking-[0.3em] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] py-1 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] w-max mx-auto px-4">{t("subject_isolation")}</span>
+                        <span className="text-2xl font-black capitalize text-[var(--text)] break-words mt-4">{getModName(activeLabMod)}</span>
                       </div>
 
                       <div className="mt-8 relative z-10">
@@ -423,7 +423,7 @@ export default function Lab({
                           icon="close"
                           label={t("lab_btn_abort")}
                           onClick={abortLab}
-                          className="!bg-red-500/[10%] !border-[var(--danger)]/30 !text-[var(--danger)] hover:!bg-red-500/[20%]"
+                          className="!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
                         />
                       </div>
                     </div>
@@ -442,19 +442,19 @@ export default function Lab({
                   title={t("symbiotic_deps")} 
                   subtitle={t("symbiotic_desc")} 
                   icon="folder"
-                  colorClass="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                  colorClass=""
                   iconColorClass="text-[var(--text)] opacity-80"
                   className="mb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 relative z-10 w-full"
                 />
 
                 <div className="relative z-20 mb-6">
                   {missingDeps.length > 0 && (
-                    <div className="bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded-xl p-4 mb-6 flex flex-col gap-2 shadow-md">
-                      <div className="flex items-center gap-2 text-[var(--danger)] font-black text-xs uppercase tracking-widest">
+                    <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl p-4 mb-6 flex flex-col gap-2 shadow-md">
+                      <div className="flex items-center gap-2 text-[var(--danger)] font-black text-xs capitalize tracking-widest">
                         <span className="material-symbols-outlined !text-[16px]">warning</span>
                         {t("missing_symbiotic_deps")}
                       </div>
-                      <div className="text-[10px] text-[var(--danger)]/80 uppercase font-bold">
+                      <div className="text-[10px] text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize font-bold">
                         {t("missing_deps_warning_desc")}
                       </div>
                         <div className="flex flex-wrap gap-2 mt-2">
@@ -478,7 +478,7 @@ export default function Lab({
                                 } else {
                                   onOpenDossier({ name: depName, displayName: depName, isNexusView: true, description: "Artifact not found in the global registry." });
                                 }
-                              }} className="text-[10px] bg-[var(--danger)]/20 px-2 py-1 rounded font-mono text-[var(--danger)] cursor-pointer hover:bg-[var(--danger)]/40 hover:text-white transition-all">{depName}</span>
+                              }} className="text-[10px] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] px-2 py-1 rounded font-mono text-[var(--danger)] cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:text-white transition-all">{depName}</span>
                             );
                           })}
                         </div>
@@ -497,27 +497,27 @@ export default function Lab({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-max">
                     {stagedExtras.map((m: any) => (
                       <div key={m.hash} className="flex justify-start items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all group/item shadow-sm h-[60px]">
-                        <span className="text-[11px] font-black uppercase text-[var(--text)] truncate pr-4">{getModName(m)}</span>
+                        <span className="text-[11px] font-black capitalize text-[var(--text)] truncate pr-4">{getModName(m)}</span>
                         <button onClick={() => setStagedExtras(stagedExtras.filter(e => e.hash !== m.hash))} className="w-8 h-8 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"><span className='material-symbols-outlined !text-[16px]'>{t("icon_close")}</span></button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="w-full py-10 mt-2 flex items-center justify-center border-2 border-dashed border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl bg-black/20 text-[var(--subtext)] opacity-50 font-black text-[10px] uppercase tracking-widest">
+                  <div className="w-full py-10 mt-2 flex items-center justify-center border-2 border-dashed border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl bg-black/20 text-[var(--subtext)] opacity-50 font-black text-[10px] capitalize tracking-widest">
                     NO SYMBIOTIC ENTITIES LOADED
                   </div>
                 )}
               </div>
 
               {/* ADVERSARIAL GRID */}
-              <div className={`glass-panel p-8 rounded-[var(--radius)] border shadow-xl relative flex flex-col h-max min-h-[300px] transition-all ${!activeLabMod ? 'opacity-30 pointer-events-none border-[color-mix(in_srgb,var(--text)_5%,transparent)] grayscale' : 'border-orange-500/[20%]'}`}>
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--warning)]/5 to-transparent opacity-50 rounded-[inherit] pointer-events-none" />
+              <div className={`glass-panel p-8 rounded-[var(--radius)] border shadow-xl relative flex flex-col h-max min-h-[300px] transition-all ${!activeLabMod ? 'opacity-30 pointer-events-none border-[color-mix(in_srgb,var(--text)_5%,transparent)] grayscale' : 'border-[color-mix(in_srgb,var(--warning)_20%,transparent)]'}`}>
+                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent opacity-50 rounded-[inherit] pointer-events-none" />
                 <CommandScreenSectionHeading 
                   shape="circle"
                   title={t("adversarial_entities")} 
                   subtitle={t("adversarial_desc")} 
                   icon="warning"
-                  colorClass="bg-orange-500/[10%] border-orange-500/[30%] shadow-md"
+                  colorClass=""
                   iconColorClass="theme-text-warning opacity-90 animate-pulse"
                   className="mb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 relative z-10 w-full"
                 />
@@ -545,24 +545,24 @@ export default function Lab({
                 <div className="flex flex-col gap-4 relative z-10 flex-1">
                   {conflictTarget ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-max">
-                      <div className="relative overflow-hidden bg-orange-500/[10%] border border-orange-500/[30%] p-4 rounded-xl shadow-md flex justify-start items-center group md:col-span-2 h-[80px]">
+                      <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] p-4 rounded-xl shadow-md flex justify-start items-center group md:col-span-2 h-[80px]">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--warning)] opacity-10 blur-[30px] rounded-full pointer-events-none" />
                         <div className="flex flex-col gap-1 relative z-10 min-w-0 pr-4">
-                          <span className="text-[9px] font-black theme-text-warning uppercase tracking-[0.3em]">{t("primary_adversary")}</span>
-                          <span className="text-sm font-black uppercase text-[var(--text)] truncate">{getModName(conflictTarget)}</span>
+                          <span className="text-[9px] font-black theme-text-warning capitalize tracking-[0.3em]">{t("primary_adversary")}</span>
+                          <span className="text-sm font-black capitalize text-[var(--text)] truncate">{getModName(conflictTarget)}</span>
                         </div>
                         <button onClick={() => { setConflictTarget(null); setConflictExtras([]); }} className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[var(--danger)] text-[var(--text)] hover:text-white transition-all shadow-md relative z-10"><span className='material-symbols-outlined !text-[20px]'>{t("icon_close")}</span></button>
                       </div>
 
                       {conflictExtras.map((m: any) => (
-                        <div key={m.hash} className="flex justify-start items-center bg-orange-500/[5%] border border-orange-500/[10%] p-4 rounded-xl hover:border-orange-500/[20%] hover:bg-orange-500/[8%] transition-all group/item shadow-sm h-[60px]">
-                          <span className="text-[11px] font-black uppercase text-[var(--text)] truncate pr-4">{getModName(m)}</span>
+                        <div key={m.hash} className="flex justify-start items-center bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] border border-[color-mix(in_srgb,var(--warning)_10%,transparent)] p-4 rounded-xl hover:border-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] transition-all group/item shadow-sm h-[60px]">
+                          <span className="text-[11px] font-black capitalize text-[var(--text)] truncate pr-4">{getModName(m)}</span>
                           <button onClick={() => setConflictExtras(conflictExtras.filter(e => e.hash !== m.hash))} className="w-8 h-8 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"><span className='material-symbols-outlined !text-[16px]'>{t("icon_close")}</span></button>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="w-full py-10 mt-4 flex items-center justify-center border-2 border-dashed border-[var(--warning)]/20 rounded-xl bg-[var(--warning)]/5 text-[var(--warning)] opacity-70 font-black text-[10px] uppercase tracking-widest">
+                    <div className="w-full py-10 mt-4 flex items-center justify-center border-2 border-dashed border-[color-mix(in_srgb,var(--warning)_20%,transparent)] rounded-xl bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] text-[var(--warning)] opacity-70 font-black text-[10px] capitalize tracking-widest">
                       NO ADVERSARIAL THREATS DETECTED
                     </div>
                   )}
@@ -585,9 +585,9 @@ export default function Lab({
           >
             <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[300px] shrink-0 relative z-50 h-12">
               <FilterTabs className="w-full h-full">
-                <FilterTabButton id="all" label={t("all_logs") || "All Logs"} activeTab={logFilter} setTab={setLogFilter} />
-                <FilterTabButton id="verified" label={t("verified") || "Verified"} activeTab={logFilter} setTab={setLogFilter} />
-                <FilterTabButton id="fatal" label={t("fatal") || "Fatal"} activeTab={logFilter} setTab={setLogFilter} />
+                <FilterTabButton id="all" label={t("all_logs")} activeTab={logFilter} setTab={setLogFilter} />
+                <FilterTabButton id="verified" label={t("verified")} activeTab={logFilter} setTab={setLogFilter} />
+                <FilterTabButton id="fatal" label={t("fatal")} activeTab={logFilter} setTab={setLogFilter} />
               </FilterTabs>
             </div>
           </ScreenUtilityBar>
@@ -596,19 +596,19 @@ export default function Lab({
             {filteredReports.map((report: any) => {
               const isError = report.errorFound;
               return (
-                <div key={report.id} onClick={() => setSelectedReport(report)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group cursor-pointer hover:-translate-y-1 hover:shadow-xl ${isError ? 'border-[var(--danger)]/30 hover:border-[var(--danger)]/50 bg-red-500/[5%]' : 'border-[var(--success)]/30 hover:border-[var(--success)]/50'}`}>
-                  <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${isError ? 'bg-[var(--danger)]/10' : 'bg-[var(--success)]/10'}`} />
+                <div key={report.id} onClick={() => setSelectedReport(report)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group cursor-pointer hover:-translate-y-1 hover:shadow-xl ${isError ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]'}`}>
+                  <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${isError ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)]'}`} />
 
                   <div className="flex items-center gap-3 relative z-10">
                     <span className={`material-symbols-outlined !text-[20px] ${isError ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>{isError ? 'warning' : 'check_circle'}</span>
-                    <span className={`text-xs font-black uppercase tracking-widest ${isError ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>{isError ? t("fatal_collision") : t("successful_injection")}</span>
+                    <span className={`text-xs font-black capitalize tracking-widest ${isError ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>{isError ? t("fatal_collision") : t("successful_injection")}</span>
                     {report.isConcluding && <span className="text-[10px] font-bold opacity-50 ml-auto text-amber-400 animate-pulse">{t("status_pending_review")}</span>}
                   </div>
                   <div className="text-sm font-bold text-[var(--text)] opacity-90 pl-8 line-clamp-1 relative z-10">
                     {getModName(report.mod)}
                   </div>
                   <div className="pl-8 text-xs opacity-60 relative z-10 font-mono line-clamp-1">
-                    {report.conflictTarget ? `vs ${getModName(report.conflictTarget)}` : t("target_engine_core") || "Target: Engine Core"}
+                    {report.conflictTarget ? `vs ${getModName(report.conflictTarget)}` : t("target_engine_core")}
                   </div>
                 </div>
               );
@@ -619,7 +619,7 @@ export default function Lab({
                 <div className="opacity-50 flex flex-col items-center justify-center space-y-6">
                   <span className="material-symbols-outlined !text-[80px] text-[var(--subtext)]">terminal</span>
                   <div className="space-y-2 text-center">
-                    <h2 className="text-2xl font-black uppercase tracking-widest text-[var(--text)]">{t("lab_reports_empty")}</h2>
+                    <h2 className="text-2xl font-black capitalize tracking-widest text-[var(--text)]">{t("lab_reports_empty")}</h2>
                     <p className="text-sm font-medium text-[var(--subtext)]">{t("lab_reports_empty_desc")}</p>
                   </div>
                 </div>
@@ -647,7 +647,7 @@ export default function Lab({
                 <div className="flex flex-wrap items-center gap-4 mt-4 lg:mt-0">
                   <button
                     onClick={handleConcludeTest}
-                    className={`py-2.5 px-6 rounded-[var(--radius)] font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border shadow-sm ${isError ? 'bg-red-500/[15%] text-[var(--danger)] border-red-500/[30%] hover:bg-red-500/[25%] hover:border-[var(--danger)]' : 'bg-emerald-500/[15%] text-[var(--success)] border-emerald-500/[30%] hover:bg-emerald-500/[25%] hover:border-[var(--success)]'}`}
+                    className={`py-2.5 px-6 rounded-[var(--radius)] font-black text-[10px] capitalize tracking-[0.2em] transition-all flex items-center justify-center gap-2 border shadow-sm ${isError ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] hover:border-[var(--danger)]' : 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)]'}`}
                   >
                     <span className="material-symbols-outlined !text-[16px]">{isError ? 'shield' : 'verified_user'}</span>
                     {isError ? (t("secure_broken")) : (t("secure_verified"))}
@@ -657,15 +657,15 @@ export default function Lab({
             }
             footer={
               <div className="flex flex-wrap items-center justify-center gap-4 w-full">
-                 <ActionButton label={t("btn_close") || "CLOSE"} onClick={() => setSelectedReport(null)} />
-                 <ActionButton icon="download" label={t("export_logs") || "EXPORT LOGS"} onClick={handleExportLogs} />
+                 <ActionButton label={t("btn_close")} onClick={() => setSelectedReport(null)} />
+                 <ActionButton icon="download" label={t("export_logs")} onClick={handleExportLogs} />
                  
                  {isError && submitLabReport && (
                    <ActionButton
                      icon="send"
-                     label={t("submit_diagnostics") || "SUBMIT TO DIAGNOSTICS"}
+                     label={t("submit_diagnostics")}
                      onClick={() => { setSelectedReport(null); submitLabReport(selectedReport); }}
-                     className="!bg-red-500/[10%] !border-[var(--danger)]/30 !text-[var(--danger)] hover:!bg-red-500/[20%]"
+                     className="!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
                    />
                  )}
               </div>
@@ -673,21 +673,21 @@ export default function Lab({
           >
             <div className="flex flex-col gap-6 mt-6 w-full">
               <div className="flex flex-col gap-3">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("payload_composition") || "PAYLOAD COMPOSITION"}</h3>
+                <h3 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("payload_composition")}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="glass-panel rounded-xl p-3 border border-[var(--accent)]/30 flex items-center gap-3 relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent)]/10 to-transparent opacity-50" />
+                  <div className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center gap-3 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-50" />
                     <span className="material-symbols-outlined text-[var(--accent)] !text-[18px] relative z-10">science</span>
-                    <span className="text-[var(--text)] text-xs font-bold uppercase tracking-widest truncate relative z-10">{getModName(selectedReport.mod)}</span>
-                    <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--accent)] uppercase tracking-widest relative z-10">{t("payload_core") || "CORE"}</span>
+                    <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(selectedReport.mod)}</span>
+                    <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--accent)] capitalize tracking-widest relative z-10">{t("payload_core")}</span>
                   </div>
                   
                   {selectedReport.conflictTarget && (
-                    <div className="glass-panel rounded-xl p-3 border border-[var(--danger)]/30 flex items-center gap-3 relative overflow-hidden group">
-                      <div className="absolute inset-0 bg-gradient-to-r from-[var(--danger)]/10 to-transparent opacity-50" />
+                    <div className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center gap-3 relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--danger)_10%,transparent)] to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--danger)] !text-[18px] relative z-10">warning</span>
-                      <span className="text-[var(--text)] text-xs font-bold uppercase tracking-widest truncate relative z-10">{getModName(selectedReport.conflictTarget)}</span>
-                      <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--danger)] uppercase tracking-widest relative z-10">{t("payload_adversary") || "ADVERSARY"}</span>
+                      <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(selectedReport.conflictTarget)}</span>
+                      <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--danger)] capitalize tracking-widest relative z-10">{t("payload_adversary")}</span>
                     </div>
                   )}
                   
@@ -695,17 +695,17 @@ export default function Lab({
                     <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3 relative overflow-hidden group">
                       <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--subtext)] !text-[18px] relative z-10">extension</span>
-                      <span className="text-[var(--text)] text-xs font-bold uppercase tracking-widest truncate relative z-10">{getModName(m)}</span>
-                      <span className="ml-auto text-[9px] font-black opacity-50 text-[var(--text)] uppercase tracking-widest relative z-10">{t("payload_injected") || "INJECTED"}</span>
+                      <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(m)}</span>
+                      <span className="ml-auto text-[9px] font-black opacity-50 text-[var(--text)] capitalize tracking-widest relative z-10">{t("payload_injected")}</span>
                     </div>
                   ))}
                   
                   {selectedReport.conflictExtras?.map((m: any) => (
-                    <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[var(--warning)]/30 flex items-center gap-3 relative overflow-hidden group">
-                      <div className="absolute inset-0 bg-gradient-to-r from-[var(--warning)]/10 to-transparent opacity-50" />
+                    <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center gap-3 relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--warning)_10%,transparent)] to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--warning)] !text-[18px] relative z-10">extension</span>
-                      <span className="text-[var(--text)] text-xs font-bold uppercase tracking-widest truncate relative z-10">{getModName(m)}</span>
-                      <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--warning)] uppercase tracking-widest relative z-10">{t("payload_injected") || "INJECTED"}</span>
+                      <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(m)}</span>
+                      <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--warning)] capitalize tracking-widest relative z-10">{t("payload_injected")}</span>
                     </div>
                   ))}
                 </div>
@@ -713,20 +713,20 @@ export default function Lab({
               
               <div className="flex-1 min-h-[400px] glass-panel backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-6 font-mono text-[13px] text-[var(--text)] overflow-y-auto custom-scrollbar shadow-inner relative flex flex-col mb-10">
               <div className="flex items-center gap-3 mb-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4 shrink-0">
-                <span className="material-symbols-outlined text-[var(--subtext)] opacity-50 !text-[18px]">{t("icon_terminal") || "terminal"}</span>
-                <span className="text-[var(--subtext)] opacity-70 uppercase tracking-widest text-[11px] font-black">
-                   {t("execution_logs") || "EXECUTION LOGS"} // {t("system_stdout") || "SYSTEM_STDOUT"}
+                <span className="material-symbols-outlined text-[var(--subtext)] opacity-50 !text-[18px]">{t("icon_terminal")}</span>
+                <span className="text-[var(--subtext)] opacity-70 capitalize tracking-widest text-[11px] font-black">
+                   {t("execution_logs")} // {t("system_stdout")}
                 </span>
                 
                 {isError && (
-                  <div className="ml-auto flex items-center gap-2 text-[10px] font-bold text-[var(--danger)] uppercase tracking-widest bg-[var(--danger)]/10 border border-[var(--danger)]/20 px-3 py-1.5 rounded-lg">
+                  <div className="ml-auto flex items-center gap-2 text-[10px] font-bold text-[var(--danger)] capitalize tracking-widest bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] px-3 py-1.5 rounded-lg">
                     <span className="material-symbols-outlined !text-[14px]">warning</span>
                     CRITICAL FAILURE
                   </div>
                 )}
               </div>
               <pre className="whitespace-pre-wrap break-all leading-relaxed flex-1 opacity-80 font-mono">
-                {logData || t("no_logs") || "No logs available for this session. System reports standard exit code."}
+                {logData || t("no_logs")}
               </pre>
             </div>
             </div>
@@ -738,16 +738,16 @@ export default function Lab({
         <SidePanel
           isOpen={showTestPanel}
           onClose={() => setShowTestPanel(false)}
-          title={t("test_underway_title") || "EXPERIMENT UNDERWAY"}
-          subtitle={t("test_underway_desc") || "Monitoring simulation for anomalies..."}
+          title={t("test_underway_title")}
+          subtitle={t("test_underway_desc")}
           icon="science"
           iconColorClass="text-[var(--accent)]"
           footer={
             <SidePanelActionFooter
               onCancel={() => { abortLab(); setShowTestPanel(false); }}
-              cancelLabel={t("lab_btn_abort") || "ABORT"}
+              cancelLabel={t("lab_btn_abort")}
               onAction={() => { handleConcludeTest(); setShowTestPanel(false); }}
-              actionLabel={t("btn_conclude_experiment") || "CONCLUDE TEST"}
+              actionLabel={t("btn_conclude_experiment")}
               actionVariant="success"
               actionIcon="science"
             />
@@ -757,20 +757,20 @@ export default function Lab({
              <div className="relative flex items-center justify-center">
                <div className="absolute inset-0 border-[6px] border-[var(--accent)] rounded-full border-t-transparent animate-[spin_3s_linear_infinite] opacity-30 blur-[4px] scale-150"></div>
                <div className="absolute inset-0 border-[2px] border-[var(--accent)] rounded-full border-b-transparent animate-[spin_2s_linear_infinite_reverse] opacity-50 scale-125"></div>
-               <div className="w-32 h-32 rounded-full bg-[var(--accent)]/[10%] flex items-center justify-center border border-[var(--accent)]/[20%] shadow-md relative z-10">
+               <div className="w-32 h-32 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md relative z-10">
                   <span className="material-symbols-outlined !text-[64px] text-[var(--accent)] animate-pulse drop-shadow-lg">radar</span>
                </div>
              </div>
              
              <div className="text-center flex flex-col gap-2 mt-4">
-               <div className="text-2xl font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">
-                 {t("monitoring_subject") || "MONITORING SUBJECT"}
+               <div className="text-2xl font-black capitalize tracking-[0.2em] text-[var(--text)] drop-shadow-md">
+                 {t("monitoring_subject")}
                </div>
-               <div className="text-sm font-bold uppercase tracking-widest text-[var(--accent)] px-6 py-2 bg-[var(--accent)]/10 rounded-full border border-[var(--accent)]/20 mx-auto w-max mt-2 shadow-md">
+               <div className="text-sm font-bold capitalize tracking-widest text-[var(--accent)] px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-full border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] mx-auto w-max mt-2 shadow-md">
                  {getModName(activeLabMod)}
                </div>
-               <div className="text-[10px] uppercase font-bold text-[var(--subtext)] tracking-widest mt-4">
-                 {t("test_running_wait") || "DO NOT DISCONNECT UNTIL SIMULATION CONCLUDES"}
+               <div className="text-[10px] capitalize font-bold text-[var(--subtext)] tracking-widest mt-4">
+                 {t("test_running_wait")}
                </div>
              </div>
           </div>

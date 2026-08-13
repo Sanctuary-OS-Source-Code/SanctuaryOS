@@ -311,8 +311,8 @@ export default function SupportDeskSidePanel({
           <div className="w-24 h-24 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
             <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_lock")}</span>
           </div>
-          <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--text)]">{t("access_denied")}</h2>
-          <p className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest">{isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45")}</p>
+          <h2 className="text-2xl font-black capitalize tracking-tighter text-[var(--text)]">{t("access_denied")}</h2>
+          <p className="text-xs font-black text-[var(--subtext)] capitalize tracking-widest">{isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45")}</p>
         </div>
       </SidePanel>
     );
@@ -334,7 +334,7 @@ export default function SupportDeskSidePanel({
           cancelLabel={t("nav_cancel")}
           onAction={submitTicket}
           actionDisabled={isSubmitting || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)}
-          actionTooltip={activeCategory?.requires_target_mod && activeAdultMods.length > 0 ? (t("support_err_adult_mods_blocked") || "Ticket submission is disabled while adult mods are active.") : undefined}
+          actionTooltip={activeCategory?.requires_target_mod && activeAdultMods.length > 0 ? (t("support_err_adult_mods_blocked")) : undefined}
           actionLabel={t("support_submit")}
           isProcessing={isSubmitting}
           processingLabel={t("scanning")}
@@ -343,10 +343,10 @@ export default function SupportDeskSidePanel({
     >
       <div className="flex flex-col gap-6 relative">
         {error && (
-            <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
+            <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
                 <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center shrink-0 border border-rose-500/30 text-rose-400">
+                    <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-rose-400">
                         <span className="material-symbols-outlined !text-[20px]">{t("icon_warning")}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
@@ -355,17 +355,17 @@ export default function SupportDeskSidePanel({
                     </div>
                     <button 
                       onClick={() => { setError(""); setPolicyViolations([]); }} 
-                      className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/20 transition-all shrink-0"
+                      className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-rose-400 hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all shrink-0"
                     >
                       <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
                     </button>
                 </div>
                 {policyViolations.length > 0 && (
-                    <div className="bg-black/30 p-4 border-t border-rose-500/20 flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                        <span className="text-[9px] font-black tracking-widest text-rose-400/80 uppercase">{t("auto_restricted_artifacts_detected_34")}</span>
+                    <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                        <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34")}</span>
                         <div className="flex flex-col gap-2">
                             {policyViolations.map((mod, i) => (
-                                <div key={i} className="flex items-center gap-2 text-rose-200/90 text-[10px] font-mono bg-rose-500/10 py-1.5 px-3 rounded-md border border-rose-500/20">
+                                <div key={i} className="flex items-center gap-2 text-rose-200/90 text-[10px] font-mono bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
                                     <span className="material-symbols-outlined !text-[12px] opacity-70">{t("auto_extension")}</span>
                                     <span className="truncate">{mod.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || mod.replace(/[-_]/g, ' ')}</span>
                                 </div>
@@ -377,24 +377,24 @@ export default function SupportDeskSidePanel({
         )}
 
         {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
-            <div className="bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--warning-rgb),0.15)] group mt-2">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--warning)]/5 to-transparent pointer-events-none" />
+            <div className="bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--warning-rgb),0.15)] group mt-2">
+                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--warning)]/20 flex items-center justify-center shrink-0 border border-[var(--warning)]/30 text-[var(--warning)]">
-                        <span className="material-symbols-outlined !text-[20px]">{t("icon_warning") || "warning"}</span>
+                    <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)]">
+                        <span className="material-symbols-outlined !text-[20px]">{t("icon_warning")}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                        <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title") || "ADULT / NSFW MODS DETECTED"}</span>
-                        <span className="text-xs font-bold text-[var(--warning)]/80 leading-relaxed pr-4">
+                        <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title")}</span>
+                        <span className="text-xs font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] leading-relaxed pr-4">
                             {t("support_adult_mods_desc") || `Your active blueprint contains ${activeAdultMods.length} adult/NSFW mod(s). If your ticket is related to one of these, please ensure you tag it appropriately or contact the author directly.`}
                         </span>
                     </div>
                 </div>
-                <div className="bg-black/30 p-4 border-t border-[var(--warning)]/20 flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
                     <div className="flex flex-col gap-2">
                         {activeAdultMods.map((mod, i) => (
-                            <div key={i} className="flex items-center gap-2 text-[var(--warning)]/90 text-[10px] font-mono bg-[var(--warning)]/10 py-1.5 px-3 rounded-md border border-[var(--warning)]/20">
-                                <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_extension") || "extension"}</span>
+                            <div key={i} className="flex items-center gap-2 text-[color-mix(in_srgb,var(--warning)_90%,transparent)] text-[10px] font-mono bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
+                                <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_extension")}</span>
                                 <span className="truncate">{mod}</span>
                             </div>
                         ))}
@@ -404,7 +404,7 @@ export default function SupportDeskSidePanel({
         )}
 
           <div className="flex flex-col gap-2 relative z-[70]">
-            <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("support_category")}</label>
+            <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("support_category")}</label>
             <CustomDropdown disableTint={true}  
               value={type}
               options={categories.map(c => ({ id: c.category_code, label: c.category_name }))}
@@ -414,7 +414,7 @@ export default function SupportDeskSidePanel({
 
           {String(activeCategory?.show_title_box) !== "false" && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("ql_support")}</label>
+              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("ql_support")}</label>
               <input
                 type="text"
                 value={title}
@@ -427,7 +427,7 @@ export default function SupportDeskSidePanel({
 
           {activeCategory?.requires_target_mod && (
             <div className="flex flex-col gap-2 relative z-[60]">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("target_artifact")}</label>
+              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("target_artifact")}</label>
               <ModSearchDropdown
                 modList={modList}
                 placeholder={t("support_placeholder_mod_uuid")}
@@ -440,7 +440,7 @@ export default function SupportDeskSidePanel({
 
           {activeCategory?.requires_target_user && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("support_target_user_label")}</label>
+              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("support_target_user_label")}</label>
               <input
                 type="text"
                 value={targetUserId}
@@ -453,7 +453,7 @@ export default function SupportDeskSidePanel({
 
           {String(activeCategory?.show_description_box) !== "false" && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex justify-start">
+              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex justify-start">
                 <span>{t("support_desc")}</span>
               </label>
               <textarea
@@ -467,7 +467,7 @@ export default function SupportDeskSidePanel({
 
           {activeCategory?.custom_fields?.map((field: any) => (
             <div key={field.id} className="flex flex-col gap-2 relative z-[50]">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2">
+              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
                 {field.label}
                 {field.required && <span className="text-[var(--danger)]">*</span>}
               </label>
@@ -501,7 +501,7 @@ export default function SupportDeskSidePanel({
               {field.type === "CHECKBOX" && (!field.options || field.options.length === 0) && (
                 <button
                   onClick={() => setCustomFieldsData(prev => ({ ...prev, [field.id]: prev[field.id] === "true" ? "false" : "true" }))}
-                  className={`w-12 h-6 rounded-full transition-all flex items-center px-1 overflow-hidden relative border ${customFieldsData[field.id] === "true" ? 'bg-[var(--accent)]/[20%] border-[var(--accent)]/[40%] shadow-md' : 'bg-black/40 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
+                  className={`w-12 h-6 rounded-full transition-all flex items-center px-1 overflow-hidden relative border ${customFieldsData[field.id] === "true" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-md' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
                 >
                   <div className={`w-4 h-4 rounded-full shadow-md transition-all ${customFieldsData[field.id] === "true" ? 'translate-x-6 bg-[var(--accent)]' : 'translate-x-0 bg-[color-mix(in_srgb,var(--text)_50%,transparent)]'}`} />
                 </button>
@@ -517,8 +517,8 @@ export default function SupportDeskSidePanel({
                       : currentValue === opt;
 
                     return (
-                      <label key={opt} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl overflow-hidden relative ${isChecked ? 'glass-panel border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${isChecked ? 'bg-[var(--accent)]/[20%] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:bg-black/30'}`}>
+                      <label key={opt} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl overflow-hidden relative ${isChecked ? 'glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${isChecked ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:bg-black/30'}`}>
                            {isChecked && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check")}</span>}
                          </div>
                          <span className={`text-sm font-bold transition-colors ${isChecked ? 'text-[var(--text)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>{opt}</span>
@@ -551,15 +551,15 @@ export default function SupportDeskSidePanel({
 
           {activeCategory?.telemetry_config?.sources && activeCategory.telemetry_config.sources.length > 0 && (
              <div className="flex flex-col gap-2 relative z-[50]">
-               <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">{t("support_telemetry_opt")}</label>
+               <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("support_telemetry_opt")}</label>
                <div className="flex flex-col gap-2">
                  {activeCategory.telemetry_config.sources.map((sourceId: string) => {
                    const source = telemetrySources.find(s => s.id === sourceId);
                    if (!source) return null;
                    const isOptedOut = optedOutSources.includes(sourceId);
                    return (
-                      <label key={sourceId} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl overflow-hidden relative ${!isOptedOut ? 'glass-panel border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${!isOptedOut ? 'bg-[var(--accent)]/[20%] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:bg-black/30'}`}>
+                      <label key={sourceId} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl overflow-hidden relative ${!isOptedOut ? 'glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${!isOptedOut ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:bg-black/30'}`}>
                            {!isOptedOut && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check")}</span>}
                          </div>
                          <div className="flex flex-col">
@@ -587,7 +587,7 @@ export default function SupportDeskSidePanel({
 
           {String(activeCategory?.show_logs_box) !== "false" && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex justify-start items-center">
+              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex justify-start items-center">
                 <span>{t("support_logs")}</span>
                 <button onClick={attachLog} className="text-[var(--accent)] hover:opacity-80 transition-opacity flex items-center gap-1">
                   <span>+ {t("support_attach_log")}</span>

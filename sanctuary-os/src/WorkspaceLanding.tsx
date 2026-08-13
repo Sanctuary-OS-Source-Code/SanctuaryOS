@@ -120,9 +120,9 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
       <div className="relative w-full h-full">
         <button
           onClick={() => setSelectedGameConfig(null)}
-          className="absolute top-8 left-8 z-50 px-6 py-3 glass-surface text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:text-white hover:bg-[var(--accent)] transition-all rounded-lg shadow-lg"
+          className="absolute top-8 left-8 z-50 px-6 py-3 glass-surface text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:text-white hover:bg-[var(--accent)] transition-all rounded-lg shadow-lg"
         >
-          {t("nav_cancel") || "CANCEL"}
+          {t("nav_cancel")}
         </button>
         <CartographerSetup preselectedGame={selectedGameConfig} onCancel={() => setSelectedGameConfig(null)} />
       </div>
@@ -136,14 +136,14 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
       {!isTransparent && <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 transition-opacity duration-1000 animate-in fade-in mix-blend-overlay pointer-events-none" />}
       {!isTransparent && <div className="absolute inset-0 z-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] via-transparent to-[color-mix(in_srgb,var(--accent)_5%,transparent)] pointer-events-none" />}
 
-      <div className="relative z-10 w-[95%] max-w-5xl glass-panel bg-[var(--accent)]/[5%] border border-[var(--accent)]/[20%] rounded-[var(--radius)] shadow-md flex flex-col overflow-hidden max-h-[90vh]">
+      <div className="relative z-10 w-[95%] max-w-5xl glass-panel bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[var(--radius)] shadow-md flex flex-col overflow-hidden max-h-[90vh]">
         {onClose && (
-          <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full glass-surface flex items-center justify-center hover:bg-red-500/[20%] hover:text-[var(--danger)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-red-500/[30%] z-50">
+          <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full glass-surface flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-[var(--danger)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] z-50">
             <span className="material-symbols-outlined">close</span>
           </button>
         )}
 
-        <div className="p-10 pb-6 shrink-0 border-b border-[var(--accent)]/[15%] bg-[var(--accent)]/[8%] relative overflow-hidden group">
+        <div className="p-10 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--accent)_15%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] relative overflow-hidden group">
           <div className="flex flex-col items-center justify-center relative z-20 min-h-[100px]">
             {/* Centered Logo */}
             <div className="relative mb-6 w-20 h-20 flex items-center justify-center">
@@ -155,11 +155,11 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
             </div>
             {/* The Page Title */}
             <div className="flex flex-col text-center relative z-10">
-              <h1 className="text-4xl lg:text-5xl font-black uppercase tracking-widest text-[var(--headerText)] drop-shadow-md leading-none">
-                {t("workspace_select_title") || "Select Sector"}
+              <h1 className="text-4xl lg:text-5xl font-black capitalize tracking-widest text-[var(--headerText)] drop-shadow-md leading-none">
+                {t("workspace_select_title")}
               </h1>
-              <p className="text-[11px] font-bold uppercase tracking-[0.3em] theme-text-accent opacity-80 mt-4 transition-colors duration-500">
-                {t("workspace_select_subtitle") || "Initialize Connection"}
+              <p className="text-[11px] font-bold capitalize tracking-[0.3em] theme-text-accent opacity-80 mt-4 transition-colors duration-500">
+                {t("workspace_select_subtitle")}
               </p>
             </div>
           </div>
@@ -168,13 +168,13 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
             <FilterTabs className="w-full md:w-auto">
               <FilterTabButton
                 id="configured"
-                label={t("workspace_configured") || "Configured Workspaces"}
+                label={t("workspace_configured")}
                 activeTab={filterTab}
                 setTab={setFilterTab}
               />
               <FilterTabButton
                 id="unconfigured"
-                label={t("workspace_unconfigured") || "Unconfigured Workspaces"}
+                label={t("workspace_unconfigured")}
                 activeTab={filterTab}
                 setTab={setFilterTab}
               />
@@ -184,10 +184,10 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
               <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-[var(--subtext)] opacity-50 transition-opacity group-focus-within:opacity-100 group-focus-within:text-[var(--accent)] text-sm">search</span>
               <input
                 type="text"
-                placeholder={t("workspace_search") || "Filter Environments..."}
+                placeholder={t("workspace_search")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full h-11 pl-10 pr-6 text-[11px] font-black uppercase tracking-widest text-[var(--text)] outline-none focus:border-[color-mix(in_srgb,var(--text)_30%,transparent)] focus:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all shadow-inner"
+                className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full h-11 pl-10 pr-6 text-[11px] font-black capitalize tracking-widest text-[var(--text)] outline-none focus:border-[color-mix(in_srgb,var(--text)_30%,transparent)] focus:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all shadow-inner"
               />
             </div>
           </div>
@@ -211,7 +211,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
                 const actions = (
                   <div
                     onClick={(e) => togglePin(ws.id, e)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[var(--accent)]/[15%] border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                   >
                     <span className="material-symbols-outlined !text-[16px]" style={{ fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0' }}>keep</span>
                   </div>
@@ -219,11 +219,11 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
 
                 const footer = (
                   <div className="flex flex-col min-w-0 flex-1 pr-2">
-                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
+                    <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
                     {isSelecting === ws.id ? (
                       <span className="text-[10px] font-bold text-[var(--accent)] opacity-90 mt-1 flex items-center gap-1 truncate animate-pulse">
                         <span className="material-symbols-outlined !text-[12px] shrink-0 animate-spin">sync</span>
-                        <span className="truncate">{t("status_establishing_connection") || "Establishing Connection..."}</span>
+                        <span className="truncate">{t("status_establishing_connection")}</span>
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-1 truncate">
@@ -241,7 +241,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
                     isActive={isActive}
                     onClick={() => selectWorkspace(ws)}
                     title={game.name || ws.name || ws.id}
-                    subtitle={isActive ? t("workspace_manage") || 'Active Workspace' : t("workspace_available") || "Configured Workspace"}
+                    subtitle={isActive ? t("workspace_manage") : t("workspace_available")}
                     customIcon={customIcon}
                     actions={actions}
                     footer={footer}
@@ -258,9 +258,9 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
 
                 const footer = (
                   <div className="flex flex-col min-w-0 flex-1 pr-2">
-                    <span className="text-[10px] font-bold text-[var(--text)] opacity-0 group-hover:opacity-80 transition-opacity duration-500 flex items-center gap-1 uppercase tracking-widest">
+                    <span className="text-[10px] font-bold text-[var(--text)] opacity-0 group-hover:opacity-80 transition-opacity duration-500 flex items-center gap-1 capitalize tracking-widest">
                       <span className="material-symbols-outlined !text-[12px]">add</span>
-                      <span>{t("ui_add_network_node") || "Provision Node"}</span>
+                      <span>{t("ui_add_network_node")}</span>
                     </span>
                   </div>
                 );
@@ -281,7 +281,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
             })}
 
             {filteredCards.length === 0 && (
-              <EmptyState icon={t("icon_search") || "search_off"} title={t("no_matches") || "No environments found"} className="col-span-full py-16" />
+              <EmptyState icon={t("icon_search")} title={t("no_matches")} className="col-span-full py-16" />
             )}
           </div>
         </div>

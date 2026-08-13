@@ -6,12 +6,15 @@ export type UnifiedReport = { [key: string]: any };
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker, StatTile,
+import {
+  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+  CustomComplianceDropdown, CustomDatePicker,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion } from "../shared";
+  FilterTabs, FilterTabButton,
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
+} from "../shared";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
@@ -210,20 +213,20 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
             />
           </div>
 
-          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] h-12 shrink-0">
-            <button
-              onClick={() => setActiveStatus("pending" as any)}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeStatus === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-            >
-              {t("pending")}
-            </button>
-            <button
-              onClick={() => setActiveStatus("resolved" as any)}
-              className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeStatus === 'resolved' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-            >
-              {t("dossier_action_resolved")}
-            </button>
-          </div>
+          <FilterTabs className="h-12 shrink-0 z-40">
+            <FilterTabButton
+              id="pending"
+              label={t("pending")}
+              activeTab={activeStatus}
+              setTab={setActiveStatus}
+            />
+            <FilterTabButton
+              id="resolved"
+              label={t("dossier_action_resolved")}
+              activeTab={activeStatus}
+              setTab={setActiveStatus}
+            />
+          </FilterTabs>
         </div>
       </div>
 
@@ -231,40 +234,40 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         {loading ? (
           <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading")}</div>
         ) : filteredReports.length === 0 ? (
-          <EmptyState icon={t("icon_security") || "shield"} title={t("auto_no_tickets_found_38")} className="col-span-full py-16" />
+          <EmptyState icon={t("icon_security")} title={t("auto_no_tickets_found_38")} className="col-span-full py-16" />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
             {filteredReports.map(report => (
               <div
                 key={report.id}
-                className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
+                className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 hover:-translate-y-1.5 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
                 onClick={() => setSelectedReport(report)}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
                 <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
-                      ${report.status?.toLowerCase() === 'pending' ? 'bg-amber-500/50 group-hover:bg-amber-500 group-hover:shadow-md' : 'bg-[var(--accent)]/50 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]'}
+                      ${report.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_50%,transparent)] group-hover:bg-amber-500 group-hover:shadow-md' : 'bg-[color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]'}
                   `} />
 
                 <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                   <div className="flex justify-start items-start gap-4">
-                    <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[var(--accent)]/30">
+                    <div className="w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
                       <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-colors duration-500">
                         {report.status?.toLowerCase() === 'pending' ? 'warning' : 'done_all'}
                       </span>
                     </div>
-                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors
-                              ${report.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500/20'}
+                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors
+                              ${report.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-400 border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]'}
                           `}>
                       {(report.status || "PENDING").replace(/_/g, ' ')}
                     </span>
                   </div>
 
                   <div className="flex flex-col gap-1 mt-2">
-                    <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 truncate opacity-70 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2 truncate opacity-70 group-hover:opacity-100 transition-opacity">
                       {report.source.replace('-', ' ')}
                     </span>
-                    <h3 className="font-black text-xl leading-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors uppercase tracking-widest line-clamp-2">
+                    <h3 className="font-black text-xl leading-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors capitalize tracking-widest line-clamp-2">
                       {report.title}
                     </h3>
                   </div>
@@ -275,16 +278,16 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
 
                   <div className="flex justify-start items-center mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] gap-4 relative">
                     <div className="flex items-center gap-4 flex-1 min-w-0 group-hover:opacity-0 transition-opacity duration-300">
-                      <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                      <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
                         <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
                         {new Date(report.created_at).toLocaleDateString()}
                       </span>
-                      <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                      <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
                         <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_person")}</span>
                         {report.reporter_name.substring(0, 8)}
                       </span>
                     </div>
-                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
                       {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
                     </button>
                   </div>
@@ -301,8 +304,8 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
           setSelectedReport(null);
           setResolutionReason("");
         }}
-        title={t("report_details") || "REPORT DETAILS"}
-        subtitle={t("dossier_subtitle") || "NEXUS OVERSIGHT DOSSIER"}
+        title={t("report_details")}
+        subtitle={t("dossier_subtitle")}
         icon="shield"
         footer={selectedReport?.status === 'pending' ? (
           <div className="flex justify-center items-center gap-4 w-full">
@@ -323,33 +326,33 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
           {selectedReport && (
             <>
               <div className="flex flex-col gap-3 shrink-0">
-                <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest truncate">
+                <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
                   {selectedReport.title}
                 </h2>
               </div>
-              
+
               <UniversalGroup title={t("report_details")} icon={t("icon_info")}>
 
                 <div className="flex flex-col gap-6 relative z-10">
                   <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("reporter")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("reporter")}</label>
                     <span className="glass-surface rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.reporter_name}</span>
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("reason")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("reason")}</label>
                     <p className="text-sm font-bold text-[var(--text)] leading-relaxed glass-surface px-5 py-4 min-h-[4rem] rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{selectedReport.description}</p>
                   </div>
                 </div>
               </UniversalGroup>
 
               {(selectedReport.source === 'nexus' && selectedReport.metadata?.asset_full || selectedReport.metadata?.json_data) && (
-                <UniversalGroup title={t("resources") || "RESOURCES"} icon={t("icon_link") || "link"}>
+                <UniversalGroup title={t("resources")} icon={t("icon_link")}>
                   <div className="flex gap-4 relative z-10">
                     {selectedReport.source === 'nexus' && selectedReport.metadata?.asset_full && (
                       <button
                         onClick={() => setActiveAsset({ id: selectedReport.metadata.asset_full.id, type: selectedReport.metadata.asset_full.asset_type })}
-                        className="flex-1 py-3 glass-surface hover:bg-emerald-500/10 text-[var(--text)] hover:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-emerald-500/30"
+                        className="flex-1 py-3 glass-surface hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--text)] hover:text-emerald-400 font-black text-[10px] capitalize tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]"
                       >
                         <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("icon_visibility")}</span>
                         {t("btn_view_nexus")}
@@ -358,7 +361,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                     {selectedReport.metadata?.json_data && (
                       <button
                         onClick={() => setActiveCodeSnippet(typeof selectedReport.metadata.json_data === 'string' ? selectedReport.metadata.json_data : JSON.stringify(selectedReport.metadata.json_data, null, 2))}
-                        className="flex-1 py-3 glass-surface hover:bg-emerald-500/10 text-[var(--text)] hover:text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-emerald-500/30"
+                        className="flex-1 py-3 glass-surface hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--text)] hover:text-emerald-400 font-black text-[10px] capitalize tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]"
                       >
                         <span className="material-symbols-outlined !text-[16px] group-hover:scale-110 transition-transform">{t("icon_data_object")}</span>
                         {t("btn_view_code")}
@@ -369,11 +372,11 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
               )}
 
               {selectedReport.status === 'pending' && (
-                <UniversalGroup 
-                  title={t("dossier_action")} 
-                  icon={t("icon_gavel")} 
+                <UniversalGroup
+                  title={t("dossier_action")}
+                  icon={t("icon_gavel")}
                   headerColorClass="theme-text-warning"
-                  className="bg-amber-500/5 border-amber-500/30"
+                  className="bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
                 >
                   <div className="flex flex-col gap-6 relative z-10">
                     <div className="flex flex-col gap-2">
@@ -381,7 +384,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                         value={resolutionReason}
                         onChange={e => setResolutionReason(e.target.value)}
                         placeholder={t("resolution_reason_ph")}
-                        className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-amber-500/50 resize-none custom-scrollbar bg-black/20"
+                        className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] resize-none custom-scrollbar bg-black/20"
                       />
                     </div>
 

@@ -8,8 +8,7 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import {
   DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker, StatTile,
-  HubTabButton, ModSearchDropdown, EmptyState, FilterTabs, FilterTabButton, ActionButton,
+  CustomComplianceDropdown, CustomDatePicker, HubTabButton, ModSearchDropdown, EmptyState, FilterTabs, FilterTabButton, ActionButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, ScreenUtilityBar
@@ -207,7 +206,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
       const fullPath = `${devLane}/${activeMod.name}`;
       await invoke("delete_local_file", { path: fullPath });
-      useStore.getState().pushStatus((t("purge") || "Deleted") + " " + activeMod.name, "success");
+      useStore.getState().pushStatus((t("purge")) + " " + activeMod.name, "success");
       setIsEditorOpen(false);
       setConfirmPurge(false);
       fetchSandboxMods();
@@ -243,36 +242,36 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
         searchPlaceholder={t("search_ph") as string}
       >
         <>
-            <div className="w-max min-w-[180px] max-w-xs shrink-0">
-              <CustomDropdown
-                disableTint={true}
-                value={sandboxTypeFilter}
-                onChange={(v: string[]) => setSandboxTypeFilter(v[0] as any)}
-                options={[
-                  { id: "ALL", label: t("ql_all") || "ALL" },
-                  { id: "ARTIFACTS", label: t("items") || "ARTIFACTS" },
-                  { id: "CONFIGS", label: t("type_configs") || "CONFIGS" },
-                  { id: "TEMPLATES", label: t("ql_templates") || "TEMPLATES" }
-                ]}
-              />
-            </div>
-            <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5 mr-4 hidden md:flex">
-              <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("unlinked_badge") || "LOCAL"}</button>
-              <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("synced_badge") || "SYNCED"}</button>
-            </div>
-            <ActionButton
-              onClick={handleImportToSandbox}
-              disabled={isImporting}
-              icon={isImporting ? t("icon_refresh") : t("icon_download")}
-              label={isImporting ? t("btn_importing") : t("btn_import")}
-              className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]"
+          <div className="w-max min-w-[180px] max-w-xs shrink-0">
+            <CustomDropdown
+              disableTint={true}
+              value={sandboxTypeFilter}
+              onChange={(v: string[]) => setSandboxTypeFilter(v[0] as any)}
+              options={[
+                { id: "ALL", label: t("ql_all") },
+                { id: "ARTIFACTS", label: t("items") },
+                { id: "CONFIGS", label: t("type_configs") },
+                { id: "TEMPLATES", label: t("ql_templates") }
+              ]}
             />
-          </>
+          </div>
+          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5 mr-4 hidden md:flex">
+            <button onClick={() => setSandboxTabFilter('local')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${sandboxTabFilter === 'local' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("unlinked_badge")}</button>
+            <button onClick={() => setSandboxTabFilter('synced')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${sandboxTabFilter === 'synced' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("synced_badge")}</button>
+          </div>
+          <ActionButton
+            onClick={handleImportToSandbox}
+            disabled={isImporting}
+            icon={isImporting ? t("icon_refresh") : t("icon_download")}
+            label={isImporting ? t("btn_importing") : t("btn_import")}
+            className="h-12 px-6 shrink-0 font-black capitalize tracking-widest text-[10px]"
+          />
+        </>
       </ScreenUtilityBar>
 
       <div className="p-6 flex flex-col gap-10 pb-32 overflow-y-auto custom-scrollbar">
         {isLoading ? (
-          <div className="flex justify-center items-center h-40 opacity-50 uppercase font-black tracking-widest text-[var(--text)]">
+          <div className="flex justify-center items-center h-40 opacity-50 capitalize font-black tracking-widest text-[var(--text)]">
             {t("scanning")}
           </div>
         ) : (
@@ -280,7 +279,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             {sandboxTabFilter === 'local' && (
               <div className="flex flex-col gap-6">
                 {unlinkedMods.length === 0 ? (
-                  <EmptyState icon={t("icon_folder_off") || "folder_off"} title={t("empty")} className="col-span-full py-16" />
+                  <EmptyState icon={t("icon_folder_off")} title={t("empty")} className="col-span-full py-16" />
                 ) : (
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                     {unlinkedMods.map(mod => (
@@ -290,15 +289,15 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                         layout="vertical"
                         icon="folder_zip"
                         title={mod.name.split(/[\\/]/).pop()}
-                        statusColor="border-orange-500/50"
+                        statusColor="border-[color-mix(in_srgb,var(--warning)_50%,transparent)]"
                         badges={[
-                          <span key="badge" className="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest shadow-inner shrink-0 transition-colors group-hover:bg-orange-500/20">
+                          <span key="badge" className="bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-orange-400 border border-[color-mix(in_srgb,var(--warning)_20%,transparent)] px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 transition-colors group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
                             {t("unlinked_badge")}
                           </span>
                         ]}
                       >
                         <div className="flex flex-col gap-1 mt-auto pb-4">
-                          <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate group-hover:opacity-100 transition-opacity">{mod.hash}</span>
+                          <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate group-hover:opacity-100 transition-opacity">{mod.hash}</span>
                         </div>
                       </UniversalCard>
                     ))}
@@ -310,7 +309,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             {sandboxTabFilter === 'synced' && (
               <div className="flex flex-col gap-6">
                 {syncedMods.length === 0 ? (
-                  <EmptyState icon={t("ui_icon_sync_disabled") || "sync_disabled"} title={t("no_synced")} className="col-span-full py-16" />
+                  <EmptyState icon={t("ui_icon_sync_disabled")} title={t("no_synced")} className="col-span-full py-16" />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                     {syncedMods.map(mod => (
@@ -320,16 +319,16 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                         layout="vertical"
                         icon="cloud_done"
                         title={mod.name.split(/[\\/]/).pop()}
-                        statusColor="border-emerald-500/50"
+                        statusColor="border-[color-mix(in_srgb,var(--success)_50%,transparent)]"
                         isGhosted={true}
                         badges={[
-                          <span key="badge" className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest shadow-inner shrink-0 transition-colors group-hover:bg-emerald-500/20">
+                          <span key="badge" className="bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-400 border border-[color-mix(in_srgb,var(--success)_20%,transparent)] px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 transition-colors group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]">
                             {t("synced_badge")}
                           </span>
                         ]}
                       >
                         <div className="flex flex-col gap-1 mt-auto pb-4">
-                          <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate group-hover:opacity-100 transition-opacity">{mod.hash}</span>
+                          <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate group-hover:opacity-100 transition-opacity">{mod.hash}</span>
                         </div>
                       </UniversalCard>
                     ))}
@@ -354,7 +353,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             panelZ="z-[50001]"
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
-                <ActionButton onClick={handlePurge} disabled={isCommitting} label={confirmPurge ? (t("ui_confirm_delete") || "ARE YOU SURE?") : (t("purge") || "PURGE")} className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]">
+                <ActionButton onClick={handlePurge} disabled={isCommitting} label={confirmPurge ? (t("ui_confirm_delete")) : (t("purge"))} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
 
                 </ActionButton>
                 <ActionButton onClick={handleSyncToNetwork} disabled={isCommitting} label={isCommitting ? t("btn_syncing") : (t("sandbox_btn_sync"))}>
@@ -365,71 +364,71 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
           >
             <div className="flex flex-col gap-8">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_modname")}</label>
-                <input value={activeMod.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_modname")}</label>
+                <input value={activeMod.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner" />
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category")}</label>
                   <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({ ...activeMod, category_override: val })} />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
-                  <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({ ...activeMod, file_extension: e.target.value })} placeholder={t("placeholder_file_ext")} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_file_ext")}</label>
+                  <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({ ...activeMod, file_extension: e.target.value })} placeholder={t("placeholder_file_ext")} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_subclass")}</label>
-                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({ ...activeMod, sub_type: e.target.value })} placeholder={t("placeholder_subclass")} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_subclass")}</label>
+                  <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({ ...activeMod, sub_type: e.target.value })} placeholder={t("placeholder_subclass")} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
-                  <input value={activeMod.url || ""} onChange={e => setActiveMod({ ...activeMod, url: e.target.value })} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
+                  <input value={activeMod.url || ""} onChange={e => setActiveMod({ ...activeMod, url: e.target.value })} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2 xl:col-span-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
-                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({ ...activeMod, description: e.target.value })} className="w-full glass-panel rounded-[var(--radius)] px-6 py-5 text-[var(--text)] text-sm font-bold min-h-[150px] custom-scrollbar resize-none focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc")}</label>
+                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({ ...activeMod, description: e.target.value })} className="w-full glass-panel rounded-[var(--radius)] px-6 py-5 text-[var(--text)] text-sm font-bold min-h-[150px] custom-scrollbar resize-none focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2 xl:col-span-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
-                  <input value={activeMod.image_url || ""} onChange={e => setActiveMod({ ...activeMod, image_url: e.target.value })} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url")}</label>
+                  <input value={activeMod.image_url || ""} onChange={e => setActiveMod({ ...activeMod, image_url: e.target.value })} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_condition")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_condition")}</label>
                   <MasonStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({ ...activeMod, status: newStatus })} />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("uploaded_date")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("uploaded_date")}</label>
                   <div className="w-full">
                     <CustomDatePicker value={activeMod.created_at || null} onChange={date => setActiveMod({ ...activeMod, created_at: date })} />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("updated_date")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("updated_date")}</label>
                   <div className="w-full">
                     <CustomDatePicker value={activeMod.updated_at || null} onChange={date => setActiveMod({ ...activeMod, updated_at: date })} />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2 flex items-center gap-1">
-                    {t("label_mason_version") || "Mason Version"}
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-1">
+                    {t("label_mason_version")}
                   </label>
-                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 shadow-inner" />
+                  <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner" />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 col-span-full">
-                  <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                    <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
+                  <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                    <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on")}</span>
                       {t("label_is_paid")}
                     </span>
                     <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
@@ -439,9 +438,9 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                     <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
                   </label>
 
-                  <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                    <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
+                  <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                    <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_science")}</span>
                       {t("label_is_early_access")}
                     </span>
                     <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
@@ -453,20 +452,20 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                 </div>
 
                 <div className="flex flex-col gap-2 col-span-full">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("game_versions")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_versions")}</label>
                   <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v) => setActiveMod({ ...activeMod, compatible_versions: v })} />
                 </div>
               </div>
 
               <div className="mt-auto shrink-0 pt-8 pb-4 flex flex-col gap-4">
                 {existingHashes.has(activeMod.hash) && (
-                  <div className="glass-panel border-green-500/20 bg-green-500/5 px-6 py-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                    <span className="text-sm font-black text-green-400 uppercase tracking-widest flex items-center justify-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span> {t("already_synced")}</span>
+                  <div className="glass-panel border-[color-mix(in_srgb,var(--success)_20%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] px-6 py-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                    <span className="text-sm font-black text-green-400 capitalize tracking-widest flex items-center justify-center gap-2"><span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span> {t("already_synced")}</span>
                     <p className="text-[10px] text-[var(--subtext)] mt-1 font-bold">{t("already_synced_desc")}</p>
                   </div>
                 )}
                 <div className="flex justify-end gap-4 mt-2">
-                  <button onClick={() => setIsLinkModalOpen(true)} disabled={isCommitting} className="flex-1 py-4 font-black text-xs uppercase tracking-widest rounded-2xl transition-all duration-300 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button onClick={() => setIsLinkModalOpen(true)} disabled={isCommitting} className="flex-1 py-4 font-black text-xs capitalize tracking-widest rounded-2xl transition-all duration-300 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
                     <span className="material-symbols-outlined !text-[16px]">{t("icon_link")}</span> {t("btn_link_existing")}
                   </button>
                 </div>
@@ -493,22 +492,22 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
               placeholder={t("link_search")}
               value={linkSearch}
               onChange={e => setLinkSearch(e.target.value)}
-              className="w-full glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 shadow-inner"
+              className="w-full glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40 shadow-inner"
               autoFocus
             />
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pb-4">
             {existingMods.filter(m => m.name.toLowerCase().includes(linkSearch.toLowerCase())).length === 0 ? (
-              <EmptyState icon={t("icon_search_off") || "search_off"} title={t("link_no_results")} className="py-8" />
+              <EmptyState icon={t("icon_search_off")} title={t("link_no_results")} className="py-8" />
             ) : (
               existingMods.filter(m => m.name.toLowerCase().includes(linkSearch.toLowerCase())).map(m => (
                 <button
                   key={m.id}
                   onClick={() => handleLinkToExisting(m.id)}
-                  className="w-full text-left p-5 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 transition-all duration-300 group flex items-center justify-start"
+                  className="w-full text-left p-5 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] hover:-translate-y-0.5 transition-all duration-300 group flex items-center justify-start"
                 >
-                  <span className="font-black text-xs text-[var(--text)] uppercase tracking-tight truncate mr-4 group-hover:text-[var(--accent)] transition-colors">{m.name}</span>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span> {t("btn_link_existing")}</span>
+                  <span className="font-black text-xs text-[var(--text)] capitalize tracking-tight truncate mr-4 group-hover:text-[var(--accent)] transition-colors">{m.name}</span>
+                  <span className="text-[9px] font-black capitalize tracking-widest text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span> {t("btn_link_existing")}</span>
                 </button>
               ))
             )}

@@ -94,41 +94,21 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
   return (
     <CommandScreenLayout>
       <CommandScreenStats>
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_dns")}</span>} number={stats.networkLatency ? `${stats.networkLatency}` : "---"} label={stats.networkStatus === "ONLINE" ? "CORE OS NOMINAL" : "CORE OS DEGRADED"} colorClass={stats.networkStatus === "ONLINE" ? "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" : "border-yellow-500/30 text-yellow-500 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20"} onClick={() => setHealthOpen(true)} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">view_quilt</span>} number={stats.activeGames} label="Active Workspaces" colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => setTab("active_games")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_dns")}</span>} number={stats.networkLatency ? `${stats.networkLatency}` : "---"} label={stats.networkStatus === "ONLINE" ? "CORE OS NOMINAL" : "CORE OS DEGRADED"} colorClass={stats.networkStatus === "ONLINE" ? "border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-emerald-500 hover:border-emerald-500 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]" : "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-yellow-500 hover:border-yellow-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]"} onClick={() => setHealthOpen(true)} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">view_quilt</span>} number={stats.activeGames} label="Active Workspaces" colorClass="text-emerald-500" onClick={() => setTab("active_games")} />
 
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">local_activity</span>} number={stats.tickets} label="Support Queue" colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setTab("support")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">campaign</span>} number={stats.activeBroadcasts} label="Active Broadcasts" colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => setIsAlertsOpen(true)} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">local_activity</span>} number={stats.tickets} label="Support Queue" colorClass="text-purple-500" onClick={() => setTab("support")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">campaign</span>} number={stats.activeBroadcasts} label="Active Broadcasts" colorClass="text-amber-500" onClick={() => setIsAlertsOpen(true)} />
 
 
-        <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">group</span>} number={stats.citizens} label="Citizen Oversight" colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => setTab("identities")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">group</span>} number={stats.citizens} label="Citizen Oversight" colorClass="text-blue-500" onClick={() => setTab("identities")} />
       </CommandScreenStats>
 
-      {stats.urgentBroadcast && localStorage.getItem("sanctuary_notify_alert_banner") !== "false" && (
-        <div onClick={() => setViewingPost({ ...stats.urgentBroadcast, content: stats.urgentBroadcast.message || stats.urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel border border-[var(--danger)]/30 bg-[var(--danger)]/10 rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center gap-6 shadow-md cursor-pointer hover:bg-[var(--danger)]/20 transition-all group overflow-hidden relative backdrop-blur-md">
-          <div className="absolute inset-0 bg-gradient-to-r from-[var(--danger)]/5 to-transparent z-0 pointer-events-none" />
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--danger)]/10 blur-[50px] rounded-[var(--radius)] pointer-events-none" />
-          <div className="w-16 h-16 rounded-[var(--radius)] bg-[var(--danger)]/10 border border-[var(--danger)]/30 flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform shadow-inner">
-            <span className="material-symbols-outlined !text-4xl text-[var(--danger)] animate-pulse">{t("icon_warning_amber")}</span>
-          </div>
-          <div className="flex flex-col gap-2 flex-1 z-10">
-            <div className="flex items-center gap-3">
-              <span className="px-3 py-1 bg-[var(--danger)]/20 border border-[var(--danger)]/40 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest rounded-[calc(var(--radius)-4px)] shadow-inner animate-pulse flex items-center gap-1"><span className="material-symbols-outlined !text-[12px]"></span>{t("urgent_alert") || "URGENT ALERT"}</span>
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-60 text-[var(--danger)]">{new Date(stats.urgentBroadcast.created_at).toLocaleDateString()}</span>
-            </div>
-            <h3 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--danger)] group-hover:text-red-400 transition-colors drop-shadow-md">{stats.urgentBroadcast.title}</h3>
-          </div>
-          <div className="flex items-center gap-2 z-10 ml-auto">
-            <button onClick={(e) => { e.stopPropagation(); sessionStorage.setItem('dismissedAlertId', stats.urgentBroadcast.id); setStats({ ...stats, urgentBroadcast: null }); }} className="w-10 h-10 rounded-[calc(var(--radius)-4px)] border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] flex items-center justify-center transition-colors shadow-inner backdrop-blur-md hover:scale-110 active:scale-95 group/close" >
-              <span className="material-symbols-outlined !text-[20px] group-hover/close:rotate-90 transition-transform duration-300">close</span>
-            </button>
-          </div>
-        </div>
-      )}
+      <UrgentBroadcastBanner urgentBroadcast={stats.urgentBroadcast} setViewingPost={setViewingPost} setUrgentBroadcast={(b: any) => setStats({ ...stats, urgentBroadcast: b })} />
 
       <CommandScreenBody>
         <CommandScreenMain>
-          <CommandScreenSectionHeading title={t("wf_comms_title") || "LATEST DISPATCH"} icon="history" />
+          <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
           <div className="flex flex-col gap-8 w-full mb-8">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
           </div>
@@ -136,31 +116,22 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
 
         <CommandScreenSidebar title="KEEPER QUICK LINKS" icon="rocket_launch">
           {stats.urgentBroadcast && (
-            <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden h-24">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-              <div className="flex items-center gap-5 h-full">
-                <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 text-[var(--danger)] shadow-md">
-                  <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 animate-pulse drop-shadow-md">
-                    priority_high
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 flex-1 min-w-0">
-                  <h3 className="text-[11px] font-black uppercase tracking-widest transition-colors truncate text-[var(--danger)] group-hover:text-red-400">{t("title_sanctuary_alerts") || "Sanctuary Alerts"}</h3>
-                  <span className="text-[8px] uppercase font-bold tracking-widest transition-colors flex items-center gap-2 mt-1 text-[var(--danger)]/80 group-hover:text-red-300">
-                    <span className="w-1.5 h-1.5 rounded-full shadow-md bg-[var(--danger)] animate-pulse"></span> {t("urgent_alert")}
-                  </span>
-                </div>
-              </div>
-            </button>
+            <CommandScreenQuickLink 
+              icon="priority_high"
+              title={t("title_sanctuary_alerts")}
+              subtitle={t("urgent_alert_active")}
+              onClick={() => setIsAlertsOpen(true)}
+              isAlert={true}
+            />
           )}
 
           <CommandScreenQuickLink icon="dns" title="Active Workspaces" subtitle="Manage Game Servers" onClick={() => setTab("active_games")} textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400" />
           <CommandScreenQuickLink icon="group" title="Citizen Oversight" subtitle="Manage Identities" onClick={() => setTab("identities")} textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400" />
           <CommandScreenQuickLink icon="local_activity" title="Support Tickets" subtitle="View Support Queue" onClick={() => setTab("support")} textColorClass="text-purple-400" hoverTextColorClass="group-hover:text-purple-300" dotColorClass="bg-purple-400" />
-          <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history") || "history"} title={t("audit_title") || "Audit Logs"} subtitle={t("ql_system_history") || "System History"} iconBorderHoverClass="group-hover:border-[var(--accent)]/30" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-md" />
+          <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history")} title={t("audit_title")} subtitle={t("ql_system_history")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-md" />
 
           {!stats.urgentBroadcast && (
-            <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon="warning_off" title={t("title_sanctuary_alerts") || "Sanctuary Alerts"} subtitle={t("alert_empty") || "SYSTEM BROADCASTS"} iconBorderHoverClass="group-hover:border-amber-500/30" iconShadowClass="drop-shadow-md" textColorClass="text-amber-500/80" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-md" />
+            <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon="warning_off" title={t("title_sanctuary_alerts")} subtitle={t("alert_empty")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" iconShadowClass="drop-shadow-md" textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-md" />
           )}
         </CommandScreenSidebar>
       </CommandScreenBody>

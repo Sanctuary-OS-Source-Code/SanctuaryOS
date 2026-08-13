@@ -64,23 +64,23 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("chameleon_editor_title") || "Chameleon Editor"}
-      subtitle={t("chameleon_editor_subtitle") || "Official Theme Editor"}
+      title={t("chameleon_editor_title")}
+      subtitle={t("chameleon_editor_subtitle")}
       icon="cloud"
       widthClass="w-[900px]" // Make it wide enough to fit the grid layout
     >
       <div className="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-12">
         
         <div>
-          <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--text)] mb-2">{themeName}</h2>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("forge_instructions") || "Use the console below to forge your visual signature."}</p>
+          <h2 className="text-3xl font-black capitalize tracking-widest text-[var(--text)] mb-2">{themeName}</h2>
+          <p className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60">{t("forge_instructions")}</p>
         </div>
 
         <div className="flex flex-col gap-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
             {themeKeys.map(key => (
               <div key={key} className="flex flex-col gap-4 group">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)] transition-colors">{t(`color_${key}`) || key.toUpperCase()}</label>
+                <label className="text-[10px] font-black capitalize tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)] transition-colors">{t(`color_${key}`) || key.toUpperCase()}</label>
                 <div className="relative">
                   <div className="flex items-center gap-4">
                     <div
@@ -92,7 +92,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                        {/* Transparent background pattern to show if color is transparent */}
                        <div className="absolute inset-0 z-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjY2NjIiAvPgo8cmVjdCB4PSI0IiB5PSI0IiB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjY2NjIiAvPgo8L3N2Zz4=')] opacity-20 pointer-events-none" />
                        <div className="absolute inset-0 z-10" style={{ backgroundColor: currentTheme[key] }} />
-                       <span className="relative z-20 text-[10px] font-black uppercase tracking-widest drop-shadow-md mix-blend-difference text-white opacity-80">
+                       <span className="relative z-20 text-[10px] font-black capitalize tracking-widest drop-shadow-md mix-blend-difference text-white opacity-80">
                          {currentTheme[key]?.toUpperCase() || '#000000'}
                        </span>
                     </div>
@@ -112,19 +112,19 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                               type="text"
                               value={currentTheme[key]}
                               onChange={(e) => updateActiveTheme({ [key]: e.target.value })}
-                              className="flex-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-black text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-colors shadow-inner"
+                              className="flex-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-black text-[var(--text)] capitalize tracking-widest outline-none focus:theme-border-accent transition-colors shadow-inner"
                             />
                           ) : (
-                            <div className="flex-1 glass-panel border border-[var(--warning)]/40 rounded-2xl shadow-lg shadow-[var(--warning)]/10 flex items-center justify-center text-center relative overflow-hidden">
+                            <div className="flex-1 glass-panel border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] rounded-2xl shadow-lg shadow-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex items-center justify-center text-center relative overflow-hidden">
                               <div className="absolute inset-0 bg-[var(--warning)] opacity-10 pointer-events-none" />
-                              <span className="relative z-10 text-[var(--warning)] px-5 py-4 text-[10px] font-black uppercase tracking-[0.2em] drop-shadow-sm">
-                                {t("color_restricted") || "SEMANTIC LOCK ACTIVE"}
+                              <span className="relative z-10 text-[var(--warning)] px-5 py-4 text-[10px] font-black capitalize tracking-[0.2em] drop-shadow-sm">
+                                {t("color_restricted")}
                               </span>
                             </div>
                           )}
                           {!(key === 'success' || key === 'warning' || key === 'danger') && (
                             <div className="w-12 h-12 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0 shadow-inner flex items-center justify-center cursor-pointer hover:scale-110 transition-transform group/fav" style={{ backgroundColor: currentTheme[key] }} onClick={() => toggleFavColor(currentTheme[key])}>
-                              {favColors.includes(currentTheme[key]) ? <span className="text-yellow-500 text-2xl drop-shadow-md">★</span> : <span className="opacity-0 group-hover/fav:opacity-50 text-white font-black text-2xl material-symbols-outlined">{t("icon_add") || 'add'}</span>}
+                              {favColors.includes(currentTheme[key]) ? <span className="text-yellow-500 text-2xl drop-shadow-md">★</span> : <span className="opacity-0 group-hover/fav:opacity-50 text-white font-black text-2xl material-symbols-outlined">{t("icon_add")}</span>}
                             </div>
                           )}
                         </div>
@@ -140,7 +140,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                         </div>
                         {favColors.length > 0 && !(key === 'success' || key === 'warning' || key === 'danger') && (
                           <div className="mb-8 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-4">{t("color_favs") || "Favorites"}</h4>
+                            <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] mb-4">{t("color_favs")}</h4>
                             <div className="flex flex-wrap gap-3">
                               {favColors.map(color => (
                                 <button
@@ -156,30 +156,30 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                           {!(key === 'success' || key === 'warning' || key === 'danger') && (
                             <div className="flex flex-col gap-4 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                               <div className="flex items-center gap-4">
-                                <span className="text-xs font-black opacity-50 w-3 text-center text-red-500">{t("color_r") || 'R'}</span>
+                                <span className="text-xs font-black opacity-50 w-3 text-center text-red-500">{t("color_r")}</span>
                                 <input
                                   type="range" min="0" max="255"
                                   value={HexToRGB(currentTheme[key]).r}
                                   onChange={(e) => updateActiveTheme({ [key]: RGBToHex(parseInt(e.target.value), HexToRGB(currentTheme[key]).g, HexToRGB(currentTheme[key]).b) })}
-                                  className="flex-1 h-3 bg-black/40 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-red-500 [&::-webkit-slider-thumb]:rounded-full cursor-pointer shadow-inner"
+                                  className="flex-1 h-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-red-500 [&::-webkit-slider-thumb]:rounded-full cursor-pointer shadow-inner"
                                 />
                               </div>
                               <div className="flex items-center gap-4">
-                                <span className="text-xs font-black opacity-50 w-3 text-center text-green-500">{t("color_g") || 'G'}</span>
+                                <span className="text-xs font-black opacity-50 w-3 text-center text-green-500">{t("color_g")}</span>
                                 <input
                                   type="range" min="0" max="255"
                                   value={HexToRGB(currentTheme[key]).g}
                                   onChange={(e) => updateActiveTheme({ [key]: RGBToHex(HexToRGB(currentTheme[key]).r, parseInt(e.target.value), HexToRGB(currentTheme[key]).b) })}
-                                  className="flex-1 h-3 bg-black/40 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-green-500 [&::-webkit-slider-thumb]:rounded-full cursor-pointer shadow-inner"
+                                  className="flex-1 h-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-green-500 [&::-webkit-slider-thumb]:rounded-full cursor-pointer shadow-inner"
                                 />
                               </div>
                               <div className="flex items-center gap-4">
-                                <span className="text-xs font-black opacity-50 w-3 text-center text-blue-500">{t("editor_bold") || 'B'}</span>
+                                <span className="text-xs font-black opacity-50 w-3 text-center text-blue-500">{t("editor_bold")}</span>
                                 <input
                                   type="range" min="0" max="255"
                                   value={HexToRGB(currentTheme[key]).b}
                                   onChange={(e) => updateActiveTheme({ [key]: RGBToHex(HexToRGB(currentTheme[key]).r, HexToRGB(currentTheme[key]).g, parseInt(e.target.value)) })}
-                                  className="flex-1 h-3 bg-black/40 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full cursor-pointer shadow-inner"
+                                  className="flex-1 h-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full cursor-pointer shadow-inner"
                                 />
                               </div>
                             </div>
@@ -195,18 +195,18 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
 
         <div className="mt-8 mb-4 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
-          <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_typography") || "Typography Engine"}</h2>
+          <h2 className="text-[14px] font-black capitalize tracking-[0.15em] text-white">{t("forge_typography")}</h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="flex flex-col gap-4">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-60">{t("forge_font_family") || "System Font"}</label>
+            <label className="text-[10px] font-black capitalize tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-60">{t("forge_font_family")}</label>
             <div className="flex flex-wrap gap-3">
               {["Inter, sans-serif", "'Space Mono', monospace", "'Orbitron', sans-serif", "'Fira Code', monospace", "'Rajdhani', sans-serif", "'Share Tech Mono', monospace", "'VT323', monospace", "Courier New, monospace"].map(font => (
                 <button 
                   key={font} 
                   onClick={() => updateActiveTheme({ fontFamily: font })}
-                  className={`px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentTheme.fontFamily === font || (!currentTheme.fontFamily && font.includes('Inter')) ? 'glass-panel border-[var(--accent)] theme-text-accent shadow-[0_0_30px_rgba(var(--accent-rgb),0.5)] scale-105' : 'glass-panel hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner'}`}
+                  className={`px-5 py-4 rounded-2xl text-[10px] font-black capitalize tracking-widest transition-all ${currentTheme.fontFamily === font || (!currentTheme.fontFamily && font.includes('Inter')) ? 'glass-panel border-[var(--accent)] theme-text-accent shadow-[0_0_30px_rgba(var(--accent-rgb),0.5)] scale-105' : 'glass-panel hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner'}`}
                   style={{ 
                     fontFamily: font,
                     backgroundColor: (currentTheme.fontFamily === font || (!currentTheme.fontFamily && font.includes('Inter'))) ? "color-mix(in srgb, var(--accent) 15%, transparent)" : undefined 
@@ -220,17 +220,17 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-6">
             {[
-              { key: 'fontSizeHeader', label: t('forge_font_header') || 'Headers', def: '1.875', max: 4 },
-              { key: 'fontSizeSubheader', label: t('forge_font_subheader') || 'Sub Headers', def: '1.5', max: 3 },
-              { key: 'fontSizeTitle', label: t('forge_font_title') || 'Titles', def: '1.25', max: 2.5 },
-              { key: 'fontSizeSubtitle', label: t('forge_font_subtitle') || 'Sub Titles', def: '1.125', max: 2 },
-              { key: 'fontSizeText', label: t('forge_font_text') || 'Text', def: '1', max: 2 },
-              { key: 'fontSizeSubtext', label: t('forge_font_subtext') || 'Sub Text', def: '0.75', max: 1.5 },
-              { key: 'fontSizeSidebar', label: t('forge_font_sidebar') || 'Side Bar Font', def: '10', max: 20, isPx: true },
-              { key: 'sidebarWidth', label: t('forge_sidebar_width') || 'Side Bar Width', def: '288', max: 500, min: 200, isPx: true }
+              { key: 'fontSizeHeader', label: t('forge_font_header'), def: '1.875', max: 4 },
+              { key: 'fontSizeSubheader', label: t('forge_font_subheader'), def: '1.5', max: 3 },
+              { key: 'fontSizeTitle', label: t('forge_font_title'), def: '1.25', max: 2.5 },
+              { key: 'fontSizeSubtitle', label: t('forge_font_subtitle'), def: '1.125', max: 2 },
+              { key: 'fontSizeText', label: t('forge_font_text'), def: '1', max: 2 },
+              { key: 'fontSizeSubtext', label: t('forge_font_subtext'), def: '0.75', max: 1.5 },
+              { key: 'fontSizeSidebar', label: t('forge_font_sidebar'), def: '10', max: 20, isPx: true },
+              { key: 'sidebarWidth', label: t('forge_sidebar_width'), def: '288', max: 500, min: 200, isPx: true }
             ].map(cfg => (
               <div key={cfg.key} className="flex flex-col gap-3">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
+                <label className="text-[10px] font-black capitalize tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
                   <span>{cfg.label}</span>
                   <span className="theme-text-accent">{currentTheme[cfg.key] || (cfg.isPx ? `${cfg.def}px` : `${cfg.def}rem`)}</span>
                 </label>
@@ -247,13 +247,13 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
 
         <div className="mt-8 mb-4 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
-          <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_glass") || "Glass & Material"}</h2>
+          <h2 className="text-[14px] font-black capitalize tracking-[0.15em] text-white">{t("forge_glass")}</h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
-              <span>{t("forge_glass_opacity") || "Panel Opacity"}</span>
+            <label className="text-[10px] font-black capitalize tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
+              <span>{t("forge_glass_opacity")}</span>
               <span className="theme-text-accent">{currentTheme.glassOpacity || "3%"}</span>
             </label>
             <input 
@@ -265,8 +265,8 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
           </div>
           
           <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
-              <span>{t("forge_glass_blur") || "Frosted Blur"}</span>
+            <label className="text-[10px] font-black capitalize tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
+              <span>{t("forge_glass_blur")}</span>
               <span className="theme-text-accent">{currentTheme.glassBlur || "16px"}</span>
             </label>
             <input 
@@ -280,12 +280,12 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
 
         <div className="mt-8 mb-4 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
-          <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_geometry") || "Shape Geometry"}</h2>
+          <h2 className="text-[14px] font-black capitalize tracking-[0.15em] text-white">{t("forge_geometry")}</h2>
         </div>
 
         <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
-            <span>{t("forge_radius") || "Border Radius"}</span>
+          <label className="text-[10px] font-black capitalize tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80 flex justify-start">
+            <span>{t("forge_radius")}</span>
             <span className="theme-text-accent">{currentTheme.radius || "1.5rem"}</span>
           </label>
           <input 
@@ -298,11 +298,11 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
         
         <div className="mt-8 mb-4 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">tune</span>
-          <h2 className="text-[14px] font-black uppercase tracking-[0.15em] text-white">{t("forge_background") || "Background Override"}</h2>
+          <h2 className="text-[14px] font-black capitalize tracking-[0.15em] text-white">{t("forge_background")}</h2>
         </div>
         
         <div className="flex flex-col gap-6">
-          <label className="text-[10px] font-black uppercase tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80">{t("forge_bg_selector") || "Gradient Preset"}</label>
+          <label className="text-[10px] font-black capitalize tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80">{t("forge_bg_selector")}</label>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {[
               { id: 'none', label: 'Solid' },
@@ -310,7 +310,8 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
               { id: 'radial-gradient(circle at center, #1e1b4b, #000000)', label: 'Abyssal Void' },
               { id: 'linear-gradient(135deg, rgba(2,0,36,1) 0%, rgba(9,9,121,1) 35%, rgba(0,212,255,1) 100%)', label: 'Ocean Matrix' },
               { id: 'radial-gradient(circle at top right, #3f3f46, #000000)', label: 'Slate Glow' },
-              { id: 'linear-gradient(to top, #3b82f620, transparent)', label: 'Data Stream' }
+              { id: 'radial-gradient(circle at 80% -20%, rgba(56, 189, 248, 0.6) 0%, transparent 50%), radial-gradient(circle at 10% 100%, rgba(14, 165, 233, 0.4) 0%, transparent 60%), radial-gradient(circle at 50% 50%, rgba(2, 6, 23, 0.7) 0%, transparent 100%), #050b14', label: 'Architect Mesh' },
+              { id: 'radial-gradient(circle at 20% -20%, rgba(249, 42, 173, 0.7) 0%, transparent 60%), radial-gradient(circle at 80% 120%, rgba(11, 3, 45, 0.9) 0%, transparent 70%), radial-gradient(circle at 50% 50%, rgba(76, 29, 149, 0.5) 0%, transparent 100%), #14052b', label: 'Synthwave Mesh' }
             ].map(preset => (
               <button 
                 key={preset.id}
@@ -321,18 +322,50 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                 }}
               >
                 <div className="absolute inset-0 opacity-40 group-hover:opacity-100 transition-opacity" style={{ background: preset.id === 'none' ? currentTheme.bg : preset.id }} />
-                <span className={`relative z-10 text-[9px] font-black uppercase tracking-widest drop-shadow-md text-center ${(currentTheme.bgGradient === preset.id || (!currentTheme.bgGradient && preset.id === 'none')) ? 'theme-text-accent text-shadow-[0_0_10px_var(--accent)]' : 'text-white'}`}>{preset.label}</span>
+                <span className={`relative z-10 text-[9px] font-black capitalize tracking-widest drop-shadow-md text-center ${(currentTheme.bgGradient === preset.id || (!currentTheme.bgGradient && preset.id === 'none')) ? 'theme-text-accent text-shadow-[0_0_10px_var(--accent)]' : 'text-white'}`}>{preset.label}</span>
               </button>
             ))}
           </div>
 
-          <input 
-            type="text" 
-            value={currentTheme.bgGradient || "none"}
-            onChange={(e) => updateActiveTheme({ bgGradient: e.target.value })}
-            className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-5 py-4 text-[10px] font-mono text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-all shadow-inner"
-            placeholder="linear-gradient(to bottom, #000, #111)"
-          />
+          <div className="flex flex-col gap-2 mt-4">
+            <label className="text-[10px] font-black capitalize tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80">{t("forge_custom_bg")}</label>
+            <textarea 
+              value={currentTheme.bgGradient || "none"}
+              onChange={(e) => updateActiveTheme({ bgGradient: e.target.value })}
+              className="w-full h-24 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl px-5 py-4 text-[10px] font-mono text-[var(--text)] tracking-widest outline-none focus:theme-border-accent transition-all shadow-inner resize-none"
+              placeholder="linear-gradient(to bottom, #000, #111) OR url('https://...')"
+            />
+            <p className="text-[9px] text-[var(--subtext)] font-black capitalize tracking-widest ml-1 opacity-60">
+              Supports complex radial-gradient meshes, linear gradients, or remote images via url('...').
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <label className="text-[10px] font-black capitalize tracking-[0.2em] ml-1 text-[var(--subtext)] opacity-80">Atmospheric Overrides</label>
+            <div className="flex flex-col gap-3">
+              <label className="flex items-center gap-3 cursor-pointer group w-fit">
+                <input 
+                  type="checkbox" 
+                  checked={currentTheme.ambientNoise !== false} 
+                  onChange={(e) => updateActiveTheme({ ambientNoise: e.target.checked })}
+                  className="w-4 h-4 rounded border border-[color-mix(in_srgb,var(--text)_20%,transparent)] appearance-none checked:bg-[var(--accent)] checked:border-[var(--accent)] transition-all relative before:content-[''] before:absolute before:inset-0 before:bg-white before:opacity-0 checked:before:opacity-20 hover:border-[var(--text)]"
+                />
+                <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors">Ambient Texture Grain</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer group w-fit">
+                <input 
+                  type="checkbox" 
+                  checked={currentTheme.ambientOrb !== false} 
+                  onChange={(e) => updateActiveTheme({ ambientOrb: e.target.checked })}
+                  className="w-4 h-4 rounded border border-[color-mix(in_srgb,var(--text)_20%,transparent)] appearance-none checked:bg-[var(--accent)] checked:border-[var(--accent)] transition-all relative before:content-[''] before:absolute before:inset-0 before:bg-white before:opacity-0 checked:before:opacity-20 hover:border-[var(--text)]"
+                />
+                <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors">Drifting Accent Orb</span>
+              </label>
+              <p className="text-[9px] text-[var(--subtext)] font-black capitalize tracking-widest ml-1 opacity-60 mt-1">
+                Disable these features to maximize performance on low-end hardware.
+              </p>
+            </div>
+          </div>
         </div>
 
       </div>

@@ -258,10 +258,10 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       <div className="w-full flex flex-col gap-4 pb-10 px-6">
         {isLoading ? (
           <div className="flex justify-center items-center h-40 opacity-50">
-            <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing")}</span>
+            <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing")}</span>
           </div>
         ) : tickets.length === 0 ? (
-          <EmptyState icon={t("icon_receipt_long") || "receipt_long"} title={t("ticket_no_tickets")} className="col-span-full py-16" />
+          <EmptyState icon={t("icon_receipt_long")} title={t("ticket_no_tickets")} className="col-span-full py-16" />
         ) : (() => {
           const filteredTickets = tickets.filter(t => {
             if (activeCategory !== "all") {
@@ -276,7 +276,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
           });
 
           if (filteredTickets.length === 0) return (
-            <EmptyState icon={searchQuery ? "search_off" : t("icon_celebration") || "celebration"} title={searchQuery ? t("no_matches") : (activeFilter === 'new' ? t("no_bug_reports") : t("no_tickets"))} className="col-span-full py-16" />
+            <EmptyState icon={searchQuery ? "search_off" : t("icon_celebration")} title={searchQuery ? t("no_matches") : (activeFilter === 'new' ? t("no_bug_reports") : t("no_tickets"))} className="col-span-full py-16" />
           );
 
           return (
@@ -295,28 +295,28 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
                     ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500' : undefined
                   }
                   badges={[
-                    <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner transition-colors
-                                ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 group-hover:bg-rose-500/20' : ''}
-                                ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500/20' : ''}
-                                ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' : ''}
+                    <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner transition-colors
+                                ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-rose-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : ''}
+                                ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-400 border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : ''}
+                                ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : ''}
                                 ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' : ''}
-                                ${!['new', 'open', 'closed', 'resolved', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20' : ''}
+                                ${!['new', 'open', 'closed', 'resolved', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
                             `}>
                       {(ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status.toLowerCase()}`) || ticket.status || "NEW")}
                     </span>,
                     (ticket.ticket_type || ticket.category) && (
-                      <span key="category" className="px-2 py-1 rounded bg-[var(--text)]/5 text-[var(--text)]/60 border border-[var(--text)]/10 text-[8px] font-black uppercase tracking-widest whitespace-nowrap group-hover:bg-[var(--text)]/10 group-hover:border-[var(--text)]/20 transition-all">
+                      <span key="category" className="px-2 py-1 rounded bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[color-mix(in_srgb,var(--text)_60%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-black capitalize tracking-widest whitespace-nowrap group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
                         {(ticket.ticket_type || ticket.category || "").replace(/_/g, ' ')}
                       </span>
                     )
                   ].filter(Boolean)}
                   footer={
                     <div className="flex justify-start items-center w-full">
-                      <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
+                      <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
                         <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
                         {new Date(ticket.created_at).toLocaleDateString()}
                       </span>
-                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
+                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
                         {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
                       </button>
                     </div>

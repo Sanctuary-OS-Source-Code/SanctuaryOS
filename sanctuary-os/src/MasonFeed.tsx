@@ -32,22 +32,30 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
     if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_45"));
+    const session = useStore.getState().session;
     
-    const { error } = await supabase.from('mason_post_likes').insert({ post_id: post.id, user_id: userId });
+    const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+      p_target: 'mason_post_likes',
+      p_payload: { post_id: post.id, user_id: userId },
+      p_token: session?.access_token
+    });
+    
     let increment = 1;
-    if (error && error.code === '23505') {
-       await supabase.from('mason_post_likes').delete().match({ post_id: post.id, user_id: userId });
-       increment = -1;
+    if (error && (JSON.stringify(error).includes('23505') || JSON.stringify(error).includes('duplicate key'))) {
+      const { data: likeData } = await supabase.from('mason_post_likes').select('id').eq('post_id', post.id).eq('user_id', userId).maybeSingle();
+      if (likeData) {
+        await supabase.rpc('secure_delete_cloud_file', { p_target: 'mason_post_likes', p_id: likeData.id, p_token: session?.access_token });
+      }
+      increment = -1;
     }
     setPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes: [{ count: Math.max(0, (p.likes?.[0]?.count || 0) + increment) }] } : p));
   };
 
   const handlePostClick = async (post: any) => {
     setSelectedPost(post);
-    if (userId) {
-      try { await supabase.from('mason_post_views').upsert({ post_id: post.id, user_id: userId }, { onConflict: 'post_id,user_id', ignoreDuplicates: true }); } catch(e) { console.warn("Failed to record view", e); }
-    } else {
-      try { await supabase.from('mason_post_views').insert({ post_id: post.id }); } catch(e) {}
+    const session = useStore.getState().session;
+    if (userId && session?.access_token) {
+      try { await supabase.rpc('secure_upsert_cloud_file', { p_target: 'mason_post_views', p_payload: { post_id: post.id, user_id: userId }, p_token: session.access_token }); } catch(e) { console.warn("Failed to record view", e); }
     }
     setPosts(prev => prev.map(p => p.id === post.id ? { ...p, views: [{ count: (p.views?.[0]?.count || 0) + 1 }] } : p));
   };
@@ -55,9 +63,9 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
   const feedContent = (
     <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 ${noCardWrapper ? 'pb-12' : 'overflow-y-auto custom-scrollbar p-6 -m-6'}`}>
       {loading ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
+        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading")}</div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black uppercase tracking-widest col-span-2">{t("no_posts")}</div>
+        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest col-span-2">{t("no_posts")}</div>
       ) : (
         posts.map((p, index) => {
           return (
@@ -78,7 +86,7 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
   return (
     <>
       {noCardWrapper ? (
-        <div className="h-full flex flex-col w-full">
+        <div className="w-full">
           {feedContent}
         </div>
       ) : (

@@ -76,17 +76,17 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
               <>
                 <ActionButton
                   onClick={() => {
-                    const newFolder = { id: Math.random().toString(36).substr(2, 9), name: t("structure_new_folder") || "New Folder", type: "folder" as const, children: [] };
+                    const newFolder = { id: Math.random().toString(36).substr(2, 9), name: t("structure_new_folder"), type: "folder" as const, children: [] };
                     handleStructureChange([...(targetMod.folder_structure || []), newFolder]);
                   }}
-                  className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px] rounded-full"
-                  icon={t("icon_create_new_folder") || "create_new_folder"}
-                  label={t("structure_add_root") || "ADD ROOT"}
+                  className="h-12 px-6 shrink-0 font-black capitalize tracking-widest text-[10px] rounded-full"
+                  icon={t("icon_create_new_folder")}
+                  label={t("structure_add_root")}
                 />
                 <ActionButton
                   onClick={saveStructure}
                   disabled={isSaving}
-                  className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px] rounded-full"
+                  className="h-12 px-6 shrink-0 font-black capitalize tracking-widest text-[10px] rounded-full"
                   icon={isSaving ? 'sync' : 'save'}
                   label={isSaving ? t("btn_saving") : t("btn_save_structure")}
                 />
@@ -99,7 +99,7 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
       <div className="flex-1 w-full relative z-0 h-full overflow-hidden flex flex-col pt-4">
         {!targetMod ? (
           <div className="w-full h-full flex items-center justify-center opacity-80 pb-32">
-            <EmptyState icon={t("icon_architecture") || "architecture"} className="py-24" />
+            <EmptyState icon={t("icon_architecture")} className="py-24" />
           </div>
         ) : (
           <div className="w-full flex flex-col gap-10 animate-in fade-in zoom-in-95 duration-500 pb-32 h-full">

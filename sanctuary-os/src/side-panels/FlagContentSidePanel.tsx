@@ -75,7 +75,7 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
       <form id="flag-form" onSubmit={handleSubmit} className="p-8 flex flex-col h-full">
         <div className="flex-1 flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
+            <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-2">
               {t("flag_reason")}
             </label>
             <textarea

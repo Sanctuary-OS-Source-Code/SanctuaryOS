@@ -94,7 +94,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
    return (
       <div className="flex flex-col w-full relative animate-in fade-in slide-in-from-bottom-4 duration-700">
          <ViewHeader 
-            title={t("workbench_title") || "CITIZENS WORKBENCH"} 
+            title={t("workbench_title")} 
             subtitle={t("workbench_subtitle")} 
             icon="tune" 
             breadcrumb={mainTab !== "COMMAND" ? (t(`tab_${mainTab.toLowerCase()}`) || mainTab) : undefined}
@@ -102,7 +102,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
          />
 
          <HoverTabDrawer title="Workbench Navigation" activeTab={mainTab} setTab={setMainTab as any}>
-            <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview") || "OVERVIEW"} activeTab={mainTab} setTab={setMainTab as any} />
+            <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={mainTab} setTab={setMainTab as any} />
             <VerticalTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} />
             <VerticalTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates")} activeTab={mainTab} setTab={setMainTab as any} />
          </HoverTabDrawer>
@@ -111,10 +111,10 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             {mainTab === "COMMAND" && (
                <CommandScreenLayout>
                   <CommandScreenStats>
-                     <DashboardStatTile icon={<span className="material-symbols-outlined !text-[32px]">settings</span>} number={configsCount} label={t("configs") || "TOTAL CONFIGS"} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" onClick={() => { setMainTab("CONFIGS" as any); setGridFilter("ALL"); }} className="cursor-pointer hover:scale-105 transition-transform" />
-                     <DashboardStatTile icon={<span className="material-symbols-outlined !text-[32px]">data_object</span>} number={templatesCount} label={t("ql_templates") || "TOTAL TEMPLATES"} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => { setMainTab("TEMPLATES" as any); setGridFilter("ALL"); }} className="cursor-pointer hover:scale-105 transition-transform" />
-                     <DashboardStatTile icon={<span className="material-symbols-outlined !text-[32px]">edit_document</span>} number={unsavedConfigsCount} label={t("unsaved_configs") || "UNSAVED CONFIGS"} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => { setMainTab("CONFIGS" as any); setGridFilter("UNSAVED"); }} className="cursor-pointer hover:scale-105 transition-transform" />
-                     <DashboardStatTile icon={<span className="material-symbols-outlined !text-[32px]">edit_note</span>} number={unsavedTemplatesCount} label={t("unsaved_templates") || "UNSAVED TEMPLATES"} colorClass="border-orange-500/30 text-orange-500 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20" onClick={() => { setMainTab("TEMPLATES" as any); setGridFilter("UNSAVED"); }} className="cursor-pointer hover:scale-105 transition-transform" />
+                     <DashboardStatTile icon={<span className="material-symbols-outlined ">settings</span>} number={configsCount} label={t("configs")} colorClass="text-blue-500" onClick={() => { setMainTab("CONFIGS" as any); setGridFilter("ALL"); }} className="cursor-pointer hover:scale-105 transition-transform" />
+                     <DashboardStatTile icon={<span className="material-symbols-outlined ">data_object</span>} number={templatesCount} label={t("ql_templates")} colorClass="text-emerald-500" onClick={() => { setMainTab("TEMPLATES" as any); setGridFilter("ALL"); }} className="cursor-pointer hover:scale-105 transition-transform" />
+                     <DashboardStatTile icon={<span className="material-symbols-outlined ">edit_document</span>} number={unsavedConfigsCount} label={t("unsaved_configs")} colorClass="text-amber-500" onClick={() => { setMainTab("CONFIGS" as any); setGridFilter("UNSAVED"); }} className="cursor-pointer hover:scale-105 transition-transform" />
+                     <DashboardStatTile icon={<span className="material-symbols-outlined ">edit_note</span>} number={unsavedTemplatesCount} label={t("unsaved_templates")} colorClass="text-orange-500" onClick={() => { setMainTab("TEMPLATES" as any); setGridFilter("UNSAVED"); }} className="cursor-pointer hover:scale-105 transition-transform" />
                   </CommandScreenStats>
 
                   <CommandScreenBody>
@@ -145,7 +145,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                                     <div className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-8 flex flex-col items-center justify-center text-center gap-4 opacity-50 min-h-[300px]">
                                        <span className="material-symbols-outlined !text-5xl opacity-50">history</span>
                                        <div>
-                                          <p className="font-bold text-sm tracking-widest uppercase">{t("no_recent_activity")}</p>
+                                          <p className="font-bold text-sm tracking-widest capitalize">{t("no_recent_activity")}</p>
                                           <p className="text-[10px] opacity-70">{t("unsaved_desc")}</p>
                                        </div>
                                     </div>
@@ -157,12 +157,12 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                                     {recentActivityFiles.map((file: any) => {
                                        const displayPath = file.path.replace(/^.*[\\\/](Data[\\\/]Templates|Mods)[\\\/]/i, '');
                                        return (
-                                          <div key={file.path} onClick={() => fileState.openFile(file)} className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-5 flex flex-col justify-start gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer transition-colors hover:border-[var(--accent)]/30 group min-h-[120px]">
+                                          <div key={file.path} onClick={() => fileState.openFile(file)} className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-5 flex flex-col justify-start gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer transition-colors hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group min-h-[120px]">
                                              <div className="flex items-start justify-start gap-3">
-                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${file.name.toLowerCase().endsWith('.json') ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${file.name.toLowerCase().endsWith('.json') ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-green-500' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-blue-500'}`}>
                                                    <span className="material-symbols-outlined">{file.name.toLowerCase().endsWith('.json') ? "data_object" : "settings"}</span>
                                                 </div>
-                                                <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-500 text-[9px] font-black uppercase tracking-widest border border-amber-500/20">{t("unsaved_changes") || "DRAFT"}</span>
+                                                <span className="px-2 py-1 rounded bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-500 text-[9px] font-black capitalize tracking-widest border border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">{t("unsaved_changes")}</span>
                                              </div>
                                              <div className="flex flex-col min-w-0">
                                                 <h4 className="font-bold text-[var(--text)] text-sm group-hover:text-[var(--accent)] transition-colors break-words line-clamp-2">{file.name}</h4>
@@ -215,12 +215,12 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                           <ScreenUtilityBar
           search={mainSearchQuery}
           onSearchChange={setMainSearchQuery}
-          searchPlaceholder={t("search_files") || "Search files..."}
+          searchPlaceholder={t("search_files")}
           className="!mb-8 animate-in slide-in-from-top-4 duration-500 relative z-20"
         >
           <FilterTabs className="shrink-0 xl:ml-2 z-50">
             <FilterTabButton id="ALL" label="ALL" activeTab={gridFilter} setTab={setGridFilter} />
-            <FilterTabButton id="UNSAVED" label={t("unsaved_changes") || "DRAFTS"} activeTab={gridFilter} setTab={setGridFilter} />
+            <FilterTabButton id="UNSAVED" label={t("unsaved_changes")} activeTab={gridFilter} setTab={setGridFilter} />
           </FilterTabs>
         </ScreenUtilityBar>
 
@@ -301,7 +301,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
          <SidePanel
             isOpen={isFlagPanelOpen}
             onClose={() => setIsFlagPanelOpen(false)}
-            title={t("auto_report") || "Flag Template"}
+            title={t("auto_report")}
             subtitle="Report an issue with this community template"
             icon="flag"
             iconColorClass="text-rose-500"
@@ -312,7 +312,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                         onClick={() => setIsFlagPanelOpen(false)}
                         className={standardButtonClass + " flex-1"}
                      >
-                        {t("nav_cancel") || "Cancel"}
+                        {t("nav_cancel")}
                      </button>
                      <button
                         onClick={async () => {
@@ -337,18 +337,18 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             <div className="p-8 flex flex-col gap-6">
                {flagSuccess ? (
                   <div className="flex flex-col items-center justify-center p-12 text-center gap-4">
-                     <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
+                     <div className="w-16 h-16 rounded-full bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-emerald-500 flex items-center justify-center">
                         <span className="material-symbols-outlined !text-3xl">{t("icon_check")}</span>
                      </div>
-                     <p className="text-[var(--text)] font-bold">{t("verify_panel_flag_success") || "Template flagged successfully"}</p>
+                     <p className="text-[var(--text)] font-bold">{t("verify_panel_flag_success")}</p>
                   </div>
                ) : (
                   <div className="glass-panel p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
-                     <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("flag_reason")}</label>
+                     <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("flag_reason")}</label>
                      <textarea
                         value={flagReason}
                         onChange={(e) => setFlagReason(e.target.value)}
-                        className="w-full h-32 bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 text-[12px] font-bold text-[var(--text)] focus:outline-none focus:border-rose-500/50 resize-none custom-scrollbar"
+                        className="w-full h-32 bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 text-[12px] font-bold text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] resize-none custom-scrollbar"
                         placeholder="E.g. The configuration fields don't match the mod, it contains invalid types..."
                      />
                   </div>

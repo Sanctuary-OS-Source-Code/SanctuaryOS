@@ -189,10 +189,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             }
             allCloudData.push(...((data as any[]) || []));
             completedChunks++;
-            if (!isSilent) setScanProgress({ current: 60 + Math.floor((completedChunks / totalChunks) * 20), total: 100, message: t("scan_identifying") || "IDENTIFYING FILES..." });
+            if (!isSilent) setScanProgress({ current: 60 + Math.floor((completedChunks / totalChunks) * 20), total: 100, message: t("scan_identifying") });
           });
         }
-        if (!isSilent) setScanProgress({ current: 80, total: 100, message: t("scan_identifying") || "IDENTIFYING FILES..." });
+        if (!isSilent) setScanProgress({ current: 80, total: 100, message: t("scan_identifying") });
       
       const getDbMod = (sig: any) =>
         Array.isArray(sig?.mods) ? sig.mods[0] : sig?.mods;
@@ -211,7 +211,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         globalConflicts: any[] = [];
       try {
         if (!isOfflineMode) {
-          if (!isSilent) setScanProgress({ current: 80, total: 100, message: t("scan_fetching") || "FETCHING METADATA..." });
+          if (!isSilent) setScanProgress({ current: 80, total: 100, message: t("scan_fetching") });
           const { data: members } = await supabase
           .from("collection_members")
           .select("set_id, mod_id");
@@ -277,7 +277,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         console.error("Bridge Error:", err);
       }
       if (identifiedIds.length > 0 && !isOfflineMode) {
-        if (!isSilent) setScanProgress({ current: 90, total: 100, message: t("scan_relationships") || "ANALYZING RELATIONSHIPS..." });
+        if (!isSilent) setScanProgress({ current: 90, total: 100, message: t("scan_relationships") });
         const totalRelChunks = Math.ceil(identifiedIds.length / 200);
         let completedRelChunks = 0;
         await runInBatches(identifiedIds, 200, 0, async (chunk) => {
@@ -292,7 +292,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           allDeps.push(...((dC.data as any[]) || []), ...((dP.data as any[]) || []));
 
           completedRelChunks++;
-          if (!isSilent) setScanProgress({ current: 90 + Math.floor((completedRelChunks / totalRelChunks) * 10), total: 100, message: t("scan_relationships") || "ANALYZING RELATIONSHIPS..." });
+          if (!isSilent) setScanProgress({ current: 90 + Math.floor((completedRelChunks / totalRelChunks) * 10), total: 100, message: t("scan_relationships") });
         });
         const pIds = [
           ...new Set([
@@ -688,7 +688,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           mason_id: dbMod?.mason_id || null,
           status: dbMod
             ? dbMod.status === "stable"
-              ? t("status_dd_stable") || "STABLE"
+              ? t("status_dd_stable")
               : dbMod.status === "unverified"
                 ? t("unverified")
                 : dbMod.status
@@ -726,7 +726,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         if (setMembers.length > 0) {
           const brokenCount = setMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
           const unstableCount = setMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
-          const stableCount = setMembers.filter((m) => m.status === (t("status_dd_stable") || "STABLE")).length;
+          const stableCount = setMembers.filter((m) => m.status === (t("status_dd_stable"))).length;
           const isAllStable = stableCount === setMembers.length;
           const isNoneStable = stableCount === 0;
           
@@ -736,7 +736,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           } else if (unstableCount > 0) {
             folderStatus = t("label_unstable");
           } else if (isAllStable) {
-            folderStatus = t("status_dd_stable") || "STABLE";
+            folderStatus = t("status_dd_stable");
           } else if (isNoneStable) {
             folderStatus = t("unverified");
           } else {
@@ -789,10 +789,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             : familyMembers[0].displayName,
           author: familyMembers[0].author,
         };
-          const safeName = pData.name || t("status_unknown_folder") || "Unknown Folder";
+          const safeName = pData.name || t("status_unknown_folder");
           const brokenCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
           const unstableCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
-          const stableCount = familyMembers.filter((m) => m.status === (t("status_dd_stable") || "STABLE")).length;
+          const stableCount = familyMembers.filter((m) => m.status === (t("status_dd_stable"))).length;
           const isAllStable = stableCount === familyMembers.length;
           const isNoneStable = stableCount === 0;
           
@@ -802,7 +802,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           } else if (unstableCount > 0) {
             folderStatus = t("label_unstable");
           } else if (isAllStable) {
-            folderStatus = t("status_dd_stable") || "STABLE";
+            folderStatus = t("status_dd_stable");
           } else if (isNoneStable) {
             folderStatus = t("unverified");
           } else {
@@ -881,7 +881,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const isSet = !!set.isCollection;
         const brokenCount = setMembers.filter((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
         const unstableCount = setMembers.filter((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
-        const stableCount = setMembers.filter((m: any) => m.status === (t("status_dd_stable") || "STABLE")).length;
+        const stableCount = setMembers.filter((m: any) => m.status === (t("status_dd_stable"))).length;
         const isAllStable = setMembers.length > 0 && stableCount === setMembers.length;
         const isNoneStable = setMembers.length === 0 || stableCount === 0;
         
@@ -891,9 +891,9 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         } else if (unstableCount > 0) {
           folderStatus = t("label_unstable");
         } else if (isAllStable) {
-          folderStatus = t("status_dd_stable") || "STABLE";
+          folderStatus = t("status_dd_stable");
         } else {
-          folderStatus = t("local_node") || "LOCAL FOLDER";
+          folderStatus = t("local_node");
         }
 
         localVirtualCards.push({

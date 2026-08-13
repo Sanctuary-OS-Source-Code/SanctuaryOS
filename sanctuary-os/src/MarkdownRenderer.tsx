@@ -24,9 +24,9 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
       <ReactMarkdown urlTransform={(uri) => uri}
         remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
-          h1: ({ node, ...props }) => <h1 className={`text-3xl font-black uppercase tracking-tighter mt-6 mb-4 ${isAlert ? 'text-[var(--danger)]' : 'theme-text-accent'}`} {...props} />,
-          h2: ({ node, ...props }) => <h2 className="text-2xl font-black uppercase tracking-tight mt-5 mb-3 text-[var(--text)]" {...props} />,
-          h3: ({ node, ...props }) => <h3 className="text-xl font-bold uppercase tracking-widest mt-4 mb-2 text-[var(--text)] opacity-90" {...props} />,
+          h1: ({ node, ...props }) => <h1 className={`text-3xl font-black capitalize tracking-tighter mt-6 mb-4 ${isAlert ? 'text-[var(--danger)]' : 'theme-text-accent'}`} {...props} />,
+          h2: ({ node, ...props }) => <h2 className="text-2xl font-black capitalize tracking-tight mt-5 mb-3 text-[var(--text)]" {...props} />,
+          h3: ({ node, ...props }) => <h3 className="text-xl font-bold capitalize tracking-widest mt-4 mb-2 text-[var(--text)] opacity-90" {...props} />,
           p: ({ node, ...props }) => <p className="mb-4 last:mb-0" {...props} />,
           ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
           ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
@@ -42,13 +42,13 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
               return <code className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 py-0.5 rounded font-mono text-sm theme-text-accent" {...props}>{children}</code>;
             }
             return (
-              <div className="bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 my-4 overflow-x-auto accent-scrollbar relative group">
+              <div className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 my-4 overflow-x-auto accent-scrollbar relative group">
                 <button 
                   onClick={() => navigator.clipboard.writeText(String(children))} 
                   className="absolute top-2 right-2 p-2 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-colors opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer"
-                  title={t("ctx_copy") || "Copy"}
+                  title={t("ctx_copy")}
                 >
-                  <span className="material-symbols-outlined !text-[16px]">{t("icon_content_copy") || "content_copy"}</span>
+                  <span className="material-symbols-outlined !text-[16px]">{t("icon_content_copy")}</span>
                 </button>
                 <code className="font-mono text-sm text-[var(--subtext)] block pr-8" {...props}>
                   {children}
@@ -90,24 +90,24 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
               return (
                 <span 
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAssetClick?.(type, id); }}
-                  className="my-2 mx-1 group relative inline-flex flex-row items-center justify-start gap-3 p-4 px-5 rounded-[var(--radius)] border glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[40%] hover:shadow-2xl backdrop-blur-2xl transition-all cursor-pointer hover:scale-[1.01] w-[calc(100%-0.5rem)] sm:w-[calc(50%-0.5rem)] align-top no-underline"
+                  className="my-2 mx-1 group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-2xl backdrop-blur-2xl transition-all cursor-pointer hover:scale-[1.01] w-[calc(100%-0.5rem)] align-top no-underline"
                 >
                   <span className="flex flex-col min-w-0 flex-1">
-                    <span className="text-sm font-black text-[var(--text)] uppercase truncate group-hover:theme-text-accent transition-colors drop-shadow-sm flex items-center gap-2">
+                    <span className="text-sm font-black text-[var(--text)] capitalize truncate group-hover:theme-text-accent transition-colors drop-shadow-sm flex items-center gap-2">
                       <span className="material-symbols-outlined !text-[18px] opacity-70 group-hover:opacity-100 transition-opacity">
                         {type === 'mod' ? 'inventory_2' : type === 'blueprint' ? 'map' : type === 'lexicon' ? 'translate' : 'palette'}
                       </span>
                       {cleanChildren}
                     </span>
                     <span className="flex flex-wrap items-center gap-2 mt-2">
-                      <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest flex items-center gap-1.5 shrink-0 bg-black/20 px-2 py-0.5 rounded-md">
+                      <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest flex items-center gap-1.5 shrink-0 bg-black/20 px-2 py-0.5 rounded-md">
                          <span>{type.toUpperCase()}</span>
                          <span className="opacity-50">•</span>
-                         <span>{t("attached_asset") || "ATTACHED ASSET"}</span>
+                         <span>{t("attached_asset")}</span>
                       </span>
                     </span>
                   </span>
-                  <span className="w-8 h-8 rounded-full bg-[var(--accent)]/[5%] border border-[var(--accent)]/[20%] text-[var(--accent)] flex items-center justify-center shrink-0 group-hover:bg-[var(--accent)]/[20%] group-hover:border-[var(--accent)]/[60%] transition-all shadow-inner">
+                  <span className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0 group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_60%,transparent)] transition-all shadow-inner">
                     <span className="material-symbols-outlined !text-[16px]">arrow_forward</span>
                   </span>
                 </span>

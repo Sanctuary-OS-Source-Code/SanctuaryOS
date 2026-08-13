@@ -10,7 +10,7 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
 
   return (
     <div className="relative w-full z-10">
-      <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className="w-full p-5 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] outline-none transition-all shadow-xl flex justify-start items-center text-[10px] font-black uppercase tracking-widest text-[var(--text)] focus:theme-border-accent group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-2xl hover:scale-[1.02] active:scale-95 backdrop-blur-3xl relative overflow-hidden">
+      <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className="w-full p-5 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] outline-none transition-all shadow-xl flex justify-start items-center text-[10px] font-black capitalize tracking-widest text-[var(--text)] focus:theme-border-accent group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-2xl hover:scale-[1.02] active:scale-95 backdrop-blur-3xl relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         <span className="relative z-10">{selected?.label}</span>
         <span className="text-[var(--subtext)] opacity-60 text-[10px] group-hover:text-[var(--text)] group-hover:theme-text-accent transition-colors relative z-10 material-symbols-outlined !text-[18px]">{isOpen ? 'expand_less' : 'expand_more'}</span>
@@ -26,7 +26,7 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
             }}
           >
             {options.map((opt: any) => (
-              <button key={opt.id} onClick={() => { onChange(opt.id); setIsOpen(false); }} className={`w-full text-left px-5 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-start group/opt hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:pl-7 ${opt.id === value ? 'theme-text-accent bg-[var(--accent)]/[10%]' : 'text-[var(--text)]'}`}>
+              <button key={opt.id} onClick={() => { onChange(opt.id); setIsOpen(false); }} className={`w-full text-left px-5 py-4 text-[10px] font-black capitalize tracking-widest transition-all border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-start group/opt hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:pl-7 ${opt.id === value ? 'theme-text-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--text)]'}`}>
                 {opt.label}
                 {opt.id === value && <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_check")}</span>}
               </button>
@@ -40,17 +40,17 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
 }
 
 export const TabContainer = ({ title, icon, actions, children }: any) => (
-  <div className="flex flex-col gap-16 animate-in slide-in-from-right-8 duration-500 w-full relative">
+  <div className="flex flex-col gap-10 animate-in slide-in-from-right-8 duration-500 w-full relative">
     <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--accent)] opacity-[0.02] blur-[100px] pointer-events-none rounded-full" />
-    <div className="flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 relative z-10">
-      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-white/20 to-transparent" />
-      <h2 className="text-2xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-4 drop-shadow-lg">
-        {icon && <span className="material-symbols-outlined !text-4xl opacity-50 theme-text-accent">{icon}</span>}
+    <div className="flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4 relative z-10">
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent" />
+      <h2 className="text-2xl font-semibold text-[var(--text)] tracking-tight flex items-center gap-3 drop-shadow-md">
+        {icon && <span className="material-symbols-outlined !text-3xl opacity-50 theme-text-accent">{icon}</span>}
         {title}
       </h2>
       {actions && <div className="absolute right-0 bottom-4 flex gap-3 z-10">{actions}</div>}
     </div>
-    <div className="flex flex-col gap-10 w-full relative z-10">
+    <div className="flex flex-col gap-8 w-full relative z-10">
       {children}
     </div>
   </div>
@@ -67,8 +67,8 @@ export function SettingsGrid({ children }: any) {
 
 export function SettingsToggle({ checked, danger }: any) {
   const containerBase = "w-12 h-6 rounded-full transition-all duration-300 flex items-center p-1 shrink-0 border backdrop-blur-md box-border";
-  const checkedAccent = "bg-[var(--accent)]/[15%] theme-border-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]";
-  const checkedDanger = "bg-[var(--danger)]/[20%] border-[var(--danger)] shadow-[0_0_15px_rgba(255,0,0,0.2)]";
+  const checkedAccent = "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] theme-border-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]";
+  const checkedDanger = "bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border-[var(--danger)] shadow-[0_0_15px_rgba(255,0,0,0.2)]";
   const uncheckedClass = "bg-black/20 border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-inner";
   
   const containerClasses = `${containerBase} ${checked ? (danger ? checkedDanger : checkedAccent) : uncheckedClass}`;

@@ -83,17 +83,17 @@ export function UpdateSidePanel() {
           innerClassName=""
         >
           <div className="flex items-center gap-4 group">
-            <div className="w-12 h-12 shrink-0 rounded-full bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] flex items-center justify-center relative z-10 transition-transform duration-500 group-hover:scale-110">
+            <div className="w-12 h-12 shrink-0 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center relative z-10 transition-transform duration-500 group-hover:scale-110">
               <span className={`material-symbols-outlined !text-[24px] text-[var(--accent)] drop-shadow-sm ${isInstalling ? 'animate-pulse' : 'animate-bounce'}`}>{t("icon_downloading")}</span>
             </div>
             
             <div className="flex flex-col">
-              <h3 className="text-2xl font-black uppercase tracking-tighter drop-shadow-sm relative z-10 transition-colors theme-text-accent leading-none">
+              <h3 className="text-2xl font-black capitalize tracking-tighter drop-shadow-sm relative z-10 transition-colors theme-text-accent leading-none">
                 V{updatePayload.version}
               </h3>
               
               {updatePayload.date && (
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent)] opacity-60 relative z-10 mt-1.5 leading-none">
+                <p className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--accent)] opacity-60 relative z-10 mt-1.5 leading-none">
                   {new Date(updatePayload.date).toLocaleDateString()}
                 </p>
               )}
@@ -112,7 +112,7 @@ export function UpdateSidePanel() {
             {(liveReleaseNotes && liveReleaseNotes !== "See the assets to download this version and install.") || (updatePayload.body && updatePayload.body !== "See the assets to download this version and install.") ? (
               <MarkdownRenderer content={liveReleaseNotes || updatePayload.body} />
             ) : (
-              <div className="text-center py-12 opacity-50 font-bold uppercase text-[10px] tracking-widest flex flex-col items-center gap-2">
+              <div className="text-center py-12 opacity-50 font-bold capitalize text-[10px] tracking-widest flex flex-col items-center gap-2">
                 <span className="material-symbols-outlined !text-[24px]">{t("icon_visibility_off")}</span>
                 {t("update_panel_no_notes")}
               </div>

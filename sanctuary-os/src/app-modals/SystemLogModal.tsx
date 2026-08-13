@@ -10,7 +10,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
   return (
     <div
       ref={logModalRef}
-      className="fixed bottom-14 right-4 w-[420px] max-h-[60vh] glass-panel border-[var(--accent)]/[20%] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-[var(--radius)] z-[99998] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:pointer-events-none"
+      className="!fixed bottom-14 right-4 w-[420px] max-h-[60vh] glass-panel border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-[var(--radius)] z-[99998] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:pointer-events-none"
     >
       <div
         className="flex items-center justify-start p-5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 relative z-10 cursor-move"
@@ -22,12 +22,12 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
           <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shadow-inner">
             <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_receipt_long")}</span>
           </div>
-          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">
+          <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--text)] drop-shadow-md">
             {t("sys_log_history")}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button onPointerDown={(e) => e.stopPropagation()} onClick={() => { clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-red-500/10 text-[var(--subtext)] hover:text-red-400 rounded-xl transition-all border border-transparent hover:border-red-500/20">
+          <button onPointerDown={(e) => e.stopPropagation()} onClick={() => { clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--subtext)] hover:text-red-400 rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
             <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_sweep")}</span>
           </button>
           <button onPointerDown={(e) => e.stopPropagation()} onClick={() => setIsLogExpanded(false)} className="p-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
@@ -82,7 +82,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
                         useStore.getState().setMasonActiveTab('ide');
                       }
                       setIsLogExpanded(false);
-                    }} className="px-2 py-0.5 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/[10%] rounded-md transition-all uppercase tracking-widest cursor-pointer">
+                    }} className="px-2 py-0.5 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-md transition-all capitalize tracking-widest cursor-pointer">
                       {f.replace(/\.wayfinder$/i, '').replace(/\.masonhub$/i, '')}
                     </button>
                     {idx < fileNames.length - 1 && <span className="opacity-50">,</span>}
@@ -99,8 +99,8 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
           const isWarn = log.type === 'warning' || logIcon === 'warning' || logIcon === 'priority_high';
 
           const logColor = isErr ? 'text-red-400 drop-shadow-md' : isSucc ? 'text-emerald-400 drop-shadow-md' : isWarn ? 'text-amber-400 drop-shadow-md' : 'text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]';
-          const bgHover = isErr ? 'hover:bg-red-500/10 hover:border-red-500/20' : isSucc ? 'hover:bg-emerald-500/10 hover:border-emerald-500/20' : isWarn ? 'hover:bg-amber-500/10 hover:border-amber-500/20' : 'hover:bg-[var(--accent)]/10 hover:border-[var(--accent)]/20';
-          const iconBg = isErr ? 'bg-red-500/10 border-red-500/20' : isSucc ? 'bg-emerald-500/10 border-emerald-500/20' : isWarn ? 'bg-amber-500/10 border-amber-500/20' : 'bg-[var(--accent)]/10 border-[var(--accent)]/20';
+          const bgHover = isErr ? 'hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : isSucc ? 'hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_20%,transparent)]' : isWarn ? 'hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
+          const iconBg = isErr ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : isSucc ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)]' : isWarn ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
 
           return (
             <div key={log.id} className={`flex items-start gap-4 p-4 rounded-[1rem] border border-transparent transition-all duration-300 group ${bgHover}`}>
@@ -108,7 +108,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
                 <span className={`material-symbols-outlined !text-[18px] ${logColor}`}>{logIcon}</span>
               </div>
               <div className="flex flex-col gap-1.5 min-w-0 pt-0.5">
-                <div className="text-[10px] font-bold text-[var(--text)] uppercase tracking-wider whitespace-pre-wrap leading-relaxed break-words opacity-90 group-hover:opacity-100 transition-opacity">{logTextNode}</div>
+                <div className="text-[10px] font-bold text-[var(--text)] capitalize tracking-wider whitespace-pre-wrap leading-relaxed break-words opacity-90 group-hover:opacity-100 transition-opacity">{logTextNode}</div>
                 <span className="text-[9px] font-mono font-bold text-[var(--subtext)] opacity-50 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_schedule")}</span>{new Date(log.timestamp).toLocaleTimeString()}</span>
               </div>
             </div>

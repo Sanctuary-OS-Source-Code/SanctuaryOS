@@ -124,7 +124,11 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         }
                     });
                     if (res.data?.error) {
+                        if (res.data.error.includes('mason_post_views_post_id_user_id_key')) {
+                            return { data: [payload] };
+                        }
                         console.error('Magic Proxy Edge Function Error:', res.data.error, 'Game ID sent:', targetGameId);
+                        res.error = new Error(res.data.error) as any;
                     }
                     return res;
                 }

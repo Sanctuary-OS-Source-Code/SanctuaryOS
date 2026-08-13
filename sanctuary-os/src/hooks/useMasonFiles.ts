@@ -228,7 +228,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
             setActiveFileIndex(openFiles.length);
             setActiveVersionTimestamp(null);
          } catch (e) {
-            pushStatus(t("err_open") || "Error opening file", "error");
+            pushStatus(t("err_open"), "error");
          }
       }
    };
@@ -300,10 +300,10 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
             closeFile(openIdx, { stopPropagation: () => { } } as any);
          }
          fetchFiles();
-         pushStatus(t("msg_template_deleted") || "File deleted", "success");
+         pushStatus(t("msg_template_deleted"), "success");
       } catch (e) {
          console.error("Error deleting file", e);
-         pushStatus(t("msg_template_delete_failed") || "Error deleting file", "error");
+         pushStatus(t("msg_template_delete_failed"), "error");
       }
    };
 
@@ -349,7 +349,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
                setOpenFiles(newFiles);
             }
             fetchFiles();
-            pushStatus(t("auto_saved") || "Renamed successfully", "success");
+            pushStatus(t("auto_saved"), "success");
             return;
          }
 
@@ -369,10 +369,10 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
             setOpenFiles(newFiles);
          }
          fetchFiles();
-         pushStatus(t("auto_saved") || "Renamed successfully", "success");
+         pushStatus(t("auto_saved"), "success");
       } catch (e) {
          console.error("Error renaming file", e);
-         pushStatus(t("alert_error") || "Error renaming file", "error");
+         pushStatus(t("alert_error"), "error");
       }
    };
 
@@ -401,7 +401,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
             }
 
             if (error) {
-               pushStatus(t("alert_error") || "File already exists or error", "error");
+               pushStatus(t("alert_error"), "error");
                return;
             }
             setIsCreatePanelOpen(false);
@@ -421,7 +421,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
          const newName = baseName + ext;
          const newPath = `${sandboxDir}/${newName}`;
          if (await exists(newPath)) {
-            pushStatus(t("alert_error") || "File already exists", "error");
+            pushStatus(t("alert_error"), "error");
             return;
          }
 
@@ -446,7 +446,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
          openFile({ name: newName, path: newPath });
       } catch (e) {
          console.error("Error creating file", e);
-         pushStatus(t("alert_error") || "Error creating file", "error");
+         pushStatus(t("alert_error"), "error");
       }
    };
 
@@ -472,7 +472,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
                await writeTextFile(`${sandboxDir}/${name}`, content);
             }
             fetchFiles();
-            pushStatus(t("auto_imported") || "Files imported", "success");
+            pushStatus(t("auto_imported"), "success");
          }
       } catch (e) {
          console.error(e);

@@ -138,7 +138,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             newFiles[activeFileIndex].originalContent = updatedContent;
             setOpenFiles(newFiles);
             setActiveVersionTimestamp(null);
-            pushStatus(t("alert_saved") || "Saved to Cloud", "success");
+            pushStatus(t("alert_saved"), "success");
          } else {
             const normalizedPath = file.path.replace(/\//g, '\\');
             await invoke('save_file_with_history', { path: normalizedPath, content: file.content });
@@ -146,10 +146,10 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             newFiles[activeFileIndex].originalContent = file.content;
             setOpenFiles(newFiles);
             setActiveVersionTimestamp(null);
-            pushStatus(t("alert_saved") || "Saved successfully", "success");
+            pushStatus(t("alert_saved"), "success");
          }
       } catch (e) {
-         pushStatus(t("alert_error") || "Error saving file", "error");
+         pushStatus(t("alert_error"), "error");
       }
    };
 
@@ -159,7 +159,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          const parsed = JSON.parse(content);
 
          if (!parsed._meta_name) {
-            pushStatus(t("alert_error") || "Missing _meta_name in lexicon JSON", "error");
+            pushStatus(t("alert_error"), "error");
             return;
          }
 
@@ -195,7 +195,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             themeMode: 'Dark'
          });
       } catch (e: any) {
-         pushStatus((t("alert_error") || "Error publishing: ") + e.message, "error");
+         pushStatus((t("alert_error")) + e.message, "error");
       }
    };
 
@@ -370,7 +370,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             ]);
          }
       } catch (e) {
-         pushStatus(t("alert_error") || "Invalid JSON. Fix syntax errors before adding missing strings.", "error");
+         pushStatus(t("alert_error"), "error");
       }
    };
 
@@ -392,7 +392,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             editorRef.executeEdits("purge-deprecated", [{ range: fullRange, text: newContent, forceMoveMarkers: true }]);
          }
       } catch (e) {
-         pushStatus(t("alert_error") || "Invalid JSON", "error");
+         pushStatus(t("alert_error"), "error");
       }
    };
 
@@ -510,14 +510,14 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          <SidePanel
             isOpen={isCreatePanelOpen}
             onClose={() => setIsCreatePanelOpen(false)}
-            title={t("auto_create_file") || "Create File"}
-            subtitle={t("auto_create_file_sub") || "Create a new file in your sandbox"}
+            title={t("auto_create_file")}
+            subtitle={t("auto_create_file_sub")}
             icon={t("icon_add")}
             footer={
                <div className="flex justify-center items-center gap-4 w-full">
                   <ActionButton
                      type="button"
-                     onClick={() => { setIsCreatePanelOpen(false); setCreateFileName(""); }} label={t("nav_cancel") || "Cancel"}
+                     onClick={() => { setIsCreatePanelOpen(false); setCreateFileName(""); }} label={t("nav_cancel")}
                   >
                      
                   </ActionButton>
@@ -525,7 +525,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                      onClick={handleCreateSubmit}
                      disabled={!createFileName.trim() || !createFileExt.trim()}
                      className="shrink-0 h-12"
-                     label={t("auto_create") || "Create"}
+                     label={t("auto_create")}
                   />
                </div>
             }
@@ -535,22 +535,22 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                   <div className="flex p-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner mb-2">
                      <button
                         onClick={() => setCreateMode("standard")}
-                        className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${createMode === "standard" ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-md border border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
+                        className={`flex-1 py-3 text-[11px] font-black capitalize tracking-widest rounded-xl transition-all ${createMode === "standard" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
                      >
-                        {t("auto_standard_file") || "Standard File"}
+                        {t("auto_standard_file")}
                      </button>
                      <button
                         onClick={() => setCreateMode("lexicon")}
-                        className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${createMode === "lexicon" ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-md border border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
+                        className={`flex-1 py-3 text-[11px] font-black capitalize tracking-widest rounded-xl transition-all ${createMode === "lexicon" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
                      >
                         <span className="material-symbols-outlined !text-[14px] align-middle mr-2">translate</span>
-                        {t("auto_lexicon_pack") || "Lexicon Pack"}
+                        {t("auto_lexicon_pack")}
                      </button>
                   </div>
                )}
 
                {isCloudMode && (
-                  <div className="text-center text-[var(--accent)] font-black text-[12px] tracking-widest uppercase mb-2">
+                  <div className="text-center text-[var(--accent)] font-black text-[12px] tracking-widest capitalize mb-2">
                      CREATING {internalCloudTarget === 'sanctuary_lexicons' ? 'MASTER LEXICON' : 'MASTER SCHEMA'}
                   </div>
                )}
@@ -558,7 +558,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                {(!isCloudMode && createMode === "lexicon") || (isCloudMode && internalCloudTarget === 'sanctuary_lexicons') ? (
                   <div className="flex gap-4">
                      <div className="flex flex-col gap-2 w-30">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">{t("label_lang_code") || "Lang Code"}</label>
+                        <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-1">{t("label_lang_code")}</label>
                         <input
                            type="text"
                            value={lexiconLang}
@@ -572,7 +572,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                         />
                      </div>
                      <div className="flex flex-col gap-2 flex-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">{t("label_lexicon_name") || "Lexicon Name"}</label>
+                        <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-1">{t("label_lexicon_name")}</label>
                         <input
                            type="text"
                            value={createFileName}
@@ -588,7 +588,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                ) : (
                   <div className="flex gap-4">
                      <div className="flex flex-col gap-2 flex-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">{t("author_filename") || "File Name"}</label>
+                        <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-1">{t("author_filename")}</label>
                         <input
                            type="text"
                            value={createFileName}
@@ -602,7 +602,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                         />
                      </div>
                      <div className="flex flex-col gap-2 w-32">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">{t("auto_extension") || "Extension"}</label>
+                        <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-1">{t("auto_extension")}</label>
                         <input
                            type="text"
                            value={createFileExt}
@@ -618,7 +618,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                )}
 
                {createMode === "lexicon" && (
-                  <div className="bg-[var(--accent)]/[10%] border border-[var(--accent)]/[30%] rounded-2xl p-4 flex gap-4 mt-2">
+                  <div className="bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-2xl p-4 flex gap-4 mt-2">
                      <span className="material-symbols-outlined text-[var(--accent)] text-3xl">info</span>
                      <p
                         className="text-xs text-[var(--text)] opacity-80 leading-relaxed font-bold"

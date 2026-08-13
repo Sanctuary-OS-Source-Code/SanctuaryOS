@@ -54,14 +54,14 @@ export default function MasonHeader({
                <>
                   <ActionButton
                      onClick={() => setIsCreatePanelOpen(true)}
-                     className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
-                     icon={t("icon_add") || "add"}
-                     label={t("auto_create_file") || "Create File"}
+                     className="shrink-0 h-12 px-6 font-black capitalize tracking-widest text-[10px]"
+                     icon={t("icon_add")}
+                     label={t("auto_create_file")}
                   />
                   <ActionButton
                      onClick={handleImport}
-                     className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
-                     icon={t("icon_upload") || "upload"}
+                     className="shrink-0 h-12 px-6 font-black capitalize tracking-widest text-[10px]"
+                     icon={t("icon_upload")}
                      label={t("import_file")}
                   />
                </>

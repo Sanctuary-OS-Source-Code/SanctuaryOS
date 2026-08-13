@@ -2,13 +2,15 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker, StatTile,
+import {
+  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+  CustomComplianceDropdown, CustomDatePicker,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown } from "../shared";
+  fetchAllPaginated, CustomTierDropdown
+} from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -83,22 +85,24 @@ export function WayfinderComms() {
 
     if (editingCommId) {
       const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'wf_comms_title', p_payload: { id: editingCommId, message: commsInput.trim() } });
-      if (error) useStore.getState().pushStatus(t("comms_update_error") || "Update Error:" + " " + error.message);
+      if (error) useStore.getState().pushStatus(t("comms_update_error") + " " + error.message);
       setEditingCommId(null);
     } else {
-      const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'wf_comms_title', p_payload: {
-        id: crypto.randomUUID(),
-        sender_id: user.id,
-        message: commsInput.trim()
-      }});
-      if (error) useStore.getState().pushStatus(t("comms_insert_error") || "Insert Error:" + " " + error.message);
+      const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '', p_target: 'wf_comms_title', p_payload: {
+          id: crypto.randomUUID(),
+          sender_id: user.id,
+          message: commsInput.trim()
+        }
+      });
+      if (error) useStore.getState().pushStatus(t("comms_insert_error") + " " + error.message);
     }
     setCommsInput("");
   };
 
   const deleteComm = async (id: number | string) => {
     const { error } = await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'wf_comms_title', p_id: id });
-    if (error) useStore.getState().pushStatus(t("comms_delete_error") || "Delete Error:" + " " + error.message);
+    if (error) useStore.getState().pushStatus(t("comms_delete_error") + " " + error.message);
   };
 
   return (
@@ -107,21 +111,21 @@ export function WayfinderComms() {
 
       <div className="flex-1 bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] flex flex-col mb-6 overflow-y-auto p-8 gap-5 custom-scrollbar shadow-inner relative z-10 backdrop-blur-[3px]">
         {commsMessages.length === 0 ? (
-          <EmptyState icon={t("icon_cell_tower") || "cell_tower"} title={t("comms_offline")} subtitle={t("comms_handshake")} className="col-span-full py-16" />
+          <EmptyState icon={t("icon_cell_tower")} title={t("comms_offline")} subtitle={t("comms_handshake")} className="col-span-full py-16" />
         ) : (
           commsMessages.map((msg, i) => (
-            <div key={msg.id || i} className="flex flex-col gap-3 text-left glass-surface p-6 rounded-[var(--radius)] animate-in fade-in slide-in-from-bottom-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] transition-all shadow-lg group relative overflow-hidden">
+            <div key={msg.id || i} className="flex flex-col gap-3 text-left glass-surface p-6 rounded-[var(--radius)] animate-in fade-in slide-in-from-bottom-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all shadow-lg group relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-1 w-1 theme-bg-accent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex justify-start items-center opacity-70 mb-1">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)] flex items-center gap-2">
-                  <span className="w-4 h-4 rounded flex items-center justify-center bg-[var(--accent)]/[20%] text-[8px]">{(msg.sender_name || msg.sender_id)?.charAt(0)}</span>
+                <span className="text-[10px] font-black capitalize tracking-[0.2em] theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)] flex items-center gap-2">
+                  <span className="w-4 h-4 rounded flex items-center justify-center bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[8px]">{(msg.sender_name || msg.sender_id)?.charAt(0)}</span>
                   {msg.sender_name || msg.sender_id?.substring(0, 8)}
                 </span>
                 <div className="flex gap-4 items-center">
                   {currentUserId === msg.sender_id && (
                     <div className="flex gap-3 mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-accent transition-colors hover:scale-110">{t("emote_edit")}</button>
-                      <button onClick={() => deleteComm(msg.id)} className="text-[9px] uppercase font-black tracking-widest hover:theme-text-danger transition-colors hover:scale-110">{t("_")}</button>
+                      <button onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} className="text-[9px] capitalize font-black tracking-widest hover:theme-text-accent transition-colors hover:scale-110">{t("emote_edit")}</button>
+                      <button onClick={() => deleteComm(msg.id)} className="text-[9px] capitalize font-black tracking-widest hover:theme-text-danger transition-colors hover:scale-110">{t("_")}</button>
                     </div>
                   )}
 

@@ -10,7 +10,7 @@ export function IngestProgressModal({ ingestProgress }: any) {
       <div className="flex items-center justify-start px-1">
         <div className="flex items-center gap-2">
           <span className="text-[var(--accent)] text-lg animate-pulse">{t("icon_cloud")}</span>
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text)]">{t("overlay_uplink_title")}</span>
+          <span className="text-[9px] font-black capitalize tracking-widest text-[var(--text)]">{t("overlay_uplink_title")}</span>
         </div>
         <span className="text-[9px] font-mono font-bold theme-text-accent">{Math.round(((ingestProgress?.current || 0) / (ingestProgress?.total || 1)) * 100)}%</span>
       </div>

@@ -60,12 +60,12 @@ export function VaultFilters({
                   value={activeCategory}
                   onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
                   options={[
-                    { id: "ALL", label: t("ql_all") || "ALL" },
+                    { id: "ALL", label: t("ql_all") },
                     ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
                       id: cat.id,
                       label: t(cat.lexicon_key) || cat.id
                     })) || []),
-                    { id: "LOCAL_FOLDERS", label: t("filter_local") || "LOCAL FOLDERS" }
+                    { id: "LOCAL_FOLDERS", label: t("filter_local") }
                   ]}
                 />
             </div>
@@ -82,7 +82,7 @@ export function VaultFilters({
                 value={activeSubType}
                 onChange={(val: string[]) => setActiveSubType(val[0])}
                 options={[
-                  { id: "ALL", label: t("ql_all") || "ALL" },
+                  { id: "ALL", label: t("ql_all") },
                   ...subcats.map((sub: any) => ({
                     id: sub.id,
                     label: t(sub.lexicon_key) || sub.id
@@ -98,13 +98,13 @@ export function VaultFilters({
             value={filterStatus}
             onChange={(val: string[]) => setFilterStatus(val[0])}
             options={[
-              { id: "ALL", label: t("ql_all") || "ALL" },
-              { id: "STABLE", label: t("status_stable") || "STABLE" },
-              { id: "UNSTABLE", label: t("status_unstable") || "UNSTABLE" },
-              { id: "CORRUPTED", label: t("status_corrupted") || "CORRUPTED" },
-              { id: "REVIEW", label: t("status_dd_review") || "UNDER REVIEW" },
-              { id: "PENDING", label: t("status_pending") || "PENDING" },
-              { id: "UNVERIFIED", label: t("status_unverified") || "UNVERIFIED" },
+              { id: "ALL", label: t("ql_all") },
+              { id: "STABLE", label: t("status_stable") },
+              { id: "UNSTABLE", label: t("status_unstable") },
+              { id: "CORRUPTED", label: t("status_corrupted") },
+              { id: "REVIEW", label: t("status_dd_review") },
+              { id: "PENDING", label: t("status_pending") },
+              { id: "UNVERIFIED", label: t("status_unverified") },
             ]}
           />
         </div>
@@ -162,18 +162,18 @@ export function VaultFilters({
         {onCreateLocalFolder && (
           <button
             onClick={() => { setSelectedMods && setSelectedMods([]); onCreateLocalFolder(); }}
-            className="h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border hover:scale-[1.02] active:scale-95 shrink-0 glass-surface text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+            className="h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center gap-2 border hover:scale-[1.02] active:scale-95 shrink-0 glass-surface text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
             <span className="material-symbols-outlined !text-[18px]">add_circle</span>
-            {t("btn_create_node") || "NEW NODE"}
+            {t("btn_create_node")}
           </button>
         )}
 
         {(equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") && (
           <button
             onClick={() => setHideGhostCards(!hideGhostCards)}
-            className={`h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border hover:scale-[1.02] active:scale-95 shrink-0 ${hideGhostCards
-              ? 'bg-emerald-500/[15%] text-[var(--success)] border-emerald-500/[30%] hover:bg-emerald-500/[20%] shadow-inner'
+            className={`h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center gap-2 border hover:scale-[1.02] active:scale-95 shrink-0 ${hideGhostCards
+              ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-inner'
               : 'glass-surface text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
               }`}
           >

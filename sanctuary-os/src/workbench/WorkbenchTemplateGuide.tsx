@@ -16,8 +16,8 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("btn_info") || "Template Guide"}
-      subtitle={t("guide_subtitle") || "Workbench"}
+      title={t("btn_info")}
+      subtitle={t("guide_subtitle")}
       icon="help"
       iconColorClass="theme-text-accent"
       defaultWidth={800}
@@ -25,9 +25,9 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
       panelZ="z-[50001]"
     >
       <div className="p-8 flex flex-col gap-6 text-[var(--text)] h-full overflow-y-auto custom-scrollbar">
-        <div className="glass-panel p-6 rounded-[var(--radius)] border border-[var(--accent)]/[20%] bg-[var(--accent)]/[5%] relative overflow-hidden shrink-0">
+        <div className="glass-panel p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] relative overflow-hidden shrink-0">
 
-          <h3 className="text-md font-black uppercase tracking-widest text-[var(--accent)] mb-2">{t("author_guide_intro")}</h3>
+          <h3 className="text-md font-black capitalize tracking-widest text-[var(--accent)] mb-2">{t("author_guide_intro")}</h3>
           <p className="text-[12px] opacity-80 leading-relaxed font-mono whitespace-pre-wrap">
             {t("author_guide_fields_desc")}
             <br /><br />
@@ -40,7 +40,7 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
         </div>
 
         <div className="flex flex-col gap-4">
-          <h4 className="text-sm font-black uppercase tracking-widest opacity-60 ml-2">{t("auto_example_blueprint")}</h4>
+          <h4 className="text-sm font-black capitalize tracking-widest opacity-60 ml-2">{t("auto_example_blueprint")}</h4>
           <div className="glass-panel rounded-2xl p-4 overflow-x-auto border border-[color-mix(in_srgb,var(--text)_10%,transparent)] font-mono text-[12px] leading-relaxed custom-scrollbar bg-black/20 group relative">
             <button
               onClick={() => {
@@ -119,12 +119,12 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
     }
   ]
 }`);
-                pushStatus(t("alert_copied") || "COPIED", "success");
+                pushStatus(t("alert_copied"), "success");
               }}
-              className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity h-8 px-3 rounded-lg bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 border border-[var(--accent)]/30 text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center gap-2 backdrop-blur-md shadow-lg"
+              className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity h-8 px-3 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] text-[10px] font-black capitalize tracking-widest flex items-center gap-2 backdrop-blur-md shadow-lg"
             >
               <span className="material-symbols-outlined !text-[14px]">{t("icon_content_copy")}</span>
-              {t("ctx_copy") || "COPY"}
+              {t("ctx_copy")}
             </button>
             <pre className="text-[var(--text)]">
               {`{

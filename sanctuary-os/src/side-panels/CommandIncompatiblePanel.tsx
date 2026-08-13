@@ -30,19 +30,19 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
           isGhosted={isIgnored}
           image={image}
           icon={!image ? getModIcon(mod, activeGameSchema, t) : undefined}
-          statusColor={isIgnored ? "border-[color-mix(in_srgb,var(--text)_5%,transparent)]" : isAmber ? "border-amber-500/30" : "theme-border-danger"}
-          className={`w-full h-full [backface-visibility:hidden] [transform:translateZ(0)] ${isIgnored ? "bg-black/20 opacity-50 grayscale" : isAmber ? "bg-amber-500/5 hover:bg-amber-500/10" : "bg-[var(--danger)]/5 hover:bg-[var(--danger)]/10"}`}
+          statusColor={isIgnored ? "border-[color-mix(in_srgb,var(--text)_5%,transparent)]" : isAmber ? "border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" : "theme-border-danger"}
+          className={`w-full h-full [backface-visibility:hidden] [transform:translateZ(0)] ${isIgnored ? "bg-black/20 opacity-50 grayscale" : isAmber ? "bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]" : "bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"}`}
           title={formatDisplayName(mod.displayName || mod.name)}
           subtitle={
             <div className="flex items-center gap-1.5 opacity-80 mt-0.5">
-               <span>{mod.author || t("unknown_mason") || "Unknown Mason"}</span>
+               <span>{mod.author || t("unknown_mason")}</span>
             </div>
           }
           actions={
             <div className="flex items-center gap-1.5 pointer-events-auto">
               <button
                 onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
-                className={`relative group/actionbtn w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 pointer-events-auto ${isIgnored ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)]' : isAmber ? 'bg-amber-500/[15%] border-amber-500/[30%] text-amber-500' : 'theme-panel-danger border-[var(--danger)] text-[var(--text)]'}`}
+                className={`relative group/actionbtn w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 pointer-events-auto ${isIgnored ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)]' : isAmber ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500' : 'theme-panel-danger border-[var(--danger)] text-[var(--text)]'}`}
               >
                 <span className="material-symbols-outlined !text-[16px]">{iconName}</span>
                 {!isFlipped && !delayedFlipped && (
@@ -58,8 +58,8 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
           }
           badges={
             <div className="flex flex-wrap items-center gap-2">
-               <div className="backdrop-blur-md bg-cyan-400/10 border border-cyan-400/30 px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
-                 <span className="text-[7px] font-black uppercase tracking-widest text-cyan-400">{mod.version || "v.Local"}</span>
+               <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
+                 <span className="text-[7px] font-black capitalize tracking-widest text-cyan-400">{mod.version || "v.Local"}</span>
                </div>
             </div>
           }
@@ -67,15 +67,15 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
 
         {delayedFlipped && (
           <div className="absolute inset-0 z-[100] pointer-events-none [transform:rotateY(180deg)] [backface-visibility:hidden]">
-            <div className={`pointer-events-auto relative h-full w-full glass-panel [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.1)_!important] flex flex-col border overflow-hidden [transform:translateZ(0)] ${isAmber ? 'border-amber-500/[30%]' : 'border-red-500/[30%]'}`} style={{ borderRadius: 'var(--radius)' }}>
+            <div className={`pointer-events-auto relative h-full w-full glass-panel [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.1)_!important] flex flex-col border overflow-hidden [transform:translateZ(0)] ${isAmber ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'}`} style={{ borderRadius: 'var(--radius)' }}>
               
               <div className="relative z-10 pt-5 pb-1 flex flex-col items-center justify-center gap-2 shrink-0">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-inner ${isAmber ? 'bg-amber-500/[5%] border-amber-500/[20%]' : 'bg-red-500/[5%] border-red-500/[20%]'}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-inner ${isAmber ? 'bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}`}>
                   <span className={`material-symbols-outlined !text-[20px] ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>
                     {iconName}
                   </span>
                 </div>
-                <span className={`text-[12px] font-black uppercase tracking-widest text-center px-4 leading-normal ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>
+                <span className={`text-[12px] font-black capitalize tracking-widest text-center px-4 leading-normal ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>
                   {isAmber ? t("bp_pill_unstable") : t("bp_pill_corrupted")}
                 </span>
               </div>
@@ -84,8 +84,8 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
                  <div className="flex items-start gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm p-3 rounded-2xl">
                     <span className={`material-symbols-outlined !text-[16px] shrink-0 mt-0.5 ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>info</span>
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span className={`text-[8px] font-black opacity-70 uppercase tracking-widest ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>{t("directive_note")}</span>
-                      <span className={`text-[10px] font-mono font-black uppercase tracking-widest leading-tight ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>{mod._alert_reason}</span>
+                      <span className={`text-[8px] font-black opacity-70 capitalize tracking-widest ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>{t("directive_note")}</span>
+                      <span className={`text-[10px] font-mono font-black capitalize tracking-widest leading-tight ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>{mod._alert_reason}</span>
                     </div>
                  </div>
               </div>
@@ -98,7 +98,7 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
                     else newSet.add(mod.name);
                     setIgnoredBroken(newSet);
                     setIsFlipped(false); 
-                 }} className={`flex-1 min-w-0 py-2 rounded-[16px] border font-black text-[10px] uppercase tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)]`}>
+                 }} className={`flex-1 min-w-0 py-2 rounded-[16px] border font-black text-[10px] capitalize tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)]`}>
                     {isIgnored ? t("bp_restore_alert") : t("btn_ignore")}
                  </button>
                  {allow_write && toggleInActiveSet && (
@@ -106,12 +106,12 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
                       e.stopPropagation(); 
                       toggleInActiveSet(mod._originalSetName || mod.name, true, true);
                       setIsFlipped(false); 
-                   }} className={`flex-1 min-w-0 py-2 rounded-[16px] border font-black text-[10px] uppercase tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all ${isAmber ? 'bg-amber-500/[10%] border-amber-500/[30%] text-amber-500' : 'bg-red-500/[10%] border-red-500/[30%] text-[var(--danger)]'}`}>
+                   }} className={`flex-1 min-w-0 py-2 rounded-[16px] border font-black text-[10px] capitalize tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all ${isAmber ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]'}`}>
                       {t("icon_delete")}
                    </button>
                  )}
-                 <button onClick={(e) => { e.stopPropagation(); setIsFlipped(false); }} className="flex-1 min-w-0 py-2 rounded-[16px] border border-[color-mix(in_srgb,var(--safe)_30%,transparent)] bg-[color-mix(in_srgb,var(--safe)_10%,transparent)] text-[var(--safe)] font-black text-[10px] uppercase tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words">
-                    {t("btn_back") || "BACK"}
+                 <button onClick={(e) => { e.stopPropagation(); setIsFlipped(false); }} className="flex-1 min-w-0 py-2 rounded-[16px] border border-[color-mix(in_srgb,var(--safe)_30%,transparent)] bg-[color-mix(in_srgb,var(--safe)_10%,transparent)] text-[var(--safe)] font-black text-[10px] capitalize tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words">
+                    {t("btn_back")}
                  </button>
               </div>
 
@@ -216,14 +216,14 @@ export default function CommandIncompatiblePanel({
       title={t("citizen_action_incompatible")}
       subtitle={t("incompatible_broken")}
       icon={redMods.length > 0 ? "gpp_bad" : "gpp_maybe"}
-      iconColorClass={redMods.length > 0 ? "theme-text-danger border-[var(--danger)]/30" : "text-amber-500 border-amber-500/30"}
+      iconColorClass={redMods.length > 0 ? "theme-text-danger border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" : "text-amber-500 border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"}
       widthClass="w-[550px]"
     >
       <div className="flex flex-col gap-4 w-full">
         <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative">
           <div className="flex items-center justify-start w-full relative z-10">
-            <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("incompatible_broken")}</h3>
-          <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest">
+            <h3 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-[0.2em] opacity-80">{t("incompatible_broken")}</h3>
+          <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
             <span>{brokenMods.length} {t("items")}</span>
             {(redMods.length > 0 || amberMods.length > 0) && <span className="opacity-50">•</span>}
             {redMods.length > 0 && <span className="text-red-400">{redMods.length} {t("bp_pill_corrupted")}</span>}
@@ -237,7 +237,7 @@ export default function CommandIncompatiblePanel({
               {redMods.length > 0 && (
                 <button onClick={() => {
                   redMods.forEach((m: any) => toggleInActiveSet && toggleInActiveSet(m._originalSetName || m.name, true, true));
-                }} className={`flex-1 py-3 rounded-xl bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 border border-[var(--danger)]/30 hover:border-[var(--danger)]/50 text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
+                }} className={`flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[10px] font-black capitalize tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_sweep")}</span>
                   {(t("bp_purge_corrupted")).replace("{0}", String(redMods.length))}
                 </button>
@@ -245,7 +245,7 @@ export default function CommandIncompatiblePanel({
               {amberMods.length > 0 && (
                 <button onClick={() => {
                   amberMods.forEach((m: any) => toggleInActiveSet && toggleInActiveSet(m._originalSetName || m.name, true, true));
-                }} className={`flex-1 py-3 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-500/50 text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
+                }} className={`flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-500 hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[10px] font-black capitalize tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_sweep")}</span>
                   {(t("bp_purge_unstable")).replace("{0}", String(amberMods.length))}
                 </button>
@@ -258,7 +258,7 @@ export default function CommandIncompatiblePanel({
           {brokenMods.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4 py-12">
               <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-sm">gpp_bad</span>
-              <p className="text-[10px] font-black tracking-widest uppercase text-center">{t("no_incompatible_detected")}</p>
+              <p className="text-[10px] font-black tracking-widest capitalize text-center">{t("no_incompatible_detected")}</p>
             </div>
           ) : (
             brokenMods.map((mod: any) => (

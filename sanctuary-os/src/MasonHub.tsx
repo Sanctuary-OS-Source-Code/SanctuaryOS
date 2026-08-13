@@ -13,7 +13,7 @@ import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { supabase } from "./supabase";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
-import { ViewHeader, SidePanel, GameVersionMultiSelect, CustomDropdown, StatTile, ModSearchDropdown, CustomDatePicker, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, standardButtonClass, standardPrimaryButtonClass, standardDangerButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass, EmptyState, LoadingScreen } from "./shared";
+import { ViewHeader, SidePanel, GameVersionMultiSelect, CustomDropdown, ModSearchDropdown, CustomDatePicker, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, standardButtonClass, standardPrimaryButtonClass, standardDangerButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass, EmptyState, LoadingScreen } from "./shared";
 import { WayfinderPostsEditor } from "./hub-components/WayfinderPostsEditor";
 import ProtocolVisualizer from "./ProtocolVisualizer";
 import StructureVisualizer from "./StructureVisualizer";
@@ -70,15 +70,15 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
     fetchMasonProfile();
   }, []);
 
-  if (loading) return <LoadingScreen title={t("verifying") || "VERIFYING..."} />;
+  if (loading) return <LoadingScreen title={t("verifying")} />;
 
   if (!masonProfile) return (
     <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
       <div className="w-24 h-24 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
         <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_construction")}</span>
       </div>
-      <h2 className="text-2xl font-black uppercase tracking-widest text-[var(--text)]">{t("unlinked")}</h2>
-      <p className="text-sm font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("unlinked_desc")}</p>
+      <h2 className="text-2xl font-black capitalize tracking-widest text-[var(--text)]">{t("unlinked")}</h2>
+      <p className="text-sm font-bold capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("unlinked_desc")}</p>
     </div>
   );
 
@@ -91,9 +91,9 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         iconColorClass="text-[var(--accent)]"
       />
 
-      <HoverTabDrawer 
-        title="Mason Navigation" 
-        activeTab={masonActiveTab} 
+      <HoverTabDrawer
+        title="Mason Navigation"
+        activeTab={masonActiveTab}
         setTab={setMasonActiveTab}
         footer={
           <>
@@ -125,7 +125,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         <VerticalTabButton id="registry" icon={t("icon_deployed_code")} label={(t("items")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         <VerticalTabButton id="nexus" icon={t("icon_hub")} label={(t("tab_nexus")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         <VerticalTabButton id="sandbox" icon={t("icon_handyman")} label={(t("filter_dev")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="chameleons" icon="palette" label={(t("tab_chameleons") || "CHAMELEONS").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+        <VerticalTabButton id="chameleons" icon="palette" label={(t("tab_chameleons")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         <VerticalTabButton id="ide" icon={t("icon_code")} label={(t("ide_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
 
         <VerticalTabButton id="collections" icon={t("icon_collections_bookmark")} label={(t("tab_cc")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
@@ -202,8 +202,8 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
       <div className="w-full max-w-lg bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl flex flex-col overflow-hidden">
         <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <div className="flex justify-start items-center mb-4">
-            <h3 className="text-sm font-black uppercase tracking-widest theme-text-accent">{t("sel_artifact")}</h3>
-            <button onClick={onClose} className="text-[var(--text)]/50 hover:text-[var(--text)] font-black"><span className="material-symbols-outlined">{t("icon_close")}</span></button>
+            <h3 className="text-sm font-black capitalize tracking-widest theme-text-accent">{t("sel_artifact")}</h3>
+            <button onClick={onClose} className="text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] font-black"><span className="material-symbols-outlined">{t("icon_close")}</span></button>
           </div>
           <input autoFocus placeholder={t("ph_search_catalog")} value={query} onChange={(e) => setQuery(e.target.value)} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent" />
         </div>
@@ -211,11 +211,11 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
           {results.length > 0 ? results.map((mod: any) => (
             <button key={mod.id} onClick={() => { onSelect(mod.id); }} className="flex justify-start items-center px-4 py-3 glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group">
               <div className="flex flex-col">
-                <span className="text-xs font-black text-[var(--text)] uppercase truncate">{mod.name}</span>
-                <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{mod.master_author || "Unknown Architect"}</span>
+                <span className="text-xs font-black text-[var(--text)] capitalize truncate">{mod.name}</span>
+                <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">{mod.master_author || "Unknown Architect"}</span>
               </div>
             </button>
-          )) : <div className="p-4 text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("no_matches")}</div>}
+          )) : <div className="p-4 text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("no_matches")}</div>}
         </div>
       </div>
     </div>

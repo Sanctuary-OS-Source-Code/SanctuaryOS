@@ -6,7 +6,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
   ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker, StatTile,
+  CustomComplianceDropdown, CustomDatePicker, DashboardStatTile,
   HubTabButton, ModSearchDropdown, EmptyState, ActionButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
@@ -43,13 +43,13 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
       backdropZ="z-[15000]"
       footer={
         <div className="flex gap-3 w-full">
-          <button onClick={onClose} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02] text-[var(--text)] font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all">{t("nav_cancel")}</button>
+          <button onClick={onClose} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02] text-[var(--text)] font-black text-[11px] capitalize tracking-[0.2em] rounded-xl transition-all">{t("nav_cancel")}</button>
           <ActionButton onClick={handleCreate} disabled={isCreating || !newMasonName.trim()} className="flex-1 shrink-0 h-12" label={isCreating ? t("create_btn_creating") : t("create_btn_create")} />
         </div>
       }
     >
       <div className="flex flex-col gap-6 w-full">
-        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
+        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason_name")}</label>
         <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full" />
       </div>
     </SidePanel>
@@ -189,7 +189,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     SCANNING: {
       color: "var(--accent)",
       bg: "color-mix(in srgb, var(--accent) 5%, transparent)",
-      border: "border-[var(--accent)]/30",
+      border: "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]",
       icon: t("icon_sync"),
       title: t("verify_status_scanning"),
       desc: t("verify_status_scanning_desc"),
@@ -198,7 +198,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     VERIFIED: {
       color: "rgb(52, 211, 153)",
       bg: "color-mix(in srgb, rgb(52, 211, 153) 15%, transparent)",
-      border: "border-emerald-400/30",
+      border: "border-[color-mix(in_srgb,var(--success)_30%,transparent)]",
       icon: "verified_user",
       title: t("verify_status_verified"),
       desc: t("verify_status_verified_desc")
@@ -206,7 +206,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     MISMATCH: {
       color: "rgb(251, 146, 60)",
       bg: "color-mix(in srgb, rgb(251, 146, 60) 15%, transparent)",
-      border: "border-orange-400/30",
+      border: "border-[color-mix(in_srgb,var(--warning)_30%,transparent)]",
       icon: "warning",
       title: t("verify_status_mismatch"),
       desc: t("verify_status_mismatch_desc")
@@ -214,7 +214,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     MALWARE: {
       color: "rgb(239, 68, 68)",
       bg: "color-mix(in srgb, rgb(239, 68, 68) 15%, transparent)",
-      border: "border-red-500/30",
+      border: "border-[color-mix(in_srgb,var(--danger)_30%,transparent)]",
       icon: "skull",
       title: t("malware_alert_title"),
       desc: t("verify_status_malware_desc")
@@ -222,7 +222,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     EXPLICIT: {
       color: "rgb(250, 204, 21)",
       bg: "color-mix(in srgb, rgb(250, 204, 21) 15%, transparent)",
-      border: "border-yellow-400/30",
+      border: "border-[color-mix(in_srgb,var(--warning)_30%,transparent)]",
       icon: "warning",
       title: t("verify_status_explicit"),
       desc: t("verify_status_explicit_desc")
@@ -230,7 +230,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     FLAGGED: {
       color: "rgb(248, 113, 113)",
       bg: "color-mix(in srgb, rgb(248, 113, 113) 15%, transparent)",
-      border: "border-red-400/30",
+      border: "border-[color-mix(in_srgb,var(--danger)_30%,transparent)]",
       icon: "gavel",
       title: t("verify_status_flagged"),
       desc: t("verify_status_flagged_desc")
@@ -243,7 +243,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
         <span className={`material-symbols-outlined !text-3xl ${statusConfig.pulse ? 'animate-spin-slow' : ''}`} style={{ color: statusConfig.color }}>{statusConfig.icon}</span>
       </div>
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-black uppercase tracking-[0.2em]" style={{ color: statusConfig.color }}>{statusConfig.title}</h3>
+        <h3 className="text-sm font-black capitalize tracking-[0.2em]" style={{ color: statusConfig.color }}>{statusConfig.title}</h3>
         <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 leading-relaxed max-w-sm">{statusConfig.desc}</p>
       </div>
     </div>
@@ -256,12 +256,12 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
           <button
             onClick={handleImport}
-            className={`w-full py-6 rounded-2xl border-2 border-dashed border-[var(--accent)]/30 hover:border-[var(--accent)]/60 bg-[var(--accent)]/[2%] hover:bg-[var(--accent)]/[10%] transition-all flex flex-col items-center justify-center gap-3 group ${isHashing ? 'opacity-50 pointer-events-none' : ''}`}
+            className={`w-full py-6 rounded-2xl border-2 border-dashed border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_60%,transparent)] bg-[color-mix(in_srgb,var(--accent)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all flex flex-col items-center justify-center gap-3 group ${isHashing ? 'opacity-50 pointer-events-none' : ''}`}
           >
-            <span className="material-symbols-outlined !text-4xl text-[var(--accent)]/70 group-hover:text-[var(--accent)] transition-colors">
+            <span className="material-symbols-outlined text-[color-mix(in_srgb,var(--accent)_70%,transparent)] group-hover:text-[var(--accent)] transition-colors">
               {isHashing ? (t("icon_sync")) : (t("icon_upload_file"))}
             </span>
-            <span className="text-xs font-black tracking-widest uppercase text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
+            <span className="text-xs font-black tracking-widest capitalize text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
               {isHashing ? (t("scanning")) : (t("verify_panel_import_btn"))}
             </span>
           </button>
@@ -272,12 +272,12 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
             <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
               <div className="flex flex-col gap-4 relative">
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_path")}</span>
+                  <span className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("verify_panel_file_path")}</span>
                   <span className="text-xs font-mono text-[var(--text)] break-all">{filePath.replace(/^(?:[A-Z]:)?[\/\\]Users[\/\\][^\/\\]+[\/\\]/i, '...\\')}</span>
                 </div>
 
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("dna_hash")}</span>
+                  <span className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("dna_hash")}</span>
                   {isHashing ? (
                     <div className="flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
@@ -294,23 +294,23 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               {BannerNode}
 
               {matchedMod && (
-                <div className={`glass-panel rounded-2xl p-6 border flex flex-col gap-4 animate-in zoom-in-95 mt-2 bg-gradient-to-br from-transparent to-transparent ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/5' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/5' : 'border-[var(--accent)]/[30%] bg-[var(--accent)]/5'}`}>
+                <div className={`glass-panel rounded-2xl p-6 border flex flex-col gap-4 animate-in zoom-in-95 mt-2 bg-gradient-to-br from-transparent to-transparent ${statusState === 'MALWARE' ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : statusState === 'EXPLICIT' ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]'}`}>
                   <div className="flex items-start justify-start">
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name")}</span>
-                      <span className={`text-sm font-black uppercase tracking-widest ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{matchedMod.name}</span>
-                      <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1 uppercase tracking-widest">
+                      <span className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60 mb-1">{t("registry_label_name")}</span>
+                      <span className={`text-sm font-black capitalize tracking-widest ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{matchedMod.name}</span>
+                      <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1 capitalize tracking-widest">
                         {t("update_version")}: {matchedMod.version_label || matchedMod.version_number || "UNKNOWN"}
                       </span>
                     </div>
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-inner ${statusState === 'MALWARE' ? 'border-red-500/30 bg-red-500/10' : statusState === 'EXPLICIT' ? 'border-yellow-400/30 bg-yellow-400/10' : 'border-[var(--accent)]/30 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-inner ${statusState === 'MALWARE' ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : statusState === 'EXPLICIT' ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]'}`}>
                       <span className={`material-symbols-outlined !text-[20px] ${statusState === 'MALWARE' ? 'text-red-500' : statusState === 'EXPLICIT' ? 'text-yellow-400' : 'theme-text-accent'}`}>{statusState === 'MALWARE' ? 'skull' : statusState === 'EXPLICIT' ? 'warning' : 'check_circle'}</span>
                     </div>
                   </div>
                   {onJumpToArtifact && !isOversight && (
                     <button
                       onClick={() => onJumpToArtifact(matchedMod)}
-                      className="w-full py-3 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center gap-2"
                     >
                       {t("btn_link")} <span className="text-sm leading-none">&rarr;</span>
                     </button>
@@ -318,7 +318,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   {isOversight && onManualFlag && (
                     <button
                       onClick={() => onManualFlag(fileHash)}
-                      className="w-full py-3 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3 rounded-xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center gap-2"
                     >
                       {t("comp_manual_title")} <span className="text-sm leading-none">&rarr;</span>
                     </button>
@@ -329,7 +329,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               {fileHash && !showFlagForm && !isOversight && (
                 <button
                   onClick={() => setShowFlagForm(true)}
-                  className="w-full py-4 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
+                  className="w-full py-4 rounded-xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-red-400 text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
                 >
                   <span className="material-symbols-outlined !text-sm">{t("icon_flag")}</span>
                   {t("verify_panel_flag_btn")}
@@ -339,7 +339,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               {fileHash && !matchedMod && isOversight && onManualFlag && (
                 <button
                   onClick={() => onManualFlag(fileHash)}
-                  className="w-full py-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
+                  className="w-full py-4 rounded-xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center gap-2 mt-2"
                 >
                   <span className="material-symbols-outlined !text-sm">{t("icon_gavel")}</span>
                   {t("comp_manual_title")} <span className="text-sm leading-none">&rarr;</span>
@@ -347,12 +347,12 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               )}
 
               {showFlagForm && (
-                <div className="glass-panel border-red-500/30 rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 mt-2">
+                <div className="glass-panel border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 mt-2">
                   <textarea
                     value={flagReason}
                     onChange={(e) => setFlagReason(e.target.value)}
                     placeholder={t("verify_panel_flag_reason_ph")}
-                    className="w-full h-24 glass-surface rounded-xl p-4 text-xs focus:outline-none focus:border-red-500/50 resize-none font-medium"
+                    className="w-full h-24 glass-surface rounded-xl p-4 text-xs focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] resize-none font-medium"
                   />
                   <div className="flex justify-center items-center gap-4 mt-4 w-full">
                     <button
@@ -386,7 +386,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               )}
 
               {successMsg && (
-                <div className="p-4 rounded-xl bg-emerald-500/[10%] border border-emerald-500/[30%] text-[var(--success)] text-xs font-bold text-center animate-in fade-in mt-2">
+                <div className="p-4 rounded-xl bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-xs font-bold text-center animate-in fade-in mt-2">
                   {successMsg}
                 </div>
               )}
@@ -395,11 +395,11 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
           {sessionHistory.length > 0 && (
             <div className="mt-4 flex flex-col gap-3 animate-in fade-in">
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("auto_session_history")}</span>
+              <span className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("auto_session_history")}</span>
               <div className="flex flex-col gap-2">
                 {sessionHistory.map((item, i) => (
                   <div key={i}
-                    className="glass-panel rounded-xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer hover:border-[var(--accent)]/50 transition-colors"
+                    className="glass-panel rounded-xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors"
                     onClick={() => {
                       setFilePath(item.path);
                       setFileHash(item.hash);
@@ -416,14 +416,14 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                       <span className="text-[9px] font-mono text-[var(--subtext)] truncate max-w-[150px]" title={item.hash}>{item.hash}</span>
                       {item.matchedMod ? (
                         item.matchedMod.compliance_tier === 3 ? (
-                          <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">{t("rating_malware")}</span>
+                          <span className="text-[9px] font-black text-red-500 capitalize tracking-widest">{t("rating_malware")}</span>
                         ) : item.matchedMod.compliance_tier === 2 ? (
-                          <span className="text-[9px] font-black text-yellow-400 uppercase tracking-widest">{t("rating_explicit")}</span>
+                          <span className="text-[9px] font-black text-yellow-400 capitalize tracking-widest">{t("rating_explicit")}</span>
                         ) : (
-                          <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">{t("verified")}</span>
+                          <span className="text-[9px] font-black text-emerald-400 capitalize tracking-widest">{t("verified")}</span>
                         )
                       ) : (
-                        <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{t("auto_mismatch")}</span>
+                        <span className="text-[9px] font-black text-orange-400 capitalize tracking-widest">{t("auto_mismatch")}</span>
                       )}
                     </div>
                   </div>

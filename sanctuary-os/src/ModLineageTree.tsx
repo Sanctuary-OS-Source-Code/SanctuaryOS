@@ -98,8 +98,8 @@ function EditableVersionRow({
   };
 
   return (
-    <div className="relative group/item flex flex-col p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[30%] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[var(--accent)]/[5%] transition-all duration-300 isolate">
-      <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none rounded-3xl" />
+    <div className="relative group/item flex flex-col p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate">
+      <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none rounded-3xl" />
       
       {/* Top Row: Icon + Badge */}
       <div className="flex items-start justify-start gap-3 mb-4 relative z-10">
@@ -109,7 +109,7 @@ function EditableVersionRow({
           </span>
         </div>
         {index === 0 && (
-          <span className="px-2 py-0.5 rounded-md bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[9px] font-black uppercase tracking-widest text-[var(--accent)] shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.1)] mt-1">
+          <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[9px] font-black capitalize tracking-widest text-[var(--accent)] shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.1)] mt-1">
             {t("lineage_latest")}
           </span>
         )}
@@ -124,7 +124,7 @@ function EditableVersionRow({
           onBlur={handleSaveLabel}
           onKeyDown={(e) => e.key === 'Enter' && handleSaveLabel()}
           placeholder={`Version ${totalCount - index}`}
-          className="text-[14px] font-black text-[var(--text)] uppercase bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-b-2 border-transparent outline-none focus:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all px-3 py-2 w-full truncate rounded-t-xl shadow-inner placeholder:text-[var(--text)]/30 placeholder:tracking-widest"
+          className="text-[14px] font-black text-[var(--text)] capitalize bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-b-2 border-transparent outline-none focus:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all px-3 py-2 w-full truncate rounded-t-xl shadow-inner placeholder:text-[color-mix(in_srgb,var(--text)_30%,transparent)] placeholder:tracking-widest"
         />
         <div className="relative z-[9999] pointer-events-auto">
           <GameVersionMultiSelect
@@ -172,18 +172,18 @@ function EditableVersionRow({
               />
             </div>
             <button onClick={() => setIsReassigning(false)} className="group relative w-8 h-8 flex items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all shrink-0">
-              <HoverTooltip title={t("icon_close") || "Cancel"} />
+              <HoverTooltip title={t("icon_close")} />
               <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
             </button>
           </div>
         ) : (
           <>
-            <button onClick={() => setIsReassigning(true)} className="group relative flex-1 px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[9px] font-black uppercase hover:bg-[var(--accent)]/[15%] hover:border-[var(--accent)]/[50%] hover:text-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center gap-1.5">
-              <HoverTooltip title={t("lineage_btn_reassign") || "Reassign Artifact"} />
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_move_up")}</span> {t("lineage_btn_reassign") || "REASSIGN"}
+            <button onClick={() => setIsReassigning(true)} className="group relative flex-1 px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[9px] font-black capitalize hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center gap-1.5">
+              <HoverTooltip title={t("lineage_btn_reassign")} />
+              <span className="material-symbols-outlined !text-[14px]">{t("icon_move_up")}</span> {t("lineage_btn_reassign")}
             </button>
-            <button onClick={handleDelete} className="group relative px-3 py-2 shrink-0 rounded-xl flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)]/70 hover:bg-red-500/[15%] hover:border-red-500/[50%] hover:text-[var(--danger)] hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.2)] transition-all">
-              <HoverTooltip title={t("lineage_btn_delete") || "Delete Artifact"} variant="danger" />
+            <button onClick={handleDelete} className="group relative px-3 py-2 shrink-0 rounded-xl flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[color-mix(in_srgb,var(--text)_70%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.2)] transition-all">
+              <HoverTooltip title={t("lineage_btn_delete")} variant="danger" />
               <span className="material-symbols-outlined !text-[16px]">delete</span>
             </button>
           </>
@@ -268,19 +268,19 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
 
   return (
     <>
-    <div className="w-full h-full glass-panel rounded-[32px] p-6 md:p-8 border border-[var(--accent)]/[20%] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
+    <div className="w-full h-full glass-panel rounded-[32px] p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
       
       {/* Hero Background Effects */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)]/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-[var(--text)]/5 rounded-full blur-[60px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full blur-[60px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
 
       <div className="flex justify-start items-end pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[13px] font-black uppercase tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
+          <h3 className="text-[13px] font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
             <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] drop-shadow-md">{t("icon_timeline")}</span>
             {t("lineage_version_history")}
           </h3>
-          <p className="text-[9px] font-bold text-[var(--subtext)] opacity-70 uppercase tracking-widest">
+          <p className="text-[9px] font-bold text-[var(--subtext)] opacity-70 capitalize tracking-widest">
             {t("lineage_timeline_desc")}
           </p>
         </div>
@@ -295,8 +295,8 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 relative z-10 flex-1 overflow-y-auto accent-scrollbar p-2 content-start">
         {versionHistory.length === 0 ? (
           <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-40 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)]">
-             <span className="material-symbols-outlined !text-[32px]">{t("icon_timeline")}</span>
-             <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t("no_links") || "NO HISTORY"}</span>
+             <span className="material-symbols-outlined ">{t("icon_timeline")}</span>
+             <span className="text-[10px] font-black capitalize tracking-[0.2em]">{t("no_links")}</span>
           </div>
         ) : (
           versionHistory.map((version, index) => (
@@ -340,7 +340,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
     >
       <div className="flex flex-col gap-6 w-full">
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-black text-[var(--subtext)] uppercase tracking-[0.2em]">{t("lineage_version_label")}</label>
+          <label className="text-xs font-black text-[var(--subtext)] capitalize tracking-[0.2em]">{t("lineage_version_label")}</label>
           <input
             autoFocus
             type="text"
@@ -348,36 +348,36 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
             onChange={(e) => setNewVersionLabel(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddVersion()}
             placeholder={t("ph_version")}
-            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
+            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-black text-[var(--subtext)] uppercase tracking-[0.2em]">{t("lineage_game_version")}</label>
+          <label className="text-xs font-black text-[var(--subtext)] capitalize tracking-[0.2em]">{t("lineage_game_version")}</label>
           <input
             type="text"
             value={newGameVersion}
             onChange={(e) => setNewGameVersion(e.target.value)}
             placeholder={t("ph_game_version")}
-            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
+            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-black text-[var(--subtext)] uppercase tracking-[0.2em]">{t("label_dna_hash")}</label>
+          <label className="text-xs font-black text-[var(--subtext)] capitalize tracking-[0.2em]">{t("label_dna_hash")}</label>
           <input
             type="text"
             value={newDnaHash}
             onChange={(e) => setNewDnaHash(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddVersion()}
             placeholder={t("ph_dna_hash")}
-            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--accent)]/30 rounded-2xl px-5 py-4 text-sm font-mono font-bold focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
+            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-2xl px-5 py-4 text-sm font-mono font-bold focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all text-[var(--text)] shadow-inner"
           />
         </div>
         
-        <div className="bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-2xl p-4 flex items-start gap-3 mt-2">
+        <div className="bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-2xl p-4 flex items-start gap-3 mt-2">
           <span className="material-symbols-outlined text-[var(--accent)] !text-[18px] mt-0.5">{t("icon_info")}</span>
-          <p className="text-[10px] font-bold text-[var(--text)] opacity-80 uppercase tracking-widest leading-relaxed">
+          <p className="text-[10px] font-bold text-[var(--text)] opacity-80 capitalize tracking-widest leading-relaxed">
             {t("lineage_add_version_note")}
           </p>
         </div>

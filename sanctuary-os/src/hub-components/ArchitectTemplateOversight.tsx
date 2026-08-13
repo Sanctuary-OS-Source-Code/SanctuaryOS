@@ -141,7 +141,7 @@ export default function ArchitectTemplateOversight() {
                     <CustomDropdown
                         disableTint={true}
                         value={fileSort}
-                        options={[{ id: "date", label: t("template_sort_date") || "DATE ADDED" }, { id: "name", label: t("sort_name") || "NAME (A-Z)" }]}
+                        options={[{ id: "date", label: t("template_sort_date") }, { id: "name", label: t("sort_name") }]}
                         onChange={(val: string[]) => setFileSort(val[0])}
                     />
                 </div>
@@ -149,33 +149,33 @@ export default function ArchitectTemplateOversight() {
                 <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 z-40">
                     <button
                         onClick={() => setActiveFilterTab("active")}
-                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilterTab === 'active' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${activeFilterTab === 'active' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                     >
-                        {t("status_active") || "Active"}
+                        {t("status_active")}
                     </button>
                     <button
                         onClick={() => setActiveFilterTab("flagged")}
-                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilterTab === 'flagged' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${activeFilterTab === 'flagged' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                     >
-                        {t("oversight_tab_flagged") || "Flagged"}
+                        {t("oversight_tab_flagged")}
                     </button>
                 </div>
 
                 <ActionButton
                     onClick={() => setIsAddPanelOpen(true)}
-                    className="h-12 px-6 shrink-0 font-black uppercase tracking-[0.1em] text-[10px]"
-                    icon={t("icon_add") || "add"}
-                    label={t("btn_add") || "Add Target File"}
+                    className="h-12 px-6 shrink-0 font-black capitalize tracking-[0.1em] text-[10px]"
+                    icon={t("icon_add")}
+                    label={t("btn_add")}
                 />
             </ScreenUtilityBar>
 
             <div className="w-full flex flex-col gap-4 mt-2">
                 {isLoading ? (
                     <div className="flex justify-center items-center h-40 opacity-50">
-                        <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing") || t("ui_loading") || "Loading..."}</span>
+                        <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing") || t("ui_loading")}</span>
                     </div>
                 ) : processedFiles.length === 0 ? (
-                    <EmptyState icon={t("icon_architecture") || "architecture"} title={t("no_tracked_files") || "No Tracked Files"} className="col-span-full py-16" />
+                    <EmptyState icon={t("icon_architecture")} title={t("no_tracked_files")} className="col-span-full py-16" />
                 ) : (
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 px-6">
                         {processedFiles.map((tf) => {
@@ -192,7 +192,7 @@ export default function ArchitectTemplateOversight() {
                                     subtitle={`${groupTemplates.length} ${groupTemplates.length === 1 ? 'Template' : 'Templates'} Available`}
                                     statusColor={defaultTmpl ? "border-emerald-500" : undefined}
                                     badges={defaultTmpl ? [
-                                        <span key="verified" className="material-symbols-outlined text-emerald-400 opacity-80 !text-[16px]" title="Has Community Default">{t("template_icon_verified") || "verified"}</span>
+                                        <span key="verified" className="material-symbols-outlined text-emerald-400 opacity-80 !text-[16px]" title="Has Community Default">{t("template_icon_verified")}</span>
                                     ] : undefined}
                                 />
                             );
@@ -211,7 +211,7 @@ export default function ArchitectTemplateOversight() {
                 actions={
                     <>
                         <button onClick={() => setIsAddPanelOpen(false)} className={standardButtonClass}>
-                            {t("nav_cancel") || "Cancel"}
+                            {t("nav_cancel")}
                         </button>
                         <button onClick={handleAddSubmit} disabled={!newFileName.trim()} className={standardSuccessButtonClass}>
                             Save File
@@ -221,14 +221,14 @@ export default function ArchitectTemplateOversight() {
             >
                 <div className="p-6 flex flex-col gap-6">
                     <div className="flex flex-col gap-2">
-                        <label className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">{t("label_file_name")}</label>
+                        <label className="text-xs font-black capitalize tracking-widest text-[var(--subtext)]">{t("label_file_name")}</label>
                         <input
                             type="text"
                             placeholder="e.g. mc_settings.cfg"
                             value={newFileName}
                             onChange={(e) => setNewFileName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleAddSubmit()}
-                            className="h-12 w-full px-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]/50 transition-colors bg-black/40 text-sm font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
+                            className="h-12 w-full px-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
                             autoFocus
                         />
                         <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">{t("desc_file_name")}</span>
@@ -239,7 +239,7 @@ export default function ArchitectTemplateOversight() {
             <SidePanel
                 isOpen={!!selectedFileGroup}
                 onClose={() => setSelectedFileGroup(null)}
-                title={t("ui_template_config") || "TEMPLATE CONFIGURATION"}
+                title={t("ui_template_config")}
                 subtitle="Manage community defaults"
                 icon="description"
                 iconColorClass="text-[var(--accent)]"
@@ -248,15 +248,15 @@ export default function ArchitectTemplateOversight() {
             >
                 <div className="flex flex-col gap-8 p-6 overflow-y-auto custom-scrollbar h-full">
                     <div className="flex flex-col gap-3 shrink-0">
-                        <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest truncate">
+                        <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
                             {selectedFileGroup}
                         </h2>
                     </div>
 
                     {processedTemplates.find(t => t.is_community_default) && (
                         <div className="flex flex-col gap-3">
-                            <h3 className="text-xs font-black uppercase tracking-widest text-[var(--success)] flex items-center gap-2">
-                                <span className="material-symbols-outlined !text-[16px]">{t("template_icon_verified") || "verified"}</span>
+                            <h3 className="text-xs font-black capitalize tracking-widest text-[var(--success)] flex items-center gap-2">
+                                <span className="material-symbols-outlined !text-[16px]">{t("template_icon_verified")}</span>
                                 Active Sanctuary Default
                             </h3>
                             {(() => {
@@ -264,21 +264,21 @@ export default function ArchitectTemplateOversight() {
                                 return (
                                     <div
                                         onClick={() => setSelectedTemplateForPreview(defaultTmpl)}
-                                        className="flex flex-col glass-panel rounded-2xl border border-emerald-500/[30%] bg-emerald-500/[5%] transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(16,185,129,0.15)] relative overflow-hidden group"
+                                        className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(16,185,129,0.15)] relative overflow-hidden group"
                                     >
                                         <div className="absolute top-0 left-0 w-full h-1 bg-[var(--success)] opacity-50" />
                                         <div className="p-6 flex items-start gap-5">
-                                            <div className="w-14 h-14 rounded-[1rem] flex items-center justify-center shrink-0 border border-emerald-500/[30%] shadow-inner bg-emerald-500/[20%] text-[var(--success)]">
-                                                <span className="material-symbols-outlined !text-[28px]">{t("icon_data_object") || "data_object"}</span>
+                                            <div className="w-14 h-14 rounded-[1rem] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-inner bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)]">
+                                                <span className="material-symbols-outlined !text-[28px]">{t("icon_data_object")}</span>
                                             </div>
                                             <div className="flex flex-col gap-2 flex-1 min-w-0">
                                                 <div className="flex items-center justify-start gap-4">
                                                     <span className="text-xl font-black text-[var(--text)] truncate group-hover:text-[var(--success)] transition-colors">{defaultTmpl.name || defaultTmpl.targetFile}</span>
                                                 </div>
                                                 <span className="text-xs text-[var(--subtext)] line-clamp-2 leading-relaxed">{defaultTmpl.description || "No description provided."}</span>
-                                                <div className="flex items-center gap-4 text-[10px] font-bold text-[var(--subtext)] uppercase tracking-widest mt-2">
-                                                    <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_person") || "person"}</span> {defaultTmpl.author || (t("vlocal") || "Unknown")}</span>
-                                                    <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_calendar_today") || "calendar_today"}</span> {new Date(defaultTmpl.created_at).toLocaleDateString()}</span>
+                                                <div className="flex items-center gap-4 text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest mt-2">
+                                                    <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_person")}</span> {defaultTmpl.author || (t("vlocal"))}</span>
+                                                    <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_calendar_today")}</span> {new Date(defaultTmpl.created_at).toLocaleDateString()}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -289,17 +289,17 @@ export default function ArchitectTemplateOversight() {
                     )}
 
                     <div className="flex flex-col gap-4 mt-2">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">{t("available") || "Available Templates"}</h3>
+                        <h3 className="text-xs font-black capitalize tracking-widest text-[var(--subtext)]">{t("available")}</h3>
 
                         <div className="flex items-center gap-4">
                             <div className="flex-1 relative">
                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] !text-[16px]">search</span>
                                 <input
                                     type="text"
-                                    placeholder={t("search_tmpl") || "Search templates..."}
+                                    placeholder={t("search_tmpl")}
                                     value={tmplSearch}
                                     onChange={(e) => setTmplSearch(e.target.value)}
-                                    className="w-full h-12 pl-10 pr-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]/50 transition-colors bg-black/20 text-[12px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
+                                    className="w-full h-12 pl-10 pr-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-black/20 text-[12px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
                                 />
                             </div>
                             <div className="shrink-0 flex items-center gap-2 w-max min-w-[192px] max-w-xs">
@@ -307,9 +307,9 @@ export default function ArchitectTemplateOversight() {
                                     disableTint={true}
                                     value={tmplSort}
                                     options={[
-                                        { id: "date", label: t("template_sort_newest") || "NEWEST" },
-                                        { id: "name", label: t("sort_name") || "NAME (A-Z)" },
-                                        { id: "downloads", label: t("sort_downloads") || "DOWNLOADS" }
+                                        { id: "date", label: t("template_sort_newest") },
+                                        { id: "name", label: t("sort_name") },
+                                        { id: "downloads", label: t("sort_downloads") }
                                     ]}
                                     onChange={(val: string[]) => setTmplSort(val[0])}
                                 />
@@ -318,24 +318,24 @@ export default function ArchitectTemplateOversight() {
 
                         <div className="grid grid-cols-2 gap-4 pb-12">
                             {processedTemplates.filter(t => !t.is_community_default).length === 0 ? (
-                                <EmptyState icon={t("icon_folder_open") || "folder_open"} title={t("no_additional") || "No additional templates"} className="col-span-2 py-8" />
+                                <EmptyState icon={t("icon_folder_open")} title={t("no_additional")} className="col-span-2 py-8" />
                             ) : processedTemplates.filter(t => !t.is_community_default).map((tmpl) => (
                                 <div
                                     key={tmpl.id}
                                     onClick={() => setSelectedTemplateForPreview(tmpl)}
-                                    className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/50 bg-black/20 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg group"
+                                    className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-black/20 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-lg group"
                                 >
                                     <div className="p-5 flex flex-col gap-4">
                                         <div className="flex items-start justify-start gap-2">
-                                            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] text-[var(--accent)] group-hover:bg-[var(--accent)]/10 transition-colors">
-                                                <span className="material-symbols-outlined !text-[20px]">{t("icon_data_object") || "data_object"}</span>
+                                            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] text-[var(--accent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors">
+                                                <span className="material-symbols-outlined !text-[20px]">{t("icon_data_object")}</span>
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <span className="text-sm font-black text-[var(--text)] truncate">{tmpl.name || tmpl.targetFile}</span>
-                                            <div className="flex flex-col gap-2 text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest opacity-80 mt-1">
-                                                <span className="flex items-center gap-1.5 truncate"><span className="material-symbols-outlined !text-[12px]">{t("icon_person") || "person"}</span> {tmpl.author || (t("vlocal") || "Unknown")}</span>
-                                                <span className="flex items-center gap-1.5 shrink-0"><span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today") || "calendar_today"}</span> {new Date(tmpl.created_at).toLocaleDateString()}</span>
+                                            <div className="flex flex-col gap-2 text-[9px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 mt-1">
+                                                <span className="flex items-center gap-1.5 truncate"><span className="material-symbols-outlined !text-[12px]">{t("icon_person")}</span> {tmpl.author || (t("vlocal"))}</span>
+                                                <span className="flex items-center gap-1.5 shrink-0"><span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(tmpl.created_at).toLocaleDateString()}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -349,8 +349,8 @@ export default function ArchitectTemplateOversight() {
             <SidePanel
                 isOpen={!!selectedTemplateForPreview}
                 onClose={() => setSelectedTemplateForPreview(null)}
-                title={selectedTemplateForPreview?.name || selectedTemplateForPreview?.targetFile || t("preview_title") || "Template Preview"}
-                subtitle={t("preview_subtitle") || "Visual configuration layout"}
+                title={selectedTemplateForPreview?.name || selectedTemplateForPreview?.targetFile || t("preview_title")}
+                subtitle={t("preview_subtitle")}
                 icon="visibility"
                 iconColorClass="text-[var(--accent)]"
                 isResizable={false}
@@ -362,19 +362,19 @@ export default function ArchitectTemplateOversight() {
                     selectedTemplateForPreview ? (
                         <>
                             <button onClick={() => setSelectedTemplateForPreview(null)} className={standardButtonClass}>
-                                {t("nav_cancel") || "Cancel"}
+                                {t("nav_cancel")}
                             </button>
                             {selectedTemplateForPreview.is_community_default ? (
-                                <button disabled={true} className="px-8 py-4 rounded-[var(--radius)] bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
-                                    <span className="material-symbols-outlined !text-[18px]">{t("template_icon_verified") || "verified"}</span>
-                                    {t("active_default") || "Active Default"}</button>
+                                <button disabled={true} className="px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
+                                    <span className="material-symbols-outlined !text-[18px]">{t("template_icon_verified")}</span>
+                                    {t("active_default")}</button>
                             ) : (
                                 <button
                                     onClick={() => handleSetDefault(selectedTemplateForPreview)}
                                     disabled={isSettingDefault === selectedTemplateForPreview.id}
                                     className={standardSuccessButtonClass}
                                 >
-                                    {isSettingDefault === selectedTemplateForPreview.id ? '' + (t("setting") || "Setting...") + '' : '' + (t("set_default") || "Set as Community Default") + ''}
+                                    {isSettingDefault === selectedTemplateForPreview.id ? '' + (t("setting")) + '' : '' + (t("set_default")) + ''}
                                 </button>
                             )}
                         </>
@@ -386,9 +386,9 @@ export default function ArchitectTemplateOversight() {
                         <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar h-full">
 
                             {selectedTemplateForPreview.is_community_default && (
-                                <div className="px-4 py-3 rounded-xl border border-[var(--success)]/30 bg-[var(--success)]/10 text-[var(--success)] text-xs font-black uppercase tracking-widest flex items-center gap-3 shrink-0">
-                                    <span className="material-symbols-outlined !text-[18px]">{t("template_icon_verified") || "verified"}</span>
-                                    {t("active_default_msg") || "This is the active community default template"}
+                                <div className="px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] text-xs font-black capitalize tracking-widest flex items-center gap-3 shrink-0">
+                                    <span className="material-symbols-outlined !text-[18px]">{t("template_icon_verified")}</span>
+                                    {t("active_default_msg")}
                                 </div>
                             )}
 

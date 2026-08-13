@@ -5,7 +5,7 @@ import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
-import { ViewHeader, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, SidePanel, CustomComplianceDropdown, loadDLCMap, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, StatTile, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, CustomDatePicker, extractPostImage, stripMarkdown, EmptyState, ActionButton } from './shared';
+import { ViewHeader, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, SidePanel, CustomComplianceDropdown, loadDLCMap, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, DashboardStatTile, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, CustomDatePicker, extractPostImage, stripMarkdown, EmptyState, ActionButton, SidebarFooterButton } from './shared';
 import ArchitectSupportTickets from './hub-components/ArchitectSupportTickets';
 import SASupportSettings from './hub-components/SASupportSettings';
 import MasonPostViewer from './side-panels/MasonPostViewer';
@@ -25,7 +25,7 @@ function TabButton({ id, label, activeTab, setTab }: any) {
     return (
         <button
             onClick={() => setTab(id)}
-            className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2
+            className={`px-5 py-2.5 rounded-xl text-xs font-black capitalize tracking-widest transition-all flex items-center gap-2
         ${isActive
                     ? 'theme-bg-accent text-[var(--bg)] shadow-lg'
                     : 'text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
@@ -68,7 +68,7 @@ export default function Oversight({ onOpenMasonProfile }: any) {
                 subtitle={t("oversight_subtitle")}
                 icon="admin_panel_settings"
                 iconColorClass="text-[var(--danger)]"
-                breadcrumb={activeTab !== "command_center" ? activeTab.replace(/_/g, ' ').toUpperCase() : undefined}
+                breadcrumb={activeTab !== "command_center" ? activeTab.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
                 onTitleClick={() => setActiveTab("command_center")}
             />
 
@@ -78,16 +78,16 @@ export default function Oversight({ onOpenMasonProfile }: any) {
                 setTab={setActiveTab}
                 footer={
                     <>
-                        <ActionButton
+                        <SidebarFooterButton
                             icon={t("icon_verified_user")}
                             label={t("wf_hub_verify")}
                             variant="glass"
                             className="w-full"
                             onClick={() => setIsVerifyPanelOpen(true)}
                         />
-                        <ActionButton
+                        <SidebarFooterButton
                             icon={defconLevel === 1 ? "warning" : "security"}
-                            label={<span className="truncate">{t("defcon_title") || "DEFCON OVERRIDE".replace("🚨 ", "").replace("⚠️ ", "")}</span>}
+                            label={<span className="truncate">{t("defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>}
                             variant={defconLevel === 1 ? "danger" : "glass"}
                             className={`w-full ${defconLevel === 1 ? 'animate-pulse' : ''}`}
                             onClick={() => setDefconOpen(true)}
@@ -96,7 +96,7 @@ export default function Oversight({ onOpenMasonProfile }: any) {
                 }
             >
                 <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
-                <VerticalTabButton id="oversight_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch") || "DISPATCH"} activeTab={activeTab} setTab={setActiveTab} />
+                <VerticalTabButton id="oversight_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
                 <VerticalTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
                 <VerticalTabButton id="compliance" icon={t("icon_policy")} label={t("tab_compliance")} activeTab={activeTab} setTab={setActiveTab} />
 

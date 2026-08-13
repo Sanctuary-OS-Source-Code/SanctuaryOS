@@ -238,7 +238,7 @@ export function useWorkbenchEditor() {
       if (editorRef) {
          const position = editorRef.getPosition() || { lineNumber: 1, column: 1 };
          if (position.lineNumber === 1 && position.column === 1) {
-            pushStatus(t("err_no_focus") || "Please click inside the Raw Code editor to place your cursor first.", "warning");
+            pushStatus(t("err_no_focus"), "warning");
             return;
          }
          editorRef.executeEdits("insert-snippet", [{
@@ -374,14 +374,14 @@ export function useWorkbenchEditor() {
 
    const handleAutoMap = useCallback(async () => {
       if (!parsedData || !parsedData.target_file) {
-         pushStatus(t("err_select_target_first") || "Please select a Target File first.", "error");
+         pushStatus(t("err_select_target_first"), "error");
          return;
       }
       
       const content = targetFileContent;
       
       if (!content || content.includes('// Target file not found locally')) {
-         pushStatus(t("err_no_content_to_map") || "No content found in Target File pane. Paste your configuration there first.", "error");
+         pushStatus(t("err_no_content_to_map"), "error");
          return;
       }
 
@@ -501,7 +501,7 @@ export function useWorkbenchEditor() {
             }
             
             if (keyData.length === 0 && !isJson) {
-               pushStatus(t("err_no_keys_found") || "No keys found to auto-map.", "info");
+               pushStatus(t("err_no_keys_found"), "info");
                return;
             }
 
@@ -535,12 +535,12 @@ export function useWorkbenchEditor() {
          
          if (addedCount > 0) {
             handleRawChange(JSON.stringify(newParsedData, null, 2));
-            pushStatus(`${t("success_auto_map") || "Auto-mapped"} ${addedCount} keys.`, "success");
+            pushStatus(`${t("success_auto_map")} ${addedCount} keys.`, "success");
          } else {
-            pushStatus(t("info_all_mapped") || "All keys are already mapped.", "info");
+            pushStatus(t("info_all_mapped"), "info");
          }
       } catch (e) {
-         pushStatus(t("err_auto_map") || "Failed to auto-map file.", "error");
+         pushStatus(t("err_auto_map"), "error");
       }
    }, [parsedData, targetFileContent, rawText, pushStatus, t, handleRawChange]);
 

@@ -8,7 +8,7 @@ import { useStore } from "./store";
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, CustomDropdown, HoverTooltip, SidebarActionButton, StatTile, EmptyState, extractPostImage, DashboardStatTile, SearchBar, LoadingScreen, SidePanel, standardPrimaryButtonClass, standardButtonClass, standardAccentGlassButtonClass, compareVersions, cleanSearchName } from "./shared";
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, CustomDropdown, HoverTooltip, SidebarActionButton, DashboardStatTile, EmptyState, extractPostImage, SearchBar, LoadingScreen, SidePanel, standardPrimaryButtonClass, standardButtonClass, standardAccentGlassButtonClass, compareVersions, cleanSearchName } from "./shared";
 import MasonPostCard from "./MasonPostCard";
 import { readDir, readTextFile, exists } from '@tauri-apps/plugin-fs';
 import * as importFs from '@tauri-apps/plugin-fs';
@@ -321,19 +321,20 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
       useStore.getState().pushStatus(t("pinned_success") || `Pinned to showcase!`);
     } catch (e: any) {
       console.error("Pin Error:", e);
-      useStore.getState().pushStatus(t("pinned_fail") || "Failed to pin item.");
+      useStore.getState().pushStatus(t("pinned_fail"));
     }
   };
 
   const toggleFollow = async () => {
     if (!userId) { useStore.getState().pushStatus(t("auto_guest_mode_active_45")); return; }
+    const session = useStore.getState().session;
     if (isFollowing) {
-      await supabase.from('mason_followers').delete().match({ user_id: userId, mason_id: masonId });
+      await supabase.rpc('secure_toggle_mason_follow', { p_mason_id: masonId, p_action: 'unfollow', p_token: session?.access_token });
       setFollowerCount(prev => prev - 1);
       setIsFollowing(false);
     } else {
-      const { error } = await supabase.from('mason_followers').insert({ user_id: userId, mason_id: masonId });
-      if (error && (error.code === '23505' || error.message.includes('Conflict') || error.code === '409')) {
+      const { error } = await supabase.rpc('secure_toggle_mason_follow', { p_mason_id: masonId, p_action: 'follow', p_token: session?.access_token });
+      if (error && (JSON.stringify(error).includes('23505') || JSON.stringify(error).includes('Conflict'))) {
         setIsFollowing(true);
       } else if (!error) {
         setFollowerCount(prev => prev + 1);
@@ -344,8 +345,8 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
     }
   };
 
-  if (loading) return <LoadingScreen title={t("accessing") || "ACCESSING MASON PROFILE"} />;
-  if (!mason) return <div className="p-12 text-center text-[var(--subtext)] opacity-60 font-black tracking-widest uppercase">{t("not_found")}</div>;
+  if (loading) return <LoadingScreen title={t("accessing")} />;
+  if (!mason) return <div className="p-12 text-center text-[var(--subtext)] opacity-60 font-black tracking-widest capitalize">{t("not_found")}</div>;
 
   const filteredMods = mods.filter(m => {
     if (hidePaid && m.is_paid) return false;
@@ -362,11 +363,20 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
     if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_45"));
+    const session = useStore.getState().session;
 
-    const { error } = await supabase.from('mason_post_likes').insert({ post_id: post.id, user_id: userId });
+    const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+      p_target: 'mason_post_likes',
+      p_payload: { post_id: post.id, user_id: userId },
+      p_token: session?.access_token
+    });
+    
     let increment = 1;
-    if (error && error.code === '23505') {
-      await supabase.from('mason_post_likes').delete().match({ post_id: post.id, user_id: userId });
+    if (error && (JSON.stringify(error).includes('23505') || JSON.stringify(error).includes('duplicate key'))) {
+      const { data: likeData } = await supabase.from('mason_post_likes').select('id').eq('post_id', post.id).eq('user_id', userId).maybeSingle();
+      if (likeData) {
+        await supabase.rpc('secure_delete_cloud_file', { p_target: 'mason_post_likes', p_id: likeData.id, p_token: session?.access_token });
+      }
       increment = -1;
     }
     setPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes: [{ count: Math.max(0, (p.likes?.[0]?.count || 0) + increment) }] } : p));
@@ -374,10 +384,9 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
 
   const handlePostClick = async (post: any) => {
     setSelectedPost(post);
-    if (userId) {
-      try { await supabase.from('mason_post_views').upsert({ post_id: post.id, user_id: userId }, { onConflict: 'post_id,user_id', ignoreDuplicates: true }); } catch (e) { console.warn("Failed to record view", e); }
-    } else {
-      try { await supabase.from('mason_post_views').insert({ post_id: post.id }); } catch (e) { }
+    const session = useStore.getState().session;
+    if (userId && session?.access_token) {
+      try { await supabase.rpc('secure_upsert_cloud_file', { p_target: 'mason_post_views', p_payload: { post_id: post.id, user_id: userId }, p_token: session.access_token }); } catch (e) { console.warn("Failed to record view", e); }
     }
     setPosts(prev => prev.map(p => p.id === post.id ? { ...p, views: [{ count: (p.views?.[0]?.count || 0) + 1 }] } : p));
   };
@@ -385,16 +394,16 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full w-full pb-36 pt-4 px-6 max-w-[1600px] mx-auto">
 
-      <MasonProfileHeader mason={mason} masonId={masonId} followerCount={followerCount} isFollowing={isFollowing} masonAlerts={masonAlerts} toggleFollow={toggleFollow} toggleMasonAlert={toggleMasonAlert} t={t} />
+      <MasonProfileHeader mason={mason} masonId={masonId} followerCount={followerCount} isFollowing={isFollowing} masonAlerts={masonAlerts} toggleFollow={toggleFollow} toggleMasonAlert={toggleMasonAlert} activeView={activeView} setActiveView={setActiveView} t={t} />
 
       <HoverTabDrawer title="Mason Navigation" activeTab={activeView} setTab={setActiveView as any}>
-        <VerticalTabButton id="OVERVIEW" icon={t("icon_home") || "home"} label={t("tab_overview") || "OVERVIEW"} activeTab={activeView} setTab={setActiveView as any} />
-        <VerticalTabButton id="COMM-LINK" icon={t("icon_satellite_alt") || "satellite_alt"} label={t("tab_commlink") || "COMM-LINK"} activeTab={activeView} setTab={setActiveView as any} />
-        <VerticalTabButton id="MODS" icon={t("icon_account_balance") || "account_balance"} label={t("items") || "ARTIFACTS"} activeTab={activeView} setTab={setActiveView as any} />
-        <VerticalTabButton id="BLUEPRINTS" icon={t("icon_map") || "map"} label={t("playsets_title") || "BLUEPRINTS"} activeTab={activeView} setTab={setActiveView as any} />
-        <VerticalTabButton id="LEXICONS" icon={t("icon_translate") || "translate"} label={t("tab_lexicons") || "LEXICONS"} activeTab={activeView} setTab={setActiveView as any} />
-        <VerticalTabButton id="CHAMELEONS" icon={t("icon_palette") || "palette"} label={t("type_theme") || "CHAMELEONS"} activeTab={activeView} setTab={setActiveView as any} />
-        <VerticalTabButton id="TEMPLATES" icon={t("icon_draw") || "draw"} label={t("ql_templates") || "TEMPLATES"} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="OVERVIEW" icon={t("icon_home")} label={t("tab_overview")} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="COMM-LINK" icon={t("icon_satellite_alt")} label={t("tab_commlink")} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="MODS" icon={t("icon_account_balance")} label={t("items")} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="BLUEPRINTS" icon={t("icon_map")} label={t("playsets_title")} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="LEXICONS" icon={t("icon_translate")} label={t("tab_lexicons")} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="CHAMELEONS" icon={t("icon_palette")} label={t("type_theme")} activeTab={activeView} setTab={setActiveView as any} />
+        <VerticalTabButton id="TEMPLATES" icon={t("icon_draw")} label={t("ql_templates")} activeTab={activeView} setTab={setActiveView as any} />
       </HoverTabDrawer>
 
       <div className="flex-1 flex flex-col min-h-0 w-full mt-4">
@@ -406,18 +415,18 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
               {(() => {
                 const getTitleConfig = () => {
                   switch (activeView) {
-                    case 'COMM-LINK': return { title: t("tab_commlink") || "COMM-LINK", icon: "satellite_alt", color: "text-cyan-400", border: "border-cyan-500/30" };
-                    case 'MODS': return { title: t("items") || "ARTIFACTS", icon: "account_balance", color: "text-teal-400", border: "border-teal-500/30" };
-                    case 'BLUEPRINTS': return { title: t("playsets_title") || "BLUEPRINTS", icon: "map", color: "text-blue-400", border: "border-blue-500/30" };
-                    case 'LEXICONS': return { title: t("tab_lexicons") || "LEXICONS", icon: "translate", color: "text-indigo-400", border: "border-indigo-500/30" };
-                    case 'CHAMELEONS': return { title: t("type_theme") || "CHAMELEONS", icon: "palette", color: "text-purple-400", border: "border-purple-500/30" };
-                    case 'TEMPLATES': return { title: t("ql_templates") || "TEMPLATES", icon: "draw", color: "text-pink-400", border: "border-pink-500/30" };
-                    default: return { title: "VIEW", icon: "folder", color: "text-[var(--accent)]", border: "border-[var(--accent)]/30" };
+                    case 'COMM-LINK': return { title: t("tab_commlink"), icon: "satellite_alt", color: "text-cyan-400", border: "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" };
+                    case 'MODS': return { title: t("items"), icon: "account_balance", color: "text-teal-400", border: "border-[color-mix(in_srgb,var(--success)_30%,transparent)]" };
+                    case 'BLUEPRINTS': return { title: t("playsets_title"), icon: "map", color: "text-blue-400", border: "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" };
+                    case 'LEXICONS': return { title: t("tab_lexicons"), icon: "translate", color: "text-indigo-400", border: "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" };
+                    case 'CHAMELEONS': return { title: t("type_theme"), icon: "palette", color: "text-purple-400", border: "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" };
+                    case 'TEMPLATES': return { title: t("ql_templates"), icon: "draw", color: "text-pink-400", border: "border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" };
+                    default: return { title: "VIEW", icon: "folder", color: "text-[var(--accent)]", border: "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" };
                   }
                 };
                 const conf = getTitleConfig();
                 return (
-                  <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3 min-w-[200px] shrink-0">
+                  <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3 min-w-[200px] shrink-0">
                     <div className={`w-12 h-12 rounded-xl glass-panel border ${conf.border} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
                       <span className={`material-symbols-outlined !text-2xl ${conf.color} opacity-90 drop-shadow-lg`}>{conf.icon}</span>
                     </div>
@@ -430,7 +439,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                   <SearchBar
                     value={modSearch}
                     onChange={setModSearch}
-                    placeholder={(activeView === 'COMM-LINK' ? t("mason_search_placeholder") || "Search posts..." : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates") || "Search Templates...") : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))) as string}
+                    placeholder={(activeView === 'COMM-LINK' ? t("mason_search_placeholder") : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates")) : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))) as string}
                     className="w-full flex-1 !h-12 !rounded-2xl"
                   />
                   {activeView !== 'COMM-LINK' && (
@@ -463,8 +472,8 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                               })
                             ));
                             rawOpts = [
-                              { id: "ALL", label: t("all_languages") || "Language", icon: t("icon_folder") },
-                              ...langs.map(l => ({ id: String(l), label: String(l), icon: t("icon_translate") || "translate" }))
+                              { id: "ALL", label: t("all_languages"), icon: t("icon_folder") },
+                              ...langs.map(l => ({ id: String(l), label: String(l), icon: t("icon_translate") }))
                             ];
                           } else if (activeView === 'BLUEPRINTS') {
                             rawOpts = [{ id: "ALL", label: t("filter_all_versions"), icon: t("icon_folder") }];
@@ -506,10 +515,10 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                         localStorage.setItem('sanctuary_hide_paid', String(newVal));
                         setModPage(1);
                       }}
-                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hidePaid ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
+                      className={`px-3 py-1.5 rounded-full text-[9px] font-black capitalize tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hidePaid ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-yellow-500' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                     >
                       <span className="material-symbols-outlined !text-[12px]">{hidePaid ? 'visibility_off' : 'monetization_on'}</span>
-                      {t("filter_hide_paid") || "Hide Paid"}
+                      {t("filter_hide_paid")}
                     </button>
                     <button
                       onClick={() => {
@@ -518,10 +527,10 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                         localStorage.setItem('sanctuary_hide_ea', String(newVal));
                         setModPage(1);
                       }}
-                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideEarlyAccess ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
+                      className={`px-3 py-1.5 rounded-full text-[9px] font-black capitalize tracking-widest transition-all shadow-inner border flex items-center gap-1.5 ${hideEarlyAccess ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-purple-400' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                     >
                       <span className="material-symbols-outlined !text-[12px]">{hideEarlyAccess ? 'visibility_off' : 'science'}</span>
-                      {t("filter_hide_early_access") || "Hide Early Access"}
+                      {t("filter_hide_early_access")}
                     </button>
                   </div>
                 )}

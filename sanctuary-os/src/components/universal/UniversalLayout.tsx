@@ -25,7 +25,7 @@ export function UniversalGroup({
   return (
     <div className={`flex flex-col gap-6 relative mb-2 ${className}`}>
       <div className="flex items-center justify-start border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-        <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${headerColorClass}`}>
+        <h4 className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 ${headerColorClass}`}>
           {icon && <span className="material-symbols-outlined !text-[14px]">{icon}</span>}
           {title}
         </h4>
@@ -63,7 +63,7 @@ export function UniversalSearch({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`w-full h-14 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-[var(--radius)] px-6 pl-12 text-[12px] uppercase tracking-widest font-black text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none bg-black/40 shadow-inner ${inputClassName}`}
+        className={`w-full h-14 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-[var(--radius)] px-6 pl-12 text-[12px] capitalize tracking-widest font-black text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner ${inputClassName}`}
       />
       <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-[20px] pointer-events-none">
         search
@@ -100,7 +100,7 @@ export function UniversalInput({
 }: UniversalInputProps) {
   return (
     <div className={`flex flex-col gap-2 ${wrapperClassName}`}>
-      {label && <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{label}</label>}
+      {label && <label className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{label}</label>}
       <input
         {...rest}
         value={value}
@@ -131,7 +131,7 @@ export function UniversalTextArea({
 }: UniversalTextAreaProps) {
   return (
     <div className={`flex flex-col gap-2 ${wrapperClassName}`}>
-      {label && <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{label}</label>}
+      {label && <label className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{label}</label>}
       <textarea
         {...rest}
         value={value}
@@ -172,7 +172,7 @@ export function UniversalToggle({
   if (layout === "horizontal-reverse") {
     return (
       <div className={`flex items-center justify-start gap-4 w-full ${className}`}>
-        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-80">{label}</span>
+        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80">{label}</span>
         {toggleNode}
       </div>
     );
@@ -182,14 +182,14 @@ export function UniversalToggle({
     return (
       <div className={`flex items-center gap-4 ${className}`}>
         {toggleNode}
-        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-80">{label}</span>
+        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80">{label}</span>
       </div>
     );
   }
 
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
-      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{label}</span>
+      <span className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{label}</span>
       {toggleNode}
     </div>
   );

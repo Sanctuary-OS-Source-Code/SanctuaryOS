@@ -103,9 +103,9 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("workspace_sidebar") || "Environments"}
-      subtitle={t("workspace_select_subtitle") || "Initialize Your Sanctuary Environment"}
-      icon={t("icon_view_quilt") || "view_quilt"}
+      title={t("workspace_sidebar")}
+      subtitle={t("workspace_select_subtitle")}
+      icon={t("icon_view_quilt")}
       widthClass="w-[700px]"
       backdropZ="z-[100000]"
       panelZ="z-[100001]"
@@ -113,21 +113,21 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
       <div className="flex flex-col h-full relative">
         <div className="flex flex-col md:flex-row items-center gap-4 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-6">
           <div className="relative w-full flex-1 min-w-[200px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search") || "search"}</span>
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
             <input
               type="text"
-              placeholder={t("workspace_search") || "Search environments..."}
+              placeholder={t("workspace_search")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40 font-inter"
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40 font-inter"
             />
           </div>
           <button
             onClick={() => { setIsConfigured(false); onClose(); }}
-            className="h-12 px-6 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:border-[var(--accent)] hover:theme-text-accent transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-md shrink-0"
+            className="h-12 px-6 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl text-[11px] font-black capitalize tracking-widest hover:border-[var(--accent)] hover:theme-text-accent transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-md shrink-0"
           >
             <span className="material-symbols-outlined !text-[18px]">view_quilt</span>
-            {t("workspace_all") || "All Workspaces"}
+            {t("workspace_all")}
           </button>
         </div>
 
@@ -143,9 +143,9 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
                 <button
                   key={`ws-${ws.id}-${idx}`}
                   onClick={() => selectWorkspace(ws)}
-                  className={`flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border group transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 ${isActive ? 'border-[var(--accent)]/[50%] bg-[var(--accent)]/[15%] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/[50%] hover:bg-[var(--accent)]/[5%] hover:shadow-md'}`}
+                  className={`flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border group transition-all duration-500 relative overflow-hidden min-h-[160px] text-left hover:-translate-y-1.5 ${isActive ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-md'}`}
                 >
-                  <div className={`absolute inset-0 bg-gradient-to-br from-[var(--accent)]/20 to-transparent transition-opacity duration-700 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                  <div className={`absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-transparent transition-opacity duration-700 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
 
                   <div className="flex justify-start items-start w-full relative z-10 mb-4">
                     <div className="flex items-start gap-4 w-full pr-8">
@@ -153,14 +153,14 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
                         {game.icon ? <img src={game.icon} alt="" className="w-8 h-8 object-contain drop-shadow-md" /> : <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">sports_esports</span>}
                       </div>
                       <div className="flex flex-col pt-1 min-w-0 flex-1">
-                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1 truncate">{isActive ? t("workspace_manage") || 'Active Workspace' : t("workspace_available") || "Configured Workspace"}</span>
-                        <span className="text-[13px] font-black uppercase tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors line-clamp-2 drop-shadow-sm leading-tight">{game.name || ws.name || ws.id}</span>
+                        <span className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1 truncate">{isActive ? t("workspace_manage") : t("workspace_available")}</span>
+                        <span className="text-[13px] font-black capitalize tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors line-clamp-2 drop-shadow-sm leading-tight">{game.name || ws.name || ws.id}</span>
                       </div>
                     </div>
 
                     <div
                       onClick={(e) => togglePin(ws.id, e)}
-                      className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[var(--accent)]/[15%] border-[var(--accent)]/[30%]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
+                      className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
                     >
                       <span className="material-symbols-outlined !text-[16px]" style={{ fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0' }}>keep</span>
                     </div>
@@ -168,7 +168,7 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
 
                   <div className="flex justify-start items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="flex flex-col min-w-0 flex-1 pr-2">
-                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
+                      <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
                       <span className="text-[10px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-1 truncate">
                         <span className="material-symbols-outlined !text-[12px] shrink-0">check_circle</span>
                         <span className="truncate">{t("workspace_configured")}</span>
@@ -180,11 +180,11 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
             })}
 
             {isLoading && (
-              <EmptyState icon={t("icon_sync") || "sync"} title={t("workspace_loading") || "Loading workspaces..."} className="col-span-full py-16 animate-pulse" />
+              <EmptyState icon={t("icon_sync")} title={t("workspace_loading")} className="col-span-full py-16 animate-pulse" />
             )}
 
             {!isLoading && filteredCards.length === 0 && (
-              <EmptyState icon={t("icon_search") || "search_off"} title={t("no_matches") || "No environments found"} className="col-span-full py-16" />
+              <EmptyState icon={t("icon_search")} title={t("no_matches")} className="col-span-full py-16" />
             )}
           </div>
         </div>

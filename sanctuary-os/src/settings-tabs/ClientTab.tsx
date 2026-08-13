@@ -40,7 +40,7 @@ export default function ClientTab() {
   };
 
   return (
-    <TabContainer title={t("tab_preferences") || "Preferences"} icon="tune">
+    <TabContainer title={t("tab_preferences")} icon="tune">
       <SettingsGrid>
         <UniversalCard 
           title={t("local_only")} 
@@ -59,8 +59,8 @@ export default function ClientTab() {
         />
         
         <UniversalCard 
-          title={t("settings_use_internal_browser") || "Internal Mod Browser"} 
-          subtitle={`${t("use_internal_browser_desc") || "Use Sanctuary’s built-in browser for supported artifact/download pages."} ${t("use_internal_browser_desc2") || "Disable this to use your normal browser, extensions, adblockers, and download workflow."}`} 
+          title={t("settings_use_internal_browser")} 
+          subtitle={`${t("use_internal_browser_desc")} ${t("use_internal_browser_desc2")}`} 
           icon="language"
           onClick={() => setUseInternalBrowser(!useInternalBrowser)}
           actions={<SettingsToggle checked={useInternalBrowser} />}
@@ -100,10 +100,10 @@ export default function ClientTab() {
           statusColor="border-red-500"
           onClick={() => {
             localStorage.removeItem('sanctuary_local_overrides');
-            useStore.getState().pushStatus(t("local_overrides_cleared") || "All local overrides have been cleared.");
+            useStore.getState().pushStatus(t("local_overrides_cleared"));
           }}
           actions={
-            <div className="w-10 h-10 rounded-xl bg-[var(--danger)]/10 text-[var(--danger)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">
+            <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">
               <span className="material-symbols-outlined !text-[20px]">warning</span>
             </div>
           }

@@ -413,7 +413,7 @@ export function ContextMenu() {
       >
       {misspelledInfo && (
         <>
-            <div className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20">{t("spell_suggest")}</div>
+            <div className="px-4 py-2 text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20">{t("spell_suggest")}</div>
             {misspelledInfo.suggestions.map((suggestion) => (
                 <button
                     key={suggestion}

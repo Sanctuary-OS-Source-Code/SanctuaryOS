@@ -206,19 +206,19 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                 <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12">
                     <button
                         onClick={() => setActiveTab("pending")}
-                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${activeTab === 'pending' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                     >
                         {t("pending")}
                     </button>
                     <button
                         onClick={() => setActiveTab("open")}
-                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'open' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${activeTab === 'open' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                     >
                         {t("ui_tab_new")}
                     </button>
                     <button
                         onClick={() => setActiveTab("closed")}
-                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'closed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                        className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${activeTab === 'closed' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                     >
                         {t("ui_tab_closed")}
                     </button>
@@ -228,7 +228,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
             <div className="w-full flex flex-col gap-6 px-6 pb-20">
                 {isLoading ? (
                     <div className="flex justify-center items-center h-32 opacity-50">
-                        <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing")}</span>
+                        <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing")}</span>
                     </div>
                 ) : (() => {
                     const filteredTickets = tickets.filter(t => {
@@ -244,17 +244,17 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                     });
 
                     if (filteredTickets.length === 0) return (
-                        <EmptyState icon={searchQuery ? "search_off" : t("icon_celebration") || "celebration"} title={searchQuery ? t("no_matches") : (activeTab === 'open' ? t("no_bug_reports") : t("no_tickets"))} className="col-span-full py-16" />
+                        <EmptyState icon={searchQuery ? "search_off" : t("icon_celebration")} title={searchQuery ? t("no_matches") : (activeTab === 'open' ? t("no_bug_reports") : t("no_tickets"))} className="col-span-full py-16" />
                     );
 
                     return (
                         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                             {filteredTickets.map(ticket => {
-                                const statusClass = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'border-rose-500/50' :
-                                    ticket.status?.toLowerCase() === 'resolved' ? 'border-emerald-500/50' :
-                                        ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-amber-500/50' :
+                                const statusClass = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)]' :
+                                    ticket.status?.toLowerCase() === 'resolved' ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)]' :
+                                        ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' :
                                             ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500/50' :
-                                                'border-[var(--accent)]/50';
+                                                'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]';
 
                                 const iconName = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'support_agent' :
                                     ticket.status?.toLowerCase() === 'resolved' ? 'done_all' :
@@ -262,11 +262,11 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                                             ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' :
                                                 'bug_report';
 
-                                const badgeClass = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 group-hover:bg-rose-500/20' :
-                                    ticket.status?.toLowerCase() === 'resolved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500/20' :
-                                        ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20' :
+                                const badgeClass = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-rose-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' :
+                                    ticket.status?.toLowerCase() === 'resolved' ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-400 border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' :
+                                        ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' :
                                             ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' :
-                                                'bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/20';
+                                                'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
 
                                 return (
                                     <UniversalCard
@@ -277,13 +277,13 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                                         title={ticket.title}
                                         statusColor={statusClass}
                                         badges={[
-                                            <span key="status" className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors ${badgeClass}`}>
+                                            <span key="status" className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors ${badgeClass}`}>
                                                 {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
                                             </span>
                                         ]}
                                         footer={
                                             <div className="flex justify-start items-center w-full">
-                                                <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 opacity-60">
+                                                <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
                                                     <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
                                                     {new Date(ticket.created_at).toLocaleDateString()}
                                                 </span>

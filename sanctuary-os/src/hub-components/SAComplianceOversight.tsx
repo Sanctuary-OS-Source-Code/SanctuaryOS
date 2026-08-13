@@ -191,7 +191,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           />
           <FilterTabButton
             id="stable"
-            label={t("status_dd_stable") || "STABLE"}
+            label={t("status_dd_stable")}
             activeTab={filterStatus}
             setTab={setFilterStatus}
           />
@@ -199,7 +199,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
         <ActionButton
           onClick={() => onOpenManualFlag("")}
-          className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px] !w-auto"
+          className="shrink-0 h-12 px-6 font-black capitalize tracking-widest text-[10px] !w-auto"
           icon={t("icon_flag")}
           label={t("comp_btn_manual_flag")}
         />
@@ -208,7 +208,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
           {loading ? (
-            <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("comp_scanning")}</div>
+            <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning")}</div>
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {filteredMods.map(mod => {
@@ -223,11 +223,11 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                     subtitle={
                       <span className="flex gap-1.5 items-center">
                         <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_person")}</span>
-                        {mod.master_author || t("unknown_mason") || "UNKNOWN MASON"}
+                        {mod.master_author || t("unknown_mason")}
                       </span>
                     }
                     badges={[
-                      <span key="tier" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${td.color}`}>
+                      <span key="tier" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${td.color}`}>
                         {td.label}
                       </span>
                     ]}
@@ -237,14 +237,14 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                           <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_fingerprint")}</span>
                           {mod.id.substring(0, 8)}
                         </span>
-                        <span className="text-[10px] font-black theme-text-accent uppercase opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0">{t("btn_review")} &rarr;</span>
+                        <span className="text-[10px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0">{t("btn_review")} &rarr;</span>
                       </div>
                     }
                   />
                 );
               })}
               {filteredMods.length === 0 && (
-                <EmptyState icon={t("icon_warning_amber") || "warning"} title={t("comp_no_alerts")} className="col-span-full py-16" />
+                <EmptyState icon={t("icon_warning_amber")} title={t("comp_no_alerts")} className="col-span-full py-16" />
               )}
             </div>
           )}
@@ -261,7 +261,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           <div className="flex flex-col gap-4 w-full">
             {status && (
               <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-                <p className={`text-[10px] font-black uppercase tracking-widest ${status.includes('Failed') || status.includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
+                <p className={`text-[10px] font-black capitalize tracking-widest ${status.includes('Failed') || status.includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
               </div>
             )}
             <div className="flex justify-center items-center gap-4 w-full">
@@ -295,13 +295,13 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         <div className="p-6 flex flex-col h-full gap-8">
 
           <div className="flex flex-col gap-3 shrink-0">
-            <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest truncate">
+            <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
               {selectedMod?.name}
             </h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setMetadataMod(selectedMod)}
-                className="text-[10px] font-black uppercase tracking-widest theme-text-accent hover:text-[var(--text)] transition-colors flex items-center gap-1 w-max bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2 py-1 rounded"
+                className="text-[10px] font-black capitalize tracking-widest theme-text-accent hover:text-[var(--text)] transition-colors flex items-center gap-1 w-max bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2 py-1 rounded"
               >
                 <span className="material-symbols-outlined !text-[12px]">{t("icon_edit")}</span>
                 {t("ui_edit_metadata")}
@@ -310,13 +310,13 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           </div>
 
           <div className="flex flex-col gap-6 relative">
-            <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+            <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_policy")}</span>
               {t("comp_enforcement")}
             </h4>
 
             <div className="flex flex-col gap-2 relative z-50">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("assign_tier")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("assign_tier")}</label>
               <CustomComplianceDropdown
                 value={editTier}
                 onChange={setEditTier}
@@ -325,7 +325,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             </div>
 
             <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-40 mt-2">
-              <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+              <label className="text-[9px] font-black text-red-400 capitalize tracking-widest ml-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-md"></span>
                 {t("tier_reason_req")}
               </label>
@@ -333,7 +333,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                 value={editReason}
                 onChange={e => setEditReason(e.target.value)}
                 placeholder={t("comp_reason_placeholder")}
-                className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
+                className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] focus:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
               />
             </div>
           </div>

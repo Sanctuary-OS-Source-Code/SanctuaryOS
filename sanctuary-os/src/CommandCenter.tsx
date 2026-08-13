@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { DashboardStatTile, ViewHeader, isVersionMatch, SidePanel, getHighestVersion, handleOpenUrl, getExtensionRegex, HoverTooltip } from "./shared";
+import { DashboardStatTile, ViewHeader, isVersionMatch, SidePanel, getHighestVersion, handleOpenUrl, getExtensionRegex, HoverTooltip, ActionButton } from "./shared";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
@@ -15,7 +15,7 @@ import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
 import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
 import { UpdatesSidePanel } from './side-panels/CommandCenterSidePanels';
 import MasonPostViewer from "./side-panels/MasonPostViewer";
-import { CommandScreenStats, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenStats, CommandScreenSectionHeading, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 
 export default function CommandCenter({
   isScanning, modsPath, isConfigured, toggleInActiveSet,
@@ -109,32 +109,32 @@ export default function CommandCenter({
 
     const exactMatchMap = new Map();
     const baseMatchMap = new Map();
-    
+
     // Build O(1) lookup maps once
     for (const m of safeList) {
-        if (!m.name) continue;
-        const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
-        exactMatchMap.set(exactKey, m);
-        
-        const baseKey = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
-        if (baseKey) {
-            // Only map the first occurrence to match the behavior of .find()
-            if (!baseMatchMap.has(baseKey)) {
-                baseMatchMap.set(baseKey, m);
-            }
+      if (!m.name) continue;
+      const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
+      exactMatchMap.set(exactKey, m);
+
+      const baseKey = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
+      if (baseKey) {
+        // Only map the first occurrence to match the behavior of .find()
+        if (!baseMatchMap.has(baseKey)) {
+          baseMatchMap.set(baseKey, m);
         }
+      }
     }
 
     return safeMods.map((rawMod: any) => {
       const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
       const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, '');
       const modNameLow = cleanModName.toLowerCase().replace(/\\/g, '/');
-      
+
       const exactMatch = exactMatchMap.get(modNameLow);
       if (exactMatch) return { ...exactMatch, _originalSetName: modName };
 
       const mBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
-      
+
       const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
       if (baseMatch) return { ...baseMatch, _originalSetName: modName };
 
@@ -162,53 +162,53 @@ export default function CommandCenter({
     });
 
     return activeBlueprintMods.reduce((acc: { broken: number, unstable: number }, m: any) => {
-    if (!m || m.isFallback) return acc;
-    let isBroken = typeof m.status === 'string' && m.status.toLowerCase() === 'broken';
-    if (isBroken && m.compatible_versions && m.compatible_versions.length > 0 && selectedVersion) {
-      if (selectedVersion !== getHighestVersion(m.compatible_versions)) {
-        isBroken = false;
+      if (!m || m.isFallback) return acc;
+      let isBroken = typeof m.status === 'string' && m.status.toLowerCase() === 'broken';
+      if (isBroken && m.compatible_versions && m.compatible_versions.length > 0 && selectedVersion) {
+        if (selectedVersion !== getHighestVersion(m.compatible_versions)) {
+          isBroken = false;
+        }
       }
-    }
-    const isUnstable = typeof m.status === 'string' && m.status.toLowerCase() === 'unstable';
-    const isMismatch = m.isGhosted === true && m.ghostReason === "VERSION_MISMATCH" || (m.compatible_versions && m.compatible_versions.length > 0 && selectedVersion && !isVersionMatch(m.compatible_versions, selectedVersion));
+      const isUnstable = typeof m.status === 'string' && m.status.toLowerCase() === 'unstable';
+      const isMismatch = m.isGhosted === true && m.ghostReason === "VERSION_MISMATCH" || (m.compatible_versions && m.compatible_versions.length > 0 && selectedVersion && !isVersionMatch(m.compatible_versions, selectedVersion));
 
-    let hasMissingDLC = false;
-    if (m.requiredDLC) {
-      let rawDLC: string[] = [];
-      if (typeof m.requiredDLC === 'string') {
-        rawDLC = m.requiredDLC.split(',').map((s: string) => s.trim());
-      } else if (Array.isArray(m.requiredDLC)) {
-        rawDLC = [...m.requiredDLC];
+      let hasMissingDLC = false;
+      if (m.requiredDLC) {
+        let rawDLC: string[] = [];
+        if (typeof m.requiredDLC === 'string') {
+          rawDLC = m.requiredDLC.split(',').map((s: string) => s.trim());
+        } else if (Array.isArray(m.requiredDLC)) {
+          rawDLC = [...m.requiredDLC];
+        }
+        const activeDLC = ownedDLC.filter((d: string) => !maskedDLC.includes(d));
+        hasMissingDLC = rawDLC.some((req: string) => {
+          const cleanReq = req.toUpperCase().trim();
+          if (cleanReq === 'BASE') return false;
+          return !activeDLC.some((owned: string) => owned.toUpperCase() === cleanReq);
+        });
       }
-      const activeDLC = ownedDLC.filter((d: string) => !maskedDLC.includes(d));
-      hasMissingDLC = rawDLC.some((req: string) => {
-        const cleanReq = req.toUpperCase().trim();
-        if (cleanReq === 'BASE') return false;
-        return !activeDLC.some((owned: string) => owned.toUpperCase() === cleanReq);
-      });
-    }
 
-    let hasMissingDeps = false;
-    if (m.dependencies) {
-      let rawDeps: string[] = [];
-      if (typeof m.dependencies === 'string') {
-        rawDeps = m.dependencies.split(',').map((s: string) => s.trim());
-      } else if (Array.isArray(m.dependencies)) {
-        rawDeps = [...m.dependencies];
+      let hasMissingDeps = false;
+      if (m.dependencies) {
+        let rawDeps: string[] = [];
+        if (typeof m.dependencies === 'string') {
+          rawDeps = m.dependencies.split(',').map((s: string) => s.trim());
+        } else if (Array.isArray(m.dependencies)) {
+          rawDeps = [...m.dependencies];
+        }
+        if (rawDeps.length > 0) {
+          hasMissingDeps = rawDeps.some((req: string) => !activeModNamesSet.has(req.toLowerCase()));
+        }
       }
-      if (rawDeps.length > 0) {
-        hasMissingDeps = rawDeps.some((req: string) => !activeModNamesSet.has(req.toLowerCase()));
-      }
-    }
 
-    if (isBroken || isMismatch || hasMissingDLC || hasMissingDeps) {
-      acc.broken += 1;
-    } else if (isUnstable) {
-      acc.unstable += 1;
-    }
-    
-    return acc;
-  }, { broken: 0, unstable: 0 }) || { broken: 0, unstable: 0 };
+      if (isBroken || isMismatch || hasMissingDLC || hasMissingDeps) {
+        acc.broken += 1;
+      } else if (isUnstable) {
+        acc.unstable += 1;
+      }
+
+      return acc;
+    }, { broken: 0, unstable: 0 }) || { broken: 0, unstable: 0 };
   }, [activeBlueprintMods, selectedVersion, ownedDLC, maskedDLC]);
 
   const activeConflictCount = React.useMemo(() => {
@@ -220,10 +220,10 @@ export default function CommandCenter({
       const stored = localStorage.getItem("sanctuary_local_conflicts");
       if (stored) {
         const localConflicts = JSON.parse(stored);
-        
+
         localConflicts.forEach((lc: any) => {
           if (ignoredGlobal.includes(lc.mod_pair)) return;
-          
+
           const modAMatch = activeBlueprintMods.find((em: any) => {
             if (em.isFallback) return false;
             const cleanN = String(em.name || '').toUpperCase();
@@ -276,49 +276,51 @@ export default function CommandCenter({
 
   return (
     <div className="flex flex-col gap-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <ViewHeader title={t("center_title")} subtitle={t("center_subtitle")} icon={t("icon_desktop_windows")} iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" />
+      <ViewHeader title={t("center_title")} subtitle={t("center_subtitle")} icon={t("icon_desktop_windows")} iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
 
       <CommandScreenStats>
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined !text-4xl">{t("icon_radar")}</span>}
+          icon={<span className="material-symbols-outlined ">{radarState === 'optimal' ? t("icon_check_circle") : t("icon_warning")}</span>}
           number={
-            (radarTier4Count + radarTier3Count + radarBrokenCount + radarUnstableCount) > 0
+            activeGameSchema?.features?.has_cc === false ? "-" :
+            ((radarTier4Count + radarTier3Count + radarBrokenCount + radarUnstableCount) > 0
               ? (radarTier4Count + radarTier3Count + radarBrokenCount + radarUnstableCount)
-              : (radarUpdatesCount > 0 ? radarUpdatesCount : 0)
+              : (radarUpdatesCount > 0 ? radarUpdatesCount : 0))
           }
           label={
-            radarState === 'critical' ? (t("crit_fail")) :
+            activeGameSchema?.features?.has_cc === false ? t("radar_title") :
+            (radarState === 'critical' ? (t("crit_fail")) :
               radarState === 'warning' ? (t("action_rec")) :
                 radarState === 'update' ? (t("updates_avail")) :
-                  (t("sys_stable"))
+                  (t("sys_stable")))
           }
           colorClass={
-            radarState === 'critical' ? "border-red-500/30 text-red-500 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20" :
-              radarState === 'warning' ? "border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" :
-                radarState === 'update' ? "border-[var(--accent)]/[30%] text-[var(--accent)] hover:border-[var(--accent)] bg-[var(--accent)]/[10%] hover:bg-[var(--accent)]/[20%]" :
-                  "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
+            radarState === 'critical' ? "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors duration-300" :
+              radarState === 'warning' ? "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:border-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] transition-colors duration-300" :
+                radarState === 'update' ? "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors duration-300" :
+                  "border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] transition-colors duration-300"
           }
           onClick={() => setIsConflictRadarOpen(true)}
         />
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined !text-4xl">{t("icon_account_balance")}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_account_balance")}</span>}
           number={activeGameSchema?.features?.has_cc === false ? "-" : (modList?.length || 0)}
           label={t("vault_title")}
-          colorClass="border-teal-500/30 text-teal-500 hover:border-teal-500 bg-teal-500/10 hover:bg-teal-500/20"
+          colorClass="text-[var(--accent)]"
           onClick={() => { if (activeGameSchema?.features?.has_cc !== false) { if (setView) setView("vault"); if (setFilterStatus) setFilterStatus("ALL"); } }}
         />
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined !text-4xl">{t("icon_hub")}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_hub")}</span>}
           number={nexusCount}
           label={t("market_title")}
-          colorClass="border-cyan-500/30 text-cyan-500 hover:border-cyan-500 bg-cyan-500/10 hover:bg-cyan-500/20"
+          colorClass="text-[var(--text)]"
           onClick={() => { if (setView) setView("nexus"); }}
         />
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined !text-4xl">{t("icon_map")}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_map")}</span>}
           number={activeGameSchema?.features?.has_cc === false ? "-" : (playSets?.length || 0)}
           label={t("stat_blueprints")}
-          colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20"
+          colorClass="text-[var(--accent)]"
           onClick={() => { if (activeGameSchema?.features?.has_cc !== false) setIsBlueprintSwapOpen(true); }}
         />
         <div className="relative group/ticket flex-1 flex min-w-[200px] xl:min-w-[250px]">
@@ -331,200 +333,190 @@ export default function CommandCenter({
             />
           )}
           <DashboardStatTile
-            icon={<span className="material-symbols-outlined !text-4xl">{t("icon_local_activity")}</span>}
+            icon={<span className="material-symbols-outlined ">{t("icon_local_activity")}</span>}
             number={ticketCount}
             label={t("sidebar_support")}
-            colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20"
+            colorClass="text-[var(--text)]"
             onClick={() => { if (setIsCitizenTicketsOpen) setIsCitizenTicketsOpen(true); }}
             disabled={!session}
           />
         </div>
       </CommandScreenStats>
 
-      {urgentBroadcast && localStorage.getItem("sanctuary_notify_alert_banner") !== "false" && (
-        <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full border border-[var(--danger)]/30 bg-[var(--danger)]/10 rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center gap-6 shadow-md cursor-pointer hover:bg-[var(--danger)]/20 transition-all group overflow-hidden relative backdrop-blur-md">
-          <div className="absolute inset-0 bg-gradient-to-r from-[var(--danger)]/5 to-transparent z-0 pointer-events-none" />
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--danger)]/10 blur-[50px] rounded-[var(--radius)] pointer-events-none" />
-          <div className="w-16 h-16 rounded-[var(--radius)] bg-[var(--danger)]/10 border border-[var(--danger)]/30 flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform shadow-inner">
-            <span className="material-symbols-outlined !text-4xl text-[var(--danger)] animate-pulse">{t("icon_warning_amber")}</span>
-          </div>
-          <div className="flex flex-col gap-2 flex-1 z-10">
-            <div className="flex items-center gap-3">
-              <span className="px-3 py-1 bg-[var(--danger)]/20 border border-[var(--danger)]/40 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest rounded-[calc(var(--radius)-4px)] shadow-inner animate-pulse flex items-center gap-1"><span className="material-symbols-outlined !text-[12px]"></span>{t("urgent_alert")}</span>
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-60 text-[var(--danger)]">{new Date(urgentBroadcast.created_at).toLocaleDateString()}</span>
+      {/* Main Content Area: Feed and Quick Actions */}
+      <div className="flex flex-col xl:flex-row gap-6 mt-8 relative z-20">
+
+        {/* Left Column: Feed & Alerts */}
+        <div className="flex-1 min-w-0 flex flex-col gap-6">
+
+          {/* CRITICAL SYSTEM ALERTS */}
+          {(urgentBroadcast && localStorage.getItem("sanctuary_notify_alert_banner") !== "false" || hasSymlinkPerms === false || radarState !== 'optimal') && (
+            <div className="flex flex-col gap-3 w-full">
+
+              {urgentBroadcast && localStorage.getItem("sanctuary_notify_alert_banner") !== "false" && (
+                <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="relative w-full rounded-2xl p-4 md:px-6 overflow-hidden flex flex-col md:flex-row md:items-center gap-4 cursor-pointer hover:brightness-110 transition-all group z-20 shadow-md border glass-surface" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 8%, transparent)', borderColor: 'color-mix(in srgb, var(--danger) 30%, transparent)' }}>
+                  <div className="absolute top-0 left-0 w-[400px] h-[400px] rounded-full blur-[80px] opacity-20 pointer-events-none -translate-x-1/2 -translate-y-1/2 bg-[var(--danger)] group-hover:opacity-30 transition-opacity duration-500" />
+
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 relative bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)]">
+                      <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-[var(--danger)]" />
+                      <span className="material-symbols-outlined !text-[28px] drop-shadow-md text-[var(--danger)]">{t("icon_warning_amber")}</span>
+                    </div>
+
+                    <div className="flex flex-col">
+                      <h3 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--danger)]">{t("urgent_alert")}</h3>
+                      <p className="text-sm font-bold text-[var(--text)] tracking-wide group-hover:text-[var(--danger)] transition-colors line-clamp-1">{urgentBroadcast.title}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center md:ml-auto relative z-10">
+                    <button onClick={(e) => { e.stopPropagation(); localStorage.setItem('sanctuary_dismissed_alert_id', String(urgentBroadcast.id)); setUrgentBroadcast(null); }} className="w-9 h-9 rounded-full flex items-center justify-center text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] transition-all active:scale-95 group/close" >
+                      <span className="material-symbols-outlined !text-[20px] group-hover/close:rotate-90 transition-transform duration-300">close</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {hasSymlinkPerms === false && (
+                <div className="relative w-full rounded-2xl p-4 md:px-6 overflow-hidden flex flex-col md:flex-row md:items-center gap-4 cursor-default z-20 shadow-md border glass-surface" style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 8%, transparent)', borderColor: 'color-mix(in srgb, var(--warning) 30%, transparent)' }}>
+                  <div className="absolute top-0 left-0 w-[400px] h-[400px] rounded-full blur-[80px] opacity-20 pointer-events-none -translate-x-1/2 -translate-y-1/2 bg-[var(--warning)]" />
+
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 relative bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border border-[color-mix(in_srgb,var(--warning)_40%,transparent)]">
+                      <span className="material-symbols-outlined !text-[28px] drop-shadow-md text-[var(--warning)]">{t("icon_warning_amber")}</span>
+                    </div>
+
+                    <div className="flex flex-col">
+                      <h3 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--warning)]">{t("perm_restricted")}</h3>
+                      <p className="text-sm font-bold text-[var(--text)] tracking-wide line-clamp-1">{t("perm_desc")}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 md:ml-auto relative z-10">
+                    <button onClick={() => invoke("open_developer_settings")} className="h-9 px-4 rounded-full border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] transition-all flex items-center gap-2 shadow-sm font-black capitalize tracking-widest text-[10px]">
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_settings")}</span>
+                      <span>{t("perm_btn_dev")}</span>
+                    </button>
+                    <button onClick={checkPerms} className="w-9 h-9 rounded-full flex items-center justify-center text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] transition-all shadow-sm group/refresh" >
+                      <span className="material-symbols-outlined !text-[18px] group-hover/refresh:rotate-180 transition-transform duration-500">{t("icon_refresh")}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {radarState !== 'optimal' && (() => {
+                const alertVar = radarState === 'critical' ? 'var(--danger)' : radarState === 'warning' ? 'var(--warning)' : 'var(--accent)';
+                const alertIcon = radarState === 'critical' ? 'gpp_bad' : radarState === 'warning' ? 'gpp_maybe' : 'update';
+
+                return (
+                  <div className="relative w-full rounded-2xl p-4 md:px-6 overflow-hidden flex flex-col md:flex-row md:items-center gap-4 z-20 shadow-md border group/radar glass-surface" style={{ backgroundColor: `color-mix(in srgb, ${alertVar} 8%, transparent)`, borderColor: `color-mix(in srgb, ${alertVar} 30%, transparent)` }}>
+                    <div className="absolute top-0 left-0 w-[400px] h-[400px] rounded-full blur-[80px] opacity-20 pointer-events-none -translate-x-1/2 -translate-y-1/2 transition-opacity duration-500 group-hover/radar:opacity-30" style={{ backgroundColor: alertVar }} />
+
+                    <div className="flex items-center gap-4 relative z-10">
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 relative" style={{ backgroundColor: `color-mix(in srgb, ${alertVar} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${alertVar} 40%, transparent)` }}>
+                        {radarState === 'critical' && <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ backgroundColor: alertVar }} />}
+                        <span className="material-symbols-outlined !text-[28px] drop-shadow-md" style={{ color: alertVar }}>{t(`ui_icon_${alertIcon}`) || alertIcon}</span>
+                      </div>
+
+                      <div className="flex flex-col">
+                        <h3 className="text-[10px] font-black capitalize tracking-[0.2em]" style={{ color: alertVar }}>
+                          {radarState === 'critical' ? t("action_fatal") : radarState === 'warning' ? t("action_incompatibilities") : t("attention_required")}
+                        </h3>
+                        <p className="text-sm font-bold text-[var(--text)] tracking-wide line-clamp-1">
+                          {radarState === 'critical' ? t("critical_action_short") : radarState === 'warning' ? t("action_rec") : t("update_suggested")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 md:ml-auto relative z-10 shrink-0">
+                      {activeUpdates.length > 0 && (
+                        <button onClick={() => setShowUpdatesModal(true)} title={`${activeUpdates.length} ${t("updates_modal_title")}`} className="h-10 px-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] transition-all flex items-center justify-center gap-2 shadow-sm font-black text-sm">
+                          <span className="material-symbols-outlined !text-[18px]">{t("icon_update")}</span>
+                          <span>{activeUpdates.length}</span>
+                        </button>
+                      )}
+
+                      {(radarBrokenCount + radarUnstableCount) > 0 && (
+                        <button onClick={() => setShowIncompatiblePanel(true)} title={`${radarBrokenCount} ${t("status_broken")} / ${radarUnstableCount} ${t("label_unstable")}`} className="h-10 px-4 rounded-xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] transition-all flex items-center justify-center gap-3 shadow-sm font-black text-sm">
+                          {radarBrokenCount > 0 && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined !text-[18px]">gpp_bad</span>
+                              <span>{radarBrokenCount}</span>
+                            </div>
+                          )}
+                          {radarBrokenCount > 0 && radarUnstableCount > 0 && <div className="w-[1px] h-4 bg-[var(--danger)] opacity-30" />}
+                          {radarUnstableCount > 0 && (
+                            <div className="flex items-center gap-1.5 opacity-80">
+                              <span className="material-symbols-outlined !text-[18px]">gpp_maybe</span>
+                              <span>{radarUnstableCount}</span>
+                            </div>
+                          )}
+                        </button>
+                      )}
+
+                      {activeConflictCount.total > 0 && (
+                        <button onClick={() => setShowConflictsPanel(true)} title={`${activeConflictCount.tier4} ${t("stat_tier4")} / ${activeConflictCount.tier3} ${t("stat_tier3")}`} className="h-10 px-4 rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] transition-all flex items-center justify-center gap-3 shadow-sm font-black text-sm">
+                          {activeConflictCount.tier4 > 0 && (
+                            <div className="flex items-center gap-1.5 text-[var(--danger)]">
+                              <span className="material-symbols-outlined !text-[18px]">gpp_bad</span>
+                              <span>{activeConflictCount.tier4}</span>
+                            </div>
+                          )}
+                          {activeConflictCount.tier4 > 0 && activeConflictCount.tier3 > 0 && <div className="w-[1px] h-4 bg-[var(--warning)] opacity-30" />}
+                          {activeConflictCount.tier3 > 0 && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined !text-[18px]">{t("icon_warning_amber")}</span>
+                              <span>{activeConflictCount.tier3}</span>
+                            </div>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
-            <h3 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--danger)] group-hover:text-red-400 transition-colors drop-shadow-md">{urgentBroadcast.title}</h3>
+          )}
+
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl glass-panel text-[var(--accent)] flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined !text-[20px]">satellite_alt</span>
+            </div>
+            <h2 className="text-lg font-black capitalize tracking-widest text-[var(--text)]">Comm-Link Feed</h2>
           </div>
-          <div className="flex items-center gap-2 z-10 ml-auto">
-            <button onClick={(e) => { e.stopPropagation(); localStorage.setItem('sanctuary_dismissed_alert_id', String(urgentBroadcast.id)); setUrgentBroadcast(null); }} className="w-10 h-10 rounded-[calc(var(--radius)-4px)] border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] flex items-center justify-center transition-colors shadow-inner backdrop-blur-md hover:scale-110 active:scale-95 group/close" >
-              <span className="material-symbols-outlined !text-[20px] group-hover/close:rotate-90 transition-transform duration-300">close</span>
-            </button>
-          </div>
+          <MasonFeed onOpenMasonProfile={handleOpenMasonProfile} noCardWrapper={true} gridCols="grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3" />
         </div>
-      )}
 
-      {hasSymlinkPerms === false && (
-        <div className="w-full glass-panel rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-start md:items-center justify-start gap-6 relative overflow-hidden transition-all duration-500 animate-in fade-in zoom-in-95 backdrop-blur-md group"
-          style={{
-            borderColor: `color-mix(in srgb, var(--danger) 30%, transparent)`,
-            borderWidth: '1px',
-            backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)`,
-            boxShadow: `0 0 40px rgba(239, 68, 68, 0.1)`
-          }}>
-          <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: `linear-gradient(90deg, color-mix(in srgb, var(--danger) 5%, transparent), transparent)` }} />
-          <div className="absolute top-0 right-0 w-32 h-32 blur-[50px] rounded-[var(--radius)] pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)` }} />
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-start gap-6 w-full z-10 pl-2">
-            <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-[var(--radius)] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)`, borderColor: `color-mix(in srgb, var(--danger) 30%, transparent)`, color: 'var(--danger)', borderWidth: '1px' }}>
-                <span className="material-symbols-outlined !text-[32px] animate-pulse">{t("icon_warning_amber")}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <h3 className="text-xl font-black uppercase text-[var(--danger)] tracking-widest leading-none drop-shadow-md">{t("perm_restricted")}</h3>
-                <p className="text-xs font-bold text-[var(--subtext)] tracking-wide">{t("perm_desc")}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] mt-1">{t("perm_dev_mode_rec")} - {t("perm_dev_mode_nav")}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto items-end mt-4 md:mt-0">
-              <div className="flex items-stretch gap-3 w-full h-[56px]">
-                <button onClick={() => invoke("open_developer_settings")} className="flex-1 md:flex-none px-8 flex items-center justify-center bg-red-500/[10%] border border-red-500/[50%] text-[var(--danger)] hover:bg-red-500/[20%] shadow-md rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-center backdrop-blur-[3px]">
-                  {t("perm_btn_dev")}
-                </button>
-                <button onClick={checkPerms} className="px-6 flex items-center justify-center bg-red-500/[10%] border border-red-500/[50%] text-[var(--danger)] hover:bg-red-500/[20%] shadow-md rounded-xl text-xl transition-all backdrop-blur-[3px]">
-                  <span className="material-symbols-outlined">{t("icon_refresh")}</span>
-                </button>
-              </div>
-              <p className="text-[9px] text-[var(--subtext)] font-bold tracking-widest text-right mt-1">{t("perm_admin_rec")} - {t("perm_admin")}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {radarState !== 'optimal' && (() => {
-        const alertVar = radarState === 'critical' ? 'var(--danger)' : radarState === 'warning' ? 'var(--warning)' : 'var(--accent)';
-        const alertVarRgb = radarState === 'critical' ? '239, 68, 68' : radarState === 'warning' ? '234, 179, 8' : '59, 130, 246';
-        const alertIcon = radarState === 'critical' ? 'gpp_bad' : radarState === 'warning' ? 'gpp_maybe' : 'update';
-
-        return (
-          <div className="w-full glass-panel rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center justify-start gap-6 relative overflow-hidden transition-all duration-500 animate-in fade-in zoom-in-95 backdrop-blur-md group"
-            style={{
-              borderColor: `color-mix(in srgb, ${alertVar} 30%, transparent)`,
-              borderWidth: '1px',
-              backgroundColor: `color-mix(in srgb, ${alertVar} 10%, transparent)`,
-              boxShadow: `0 0 40px rgba(${alertVarRgb}, 0.1)`
-            }}>
-            <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${alertVar} 5%, transparent), transparent)` }} />
-            <div className="absolute top-0 right-0 w-32 h-32 blur-[50px] rounded-full pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, ${alertVar} 10%, transparent)` }} />
-
-            <div className="flex items-center gap-6 z-10 pl-2">
-              <div className="w-14 h-14 rounded-[var(--radius)] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform" style={{ backgroundColor: `color-mix(in srgb, ${alertVar} 10%, transparent)`, borderColor: `color-mix(in srgb, ${alertVar} 30%, transparent)`, color: alertVar, borderWidth: '1px' }}>
-                <span className="material-symbols-outlined !text-[32px] animate-pulse">{t(`ui_icon_${alertIcon}`) || alertIcon}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <h3 className="text-xl font-black uppercase tracking-widest drop-shadow-md" style={{ color: alertVar }}>
-                  {radarState === 'critical' ? (t("critical_action_short")) :
-                    radarState === 'warning' ? (t("action_rec")) :
-                      (t("update_suggested"))}
-                </h3>
-                <p className="text-[10px] font-bold text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">
-                  {radarState === 'critical' ? (t("action_fatal")) :
-                    radarState === 'warning' ? (t("action_incompatibilities")) :
-                      (t("attention_required"))}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 z-10 flex-wrap">
-              <button onClick={() => { if (activeUpdates.length > 0) setShowUpdatesModal(true); }} disabled={!(activeUpdates.length > 0)} className={`px-6 py-3 rounded-[var(--radius)] flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${activeUpdates.length > 0 ? 'bg-[var(--accent)]/[10%] border-[var(--accent)]/[50%] text-[var(--accent)] hover:bg-[var(--accent)]/[20%] shadow-md' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
-                <span className="material-symbols-outlined !text-sm">{t("icon_update")}</span> {activeUpdates.length} {t("updates_modal_title")}
-              </button>
-              <button onClick={() => { if ((radarBrokenCount + radarUnstableCount) > 0) setShowIncompatiblePanel(true); }} disabled={(radarBrokenCount + radarUnstableCount) === 0} className={`px-6 py-3 rounded-[var(--radius)] flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${(radarBrokenCount + radarUnstableCount) > 0 ? (radarBrokenCount > 0 ? 'bg-red-500/[10%] border-red-500/[50%] text-[var(--danger)] hover:bg-red-500/[20%] shadow-md' : 'bg-orange-500/[10%] border-orange-500/[50%] text-[var(--warning)] hover:bg-orange-500/[20%] shadow-md') : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
-                <span className="material-symbols-outlined !text-sm">{radarBrokenCount > 0 ? "gpp_bad" : (radarUnstableCount > 0 ? "gpp_maybe" : "warning_amber")}</span> {radarBrokenCount > 0 && radarUnstableCount > 0 ? `${radarBrokenCount} ${t("status_broken")} / ${radarUnstableCount} ${t("label_unstable")}` : radarBrokenCount > 0 ? `${radarBrokenCount} ${t("status_broken")}` : radarUnstableCount > 0 ? `${radarUnstableCount} ${t("label_unstable")}` : `0 ${t("citizen_action_incompatible")}`}
-              </button>
-              <button onClick={() => { if (activeConflictCount.total > 0) setShowConflictsPanel(true); }} disabled={activeConflictCount.total === 0} className={`px-6 py-3 rounded-[var(--radius)] flex items-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap ${activeConflictCount.total > 0 ? (activeConflictCount.tier4 > 0 ? 'bg-red-500/[10%] border-red-500/[50%] text-[var(--danger)] hover:bg-red-500/[20%] shadow-md' : 'bg-orange-500/[10%] border-orange-500/[50%] text-[var(--warning)] hover:bg-orange-500/[20%] shadow-md') : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-50 cursor-not-allowed'}`}>
-                <span className="material-symbols-outlined !text-sm">{activeConflictCount.tier4 > 0 ? "crisis_alert" : (activeConflictCount.tier3 > 0 ? "tune" : "radar")}</span>
-                {activeConflictCount.total > 0 ? (
-                  activeConflictCount.tier4 > 0 && activeConflictCount.tier3 > 0 ?
-                    `${activeConflictCount.tier4} ${t("stat_tier4")} / ${activeConflictCount.tier3} ${t("stat_tier3")}` :
-                    activeConflictCount.tier4 > 0 ?
-                      `${activeConflictCount.tier4} ${t("stat_tier4")}` :
-                      `${activeConflictCount.tier3} ${t("stat_tier3")}`
-                ) : (
-                  `${activeConflictCount.total} ${t("tab_matrix")}`
-                )}
-              </button>
-            </div>
-          </div>
-        );
-      })()}
-
-      <div className="flex flex-col lg:flex-row gap-8 w-full">
-        <div className="flex-1 flex flex-col gap-6 min-w-0">
-          <CommandScreenSectionHeading title={t("feed_title")} icon={t("icon_satellite_alt")} />
-
-          <div className="w-full">
-            <MasonFeed onOpenMasonProfile={handleOpenMasonProfile} noCardWrapper={true} gridCols="grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3" />
-          </div>
-        </div>
+        {/* Right Column: Quick Actions */}
         <div className="w-full lg:w-[420px] shrink-0 flex flex-col gap-6">
           <CommandScreenSectionHeading title={t("quick_actions")} icon={t("icon_bolt")} />
 
           <div className="flex flex-col gap-4">
-            {urgentBroadcast && (
-              <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden h-24">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-                <div className="flex items-center gap-5 h-full">
-                  <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border flex items-center justify-center shrink-0 transition-colors border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 text-[var(--danger)] shadow-md">
-                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 animate-pulse drop-shadow-md">
-                      priority_high
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                    <h3 className="text-[11px] font-black uppercase tracking-widest transition-colors truncate text-[var(--danger)] group-hover:text-red-400">{t("title_sanctuary_alerts") || "Sanctuary Alerts"}</h3>
-                    <span className="text-[8px] uppercase font-bold tracking-widest transition-colors flex items-center gap-2 mt-1 text-[var(--danger)]/80 group-hover:text-red-300"> {t("urgent_alert_active") || "Urgent Alert Active"}
-                    </span>
-                  </div>
-                </div>
-              </button>
+            {activeGameSchema?.features?.has_cc !== false && (
+              <CommandScreenQuickLink
+                icon={t("icon_radar")}
+                title={(t("btn_radar")).replace(/^[^\w]*/, '').trim()}
+                subtitle={t("btn_radar_desc")}
+                onClick={() => runRadarSweep(false)}
+                textColorClass="text-[color-mix(in_srgb,var(--success)_80%,transparent)]"
+                hoverTextColorClass="group-hover:text-emerald-400"
+                iconShadowClass="drop-shadow-md"
+                iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]"
+              />
             )}
 
             {activeGameSchema?.features?.has_cc !== false && (
-              <button onClick={() => runRadarSweep(false)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border border-emerald-500/20 flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">
-                      {t("icon_radar")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{(t("btn_radar")).replace(/^[^\w]*/, '').trim()}</span>
-                    <span className="text-[9px] uppercase font-bold text-emerald-500/80 tracking-widest group-hover:text-emerald-400 transition-colors flex items-center gap-2 mt-1">{t("btn_radar_desc")}
-                    </span>
-                  </div>
-                </div>
-              </button>
+              <CommandScreenQuickLink
+                icon={shelterActive ? t("icon_lock") : t("icon_lock_open")}
+                title={shelterActive ? ((t("btn_reclaim")).replace(/^[^\w]*/, '').trim()) : ((t("btn_lockdown")).replace(/^[^\w]*/, '').trim())}
+                subtitle={shelterActive ? t("btn_bunker_unlock_desc") : t("btn_bunker_lock_desc")}
+                onClick={() => triggerShelter(!shelterActive)}
+                textColorClass="text-[color-mix(in_srgb,var(--accent)_80%,transparent)]"
+                hoverTextColorClass="group-hover:text-cyan-400"
+                iconShadowClass="drop-shadow-md"
+                iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+              />
             )}
-
-            {activeGameSchema?.features?.has_cc !== false && (
-              <button onClick={() => triggerShelter(!shelterActive)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border border-cyan-500/20 flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">
-                      {shelterActive ? (t("icon_lock")) : (t("icon_lock_open"))}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{shelterActive ? ((t("btn_reclaim")).replace(/^[^\w]*/, '').trim()) : ((t("btn_lockdown")).replace(/^[^\w]*/, '').trim())}</span>
-                    <span className="text-[9px] uppercase font-bold text-cyan-500/80 tracking-widest group-hover:text-cyan-400 transition-colors flex items-center gap-2 mt-1">{shelterActive ? (t("btn_bunker_unlock_desc")) : (t("btn_bunker_lock_desc"))}
-                    </span>
-                  </div>
-                </div>
-              </button>
-            )}
-
-
 
             <div className="relative group/supportdesk w-full">
               {!session && (
@@ -535,60 +527,46 @@ export default function CommandCenter({
                   className="group-hover/supportdesk:flex z-[1000]"
                 />
               )}
-              <button onClick={() => { if (setIsSupportDeskOpen && session) setIsSupportDeskOpen(true); }} className={`w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] transition-all text-left group relative overflow-hidden ${session ? 'hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border border-rose-500/20 flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">
-                      {t("icon_local_activity")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{t("support_title")}</span>
-                    <span className="text-[9px] uppercase font-bold text-purple-500/80 tracking-widest group-hover:text-purple-400 transition-colors flex items-center gap-2 mt-1">{t("btn_submit_ticket_desc")}
-                    </span>
-                  </div>
-                </div>
-              </button>
+              <div className={!session ? 'opacity-50 cursor-not-allowed' : ''}>
+                <CommandScreenQuickLink
+                  icon={t("icon_local_activity")}
+                  title={t("support_title")}
+                  subtitle={t("btn_submit_ticket_desc")}
+                  onClick={() => { if (setIsSupportDeskOpen && session) setIsSupportDeskOpen(true); }}
+                  textColorClass="text-[color-mix(in_srgb,var(--accent)_80%,transparent)]"
+                  hoverTextColorClass="group-hover:text-purple-400"
+                  iconShadowClass="drop-shadow-md"
+                  iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                />
+              </div>
             </div>
 
-            <button onClick={() => setIsAuditLogsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-              <div className="flex items-center gap-5">
-                <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border border-blue-500/20 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">
-                    history
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">{t("audit_title")}</span>
-                  <span className="text-[9px] uppercase font-bold text-blue-500/80 tracking-widest group-hover:text-blue-400 transition-colors flex items-center gap-2 mt-1">{t("audit_logs_desc")}
-                  </span>
-                </div>
-              </div>
-            </button>
+            <CommandScreenQuickLink
+              icon="history"
+              title={t("audit_title")}
+              subtitle={t("audit_logs_desc")}
+              onClick={() => setIsAuditLogsOpen(true)}
+              textColorClass="text-[color-mix(in_srgb,var(--accent)_80%,transparent)]"
+              hoverTextColorClass="group-hover:text-blue-400"
+              iconShadowClass="drop-shadow-md"
+              iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+            />
 
             {!urgentBroadcast && (
-              <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative overflow-hidden h-24">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-                <div className="flex items-center gap-5 h-full">
-                  <div className="w-12 h-12 rounded-[var(--radius)] glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-amber-500/30">
-                    <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">
-                      warning_off
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                    <h3 className="text-[11px] font-black uppercase tracking-widest transition-colors truncate text-[var(--text)] group-hover:text-amber-500">{t("title_sanctuary_alerts") || "Sanctuary Alerts"}</h3>
-                    <span className="text-[8px] uppercase font-bold tracking-widest transition-colors flex items-center gap-2 mt-1 text-amber-500/80 group-hover:text-amber-400">
-                      {t("alert_empty") || "SYSTEM BROADCASTS"}
-                    </span>
-                  </div>
-                </div>
-              </button>
+              <CommandScreenQuickLink
+                icon="warning_off"
+                title={t("title_sanctuary_alerts") || "Sanctuary Alerts"}
+                subtitle={t("alert_empty") || "SYSTEM BROADCASTS"}
+                onClick={() => setIsAlertsOpen(true)}
+                textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]"
+                hoverTextColorClass="group-hover:text-amber-400"
+                iconShadowClass="drop-shadow-md"
+                iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
+              />
             )}
           </div>
         </div>
-    </div>
+      </div>
 
       <AuditLogViewer
         isSidePanel={true}

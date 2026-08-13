@@ -23,9 +23,9 @@ export default function WayfinderKeeperSidePanel({ isOpen, onClose, userId }: Ci
       <SidePanel
         isOpen={isOpen}
         onClose={onClose}
-        title={t("wf_keeper_support_title") || "Contact Keepers"}
-        subtitle={t("wf_keeper_support_subtitle") || "Direct Line to Core OS Developers"}
-        icon={t("icon_admin_panel_settings") || "admin_panel_settings"}
+        title={t("wf_keeper_support_title")}
+        subtitle={t("wf_keeper_support_subtitle")}
+        icon={t("icon_admin_panel_settings")}
         widthClass="w-[700px]"
         footer={
           <div className="flex justify-center items-center gap-4 w-full">

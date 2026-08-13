@@ -122,8 +122,15 @@ serve(async (req) => {
           .upsert(payload_data)
           .select()
           
-        if (error) throw error
-        resultData = data
+        if (error) {
+          if (error.code === '23505' && target_table === 'mason_post_views') {
+            resultData = [payload_data]
+          } else {
+            throw error
+          }
+        } else {
+          resultData = data
+        }
         break;
       }
       case 'delete_cloud_file': {

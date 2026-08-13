@@ -24,7 +24,7 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
       <div className="flex items-center flex-wrap gap-6 shrink-0">
          {parsedData && (
             <div className="flex items-center gap-2 pl-2">
-               <span className="opacity-50 uppercase tracking-widest text-[9px] font-black pointer-events-none">TARGET:</span>
+               <span className="opacity-50 capitalize tracking-widest text-[9px] font-black pointer-events-none">TARGET:</span>
                <div className="min-w-[200px] w-fit max-w-[400px]">
                   <CustomDropdown
                      value={parsedData.target_file ? [parsedData.target_file] : []}
@@ -33,7 +33,7 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
                            const parsed = JSON.parse(rawText || '{}');
                            parsed.target_file = val[0];
                            setRawText(JSON.stringify(parsed, null, 2));
-                        } catch (e) { alert(t("err_invalid_json") || "Invalid JSON"); }
+                        } catch (e) { alert(t("err_invalid_json")); }
                      }}
                      options={[
                         ...files.filter((f: any) => !f.name.toLowerCase().endsWith('.json')).map((f: any) => ({ id: f.path.split(/[\\/]/).pop() || f.name, label: f.path.split(/[\\/]/).pop() || f.name })),
@@ -41,7 +41,7 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
                            ? [{ id: parsedData.target_file, label: parsedData.target_file }]
                            : [])
                      ]}
-                     placeholder={t("ui_placeholder_target_file") || "Select Target"}
+                     placeholder={t("ui_placeholder_target_file")}
                      disableTint={true}
                   />
                </div>
@@ -50,7 +50,7 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
          <div className="flex items-center gap-1">
             {handleAutoMap && (
                <div className="relative group flex mr-2 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] pr-3">
-                  <button onClick={handleAutoMap} className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-[var(--accent)]/[20%] text-[var(--accent)] hover:bg-[var(--accent)]/[40%] shadow-md">
+                  <button onClick={handleAutoMap} className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-md">
                      <span className="material-symbols-outlined !text-[16px]">auto_fix_high</span>
                   </button>
                   <HoverTooltip title="Auto-Map from Target File" variant="info" className="mb-2" />
@@ -63,7 +63,7 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
                      if (!parsed.categories) parsed.categories = [];
                      parsed.categories.push({ id: "new_category", name_key: "New Category", icon_key: "folder" });
                      setRawText(JSON.stringify(parsed, null, 2));
-                  } catch (e) { alert(t("err_invalid_json") || "Invalid JSON"); }
+                  } catch (e) { alert(t("err_invalid_json")); }
                }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all text-[var(--text)] opacity-50 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <span className="material-symbols-outlined !text-[16px]">folder</span>
                </button>

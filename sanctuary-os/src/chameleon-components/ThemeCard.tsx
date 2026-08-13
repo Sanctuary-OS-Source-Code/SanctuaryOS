@@ -32,10 +32,10 @@ export function ThemeCard({
   const setConfirmDeleteState = setConfirmDelete || setLocalConfirmDelete;
 
   const label = isCloud 
-    ? (t("ui_master_theme") || "Master Theme")
+    ? (t("ui_master_theme"))
     : isDev 
-      ? (t("ui_active_workspace") || "Active Workspace")
-      : (t("ui_personal_theme") || "Personal Theme");
+      ? (t("ui_active_workspace"))
+      : (t("ui_personal_theme"));
 
   const customIcon = (
     <div className={`w-12 h-12 rounded-[var(--radius)] shrink-0 overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md transition-colors z-10`}>
@@ -53,7 +53,7 @@ export function ThemeCard({
         else { setConfirmDeleteState(id); }
       }}
       onMouseLeave={() => setConfirmDeleteState(false)}
-      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all backdrop-blur-xl z-20 ${confirmDeleteState === id ? 'bg-red-500/[15%] border border-[var(--danger)] text-[var(--danger)] shadow-md hover:bg-red-500/[25%] hover:scale-110' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-red-500/[10%] hover:border-red-500/[30%] hover:scale-110'}`}
+      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all backdrop-blur-xl z-20 ${confirmDeleteState === id ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[var(--danger)] text-[var(--danger)] shadow-md hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] hover:scale-110' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:scale-110'}`}
     >
       <span className="material-symbols-outlined !text-[14px]">{confirmDeleteState === id ? 'warning' : 'delete'}</span>
     </button>
@@ -66,10 +66,10 @@ export function ThemeCard({
       customIcon={customIcon}
       title={theme.name}
       subtitle={label}
-      statusColor={isActive || isDev ? "border-[var(--accent)]/50" : undefined}
+      statusColor={isActive || isDev ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)]" : undefined}
       badges={isActive || isDev ? [
-        <span key="active" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-[var(--accent)]/10 theme-text-accent border-[var(--accent)]/20">
-          {t("status_active") || "ACTIVE"}
+        <span key="active" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
+          {t("status_active")}
         </span>
       ] : []}
       actions={removeAction}

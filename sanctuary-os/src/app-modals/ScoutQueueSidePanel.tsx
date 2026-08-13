@@ -36,7 +36,7 @@ export function ScoutQueueSidePanel({
           {scoutQueue && scoutQueue.map((mod: any, index: number) => (
             <div key={index} className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-5 flex flex-col gap-4 shadow-inner text-left hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all">
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] font-black theme-text-accent uppercase tracking-widest">{t("queue_target")}</span>
+                <span className="text-[9px] font-black theme-text-accent capitalize tracking-widest">{t("queue_target")}</span>
                 <span className="text-xs font-black text-[var(--text)] truncate">{mod.displayName || mod.name}</span>
               </div>
               <div className="flex justify-center items-center gap-3 w-full mt-4">
@@ -45,8 +45,8 @@ export function ScoutQueueSidePanel({
                     onOpenScoutDossier(mod);
                     setScoutQueue((prev: any[]) => prev.filter((_: any, i: number) => i !== index));
                   }}
-                  icon={t("icon_cloud_upload") || "cloud_upload"}
-                  label={t("queue_btn_upload") || "UPLOAD TO REGISTRY"}
+                  icon={t("icon_cloud_upload")}
+                  label={t("queue_btn_upload")}
                   variant="success"
                   className="flex-1"
                 />
@@ -58,8 +58,8 @@ export function ScoutQueueSidePanel({
                       setScoutQueue((prev: any[]) => prev.filter((_: any, i: number) => i !== index));
                     } catch (e) { console.error(e); }
                   }}
-                  icon={t("icon_flag") || "flag"}
-                  label={t("queue_btn_flag") || "FLAG AS LOCAL"}
+                  icon={t("icon_flag")}
+                  label={t("queue_btn_flag")}
                   variant="accent"
                   className="flex-1"
                 />

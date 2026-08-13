@@ -24,21 +24,21 @@ export default function KeepersCore() {
         subtitle="CORE OS OVERSIGHT & INFRASTRUCTURE" 
         icon="admin_panel_settings" 
         iconColorClass="text-purple-400"
-        breadcrumb={activeTab !== "command_center" ? activeTab.replace(/_/g, ' ').toUpperCase() : undefined}
+        breadcrumb={activeTab !== "command_center" ? activeTab.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
         onTitleClick={() => setActiveTab("command_center")}
       >
       </ViewHeader>
 
       <HoverTabDrawer title="Keepers Navigation" activeTab={activeTab} setTab={setActiveTab}>
-        <VerticalTabButton id="command_center" icon={t("icon_desktop_windows") || "desktop_windows"} label={t("wf_tab_command") || "Command Center"} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="keepers_comms" icon={t("icon_satellite_alt") || "satellite_alt"} label={t("wf_tab_dispatch") || "DISPATCH"} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="keepers_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="active_games" icon="dns" label="Active Workspaces" activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="identities" icon="group" label="Citizen Oversight" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="support" icon={t("icon_support_agent") || "support_agent"} label="Support Center" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="support_settings" icon={t("icon_support_agent") || "support_agent"} label={t("wf_tab_support") || "Support Settings"} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="audit_logs" icon={t("icon_history") || "history"} label={t("audit_title") || "Audit Logs"} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="support" icon={t("icon_support_agent")} label="Support Center" activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="support_settings" icon={t("icon_support_agent")} label={t("wf_tab_support")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="audit_logs" icon={t("icon_history")} label={t("audit_title")} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="ide" icon="code" label="Keepers IDE" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="chameleons" icon="palette" label={t("wf_master_themes") || "OS Themes"} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="chameleons" icon="palette" label={t("wf_master_themes")} activeTab={activeTab} setTab={setActiveTab} />
       </HoverTabDrawer>
 
       <div className="w-full flex-1 flex flex-col min-h-0">

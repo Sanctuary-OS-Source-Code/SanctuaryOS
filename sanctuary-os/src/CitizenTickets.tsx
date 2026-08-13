@@ -61,7 +61,7 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
       <div className="flex flex-col gap-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4">
         <div className="flex justify-start items-center">
           <div className="flex flex-col">
-            <h2 className="text-xl font-black uppercase tracking-widest">{t("your_tickets")}</h2>
+            <h2 className="text-xl font-black capitalize tracking-widest">{t("your_tickets")}</h2>
             <p className="text-sm text-[var(--subtext)]">{t("create_new")}</p>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
              <button 
                key={filter}
                onClick={() => setActiveFilter(filter as any)}
-               className={`h-full flex-1 px-6 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === filter ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+               className={`h-full flex-1 px-6 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${activeFilter === filter ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
              >
                {filter}
              </button>
@@ -82,18 +82,18 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
       <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 pr-2">
         {isLoading ? (
           <div className="col-span-full flex justify-center items-center h-32 opacity-50">
-            <span className="text-sm font-bold animate-pulse uppercase tracking-widest">{t("ui_btn_processing")}</span>
+            <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing")}</span>
           </div>
         ) : filteredTickets.length === 0 ? (
           <div className="col-span-full">
-            <EmptyState icon={t("icon_receipt_long") || "receipt_long"} title={t("ticket_no_tickets")} className="col-span-full py-16" />
+            <EmptyState icon={t("icon_receipt_long")} title={t("ticket_no_tickets")} className="col-span-full py-16" />
           </div>
         ) : (
           filteredTickets.map(ticket => {
             const isResolved = ticket.status?.toLowerCase() === 'resolved';
             const isRejected = ticket.status?.toLowerCase() === 'rejected';
             const isEscalated = ticket.status?.toLowerCase() === 'escalated';
-            const statusColorClass = isResolved ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)]" : isRejected ? "border-rose-500/50" : isEscalated ? "border-amber-500/50" : "border-emerald-500/50";
+            const statusColorClass = isResolved ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)]" : isRejected ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]" : isEscalated ? "border-[color-mix(in_srgb,var(--warning)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]";
             
             return (
               <UniversalCard
@@ -105,21 +105,21 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
                 subtitle={ticket.ticket_type || "SUPPORT"}
                 onClick={() => onSelectTicket && onSelectTicket(ticket)}
                 badges={
-                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase flex-shrink-0 shadow-sm
-                    ${!isResolved && !isRejected && !isEscalated ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : ''}
+                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest capitalize flex-shrink-0 shadow-sm
+                    ${!isResolved && !isRejected && !isEscalated ? 'bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-emerald-400 border border-[color-mix(in_srgb,var(--success)_30%,transparent)]' : ''}
                     ${isResolved ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}
-                    ${isRejected ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : ''}
-                    ${isEscalated ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-md' : ''}
+                    ${isRejected ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-rose-400 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : ''}
+                    ${isEscalated ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-amber-400 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-md' : ''}
                   `}>
                     {ticket.status}
                   </span>
                 }
                 footer={
                   <div className="flex justify-start items-center w-full">
-                    <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
+                    <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">
                       {new Date(ticket.created_at).toLocaleDateString()}
                     </span>
-                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-colors flex items-center gap-1">
+                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-colors flex items-center gap-1">
                       {t("view_details")} <span className="material-symbols-outlined !text-[11px]">{t("icon_arrow_forward")}</span>
                     </button>
                   </div>

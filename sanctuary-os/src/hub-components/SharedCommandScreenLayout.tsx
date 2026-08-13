@@ -4,14 +4,30 @@ import { extractPostImage, stripMarkdown } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 
 export function DashboardStatTile({ icon, number, label, colorClass, onClick, setStatus }: any) {
+    const isStatusRed = colorClass?.includes('red') || colorClass?.includes('danger');
+    const isStatusYellow = colorClass?.includes('amber') || colorClass?.includes('warning');
+    const isStatusGreen = colorClass?.includes('emerald') || colorClass?.includes('teal') || colorClass?.includes('success');
+    const isStatusBlue = colorClass?.includes('blue') || colorClass?.includes('cyan') || colorClass?.includes('info');
+
+    let textColor = "text-[var(--text)]";
+    if (isStatusRed) { textColor = "text-[var(--danger)]"; }
+    else if (isStatusYellow) { textColor = "text-[var(--warning)]"; }
+    else if (isStatusGreen) { textColor = "text-[var(--success)]"; }
+    else if (isStatusBlue) { textColor = "text-[var(--accent)]"; }
+    else if (colorClass) { textColor = colorClass.split(' ').find((c: string) => c.startsWith('text-')) || textColor; }
+
+    const cleanColorClass = typeof colorClass === "string"
+      ? colorClass.split(' ').filter((c: string) => !c.startsWith('bg-') && !c.startsWith('hover:bg-')).join(' ')
+      : "";
+
     return (
-        <div onClick={onClick} className={`flex-1 min-w-[200px] xl:min-w-[250px] h-full flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-[3px] ${colorClass} transition-all cursor-pointer shadow-lg relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl`}>
-            <div className="absolute inset-0 bg-current opacity-0 group-hover:opacity-[0.15] transition-opacity duration-300" />
+        <div onClick={onClick} className={`flex-1 min-w-[200px] xl:min-w-[250px] h-full flex flex-col justify-center items-start gap-1 p-6 glass-panel ${cleanColorClass} ${textColor} transition-all cursor-pointer relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl`}>
+            <div className="absolute inset-0 bg-current opacity-[0.02] group-hover:opacity-[0.08] transition-opacity duration-300 pointer-events-none rounded-[inherit]" />
             <div className="flex items-center gap-3 w-full relative z-10">
                 <span className="text-3xl opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md">{icon}</span>
                 <span className={`text-4xl lg:text-5xl font-black drop-shadow-lg tracking-tighter`}>{number}</span>
             </div>
-            <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-[var(--subtext)] opacity-60 mt-2">{label}</span>
+            <span className="text-[9px] capitalize tracking-[0.2em] font-bold text-[var(--subtext)] opacity-60 mt-2 relative z-10">{label}</span>
         </div>
     );
 }
@@ -43,11 +59,11 @@ export function CommandScreenSectionHeading({
           </div>
         )}
         <div className="flex flex-col gap-1 items-start text-left flex-1 min-w-0">
-          <h2 className="text-2xl font-black text-[var(--text)] uppercase tracking-widest drop-shadow-lg m-0 truncate">
+          <h2 className="text-2xl font-black text-[var(--text)] capitalize tracking-widest drop-shadow-lg m-0 truncate">
             {title}
           </h2>
           {subtitle && (
-            <p className="font-black tracking-[0.3em] text-[10px] uppercase opacity-70 m-0 text-[var(--subtext)] drop-shadow-sm truncate">
+            <p className="font-black tracking-[0.3em] text-[10px] capitalize opacity-70 m-0 text-[var(--subtext)] drop-shadow-sm truncate">
               {subtitle}
             </p>
           )}
@@ -97,7 +113,7 @@ export function CommandScreenSidebar({ title, icon, shape = "square", children }
                         <span className="material-symbols-outlined !text-[24px] relative z-10 theme-text-accent">{icon}</span>
                     </div>
                 )}
-                <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] m-0 p-0 text-left truncate flex-1 min-w-0">
+                <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] m-0 p-0 text-left truncate flex-1 min-w-0">
                     {title}
                 </h2>
             </div>
@@ -114,21 +130,21 @@ export function UrgentBroadcastBanner({ urgentBroadcast, setViewingPost, setUrge
     if (!urgentBroadcast || localStorage.getItem("sanctuary_notify_alert_banner") === "false") return null;
 
     return (
-        <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel border border-[var(--danger)]/30 bg-[var(--danger)]/10 rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center gap-6 shadow-md cursor-pointer hover:bg-[var(--danger)]/20 transition-all group overflow-hidden relative backdrop-blur-md">
-            <div className="absolute inset-0 bg-gradient-to-r from-[var(--danger)]/5 to-transparent z-0 pointer-events-none" />
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--danger)]/10 blur-[50px] rounded-full pointer-events-none" />
-            <div className="w-16 h-16 rounded-full bg-[var(--danger)]/10 border border-[var(--danger)]/30 flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform shadow-inner">
+        <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel  bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center gap-6 shadow-md cursor-pointer hover:scale-[1.02] hover:brightness-110 transition-all group overflow-hidden relative backdrop-blur-md">
+            <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent z-0 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] blur-[50px] rounded-full pointer-events-none" />
+            <div className="w-16 h-16 rounded-full bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]  flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform shadow-inner">
                 <span className="material-symbols-outlined !text-4xl text-[var(--danger)] animate-pulse">{t("icon_warning_amber")}</span>
             </div>
             <div className="flex flex-col gap-2 flex-1 z-10">
                 <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 bg-[var(--danger)]/20 border border-[var(--danger)]/40 text-[var(--danger)] text-[10px] font-black uppercase tracking-widest rounded-lg shadow-inner animate-pulse flex items-center gap-1"><span className="material-symbols-outlined !text-[12px]"></span>{t("urgent_alert")}</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest opacity-60 text-[var(--danger)]">{new Date(urgentBroadcast.created_at).toLocaleDateString()}</span>
+                    <span className="px-3 py-1 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]  text-[var(--danger)] text-[10px] font-black capitalize tracking-widest rounded-lg shadow-inner animate-pulse flex items-center gap-1"><span className="material-symbols-outlined !text-[12px]"></span>{t("urgent_alert")}</span>
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--danger)]">{new Date(urgentBroadcast.created_at).toLocaleDateString()}</span>
                 </div>
-                <h3 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--danger)] group-hover:text-red-400 transition-colors drop-shadow-md">{urgentBroadcast.title}</h3>
+                <h3 className="text-xl md:text-2xl font-black capitalize tracking-widest text-[var(--danger)] group-hover:brightness-125 transition-all drop-shadow-md">{urgentBroadcast.title}</h3>
             </div>
             <div className="flex items-center gap-2 z-10 ml-auto">
-                <button onClick={(e) => { e.stopPropagation(); sessionStorage.setItem('dismissedAlertId', urgentBroadcast.id); setUrgentBroadcast(null); }} className="w-10 h-10 rounded-full border border-[var(--danger)]/30 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] flex items-center justify-center transition-colors shadow-inner backdrop-blur-md hover:scale-110 active:scale-95 group/close" >
+                <button onClick={(e) => { e.stopPropagation(); sessionStorage.setItem('dismissedAlertId', urgentBroadcast.id); setUrgentBroadcast(null); }} className="w-10 h-10 rounded-full  bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:scale-[1.02] hover:brightness-110 text-[var(--danger)] flex items-center justify-center transition-colors shadow-inner backdrop-blur-md hover:scale-110 active:scale-95 group/close" >
                     <span className="material-symbols-outlined !text-[20px] group-hover/close:rotate-90 transition-transform duration-300">close</span>
                 </button>
             </div>
@@ -153,16 +169,16 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                         className="w-full"
                         imageOverlay={
                             <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                <span className="px-2 py-0.5 bg-[var(--accent)]/20 text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg backdrop-blur-md">{post.category || t("comms_btn_update") || "UPDATE"}</span>
-                                <span className="px-2 py-0.5 glass-surface text-[var(--text)] text-[9px] font-black uppercase tracking-widest rounded-lg backdrop-blur-md">{t("category_system")}</span>
+                                <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{post.category || t("comms_btn_update") || "UPDATE"}</span>
+                                <span className="px-2 py-0.5 glass-surface text-[var(--text)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("category_system")}</span>
                             </div>
                         }
                         footer={
                             <div className="flex items-center justify-start w-full mt-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
                                     <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(post.created_at).toLocaleDateString()}
                                 </span>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+                                <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
                                     {t("wayfinder_read_more")} <span className="material-symbols-outlined !text-sm">{t("icon_arrow_forward")}</span>
                                 </span>
                             </div>
@@ -174,7 +190,7 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                     </UniversalCard>
                 );
             }) : (
-                <div className="w-full lg:col-span-3 glass-panel rounded-[var(--radius)] p-12 text-center text-[var(--subtext)] opacity-50 uppercase font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <div className="w-full lg:col-span-3 glass-panel rounded-[var(--radius)] p-12 text-center text-[var(--subtext)] opacity-50 capitalize font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                     {t("system_no_broadcasts")}
                 </div>
             )}
@@ -183,27 +199,27 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
 }
 
 
-export function CommandScreenMetricTile({ icon, value, label, valueColorClass = "theme-text-accent", hoverBorderClass = "hover:border-[var(--accent)]/30" }: any) {
+export function CommandScreenMetricTile({ icon, value, label, valueColorClass = "theme-text-accent", hoverBorderClass = "" }: any) {
     return (
-        <div className={`min-w-0 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${hoverBorderClass} transition-all text-center h-32 relative overflow-hidden group`}>
+        <div className={`min-w-0 glass-panel  rounded-[var(--radius)] p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:scale-[1.02] hover:brightness-110 ${hoverBorderClass} transition-all text-center h-32 relative overflow-hidden group`}>
             {icon && <span className={`absolute -left-4 -bottom-4 text-[80px] opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all material-symbols-outlined grayscale group-hover:grayscale-0 ${valueColorClass}`}>{icon}</span>}
             <span className={`text-3xl font-black relative z-10 ${valueColorClass}`}>{value}</span>
-            <span className="text-[9px] font-black uppercase tracking-widest opacity-70 text-[var(--subtext)] leading-tight relative z-10 truncate w-full">{label}</span>
+            <span className="text-[9px] font-black capitalize tracking-widest opacity-70 text-[var(--subtext)] leading-tight relative z-10 truncate w-full">{label}</span>
         </div>
     );
 }
 
-export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "group-hover:text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "group-hover:border-[var(--accent)]/30", isAlert = false }: any) {
+export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "group-hover:text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "group-", isAlert = false }: any) {
     return (
-        <button onClick={onClick} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] transition-all text-left group relative overflow-hidden h-24">
+        <button onClick={onClick} className="w-full p-6 glass-panel  rounded-[var(--radius)] hover:scale-[1.02] hover:brightness-110   transition-all text-left group relative overflow-hidden h-24">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
             <div className="flex items-center gap-5 h-full relative z-10">
-                <div className={`w-12 h-12 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${iconBorderHoverClass} ${isAlert ? 'text-[var(--danger)] border-[var(--danger)]/30 group-hover:bg-[var(--danger)]/10 shadow-sm' : ''}`}>
+                <div className={`w-12 h-12 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${iconBorderHoverClass} ${isAlert ? 'text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group-hover:scale-[1.02] hover:brightness-110 shadow-sm' : ''}`}>
                     <span className={`material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 ${iconShadowClass} ${isAlert ? 'animate-pulse' : ''}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0">
-                    <h3 className={`text-[11px] font-black uppercase tracking-widest transition-colors truncate ${isAlert ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>{title}</h3>
-                    <span className={`text-[8px] uppercase font-bold opacity-80 tracking-widest flex items-center gap-2 truncate ${textColorClass} ${hoverTextColorClass}`}>{subtitle}
+                    <h3 className={`text-[11px] font-black capitalize tracking-widest transition-colors truncate ${isAlert ? 'text-[var(--danger)] group-hover:brightness-125' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>{title}</h3>
+                    <span className={`text-[8px] capitalize font-bold opacity-80 tracking-widest flex items-center gap-2 truncate ${textColorClass} ${hoverTextColorClass}`}>{subtitle}
                     </span>
                 </div>
             </div>

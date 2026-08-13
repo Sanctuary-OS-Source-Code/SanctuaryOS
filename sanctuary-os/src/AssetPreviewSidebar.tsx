@@ -125,7 +125,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
       isOpen={true}
       onClose={onClose}
       title={data ? (data.displayName || (data.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "") : t("loading")}
-      subtitle={data ? (data.author || data.master_author || t("vlocal") || "UNKNOWN") : undefined}
+      subtitle={data ? (data.author || data.master_author || t("vlocal")) : undefined}
       icon={assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[500px]"
@@ -138,13 +138,13 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
             {data.is_early_access && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-md shadow-lg">
                 <span className="material-symbols-outlined !text-[12px] text-[#d8b4fe]">science</span>
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access") || "Early Access"}</span>
+                <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access")}</span>
               </div>
             )}
             {data.is_paid && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-md shadow-lg">
                 <span className="material-symbols-outlined !text-[12px] text-[#fef08a]">monetization_on</span>
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#fef08a]">{t("badge_paid") || "Paid"}</span>
+                <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#fef08a]">{t("badge_paid")}</span>
               </div>
             )}
           </div>
@@ -206,19 +206,19 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
     >
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
-          <span className="text-xs font-black uppercase tracking-widest text-[var(--subtext)] animate-pulse">{t("loading")}</span>
+          <span className="text-xs font-black capitalize tracking-widest text-[var(--subtext)] animate-pulse">{t("loading")}</span>
         </div>
       ) : error ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-4 p-10">
           <span className="text-4xl">⚠️</span>
-          <span className="text-xs font-black uppercase tracking-widest text-[var(--danger)] text-center">{error}</span>
+          <span className="text-xs font-black capitalize tracking-widest text-[var(--danger)] text-center">{error}</span>
         </div>
       ) : data ? (
         <div className="flex flex-col gap-8 shrink-0 relative z-10 w-full">
           <div className="flex flex-col gap-4">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("upload_desc") || "DESCRIPTION"}</h4>
+            <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("upload_desc")}</h4>
             <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/[3%] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_3%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
               <div className="relative z-10">
                 {data.description ? stripMarkdown(data.description) : t("no_desc_sub")}
               </div>
@@ -230,7 +230,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
             const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
             return (
               <div className="flex flex-col gap-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("auto_template_architecture")}</h4>
+                <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("auto_template_architecture")}</h4>
                 <div className="flex flex-wrap gap-4">
                   {parsed.template_id && (
                     <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_template_id")} subtitle={parsed.template_id} />
@@ -260,19 +260,19 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
 
           {assetType !== 'workbench_template' && (
             <div className="flex flex-col gap-4">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("asset_details") || "ASSET DETAILS"}</h4>
+              <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("asset_details")}</h4>
               <div className="flex flex-wrap gap-4">
                 {data.version && (
-                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("update_version") || "VERSION"} subtitle={data.version} />
+                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("update_version")} subtitle={data.version} />
                 )}
                 {data.downloads !== undefined && (
-                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("downloads_count") || "DOWNLOADS"} subtitle={data.downloads?.toLocaleString() || "0"} />
+                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("downloads_count")} subtitle={data.downloads?.toLocaleString() || "0"} />
                 )}
                 {data.created_at && (
-                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("created_date") || "PUBLISHED"} subtitle={new Date(data.created_at).toLocaleDateString()} />
+                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("created_date")} subtitle={new Date(data.created_at).toLocaleDateString()} />
                 )}
                 {data.updated_at && data.updated_at !== data.created_at && (
-                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("updated_date") || "UPDATED"} subtitle={new Date(data.updated_at).toLocaleDateString()} />
+                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("updated_date")} subtitle={new Date(data.updated_at).toLocaleDateString()} />
                 )}
               </div>
             </div>
@@ -280,9 +280,9 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
 
           {(data.changelog || data.release_notes || (data.json_data && (data.json_data.changelog || data.json_data.release_notes))) && (
             <div className="flex flex-col gap-4">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("whats_new")}</h4>
+              <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("whats_new")}</h4>
               <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/[3%] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_3%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                 <div className="relative z-10">
                   {stripMarkdown(data.changelog || data.release_notes || (data.json_data?.changelog) || (data.json_data?.release_notes))}
                 </div>

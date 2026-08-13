@@ -36,9 +36,9 @@ export function DropzoneSidePanel({
         dropzoneState !== "awaiting" ? (
           <div className="w-full">
             {dropzoneState === "ingesting" ? (
-              <div className="w-full py-4 theme-bg-accent/20 text-[var(--text)] rounded-xl border border-[var(--accent)]/50 shadow-lg flex flex-col items-center justify-center gap-1 backdrop-blur-md">
-                <span className="text-sm font-black uppercase tracking-widest animate-pulse">{t("btn_importing")}</span>
-                <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">{ingestProgress?.current || 0} / {ingestProgress?.total || 0} {t("modal_files")}</span>
+              <div className="w-full py-4 theme-bg-accent/20 text-[var(--text)] rounded-xl border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-lg flex flex-col items-center justify-center gap-1 backdrop-blur-md">
+                <span className="text-sm font-black capitalize tracking-widest animate-pulse">{t("btn_importing")}</span>
+                <span className="text-[9px] font-bold opacity-70 capitalize tracking-widest">{ingestProgress?.current || 0} / {ingestProgress?.total || 0} {t("modal_files")}</span>
               </div>
             ) : (
               <div className="flex justify-center items-center gap-4 w-full">
@@ -62,14 +62,14 @@ export function DropzoneSidePanel({
     >
       <div className="flex-1 flex flex-col h-full min-h-[400px]">
         {dropzoneState === "awaiting" ? (
-          <div className={`flex-1 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center pointer-events-none transition-all ${isDragging ? 'border-[var(--accent)] bg-[var(--accent)]/10 shadow-[inset_0_0_50px_rgba(37,99,235,0.2)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/10'}`}>
+          <div className={`flex-1 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center pointer-events-none transition-all ${isDragging ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[inset_0_0_50px_rgba(37,99,235,0.2)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-black/10'}`}>
             <span className="material-symbols-outlined !text-[120px] opacity-20 drop-shadow-md mb-4 animate-bounce">{t("icon_cloud")}</span>
-            <span className="text-xs font-black text-[var(--subtext)] uppercase tracking-widest opacity-50">{t("modal_drop_files")}</span>
+            <span className="text-xs font-black text-[var(--subtext)] capitalize tracking-widest opacity-50">{t("modal_drop_files")}</span>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {droppedFiles.length > 0 && (
-              <div className="w-full glass-surface rounded-2xl p-4 flex flex-col gap-2 shadow-inner border border-emerald-500/20 bg-emerald-500/5">
+              <div className="w-full glass-surface rounded-2xl p-4 flex flex-col gap-2 shadow-inner border border-[color-mix(in_srgb,var(--success)_20%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)]">
                 {droppedFiles.map((f: any, i: number) => (
                   <div key={i} className="text-xs font-bold text-[var(--text)] py-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 truncate flex items-center gap-3">
                     <span className="text-emerald-400 material-symbols-outlined !text-sm">{t("icon_check_circle")}</span>

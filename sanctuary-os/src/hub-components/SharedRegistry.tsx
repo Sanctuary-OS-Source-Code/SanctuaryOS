@@ -117,20 +117,20 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         >
           <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
             <CustomDropdown disableTint={true} value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
-              { id: "ALL", label: t("status_dd_all") || "ALL STATUSES" },
-              { id: "stable", label: t("status_dd_stable") || "STABLE" },
-              { id: "unstable", label: t("label_unstable") || "UNSTABLE" },
-              { id: "corrupted", label: t("status_corrupted") || "CORRUPTED" },
-              { id: "under_review", label: t("status_dd_review") || "UNDER REVIEW" },
-              { id: "pending", label: t("pending") || "PENDING" },
-              { id: "unverified", label: t("unverified") || "UNVERIFIED" },
+              { id: "ALL", label: t("status_dd_all") },
+              { id: "stable", label: t("status_dd_stable") },
+              { id: "unstable", label: t("label_unstable") },
+              { id: "corrupted", label: t("status_corrupted") },
+              { id: "under_review", label: t("status_dd_review") },
+              { id: "pending", label: t("pending") },
+              { id: "unverified", label: t("unverified") },
             ]} />
           </div>
         </ScreenUtilityBar>
 
         <div className="w-full p-6">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pr-2">
-            {displayMods.length === 0 && <EmptyState icon={t("icon_deployed_code") || "inventory"} title={t("registry_no_mods")} className="col-span-full py-16" />}
+            {displayMods.length === 0 && <EmptyState icon={t("icon_deployed_code")} title={t("registry_no_mods")} className="col-span-full py-16" />}
             {displayMods.map((mod: any) => (
               <ArtifactCard
                 key={mod.id}
@@ -158,11 +158,11 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
             cancelLabel={t("nav_cancel")}
             cancelIcon="close"
             onAction={handleCommitChanges}
-            actionLabel={t("save_meta") || "SAVE METADATA"}
+            actionLabel={t("save_meta")}
             actionIcon="save"
             actionDisabled={isCommitting}
             isProcessing={isCommitting}
-            processingLabel={t("btn_saving") || "SAVING..."}
+            processingLabel={t("btn_saving")}
             className="flex justify-center items-center gap-4 w-full px-8"
           />
         }
@@ -170,56 +170,56 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         {activeMod && (
           <div className="flex flex-col h-full gap-8">
             <div className="flex flex-col gap-3 shrink-0 mb-4 mt-2">
-              <input value={activeMod?.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} placeholder={t("registry_label_name")} className="bg-transparent text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full" />
+              <input value={activeMod?.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} placeholder={t("registry_label_name")} className="bg-transparent text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] pb-1 w-full" />
             </div>
 
 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category")}</label>
                 <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(val: string) => setActiveMod({ ...activeMod, category_override: val })} />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_file_ext")}</label>
                 <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({ ...activeMod, file_extension: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext")} />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_subcat")}</label>
                 <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({ ...activeMod, sub_type: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
               </div>
             </div>
 
             <div className="flex flex-col gap-2 mt-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc")}</label>
               <textarea value={activeMod.description || ""} onChange={e => setActiveMod({ ...activeMod, description: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
             </div>
 
             <div className="flex flex-col gap-2 mt-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url")}</label>
               <input value={activeMod.image_url || ""} onChange={e => setActiveMod({ ...activeMod, image_url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
+                <label className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest ml-2 flex items-center gap-1">
                   {t("registry_label_version")}
                 </label>
                 <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="glass-surface rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
                 <input value={activeMod.url || ""} onChange={e => setActiveMod({ ...activeMod, url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                  <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                  <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on")}</span>
                   {t("label_is_paid")}
                 </span>
                 <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
@@ -229,9 +229,9 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
                 <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
               </label>
 
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                  <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                  <span className="material-symbols-outlined !text-[16px]">{t("icon_science")}</span>
                   {t("label_is_early_access")}
                 </span>
                 <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
@@ -244,26 +244,26 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_status")}</label>
                 <MasonStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({ ...activeMod, status: newStatus })} />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
                 <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({ ...activeMod, compliance_tier: newTier })} includeTier3={false} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("uploaded_date")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("uploaded_date")}</label>
                 <div className="w-full">
                   <CustomDatePicker value={activeMod.created_at || null} onChange={(date: any) => setActiveMod({ ...activeMod, created_at: date })} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("updated_date")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("updated_date")}</label>
                 <div className="w-full">
                   <CustomDatePicker value={activeMod.updated_at || null} onChange={(date: any) => setActiveMod({ ...activeMod, updated_at: date })} />
                 </div>
@@ -271,7 +271,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
             </div>
 
             <div className="flex flex-col gap-2 mt-4 pb-25">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("game_versions")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_versions")}</label>
               <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({ ...activeMod, compatible_versions: v })} />
             </div>
           </div>
@@ -490,13 +490,13 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
 
             <div className="w-max min-w-[192px] max-w-xs relative z-50 h-12">
               <CustomDropdown disableTint={true} value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
-                { id: "ALL", label: t("status_dd_all") || "ALL STATUSES" },
-                { id: "stable", label: t("status_dd_stable") || "STABLE" },
-                { id: "unstable", label: t("label_unstable") || "UNSTABLE" },
-                { id: "corrupted", label: t("status_corrupted") || "CORRUPTED" },
-                { id: "under_review", label: t("status_dd_review") || "UNDER REVIEW" },
-                { id: "pending", label: t("pending") || "PENDING" },
-                { id: "unverified", label: t("unverified") || "UNVERIFIED" },
+                { id: "ALL", label: t("status_dd_all") },
+                { id: "stable", label: t("status_dd_stable") },
+                { id: "unstable", label: t("label_unstable") },
+                { id: "corrupted", label: t("status_corrupted") },
+                { id: "under_review", label: t("status_dd_review") },
+                { id: "pending", label: t("pending") },
+                { id: "unverified", label: t("unverified") },
               ]} />
             </div>
           </>
@@ -505,7 +505,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         <div className="p-6 w-full">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pr-2">
             {cloudMods.length === 0 ? (
-              <EmptyState icon={searchTerm ? "search_off" : t("icon_inventory_2") || "inventory"} title={searchTerm ? t("no_matches") : t("no_artifacts") || "No Artifacts Found"} className="col-span-full py-16" />
+              <EmptyState icon={searchTerm ? "search_off" : t("icon_inventory_2")} title={searchTerm ? t("no_matches") : t("no_artifacts")} className="col-span-full py-16" />
             ) : cloudMods.map((mod: any) => (
               <ArtifactCard
                 key={mod.id}
@@ -521,7 +521,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
               <button
                 onClick={() => setPage(p => p + 1)}
                 disabled={isLoading}
-                className="px-8 py-3 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 transition-all font-black text-[10px] uppercase tracking-widest text-[var(--text)] flex items-center gap-2"
+                className="px-8 py-3 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest text-[var(--text)] flex items-center gap-2"
               >
                 {isLoading ? (
                   <><span className="material-symbols-outlined animate-spin !text-[16px]">{t("icon_sync")}</span> {t("ui_loading")}</>
@@ -553,9 +553,9 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
             <ActionButton
               onClick={handleCommitChanges}
               disabled={isCommitting}
-              label={isCommitting ? (t("dossier_btn_saving") || "SAVING...") : (t("ui_btn_commit") || "COMMIT CHANGES")}
+              label={isCommitting ? (t("dossier_btn_saving")) : (t("ui_btn_commit"))}
               icon="save"
-              className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[var(--accent)]/50"
+              className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
             />
           </div>
         }
@@ -563,12 +563,12 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         {activeMod && (
           <div className="flex flex-col gap-6 pb-8">
             <div className="flex flex-col gap-3 shrink-0 mb-4 mt-2">
-              <input value={activeMod?.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} placeholder={t("registry_label_name")} className="bg-transparent text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full" />
+              <input value={activeMod?.name || ""} onChange={e => setActiveMod({ ...activeMod, name: e.target.value })} placeholder={t("registry_label_name")} className="bg-transparent text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] pb-1 w-full" />
             </div>
 
 
             <div className="flex flex-col gap-2">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason")}</label>
               <div className="flex gap-2 relative">
                 <div className="flex-1 min-w-0">
                   <CustomMasonDropdown
@@ -585,48 +585,48 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category")}</label>
                 <CustomClassificationDropdown value={activeMod.category_override || "Script"} onChange={(newType: string) => setActiveMod({ ...activeMod, category_override: newType })} />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("label_file_ext")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_file_ext")}</label>
                 <input value={activeMod.file_extension || ""} onChange={e => setActiveMod({ ...activeMod, file_extension: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext")} />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_subcat")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_subcat")}</label>
                 <input value={activeMod.sub_type || ""} onChange={e => setActiveMod({ ...activeMod, sub_type: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26")} />
               </div>
             </div>
 
             <div className="flex flex-col gap-2 mt-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("upload_desc")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc")}</label>
               <textarea value={activeMod.description || ""} onChange={e => setActiveMod({ ...activeMod, description: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar" />
             </div>
 
             <div className="flex flex-col gap-2 mt-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url")}</label>
               <input value={activeMod.image_url || ""} onChange={e => setActiveMod({ ...activeMod, image_url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest ml-2 flex items-center gap-1">
+                <label className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest ml-2 flex items-center gap-1">
                   {t("registry_label_version")}
                 </label>
                 <input value={activeMod.latest_version || ""} onChange={e => setActiveMod({ ...activeMod, latest_version: e.target.value })} placeholder={t("ph_mod_version")} className="glass-surface rounded-xl px-5 py-3 text-[var(--subtext)] text-sm font-bold focus:outline-none focus:theme-border-success" />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
                 <input value={activeMod.url || ""} onChange={e => setActiveMod({ ...activeMod, url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 theme-text-accent text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_https")} />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_paid ? 'bg-yellow-500/10 border-yellow-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                  <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on") || "monetization_on"}</span>
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                  <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on")}</span>
                   {t("label_is_paid")}
                 </span>
                 <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
@@ -636,9 +636,9 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                 <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
               </label>
 
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[var(--accent)]/30 ${activeMod.is_early_access ? 'bg-purple-500/10 border-purple-500/30' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                <span className={`text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                  <span className="material-symbols-outlined !text-[16px]">{t("icon_science") || "science"}</span>
+              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                  <span className="material-symbols-outlined !text-[16px]">{t("icon_science")}</span>
                   {t("label_is_early_access")}
                 </span>
                 <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
@@ -651,26 +651,26 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_status")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_status")}</label>
                 <CustomStatusDropdown value={activeMod.status || "unverified"} onChange={(newStatus: string) => setActiveMod({ ...activeMod, status: newStatus })} />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
                 <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({ ...activeMod, compliance_tier: newTier })} includeTier3={false} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("uploaded_date")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("uploaded_date")}</label>
                 <div className="w-full">
                   <CustomDatePicker value={activeMod.created_at || null} onChange={(date: any) => setActiveMod({ ...activeMod, created_at: date })} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("updated_date")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("updated_date")}</label>
                 <div className="w-full">
                   <CustomDatePicker value={activeMod.updated_at || null} onChange={(date: any) => setActiveMod({ ...activeMod, updated_at: date })} />
                 </div>
@@ -678,7 +678,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
             </div>
 
             <div className="flex flex-col gap-2 mt-4 pb-25">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("game_versions")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_versions")}</label>
               <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({ ...activeMod, compatible_versions: v })} />
             </div>
           </div>
@@ -701,15 +701,15 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
             />
             <ActionButton
               onClick={handleCreateMason}
-              label={t("create_btn_create") || "CREATE"}
+              label={t("create_btn_create")}
               icon="person_add"
-              className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[var(--accent)]/50"
+              className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
             />
           </div>
         }
       >
         <div className="p-6">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason_name")}</label>
           <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
       </SidePanel>
@@ -721,7 +721,7 @@ export function CustomClassificationDropdown({ value, onChange }: any) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const options = [
-    { id: "Unknown", label: t("ui_icon_unknown") || "Unknown" },
+    { id: "Unknown", label: t("ui_icon_unknown") },
     ...(activeGameSchema?.mod_categories || []).map((c: any) => ({
       id: c.id,
       label: t(c.lexicon_key) || c.id

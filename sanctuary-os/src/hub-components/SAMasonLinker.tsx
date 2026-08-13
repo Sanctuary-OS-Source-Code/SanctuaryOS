@@ -6,7 +6,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
   DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker, StatTile,
+  CustomComplianceDropdown, CustomDatePicker,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
@@ -160,7 +160,7 @@ export function MasonLinker() {
 
   return (
     <div className="flex flex-col w-full relative h-full">
-            <ScreenUtilityBar
+      <ScreenUtilityBar
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder={t("linker_search_mason")}
@@ -181,7 +181,7 @@ export function MasonLinker() {
 
         <ActionButton
           onClick={() => handleOpenPanel(null)}
-          className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+          className="shrink-0 h-12 px-6 font-black capitalize tracking-widest text-[10px]"
           icon={t("icon_add")}
           label={t("btn_create_mason_naked")}
         />
@@ -189,7 +189,7 @@ export function MasonLinker() {
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
         {loading ? (
-          <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("audit_fetching")}</div>
+          <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("audit_fetching")}</div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
             {filteredMasons.map((m: any) => (
@@ -198,7 +198,7 @@ export function MasonLinker() {
                 onClick={() => handleOpenPanel(m)}
                 layout="vertical"
                 icon="architecture"
-                title={m.name || t("vlocal") || "UNKNOWN"}
+                title={m.name || t("vlocal")}
                 subtitle={
                   <span className="flex gap-1.5 items-center">
                     <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_fingerprint")}</span>
@@ -207,12 +207,12 @@ export function MasonLinker() {
                 }
                 statusColor={m.is_verified ? "border-green-500" : undefined}
                 badges={[
-                  <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors ${m.is_verified ? 'bg-green-500/10 text-green-400 border-green-500/20 group-hover:bg-green-500/20' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-60 border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                  <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors ${m.is_verified ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-green-400 border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-60 border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                     {m.is_verified ? t("verified") : t("unverified")}
                   </span>
                 ]}
                 footer={
-                  <span className={`text-[10px] font-bold uppercase flex items-center gap-1.5 truncate ${m.profile_id ? 'text-[var(--text)] opacity-80' : 'text-red-400 opacity-80'}`}>
+                  <span className={`text-[10px] font-bold capitalize flex items-center gap-1.5 truncate ${m.profile_id ? 'text-[var(--text)] opacity-80' : 'text-red-400 opacity-80'}`}>
                     <span className="material-symbols-outlined !text-[12px] opacity-70">{m.profile_id ? "link" : "link_off"}</span>
                     {m.profile_id ? (profiles.find(p => p.id === m.profile_id)?.username || m.profile_id.substring(0, 8)) : (t("sa_unlinked"))}
                   </span>
@@ -220,7 +220,7 @@ export function MasonLinker() {
               />
             ))}
             {filteredMasons.length === 0 && (
-              <EmptyState icon={t("ui_icon_group_off") || "group_off"} title={t("no_masons")} className="col-span-full py-16" />
+              <EmptyState icon={t("ui_icon_group_off")} title={t("no_masons")} className="col-span-full py-16" />
             )}
           </div>
         )}
@@ -236,18 +236,18 @@ export function MasonLinker() {
           <div className="flex flex-col gap-4 w-full">
             {status && (
               <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-                <p className={`text-[10px] font-black uppercase tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
+                <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
               </div>
             )}
             <div className="flex justify-center items-center gap-4 w-full">
               <ActionButton type="button" onClick={handleClosePanel} disabled={isSubmitting} label={t("nav_cancel")}>
-                
+
               </ActionButton>
               <ActionButton
                 onClick={handleSave}
                 disabled={isSubmitting || !editName.trim()} label={isSubmitting ? t("identities_updating") : (isCreating ? t("btn_create_mason_naked") : t("ui_btn_commit"))}
               >
-                
+
               </ActionButton>
             </div>
           </div>
@@ -256,32 +256,32 @@ export function MasonLinker() {
         <div className="p-6 flex flex-col h-full gap-8">
 
           <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-            <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none rounded-2xl" />
+            <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
               {t("metadata")}
             </h4>
 
             <div className="flex flex-col gap-2 relative z-50 w-full">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason_name")}</label>
               <input
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
                 placeholder={t("placeholder_mason_name")}
-                className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/50 placeholder:opacity-40"
+                className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
             <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none rounded-2xl" />
-            <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+            <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span>
               {t("linking_verification")}
             </h4>
 
             <div className="flex flex-col gap-2 relative z-40 w-full">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("link_profile")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("link_profile")}</label>
               <ProfileSearchDropdown
                 value={linkedProfileId}
                 profiles={profiles}
@@ -290,7 +290,7 @@ export function MasonLinker() {
             </div>
 
             <div className="flex items-center justify-start mt-4 w-full">
-              <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest ml-2 flex items-center gap-2">
+              <label className="text-[10px] font-black text-[var(--text)] capitalize tracking-widest ml-2 flex items-center gap-2">
                 {t("mark_verified")}
               </label>
               <button
@@ -368,11 +368,11 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
                 onClick={() => { onChange(p.id); setIsOpen(false); setQuery(""); }}
                 className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col gap-0.5"
               >
-                <span className="text-[11px] font-black uppercase text-[var(--text)]">{p.username || "UNKNOWN"}</span>
+                <span className="text-[11px] font-black capitalize text-[var(--text)]">{p.username || "UNKNOWN"}</span>
                 <span className="text-[8px] font-mono opacity-50">{p.id}</span>
               </button>
             ))}
-            {filtered.length === 0 && <EmptyState icon={t("ui_icon_person_off") || "person_off"} title={t("no_profiles")} className="col-span-full py-16" />}
+            {filtered.length === 0 && <EmptyState icon={t("ui_icon_person_off")} title={t("no_profiles")} className="col-span-full py-16" />}
           </div>
         </>,
         document.body

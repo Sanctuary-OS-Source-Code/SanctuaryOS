@@ -5,7 +5,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { open } from "@tauri-apps/plugin-dialog";
 import { useTheme } from "./ThemeContext";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton } from './shared';
+import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, SidebarFooterButton } from './shared';
 import { useStore } from "./store";
 import { supabase } from "./supabase";
 
@@ -98,7 +98,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     } catch (err) { useStore.getState().pushStatus(String(err), 'error'); }
   };
 
-  if (!config) return <div className="p-12 font-black animate-pulse uppercase tracking-widest" style={{ color: currentTheme.accent }}>{t("booting")}</div>;
+  if (!config) return <div className="p-12 font-black animate-pulse capitalize tracking-widest" style={{ color: currentTheme.accent }}>{t("booting")}</div>;
 
   const pathMap = [
     { rustKey: 'vault_path', label: t("vault_path"), value: config.vault_path, icon: t("icon_account_balance") },
@@ -107,14 +107,14 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   ];
 
   const TABS = [
-    { id: 'CORE', icon: t("icon_account_circle") || "account_circle", label: t("tab_core") || "Core" },
-    { id: 'ENGINE', icon: t("icon_history") || "history", label: t("tab_engine") || "Engine" },
-    { id: 'CLIENT', icon: t("icon_tune") || "tune", label: t("tab_preferences") || "Preferences" },
+    { id: 'CORE', icon: t("icon_account_circle"), label: t("tab_core") },
+    { id: 'ENGINE', icon: t("icon_history"), label: t("tab_engine") },
+    { id: 'CLIENT', icon: t("icon_tune"), label: t("tab_preferences") },
     { id: 'NOTIFICATIONS', icon: t("icon_notifications"), label: t("tab_notifs") },
-    { id: 'AESTHETICS', icon: t("icon_format_paint") || "format_paint", label: t("tab_aesthetics") || "Aesthetics" },
+    { id: 'AESTHETICS', icon: t("icon_format_paint"), label: t("tab_aesthetics") },
     { id: 'LOGIC', icon: t("icon_flag"), label: t("tab_logic") }
   ];
-  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull") || "skull", label: t("malware_btn") });
+  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull"), label: t("malware_btn") });
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
@@ -126,12 +126,12 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       />
 
       <HoverTabDrawer 
-        title={t("settings_title") || "Settings"} 
+        title={t("settings_title")} 
         activeTab={activeTab} 
         setTab={setActiveTab}
         footer={
           <>
-            <ActionButton
+            <SidebarFooterButton
               icon={t("icon_logout")}
               label={t("btn_logout")}
               variant="danger"
@@ -141,7 +141,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
                 window.location.reload();
               }}
             />
-            <div className="text-center text-[8px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-50 mt-1">
+            <div className="text-center text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50 mt-1">
               {appVersion}
             </div>
           </>

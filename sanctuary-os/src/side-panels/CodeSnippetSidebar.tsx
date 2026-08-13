@@ -72,7 +72,7 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setWrapText(!wrapText)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${wrapText ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-inner' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black capitalize tracking-widest transition-all ${wrapText ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
             >
               <span className="material-symbols-outlined !text-[14px]">{wrapText ? 'wrap_text' : 'segment'}</span>
               {t("ui_btn_wrap_text")}
@@ -80,7 +80,7 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
           </div>
         </div>
 
-        <div className="w-full flex-1 min-h-0 rounded-[var(--radius)] overflow-hidden shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/40 backdrop-blur-xl flex flex-col relative">
+        <div className="w-full flex-1 min-h-0 rounded-[var(--radius)] overflow-hidden shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-xl flex flex-col relative">
           
           <div className="flex-1 overflow-auto custom-scrollbar relative z-0">
             {!searchTerm ? (
@@ -105,7 +105,7 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
               <pre className="m-0 p-8 bg-transparent text-[13px] leading-[1.6] text-[#d4d4d4] font-mono" style={{ whiteSpace: wrapText ? 'pre-wrap' : 'pre', wordBreak: wrapText ? 'break-all' : 'normal', overflowWrap: 'anywhere' }}>
                 {code.split(new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi')).map((part, i) => 
                   part.toLowerCase() === searchTerm.toLowerCase() ? 
-                    <mark key={i} className="bg-[var(--accent)]/30 border border-[var(--accent)]/50 text-white font-black px-1 py-0.5 rounded-md shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] backdrop-blur-sm">{part}</mark> : 
+                    <mark key={i} className="bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-white font-black px-1 py-0.5 rounded-md shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] backdrop-blur-sm">{part}</mark> : 
                     <span key={i}>{part}</span>
                 )}
               </pre>

@@ -4,8 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
   DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker, StatTile,
-  HubTabButton, ModSearchDropdown, EmptyState,
+  CustomComplianceDropdown, CustomDatePicker, HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, SidePanelActionFooter
@@ -62,13 +61,13 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
         if (error) throw error;
 
         onUpdate(data);
-        useStore.getState().pushStatus(t("alert_saved") || "Settings Saved", 'success');
+        useStore.getState().pushStatus(t("alert_saved"), 'success');
         onClose();
       } else {
         const { data, error } = await supabase.from('masons').update(formData).eq('id', profile.id).select().single();
         if (error) throw error;
         onUpdate(data);
-        useStore.getState().pushStatus(t("alert_saved") || "Settings Saved", 'success');
+        useStore.getState().pushStatus(t("alert_saved"), 'success');
         onClose();
       }
     } catch (err: any) {
@@ -90,36 +89,36 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
       }
     >
       <div className="w-full flex flex-col gap-6">
-        <h2 className="text-sm font-black theme-text-accent uppercase tracking-widest mb-2">{t("creator_identity")}</h2>
+        <h2 className="text-sm font-black theme-text-accent capitalize tracking-widest mb-2">{t("creator_identity")}</h2>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("public_name")}</label>
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("public_name")}</label>
           <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("avatar_url")}</label>
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("avatar_url")}</label>
           <input value={formData.avatar_url} onChange={e => setFormData({ ...formData, avatar_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("biography")}</label>
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("biography")}</label>
           <textarea value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar overflow-y-auto" />
         </div>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("patreon_url")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("patreon_url")}</label>
             <input value={formData.patreon_url} onChange={e => setFormData({ ...formData, patreon_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("personal_website")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("personal_website")}</label>
             <input value={formData.website_url} onChange={e => setFormData({ ...formData, website_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
           </div>
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("discord_url")}</label>
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("discord_url")}</label>
           <input value={formData.discord_url} onChange={e => setFormData({ ...formData, discord_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
 

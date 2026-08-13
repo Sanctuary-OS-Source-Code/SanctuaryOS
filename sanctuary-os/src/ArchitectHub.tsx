@@ -2,7 +2,7 @@ import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { SidePanel, ModSearchDropdown, ViewHeader, GameVersionMultiSelect, CustomDropdown, formatDisplayName, CustomDatePicker, CustomComplianceDropdown, CustomClassificationDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, VerticalTabDropdown, StatTile, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, extractPostImage, stripMarkdown, EmptyState, DashboardStatTile } from "./shared";
+import { SidePanel, ModSearchDropdown, ViewHeader, GameVersionMultiSelect, CustomDropdown, formatDisplayName, CustomDatePicker, CustomComplianceDropdown, CustomClassificationDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, VerticalTabDropdown, DashboardStatTile, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardButtonClass, extractPostImage, stripMarkdown, EmptyState } from "./shared";
 import ProtocolVisualizer from "./ProtocolVisualizer";
 import ModStructureBuilder from "./ModStructureBuilder";
 import ArchitectSupportTickets from "./hub-components/ArchitectSupportTickets";
@@ -53,13 +53,13 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         subtitle={t("hub_subtitle")}
         icon={t("icon_analytics")}
         iconColorClass="text-[var(--accent)]"
-        breadcrumb={activeTab !== "command_center" ? activeTab.replace(/_/g, ' ').toUpperCase() : undefined}
+        breadcrumb={activeTab !== "command_center" ? activeTab.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
         onTitleClick={() => setActiveTab("command_center")}
       />
 
-      <HoverTabDrawer 
-        title="Architect Navigation" 
-        activeTab={activeTab} 
+      <HoverTabDrawer
+        title="Architect Navigation"
+        activeTab={activeTab}
         setTab={setActiveTab}
         footer={
           <ActionButton
@@ -71,18 +71,18 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
           />
         }
       >
-        <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command") || "COMMAND"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="registry" icon={t("icon_inventory_2")} label={t("items") || "ARTIFACTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="queue" icon={t("icon_search")} label={t("tab_queue") || "SCOUT"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="lab" icon={t("icon_monitor_heart")} label={t("tab_diagnostics") || "DIAGNOSTICS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="registry" icon={t("icon_inventory_2")} label={t("items")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="queue" icon={t("icon_search")} label={t("tab_queue")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="lab" icon={t("icon_monitor_heart")} label={t("tab_diagnostics")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
 
-        <VerticalTabButton id="collections" icon={t("icon_collections_bookmark")} label={t("tab_cc") || "COLLECTIONS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="protocols" icon={t("icon_link")} label={t("tab_protocols") || "PROTOCOLS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="structure" icon={t("icon_architecture")} label={t("tab_structure") || "STRUCTURE"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="matrix" icon={t("icon_security")} label={t("tab_matrix") || "CONFLICTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="mason_queue" icon={t("icon_construction")} label={t("mason") || "MASON"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="template_oversight" icon={t("icon_data_object") || "data_object"} label={t("ql_templates") || "TEMPLATES"} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="nexus_reports" icon={t("icon_flag")} label={t("stat_bugs") || "REPORTS"?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="collections" icon={t("icon_collections_bookmark")} label={t("tab_cc")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="protocols" icon={t("icon_link")} label={t("tab_protocols")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="structure" icon={t("icon_architecture")} label={t("tab_structure")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="matrix" icon={t("icon_security")} label={t("tab_matrix")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="mason_queue" icon={t("icon_construction")} label={t("mason")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="template_oversight" icon={t("icon_data_object")} label={t("ql_templates")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="nexus_reports" icon={t("icon_flag")} label={t("stat_bugs")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="support_tickets" icon={t("icon_local_activity")} label={(t("wf_tab_tickets")).replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
       </HoverTabDrawer>
 
@@ -164,10 +164,10 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
       <div className="w-full max-w-lg bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl flex flex-col overflow-hidden">
         <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <div className="flex justify-start items-center mb-4">
-            <h3 className="text-sm font-black uppercase tracking-widest theme-text-accent">
+            <h3 className="text-sm font-black capitalize tracking-widest theme-text-accent">
               {getTitle()}
             </h3>
-            <button onClick={onClose} className="text-[var(--text)]/50 hover:text-[var(--text)] font-black">?</button>
+            <button onClick={onClose} className="text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] font-black">?</button>
           </div>
           <input
             autoFocus
@@ -187,9 +187,9 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
               className="flex justify-start items-center px-5 py-3 glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group"
             >
               <div className="flex flex-col max-w-[80%]">
-                <span className="text-xs font-black text-[var(--text)] uppercase truncate">{mod.name}</span>
+                <span className="text-xs font-black text-[var(--text)] capitalize truncate">{mod.name}</span>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">{mod.master_author || t("unknown_mason") || "Unknown Mason"}</span>
+                  <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate">{mod.master_author || t("unknown_mason")}</span>
                   {(mod.original_filename || mod.mod_type) && (
                     <>
                       <span className="text-[var(--subtext)] opacity-40">•</span>
@@ -199,15 +199,15 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
                   {(mod.latest_version || mod.version) && (
                     <>
                       <span className="text-[var(--subtext)] opacity-40">•</span>
-                      <span className="text-[9px] font-bold text-[var(--text)] uppercase tracking-widest">{mod.latest_version || mod.version}</span>
+                      <span className="text-[9px] font-bold text-[var(--text)] capitalize tracking-widest">{mod.latest_version || mod.version}</span>
                     </>
                   )}
                 </div>
               </div>
-              <span className="theme-text-accent opacity-0 group-hover:opacity-100 transition-opacity font-black text-[10px] uppercase tracking-widest">{t("btn_link")}</span>
+              <span className="theme-text-accent opacity-0 group-hover:opacity-100 transition-opacity font-black text-[10px] capitalize tracking-widest">{t("btn_link")}</span>
             </button>
           )) : (
-            <div className="text-center p-8 text-[var(--subtext)] opacity-60 font-bold text-xs uppercase tracking-widest">{t("modal_no_matches")}</div>
+            <div className="text-center p-8 text-[var(--subtext)] opacity-60 font-bold text-xs capitalize tracking-widest">{t("modal_no_matches")}</div>
           )}
         </div>
       </div>
@@ -246,10 +246,10 @@ function DLCSearchDropdown({ onSelect, currentDLC = [] }: { onSelect: (pack: str
             onChange={e => { setQuery(e.target.value); setIsOpen(true); }}
             onFocus={() => setIsOpen(true)}
             placeholder={t("registry_search_dlc")}
-            className="w-full glass-surface rounded-lg px-3 py-1.5 text-[var(--text)] text-sm uppercase font-bold focus:outline-none focus:theme-border-success"
+            className="w-full glass-surface rounded-lg px-3 py-1.5 text-[var(--text)] text-sm capitalize font-bold focus:outline-none focus:theme-border-success"
           />
           {query && (
-            <button onClick={() => setQuery("")} className="absolute right-2 top-1.5 text-[var(--text)]/20 hover:text-[var(--text)] text-[10px]"></button>
+            <button onClick={() => setQuery("")} className="absolute right-2 top-1.5 text-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:text-[var(--text)] text-[10px]"></button>
           )}
         </div>
       </div>
@@ -261,11 +261,11 @@ function DLCSearchDropdown({ onSelect, currentDLC = [] }: { onSelect: (pack: str
               onClick={() => { onSelect(d.code); setQuery(""); setIsOpen(false); }}
               className="w-full text-left px-4 py-2 hover:theme-panel-success flex flex-col transition-colors group"
             >
-              <span className="text-[10px] font-black theme-text-success uppercase">{d.code}</span>
-              <span className="text-[9px] font-bold text-[var(--subtext)] opacity-80 group-hover:text-[var(--text)] uppercase">{d.name}</span>
+              <span className="text-[10px] font-black theme-text-success capitalize">{d.code}</span>
+              <span className="text-[9px] font-bold text-[var(--subtext)] opacity-80 group-hover:text-[var(--text)] capitalize">{d.name}</span>
             </button>
           )) : (
-            <div className="p-4 text-center text-[9px] font-black text-gray-600 uppercase tracking-widest">{t("registry_no_dlc")}</div>
+            <div className="p-4 text-center text-[9px] font-black text-gray-600 capitalize tracking-widest">{t("registry_no_dlc")}</div>
           )}
         </div>
       )}

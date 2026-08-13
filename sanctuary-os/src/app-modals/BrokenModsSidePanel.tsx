@@ -32,18 +32,18 @@ export function BrokenModsSidePanel({
         }).map((m: any) => {
           const isMismatch = m.isGhosted === true && m.ghostReason === "VERSION_MISMATCH";
           return (
-            <div key={m.hash} className="flex items-center justify-start p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-amber-500/50 transition-all group gap-4">
+            <div key={m.hash} className="flex items-center justify-start p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] transition-all group gap-4">
               <div className="flex flex-col gap-1 min-w-0">
                 <span className="text-sm font-black text-[var(--text)] truncate group-hover:text-amber-500 transition-colors">
                   {m.name.split(/[/\\]/).pop()}
                 </span>
-                <span className="text-[9px] font-bold text-amber-500/80 uppercase tracking-widest">
+                <span className="text-[9px] font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] capitalize tracking-widest">
                   {isMismatch ? (t("modal_version_mismatch")) : (t("modal_severely_broken"))}
                 </span>
               </div>
               <button 
                 onClick={() => toggleInActiveSet && toggleInActiveSet(m.name)} 
-                className="shrink-0 px-5 py-2.5 theme-bg-danger text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-lg transition-all hover:scale-105 shadow-[0_0_15px_rgba(var(--danger-rgb),0.4)]"
+                className="shrink-0 px-5 py-2.5 theme-bg-danger text-[var(--bg)] font-black text-[10px] capitalize tracking-widest rounded-lg transition-all hover:scale-105 shadow-[0_0_15px_rgba(var(--danger-rgb),0.4)]"
               >
                 {t("status_remove")}
               </button>
@@ -57,7 +57,7 @@ export function BrokenModsSidePanel({
           const isMismatch = m.isGhosted === true && m.ghostReason === "VERSION_MISMATCH";
           return isBroken || isMismatch;
         }).length === 0 && (
-          <div className="text-[var(--subtext)] text-center opacity-50 p-6 italic font-bold text-xs uppercase tracking-widest bg-black/10 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+          <div className="text-[var(--subtext)] text-center opacity-50 p-6 italic font-bold text-xs capitalize tracking-widest bg-black/10 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             {t("broken_modal_empty")}
           </div>
         )}

@@ -48,13 +48,13 @@ export function LocalFolderModal({ localFolderModal, setLocalFolderModal, localF
               value={localFolderName}
               onChange={(e) => setLocalFolderName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createLocalFolder()}
-              placeholder={localFolderType === "CC_SET" ? t("ph_collection_name") || "COLLECTION NAME" : t("ph_folder_name") || "FOLDER NAME"} 
-              className="w-full h-full bg-transparent border-none outline-none px-4 pl-12 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text)]"
+              placeholder={localFolderType === "CC_SET" ? t("ph_collection_name") : t("ph_folder_name")} 
+              className="w-full h-full bg-transparent border-none outline-none px-4 pl-12 text-[10px] font-black capitalize tracking-[0.2em] text-[var(--text)]"
             />
           </div>
           <button 
              onClick={() => setLocalFolderType(localFolderType === 'FOLDER' ? 'CC_SET' : 'FOLDER')}
-             className={`h-full px-6 text-[10px] font-black uppercase tracking-widest transition-all ${localFolderType === 'CC_SET' ? 'bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black' : 'bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)] hover:text-black'} flex items-center justify-center gap-2 shrink-0 border-none outline-none`}
+             className={`h-full px-6 text-[10px] font-black capitalize tracking-widest transition-all ${localFolderType === 'CC_SET' ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] hover:bg-[var(--success)] hover:text-black'} flex items-center justify-center gap-2 shrink-0 border-none outline-none`}
           >
              <span className="material-symbols-outlined text-[16px]">{localFolderType === "CC_SET" ? 'category' : 'folder'}</span>
              {localFolderType === "CC_SET" ? t('collection') : t('folder')}
@@ -64,8 +64,8 @@ export function LocalFolderModal({ localFolderModal, setLocalFolderModal, localF
         {/* Selected Files List */}
         <div className="flex-1 flex flex-col min-h-0 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
           <div className="flex items-center gap-3 mb-6 shrink-0">
-            <span className="material-symbols-outlined !text-[18px] text-[var(--text)] opacity-50">{t("icon_inventory_2") || "inventory_2"}</span>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("artifacts_linked") || "ARTIFACTS LINKED"} ({selectedMods.length})</h3>
+            <span className="material-symbols-outlined !text-[18px] text-[var(--text)] opacity-50">{t("icon_inventory_2")}</span>
+            <h3 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)]">{t("artifacts_linked")} ({selectedMods.length})</h3>
           </div>
           
           <div className="flex-1 grid grid-cols-2 gap-2 overflow-y-auto custom-scrollbar pr-2 items-start content-start">
@@ -76,7 +76,7 @@ export function LocalFolderModal({ localFolderModal, setLocalFolderModal, localF
                   <span className={`material-symbols-outlined !text-[16px] ${localFolderType === "CC_SET" ? 'text-[var(--accent)]' : 'text-[var(--success)]'} opacity-50`}>
                      {localFolderType === "CC_SET" ? 'category' : 'folder'}
                   </span>
-                  <span className="text-[11px] font-black text-[var(--text)] uppercase truncate">{displayName}</span>
+                  <span className="text-[11px] font-black text-[var(--text)] capitalize truncate">{displayName}</span>
                 </div>
               );
             })}

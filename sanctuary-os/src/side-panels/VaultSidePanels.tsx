@@ -36,14 +36,14 @@ export function VaultToolsSidePanel({
       title={t("vault_tools_title")}
       subtitle={t("vault_tools_subtitle")}
       icon="tune"
-      iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+      iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
     >
       <div className="flex flex-col gap-6">
         {playSets && playSets.length > 0 && (
           <div className="flex flex-col gap-4 pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">{t("icon_layers")}</span>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("type_blueprint")}</h3>
+              <h3 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)]">{t("type_blueprint")}</h3>
             </div>
 
             <div className="flex gap-2">
@@ -57,7 +57,7 @@ export function VaultToolsSidePanel({
               </div>
               <button
                 onClick={() => equipPlaySet && equipPlaySet(playSets[activePlaySetIndex]?.name)}
-                className="h-10 px-4 rounded-xl bg-emerald-500/[15%] border border-emerald-500/[30%] text-[var(--success)] hover:bg-emerald-500/[25%] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0"
+                className="h-10 px-4 rounded-xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] text-[10px] font-black capitalize tracking-widest transition-all flex items-center gap-2 shrink-0"
               >
                 <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span> {t("auto_save")}
               </button>
@@ -68,7 +68,7 @@ export function VaultToolsSidePanel({
         <div className="flex flex-col gap-4 pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined !text-[18px] text-[var(--text)]">{t("icon_bolt")}</span>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("sidebar_actions")}</h3>
+            <h3 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)]">{t("sidebar_actions")}</h3>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -108,7 +108,7 @@ export function VaultToolsSidePanel({
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">{t("icon_folder")}</span>
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{t("local_folders")}</h3>
+                <h3 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)]">{t("local_folders")}</h3>
               </div>
 
               <div className="flex gap-2">
@@ -196,7 +196,7 @@ export function VaultLocalFolderEditorSidePanel({
           <SidePanelActionFooter
             hideCancel={true}
             centerDanger={true}
-            dangerLabel={deleteConfirm ? (t("btn_confirm_delete") || "CONFIRM DELETION") : t("local_folders_delete")}
+            dangerLabel={deleteConfirm ? (t("btn_confirm_delete")) : t("local_folders_delete")}
             dangerIcon={deleteConfirm ? "warning" : "delete"}
             onDanger={() => {
               if (deleteConfirm) {
@@ -209,7 +209,7 @@ export function VaultLocalFolderEditorSidePanel({
                 setTimeout(() => setDeleteConfirm(false), 3000);
               }
             }}
-            actionLabel={t("btn_done") || "CONFIRM"}
+            actionLabel={t("btn_done")}
             actionIcon="check"
             actionVariant="accent"
             onAction={() => {
@@ -242,8 +242,8 @@ export function VaultLocalFolderEditorSidePanel({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') e.currentTarget.blur();
                   }}
-                  className="w-full h-full bg-transparent border-none outline-none px-4 pl-12 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text)]"
-                  placeholder={targetSet.isCollection ? t("ph_collection_name") || "COLLECTION NAME" : t("ph_folder_name") || "FOLDER NAME"}
+                  className="w-full h-full bg-transparent border-none outline-none px-4 pl-12 text-[10px] font-black capitalize tracking-[0.2em] text-[var(--text)]"
+                  placeholder={targetSet.isCollection ? t("ph_collection_name") : t("ph_folder_name")}
                 />
               </div>
               <button
@@ -252,7 +252,7 @@ export function VaultLocalFolderEditorSidePanel({
                   localStorage.setItem("sanctuary_local_sets", JSON.stringify(updated));
                   runRadarSweep(true);
                 }}
-                className={`h-full px-6 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] ${targetSet.isCollection ? 'text-[var(--accent)]' : 'text-[var(--success)]'}`}
+                className={`h-full px-6 text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] ${targetSet.isCollection ? 'text-[var(--accent)]' : 'text-[var(--success)]'}`}
               >
                 <span className="material-symbols-outlined text-[16px]">{typeIcon}</span>
                 {targetSet.isCollection ? t('collection') : t('folder')}
@@ -264,14 +264,14 @@ export function VaultLocalFolderEditorSidePanel({
               <SearchBar
                 value={searchToAdd}
                 onChange={setSearchToAdd}
-                placeholder={t("btn_search") || "SEARCH TO INJECT..."}
+                placeholder={t("btn_search")}
               />
               
               {/* SEARCH RESULTS POPOVER */}
               {searchToAdd.trim() !== "" && (
                 <div className="absolute top-full left-0 right-0 mt-3 max-h-80 bg-[color-mix(in_srgb,var(--panel)_95%,transparent)] backdrop-blur-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-2xl overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2 z-[100]">
                   {searchResults.length === 0 ? (
-                    <div className="p-4 text-center text-[var(--subtext)] text-[10px] uppercase font-black tracking-widest opacity-50">No Results Found</div>
+                    <div className="p-4 text-center text-[var(--subtext)] text-[10px] capitalize font-black tracking-widest opacity-50">No Results Found</div>
                   ) : (
                     Array.from(new Map(searchResults.map((m: any) => [m.hash, m])).values()).slice(0, 50).map((m: any) => {
                       const isAdded = targetSet.items.includes(m.hash);
@@ -294,7 +294,7 @@ export function VaultLocalFolderEditorSidePanel({
                                   setSearchToAdd("");
                                   setUpdateTrigger(prev => prev + 1);
                                 }}
-                                className="h-8 px-3 rounded-lg bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black transition-all flex items-center justify-center gap-1 shrink-0 text-[9px] font-black uppercase tracking-widest border border-transparent hover:border-black/20 relative group/actionbtn"
+                                className="h-8 px-3 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black transition-all flex items-center justify-center gap-1 shrink-0 text-[9px] font-black capitalize tracking-widest border border-transparent hover:border-black/20 relative group/actionbtn"
                               >
                                 <span className="material-symbols-outlined !text-[14px]">add</span> {t("ql_add")}
                               </button>
@@ -308,10 +308,10 @@ export function VaultLocalFolderEditorSidePanel({
                                     setSearchToAdd("");
                                     setUpdateTrigger(prev => prev + 1);
                                   }}
-                                  className="w-8 h-8 rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-all shadow-sm bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-center relative group/actionbtn"
+                                  className="w-8 h-8 rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all shadow-sm bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-center relative group/actionbtn"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">stars</span>
-                                  <HoverTooltip title={t("editor_core") || "CORE"} variant="accent" className="z-[200] !right-0 !left-auto !translate-x-0" />
+                                  <HoverTooltip title={t("editor_core")} variant="accent" className="z-[200] !right-0 !left-auto !translate-x-0" />
                                 </button>
                                 <button
                                   onClick={() => {
@@ -321,10 +321,10 @@ export function VaultLocalFolderEditorSidePanel({
                                     setSearchToAdd("");
                                     setUpdateTrigger(prev => prev + 1);
                                   }}
-                                  className="w-8 h-8 rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[var(--success)] hover:text-[var(--success)] hover:bg-[var(--success)]/10 transition-all shadow-sm bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-center relative group/actionbtn"
+                                  className="w-8 h-8 rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[var(--success)] hover:text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] transition-all shadow-sm bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-center relative group/actionbtn"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">join_inner</span>
-                                  <HoverTooltip title={t("editor_twin") || "TWIN"} variant="success" className="z-[200] !right-0 !left-auto !translate-x-0" />
+                                  <HoverTooltip title={t("editor_twin")} variant="success" className="z-[200] !right-0 !left-auto !translate-x-0" />
                                 </button>
                                 <button
                                   onClick={() => {
@@ -334,10 +334,10 @@ export function VaultLocalFolderEditorSidePanel({
                                     setSearchToAdd("");
                                     setUpdateTrigger(prev => prev + 1);
                                   }}
-                                  className="w-8 h-8 rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[var(--warning)] hover:text-[var(--warning)] hover:bg-[var(--warning)]/10 transition-all shadow-sm bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-center relative group/actionbtn"
+                                  className="w-8 h-8 rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[var(--warning)] hover:text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all shadow-sm bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-center relative group/actionbtn"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">extension</span>
-                                  <HoverTooltip title={t("editor_addon") || "ADDON"} variant="warning" className="z-[200] !right-0 !left-auto !translate-x-0" />
+                                  <HoverTooltip title={t("editor_addon")} variant="warning" className="z-[200] !right-0 !left-auto !translate-x-0" />
                                 </button>
                               </div>
                             )
@@ -356,14 +356,14 @@ export function VaultLocalFolderEditorSidePanel({
             <div className="flex items-center justify-start pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
               <div className="flex items-center gap-3">
                 <span className={`material-symbols-outlined !text-[18px] opacity-70 ${targetSet.isCollection ? 'text-[var(--accent)]' : 'text-[var(--success)]'}`}>{targetSet.isCollection ? 'category' : 'inventory_2'}</span>
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">{targetSet.isCollection ? (t("collection_contents") || "COLLECTION CONTENTS") : (t("folder_logic") || "FOLDER LOGIC")} ({targetSet.items.length})</h3>
+                <h3 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)]">{targetSet.isCollection ? (t("collection_contents")) : (t("folder_logic"))} ({targetSet.items.length})</h3>
               </div>
             </div>
 
             {targetSet.items.length === 0 ? (
               <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                <span className="material-symbols-outlined !text-[32px] mb-2 opacity-50">inventory_2</span>
-                <span className="text-[10px] font-black uppercase tracking-widest">{t("empty_folder") || "THIS NODE IS EMPTY"}</span>
+                <span className="material-symbols-outlined mb-2 opacity-50">inventory_2</span>
+                <span className="text-[10px] font-black capitalize tracking-widest">{t("empty_folder")}</span>
               </div>
             ) : targetSet.isCollection ? (
                   // ==============================
@@ -392,7 +392,7 @@ export function VaultLocalFolderEditorSidePanel({
                                     localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
                                     setUpdateTrigger(prev => prev + 1);
                                   }}
-                                  className="w-8 h-8 rounded-lg text-[var(--danger)] bg-[var(--danger)]/10 hover:bg-[var(--danger)] hover:text-white transition-all flex items-center justify-center border border-[var(--danger)]/20 hover:border-[var(--danger)]/50 shadow-sm"
+                                  className="w-8 h-8 rounded-lg text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[var(--danger)] hover:text-white transition-all flex items-center justify-center border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-sm"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">close</span>
                                 </button>
@@ -410,7 +410,7 @@ export function VaultLocalFolderEditorSidePanel({
                     
                     {/* BUCKET: CORE */}
                     <UniversalGroup
-                      title={t("editor_core_artifact") || "CORE ARTIFACT"}
+                      title={t("editor_core_artifact")}
                       icon="stars"
                       headerColorClass="text-[var(--accent)]"
                     >
@@ -426,7 +426,7 @@ export function VaultLocalFolderEditorSidePanel({
                               image={art.image_url || art.imageUrl}
                               icon={!art.image_url && !art.imageUrl ? getModIcon(art, activeGameSchema, t) : undefined}
                               title={formatDisplayName(art.displayName || art.name)}
-                              className="bg-[var(--accent)]/5 hover:bg-[var(--accent)]/10 border-[var(--accent)]/30 shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all h-[250px]"
+                              className="bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all h-[250px]"
                               actions={
                                 <div className="absolute top-2 right-2 pointer-events-auto z-50">
                                     <button onClick={(e) => {
@@ -437,7 +437,7 @@ export function VaultLocalFolderEditorSidePanel({
                                       const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
                                       localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
                                       setUpdateTrigger(prev => prev + 1);
-                                    }} className="w-8 h-8 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm">
+                                    }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm">
                                       <span className="material-symbols-outlined !text-[16px]">close</span>
                                     </button>
                                 </div>
@@ -445,8 +445,8 @@ export function VaultLocalFolderEditorSidePanel({
                             />
                           );
                         })() : (
-                          <div className="col-span-2 w-full p-4 rounded-xl border border-dashed border-[var(--accent)]/30 bg-[var(--accent)]/5 text-[var(--accent)]/50 text-[10px] font-black uppercase tracking-widest text-center">
-                            {t("editor_no_core_selected") || "NO CORE ASSIGNED"}
+                          <div className="col-span-2 w-full p-4 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[10px] font-black capitalize tracking-widest text-center">
+                            {t("editor_no_core_selected")}
                           </div>
                         )}
                       </div>
@@ -454,13 +454,13 @@ export function VaultLocalFolderEditorSidePanel({
 
                     {/* BUCKET: TWINS */}
                     <UniversalGroup
-                      title={t("twin_artifacts") || "TWIN ARTIFACTS"}
+                      title={t("twin_artifacts")}
                       icon="join_inner"
                       headerColorClass="text-[var(--success)]"
                     >
                       <div className="grid grid-cols-2 gap-4">
                         {(!targetSet.archetypes?.twins || targetSet.archetypes.twins.length === 0) && (
-                           <div className="col-span-2 w-full p-3 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]/50 text-[9px] font-black uppercase tracking-widest text-center">EMPTY</div>
+                           <div className="col-span-2 w-full p-3 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[color-mix(in_srgb,var(--subtext)_50%,transparent)] text-[9px] font-black capitalize tracking-widest text-center">EMPTY</div>
                         )}
                         {(targetSet.archetypes?.twins || []).map((hash: string) => {
                           const art = displayModList.find((m: any) => m.hash === hash);
@@ -472,7 +472,7 @@ export function VaultLocalFolderEditorSidePanel({
                               image={art.image_url || art.imageUrl}
                               icon={!art.image_url && !art.imageUrl ? getModIcon(art, activeGameSchema, t) : undefined}
                               title={formatDisplayName(art.displayName || art.name)}
-                              className="bg-[var(--success)]/5 hover:bg-[var(--success)]/10 border-[var(--success)]/30 shadow-lg hover:shadow-[0_0_20px_rgba(var(--success-rgb),0.15)] transition-all h-[250px]"
+                              className="bg-[color-mix(in_srgb,var(--success)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-lg hover:shadow-[0_0_20px_rgba(var(--success-rgb),0.15)] transition-all h-[250px]"
                               actions={
                                 <div className="absolute top-2 right-2 pointer-events-auto z-50">
                                     <button onClick={(e) => {
@@ -483,7 +483,7 @@ export function VaultLocalFolderEditorSidePanel({
                                       const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
                                       localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
                                       setUpdateTrigger(prev => prev + 1);
-                                    }} className="w-8 h-8 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm">
+                                    }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm">
                                       <span className="material-symbols-outlined !text-[16px]">close</span>
                                     </button>
                                 </div>
@@ -496,13 +496,13 @@ export function VaultLocalFolderEditorSidePanel({
 
                     {/* BUCKET: ADDONS */}
                     <UniversalGroup
-                      title={t("addon_artifacts") || "ADDON ARTIFACTS"}
+                      title={t("addon_artifacts")}
                       icon="extension"
                       headerColorClass="text-[var(--warning)]"
                     >
                       <div className="grid grid-cols-2 gap-4">
                         {(!targetSet.archetypes?.addons || targetSet.archetypes.addons.length === 0) && (
-                           <div className="col-span-2 w-full p-3 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]/50 text-[9px] font-black uppercase tracking-widest text-center">EMPTY</div>
+                           <div className="col-span-2 w-full p-3 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[color-mix(in_srgb,var(--subtext)_50%,transparent)] text-[9px] font-black capitalize tracking-widest text-center">EMPTY</div>
                         )}
                         {(targetSet.archetypes?.addons || []).map((hash: string) => {
                           const art = displayModList.find((m: any) => m.hash === hash);
@@ -514,7 +514,7 @@ export function VaultLocalFolderEditorSidePanel({
                               image={art.image_url || art.imageUrl}
                               icon={!art.image_url && !art.imageUrl ? getModIcon(art, activeGameSchema, t) : undefined}
                               title={formatDisplayName(art.displayName || art.name)}
-                              className="bg-[var(--warning)]/5 hover:bg-[var(--warning)]/10 border-[var(--warning)]/30 shadow-lg hover:shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] transition-all h-[250px]"
+                              className="bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-lg hover:shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] transition-all h-[250px]"
                               actions={
                                 <div className="absolute top-2 right-2 pointer-events-auto z-50">
                                     <button onClick={(e) => {
@@ -525,7 +525,7 @@ export function VaultLocalFolderEditorSidePanel({
                                       const updatedSets = localSets.map((s: any) => s.id === target ? { ...s, items: updatedItems, archetypes: updatedArch } : s);
                                       localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
                                       setUpdateTrigger(prev => prev + 1);
-                                    }} className="w-8 h-8 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm">
+                                    }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:bg-[var(--danger)] hover:text-white hover:border-[var(--danger)] transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm">
                                       <span className="material-symbols-outlined !text-[16px]">close</span>
                                     </button>
                                 </div>

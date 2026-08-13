@@ -16,11 +16,11 @@ function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: any) {
           image={image}
           icon={!image ? getModIcon(update, activeGameSchema, t) : undefined}
           statusColor="theme-border-accent"
-          className="w-full h-full bg-[var(--accent)]/[5%] hover:bg-[var(--accent)]/[10%] border-[var(--accent)]/[30%] shadow-lg hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)]"
+          className="w-full h-full bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-lg hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)]"
           title={formatDisplayName(update.displayName || update.name)}
           subtitle={
             <div className="flex items-center gap-1.5 opacity-80 mt-0.5">
-               <span>{update.author || t("unknown_mason") || "Unknown Mason"}</span>
+               <span>{update.author || t("unknown_mason")}</span>
             </div>
           }
           actions={
@@ -40,15 +40,15 @@ function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: any) {
           }
           badges={
             <div className="flex flex-wrap items-center gap-2">
-               <div className="backdrop-blur-md bg-cyan-400/10 border border-cyan-400/30 px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
-                 <span className="text-[7px] font-black uppercase tracking-widest text-cyan-400">{update.version || "v.Local"}</span>
+               <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
+                 <span className="text-[7px] font-black capitalize tracking-widest text-cyan-400">{update.version || "v.Local"}</span>
                  <span className="opacity-40 mx-1 text-[8px] text-cyan-400">-</span> 
-                 <span className="theme-text-accent font-black text-[7px] uppercase tracking-widest">{update.newVersion}</span>
+                 <span className="theme-text-accent font-black text-[7px] capitalize tracking-widest">{update.newVersion}</span>
                </div>
                {update.newGameVersion && (
-                 <div className="backdrop-blur-md bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
+                 <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
                    <span className="material-symbols-outlined !text-[10px] text-purple-500">{t("icon_sports_esports")}</span>
-                   <span className="text-[7px] font-black uppercase tracking-widest text-purple-500">{update.newGameVersion}</span>
+                   <span className="text-[7px] font-black capitalize tracking-widest text-purple-500">{update.newGameVersion}</span>
                  </div>
                )}
             </div>
@@ -76,14 +76,14 @@ export function UpdatesSidePanel({
       title={t("updates_modal_title")}
       subtitle={t("system_core")}
       icon={t("icon_update")}
-      iconColorClass="text-[var(--accent)] border-[var(--accent)]/[30%]"
+      iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
       widthClass="w-[550px]"
     >
       <div className="flex flex-col gap-4 w-full">
         <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative">
           <div className="flex items-center justify-start w-full relative z-10">
-            <h3 className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-[0.2em] opacity-80">{t("updates_modal_title")}</h3>
-            <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 uppercase tracking-widest">
+            <h3 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-[0.2em] opacity-80">{t("updates_modal_title")}</h3>
+            <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
               {activeUpdates.length > 0 ? (
                 <span>
                   {Object.keys(activeUpdates.reduce((acc: any, update: any) => { acc[update.dbId || update.displayName || update.name] = true; return acc; }, {})).length} {t("items")}
@@ -111,7 +111,7 @@ export function UpdatesSidePanel({
           )) : (
             <div className="flex-1 flex flex-col items-center justify-center opacity-50 space-y-4 py-12">
               <span className="material-symbols-outlined !text-6xl theme-text-success drop-shadow-[0_0_30px_var(--success)] animate-pulse">{t("icon_update")}</span>
-              <p className="text-[12px] font-black tracking-widest uppercase text-center">{t("no_updates")}</p>
+              <p className="text-[12px] font-black tracking-widest capitalize text-center">{t("no_updates")}</p>
             </div>
           )}
         </div>

@@ -23,7 +23,7 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
   if (!isBackingUp && !isRestoring) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center bg-[var(--bg)]/30 backdrop-blur-md animate-in fade-in duration-500 p-8">
+    <div className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] backdrop-blur-md animate-in fade-in duration-500 p-8">
       {/* Background Ambient Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[120px] pointer-events-none mix-blend-screen" 
            style={{ backgroundColor: `color-mix(in srgb, ${themeVar} 10%, transparent)` }} />
@@ -51,21 +51,21 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
           </div>
 
           <div className="flex flex-col gap-3 pt-2 flex-1">
-            <h2 className="text-5xl font-black text-white tracking-tighter uppercase drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] leading-none">{t("backups_title") || "TIME CAPSULE"}</h2>
-            <h3 className="text-xl font-bold uppercase tracking-[0.3em] opacity-90"
+            <h2 className="text-5xl font-black text-white tracking-tighter capitalize drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] leading-none">{t("backups_title")}</h2>
+            <h3 className="text-xl font-bold capitalize tracking-[0.3em] opacity-90"
                 style={{ color: themeVar, filter: `drop-shadow(0 0 10px color-mix(in srgb, ${themeVar} 30%, transparent))` }}>{title}</h3>
             <div className="w-full h-px my-3" style={{ background: `linear-gradient(to right, color-mix(in srgb, ${themeVar} 30%, transparent), transparent)` }} />
-            <p className="text-sm font-bold text-[var(--subtext)] leading-relaxed uppercase tracking-[0.15em] max-w-2xl opacity-80">
+            <p className="text-sm font-bold text-[var(--subtext)] leading-relaxed capitalize tracking-[0.15em] max-w-2xl opacity-80">
               {desc}
             </p>
           </div>
         </div>
 
-        <div className="relative z-10 w-full mt-4 bg-[var(--bg)]/10 backdrop-blur-xl p-8 rounded-2xl border flex flex-col gap-6 shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)]"
+        <div className="relative z-10 w-full mt-4 bg-[color-mix(in_srgb,var(--bg)_10%,transparent)] backdrop-blur-xl p-8 rounded-2xl border flex flex-col gap-6 shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)]"
              style={{ borderColor: `color-mix(in srgb, ${themeVar} 10%, transparent)` }}>
           {backupProgress ? (
           <>
-            <div className="flex justify-start items-end text-[11px] font-black uppercase tracking-[0.3em]"
+            <div className="flex justify-start items-end text-[11px] font-black capitalize tracking-[0.3em]"
                  style={{ color: `color-mix(in srgb, ${themeVar} 90%, transparent)`, filter: `drop-shadow(0 0 10px color-mix(in srgb, ${themeVar} 20%, transparent))` }}>
               <span className="truncate pr-4">{backupProgress.action}</span>
               <span className="shrink-0 opacity-80">{backupProgress.current} / {backupProgress.total}</span>
@@ -87,10 +87,10 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
           </>
           ) : (
             <>
-              <div className="flex justify-start items-end text-[11px] font-black uppercase tracking-[0.3em]"
+              <div className="flex justify-start items-end text-[11px] font-black capitalize tracking-[0.3em]"
                    style={{ color: `color-mix(in srgb, ${themeVar} 90%, transparent)` }}>
-                <span>{t("defcon_init_secure") || "INITIALIZING DATA STREAM..."} [DEBUG: {JSON.stringify(backupProgress)}]</span>
-                <span className="animate-pulse opacity-80">{t("defcon_stand_by") || "STAND BY"}</span>
+                <span>{t("defcon_init_secure")} [DEBUG: {JSON.stringify(backupProgress)}]</span>
+                <span className="animate-pulse opacity-80">{t("defcon_stand_by")}</span>
               </div>
               <div className="w-full bg-black/80 rounded-full h-3 overflow-hidden border shadow-[inset_0_2px_5px_rgba(0,0,0,0.8)]"
                    style={{ borderColor: `color-mix(in srgb, ${themeVar} 10%, transparent)` }}>

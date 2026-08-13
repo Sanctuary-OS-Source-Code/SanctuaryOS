@@ -43,26 +43,26 @@ export const BlueprintRadarCard = ({
 
   const statsGrid = cache?.hasScanned ? (
     <div className="grid grid-cols-4 gap-2 mt-2 w-full">
-      <div onClick={(e) => { e.stopPropagation(); onTabNavigate('fatal'); }} className="flex flex-col items-center p-2 rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/50 hover:scale-105 transition-all cursor-pointer">
+      <div onClick={(e) => { e.stopPropagation(); onTabNavigate('fatal'); }} className="flex flex-col items-center p-2 rounded-lg bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:scale-105 transition-all cursor-pointer">
         <span className="text-red-500 font-black text-lg">{cache.fatal?.length || 0}</span>
-        <span className="text-[9px] font-bold uppercase tracking-widest text-red-500/70">{t("radar_label_fatal")}</span>
+        <span className="text-[9px] font-bold capitalize tracking-widest text-[color-mix(in_srgb,var(--danger)_70%,transparent)]">{t("radar_label_fatal")}</span>
       </div>
-      <div onClick={(e) => { e.stopPropagation(); onTabNavigate('tuning'); }} className="flex flex-col items-center p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 hover:border-orange-500/50 hover:scale-105 transition-all cursor-pointer">
+      <div onClick={(e) => { e.stopPropagation(); onTabNavigate('tuning'); }} className="flex flex-col items-center p-2 rounded-lg bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] hover:scale-105 transition-all cursor-pointer">
         <span className="text-orange-500 font-black text-lg">{cache.tuning?.length || 0}</span>
-        <span className="text-[9px] font-bold uppercase tracking-widest text-orange-500/70">{t("radar_label_tuning")}</span>
+        <span className="text-[9px] font-bold capitalize tracking-widest text-[color-mix(in_srgb,var(--warning)_70%,transparent)]">{t("radar_label_tuning")}</span>
       </div>
       <div onClick={(e) => { e.stopPropagation(); onTabNavigate('clones'); }} className="flex flex-col items-center p-2 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-500/50 hover:scale-105 transition-all cursor-pointer">
         <span className="text-fuchsia-500 font-black text-lg">{cache.clones?.length || 0}</span>
-        <span className="text-[9px] font-bold uppercase tracking-widest text-fuchsia-500/70">{t("radar_label_clones")}</span>
+        <span className="text-[9px] font-bold capitalize tracking-widest text-fuchsia-500/70">{t("radar_label_clones")}</span>
       </div>
-      <div onClick={(e) => { e.stopPropagation(); onTabNavigate('soft'); }} className="flex flex-col items-center p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 hover:border-indigo-500/50 hover:scale-105 transition-all cursor-pointer">
+      <div onClick={(e) => { e.stopPropagation(); onTabNavigate('soft'); }} className="flex flex-col items-center p-2 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:scale-105 transition-all cursor-pointer">
         <span className="text-indigo-500 font-black text-lg">{cache.soft?.length || 0}</span>
-        <span className="text-[9px] font-bold uppercase tracking-widest text-indigo-500/70">{t("radar_label_soft")}</span>
+        <span className="text-[9px] font-bold capitalize tracking-widest text-[color-mix(in_srgb,var(--accent)_70%,transparent)]">{t("radar_label_soft")}</span>
       </div>
     </div>
   ) : (
     <div className="flex items-center justify-center p-4 mt-2 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-      <span className="text-xs font-bold uppercase tracking-widest text-white/40">{t("radar_no_scan")}</span>
+      <span className="text-xs font-bold capitalize tracking-widest text-white/40">{t("radar_no_scan")}</span>
     </div>
   );
 
@@ -71,9 +71,9 @@ export const BlueprintRadarCard = ({
        <button 
          onClick={(e) => { e.stopPropagation(); onView(); }} 
          disabled={!cache?.hasScanned} 
-         className={`w-full py-3 rounded-[var(--radius)] font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 ${
+         className={`w-full py-3 rounded-[var(--radius)] font-black capitalize tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 ${
            isActive 
-             ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 hover:bg-[var(--accent)]/30' 
+             ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]' 
              : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
          } disabled:opacity-50 disabled:cursor-not-allowed`}
        >

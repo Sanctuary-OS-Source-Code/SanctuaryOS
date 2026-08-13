@@ -13,7 +13,7 @@ export default function MasonProfileCommLink({ posts, modSearch, handlePostClick
   return (
     <>
       {filteredPosts.length === 0 ? (
-        <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold uppercase tracking-widest text-center mt-10">{t("no_posts")}</div>
+        <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold capitalize tracking-widest text-center mt-10">{t("no_posts")}</div>
       ) : (
         <div className="columns-1 lg:columns-2 xl:columns-3 gap-6 space-y-6">
           {filteredPosts.map((p: any, index: number) => (

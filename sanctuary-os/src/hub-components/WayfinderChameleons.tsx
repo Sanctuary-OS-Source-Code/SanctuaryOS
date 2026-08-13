@@ -140,14 +140,14 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
             <ScreenUtilityBar
         search={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder={t("ui_search_chameleons") || "Search Themes..."}
+        searchPlaceholder={t("ui_search_chameleons")}
         className="!mb-0 !border-0 !pb-0" // matching inner layout pattern
       >
         <ActionButton
           onClick={createNewTheme}
-          className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px]"
+          className="shrink-0 h-12 px-6 font-black capitalize tracking-widest text-[10px]"
           icon="add"
-          label={t("auto_create") || "CREATE"}
+          label={t("auto_create")}
         />
         <button onClick={fetchThemes} className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
           <span className={`material-symbols-outlined !text-[20px] text-[var(--text)] opacity-80 ${loading ? 'animate-spin' : ''}`}>refresh</span>
@@ -157,7 +157,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 relative">
         {loading && Object.keys(cloudThemes).length === 0 ? (
           <div className="w-full h-full flex items-center justify-center">
-            <div className="w-12 h-12 border-4 border-[var(--accent)]/[30%] border-t-[var(--accent)] rounded-full animate-spin" />
+            <div className="w-12 h-12 border-4 border-[color-mix(in_srgb,var(--accent)_30%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
           </div>
         ) : Object.keys(cloudThemes).length === 0 ? (
           <EmptyState icon="palette" title="No Cloud Themes" className="py-20" />
@@ -179,8 +179,8 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
       <SidePanel
         isOpen={!!editingThemeId}
         onClose={closeEditor}
-        title={t("ui_theme_editor") || "THEME EDITOR"}
-        subtitle={t("wf_master_theme_edit") || "CLOUD MASTER SYNC"}
+        title={t("ui_theme_editor")}
+        subtitle={t("wf_master_theme_edit")}
         icon="cloud"
         iconColorClass="theme-text-accent"
         isResizable={true}
@@ -201,18 +201,18 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
                     }
                   }
                   setLivePreview(!livePreview);
-                }} className={`h-12 px-4 flex items-center justify-center gap-2 transition-all shrink-0 ${livePreview ? 'text-[var(--success)] bg-emerald-500/[10%]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                }} className={`h-12 px-4 flex items-center justify-center gap-2 transition-all shrink-0 ${livePreview ? 'text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                   <span className="material-symbols-outlined !text-[18px]">{livePreview ? 'visibility' : 'visibility_off'}</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">{livePreview ? (t("ui_os_preview_on") || "OS PREVIEW: ON") : (t("ui_os_preview_off") || "OS PREVIEW: OFF")}</span>
+                  <span className="text-[10px] font-black capitalize tracking-widest">{livePreview ? (t("ui_os_preview_on")) : (t("ui_os_preview_off"))}</span>
                 </button>
               </div>
               <div className="relative group flex">
                 <button onClick={() => {
                   if (originalThemeId) setActiveThemeId(originalThemeId);
-                  pushStatus(t("ui_theme_reset") || "OS Theme Reset", "success");
+                  pushStatus(t("ui_theme_reset"), "success");
                 }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shrink-0">
                   <span className="material-symbols-outlined !text-[18px]">refresh</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_reset") || "RESET"}</span>
+                  <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_reset")}</span>
                 </button>
               </div>
               <div className="relative group flex">
@@ -221,11 +221,11 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
                     setActiveThemeId(editingThemeId);
                     setOriginalThemeId(editingThemeId);
                     setEditingThemeId(null);
-                    pushStatus(t("ui_theme_applied") || "Theme Applied", "success");
+                    pushStatus(t("ui_theme_applied"), "success");
                   }
-                }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--success)] hover:bg-emerald-500/[10%] transition-all shrink-0">
+                }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] transition-all shrink-0">
                   <span className="material-symbols-outlined !text-[18px]">check_circle</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">{t("ui_btn_apply") || "APPLY THEME"}</span>
+                  <span className="text-[10px] font-black capitalize tracking-widest">{t("ui_btn_apply")}</span>
                 </button>
               </div>
             </div>
@@ -233,7 +233,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
         }
         footer={
           <>
-            <ActionButton onClick={saveToCloud} disabled={isSaving || !hasChanges} label={t("btn_publish") || "SAVE TO CLOUD"}>
+            <ActionButton onClick={saveToCloud} disabled={isSaving || !hasChanges} label={t("btn_publish")}>
               
               
             </ActionButton>

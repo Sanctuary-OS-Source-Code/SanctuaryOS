@@ -30,7 +30,7 @@ const SettingNode = React.memo(({ setting, val, dataPath, isHighlighted, isPrevi
    };
 
    return (
-      <div data-setting-key={setting.key} className={`rounded-[var(--radius)] border p-4 sm:p-6 flex justify-start group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 gap-4 sm:gap-6 transform-gpu backface-hidden relative overflow-hidden ${isPreview ? 'flex-col' : 'flex-col flex-wrap md:flex-row md:items-center'} ${isHighlighted ? 'z-10 bg-[var(--accent)]/[5%] border-[var(--accent)]/[30%] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-transparent'}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '80px' }}>
+      <div data-setting-key={setting.key} className={`rounded-[var(--radius)] border p-4 sm:p-6 flex justify-start group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 gap-4 sm:gap-6 transform-gpu backface-hidden relative overflow-hidden ${isPreview ? 'flex-col' : 'flex-col flex-wrap md:flex-row md:items-center'} ${isHighlighted ? 'z-10 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-transparent'}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '80px' }}>
          {isHighlighted && (
             <>
                <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: `linear-gradient(90deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent)` }} />
@@ -39,12 +39,12 @@ const SettingNode = React.memo(({ setting, val, dataPath, isHighlighted, isPrevi
          )}
          <div className="flex flex-col gap-1.5 flex-1 min-w-0 relative z-10">
             <div className="flex flex-wrap items-center gap-3">
-               <span className="text-[12px] font-black uppercase tracking-widest text-[var(--text)]">{resolveText(setting.label_key, setting.key)}</span>
+               <span className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{resolveText(setting.label_key, setting.key)}</span>
                {setting.risk === "advanced" && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-red-500/[15%] text-[var(--danger)] text-[8px] font-black tracking-widest uppercase border border-red-500/[30%]">{t("advanced_badge")}</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] text-[8px] font-black tracking-widest capitalize border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">{t("advanced_badge")}</span>
                )}
                {!isPreview && setting.type === 'boolean' && (
-                  <span className={`text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md border ${val ? 'text-[var(--success)] border-[var(--success)]/30 bg-[var(--success)]/10' : 'text-[var(--subtext)] border-[var(--text)]/10 bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  <span className={`text-[8px] font-black tracking-widest capitalize px-2 py-0.5 rounded-md border ${val ? 'text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                      {val ? 'ENABLED' : 'DISABLED'}
                   </span>
                )}
@@ -53,7 +53,7 @@ const SettingNode = React.memo(({ setting, val, dataPath, isHighlighted, isPrevi
          </div>
          <div className="shrink-0 flex items-center justify-end relative z-10">
             {setting.type === "boolean" && (
-               <div className={`w-14 h-8 rounded-full transition-all duration-300 relative flex items-center px-1 cursor-pointer ${val ? 'bg-[var(--accent)]/[20%] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'glass-surface'}`} onClick={() => !isPreview && onVisualChange(dataPath, !val)}>
+               <div className={`w-14 h-8 rounded-full transition-all duration-300 relative flex items-center px-1 cursor-pointer ${val ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'glass-surface'}`} onClick={() => !isPreview && onVisualChange(dataPath, !val)}>
                   <div className={`w-6 h-6 rounded-full shadow-md transition-all duration-300 ${val ? 'translate-x-6 bg-[var(--accent)]' : 'translate-x-0 bg-[var(--text)] opacity-40'}`}></div>
                </div>
             )}
@@ -169,7 +169,7 @@ const KeybindingField = React.memo(({ val, setting, isPreview, onVisualChange, t
       <div className="flex flex-col gap-2 w-full md:max-w-xs">
          <div className="flex flex-wrap gap-2">
             {vals.map((v: any, idx: number) => (
-               <div key={idx} className="flex items-center gap-2 glass-surface rounded-lg px-3 py-1.5 border border-[var(--accent)]/[30%] text-[12px] font-black text-[var(--text)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.1)]">
+               <div key={idx} className="flex items-center gap-2 glass-surface rounded-lg px-3 py-1.5 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[12px] font-black text-[var(--text)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.1)]">
                   <span className="tracking-widest">{v}</span>
                   {!isPreview && (
                      <button
@@ -182,7 +182,7 @@ const KeybindingField = React.memo(({ val, setting, isPreview, onVisualChange, t
                         }}
                         className="text-[var(--danger)] hover:text-red-400 opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center"
                      >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_remove") || "close"}</span>
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_remove")}</span>
                      </button>
                   )}
                </div>
@@ -192,10 +192,10 @@ const KeybindingField = React.memo(({ val, setting, isPreview, onVisualChange, t
          {!isPreview && (!vals.length || isMultiple) && (
             <button
                onClick={() => setIsListening(!isListening)}
-               className={`h-10 rounded-xl px-4 text-[11px] font-black transition-all duration-300 flex items-center justify-center gap-2 uppercase tracking-widest ${isListening ? 'bg-[var(--accent)]/[20%] border border-[var(--accent)] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] animate-pulse' : 'glass-surface border border-transparent text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
+               className={`h-10 rounded-xl px-4 text-[11px] font-black transition-all duration-300 flex items-center justify-center gap-2 capitalize tracking-widest ${isListening ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[var(--accent)] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] animate-pulse' : 'glass-surface border border-transparent text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
             >
                <span className="material-symbols-outlined !text-[16px]">{isListening ? 'keyboard' : 'add'}</span>
-               {isListening ? (t("keybinding_listening") || "PRESS ANY KEY...") : (isMultiple && vals.length ? (t("keybinding_add") || "ADD BINDING") : (t("keybinding_set") || "SET BINDING"))}
+               {isListening ? (t("keybinding_listening")) : (isMultiple && vals.length ? (t("keybinding_add")) : (t("keybinding_set")))}
             </button>
          )}
       </div>
@@ -244,9 +244,9 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
             
             if (!localPath) {
                return (
-                  <div key={idx} className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-4">
-                     <span className="text-red-400 text-xs font-black tracking-widest uppercase">{t("err_invalid_setting")}</span>
-                     <p className="text-red-400/70 text-[10px] mt-1">A setting must contain at least a "key" or "path" property.</p>
+                  <div key={idx} className="p-4 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl mb-4">
+                     <span className="text-red-400 text-xs font-black tracking-widest capitalize">{t("err_invalid_setting")}</span>
+                     <p className="text-[color-mix(in_srgb,var(--danger)_70%,transparent)] text-[10px] mt-1">A setting must contain at least a "key" or "path" property.</p>
                   </div>
                );
             }
@@ -258,7 +258,7 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
                return (
                   <div key={idx} className="flex flex-col gap-4 w-full mt-2 mb-4 bg-black/10 p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]" style={{ contentVisibility: 'auto', containIntrinsicSize: '200px' }}>
                      <div className="flex flex-col gap-1 px-2">
-                        <span className="text-[12px] font-black uppercase tracking-widest text-[var(--accent)]">{resolveText(setting.label_key, setting.key)}</span>
+                        <span className="text-[12px] font-black capitalize tracking-widest text-[var(--accent)]">{resolveText(setting.label_key, setting.key)}</span>
                         <span className="text-[10px] text-[var(--subtext)] opacity-80 font-medium">{resolveText(setting.desc_key, "")}</span>
                      </div>
                      <div className="flex flex-col gap-4">

@@ -11,26 +11,26 @@ import { logArchitectAction } from './lib/audit';
 export const ROLES = ['citizen', 'mason', 'architect', 'oversight', 'wayfinder'];
 
 const getRoleBadgeStyle = (role: string) => {
-  const base = "text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-full border shadow-inner transition-colors duration-500 shrink-0";
+  const base = "text-[9px] font-black capitalize tracking-[0.2em] px-3 py-1.5 rounded-full border shadow-inner transition-colors duration-500 shrink-0";
   const r = (role || 'citizen').toLowerCase();
   
   if (r === 'admin') {
     return `${base} bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] group-hover:text-white`;
   }
   if (r === 'keeper') {
-    return `${base} bg-cyan-500/5 text-cyan-500/70 border-cyan-500/10 group-hover:bg-cyan-500/10 group-hover:border-cyan-500/30 group-hover:text-cyan-400`;
+    return `${base} bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_70%,transparent)] border-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-cyan-400`;
   }
   if (r === 'wayfinder' || r === 'oversight') {
-    return `${base} bg-amber-500/5 text-amber-500/70 border-amber-500/10 group-hover:bg-amber-500/10 group-hover:border-amber-500/30 group-hover:text-amber-400`;
+    return `${base} bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] text-[color-mix(in_srgb,var(--warning)_70%,transparent)] border-[color-mix(in_srgb,var(--warning)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] group-hover:text-amber-400`;
   }
   if (r === 'architect') {
-    return `${base} bg-purple-500/5 text-purple-500/70 border-purple-500/10 group-hover:bg-purple-500/10 group-hover:border-purple-500/30 group-hover:text-purple-400`;
+    return `${base} bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_70%,transparent)] border-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-purple-400`;
   }
   if (r === 'mason') {
-    return `${base} bg-emerald-500/5 text-emerald-500/70 border-emerald-500/10 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 group-hover:text-emerald-400`;
+    return `${base} bg-[color-mix(in_srgb,var(--success)_5%,transparent)] text-[color-mix(in_srgb,var(--success)_70%,transparent)] border-[color-mix(in_srgb,var(--success)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)] group-hover:text-emerald-400`;
   }
   if (r === 'core_dev') {
-    return `${base} bg-blue-500/5 text-blue-500/70 border-blue-500/10 group-hover:bg-blue-500/10 group-hover:border-blue-500/30 group-hover:text-blue-400`;
+    return `${base} bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_70%,transparent)] border-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-blue-400`;
   }
   // citizen
   return `${base} bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-70 border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:opacity-100`;
@@ -40,7 +40,7 @@ const getRoleBadgeStyle = (role: string) => {
 export function CustomRoleSelect({ value, onChange, roles, isBlacklisted }: any) {
   const options = roles.map((r: string) => ({ id: r, label: r.replace(/_/g, ' ').toUpperCase() }));
   return (
-    <div className={`w-full ${isBlacklisted ? '[&_button]:!bg-red-500/10 [&_button]:!border-red-500/30 [&_button]:!text-red-500' : ''}`}>
+    <div className={`w-full ${isBlacklisted ? '[&_button]:!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] [&_button]:!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] [&_button]:!text-red-500' : ''}`}>
       <CustomDropdown disableTint={true}
         value={value}
         options={options}
@@ -105,7 +105,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     }).eq('id', profile.id).select();
 
     if (error || !data || data.length === 0) {
-      setStatus(t("identities_failed_prefix") || "FAILED:" + " " + (error?.message || "Permission Denied."));
+      setStatus(t("identities_failed_prefix") + " " + (error?.message || "Permission Denied."));
     } else {
       const userRes = await supabase.auth.getUser();
       const myId = userRes.data.user?.id;
@@ -150,7 +150,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
         <div className="flex flex-col gap-4 w-full">
           {status && (
             <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-              <p className={`text-[10px] font-black uppercase tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
+              <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
             </div>
           )}
           <div className="flex justify-center items-center gap-4 w-full">
@@ -170,14 +170,14 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
       <div className="p-6 flex flex-col h-full gap-8">
 
         <div className="flex flex-col gap-3 shrink-0">
-          <h2 className="text-3xl font-black text-[var(--text)] leading-tight uppercase tracking-widest truncate">
-            {profile?.username || t("vlocal") || "UNKNOWN"}
+          <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
+            {profile?.username || t("vlocal")}
           </h2>
         </div>
 
         <UniversalGroup title={t("identities_role_label")} icon={t("icon_settings")}>
           {(!isWayfinder && profile?.role === 'wayfinder') ? (
-            <div className="flex flex-col gap-2 relative z-50 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 w-full">
+            <div className="flex flex-col gap-2 relative z-50 p-4 rounded-xl bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] w-full">
               <p className="text-xs font-bold text-amber-500">{t("identities_wayfinder_locked")}</p>
             </div>
           ) : (
@@ -195,7 +195,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
         {(!isWayfinder && profile?.role === 'wayfinder') ? null : (
           <div className="flex flex-col gap-6">
             <UniversalGroup 
-              title={isWayfinder ? (t("identities_punitive_upload") || "UPLOAD & NEXUS BAN") : (t("ui_network_blacklist") || "NETWORK BLACKLIST")} 
+              title={isWayfinder ? (t("identities_punitive_upload")) : (t("ui_network_blacklist"))} 
               icon={t("icon_gavel")} 
               headerColorClass={isBanned ? 'text-red-400' : undefined}
             >
@@ -215,21 +215,21 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
                     value={editReason}
                     onChange={setEditReason}
                     placeholder={t("id_reason_ban")}
-                    className="h-32 border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)] w-full text-red-100"
+                    className="h-32 border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] focus:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] shadow-[inset_0_0_20px_rgba(255,0,0,0.1)] w-full text-red-100"
                   />
                 </div>
               )}
             </UniversalGroup>
 
             {isWayfinder && (
-              <div className={`flex flex-col gap-6 p-6 glass-surface rounded-2xl border ${isCommBanned ? 'border-red-500/30' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
+              <div className={`flex flex-col gap-6 p-6 glass-surface rounded-2xl border ${isCommBanned ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
                 <div className={`absolute inset-0 bg-gradient-to-br ${isCommBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
-                <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b ${isCommBanned ? 'border-red-500/20 text-red-400' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
+                <h4 className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 border-b ${isCommBanned ? 'border-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-red-400' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
                   {t("identities_punitive_comm")}
                 </h4>
                 <div className="flex items-center justify-start relative z-10">
-                  <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-2">
+                  <label className="text-[10px] font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-2">
                     {t("identities_ban")}
                   </label>
                   <button
@@ -242,14 +242,14 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
 
                 {isCommBanned && (
                   <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
-                    <label className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                    <label className="text-[9px] font-black text-red-400 capitalize tracking-widest ml-2 flex items-center gap-2">
                       {t("ban_reason_req")}
                     </label>
                     <textarea
                       value={editCommReason}
                       onChange={e => setEditCommReason(e.target.value)}
                       placeholder={t("id_reason_comm_ban")}
-                      className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-red-500/30 bg-red-500/5 focus:border-red-500/60 shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
+                      className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] focus:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
                     />
                   </div>
                 )}
@@ -333,12 +333,12 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-8">
         {loading ? (
-          <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] uppercase tracking-widest animate-pulse">{t("audit_fetching")}</div>
+          <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("audit_fetching")}</div>
         ) : (
           <>
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                {filteredProfiles.length === 0 && <EmptyState icon={t("ui_icon_person_off") || "person_off"} title={t("no_profiles")} className="col-span-full py-16" />}
+                {filteredProfiles.length === 0 && <EmptyState icon={t("ui_icon_person_off")} title={t("no_profiles")} className="col-span-full py-16" />}
                 {filteredProfiles.map((p: any) => (
                   <UniversalCard
                     key={p.id}
@@ -346,7 +346,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
                     className={(!isWayfinder && p.role === 'wayfinder') ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
                     layout="horizontal"
                     icon="person"
-                    title={p.username || t("vlocal") || "UNKNOWN"}
+                    title={p.username || t("vlocal")}
                     subtitle={`${t("auto_id")} ${p.id.substring(0, 8)}`}
                     badges={[
                       <span key="role" className={getRoleBadgeStyle(p.role)}>
@@ -360,7 +360,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
 
             {blacklistedProfiles.length > 0 && !search && filterRole === 'all' && (
               <div className="flex flex-col gap-4">
-                <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+                <h4 className="text-[10px] font-black text-red-500 capitalize tracking-widest flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_var(--danger)]"></span>
                   {(t("banned_identities")).replace("{count}", blacklistedProfiles.length.toString())}
                 </h4>
@@ -371,28 +371,28 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
                       onClick={() => handleOpenPanel(p)}
                       layout="horizontal"
                       icon="block"
-                      statusColor="border-red-500/20 group-hover:border-red-500/50"
-                      className="!bg-red-500/5 hover:!bg-red-500/10"
+                      statusColor="border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
+                      className="!bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
                       title={
                         <span className="text-red-400 group-hover:text-red-300 transition-colors">
-                          {p.username || t("vlocal") || "UNKNOWN"}
+                          {p.username || t("vlocal")}
                         </span>
                       }
                       subtitle={
                         <div className="flex flex-col gap-1">
                           <span className="text-[10px] font-mono text-red-400 opacity-60">{t("auto_id")} {p.id.substring(0, 8)}</span>
-                          {p.is_banned && p.blacklist_reason && <span className="text-xs font-bold text-red-400/80 leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_upload")}{p.blacklist_reason}"</span>}
-                          {p.is_comm_banned && p.comm_blacklist_reason && <span className="text-xs font-bold text-red-400/80 leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_comms")}{p.comm_blacklist_reason}"</span>}
+                          {p.is_banned && p.blacklist_reason && <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_upload")}{p.blacklist_reason}"</span>}
+                          {p.is_comm_banned && p.comm_blacklist_reason && <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_comms")}{p.comm_blacklist_reason}"</span>}
                         </div>
                       }
                       badges={[
                         p.is_banned && (
-                          <span key="upload" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20">
+                          <span key="upload" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-red-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
                             {t("banned_upload")}
                           </span>
                         ),
                         p.is_comm_banned && (
-                          <span key="comm" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase border shadow-inner shrink-0 transition-colors bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20">
+                          <span key="comm" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-red-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
                             {t("banned_comm")}
                           </span>
                         )

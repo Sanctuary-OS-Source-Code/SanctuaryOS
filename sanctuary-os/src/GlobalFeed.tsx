@@ -151,11 +151,20 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
     if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_45"));
+    const session = useStore.getState().session;
 
-    const { error } = await supabase.from('mason_post_likes').insert({ post_id: post.id, user_id: userId });
+    const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+      p_target: 'mason_post_likes',
+      p_payload: { post_id: post.id, user_id: userId },
+      p_token: session?.access_token
+    });
+    
     let increment = 1;
-    if (error && error.code === '23505') {
-      await supabase.from('mason_post_likes').delete().match({ post_id: post.id, user_id: userId });
+    if (error && (JSON.stringify(error).includes('23505') || JSON.stringify(error).includes('duplicate key'))) {
+      const { data: likeData } = await supabase.from('mason_post_likes').select('id').eq('post_id', post.id).eq('user_id', userId).maybeSingle();
+      if (likeData) {
+        await supabase.rpc('secure_delete_cloud_file', { p_target: 'mason_post_likes', p_id: likeData.id, p_token: session?.access_token });
+      }
       increment = -1;
     }
     setPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes: [{ count: Math.max(0, (p.likes?.[0]?.count || 0) + increment) }] } : p));
@@ -163,10 +172,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
 
   const handlePostClick = async (post: any) => {
     setSelectedPost(post);
-    if (userId) {
-      try { await supabase.from('mason_post_views').upsert({ post_id: post.id, user_id: userId }, { onConflict: 'post_id,user_id', ignoreDuplicates: true }); } catch (e) { console.warn("Failed to record view", e); }
-    } else {
-      try { await supabase.from('mason_post_views').insert({ post_id: post.id }); } catch (e) { }
+    const session = useStore.getState().session;
+    if (userId && session?.access_token) {
+      try { await supabase.rpc('secure_upsert_cloud_file', { p_target: 'mason_post_views', p_payload: { post_id: post.id, user_id: userId }, p_token: session.access_token }); } catch (e) { console.warn("Failed to record view", e); }
     }
     setPosts(prev => prev.map(p => p.id === post.id ? { ...p, views: [{ count: (p.views?.[0]?.count || 0) + 1 }] } : p));
   };
@@ -175,11 +183,11 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
     return (
       <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300 gap-6">
         <span className="material-symbols-outlined !text-[6rem] opacity-20 text-[var(--text)] drop-shadow-lg">wifi_off</span>
-        <h2 className="text-2xl font-black uppercase tracking-[0.2em] opacity-50">{t("offline_mode_title")}</h2>
-        <p className="text-xs font-bold uppercase tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc")}</p>
+        <h2 className="text-2xl font-black capitalize tracking-[0.2em] opacity-50">{t("offline_mode_title")}</h2>
+        <p className="text-xs font-bold capitalize tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc")}</p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 px-8 py-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest group"
+          className="mt-4 px-8 py-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black capitalize tracking-widest group"
         >
           <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">refresh</span>
           {t("offline_mode_refresh")}
@@ -194,7 +202,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         title={t("feed_title")}
         subtitle={t("feed_subtitle")}
         icon={t("icon_satellite_alt")}
-        iconColorClass="text-[var(--accent)] border-[var(--accent)]/30"
+        iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         shape="circle"
         breadcrumb={activeTab !== "OVERVIEW" ? (t(`tab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
         onTitleClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }}
@@ -217,14 +225,14 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
               <CustomDatePicker
                 value={startDate}
                 onChange={setStartDate}
-                placeholder={t("filter_start_date") || "Start Date"}
+                placeholder={t("filter_start_date")}
               />
             </div>
             <div className="w-max min-w-[150px] shrink-0 h-12">
               <CustomDatePicker
                 value={endDate}
                 onChange={setEndDate}
-                placeholder={t("filter_end_date") || "End Date"}
+                placeholder={t("filter_end_date")}
               />
             </div>
             {(startDate || endDate) && (
@@ -250,10 +258,10 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         <div className="flex-1 w-full">
           <CommandScreenLayout>
             <CommandScreenStats>
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_group")}</span>} number={overviewStats.nodes} label={t("feed_stat_nodes")} colorClass="border-blue-500/30 text-blue-500 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_dynamic_feed") || "dynamic_feed"}</span>} number={overviewStats.posts} label={t("feed_stat_replies")} colorClass="border-purple-500/30 text-purple-500 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20" onClick={() => setIsPostsOpen(true)} className="cursor-pointer" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_favorite")}</span>} number={overviewStats.likes + overviewStats.replies} label={t("feed_stat_activity")} colorClass="border-amber-500/30 text-amber-500 hover:border-amber-500 bg-amber-500/10 hover:bg-amber-500/20" onClick={() => setIsRepliesOpen(true)} className="cursor-pointer" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined !text-4xl">{t("icon_diversity_1") || "diversity_1"}</span>} number={overviewStats.followingPosts} label={t("feed_stat_following") || "Following (Past 30 Days)"} colorClass="border-emerald-500/30 text-emerald-500 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" onClick={() => { setActiveTab("FOLLOWING"); setStartDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); }} className="cursor-pointer" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_group")}</span>} number={overviewStats.nodes} label={t("feed_stat_nodes")} colorClass="text-blue-500" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_dynamic_feed")}</span>} number={overviewStats.posts} label={t("feed_stat_replies")} colorClass="text-purple-500" onClick={() => setIsPostsOpen(true)} className="cursor-pointer" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_favorite")}</span>} number={overviewStats.likes + overviewStats.replies} label={t("feed_stat_activity")} colorClass="text-amber-500" onClick={() => setIsRepliesOpen(true)} className="cursor-pointer" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_diversity_1")}</span>} number={overviewStats.followingPosts} label={t("feed_stat_following")} colorClass="text-emerald-500" onClick={() => { setActiveTab("FOLLOWING"); setStartDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); }} className="cursor-pointer" />
             </CommandScreenStats>
 
             <CommandScreenBody>
@@ -265,11 +273,11 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                   />
 
                   {loading ? (
-                    <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
+                    <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading")}</div>
                   ) : !userId ? (
-                    <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("login_required")}</div>
+                    <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("login_required")}</div>
                   ) : filteredPosts.length === 0 ? (
-                    <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("no_posts")}</div>
+                    <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("no_posts")}</div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6 pb-8">
                       {filteredPosts.map((p, index) => (
@@ -290,9 +298,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
               <CommandScreenSidebar title={t("feed_quick_actions")} icon="explore">
                 <CommandScreenQuickLink icon="explore" title={t("feed_btn_discover")} subtitle={t("feed_btn_discover_desc")} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} />
                 {masonProfileId && (
-                  <CommandScreenQuickLink icon="reply" title={t("feed_my_replies")} subtitle={t("feed_my_replies_desc")} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-purple-500 shadow-md" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-md" iconBorderHoverClass="group-hover:border-purple-500/30" />
+                  <CommandScreenQuickLink icon="reply" title={t("feed_my_replies")} subtitle={t("feed_my_replies_desc")} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-purple-500 shadow-md" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-md" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
                 )}
-                <CommandScreenQuickLink icon="diversity_1" title={t("tab_following")} subtitle={t("feed_view_full")} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-md" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-md" iconBorderHoverClass="group-hover:border-emerald-500/30" />
+                <CommandScreenQuickLink icon="diversity_1" title={t("tab_following")} subtitle={t("feed_view_full")} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-md" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-md" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
               </CommandScreenSidebar>
             </CommandScreenBody>
           </CommandScreenLayout>
@@ -300,11 +308,11 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
       ) : (
         <div className="flex-1 pr-4 pb-32">
           {loading ? (
-            <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("loading")}</div>
+            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading")}</div>
           ) : activeTab === "FOLLOWING" && !userId ? (
-            <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("login_required")}</div>
+            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("login_required")}</div>
           ) : filteredPosts.length === 0 ? (
-            <div className="text-center py-12 opacity-50 text-xs font-black uppercase tracking-widest">{t("no_posts")}</div>
+            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("no_posts")}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6">
               {filteredPosts.map((p, index) => {

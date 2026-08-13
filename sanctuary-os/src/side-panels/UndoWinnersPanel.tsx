@@ -76,7 +76,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
       title={t("undo_title")}
       subtitle={t("undo_subtitle")}
       icon="history"
-      iconColorClass="text-[var(--danger)] border-[var(--danger)]/30"
+      iconColorClass="text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
       widthClass="w-[525px]"
@@ -84,7 +84,7 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
         <div className="flex flex-col gap-3 w-full">
           <ActionButton 
             onClick={clearAllOverrides}
-            disabled={overrides.length === 0} icon={t("icon_warning_amber")} className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]"
+            disabled={overrides.length === 0} icon={t("icon_warning_amber")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
           >
             
             
@@ -95,24 +95,24 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
       <div className="flex flex-col gap-4 h-full px-2">
         {loading ? (
           <div className="flex items-center justify-center p-12 text-white/20">
-            <span className="material-symbols-outlined animate-spin !text-4xl">{t("icon_sync")}</span>
+            <span className="material-symbols-outlined animate-spin ">{t("icon_sync")}</span>
           </div>
         ) : overrides.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-white/20 text-center">
-            <span className="material-symbols-outlined !text-4xl mb-4">{t("icon_check_circle")}</span>
-            <p className="text-sm font-black tracking-widest uppercase">{t("no_overrides")}</p>
+            <span className="material-symbols-outlined mb-4">{t("icon_check_circle")}</span>
+            <p className="text-sm font-black tracking-widest capitalize">{t("no_overrides")}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
             {overrides.map((file) => (
               <div key={file} className="flex items-center justify-start p-4 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all">
                 <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--accent)]/[10%] border border-[var(--accent)]/[20%] flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined !text-xl text-[var(--accent)]">{t("icon_extension")}</span>
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-bold text-[var(--text)] truncate block">{formatDisplayName(file.replace(getExtensionRegex(activeGameSchema), ''))}</span>
-                    <span className="text-[9px] font-black tracking-widest uppercase text-[var(--subtext)] opacity-60">
+                    <span className="text-[9px] font-black tracking-widest capitalize text-[var(--subtext)] opacity-60">
                       {getFileLabel(file, activeGameSchema)}
                     </span>
                   </div>

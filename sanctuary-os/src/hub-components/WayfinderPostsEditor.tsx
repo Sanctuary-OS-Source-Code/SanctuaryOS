@@ -9,7 +9,7 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, FilterTabs, FilterTabButton, ActionButton } from "../shared";
+import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, FilterTabs, FilterTabButton, ActionButton, ViewToggle, RadioCardGroup, RadioCard, FilterPopover } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import MasonPostCard from "../MasonPostCard";
 import MarkdownRenderer from "../MarkdownRenderer";
@@ -26,6 +26,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetAudience, setTargetAudience] = useState<string[]>(["All"]);
+  const targetAudienceOptions = isKeepers ? ["All", "Citizens", "Masons", "Oversight", "Wayfinders", "Keepers"] : ["All", "Citizens", "Masons", "Oversight", "Wayfinders"];
   const [category, setCategory] = useState("Update");
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -47,7 +48,6 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState<"Dispatch" | "Alert">("Dispatch");
   const [isUrgent, setIsUrgent] = useState(false);
@@ -116,11 +116,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
 
   const updateTimeoutRef = useRef<any>(null);
 
-  useEffect(() => {
-    if (deliveryMethod === "Dispatch" && targetAudience.includes("Citizens")) {
-      setTargetAudience(targetAudience.filter(a => a !== "Citizens"));
-    }
-  }, [deliveryMethod]);
+
 
   const editor = useEditor({
     extensions: [
@@ -149,11 +145,11 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     if (data) {
       const activeSchema = useStore.getState().activeGameSchema;
       const gameName = activeSchema ? (activeSchema.name || "Sanctuary") : "Sanctuary";
-      
+
       const hydratedData = data.map((post: any) => {
-        let teamName = "Sanctuary OS Team";
+        let teamName = "Sanctuary OS";
         if (!isKeepers) {
-          teamName = isOversight ? `${gameName} Oversight Team` : `${gameName} Wayfinders`;
+          teamName = isOversight ? (activeSchema ? `${activeSchema.name} Oversight` : "Oversight") : (activeSchema ? `${activeSchema.name} Wayfinders` : "Wayfinders");
         }
         return {
           ...post,
@@ -225,7 +221,6 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   }, [assets, assetSearchQuery, isAssetPanelOpen]);
 
   const openEditor = (post?: any) => {
-    setViewMode('edit');
     const draftId = post ? post.id : 'new';
     const draft = useStore.getState().wayfinderDrafts[draftId];
 
@@ -234,12 +229,13 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       setEditingPost(post);
       let rawContent = post.message || post.content || '';
       let parsedImage = extractPostImage(post) || "";
-      if (rawContent.startsWith('[IMG:')) {
-        const endIdx = rawContent.indexOf(']');
-        if (endIdx !== -1) {
-          rawContent = rawContent.substring(endIdx + 1).trim();
-        }
+
+      if (parsedImage) {
+        rawContent = rawContent.replace(new RegExp(`\\[IMG:${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\s*`), '');
+        rawContent = rawContent.replace(new RegExp(`!\\[.*?\\]\\(${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\s*`), '');
+        rawContent = rawContent.replace(new RegExp(`<img[^>]+src=["']${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>\\s*`, 'i'), '');
       }
+      rawContent = rawContent.replace(/\[IMG:.*?\]\s*/, '').trim();
 
       setTitle(draft?.title ?? post.title);
       setDescription(draft?.description ?? (post.description || ""));
@@ -247,7 +243,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       setCategory(draft?.category ?? (post.category || "Update"));
       setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
       setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
-      setDeliveryMethod(draft?.deliveryMethod ?? (editingPost?.category?.includes("Alert") || isPostPinned(editingPost) ? "Alert" : "Dispatch"));
+      setDeliveryMethod(draft?.deliveryMethod ?? (post?.category?.includes("Alert") || isPostPinned(post) ? "Alert" : "Dispatch"));
       setIsUrgent(draft?.isUrgent ?? isPostPinned(post));
       setIsActive(draft?.isActive ?? (post.is_active !== false));
 
@@ -303,7 +299,6 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       setEditingPostId(null);
       setIsSubmitting(false);
       setPreviewPost(null);
-      setViewMode('edit');
     }, 300);
     setImageUrl("");
     setCodeSnippet("");
@@ -346,25 +341,44 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     let finalCategory = category;
     if (deliveryMethod === "Alert" && !isOversight) finalCategory = "Alert"; // Override category if it's an Alert and not Oversight (since oversight has specific alert types)
     let isPinned = deliveryMethod === "Alert" && isUrgent;
-    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: finalCategory, target_audience: targetAudience.join(','), code_snippet: codeSnippet.trim() || null, is_pinned: isPinned ? "true" : "false", is_active: isActive };
+    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: finalCategory, target_audience: targetAudience.join(','), code_snippet: codeSnippet.trim() || null, is_pinned: isPinned, is_active: isActive };
     if (imageUrl.trim()) payload.message = `[IMG:${imageUrl.trim()}]\n\n` + payload.message;
 
     let error = null;
     let newPostId: string | null = null;
     const targetTable = isKeepers ? 'keeper_system_broadcasts' : 'system_broadcasts';
     const performSave = async (data: any) => {
-      if (editingPostId) {
-        const res = await supabase.from(targetTable).update(data).eq('id', editingPostId).select();
-        if (!res.error) await logArchitectAction("Updated Dispatch", targetTable, data.title, undefined, "Wayfinder Operations");
-        return { error: res.error, data: res.data };
+      let res;
+      if (!isKeepers) {
+        const payloadWithId = editingPostId ? { id: editingPostId, ...data } : data;
+        console.log("Sending payload to proxy:", payloadWithId);
+        res = await supabase.rpc('secure_upsert_cloud_file', {
+          p_target: targetTable,
+          p_payload: payloadWithId,
+          p_token: useStore.getState().session?.access_token || ''
+        });
+        console.log("Proxy response:", res);
       } else {
-        const res = await supabase.from(targetTable).insert([data]).select();
+        if (editingPostId) {
+          res = await supabase.from(targetTable).update(data).eq('id', editingPostId).select();
+        } else {
+          res = await supabase.from(targetTable).insert([data]).select();
+        }
+      }
+
+      if (!res.error && (!res.data || res.data.length === 0) && editingPostId) {
+        res.error = { message: "Permission denied or post not found. Check your roles." } as any;
+      }
+
+      if (editingPostId) {
+        if (!res.error) await logArchitectAction("Updated Dispatch", targetTable, data.title, undefined, "Wayfinder Operations");
+      } else {
         if (!res.error && res.data && res.data.length > 0) {
           newPostId = res.data[0].id;
           await logArchitectAction("Created Dispatch", targetTable, data.title, undefined, "Wayfinder Operations");
         }
-        return { error: res.error, data: res.data };
       }
+      return { error: res.error, data: res.data };
     };
 
     let resObj = await performSave(payload);
@@ -383,7 +397,15 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
               reference_id: newPostId,
               message: `${masonName || 'A Wayfinder'} has broadcasted a new System Dispatch.`
             }));
-            await supabase.from('notifications').insert(notifications);
+            try {
+              await supabase.rpc('secure_upsert_cloud_file', {
+                p_target: 'notifications',
+                p_payload: notifications,
+                p_token: useStore.getState().session?.access_token || ''
+              });
+            } catch (e) {
+              console.error("Failed to insert notifications:", e);
+            }
           }
         }
       }
@@ -406,7 +428,20 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   const handleDelete = async (id: string) => {
     const targetTable = isKeepers ? 'keeper_system_broadcasts' : 'system_broadcasts';
     const postToDelete = posts.find(p => p.id === id);
-    const { error } = await supabase.from(targetTable).delete().eq('id', id);
+
+    let error;
+    if (!isKeepers) {
+      const res = await supabase.rpc('secure_delete_cloud_file', {
+        p_target: targetTable,
+        p_id: id,
+        p_token: useStore.getState().session?.access_token || ''
+      });
+      error = res.error;
+    } else {
+      const res = await supabase.from(targetTable).delete().eq('id', id);
+      error = res.error;
+    }
+
     if (!error && postToDelete) await logArchitectAction("Deleted Dispatch", targetTable, postToDelete.title || id, undefined, "Wayfinder Operations");
     fetchPostsAndAssets();
   };
@@ -436,23 +471,23 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           post={post}
           index={0}
           onPostClick={() => openEditor(post)}
-          onToggleLike={() => {}}
+          onToggleLike={() => { }}
           hasUnsavedEdits={hasUnsavedEdits}
           actions={
             <div className={`flex items-center gap-2 w-full transition-opacity duration-300 relative z-20 ${confirmDelete === post.id ? 'justify-center' : 'justify-end opacity-0 group-hover:opacity-100'}`}>
               {confirmDelete === post.id ? (
                 <>
-                  <span className="text-[10px] font-black text-[var(--danger)] uppercase tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
+                  <span className="text-[10px] font-black text-[var(--danger)] capitalize tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
                   </span>
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("nav_cancel")}</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] bg-red-500/[10%] border border-red-500/[30%] hover:bg-red-500/[20%] hover:border-red-500/[50%] hover:shadow-md transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("nav_cancel")}</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-md transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
                 </>
               ) : (
                 <>
-                  <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--accent)] hover:bg-[var(--accent)]/[15%] hover:shadow-md border border-transparent hover:border-[var(--accent)]/[30%] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("btn_view")}</button>
-                  <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--warning)] hover:bg-orange-500/[15%] hover:shadow-md border border-transparent hover:border-orange-500/[30%] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--danger)] hover:bg-red-500/[15%] hover:shadow-md border border-transparent hover:border-red-500/[30%] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
+                  <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("btn_view")}</button>
+                  <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
                 </>
               )}
             </div>
@@ -475,7 +510,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
             value={filterCategory}
             onChange={(v: string[]) => setFilterCategory(v[0])}
             options={[
-              { id: "All", label: t("all_classes") || "All Categories" },
+              { id: "All", label: t("all_classes") },
               ...(isOversight ? [
                 { id: "Game Issue", label: t("category_game_issue") },
                 { id: "Mod Issue", label: t("category_mod_issue") },
@@ -483,10 +518,10 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                 { id: "Malware Alert", label: t("category_malware_alert") },
                 { id: "Artifact Alert", label: t("category_artifact_alert") }
               ] : [
-                { id: "Update", label: t("comms_btn_update") || "Update" },
-                { id: "Info", label: t("category_info") || "Info" },
-                { id: "Event", label: t("category_event") || "Event" },
-                { id: "Alert", label: t("category_alert") || "Alert" },
+                { id: "Update", label: t("comms_btn_update") },
+                { id: "Info", label: t("category_info") },
+                { id: "Event", label: t("category_event") },
+                { id: "Alert", label: t("category_alert") },
                 { id: "Game Version Alert", label: t("category_game_version_alert") },
                 { id: "Malware Alert", label: t("category_malware_alert") },
                 { id: "Artifact Alert", label: t("category_artifact_alert") }
@@ -495,25 +530,21 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
             placeholder={t("filter_category")}
           />
         </div>
-        <FilterTabs className="h-12 z-40">
-          <FilterTabButton
-            id="Active"
-            label={t("status_active")}
-            activeTab={filterStatus}
-            setTab={setFilterStatus}
-          />
-          <FilterTabButton
-            id="Inactive"
-            label={t("status_inactive")}
-            activeTab={filterStatus}
-            setTab={setFilterStatus}
-          />
-        </FilterTabs>
+        <FilterPopover
+          icon="tune"
+          options={[
+            { id: "Active", label: t("status_active") },
+            { id: "Inactive", label: t("status_inactive") }
+          ]}
+          activeTab={filterStatus}
+          setTab={setFilterStatus}
+          className="z-40"
+        />
         <ActionButton
           onClick={() => openEditor()}
-          className="shrink-0 h-12 px-6 font-black uppercase tracking-widest text-[10px] relative"
+          className="shrink-0 h-12 px-6 font-black capitalize tracking-widest text-[10px] relative"
           icon={t("icon_cell_tower")}
-          label={wayfinderDrafts['new'] ? t("action_unsaved_draft") || "UNSAVED DRAFT" : t("post_broadcast")}
+          label={wayfinderDrafts['new'] ? t("action_unsaved_draft") : t("post_broadcast")}
           variant={wayfinderDrafts['new'] ? "warning" : "default"}
         />
       </ScreenUtilityBar>
@@ -523,14 +554,14 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           {postCards}
         </div>
         {filteredPosts.length === 0 && (
-          <EmptyState icon={t("icon_cell_tower") || "cell_tower"} title={t("no_transmissions")} className="col-span-full py-16" />
+          <EmptyState icon={t("icon_cell_tower")} title={t("no_transmissions")} className="col-span-full py-16" />
         )}
       </div>
     </div>
   );
 
   const wrappedContent = isSidePanel ? (
-    <SidePanel isOpen={isOpen!} onClose={onClose!} title={t("wf_tab_dispatch")} subtitle={t("system_broadcasts")} icon="satellite_alt" iconColorClass="text-[var(--accent)] border-[var(--accent)]/30" widthClass="w-[90vw] max-w-[1200px]">
+    <SidePanel isOpen={isOpen!} onClose={onClose!} title={t("wf_tab_dispatch")} subtitle={t("system_broadcasts")} icon="satellite_alt" iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" widthClass="w-[90vw] max-w-[1200px]">
       {contentBlock}
     </SidePanel>
   ) : contentBlock;
@@ -548,10 +579,18 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
             widthClass="w-[800px]"
             title={editingPostId ? (t("update_transmission")) : (t("post_broadcast"))}
             subtitle={editingPostId ? (t("editing_record")) : (t("composing_broadcast"))}
+            headerActions={
+              <button
+                onClick={() => setIsActive(!isActive)}
+                className={`flex items-center gap-2 px-5 h-[38px] rounded-full border transition-all font-black text-[10px] capitalize tracking-widest ${isActive ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] shadow-[inset_0_0_20px_rgba(34,197,94,0.1)]' : 'glass-panel bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+              >
+                {isActive ? "Live / Active" : "Draft Mode"}
+              </button>
+            }
             footer={
               <div className="flex justify-center items-center gap-4 w-full">
                 {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? (
-                  <ActionButton onClick={handleDiscardChanges} disabled={isSubmitting} label={confirmDiscard ? (t("ui_confirm_discard") || "Confirm Discard") : (t("ui_btn_discard_edits") || "DISCARD EDITS")} className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]">
+                  <ActionButton onClick={handleDiscardChanges} disabled={isSubmitting} label={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
 
                   </ActionButton>
                 ) : (
@@ -561,11 +600,11 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                   <ActionButton
                     onClick={handleSubmit}
                     disabled={isSubmitting || !title || !content}
-                    className={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? "!border-[var(--warning)]/50 !text-[var(--warning)] hover:!bg-[var(--warning)]/20 hover:!text-[var(--warning)] hover:!shadow-[0_0_30px_rgba(var(--warning-rgb),0.4)]" : ""}
+                    className={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? "!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] !text-[var(--warning)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:!text-[var(--warning)] hover:!shadow-[0_0_30px_rgba(var(--warning-rgb),0.4)]" : ""}
                     label={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
                   />
                   {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
-                    <HoverTooltip title={t("ph_unsaved_changes") || "UNSAVED EDITS"} variant="warning" className="group-hover/btn:flex z-[100]" />
+                    <HoverTooltip title={t("ph_unsaved_changes")} variant="warning" className="group-hover/btn:flex z-[100]" />
                   )}
                 </div>
               </div>
@@ -573,241 +612,202 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           >
             <div className="flex flex-col gap-6">
 
-              <div className="flex justify-between items-center border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4 pb-4">
-                <div className="w-56 shrink-0">
-                  <HubTabs
-                    tabs={[{ id: 'edit', label: t("editor") }, { id: 'preview', label: t("preview") }]}
-                    activeTab={viewMode}
-                    setTab={setViewMode}
-                  />
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex flex-col gap-3 w-full mb-4">
+                  <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-70 ml-2">{t("trans_type")}</span>
+                  <RadioCardGroup>
+                    <RadioCard
+                      id="Dispatch"
+                      activeValue={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
+                      onChange={() => { setDeliveryMethod("Dispatch"); setIsUrgent(false); if (["Alert", "Game Version Alert", "Malware Alert", "Artifact Alert"].includes(category)) setCategory(isOversight ? "Game Issue" : "Update"); }}
+                      icon="feed"
+                      label="Dispatch"
+                    />
+                    <RadioCard
+                      id="Alert"
+                      activeValue={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
+                      onChange={() => { setDeliveryMethod("Alert"); setIsUrgent(false); if (["Update", "Info", "Event", "Game Issue", "Mod Issue"].includes(category)) setCategory(isOversight ? "Game Version Alert" : "Alert"); }}
+                      icon="notifications"
+                      label="Standard Alert"
+                    />
+                    <RadioCard
+                      id="UrgentAlert"
+                      activeValue={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
+                      onChange={() => { setDeliveryMethod("Alert"); setIsUrgent(true); if (["Update", "Info", "Event", "Game Issue", "Mod Issue"].includes(category)) setCategory(isOversight ? "Game Version Alert" : "Alert"); }}
+                      icon="notification_important"
+                      label="Urgent Alert"
+                    />
+                  </RadioCardGroup>
                 </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setIsActive(!isActive)}
-                    className={`flex items-center gap-2 px-5 h-[38px] rounded-full border transition-all font-black text-[10px] uppercase tracking-widest ${isActive ? 'bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)] shadow-[inset_0_0_20px_rgba(34,197,94,0.1)]' : 'glass-panel bg-black/40 border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                  >
-                    {isActive ? "Live / Active" : "Draft Mode"}
-                  </button>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("post_title")}</label>
+                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
+                </div>
+
+                <div className="flex flex-col gap-2 w-full">
+                  <div className="flex justify-between items-center ml-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_description")}</label>
+                    <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length} / 250</span>
+                  </div>
+                  <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
+                </div>
+
+                <div className="flex gap-4 w-full">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("wf_target_audience")}</label>
+                    <div className="h-14">
+                      <CustomDropdown disableTint={true}
+                        multiSelect={true}
+                        selectedValues={targetAudience}
+                        onChange={setTargetAudience}
+                        options={[
+                          { id: "Citizens", label: "Citizens" },
+                          { id: "Masons", label: "Masons" },
+                          { id: "Architects", label: "Architects" },
+                          { id: "Oversight", label: "Oversight" },
+                          ...(!isOversight ? [{ id: "Wayfinders", label: "Wayfinders" }] : [])
+                        ]}
+                        placeholder={t("auto_select_audience")}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category")}</label>
+                    <div className="h-14">
+                      <CustomDropdown disableTint={true}
+                        searchable={true}
+                        allowCustom={true}
+                        value={category}
+                        onChange={(v: string[]) => setCategory(v[0])}
+                        options={
+                          isOversight ? (
+                            deliveryMethod === "Alert" ? [
+                              { id: "Game Version Alert", label: t("category_game_version_alert") },
+                              { id: "Malware Alert", label: t("category_malware_alert") },
+                              { id: "Artifact Alert", label: t("category_artifact_alert") }
+                            ] : [
+                              { id: "Game Issue", label: t("category_game_issue") },
+                              { id: "Mod Issue", label: t("category_mod_issue") }
+                            ]
+                          ) : (
+                            deliveryMethod === "Alert" ? [
+                              { id: "Alert", label: "Alert" },
+                              { id: "Game Version Alert", label: t("category_game_version_alert") },
+                              { id: "Malware Alert", label: t("category_malware_alert") },
+                              { id: "Artifact Alert", label: t("category_artifact_alert") }
+                            ] : [
+                              { id: "Update", label: "Update" },
+                              { id: "Info", label: "Info" },
+                              { id: "Event", label: "Event" }
+                            ]
+                          )
+                        }
+                        placeholder={t("auto_select_category")}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("header_image_placeholder")}</label>
+                  <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
+                </div>
+
+                <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
+                  <div className="flex items-center justify-between ml-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_content")}</label>
+                  </div>
+                  <div className="flex flex-col flex-1 glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
+                    <div className="shrink-0 sticky top-0 z-50 flex flex-col items-center p-3 bg-transparent pointer-events-none">
+                      <div className="relative flex flex-col items-center">
+                        <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-[1.25rem] shadow-md">
+                          <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold")}</span></button>
+                          <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic")}</span></button>
+                          <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1")}</span></button>
+                          <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2")}</span></button>
+                          <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted")}</span></button>
+                          <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered")}</span></button>
+                          <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image")}</span></button>
+                          <button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code")}</span></button>
+                          <button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule")}</span></button>
+                          <button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">sentiment_satisfied</span></button>
+                        </div>
+                        {showIconPicker && (
+                          <IconPicker
+                            onSelect={(icon) => {
+                              editor?.chain().focus().insertContent(`[ICON:${icon}] `).run();
+                              setShowIconPicker(false);
+                            }}
+                            onClose={() => setShowIconPicker(false)}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {showImageInput && (
+                      <div className="border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-top-2 duration-300 flex items-center gap-3 relative z-10 backdrop-blur-xl">
+                        <input
+                          value={inlineImageUrl}
+                          onChange={e => setInlineImageUrl(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && inlineImageUrl) {
+                              e.preventDefault();
+                              editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
+                              setInlineImageUrl('');
+                              setShowImageInput(false);
+                            }
+                          }}
+                          placeholder={t("image_url_placeholder")}
+                          className="flex-1 glass-surface rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] transition-all shadow-inner"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (inlineImageUrl) {
+                              editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
+                              setInlineImageUrl('');
+                              setShowImageInput(false);
+                            }
+                          }}
+                          className="px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-xl font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:-translate-y-0.5 transition-all hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                        >
+                          {t("ui_btn_insert")}
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="w-full flex-1 relative min-h-[350px]">
+                      <EditorContent editor={editor} className="h-full w-full custom-scrollbar" />
+                    </div>
+
+                    {showCodeInput && (
+                      <div className="border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-bottom-2 duration-300">
+                        <textarea
+                          value={codeSnippet}
+                          onChange={(e) => setCodeSnippet(e.target.value)}
+                          placeholder={t("code_snippet_placeholder")}
+                          className="w-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-xl text-[var(--text)] p-4 text-xs font-mono placeholder-[var(--subtext)] outline-none h-48 custom-scrollbar focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)]"
+                          spellCheck={false}
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between p-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-b-2xl shrink-0">
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest flex items-center gap-1.5 ${showCodeInput ? 'theme-bg-accent/20 theme-text-accent' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                          <span className="material-symbols-outlined !text-[14px]">{t("icon_data_object")}</span> {showCodeInput ? (t("hide_code")) : (t("masonhub_add_code"))}
+                        </button>
+                        <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center gap-1.5">
+                          <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span> {t("link_asset")}
+                        </button>
+                      </div>
+                      <div className="text-[9px] font-black tracking-widest capitalize opacity-40 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_markdown")}</span> {t("icon_markdown")}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {viewMode === 'edit' ? (
-                <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div className="flex flex-col items-center justify-center gap-3 w-full mb-2">
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--subtext)] opacity-70">{t("trans_type")}</span>
-                    <FilterTabs className="w-full">
-                      <FilterTabButton
-                        id="Dispatch"
-                        activeTab={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
-                        setTab={() => { setDeliveryMethod("Dispatch"); setIsUrgent(false); if (["Alert", "Game Version Alert", "Malware Alert", "Artifact Alert"].includes(category)) setCategory(isOversight ? "Game Issue" : "Update"); }}
-                        icon="feed"
-                        label="Dispatch"
-                      />
-                      <FilterTabButton
-                        id="Alert"
-                        activeTab={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
-                        setTab={() => { setDeliveryMethod("Alert"); setIsUrgent(false); if (["Update", "Info", "Event", "Game Issue", "Mod Issue"].includes(category)) setCategory(isOversight ? "Game Version Alert" : "Alert"); }}
-                        icon="notifications"
-                        label="Standard Alert"
-                      />
-                      <FilterTabButton
-                        id="UrgentAlert"
-                        activeTab={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
-                        setTab={() => { setDeliveryMethod("Alert"); setIsUrgent(true); if (["Update", "Info", "Event", "Game Issue", "Mod Issue"].includes(category)) setCategory(isOversight ? "Game Version Alert" : "Alert"); }}
-                        icon="notification_important"
-                        label="Urgent Alert"
-                      />
-                    </FilterTabs>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("post_title")}</label>
-                    <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title")} className="glass-surface bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
-                  </div>
-
-                  <div className="flex flex-col gap-2 w-full">
-                    <div className="flex justify-between items-center ml-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("post_description")}</label>
-                      <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length} / 250</span>
-                    </div>
-                    <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph") || "Short summary or description (optional)"} className="glass-surface bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
-                  </div>
-
-                  <div className="flex gap-4 w-full">
-                    <div className="flex flex-col gap-2 flex-1">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("wf_target_audience")}</label>
-                      <div className="h-14">
-                        <CustomDropdown disableTint={true}
-                          multiSelect={true}
-                          selectedValues={targetAudience}
-                          onChange={setTargetAudience}
-                          options={[
-                            ...(deliveryMethod === "Alert" ? [{ id: "Citizens", label: "Citizens" }] : []),
-                            { id: "Masons", label: "Masons" },
-                            { id: "Architects", label: "Architects" },
-                            { id: "Oversight", label: "Oversight" },
-                            ...(!isOversight ? [{ id: "Wayfinders", label: "Wayfinders" }] : [])
-                          ]}
-                          placeholder={t("auto_select_audience")}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 flex-1">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("category")}</label>
-                      <div className="h-14">
-                        <CustomDropdown disableTint={true}
-                          searchable={true}
-                          allowCustom={true}
-                          value={category}
-                          onChange={(v: string[]) => setCategory(v[0])}
-                          options={
-                            isOversight ? (
-                              deliveryMethod === "Alert" ? [
-                                { id: "Game Version Alert", label: t("category_game_version_alert") },
-                                { id: "Malware Alert", label: t("category_malware_alert") },
-                                { id: "Artifact Alert", label: t("category_artifact_alert") }
-                              ] : [
-                                { id: "Game Issue", label: t("category_game_issue") },
-                                { id: "Mod Issue", label: t("category_mod_issue") }
-                              ]
-                            ) : (
-                              deliveryMethod === "Alert" ? [
-                                { id: "Alert", label: "Alert" },
-                                { id: "Game Version Alert", label: t("category_game_version_alert") },
-                                { id: "Malware Alert", label: t("category_malware_alert") },
-                                { id: "Artifact Alert", label: t("category_artifact_alert") }
-                              ] : [
-                                { id: "Update", label: "Update" },
-                                { id: "Info", label: "Info" },
-                                { id: "Event", label: "Event" }
-                              ]
-                            )
-                          }
-                          placeholder={t("auto_select_category")}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("header_image_placeholder")}</label>
-                    <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder")} className="glass-surface bg-black/40 rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
-                  </div>
-
-                  <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
-                    <div className="flex items-center justify-between ml-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("post_content")}</label>
-                    </div>
-                    <div className="flex flex-col flex-1 glass-surface bg-black/40 rounded-2xl border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
-                      <div className="shrink-0 sticky top-0 z-50 flex flex-col items-center p-3 bg-transparent pointer-events-none">
-                        <div className="relative flex flex-col items-center">
-                          <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-[1.25rem] shadow-md">
-                            <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered")}</span></button>
-                            <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule")}</span></button>
-                            <button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[var(--accent)]/[20%] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">sentiment_satisfied</span></button>
-                          </div>
-                          {showIconPicker && (
-                            <IconPicker
-                              onSelect={(icon) => {
-                                editor?.chain().focus().insertContent(`[ICON:${icon}] `).run();
-                                setShowIconPicker(false);
-                              }}
-                              onClose={() => setShowIconPicker(false)}
-                            />
-                          )}
-                        </div>
-                      </div>
-
-                      {showImageInput && (
-                        <div className="border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-top-2 duration-300 flex items-center gap-3 relative z-10 backdrop-blur-xl">
-                          <input
-                            value={inlineImageUrl}
-                            onChange={e => setInlineImageUrl(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter' && inlineImageUrl) {
-                                e.preventDefault();
-                                editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
-                                setInlineImageUrl('');
-                                setShowImageInput(false);
-                              }
-                            }}
-                            placeholder={t("image_url_placeholder")}
-                            className="flex-1 glass-surface rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] transition-all shadow-inner"
-                            autoFocus
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (inlineImageUrl) {
-                                editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
-                                setInlineImageUrl('');
-                                setShowImageInput(false);
-                              }
-                            }}
-                            className="px-6 py-2 bg-[var(--accent)]/[20%] border border-[var(--accent)]/50 text-[var(--accent)] rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:-translate-y-0.5 transition-all hover:bg-[var(--accent)]/[30%]"
-                          >
-                            {t("ui_btn_insert")}
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="w-full flex-1 relative min-h-[350px]">
-                        <EditorContent editor={editor} className="h-full w-full custom-scrollbar" />
-                      </div>
-
-                      {showCodeInput && (
-                        <div className="border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-3 bg-black/40 shadow-inner animate-in slide-in-from-bottom-2 duration-300">
-                          <textarea
-                            value={codeSnippet}
-                            onChange={(e) => setCodeSnippet(e.target.value)}
-                            placeholder={t("code_snippet_placeholder")}
-                            className="w-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-xl text-[var(--text)] p-4 text-xs font-mono placeholder-[var(--subtext)] outline-none h-48 custom-scrollbar focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)]"
-                            spellCheck={false}
-                          />
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between p-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-b-2xl shrink-0">
-                        <div className="flex gap-2">
-                          <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest flex items-center gap-1.5 ${showCodeInput ? 'theme-bg-accent/20 theme-text-accent' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">{t("icon_data_object")}</span> {showCodeInput ? (t("hide_code")) : (t("masonhub_add_code"))}
-                          </button>
-                          <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center gap-1.5">
-                            <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span> {t("link_asset")}
-                          </button>
-                        </div>
-                        <div className="text-[9px] font-black tracking-widest uppercase opacity-40 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_markdown")}</span> {t("icon_markdown")}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-6 mt-4">
-                  <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-2">{t("live_preview")}</h3>
-
-                  {imageUrl && (
-                    <div className="w-full h-48 sm:h-64 relative shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-black/40 rounded-[var(--radius)] overflow-hidden shadow-lg -mb-8">
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--background)] z-10 opacity-90" />
-                      <img src={imageUrl} className="w-full h-full object-cover object-center relative z-0 opacity-80 mix-blend-screen" alt={t("auto_post_cover_preview")} />
-                    </div>
-                  )}
-
-                  <div className={`relative z-20 ${imageUrl ? 'p-6 -mx-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[var(--background)]/40 backdrop-blur-2xl shadow-2xl mt-4 mb-2' : 'mb-6'}`}>
-                    <h1 className="text-3xl font-black text-[var(--text)] uppercase tracking-tight">{title || (t("untitled"))}</h1>
-                  </div>
-
-                  <div className="markdown-body p-6 glass-surface rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-inner relative z-20">
-                    {content ? <MarkdownRenderer content={content} onAssetClick={(type: string, id: string) => setActiveAsset({ type, id })} /> : <p className="text-[var(--subtext)] opacity-50 italic">{t("no_content_preview")}</p>}
-                  </div>
-                </div>
-              )}
             </div>
           </SidePanel>
         </>
@@ -824,26 +824,26 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
         <div className="flex flex-col gap-6">
           <div className="animate-in slide-in-from-top-2">
             <div className="relative w-full">
-            <SearchBar
-              value={assetSearchQuery}
-              onChange={setAssetSearchQuery}
-              placeholder={t("search_assets")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
+              <SearchBar
+                value={assetSearchQuery}
+                onChange={setAssetSearchQuery}
+                placeholder={t("search_assets")}
+                className="h-12 w-full rounded-2xl"
+              />
+            </div>
           </div>
           <div className="flex flex-col gap-2">
             {isAssetPanelOpen && (
               <>
-                {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported") || "image_not_supported"} title={t("no_assets")} className="col-span-full py-16" />}
+                {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported")} title={t("no_assets")} className="col-span-full py-16" />}
                 {filteredAssets.slice(0, 100).map(asset => (
                   <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl glass-surface hover:theme-border-accent hover:-translate-y-0.5 transition-all flex items-center gap-4 group">
                     <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
-                    <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
+                    <span className="text-sm font-black text-[var(--text)] capitalize tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
                   </button>
                 ))}
                 {filteredAssets.length > 100 && (
-                  <div className="text-center text-[var(--subtext)] text-xs py-4 opacity-50 font-black uppercase tracking-widest">
+                  <div className="text-center text-[var(--subtext)] text-xs py-4 opacity-50 font-black capitalize tracking-widest">
                     {t("search_to_see_more_results") || `+ ${filteredAssets.length - 100} MORE ASSETS`}
                   </div>
                 )}

@@ -12,15 +12,15 @@ export function SidePanelBrowserDownloads({ downloadsQueue, setDownloadsQueue }:
       <div className="flex items-center justify-start border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] animate-bounce">download</span>
-          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">{t("browser_downloads_intercepted")}</span>
+          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)]">{t("browser_downloads_intercepted")}</span>
         </div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] bg-[var(--accent)]/[20%] px-2 py-0.5 rounded-full">{downloadsQueue.length}</span>
+        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] px-2 py-0.5 rounded-full">{downloadsQueue.length}</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[250px] overflow-y-auto accent-scrollbar p-1">
         {downloadsQueue.map(filePath => {
           const fileName = filePath.split(/[/\\]/).pop() || "Unknown File";
           return (
-            <div key={filePath} className="flex flex-col justify-start bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group shadow-sm hover:border-[var(--accent)]/[30%] transition-all">
+            <div key={filePath} className="flex flex-col justify-start bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group shadow-sm hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all">
               <span className="text-[11px] font-bold text-[var(--text)] truncate mb-3" title={fileName}>{fileName}</span>
               <div className="flex gap-2 justify-end w-full">
                 <button
@@ -32,7 +32,7 @@ export function SidePanelBrowserDownloads({ downloadsQueue, setDownloadsQueue }:
                     w.__processedDownloads.set(filePath, Date.now());
                     setDownloadsQueue(prev => prev.filter(p => p !== filePath));
                   }}
-                  className="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-red-500/20 text-[var(--subtext)] hover:text-red-400 border border-transparent hover:border-red-500/30"
+                  className="flex-1 py-2 rounded-xl text-[9px] font-black capitalize tracking-widest transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--subtext)] hover:text-red-400 border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
                 >
                   {t("browser_ignore")}
                 </button>
@@ -52,7 +52,7 @@ export function SidePanelBrowserDownloads({ downloadsQueue, setDownloadsQueue }:
                       alert(`Failed to ingest file: ${err}`);
                     }
                   }}
-                  className="flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-[var(--accent)]/[20%] hover:bg-[var(--accent)]/[40%] text-[var(--accent)] border border-[var(--accent)]/[30%] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]"
+                  className="flex-1 py-2 rounded-xl text-[9px] font-black capitalize tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]"
                 >
                   {t("browser_import")}
                 </button>

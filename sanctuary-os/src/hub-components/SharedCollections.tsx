@@ -123,12 +123,12 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-12">
           <CustomDropdown disableTint={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
         </div>
-        <ActionButton onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon={t("icon_add")} label={t("auto_create")} />
+        <ActionButton onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 shrink-0 font-black capitalize tracking-widest text-[10px]" icon={t("icon_add")} label={t("auto_create")} />
       </ScreenUtilityBar>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 content-start pr-2">
-          {filteredSets.length === 0 && <EmptyState icon={t("icon_extension_off") || "extension_off"} title={t("cc_no_sets")} className="col-span-full py-16" />}
+          {filteredSets.length === 0 && <EmptyState icon={t("icon_extension_off")} title={t("cc_no_sets")} className="col-span-full py-16" />}
           {filteredSets.map(setItem => (
             <div key={setItem.id} className="w-full max-w-[450px]">
               <VaultCard
@@ -157,12 +157,12 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
       >
         <div className="flex flex-col h-full gap-8">
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("forge_set_name")}</label>
             <input value={newSetName} onChange={e => setNewSetName(e.target.value)} placeholder={t("forge_set_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
             <CustomComplianceDropdown value={setTier} onChange={setSetTier} includeTier3={false} />
           </div>
         </div>
@@ -189,22 +189,22 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                 value={activeSet.name || ""}
                 onChange={e => setActiveSet({ ...activeSet, name: e.target.value })}
                 placeholder={t("forge_set_name")}
-                className="bg-transparent text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full"
+                className="bg-transparent text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] pb-1 w-full"
               />
             </div>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url")}</label>
                 <input value={activeSet.image_url || ""} onChange={e => setActiveSet({ ...activeSet, image_url: e.target.value })} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
                 <input value={activeSet.url || ""} onChange={e => setActiveSet({ ...activeSet, url: e.target.value })} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
             </div>
 
             <div className="flex flex-col gap-4 pb-12">
-              <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title")}</h4>
+              <h4 className="text-[11px] font-black theme-text-accent capitalize tracking-widest">{t("registry_assets_title")}</h4>
 
               <div className="relative z-[6000]">
                 <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder={t("link_search")} className="rounded-2xl h-[58px]" />
@@ -213,12 +213,12 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                   <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-md overflow-hidden z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
                     {myMods.filter(m => !members.some(mem => mem.mod_id === m.id) && m.name.toLowerCase().includes(searchQuery.toLowerCase())).map(m => (
                       <button type="button" key={m.id} onClick={() => { handleAddMod(m.id); setSearchQuery(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center group transition-all shrink-0">
-                        <span className="text-[10px] font-black text-[var(--text)] uppercase truncate">{m.name}</span>
-                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-0 group-hover:opacity-100 uppercase transition-all">{t("cc_btn_add")}</span>
+                        <span className="text-[10px] font-black text-[var(--text)] capitalize truncate">{m.name}</span>
+                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-0 group-hover:opacity-100 capitalize transition-all">{t("cc_btn_add")}</span>
                       </button>
                     ))}
                     {myMods.filter(m => !members.some(mem => mem.mod_id === m.id) && m.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-                      <EmptyState icon={t("icon_search_off") || "search_off"} title={t("mason_cc_no_assets")} className="py-8" />
+                      <EmptyState icon={t("icon_search_off")} title={t("mason_cc_no_assets")} className="py-8" />
                     )}
                   </div>
                 )}
@@ -226,7 +226,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
 
               <div className="flex flex-col gap-2 mt-2">
                 <div className="flex items-center justify-between px-2">
-                  <span className="text-[9px] uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("cc_in_set")}</span>
+                  <span className="text-[9px] capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("cc_in_set")}</span>
                   <span className="theme-text-accent font-black text-xs">{members.length}</span>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -243,7 +243,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                     ))}
                   </div>
                   {members.length === 0 && (
-                    <EmptyState icon={t("icon_inventory_2") || "inventory_2"} title={t("cc_no_assets_in_set")} className="py-8" />
+                    <EmptyState icon={t("icon_inventory_2")} title={t("cc_no_assets_in_set")} className="py-8" />
                   )}
                 </div>
               </div>
@@ -413,8 +413,8 @@ export function CollectionForge({ setStatus }: any) {
     <div className="flex flex-col h-full overflow-hidden animate-in fade-in pb-20">
 
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[var(--accent)]/[30%] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+        <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_collections_bookmark")}</span>
           </div>
           <span className="truncate">{t("tab_cc")}</span>
@@ -431,14 +431,14 @@ export function CollectionForge({ setStatus }: any) {
           <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12">
             <CustomDropdown disableTint={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
           </div>
-          <ActionButton onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 shrink-0 font-black uppercase tracking-widest text-[10px]" icon={t("icon_add")} label={t("auto_create")} />
+          <ActionButton onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 shrink-0 font-black capitalize tracking-widest text-[10px]" icon={t("icon_add")} label={t("auto_create")} />
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 content-start pr-2">
           {filteredSets.length === 0 ? (
-            <EmptyState icon={searchTerm ? "search_off" : (t("icon_folder") || "folder")} title={searchTerm ? t("no_matches") : (t("no_vaults") || "No Vaults Found")} className="col-span-full py-16" />
+            <EmptyState icon={searchTerm ? "search_off" : (t("icon_folder"))} title={searchTerm ? t("no_matches") : (t("no_vaults"))} className="col-span-full py-16" />
           ) : filteredSets.map(setItem => (
             <VaultCard
               key={setItem.id}
@@ -466,12 +466,12 @@ export function CollectionForge({ setStatus }: any) {
       >
         <div className="flex flex-col h-full gap-8">
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("forge_set_name")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("forge_set_name")}</label>
             <input value={setName} onChange={e => setSetName(e.target.value)} placeholder={t("forge_set_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason")}</label>
             <div className="flex gap-2">
               <div className="flex-1">
                 <CustomMasonDropdown value={setMasonId} options={masonsList} onChange={setSetMasonId} />
@@ -483,12 +483,12 @@ export function CollectionForge({ setStatus }: any) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
             <CustomComplianceDropdown value={setTier} onChange={setSetTier} includeTier3={false} />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
             <input value={setSetUrl} onChange={e => setSetSetUrl(e.target.value)} placeholder={t("auto_https")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold opacity-80 focus:opacity-100 focus:outline-none focus:theme-border-accent transition-all" />
           </div>
         </div>
@@ -515,14 +515,14 @@ export function CollectionForge({ setStatus }: any) {
                 value={activeSet.name || ""}
                 onChange={e => setActiveSet({ ...activeSet, name: e.target.value })}
                 placeholder={t("forge_set_name")}
-                className="bg-transparent text-3xl font-black text-[var(--text)] uppercase tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[var(--accent)]/30 pb-1 w-full"
+                className="bg-transparent text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] pb-1 w-full"
               />
             </div>
             <div className="flex flex-col gap-4">
 
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason")}</label>
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <CustomMasonDropdown value={activeSet.mason_id || ""} options={masonsList} onChange={(val: string) => setActiveSet({ ...activeSet, mason_id: val })} />
@@ -534,23 +534,23 @@ export function CollectionForge({ setStatus }: any) {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_col_safety")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
                 <CustomComplianceDropdown value={activeSet.compliance_tier || 0} onChange={(val: number) => setActiveSet({ ...activeSet, compliance_tier: val })} includeTier3={false} />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("cc_cover_url")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url")}</label>
                 <input value={activeSet.image_url || ""} onChange={e => setActiveSet({ ...activeSet, image_url: e.target.value })} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("registry_label_url")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
                 <input value={activeSet.url || ""} onChange={e => setActiveSet({ ...activeSet, url: e.target.value })} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
             </div>
 
             <div className="flex flex-col gap-4 pb-12">
-              <h4 className="text-[11px] font-black theme-text-accent uppercase tracking-widest">{t("registry_assets_title")}</h4>
+              <h4 className="text-[11px] font-black theme-text-accent capitalize tracking-widest">{t("registry_assets_title")}</h4>
 
               <div className="relative z-[6000]">
                 <SearchBar value={assetSearch} onChange={setAssetSearch} placeholder={t("forge_search_assets")} className="rounded-2xl h-[58px]" isLoading={isSearching} />
@@ -560,10 +560,10 @@ export function CollectionForge({ setStatus }: any) {
                     {availableAssets.filter(asset => !manifestMembers.some(m => m.mod_id === asset.id)).map(asset => (
                       <button type="button" key={asset.id} onClick={() => { addToManifest(asset.id); setAssetSearch(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center group transition-all shrink-0">
                         <div className="flex flex-col min-w-0 pr-4">
-                          <span className="text-[10px] font-black text-[var(--text)] uppercase truncate">{asset.name}</span>
-                          <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest truncate">{asset.masons?.name || asset.master_author || "UNKNOWN"}</span>
+                          <span className="text-[10px] font-black text-[var(--text)] capitalize truncate">{asset.name}</span>
+                          <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate">{asset.masons?.name || asset.master_author || "UNKNOWN"}</span>
                         </div>
-                        <span className="text-[9px] font-bold theme-text-accent opacity-0 group-hover:opacity-100 uppercase transition-all">{t("cc_btn_add")}</span>
+                        <span className="text-[9px] font-bold theme-text-accent opacity-0 group-hover:opacity-100 capitalize transition-all">{t("cc_btn_add")}</span>
                       </button>
                     ))}
                   </div>
@@ -572,7 +572,7 @@ export function CollectionForge({ setStatus }: any) {
 
               <div className="flex flex-col gap-4 mt-2">
                 <div className="flex items-center justify-between px-2">
-                  <span className="text-[9px] uppercase tracking-widest text-[var(--subtext)] opacity-60">{t("cc_in_set")}</span>
+                  <span className="text-[9px] capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("cc_in_set")}</span>
                   <span className="theme-text-accent font-black text-xs">{manifestMembers.length}</span>
                 </div>
 
@@ -592,7 +592,7 @@ export function CollectionForge({ setStatus }: any) {
                 {manifestMembers.length === 0 && (
                   <div className="w-full h-32 flex flex-col items-center justify-center opacity-40">
                     <span className="text-3xl mb-2 grayscale"><span className="material-symbols-outlined shrink-0">{t("icon_science")}</span></span>
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">{t("no_mods_found")}</span>
+                    <span className="text-[9px] font-black capitalize tracking-[0.2em]">{t("no_mods_found")}</span>
                   </div>
                 )}
               </div>
@@ -615,7 +615,7 @@ export function CollectionForge({ setStatus }: any) {
         }
       >
         <div className="p-6">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("mason_name")}</label>
+          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason_name")}</label>
           <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
         </div>
       </SidePanel>

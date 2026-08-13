@@ -1,13 +1,13 @@
 import { ScreenUtilityBar } from "./shared";
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { DashboardStatTile, fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, ActionButton } from "./shared";
+import { fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, ActionButton } from "./shared";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import {
   ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker, StatTile,
+  CustomComplianceDropdown, CustomDatePicker, DashboardStatTile,
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
@@ -61,7 +61,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           if (Array.isArray(mod)) mod = mod[0];
           if (!mod) return;
           if (!['under_review', 'verified', 'broken'].includes(mod.status)) return;
-          
+
           let hash = mod.id;
           if (log.mod_versions) {
             hash = Array.isArray(log.mod_versions) ? log.mod_versions[0]?.dna_hash : log.mod_versions.dna_hash;
@@ -391,10 +391,10 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         searchPlaceholder={t("search_ph") as string}
         className="px-6 !mb-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
       >
-          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex">
-            <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
-            <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_completed")}</button>
-          </div>
+        <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex">
+          <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
+          <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_completed")}</button>
+        </div>
       </ScreenUtilityBar>
 
       <div className="p-6 flex flex-col gap-10 pb-32">
@@ -402,7 +402,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {pendingReports.length === 0 ? (
-                <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart") || "healing"} title={searchTerm ? t("no_matches") : t("no_diagnostics") || "No Pending Diagnostics"} className="col-span-full py-16" />
+                <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart")} title={searchTerm ? t("no_matches") : t("no_diagnostics")} className="col-span-full py-16" />
               ) : pendingReports.slice(0, visibleCount).map((mod: any) => (
                 <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view")} />
               ))}
@@ -410,7 +410,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
             {pendingReports.length > visibleCount && (
               <button
                 onClick={() => setVisibleCount(v => v + 100)}
-                className="w-full py-4 mt-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] font-black uppercase tracking-widest transition-all"
+                className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
               >
                 {t("ui_btn_load_more")} ({visibleCount} / {pendingReports.length})
               </button>
@@ -423,7 +423,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {completedReports.length === 0 ? (
-                <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart") || "healing"} title={searchTerm ? t("no_matches") : t("no_diagnostics") || "No Completed Diagnostics"} className="col-span-full py-16" />
+                <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart")} title={searchTerm ? t("no_matches") : t("no_diagnostics")} className="col-span-full py-16" />
               ) : completedReports.slice(0, visibleCount).map((mod: any) => (
                 <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view")} />
               ))}
@@ -431,7 +431,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
             {completedReports.length > visibleCount && (
               <button
                 onClick={() => setVisibleCount(v => v + 100)}
-                className="w-full py-4 mt-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] font-black uppercase tracking-widest transition-all"
+                className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
               >
                 {t("ui_btn_load_more")} ({visibleCount} / {completedReports.length})
               </button>
@@ -440,7 +440,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         )}
 
         {filterTab === 'completed' && completedReports.length === 0 && (
-          <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart") || "healing"} title={searchTerm ? t("no_matches") : t("no_completed_reports") || "No Completed Reports"} className="py-16 mt-10" />
+          <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart")} title={searchTerm ? t("no_matches") : t("no_completed_reports")} className="py-16 mt-10" />
         )}
       </div>
 
@@ -455,10 +455,10 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
               <div className="flex flex-col w-full gap-4">
                 {isLoading && (
                   <div className="flex gap-4">
-                    <button onClick={() => concludeTest(true)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:theme-text-success transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-green-500/50">
+                    <button onClick={() => concludeTest(true)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:theme-text-success transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]">
                       {t("auto_conclude_pass")}
                     </button>
-                    <button onClick={() => concludeTest(false)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:theme-text-danger transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-red-500/50">
+                    <button onClick={() => concludeTest(false)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:theme-text-danger transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)]">
                       {t("auto_conclude_fail")}
                     </button>
                   </div>
@@ -467,14 +467,14 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                 {!testRun && (
                   <div className="w-full">
                     {isLoading ? (
-                      <div className="flex flex-col items-center justify-center p-6 glass-surface rounded-xl gap-4 border border-[var(--accent)]/[30%] shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">
+                      <div className="flex flex-col items-center justify-center p-6 glass-surface rounded-xl gap-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">
                         <div className="w-8 h-8 border-4 border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
-                        <span className="text-[10px] font-black uppercase tracking-widest animate-pulse mt-1 theme-text-accent">{t("diagnostic_running")}</span>
+                        <span className="text-[10px] font-black capitalize tracking-widest animate-pulse mt-1 theme-text-accent">{t("diagnostic_running")}</span>
                       </div>
                     ) : isModMissingLocally(activeReport.name) ? (
                       <button
                         onClick={() => setIsMissingArtifactPanelOpen(true)}
-                        className="w-full h-14 glass-panel border border-[var(--warning)]/50 text-[var(--warning)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--warning)]/10 transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2"
+                        className="w-full h-14 glass-panel border border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] font-black text-xs capitalize tracking-widest rounded-2xl hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2"
                       >
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_download")}</span>
                         {t("missing_artifacts")}
@@ -482,7 +482,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                     ) : (
                       <button
                         onClick={runSimulation}
-                        className="w-full h-14 glass-panel border border-[var(--accent)]/50 text-[var(--accent)] font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[var(--accent)]/10 transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2"
+                        className="w-full h-14 glass-panel border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] font-black text-xs capitalize tracking-widest rounded-2xl hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2"
                       >
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_play_arrow")}</span>
                         {t("btn_run_diagnostic")}
@@ -498,8 +498,8 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
 
               <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
-                <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none rounded-2xl" />
+                <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_my_location")}</span>
                   {t("target_artifact")}
                 </h4>
@@ -509,13 +509,13 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
               </div>
 
               <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent pointer-events-none rounded-2xl" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none rounded-2xl" />
                 <div className="flex flex-col gap-1 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                  <h4 className="text-[10px] font-black theme-text-accent uppercase tracking-widest flex items-center gap-2">
+                  <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_account_tree")}</span>
                     {t("section_deps_title")}
                   </h4>
-                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 uppercase tracking-widest">{t("diagnostic_dependencies_desc")}</p>
+                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 capitalize tracking-widest">{t("diagnostic_dependencies_desc")}</p>
                 </div>
 
                 <div className="flex flex-col gap-4 relative z-10">
@@ -542,24 +542,24 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
               </div>
 
               <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--warning)]/5 to-transparent pointer-events-none rounded-2xl" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none rounded-2xl" />
                 <div className="flex flex-col gap-1 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                  <h4 className="text-[10px] font-black text-[var(--warning)] uppercase tracking-widest flex items-center gap-2">
+                  <h4 className="text-[10px] font-black text-[var(--warning)] capitalize tracking-widest flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_warning")}</span>
                     {t("diagnostic_conflict_target")}
                   </h4>
-                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 uppercase tracking-widest">{t("diagnostic_conflict_target_desc")}</p>
+                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 capitalize tracking-widest">{t("diagnostic_conflict_target_desc")}</p>
                 </div>
 
                 <div className="flex flex-col gap-4 relative z-10">
                   {conflictTarget ? (
                     <div className="flex flex-col gap-2">
-                      <div className="flex justify-start items-center px-5 h-16 glass-surface rounded-xl border border-[var(--warning)]/30 text-[var(--text)] bg-[var(--warning)]/5 shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)]">
+                      <div className="flex justify-start items-center px-5 h-16 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--text)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)]">
                         <div className="flex flex-col min-w-0">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--warning)] mb-0.5">{t("auto_testing_conflict_with")}</span>
+                          <span className="text-[9px] font-black capitalize tracking-widest text-[var(--warning)] mb-0.5">{t("auto_testing_conflict_with")}</span>
                           <span className="text-sm font-bold truncate">{conflictTarget.name}</span>
                         </div>
-                        <button onClick={() => setConflictTarget(null)} className="w-8 h-8 rounded-lg hover:bg-[var(--warning)]/20 text-[var(--warning)] flex items-center justify-center shrink-0 transition-colors">
+                        <button onClick={() => setConflictTarget(null)} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0 transition-colors">
                           <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
                         </button>
                       </div>
@@ -578,22 +578,22 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
 
               {testRun && (
                 <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative animate-in slide-in-from-bottom-4">
-                  <div className={`absolute inset-0 bg-gradient-to-br ${testPassed ? 'from-[var(--success)]/10' : 'from-[var(--danger)]/10'} to-transparent pointer-events-none rounded-2xl`} />
-                  <h4 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2 ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${testPassed ? 'from-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'from-[color-mix(in_srgb,var(--danger)_10%,transparent)]'} to-transparent pointer-events-none rounded-2xl`} />
+                  <h4 className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2 ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_science")}</span>
                     {t("diagnostic_results")}
                   </h4>
 
                   <div className="flex flex-col relative z-10">
-                    <div className={`p-5 glass-surface rounded-xl flex items-center gap-4 border ${testPassed ? 'border-[var(--success)]/30 bg-[var(--success)]/5 shadow-[0_0_20px_rgba(var(--success-rgb),0.1)]' : 'border-[var(--danger)]/30 bg-[var(--danger)]/5 shadow-[0_0_20px_rgba(var(--danger-rgb),0.1)]'}`}>
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${testPassed ? 'border-[var(--success)]/50 bg-[var(--success)]/20 text-[var(--success)]' : 'border-[var(--danger)]/50 bg-[var(--danger)]/20 text-[var(--danger)]'}`}>
+                    <div className={`p-5 glass-surface rounded-xl flex items-center gap-4 border ${testPassed ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_0_20px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] shadow-[0_0_20px_rgba(var(--danger-rgb),0.1)]'}`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${testPassed ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)] bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)]' : 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)]'}`}>
                         <span className="material-symbols-outlined !text-[24px]">{testPassed ? 'check_circle' : 'error'}</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className={`text-lg font-black uppercase tracking-widest ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                        <span className={`text-lg font-black capitalize tracking-widest ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                           {testPassed ? t("test_passed") : t("test_failed")}
                         </span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text)] opacity-60">
+                        <span className="text-[10px] font-bold capitalize tracking-widest text-[var(--text)] opacity-60">
                           {t("injection_sim")}
                         </span>
                       </div>
@@ -604,18 +604,18 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                     </div>
 
                     {!testPassed && conflictTarget && (
-                      <div className="mt-4 border-t border-[var(--danger)]/20 pt-6">
-                        <h3 className="text-sm font-black theme-text-accent uppercase tracking-widest">{t("btn_add_to_nexus")}</h3>
+                      <div className="mt-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] pt-6">
+                        <h3 className="text-sm font-black theme-text-accent capitalize tracking-widest">{t("btn_add_to_nexus")}</h3>
                         <form onSubmit={submitToNexus} className="flex flex-col gap-4">
                           <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("resolution_suggestion")}</label>
+                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("resolution_suggestion")}</label>
                             <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder={t("auto_e_g_load_31")} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
                           </div>
                           <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-2">{t("severity")}</label>
+                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("severity")}</label>
                             <CustomTierDropdown value={severity} onChange={(val) => setSeverity(val)} />
                           </div>
-                          <button type="submit" disabled={isSubmitting} className="w-full py-4 theme-bg-success text-[var(--bg)] font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg disabled:opacity-50 mt-2">
+                          <button type="submit" disabled={isSubmitting} className="w-full py-4 theme-bg-success text-[var(--bg)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg disabled:opacity-50 mt-2">
                             {isSubmitting ? "Saving..." : "Save Conflict Rule"}
                           </button>
                         </form>
@@ -640,21 +640,21 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           <div className="flex flex-col gap-4 mt-4 w-full">
             {activeReport?.download_url ? (
               <ActionButton onClick={() => window.open(activeReport.download_url, "_blank")} label={t("download_source")} icon={t("btn_download")}>
-                 
+
               </ActionButton>
             ) : null}
             <ActionButton onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((useStore.getState().activeGameSchema?.display_name || "Mod") + ' ' + cleanSearchName(activeReport?.name || '', useStore.getState().activeGameSchema))}`, "_blank")} label={t("search_web")} icon={t("icon_search")}>
-               
+
             </ActionButton>
           </div>
         }
       >
         <div className="flex flex-col p-8 gap-6">
-          <div className="p-6 glass-panel border border-[var(--warning)]/30 rounded-[var(--radius)] flex flex-col items-center justify-center gap-4 text-center mt-8">
+          <div className="p-6 glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-[var(--radius)] flex flex-col items-center justify-center gap-4 text-center mt-8">
             <span className="material-symbols-outlined !text-[48px] text-[var(--warning)] opacity-80">{t("icon_extension_off")}</span>
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-black text-[var(--text)] uppercase tracking-widest">{activeReport?.name}</span>
-              <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("missing_dependency_desc")}</span>
+              <span className="text-sm font-black text-[var(--text)] capitalize tracking-widest">{activeReport?.name}</span>
+              <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("missing_dependency_desc")}</span>
             </div>
           </div>
         </div>

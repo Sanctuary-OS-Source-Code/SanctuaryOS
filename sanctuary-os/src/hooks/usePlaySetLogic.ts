@@ -160,7 +160,7 @@ export function usePlaySetLogic() {
             });
             if (toDelete) {
                newMods.delete(toDelete);
-               setStatus(`${t("anarchy_intercept") || "CONFLICT INTERCEPT"}: ${formatDisplayName(targetName)} ${t("artifact_removed") || "removed"}.`);
+               setStatus(`${t("anarchy_intercept")}: ${formatDisplayName(targetName)} ${t("artifact_removed")}.`);
             }
             const updatedSets = [...prevSets];
             updatedSets[activePlaySetIndex] = { ...currentSet, mods: Array.from(newMods) };
@@ -285,7 +285,7 @@ export function usePlaySetLogic() {
                  
                  if (isFlavorRival || isCommunityRival || isBetaRival) {
                      deepDelete(m.name, true);
-                     setStatus(`${t("radar_intercept") || "RADAR"}: ${formatDisplayName(modObj.displayName || modObj.name)} ${t("flavor_replaced") || "replaced"} ${formatDisplayName(m.displayName || m.name)}.`);
+                     setStatus(`${t("radar_intercept")}: ${formatDisplayName(modObj.displayName || modObj.name)} ${t("flavor_replaced")} ${formatDisplayName(m.displayName || m.name)}.`);
                  }
              }
           });
@@ -306,7 +306,7 @@ export function usePlaySetLogic() {
                  if (matchStr) {
                     const deletedMod = modMap.get(matchStr);
                     deepDelete(matchStr);
-                    setStatus(`${t("anarchy_intercept") || "CONFLICT INTERCEPT"}: ${formatDisplayName(deletedMod?.displayName || deletedMod?.name || matchStr)} ${t("artifact_removed") || "removed"} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
+                    setStatus(`${t("anarchy_intercept")}: ${formatDisplayName(deletedMod?.displayName || deletedMod?.name || matchStr)} ${t("artifact_removed")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
                  }
               }
            });
@@ -340,7 +340,7 @@ export function usePlaySetLogic() {
                         }
                         if (isReverseMatch) {
                             deepDelete(activeName);
-                            setStatus(`${t("anarchy_intercept") || "CONFLICT INTERCEPT"}: ${formatDisplayName(activeM.displayName || activeM.name)} ${t("artifact_removed") || "removed"} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
+                            setStatus(`${t("anarchy_intercept")}: ${formatDisplayName(activeM.displayName || activeM.name)} ${t("artifact_removed")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
                         }
                     }
                 });
@@ -515,7 +515,7 @@ export function usePlaySetLogic() {
           deepDelete(targetName);
         }
         if (forceRemove) {
-           setStatus(`${t("anarchy_intercept") || "CONFLICT INTERCEPT"}: ${formatDisplayName(targetMod.displayName || targetMod.name)} ${t("artifact_removed") || "removed"}.`);
+           setStatus(`${t("anarchy_intercept")}: ${formatDisplayName(targetMod.displayName || targetMod.name)} ${t("artifact_removed")}.`);
         }
       }
       const updatedSets = [...prevSets];

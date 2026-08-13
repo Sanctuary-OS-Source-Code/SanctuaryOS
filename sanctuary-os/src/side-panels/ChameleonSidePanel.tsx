@@ -66,16 +66,16 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
 
   const getThemeBadge = (id: string, data: any) => {
     if (CORE_THEMES[id]) {
-      return t("badge_sanctuary") || 'Sanctuary';
+      return t("badge_sanctuary");
     }
     if (data.badge) {
       return data.badge;
     }
-    return t("badge_custom") || 'Custom';
+    return t("badge_custom");
   };
 
   const getThemeMode = (data: any) => {
-    return getLuminance(data.bg) < 0.5 ? (t("mode_dark") || "Dark") : (t("mode_light") || "Light");
+    return getLuminance(data.bg) < 0.5 ? (t("mode_dark")) : (t("mode_light"));
   };
 
   const handleEditClick = (e: React.MouseEvent, id: string, data: any) => {
@@ -88,7 +88,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
   const allThemeIds = Object.keys(allThemes);
 
   const uniqueCommunities = Array.from(new Set(allThemeIds.map(id => getThemeBadge(id, allThemes[id]))));
-  const uniqueModes = [t("mode_dark") || "Dark", t("mode_light") || "Light"];
+  const uniqueModes = [t("mode_dark"), t("mode_light")];
 
   return (
     <SidePanel
@@ -99,9 +99,9 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
       widthClass="w-[900px]"
       footer={
         <div className="flex justify-center items-center gap-4 w-full">
-          <ActionButton onClick={() => { setMarketTab('CHAMELEONS'); setView('nexus'); onClose(); }} label={t("tab_nexus") || "Nexus"} icon="explore" />
-          <ActionButton onClick={handleImportTheme} label={t("btn_import") || "Import"} icon="download" />
-          <ActionButton onClick={createNewTheme} label={t("btn_create_theme") || "Forge"} icon="add" />
+          <ActionButton onClick={() => { setMarketTab('CHAMELEONS'); setView('nexus'); onClose(); }} label={t("tab_nexus")} icon="explore" />
+          <ActionButton onClick={handleImportTheme} label={t("btn_import")} icon="download" />
+          <ActionButton onClick={createNewTheme} label={t("btn_create_theme")} icon="add" />
         </div>
       }
       noPadding
@@ -112,7 +112,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
             <SearchBar
               value={themeSearch}
               onChange={setThemeSearch}
-              placeholder={t("ui_search_chameleons") || "Search aesthetics..."}
+              placeholder={t("ui_search_chameleons")}
               className="h-full w-full !rounded-2xl"
             />
           </div>
@@ -120,11 +120,11 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
           <div className="flex items-center gap-4 w-full h-10">
             <div className="flex-1 h-full min-w-[200px]">
               <div className="flex h-full w-full items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                <button onClick={() => setUseGlobalTheme(false)} className={`flex-1 flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${!useGlobalTheme ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                  {t("scope_workspace") || "Workspace"}
+                <button onClick={() => setUseGlobalTheme(false)} className={`flex-1 flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${!useGlobalTheme ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  {t("scope_workspace")}
                 </button>
-                <button onClick={() => setUseGlobalTheme(true)} className={`flex-1 flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all ${useGlobalTheme ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                  {t("scope_global") || "Global"}
+                <button onClick={() => setUseGlobalTheme(true)} className={`flex-1 flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${useGlobalTheme ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  {t("scope_global")}
                 </button>
               </div>
             </div>
@@ -156,8 +156,8 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
         {favoriteThemes.length > 0 && (
           <div className="flex flex-col gap-4 w-full mb-6 z-10">
             <div className="flex items-center gap-3 pl-1 mb-1">
-              <span className="material-symbols-outlined text-[var(--accent)] !text-[16px]">{t("icon_keep") || "keep"}</span>
-              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("installed_themes") || "Installed Aesthetics"}</h3>
+              <span className="material-symbols-outlined text-[var(--accent)] !text-[16px]">{t("icon_keep")}</span>
+              <h3 className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--text)] drop-shadow-md">{t("installed_themes")}</h3>
               <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_40%,transparent)] to-transparent" />
             </div>
             <div className="grid grid-cols-3 gap-3">
@@ -168,11 +168,11 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                     key={id}
                     onClick={() => setActiveThemeId(id)}
                     className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
-                      ? 'border-[var(--accent)] bg-[var(--accent)]/[10%] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                      ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                       : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                       }`}
                   >
-                    {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
+                    {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
 
                     <div className="flex justify-start items-start mb-3 relative z-10">
                       <div className="w-6 h-6 rounded-full shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0" style={{ backgroundColor: data.accent }} />
@@ -180,23 +180,23 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1 top-1">
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFavoriteTheme(id, e); }}
-                          className={`relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-sm shadow-md ${favoriteThemes.includes(id)
-                            ? 'text-[var(--accent)] border-[var(--accent)] bg-[var(--accent)]/[10%] drop-shadow-[0_0_5px_currentColor]'
+                          className={`relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-sm shadow-md ${favoriteThemes.includes(id)
+                            ? 'text-[var(--accent)] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] drop-shadow-[0_0_5px_currentColor]'
                             : 'text-[var(--subtext)] hover:text-white'
                             }`}
                         >
                           <span className="material-symbols-outlined !text-[12px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ fontVariationSettings: favoriteThemes.includes(id) ? "'FILL' 1" : "'FILL' 0" }}>star</span>
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleExportTheme(e, data); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
+                        <button onClick={(e) => { e.stopPropagation(); handleExportTheme(e, data); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
                           <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ml-[1px]">{t("icon_save")}</span>
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleEditClick(e, id, data); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[40%] hover:text-white hover:bg-[var(--accent)]/[10%] backdrop-blur-sm theme-text-accent cursor-pointer shadow-md">
-                          <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_tune") || "tune"}</span>
+                        <button onClick={(e) => { e.stopPropagation(); handleEditClick(e, id, data); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-white hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] backdrop-blur-sm theme-text-accent cursor-pointer shadow-md">
+                          <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_tune")}</span>
                         </button>
 
                         {!CORE_THEMES[id] && (
                           <>
-                            <button onClick={(e) => { e.stopPropagation(); setNewThemeName(data.name); setEditingThemeId(id); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
+                            <button onClick={(e) => { e.stopPropagation(); setNewThemeName(data.name); setEditingThemeId(id); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
                               <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_edit")}</span>
                             </button>
                             <button
@@ -206,9 +206,9 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                                 else { setConfirmDelete(id); }
                               }}
                               onMouseLeave={() => setConfirmDelete(false)}
-                              className={`relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === id ? 'bg-red-500/[30%] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-red-500/10 hover:border-red-500/50 theme-text-danger'}`}
+                              className={`relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === id ? 'bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] theme-text-danger'}`}
                             >
-                              <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning") || 'warning' : t("icon_delete") || 'delete'}</span>
+                              <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning") : t("icon_delete")}</span>
                             </button>
                           </>
                         )}
@@ -234,16 +234,16 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                             if (newThemeName.trim() !== "" && newThemeName !== data.name) renameTheme(id, newThemeName.trim());
                             setEditingThemeId(null);
                           }}
-                          className="w-full bg-black/40 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded md px-2 py-1 text-[9px] font-black uppercase tracking-[0.2em] outline-none shadow-inner transition-all text-white focus:border-[var(--accent)]"
+                          className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded md px-2 py-1 text-[9px] font-black capitalize tracking-[0.2em] outline-none shadow-inner transition-all text-white focus:border-[var(--accent)]"
                         />
                       ) : (
-                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] truncate ${activeThemeId === id ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{data.name}</span>
+                        <span className={`text-[10px] font-black capitalize tracking-[0.2em] truncate ${activeThemeId === id ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{data.name}</span>
                       )}
                       <div className="flex items-center gap-1.5 mt-0.5 opacity-80">
-                        <span className="px-1.5 py-0.5 rounded bg-[var(--accent)]/[15%] text-[7px] font-black uppercase tracking-widest text-[var(--accent)] truncate border border-[var(--accent)]/[30%]">
+                        <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[7px] font-black capitalize tracking-widest text-[var(--accent)] truncate border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
                           {getThemeBadge(id, data)}
                         </span>
-                        <span className="text-[7px] font-bold uppercase tracking-widest text-[var(--subtext)] truncate">
+                        <span className="text-[7px] font-bold capitalize tracking-widest text-[var(--subtext)] truncate">
                           {getThemeMode(data)}
                         </span>
                       </div>
@@ -258,7 +258,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
               <>
                 <div className="flex items-center gap-3 pl-1 mt-2 mb-1">
                   <span className="material-symbols-outlined text-[var(--subtext)] !text-[14px] opacity-70">speed</span>
-                  <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text)] opacity-60 drop-shadow-md">Performance Aesthetics</h3>
+                  <h3 className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--text)] opacity-60 drop-shadow-md">Performance Aesthetics</h3>
                   <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
@@ -269,11 +269,11 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                         key={id}
                         onClick={() => setActiveThemeId(id)}
                         className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
-                          ? 'border-[var(--accent)] bg-[var(--accent)]/[10%] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                          ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                           : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                           }`}
                       >
-                        {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
+                        {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
 
                         <div className="flex justify-start items-start mb-3 relative z-10">
                           <div className="w-6 h-6 rounded-full shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0" style={{ backgroundColor: data.accent }} />
@@ -281,23 +281,23 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1 top-1">
                             <button
                               onClick={(e) => { e.stopPropagation(); toggleFavoriteTheme(id, e); }}
-                              className={`relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-sm shadow-md ${favoriteThemes.includes(id)
-                                ? 'text-[var(--accent)] border-[var(--accent)] bg-[var(--accent)]/[10%] drop-shadow-[0_0_5px_currentColor]'
+                              className={`relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-sm shadow-md ${favoriteThemes.includes(id)
+                                ? 'text-[var(--accent)] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] drop-shadow-[0_0_5px_currentColor]'
                                 : 'text-[var(--subtext)] hover:text-white'
                                 }`}
                             >
                               <span className="material-symbols-outlined !text-[12px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ fontVariationSettings: favoriteThemes.includes(id) ? "'FILL' 1" : "'FILL' 0" }}>star</span>
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleExportTheme(e, data); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
+                            <button onClick={(e) => { e.stopPropagation(); handleExportTheme(e, data); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
                               <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ml-[1px]">{t("icon_save")}</span>
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleEditClick(e, id, data); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[40%] hover:text-white hover:bg-[var(--accent)]/[10%] backdrop-blur-sm theme-text-accent cursor-pointer shadow-md">
-                              <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_tune") || "tune"}</span>
+                            <button onClick={(e) => { e.stopPropagation(); handleEditClick(e, id, data); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-white hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] backdrop-blur-sm theme-text-accent cursor-pointer shadow-md">
+                              <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_tune")}</span>
                             </button>
 
                             {!CORE_THEMES[id] && (
                               <>
-                                <button onClick={(e) => { e.stopPropagation(); setNewThemeName(data.name); setEditingThemeId(id); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
+                                <button onClick={(e) => { e.stopPropagation(); setNewThemeName(data.name); setEditingThemeId(id); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
                                   <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_edit")}</span>
                                 </button>
                                 <button
@@ -307,9 +307,9 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                                     else { setConfirmDelete(id); }
                                   }}
                                   onMouseLeave={() => setConfirmDelete(false)}
-                                  className={`relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === id ? 'bg-red-500/[30%] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-red-500/10 hover:border-red-500/50 theme-text-danger'}`}
+                                  className={`relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === id ? 'bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] theme-text-danger'}`}
                                 >
-                                  <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning") || 'warning' : t("icon_delete") || 'delete'}</span>
+                                  <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning") : t("icon_delete")}</span>
                                 </button>
                               </>
                             )}
@@ -335,16 +335,16 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                                 if (newThemeName.trim() !== "" && newThemeName !== data.name) renameTheme(id, newThemeName.trim());
                                 setEditingThemeId(null);
                               }}
-                              className="w-full bg-black/40 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded md px-2 py-1 text-[9px] font-black uppercase tracking-[0.2em] outline-none shadow-inner transition-all text-white focus:border-[var(--accent)]"
+                              className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded md px-2 py-1 text-[9px] font-black capitalize tracking-[0.2em] outline-none shadow-inner transition-all text-white focus:border-[var(--accent)]"
                             />
                           ) : (
-                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] truncate ${activeThemeId === id ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{data.name}</span>
+                            <span className={`text-[10px] font-black capitalize tracking-[0.2em] truncate ${activeThemeId === id ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{data.name}</span>
                           )}
                           <div className="flex items-center gap-1.5 mt-0.5 opacity-80">
-                            <span className="px-1.5 py-0.5 rounded bg-[var(--accent)]/[15%] text-[7px] font-black uppercase tracking-widest text-[var(--accent)] truncate border border-[var(--accent)]/[30%]">
+                            <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[7px] font-black capitalize tracking-widest text-[var(--accent)] truncate border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
                               {getThemeBadge(id, data)}
                             </span>
-                            <span className="text-[7px] font-bold uppercase tracking-widest text-[var(--subtext)] truncate">
+                            <span className="text-[7px] font-bold capitalize tracking-widest text-[var(--subtext)] truncate">
                               {getThemeMode(data)}
                             </span>
                           </div>
@@ -360,8 +360,8 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
 
         <div className="flex flex-col gap-4 w-full z-10">
           <div className="flex items-center gap-3 pl-1 mb-1">
-            <span className="material-symbols-outlined text-[var(--subtext)] !text-[16px]">{t("icon_grid_view") || "grid_view"}</span>
-            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)] opacity-80 drop-shadow-md">{t("ui_library") || "Library"}</h3>
+            <span className="material-symbols-outlined text-[var(--subtext)] !text-[16px]">{t("icon_grid_view")}</span>
+            <h3 className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--text)] opacity-80 drop-shadow-md">{t("ui_library")}</h3>
             <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
           </div>
           <div className="grid grid-cols-3 gap-3 w-full">
@@ -378,11 +378,11 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                     key={id}
                     onClick={() => setActiveThemeId(id)}
                     className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
-                      ? 'border-[var(--accent)] bg-[var(--accent)]/[10%] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                      ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                       : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                       }`}
                   >
-                    {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
+                    {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
 
                     <div className="flex justify-start items-start mb-3 relative z-10">
                       <div className="w-6 h-6 rounded-full shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0" style={{ backgroundColor: data.accent }} />
@@ -390,23 +390,23 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1 top-1">
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFavoriteTheme(id, e); }}
-                          className={`relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-sm shadow-md ${favoriteThemes.includes(id)
-                            ? 'text-[var(--accent)] border-[var(--accent)] bg-[var(--accent)]/[10%] drop-shadow-[0_0_5px_currentColor]'
+                          className={`relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-sm shadow-md ${favoriteThemes.includes(id)
+                            ? 'text-[var(--accent)] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] drop-shadow-[0_0_5px_currentColor]'
                             : 'text-[var(--subtext)] hover:text-white'
                             }`}
                         >
                           <span className="material-symbols-outlined !text-[12px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ fontVariationSettings: favoriteThemes.includes(id) ? "'FILL' 1" : "'FILL' 0" }}>star</span>
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleExportTheme(e, data); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
+                        <button onClick={(e) => { e.stopPropagation(); handleExportTheme(e, data); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
                           <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ml-[1px]">{t("icon_save")}</span>
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleEditClick(e, id, data); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[40%] hover:text-white hover:bg-[var(--accent)]/[10%] backdrop-blur-sm theme-text-accent cursor-pointer shadow-md">
-                          <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_tune") || "tune"}</span>
+                        <button onClick={(e) => { e.stopPropagation(); handleEditClick(e, id, data); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-white hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] backdrop-blur-sm theme-text-accent cursor-pointer shadow-md">
+                          <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_tune")}</span>
                         </button>
 
                         {!CORE_THEMES[id] && (
                           <>
-                            <button onClick={(e) => { e.stopPropagation(); setNewThemeName(data.name); setEditingThemeId(id); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
+                            <button onClick={(e) => { e.stopPropagation(); setNewThemeName(data.name); setEditingThemeId(id); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
                               <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_edit")}</span>
                             </button>
                             <button
@@ -416,9 +416,9 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                                 else { setConfirmDelete(id); }
                               }}
                               onMouseLeave={() => setConfirmDelete(false)}
-                              className={`relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === id ? 'bg-red-500/[30%] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-red-500/10 hover:border-red-500/50 theme-text-danger'}`}
+                              className={`relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === id ? 'bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] theme-text-danger'}`}
                             >
-                              <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning") || 'warning' : t("icon_delete") || 'delete'}</span>
+                              <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning") : t("icon_delete")}</span>
                             </button>
                           </>
                         )}
@@ -444,16 +444,16 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                             if (newThemeName.trim() !== "" && newThemeName !== data.name) renameTheme(id, newThemeName.trim());
                             setEditingThemeId(null);
                           }}
-                          className="w-full bg-black/40 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded md px-2 py-1 text-[9px] font-black uppercase tracking-[0.2em] outline-none shadow-inner transition-all text-white focus:border-[var(--accent)]"
+                          className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded md px-2 py-1 text-[9px] font-black capitalize tracking-[0.2em] outline-none shadow-inner transition-all text-white focus:border-[var(--accent)]"
                         />
                       ) : (
-                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] truncate ${activeThemeId === id ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{data.name}</span>
+                        <span className={`text-[10px] font-black capitalize tracking-[0.2em] truncate ${activeThemeId === id ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{data.name}</span>
                       )}
                       <div className="flex items-center gap-1.5 mt-0.5 opacity-80">
-                        <span className="px-1.5 py-0.5 rounded bg-[var(--accent)]/[15%] text-[7px] font-black uppercase tracking-widest text-[var(--accent)] truncate border border-[var(--accent)]/[30%]">
+                        <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[7px] font-black capitalize tracking-widest text-[var(--accent)] truncate border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
                           {getThemeBadge(id, data)}
                         </span>
-                        <span className="text-[7px] font-bold uppercase tracking-widest text-[var(--subtext)] truncate">
+                        <span className="text-[7px] font-bold capitalize tracking-widest text-[var(--subtext)] truncate">
                           {getThemeMode(data)}
                         </span>
                       </div>
@@ -473,7 +473,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
             <>
               <div className="flex items-center gap-3 pl-1 mt-4 mb-1">
                 <span className="material-symbols-outlined text-[var(--subtext)] !text-[14px] opacity-70">speed</span>
-                <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text)] opacity-60 drop-shadow-md">Performance Aesthetics</h3>
+                <h3 className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--text)] opacity-60 drop-shadow-md">Performance Aesthetics</h3>
                 <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
               </div>
               <div className="grid grid-cols-3 gap-3 w-full">
@@ -490,11 +490,11 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                         key={id}
                         onClick={() => setActiveThemeId(id)}
                         className={`flex flex-col p-3 rounded-xl glass-panel transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 border cursor-pointer group relative overflow-hidden ${activeThemeId === id
-                          ? 'border-[var(--accent)] bg-[var(--accent)]/[10%] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                          ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                           : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                           }`}
                       >
-                        {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent pointer-events-none" />}
+                        {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
 
                         <div className="flex justify-start items-start mb-3 relative z-10">
                           <div className="w-6 h-6 rounded-full shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0" style={{ backgroundColor: data.accent }} />
@@ -502,23 +502,23 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1 top-1">
                             <button
                               onClick={(e) => { e.stopPropagation(); toggleFavoriteTheme(id, e); }}
-                              className={`relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-sm shadow-md ${favoriteThemes.includes(id)
-                                ? 'text-[var(--accent)] border-[var(--accent)] bg-[var(--accent)]/[10%] drop-shadow-[0_0_5px_currentColor]'
+                              className={`relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] backdrop-blur-sm shadow-md ${favoriteThemes.includes(id)
+                                ? 'text-[var(--accent)] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] drop-shadow-[0_0_5px_currentColor]'
                                 : 'text-[var(--subtext)] hover:text-white'
                                 }`}
                             >
                               <span className="material-symbols-outlined !text-[12px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ fontVariationSettings: favoriteThemes.includes(id) ? "'FILL' 1" : "'FILL' 0" }}>star</span>
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleExportTheme(e, data); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
+                            <button onClick={(e) => { e.stopPropagation(); handleExportTheme(e, data); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
                               <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ml-[1px]">{t("icon_save")}</span>
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleEditClick(e, id, data); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[40%] hover:text-white hover:bg-[var(--accent)]/[10%] backdrop-blur-sm theme-text-accent cursor-pointer shadow-md">
-                              <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_tune") || "tune"}</span>
+                            <button onClick={(e) => { e.stopPropagation(); handleEditClick(e, id, data); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-white hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] backdrop-blur-sm theme-text-accent cursor-pointer shadow-md">
+                              <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_tune")}</span>
                             </button>
 
                             {!CORE_THEMES[id] && (
                               <>
-                                <button onClick={(e) => { e.stopPropagation(); setNewThemeName(data.name); setEditingThemeId(id); }} className="relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
+                                <button onClick={(e) => { e.stopPropagation(); setNewThemeName(data.name); setEditingThemeId(id); }} className="relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-white backdrop-blur-sm text-[var(--subtext)] cursor-pointer shadow-md">
                                   <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_edit")}</span>
                                 </button>
                                 <button
@@ -528,9 +528,9 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                                     else { setConfirmDelete(id); }
                                   }}
                                   onMouseLeave={() => setConfirmDelete(false)}
-                                  className={`relative w-6 h-6 rounded-full transition-all bg-black/40 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === id ? 'bg-red-500/[30%] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-red-500/10 hover:border-red-500/50 theme-text-danger'}`}
+                                  className={`relative w-6 h-6 rounded-full transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-sm cursor-pointer shadow-md ${confirmDelete === id ? 'bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] border-[var(--danger)] text-[var(--danger)] scale-110 shadow-[0_0_10px_rgba(var(--danger-rgb),0.5)]' : 'hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] theme-text-danger'}`}
                                 >
-                                  <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning") || 'warning' : t("icon_delete") || 'delete'}</span>
+                                  <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning") : t("icon_delete")}</span>
                                 </button>
                               </>
                             )}
@@ -556,16 +556,16 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                                 if (newThemeName.trim() !== "" && newThemeName !== data.name) renameTheme(id, newThemeName.trim());
                                 setEditingThemeId(null);
                               }}
-                              className="w-full bg-black/40 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded md px-2 py-1 text-[9px] font-black uppercase tracking-[0.2em] outline-none shadow-inner transition-all text-white focus:border-[var(--accent)]"
+                              className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded md px-2 py-1 text-[9px] font-black capitalize tracking-[0.2em] outline-none shadow-inner transition-all text-white focus:border-[var(--accent)]"
                             />
                           ) : (
-                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] truncate ${activeThemeId === id ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{data.name}</span>
+                            <span className={`text-[10px] font-black capitalize tracking-[0.2em] truncate ${activeThemeId === id ? "text-[var(--text)]" : "text-[var(--text)]"}`}>{data.name}</span>
                           )}
                           <div className="flex items-center gap-1.5 mt-0.5 opacity-80">
-                            <span className="px-1.5 py-0.5 rounded bg-[var(--accent)]/[15%] text-[7px] font-black uppercase tracking-widest text-[var(--accent)] truncate border border-[var(--accent)]/[30%]">
+                            <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[7px] font-black capitalize tracking-widest text-[var(--accent)] truncate border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
                               {getThemeBadge(id, data)}
                             </span>
-                            <span className="text-[7px] font-bold uppercase tracking-widest text-[var(--subtext)] truncate">
+                            <span className="text-[7px] font-bold capitalize tracking-widest text-[var(--subtext)] truncate">
                               {getThemeMode(data)}
                             </span>
                           </div>

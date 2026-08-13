@@ -1600,10 +1600,10 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm">search</span>
           <input
             type="text"
-            placeholder={t("search") || "Search icons..."}
+            placeholder={t("search")}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[var(--accent)]/50 transition-all placeholder:text-[var(--subtext)]/50"
+            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:text-[color-mix(in_srgb,var(--subtext)_50%,transparent)]"
             autoFocus
           />
         </div>
@@ -1616,14 +1616,14 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
           <div className="flex flex-col gap-6">
             {filteredCategories.map(cat => (
               <div key={cat.name} className="flex flex-col gap-2">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 ml-1">{cat.name}</h4>
+                <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60 ml-1">{cat.name}</h4>
                 <div className="flex flex-wrap gap-1.5">
                   {cat.icons.map(icon => (
                     <button
                       key={icon}
                       type="button"
                       onClick={() => onSelect(icon)}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/[20%] text-[var(--text)] hover:text-[var(--accent)] transition-all hover:scale-110 shadow-sm shrink-0"
+                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--text)] hover:text-[var(--accent)] transition-all hover:scale-110 shadow-sm shrink-0"
                     >
                       <span className="material-symbols-outlined !text-[20px]">{icon}</span>
                     </button>

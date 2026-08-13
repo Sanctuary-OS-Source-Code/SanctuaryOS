@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useModalStore } from "./store/modalStore";
+import { supabase } from "./supabase";
+import { UniversalCard } from './components/universal/UniversalCard';
 
 export const DeferredRender = ({ children }: { children: React.ReactNode }) => {
   const [ready, setReady] = React.useState(false);
@@ -51,12 +53,12 @@ export const handleOpenUrl = (url: string) => {
   }
 };
 
-export const standardButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardPrimaryButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:theme-border-accent hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group";
-export const standardSuccessButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-success theme-btn-success text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
-export const standardDangerButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-danger theme-btn-danger text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
-export const standardAccentGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-accent theme-btn-accent text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
+export const standardButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black capitalize tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
+export const standardGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black capitalize tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
+export const standardPrimaryButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black capitalize tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:theme-border-accent hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group";
+export const standardSuccessButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-success theme-btn-success text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
+export const standardDangerButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-danger theme-btn-danger text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
+export const standardAccentGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-accent theme-btn-accent text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
 
 export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, className = "", type = "button", form, children, variant = "default" }: {
   icon?: string;
@@ -76,33 +78,33 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
 
   switch (variant) {
     case "world":
-      variantClasses = "!border-indigo-500/[30%] !text-indigo-500 hover:!border-indigo-500/[50%] hover:!bg-indigo-500/[10%]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !text-indigo-500 hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_20px_rgba(99,102,241,0.2)]";
       customHoverColor = "rgba(99, 102, 241, 0.5)";
       break;
     case "engine":
-      variantClasses = "!border-rose-500/[30%] !text-rose-500 hover:!border-rose-500/[50%] hover:!bg-rose-500/[10%]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-rose-500 hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_20px_rgba(244,63,94,0.2)]";
       customHoverColor = "rgba(244, 63, 94, 0.5)";
       break;
     case "danger":
-      variantClasses = "!border-red-500/[30%] !text-[var(--danger)] hover:!border-red-500/[50%] hover:!bg-red-500/[10%]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]";
       borderColorVar = "--danger";
       break;
     case "success":
-      variantClasses = "!border-[var(--success)]/[30%] !text-[var(--success)] hover:!border-[var(--success)]/[50%] hover:!bg-[var(--success)]/[10%]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--success)_30%,transparent)] !text-[var(--success)] hover:!border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--success)_15%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--success)_20%,transparent)]";
       borderColorVar = "--success";
       break;
     case "warning":
-      variantClasses = "!border-[var(--warning)]/[30%] !text-[var(--warning)] hover:!border-[var(--warning)]/[50%] hover:!bg-[var(--warning)]/[10%]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)]";
       borderColorVar = "--warning";
       break;
     case "accent":
     case "primary":
     case "default":
-      variantClasses = "!border-[var(--accent)]/[30%] !text-[var(--accent)] hover:!border-[var(--accent)]/[50%] hover:!bg-[var(--accent)]/[10%]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)]";
       borderColorVar = "--accent";
       break;
     case "glass":
-      variantClasses = "!border-[color-mix(in_srgb,var(--text)_10%,transparent)] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:!bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--text)_15%,transparent)] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:!bg-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--text)_10%,transparent)]";
       borderColorVar = "--text";
       break;
   }
@@ -114,12 +116,11 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       disabled={disabled}
-      className={`px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
+      className={`glass-surface px-8 py-4 rounded-[var(--radius)] text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
       style={!disabled ? { '--tw-hover-border-color': customHoverColor || `color-mix(in srgb, var(${borderColorVar}) 50%, transparent)` } as React.CSSProperties : undefined}
     >
-      {icon && <span className="material-symbols-outlined !text-[16px] transition-transform group-hover:-translate-y-0.5">{icon}</span>}
-      {label}
-      {children}
+      {icon && <span className="material-symbols-outlined !text-[16px] relative z-10 transition-transform group-hover:-translate-y-0.5">{icon}</span>}
+      <span className="relative z-10 flex items-center gap-2">{label}{children}</span>
     </button>
   );
 }
@@ -146,12 +147,12 @@ export function LoadingScreen({ title, subtitle, icon = "sync" }: { title: strin
               boxShadow: `0 0 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 5%, transparent)`
             }}>
             <div className="absolute inset-0 rounded-full border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
-            <span className={`material-symbols-outlined !text-4xl ${icon === 'sync' ? 'animate-spin' : ''}`}
+            <span className={`material-symbols-outlined ${icon === 'sync' ? 'animate-spin' : ''}`}
               style={{ color: 'var(--accent)', filter: `drop-shadow(0 0 15px var(--accent))` }}>{icon}</span>
           </div>
 
           <div>
-            <h2 className="text-xl font-black uppercase tracking-widest text-[var(--text)] mb-2">
+            <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] mb-2">
               {title}
             </h2>
             {subtitle && (
@@ -368,44 +369,46 @@ export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(
   const shapeClass = shape === "square" ? "rounded-[calc(var(--radius)-4px)]" : "rounded-[var(--radius)]";
   return (
     <header className="flex flex-col xl:flex-row w-full justify-start items-start mb-6 shrink-0 gap-6">
-      <div className="flex items-center gap-5 flex-1 min-w-0 w-full">
+      <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
         {icon && (
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 border glass-panel relative overflow-hidden group shadow-md`}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border glass-panel relative overflow-hidden group shadow-md`}>
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             {typeof icon === "string" ? (
-              <span className={`material-symbols-outlined !text-[24px] relative z-10 ${iconColorClass}`}>{icon}</span>
+              <span className={`material-symbols-outlined !text-[20px] relative z-10 ${iconColorClass}`}>{icon}</span>
             ) : (
               icon
             )}
           </div>
         )}
         <div className="flex flex-col gap-1 items-start text-left flex-1 min-w-0">
-          <div className="flex items-center gap-3 w-full">
+          <div className="flex items-center gap-2 w-full">
             <h1
-              className={`text-4xl font-black tracking-tighter uppercase leading-tight m-0 text-left text-[var(--text)] shrink-0 transition-colors ${onTitleClick ? 'hover:theme-text-accent cursor-pointer' : ''}`}
+              className={`text-2xl font-semibold tracking-tight leading-tight m-0 text-left text-[var(--text)] shrink-0 transition-colors ${onTitleClick ? 'hover:theme-text-accent cursor-pointer' : ''}`}
               onClick={onTitleClick}
             >
               {title}
             </h1>
             {breadcrumb && (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-[var(--subtext)] opacity-40 font-black text-2xl leading-none">/</span>
-                <span className="text-[12px] font-black tracking-widest uppercase theme-text-[var(--text)] animate-in fade-in slide-in-from-left-2 duration-300 leading-none">
+              <div className="flex items-center gap-2">
+                <span className="text-[var(--subtext)] opacity-40 font-semibold text-2xl leading-none">/</span>
+                <span className="text-2xl font-medium tracking-tight text-[var(--subtext)] animate-in fade-in slide-in-from-left-2 duration-300 leading-tight">
                   {breadcrumb}
                 </span>
               </div>
             )}
           </div>
-          <p
-            className={`font-black tracking-[0.4em] text-[10px] uppercase opacity-70 m-0 mt-1 text-left w-full text-[var(--subtext)] drop-shadow-sm truncate ${onSubtitleClick ? 'hover:text-[var(--text)] cursor-pointer transition-colors' : ''}`}
-            onClick={onSubtitleClick}
-          >
-            {subtitle}
-          </p>
+          {subtitle && (
+            <h2
+              className={`text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 text-left opacity-80 leading-snug line-clamp-2 max-w-2xl ${onSubtitleClick ? 'hover:theme-text-accent cursor-pointer transition-colors' : ''}`}
+              onClick={onSubtitleClick}
+            >
+              {subtitle}
+            </h2>
+          )}
         </div>
       </div>
       {children && (
-        <div className="flex flex-wrap items-center gap-4 shrink-0 xl:pl-6 min-h-[3rem] justify-start xl:justify-end w-full xl:w-auto">
+        <div className="flex items-center gap-3 w-full xl:w-auto xl:justify-end xl:ml-auto">
           {children}
         </div>
       )}
@@ -437,7 +440,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
           onFocus={() => { if (!selectedItem) setIsOpen(true); }}
           placeholder={placeholder}
           readOnly={!!selectedItem}
-          className={className || "w-full h-12 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] rounded-xl px-5 text-[var(--text)] text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[var(--accent)]/[50%] transition-all relative"}
+          className={className || "w-full h-12 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 text-[var(--text)] text-[11px] font-black capitalize tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all relative"}
         />
         {selectedItem ? (
           <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold flex items-center justify-center" onClick={onClear}>
@@ -472,9 +475,9 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
                     className="w-full text-left px-5 py-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col gap-0.5"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-black text-[var(--text)] uppercase">{m.displayName || m.name.split('/').pop()}</span>
+                      <span className="text-[11px] font-black text-[var(--text)] capitalize">{m.displayName || m.name.split('/').pop()}</span>
                       {m.file_extension && (
-                        <span className="px-1.5 py-0.5 rounded bg-[var(--text)]/10 text-[8px] font-mono opacity-80 uppercase border border-[var(--text)]/20">
+                        <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-mono opacity-80 capitalize border border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
                           {m.file_extension}
                         </span>
                       )}
@@ -484,7 +487,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
                     </span>
                   </button>
                 ))}
-                {results.length === 0 && <div className="p-5 text-center text-[10px] text-[var(--subtext)] font-bold uppercase">{t("shared_no_signatures")}</div>}
+                {results.length === 0 && <div className="p-5 text-center text-[10px] text-[var(--subtext)] font-bold capitalize">{t("shared_no_signatures")}</div>}
               </div>
             </>
           );
@@ -495,38 +498,22 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
   );
 }
 
-export function StatTile({ label, value, icon, color, onClick }: any) {
-  return (
-    <div onClick={onClick} className={`group cursor-pointer ${color || 'glass-panel border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} border p-6 rounded-[var(--radius)] shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-95`}>
-      <div className="flex justify-start items-start mb-4"><span className="text-3xl">{icon}</span><div className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><span className="text-[var(--text)] text-xs">{"->"}</span></div></div>
-      <h3 className="text-[var(--text)] opacity-80 text-xs font-bold uppercase tracking-widest mb-1">{label}</h3>
-      <div className={`text-4xl font-black text-[var(--text)] tracking-tighter`}>{value}</div>
-    </div>
-  );
-}
-
 export function SidebarActionButton({ id, icon, label, subtext, active, onClick, danger, success, customColorClass, className, iconClassName }: any) {
   const { t } = useLexicon();
   return (
     <button
       onClick={() => onClick(id)}
-      className={`w-full px-5 py-4 h-auto min-h-[64px] flex items-center justify-start gap-4 rounded-[var(--radius)] font-black text-[10px] uppercase tracking-widest transition-all duration-300 shadow-sm backdrop-blur-[2px] border relative overflow-hidden group ${customColorClass ? customColorClass :
+      className={`glass-surface w-full px-5 py-4 h-auto min-h-[64px] flex items-center justify-start gap-4 rounded-[var(--radius)] font-black text-[10px] capitalize tracking-widest transition-all duration-300 group ${customColorClass ? customColorClass :
         active
-          ? 'bg-[var(--accent)]/[15%] border-[var(--accent)]/[40%] text-[var(--accent)] shadow-md scale-[1.02]'
+          ? '!border-[var(--accent)] !text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] scale-[1.02]'
           : danger
-            ? 'text-[var(--danger)] border-red-500/[30%] bg-red-500/[10%] hover:bg-red-500/[20%] hover:border-red-500/[50%] opacity-90 hover:opacity-100 hover:shadow-md'
+            ? 'text-[var(--danger)] hover:!border-[var(--danger)]'
             : success
-              ? 'text-[var(--success)] border-emerald-500/[30%] bg-emerald-500/[10%] hover:bg-emerald-500/[20%] hover:border-emerald-500/[50%] opacity-90 hover:opacity-100 hover:shadow-md'
-              : 'text-[var(--text)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] opacity-80 hover:opacity-100 hover:shadow-lg'
+              ? 'text-[var(--success)] hover:!border-[var(--success)]'
+              : 'text-[var(--text)] hover:!border-[var(--text)] hover:text-[var(--accent)]'
         } ${className || ''}`}
+      style={(active || danger || success) ? { '--panelTint': active ? 'var(--accent)' : danger ? 'var(--danger)' : 'var(--success)' } as React.CSSProperties : undefined}
     >
-      <div className={`absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ${customColorClass ? '' :
-        active ? 'from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-transparent' :
-          danger ? 'from-[color-mix(in_srgb,var(--danger)_20%,transparent)] to-transparent' :
-            success ? 'from-[color-mix(in_srgb,var(--success)_20%,transparent)] to-transparent' :
-              'from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent'
-        }`} />
-
       {icon && <span className={`material-symbols-outlined !text-[20px] shrink-0 relative z-10 transition-transform duration-300 group-hover:scale-110 ${active ? 'opacity-100 drop-shadow-md' : 'opacity-80'} ${iconClassName || ''}`}>{icon}</span>}
       <div className="flex flex-col items-start gap-1 relative z-10 w-full pr-6 overflow-hidden">
         <span className="tracking-[0.15em] truncate w-full text-left pt-0.5">{label}</span>
@@ -542,10 +529,11 @@ export function HubActionButton({ icon, label, onClick, className = "", isDanger
   return (
     <button
       onClick={onClick}
-      className={`h-10 px-5 rounded-full backdrop-blur-md transition-all flex items-center justify-center gap-2 shrink-0 font-black uppercase tracking-widest border ${isDanger ? 'border-red-500/30 text-red-400 hover:text-red-300 drop-shadow-md bg-red-500/10 hover:bg-red-500/20 shadow-md'
-        : isWarning ? 'border-amber-500/30 text-amber-400 hover:text-amber-300 drop-shadow-md bg-amber-500/10 hover:bg-amber-500/20 shadow-md'
-          : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/15 hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:border-[var(--accent)]/50'
-        } group ${className}`}
+      className={`glass-surface h-10 px-5 !rounded-full transition-all duration-300 flex items-center justify-center gap-2 shrink-0 font-black capitalize tracking-widest group ${isDanger ? '!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-red-500 hover:text-red-400'
+        : isWarning ? '!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 hover:text-amber-400'
+          : 'text-[var(--text)] hover:text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)]'
+        } ${className}`}
+      style={(isDanger || isWarning) ? { '--panelTint': isDanger ? 'var(--danger)' : 'var(--warning)' } as React.CSSProperties : undefined}
     >
       <span className={`material-symbols-outlined !text-[18px] transition-transform ${isDanger ? 'animate-bounce' : 'opacity-70 group-hover:opacity-100 group-hover:scale-110'}`}>
         {icon}
@@ -567,29 +555,170 @@ export function HubTabs({ tabs, activeTab, setTab, className = "" }: any) {
   );
 }
 
-export function FilterTabs({ children, className = "" }: any) {
+export function FilterTabs({ children, className = "", icon = "tune", label, buttonClassName = "" }: any) {
+  const childrenArray = React.Children.toArray(children);
+  if (childrenArray.length === 0) return null;
+  
+  const firstChild: any = childrenArray[0];
+  const activeTab = firstChild?.props?.activeTab;
+  const setTab = firstChild?.props?.setTab;
+  
+  const options = childrenArray.map((child: any) => ({
+    id: child.props.id,
+    label: child.props.label || child.props.children,
+    icon: child.props.icon
+  })).filter((o: any) => o.id !== undefined);
+
   return (
-    <div className={`flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 w-fit max-w-full mx-auto self-center justify-center ${className}`}>
+    <FilterPopover 
+      icon={icon} 
+      label={label} 
+      options={options} 
+      activeTab={activeTab} 
+      setTab={setTab} 
+      className={className} 
+      buttonClassName={buttonClassName}
+    />
+  );
+}
+
+export function FilterTabButton({ id, icon, label, activeTab, setTab, className = "", children }: any) {
+  return <></>;
+}
+
+export function ViewToggle({ options, activeTab, setTab, className = "" }: any) {
+  return (
+    <div className={`flex items-center gap-1 p-1 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner rounded-full w-fit ${className}`}>
+      {options.map((opt: any) => {
+        const isActive = activeTab === opt.id;
+        return (
+          <button
+            key={opt.id}
+            onClick={() => setTab(opt.id)}
+            className={`h-7 px-4 flex items-center justify-center gap-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${
+              isActive
+                ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] shadow-[0_2px_10px_rgba(0,0,0,0.2)]'
+                : 'border border-transparent text-[var(--subtext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+            }`}
+          >
+            {opt.icon && <span className="material-symbols-outlined !text-[14px]">{opt.icon}</span>}
+            <span className="leading-none pt-0.5">{opt.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function FilterPopover({ icon = "tune", label, options, activeTab, setTab, multiSelect = false, className = "", buttonClassName = "" }: any) {
+  const [isOpen, setIsOpen] = useState(false);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+
+  const handleSelect = (id: string) => {
+    if (multiSelect) {
+      const current = Array.isArray(activeTab) ? activeTab : (activeTab ? [activeTab] : []);
+      const newVals = current.includes(id) ? current.filter((v: any) => v !== id) : [...current, id];
+      setTab(newVals);
+    } else {
+      setTab(id);
+      setIsOpen(false);
+    }
+  };
+
+  const isOptionActive = (id: string) => {
+    if (multiSelect) {
+      return Array.isArray(activeTab) ? activeTab.includes(id) : activeTab === id;
+    }
+    return activeTab === id;
+  };
+
+  const hasActiveFilter = multiSelect 
+    ? (Array.isArray(activeTab) && activeTab.length > 0) 
+    : (activeTab !== undefined && activeTab !== null && String(activeTab).toLowerCase() !== "all" && String(activeTab).toLowerCase() !== "any");
+
+  return (
+    <div className={`relative ${className}`}>
+      <button
+        ref={btnRef}
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center justify-center gap-2 h-12 ${label ? 'px-5' : 'w-12'} rounded-[calc(var(--radius)-4px)] transition-all duration-300 backdrop-blur-[3px] ${
+          hasActiveFilter || isOpen
+            ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-md'
+            : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'
+        } ${buttonClassName}`}
+      >
+        <span className="material-symbols-outlined !text-[20px]">{icon}</span>
+        {label && <span className="text-[10px] font-black uppercase tracking-widest leading-none pt-0.5">{label}</span>}
+      </button>
+
+      {isOpen && createPortal(
+        <>
+          <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
+          <div 
+            className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in zoom-in-95 duration-200 min-w-[200px] p-2 flex flex-col gap-1 backdrop-blur-xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)]"
+            style={{
+              top: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 
+                ? undefined 
+                : (btnRef.current?.getBoundingClientRect().bottom || 0) + 8,
+              bottom: (btnRef.current?.getBoundingClientRect().bottom || 0) > window.innerHeight - 300 
+                ? window.innerHeight - (btnRef.current?.getBoundingClientRect().top || 0) + 8 
+                : undefined,
+              right: window.innerWidth - (btnRef.current?.getBoundingClientRect().right || 0),
+            }}
+          >
+            {options.map((opt: any) => {
+              const active = isOptionActive(opt.id);
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => handleSelect(opt.id)}
+                  className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg transition-colors group ${
+                    active 
+                      ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]' 
+                      : 'text-[var(--text)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors ${active ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]' : 'border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]'}`}>
+                    {active && <span className="material-symbols-outlined !text-[12px] font-bold">check</span>}
+                  </div>
+                  <span className="text-xs font-bold capitalize tracking-wide leading-none pt-0.5">{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+export function RadioCardGroup({ children, className = "" }: any) {
+  return (
+    <div className={`grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-4 w-full ${className}`}>
       {children}
     </div>
   );
 }
 
-export function FilterTabButton({ id, icon, label, activeTab, setTab, className = "", children }: any) {
-  const isActive = activeTab === id;
+export function RadioCard({ id, icon, label, description, activeValue, onChange, className = "" }: any) {
+  const isActive = activeValue === id;
   return (
     <button
-      onClick={() => setTab(id)}
-      className={`h-full flex-1 px-6 rounded-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all min-w-max ${isActive
-        ? 'bg-[var(--accent)]/[15%] text-[var(--accent)] shadow-md' : 'text-[var(--subtext)] opacity-70 hover:opacity-100 hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
-        } ${className}`}
+      type="button"
+      onClick={() => onChange(id)}
+      className={`flex flex-col items-center justify-center gap-2 p-5 rounded-xl border transition-all duration-300 ${
+        isActive
+          ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)] text-[var(--accent)] shadow-lg scale-[1.02] z-10'
+          : 'glass-panel bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+      } ${className}`}
     >
-      {icon && <span className="material-symbols-outlined !text-[16px]">{icon}</span>}
-      {label}
-      {children}
+      {icon && <span className={`material-symbols-outlined !text-3xl mb-1 ${isActive ? 'scale-110 drop-shadow-[0_0_10px_currentColor]' : 'opacity-70'} transition-all duration-500`}>{icon}</span>}
+      <span className="text-[11px] font-black uppercase tracking-widest leading-none text-center pt-1">{label}</span>
+      {description && <span className="text-[9px] font-bold text-center opacity-60 mt-1 leading-relaxed">{description}</span>}
     </button>
   );
-}
+};
 
 export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any) {
   const [isOpen, setIsOpen] = useState(false);
@@ -618,8 +747,8 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
       <button
         ref={btnRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-full px-4 py-3 flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${isActiveGroup || isOpen
-          ? 'bg-[var(--accent)]/[15%] text-[var(--accent)] shadow-md'
+        className={`w-full h-full px-4 py-3 flex items-center justify-center gap-2 font-black text-xs capitalize tracking-widest transition-all whitespace-nowrap ${isActiveGroup || isOpen
+          ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-md'
           : 'text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)] opacity-60 hover:opacity-100'
           }`}
       >
@@ -631,20 +760,20 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
       {isOpen && createPortal(
         <div
           ref={menuRef}
-          className="fixed mt-2 min-w-[200px] glass-panel border border-[var(--accent)]/20 rounded-[calc(var(--radius)-4px)] shadow-xl z-[200001] overflow-hidden flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
+          className="fixed mt-2 min-w-[200px] glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl z-[200001] overflow-hidden flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
           style={{
             top: btnRef.current?.getBoundingClientRect().bottom,
             left: btnRef.current?.getBoundingClientRect().left,
             width: Math.max(200, btnRef.current?.getBoundingClientRect().width || 0),
           }}
         >
-          <div className="px-3 py-2 text-[12px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-1">{label}</div>
+          <div className="px-3 py-2 text-[12px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-1">{label}</div>
           {options.map((opt: any) => (
             <button
               key={opt.id}
               onClick={() => { setTab(opt.id); setIsOpen(false); }}
-              className={`px-4 py-3 w-full flex items-center gap-3 rounded-lg text-[12px] font-black uppercase tracking-widest transition-all text-left ${activeTab === opt.id
-                ? 'bg-[var(--accent)]/20 text-[var(--accent)]'
+              className={`px-4 py-3 w-full flex items-center gap-3 rounded-lg text-[12px] font-black capitalize tracking-widest transition-all text-left ${activeTab === opt.id
+                ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]'
                 : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
                 }`}
             >
@@ -679,13 +808,13 @@ export function VerticalTabButton({ id, icon, label, activeTab, setTab, badge, b
         </span>
       )}
       <span
-        className="font-black uppercase tracking-[0.15em] truncate leading-none pt-0.5 relative z-10 text-left flex-1"
+        className="font-black capitalize tracking-[0.15em] truncate leading-none pt-0.5 relative z-10 text-left flex-1"
         style={{ fontSize: "var(--fontSizeSidebar, 11px)" }}
       >
         {label}
       </span>
       {badge !== undefined && badge !== null && (
-        <span className={`ml-2 px-2 py-0.5 rounded-[calc(var(--radius)-6px)] border text-[10px] font-black shrink-0 relative z-10 ${badgeColorClass ? badgeColorClass : isActive ? 'bg-[var(--accent)]/[10%] border-[var(--accent)]/50 text-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]'}`}>
+        <span className={`ml-2 px-2 py-0.5 rounded-[calc(var(--radius)-6px)] border text-[10px] font-black shrink-0 relative z-10 ${badgeColorClass ? badgeColorClass : isActive ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]'}`}>
           {badge}
         </span>
       )}
@@ -719,7 +848,7 @@ export function VerticalTabDropdown({ icon, label, options, activeTab, setTab }:
             </span>
           )}
           <span
-            className="font-black uppercase tracking-[0.15em] truncate leading-none pt-0.5 flex-1"
+            className="font-black capitalize tracking-[0.15em] truncate leading-none pt-0.5 flex-1"
             style={{ fontSize: "var(--fontSizeSidebar, 11px)" }}
           >
             {displayLabel}
@@ -743,7 +872,7 @@ export function VerticalTabDropdown({ icon, label, options, activeTab, setTab }:
                 }`}
             >
               {opt.icon && <span className={`material-symbols-outlined !text-[18px] transition-all duration-500 shrink-0 ${activeTab === opt.id ? "scale-110" : "group-hover:scale-110"}`}>{opt.icon}</span>}
-              <span className="font-black uppercase tracking-[0.15em] truncate leading-none pt-0.5 text-left flex-1" style={{ fontSize: "10px" }}>
+              <span className="font-black capitalize tracking-[0.15em] truncate leading-none pt-0.5 text-left flex-1" style={{ fontSize: "10px" }}>
                 {opt.label}
               </span>
             </button>
@@ -754,31 +883,72 @@ export function VerticalTabDropdown({ icon, label, options, activeTab, setTab }:
   );
 }
 
-export function HoverTabDrawer({ title = "Navigation", tabs, activeTab, setTab, children }: any) {
+export function HoverTabDrawer({ title = "Navigation", tabs, activeTab, setTab, children, footer }: any) {
   return (
-    <div className="fixed right-0 top-[50px] bottom-[34px] z-[9999] group flex justify-end w-4 hover:w-[260px] transition-all duration-0">
+    <div className="fixed right-0 top-[72px] bottom-[24px] z-[9999] group flex justify-end w-12 hover:w-[284px] transition-all duration-0 pointer-events-none">
+
+      {/* Invisible Trigger Area */}
+      <div className="absolute right-0 top-0 bottom-0 w-12 pointer-events-auto" />
+
+      {/* Invisible Expanded Area Catcher */}
+      <div className="absolute inset-0 pointer-events-none group-hover:pointer-events-auto" />
 
       {/* Sliding Panel */}
-      <div className="h-full w-[260px] shrink-0 glass-panel !rounded-none !border-y-0 !border-r-0 translate-x-[calc(100%-8px)] group-hover:translate-x-0 transition-transform duration-500 ease-out flex flex-col items-start pt-6 shadow-[-10px_0_30px_rgba(0,0,0,0.2)] relative pointer-events-auto">
+      <div className="h-full w-[260px] mr-6 shrink-0 glass-panel rounded-3xl translate-x-[calc(100%+40px)] group-hover:translate-x-0 transition-transform duration-500 ease-[cubic-bezier(0.2,0.9,0.2,1)] flex flex-col items-start pt-6 shadow-2xl relative pointer-events-auto border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
 
-        {/* Glow indicator line on the left edge so you know it's there */}
-        <div className="absolute left-[2px] top-1/2 -translate-y-1/2 h-16 w-[3px] rounded-full bg-[var(--text)]/30 group-hover:opacity-0 transition-opacity duration-300 shadow-[0_0_10px_rgba(255,255,255,0.4)]" />
-
-        <div className="w-full px-6 mb-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+        <div className="w-full px-6 mb-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 shrink-0">
           <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">swipe_left</span>
-          <div className="font-black text-[10px] tracking-widest text-[var(--subtext)] uppercase">{title}</div>
+          <div className="font-black text-[10px] tracking-widest text-[var(--subtext)] capitalize">{title}</div>
         </div>
 
-        <div className="flex flex-col w-full gap-2 px-3 overflow-y-auto accent-scrollbar pb-12 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+        <div className="flex flex-col w-full gap-2 px-3 overflow-y-auto accent-scrollbar pb-6 flex-1 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
           {tabs && tabs.map((tab: any) => (
             <VerticalTabButton key={tab.id} {...tab} activeTab={activeTab} setTab={setTab} />
           ))}
           {children}
         </div>
+
+        {footer && (
+          <div className="w-full px-3 pb-6 mt-auto opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 shrink-0 flex flex-col gap-1">
+            <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent mb-2" />
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
 };
+
+export function SidebarFooterButton({ icon, label, onClick, variant = "default", className = "" }: any) {
+  let variantClasses = "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)] border-transparent";
+
+  if (variant === "danger") {
+    variantClasses = "text-[var(--danger)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] border-transparent";
+  } else if (variant === "success") {
+    variantClasses = "text-[var(--success)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:text-[var(--success)] border-transparent";
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group ${variantClasses} ${className}`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+
+      {icon && (
+        <span className={`material-symbols-outlined !text-[20px] transition-all duration-500 shrink-0 relative z-10 group-hover:scale-110`}>
+          {icon}
+        </span>
+      )}
+      <span
+        className="font-black capitalize tracking-[0.15em] truncate leading-none pt-0.5 relative z-10 text-left flex-1"
+        style={{ fontSize: "var(--fontSizeSidebar, 11px)" }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
 
 export function CustomDropdown({ value, selectedValues = [], options, onChange, placeholder, multiSelect, searchable, disableTint, className, buttonClassName, flat, allowCustom }: any) {
   const { t } = useLexicon();
@@ -813,8 +983,8 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
 
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className || ''}`}>
-      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-start items-center focus:outline-none group relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} shadow-inner text-sm font-bold backdrop-blur-[3px] ${isActive ? 'bg-[var(--accent)]/[15%] border border-[var(--accent)]/[30%] text-[var(--accent)] shadow-md' : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`} ${buttonClassName || ''}`}>
-        <span className="truncate pr-4 flex-1 text-left flex items-center h-full uppercase">{getSelectedLabel()}</span>
+      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-start items-center focus:outline-none group relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} shadow-inner text-sm font-bold backdrop-blur-[3px] ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-md' : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`} ${buttonClassName || ''}`}>
+        <span className="truncate pr-4 flex-1 text-left flex items-center h-full capitalize">{getSelectedLabel()}</span>
         <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)]'}`}><span className={`material-symbols-outlined ${flat ? '!text-[16px]' : '!text-[20px]'}`}>{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
       {isOpen && createPortal(
@@ -847,8 +1017,8 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
               }).map((o: any, index: number) => {
                 const isSelected = multiSelect ? selectedValues.includes(o.id) : String(o.id) === String(value);
                 return (
-                  <button type="button" key={`${o.id}-${index}`} onClick={() => handleSelect(o.id)} className={`w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-start ${isSelected ? 'bg-[var(--accent)]/[15%] text-[var(--accent)] shadow-[inset_2px_0_0_var(--accent)]' : 'text-[var(--text)]'}`}>
-                    <span className={`text-[11px] font-black uppercase w-full flex items-center ${isSelected ? 'text-[var(--accent)]' : o.className || 'text-[var(--text)]'}`}>{o.label}</span>
+                  <button type="button" key={`${o.id}-${index}`} onClick={() => handleSelect(o.id)} className={`w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-start ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_2px_0_0_var(--accent)]' : 'text-[var(--text)]'}`}>
+                    <span className={`text-[11px] font-black capitalize w-full flex items-center ${isSelected ? 'text-[var(--accent)]' : o.className || 'text-[var(--text)]'}`}>{o.label}</span>
                     {isSelected && <span className="text-[12px] shrink-0 ml-4 flex items-center justify-center text-[var(--accent)]"><span className="material-symbols-outlined !text-[16px]">{t("icon_check")}</span></span>}
                   </button>
                 );
@@ -862,7 +1032,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
               {searchable && query && allowCustom && !options.some((o: any) => String(o.id).toLowerCase() === query.toLowerCase() || (typeof o.label === 'string' && o.label.toLowerCase() === query.toLowerCase())) && (
                 <button type="button" onClick={() => handleSelect(query)} className="w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] flex items-center gap-2">
                   <span className="material-symbols-outlined !text-[16px] opacity-60">add</span>
-                  <span className="text-[11px] font-black uppercase w-full">Create "{query}"</span>
+                  <span className="text-[11px] font-black capitalize w-full">Create "{query}"</span>
                 </button>
               )}
             </div>
@@ -873,9 +1043,6 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
     </div>
   );
 }
-
-import { supabase } from "./supabase";
-
 
 export function GameVersionMultiSelect({ selectedVersions, onChange }: { selectedVersions: string[], onChange: (v: string[]) => void }) {
   selectedVersions = Array.isArray(selectedVersions) ? selectedVersions : (typeof selectedVersions === 'string' ? [selectedVersions] : []);
@@ -915,7 +1082,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
     <div className="relative w-full" ref={containerRef}>
       <div className="flex flex-wrap gap-1 mb-2">
         {selectedVersions.map(v => (
-          <span key={v} className="px-2.5 py-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-md text-[9px] font-black uppercase flex items-center gap-2">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300 flex items-center justify-center"><span className="material-symbols-outlined !text-[12px]">{t("icon_close")}</span></button></span>
+          <span key={v} className="px-2.5 py-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-md text-[9px] font-black capitalize flex items-center gap-2">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300 flex items-center justify-center"><span className="material-symbols-outlined !text-[12px]">{t("icon_close")}</span></button></span>
         ))}
       </div>
       <input
@@ -926,7 +1093,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
         onBlur={(e) => {
           setTimeout(() => setIsOpen(false), 200);
         }}
-        className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]/[30%] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black uppercase tracking-widest focus:outline-none focus:border-[var(--accent)]/[50%] transition-all placeholder:opacity-30"
+        className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black capitalize tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:opacity-30"
       />
       {isOpen && createPortal(
         <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden z-[200001] animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
@@ -945,7 +1112,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
                   setQuery("");
                   setIsOpen(false);
                 }}
-                className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black uppercase text-[var(--text)] flex justify-start cursor-pointer"
+                className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--text)] flex justify-start cursor-pointer"
               >
                 <span>{v.version}</span>
                 {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("icon_check")}</span></span>}
@@ -960,7 +1127,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
                   setQuery("");
                   setIsOpen(false);
                 }}
-                className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black uppercase text-emerald-400 cursor-pointer"
+                className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-emerald-400 cursor-pointer"
               >
                 + {t("cc_btn_add")} "{query}"
               </button>
@@ -1003,7 +1170,7 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
         <span className="truncate pr-4">{value ? new Date(value).toLocaleDateString() : (placeholder || "Select Date...")}</span>
         <div className="flex items-center gap-1 shrink-0">
           {value && (
-            <span onClick={(e) => { e.stopPropagation(); onChange(null); }} className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-60 hover:opacity-100 transition-all cursor-pointer rounded-full hover:bg-[var(--danger)]/20 p-0.5">
+            <span onClick={(e) => { e.stopPropagation(); onChange(null); }} className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-60 hover:opacity-100 transition-all cursor-pointer rounded-full hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] p-0.5">
               close
             </span>
           )}
@@ -1022,7 +1189,7 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
           }}>
             <div className="flex justify-start items-center mb-4">
               <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1">{'<'}</button>
-              <div className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">{monthNames[month]} {year}</div>
+              <div className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{monthNames[month]} {year}</div>
               <button onClick={() => setViewDate(new Date(year, month + 1, 1))} className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1">{'>'}</button>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center mb-2">
@@ -1039,7 +1206,7 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
                   <button
                     key={d}
                     onClick={() => handleSelect(d)}
-                    className={`p-1.5 text-[10px] rounded-lg transition-all ${isSelected ? 'bg-[var(--accent)]/[20%] border border-[var(--accent)]/[40%] text-[var(--accent)] font-black shadow-md backdrop-blur-sm scale-[1.05] relative z-10' : isToday ? 'border border-[color-mix(in_srgb,var(--text)_20%,transparent)] font-bold' : 'border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                    className={`p-1.5 text-[10px] rounded-lg transition-all ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-black shadow-md backdrop-blur-sm scale-[1.05] relative z-10' : isToday ? 'border border-[color-mix(in_srgb,var(--text)_20%,transparent)] font-bold' : 'border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
                   >
                     {d}
                   </button>
@@ -1265,14 +1432,14 @@ export function SidePanel({
       <div className={`fixed inset-0 z-0 ${backdropZ} ${noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[2px]'} animate-in fade-in duration-500 transition-all`} onClick={onClose} />
       <div
         ref={panelRef}
-        className={`fixed top-[50px] bottom-[40px] ${position === 'left' ? 'left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} duration-500 flex flex-col ${panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''} ${keepMounted ? '' : (position === 'left' ? 'animate-in slide-in-from-left' : 'animate-in slide-in-from-right')}`}
+        className={`fixed top-[0px] bottom-[0px] ${position === 'left' ? 'left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} duration-500 flex flex-col ${panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''} ${keepMounted ? '' : (position === 'left' ? 'animate-in slide-in-from-left' : 'animate-in slide-in-from-right')}`}
         style={isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined, ...panelStyle } : panelStyle}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={`absolute inset-0 pointer-events-none z-[-2] glass-panel !border-none !shadow-none !rounded-none ${noPanelBlur ? '!backdrop-blur-none' : ''}`} />
         {isResizable && (
           <div
-            className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[var(--accent)]/30 z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
+            className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
             onMouseDown={() => setIsResizing(true)}
           >
             <div className="w-1 h-12 rounded-full bg-[var(--accent)]" />
@@ -1288,7 +1455,7 @@ export function SidePanel({
         )}
 
         {!hideHeader && (
-          <div className={`pt-8 px-10 pb-4 shrink-0 relative z-30 bg-gradient-to-b from-[color-mix(in_srgb,var(--bg)_80%,transparent)] via-[color-mix(in_srgb,var(--bg)_60%,transparent)] to-transparent ${coverImage ? 'pt-48' : ''}`}>
+          <div className={`pt-8 px-10 pb-4 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${coverImage ? 'pt-48' : ''}`}>
 
             {coverImage && (
               <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[var(--radius)] rounded-tr-[var(--radius)]">
@@ -1296,12 +1463,9 @@ export function SidePanel({
                   className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-100 opacity-60"
                   style={{ backgroundImage: `url('${coverImage}')` }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--bg)]/60 to-[color-mix(in_srgb,var(--bg)_65%,transparent)] pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--bg)_60%,transparent)] to-[color-mix(in_srgb,var(--bg)_65%,transparent)] pointer-events-none" />
               </div>
             )}
-
-            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_0%,transparent)] via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-[color-mix(in_srgb,var(--text)_0%,transparent)] opacity-50" />
-            <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-[color-mix(in_srgb,var(--text)_0%,transparent)] pointer-events-none" />
 
             {headerActions && (
               <div className="absolute top-8 right-[88px] flex items-center gap-3 z-50">
@@ -1309,16 +1473,16 @@ export function SidePanel({
               </div>
             )}
 
-            <button onClick={onClose} className="absolute top-8 right-8 z-50 w-12 h-12 rounded-[var(--radius)] flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-red-500/[50%] shadow-xl group/closebtn">
+            <button onClick={onClose} className="absolute top-8 right-8 z-50 w-12 h-12 rounded-[var(--radius)] flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
               <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("icon_close")}</span>
             </button>
 
             <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">
-              <h2 className="text-xl font-black text-[var(--text)] uppercase tracking-widest flex items-center gap-6 min-w-0 w-full">
+              <h2 className="text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-6 min-w-0 w-full">
                 {icon && (
                   <div className={`w-16 h-16 rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden group/iconbox ${iconColorClass || ''}`}>
                     <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
-                    <span className={`material-symbols-outlined !text-[32px] opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
+                    <span className={`material-symbols-outlined opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
                       {icon}
                     </span>
                   </div>
@@ -1326,14 +1490,14 @@ export function SidePanel({
                 <div className="flex flex-col min-w-0 w-full justify-center">
                   {badgeText && (
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-current/10 border border-current/20 ${iconColorClass || 'theme-text-accent'}`}>
+                      <span className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-current/10 border border-current/20 ${iconColorClass || 'theme-text-accent'}`}>
                         <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]"></span>
                         {badgeText}
                       </span>
                     </div>
                   )}
                   <span className="leading-tight text-3xl tracking-tighter truncate w-full drop-shadow-md">{title}</span>
-                  {subtitle && <span className="text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 uppercase tracking-[0.25em] line-clamp-2 break-words">{subtitle}</span>}
+                  {subtitle && <span className="text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 capitalize tracking-[0.25em] line-clamp-2 break-words">{subtitle}</span>}
                 </div>
               </h2>
             </div>
@@ -1345,7 +1509,7 @@ export function SidePanel({
         </div>
 
         {(footer || actions) && (
-          <div className={`px-8 pb-8 pt-10 flex justify-center items-center gap-4 shrink-0 relative z-30 bg-gradient-to-t from-[color-mix(in_srgb,var(--bg)_60%,transparent)] via-[color-mix(in_srgb,var(--bg)_30%,transparent)] to-transparent backdrop-blur-sm ${footerClass || ''}`}>
+          <div className={`px-8 pb-8 pt-10 flex justify-center items-center gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${footerClass || ''}`}>
             {footer}
             {actions}
           </div>
@@ -1358,7 +1522,7 @@ export function SidePanel({
 
 export function SearchBar({ value, onChange, placeholder = "Search...", className = "", isLoading }: { value: string; onChange: (v: string) => void; placeholder?: string, className?: string, isLoading?: boolean }) {
   return (
-    <div className={`relative flex items-center glass-surface ${className || 'rounded-full'} border border-transparent focus-within:border-[var(--accent)]/[50%] transition-all shadow-inner group w-full`}>
+    <div className={`relative flex items-center glass-surface ${className || 'rounded-full'} border border-transparent focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all shadow-inner group w-full`}>
       <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
         {isLoading ? (
           <span className="material-symbols-outlined !text-[16px] theme-text-accent animate-spin">refresh</span>
@@ -1393,24 +1557,16 @@ export const extractPostImage = (markdown: any): string | undefined => {
     const text = markdown.message || markdown.content || markdown.description || markdown.body || "";
 
     if (typeof text === 'string') {
-      if (text.startsWith('[IMG:')) {
-        const endIdx = text.indexOf(']');
-        if (endIdx !== -1) {
-          return text.substring(5, endIdx);
-        }
-      }
+      const directMatch = text.match(/\[IMG:([\s\S]*?)\]/);
+      if (directMatch && directMatch[1]) return directMatch[1];
       const imgMatch = text.match(/!\[.*?\]\((.*?)\)/);
       if (imgMatch && imgMatch[1]) return imgMatch[1];
       const htmlImgMatch = text.match(/<img[^>]+src=["']([^"']+)["']/i);
       if (htmlImgMatch && htmlImgMatch[1]) return htmlImgMatch[1];
     }
   } else if (typeof markdown === 'string') {
-    if (markdown.startsWith('[IMG:')) {
-      const endIdx = markdown.indexOf(']');
-      if (endIdx !== -1) {
-        return markdown.substring(5, endIdx);
-      }
-    }
+    const directMatch = markdown.match(/\[IMG:([\s\S]*?)\]/);
+    if (directMatch && directMatch[1]) return directMatch[1];
     const imgMatch = markdown.match(/!\[.*?\]\((.*?)\)/);
     if (imgMatch && imgMatch[1]) return imgMatch[1];
     const htmlImgMatch = markdown.match(/<img[^>]+src=["']([^"']+)["']/i);
@@ -1441,8 +1597,8 @@ export function EmptyState({ icon, title, subtitle, action, minHeightClass = "mi
       <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-30 drop-shadow-md mb-2">{icon}</span>
       {(title || subtitle) && (
         <div className="flex flex-col gap-1.5 items-center text-center">
-          {title && <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text)]">{title}</span>}
-          {subtitle && <span className="text-[9px] font-bold text-[var(--subtext)] uppercase tracking-widest max-w-sm leading-relaxed opacity-60">{subtitle}</span>}
+          {title && <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--text)]">{title}</span>}
+          {subtitle && <span className="text-[9px] font-bold text-[var(--subtext)] capitalize tracking-widest max-w-sm leading-relaxed opacity-60">{subtitle}</span>}
         </div>
       )}
       {action && <div className="mt-3 flex justify-center">{action}</div>}
@@ -1454,29 +1610,52 @@ export const fetchAllPaginated = async (queryFn: () => any) => { let allData: an
 
 export function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val: number) => void }) {
   return (
-    <select value={value} onChange={e => onChange(Number(e.target.value))} className="w-full glass-panel rounded-[var(--radius)] px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)]/50 transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)]/30 appearance-none bg-transparent cursor-pointer shadow-inner">
-      <option value={1} className="bg-[var(--surface)] text-[var(--text)]">Tier 1</option>
-      <option value={2} className="bg-[var(--surface)] text-[var(--text)]">Tier 2</option>
-      <option value={3} className="bg-[var(--surface)] text-[var(--text)]">Tier 3</option>
-    </select>
-  );
-}
-
-
-export function DashboardStatTile({ icon, number, label, colorClass, onClick, setStatus, disabled, className = "" }: any) {
-  return (
-    <div onClick={disabled ? undefined : onClick} className={`flex-1 min-w-[200px] xl:min-w-[250px] h-[130px] shrink-0 flex flex-col justify-center items-start gap-1 p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-[40px] shadow-lg ${colorClass} transition-all relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1 hover:shadow-xl'} ${className}`}>
-      <div className="absolute inset-0 bg-current opacity-[0.05] group-hover:opacity-[0.15] transition-opacity duration-300" />
-      <div className="flex items-center gap-3 w-full relative z-10">
-        <span className="text-3xl opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md">{icon}</span>
-        <span className={`text-4xl lg:text-5xl font-black drop-shadow-lg tracking-tighter truncate`}>{number}</span>
-      </div>
-      <div className="h-[28px] mt-2 flex items-start w-full relative z-10">
-        <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-[var(--subtext)] opacity-60 leading-tight line-clamp-2">{label}</span>
-      </div>
+    <div className="w-full glass-panel rounded-[var(--radius)] relative">
+      <select value={value} onChange={e => onChange(Number(e.target.value))} className="w-full px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] appearance-none bg-transparent cursor-pointer relative z-10">
+        <option value={1} className="bg-[var(--bg)] text-[var(--text)]">T1 - Universal</option>
+        <option value={2} className="bg-[var(--bg)] text-[var(--text)]">T2 - Overrides</option>
+        <option value={3} className="bg-[var(--bg)] text-[var(--text)]">T3 - Structural</option>
+        <option value={4} className="bg-[var(--bg)] text-[var(--text)]">T4 - Core</option>
+      </select>
+      <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 z-10">expand_more</span>
     </div>
   );
 }
+export function DashboardStatTile({ icon, number, value, label, colorClass, style, onClick, disabled, onMouseEnter, onMouseLeave }: any) {
+  const displayValue = number !== undefined ? number : value;
+  const isStatusRed = colorClass?.includes('red') || colorClass?.includes('danger');
+  const isStatusYellow = colorClass?.includes('amber') || colorClass?.includes('warning');
+  const isStatusGreen = colorClass?.includes('emerald') || colorClass?.includes('teal') || colorClass?.includes('success');
+  const isStatusBlue = colorClass?.includes('blue') || colorClass?.includes('cyan') || colorClass?.includes('info');
+
+  let textColor = "text-[var(--text)]";
+  if (isStatusRed) { textColor = "text-[var(--danger)]"; }
+  else if (isStatusYellow) { textColor = "text-[var(--warning)]"; }
+  else if (isStatusGreen) { textColor = "text-[var(--success)]"; }
+  else if (isStatusBlue) { textColor = "text-[var(--accent)]"; }
+  else if (colorClass) { textColor = colorClass.split(' ').find((c: string) => c.startsWith('text-')) || textColor; }
+
+  const cleanColorClass = typeof colorClass === "string"
+    ? colorClass.split(' ').filter((c: string) => !c.startsWith('bg-') && !c.startsWith('hover:bg-')).join(' ')
+    : "";
+
+  return (
+    <div
+      onClick={disabled ? undefined : onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      style={style}
+      className={`flex-1 min-w-[160px] xl:min-w-[220px] h-full flex flex-col justify-center items-start gap-1 p-5 glass-panel ${cleanColorClass} ${textColor} transition-all relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1 hover:brightness-110'}`}
+    >
+      <div className="absolute inset-0 bg-current opacity-[0.02] group-hover:opacity-[0.08] transition-opacity duration-300 pointer-events-none rounded-[inherit]" />
+      <div className="flex items-center gap-3 w-full relative z-10">
+        <span className="opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md shrink-0 [&_.material-symbols-outlined]:!text-[36px]">{icon}</span>
+        <span className={`text-3xl lg:text-4xl xl:text-5xl font-black drop-shadow-lg tracking-tighter truncate`}>{displayValue}</span>
+      </div>
+      <span className="text-[9px] capitalize tracking-[0.2em] font-bold text-[var(--subtext)] opacity-60 mt-2 relative z-10 truncate w-full">{label}</span>
+    </div>
+  );
+};
 
 import { useTooltipStore } from './store/tooltipStore';
 
@@ -1579,7 +1758,8 @@ export function HoverTooltip({ title, subtitle, variant = 'default', className =
 
     const handleMouseEnter = () => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(showTooltip, delay);
+      const isTooltipActive = useTooltipStore.getState().tooltip !== null;
+      timerRef.current = setTimeout(showTooltip, isTooltipActive ? 0 : delay);
     };
 
     const handleMouseLeave = () => {
@@ -2037,3 +2217,40 @@ export function ScreenUtilityBar({
     </div>
   );
 }
+
+export function SystemAlertBanner({ type = 'info', title, message, icon, action, onClose, className = "" }: any) {
+  const themeType = type === 'info' ? 'accent' : type;
+
+  const iconName = icon || (
+    type === 'danger' ? 'gpp_bad' :
+      type === 'warning' ? 'warning' :
+        type === 'success' ? 'check_circle' : 'info'
+  );
+
+  return (
+    <div className={`w-full theme-panel-${themeType} p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95 group rounded-[var(--radius)] ${className}`}>
+      <div className={`absolute inset-0 z-0 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full duration-1000 transition-all ease-in-out`} />
+
+      <div className="flex items-center gap-5 z-10 flex-1 min-w-0">
+        <div className={`w-12 h-12 rounded-full border border-current flex items-center justify-center shrink-0 shadow-md transition-transform group-hover:scale-105 opacity-80 theme-text-${themeType}`}>
+          <span className="material-symbols-outlined !text-[24px] drop-shadow-md">
+            {typeof iconName === 'string' ? iconName : iconName}
+          </span>
+        </div>
+        <div className="flex flex-col gap-1 flex-1 min-w-0">
+          {message && <span className={`text-[9px] capitalize font-bold tracking-widest leading-tight truncate opacity-80 theme-text-${themeType}`}>{message}</span>}
+          <h3 className={`text-base font-black capitalize tracking-widest leading-tight truncate theme-text-${themeType}`}>{title}</h3>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 z-10 shrink-0">
+        {action}
+        {onClose && (
+          <button onClick={onClose} className={`w-8 h-8 rounded-full border border-current flex items-center justify-center transition-colors opacity-50 hover:opacity-100 ml-2 hover:bg-white/10 theme-text-${themeType}`}>
+            <span className="material-symbols-outlined !text-[16px]">close</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};

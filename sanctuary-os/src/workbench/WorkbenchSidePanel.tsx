@@ -66,8 +66,8 @@ export function WorkbenchSidePanel({
       <SidePanel
          isOpen={!!selectedFile}
          onClose={() => setSelectedFile(null)}
-         title={isTemplateMode ? (t("author_mode") || "AUTHOR MODE") : (t("editor_mode") || "EDITOR MODE")}
-         subtitle={selectedFile ? selectedFile.name : (t("workbench_subtitle") || "CITIZENS WORKBENCH")}
+         title={isTemplateMode ? (t("author_mode")) : (t("editor_mode"))}
+         subtitle={selectedFile ? selectedFile.name : (t("workbench_subtitle"))}
          icon={isTemplateMode ? (t("icon_data_object")) : (t("icon_tune"))}
          iconColorClass="theme-text-accent"
          isResizable={!layoutState.isFullscreen}
@@ -92,17 +92,17 @@ export function WorkbenchSidePanel({
                         className="h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent font-black"
                      >
                         <span className="material-symbols-outlined text-xl normal-case">{t("icon_help")}</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_info")}</span>
+                        <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_info")}</span>
                      </button>
                   </div>
                )}
                <button
                   onClick={() => setShowTimeline(true)}
                   disabled={!selectedFile}
-                  className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black disabled:opacity-50 disabled:pointer-events-none"
+                  className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black disabled:opacity-50 disabled:pointer-events-none"
                >
                   <span className="material-symbols-outlined text-xl normal-case">{t("icon_history")}</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">{t("btn_timeline")}</span>
+                  <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_timeline")}</span>
                </button>
             </div>
          }
@@ -148,7 +148,7 @@ export function WorkbenchSidePanel({
                                  layoutState.setConfirmSaveWithErrors(false);
                                  fileState.saveConfig(editorState.rawText);
                               }}
-                              disabled={fileState.isSaving} label={t("btn_confirm_save_errors") || "FORCE SAVE"} icon="check" className="!border-red-500/[50%] !text-[var(--danger)] hover:!bg-red-500/[20%]"
+                              disabled={fileState.isSaving} label={t("btn_confirm_save_errors")} icon="check" className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
                            >
                               
                               
@@ -156,10 +156,10 @@ export function WorkbenchSidePanel({
                         </div>
                      ) : (
                         <div className="relative group">
-                           <HoverTooltip title={t("save_with_errors_warning") || "Saving not recommended until errors resolved"} variant="danger" className="z-[100] right-0 translate-x-0 left-auto bottom-[120%]" />
+                           <HoverTooltip title={t("save_with_errors_warning")} variant="danger" className="z-[100] right-0 translate-x-0 left-auto bottom-[120%]" />
                            <ActionButton
                               onClick={() => layoutState.setConfirmSaveWithErrors(true)}
-                              disabled={fileState.isSaving} label={fileState.isSaving ? (t("btn_saving")) : (t("btn_save_with_errors") || "SAVE WITH ERRORS")} icon="warning"
+                              disabled={fileState.isSaving} label={fileState.isSaving ? (t("btn_saving")) : (t("btn_save_with_errors"))} icon="warning"
                            >
                               
                               
@@ -190,14 +190,14 @@ export function WorkbenchSidePanel({
                {!isTemplateMode && (
                   <div className="flex justify-start items-center px-2 mt-2 shrink-0 z-[100]">
                      <div className="flex-1 flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5">
-                        <HubTabButton id="visual" activeTab={activeTab} setTab={setActiveTab} label={t("tab_visual") || "Visual"} icon={t("icon_tune") || "tune"} />
-                        <HubTabButton id="raw" activeTab={activeTab} setTab={setActiveTab} label={t("tab_raw") || "Raw"} icon={t("icon_code") || "code"} />
-                        <HubTabButton id="dual" activeTab={activeTab} setTab={setActiveTab} label={t("tab_dual_vision") || "Dual Vision"} icon="splitscreen" />
+                        <HubTabButton id="visual" activeTab={activeTab} setTab={setActiveTab} label={t("tab_visual")} icon={t("icon_tune")} />
+                        <HubTabButton id="raw" activeTab={activeTab} setTab={setActiveTab} label={t("tab_raw")} icon={t("icon_code")} />
+                        <HubTabButton id="dual" activeTab={activeTab} setTab={setActiveTab} label={t("tab_dual_vision")} icon="splitscreen" />
                      </div>
                      {activeTab === 'dual' && (
-                        <button onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)} className={`ml-4 shrink-0 h-10 px-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${layoutState.isScrollLocked ? 'glass-panel !bg-[var(--accent)]/[15%] !border-[var(--accent)]/[50%] !text-[var(--accent)] !shadow-md' : 'glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                        <button onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)} className={`ml-4 shrink-0 h-10 px-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${layoutState.isScrollLocked ? 'glass-panel !bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)] !shadow-md' : 'glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                            <span className="material-symbols-outlined !text-[18px]">{layoutState.isScrollLocked ? 'lock' : 'lock_open'}</span>
-                           {t("sync_scroll") || "Sync Scroll"}
+                           {t("sync_scroll")}
                         </button>
                      )}
                   </div>
@@ -212,7 +212,7 @@ export function WorkbenchSidePanel({
                                     <SearchBar
                                        value={searchQuery}
                                        onChange={setSearchQuery}
-                                       placeholder={t("workbench_search_placeholder") || "Search..."}
+                                       placeholder={t("workbench_search_placeholder")}
                                        className="rounded-xl h-10"
                                     />
                                  </div>
@@ -244,7 +244,7 @@ export function WorkbenchSidePanel({
                                        <CustomDropdown
                                           value={selectedCategory}
                                           options={[
-                                             { id: "ALL", label: t("cat_all") || "All Settings" },
+                                             { id: "ALL", label: t("cat_all") },
                                              ...currentVisualTemplate.categories.map((cat: any) => ({
                                                 id: cat.id,
                                                 label: resolveText(cat.name_key, cat.name || cat.id) as string,
@@ -263,7 +263,7 @@ export function WorkbenchSidePanel({
                               {editorState.problemsList.length > 0 ? (
                                  <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 opacity-60">
                                     <span className="material-symbols-outlined !text-5xl text-[var(--danger)] mb-2">warning</span>
-                                    <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("syntax_error_title")}</h3>
+                                    <h3 className="text-sm font-black text-[var(--text)] tracking-widest capitalize">{t("syntax_error_title")}</h3>
                                     <p className="text-[11px] text-[var(--subtext)] leading-relaxed">{t("syntax_error_desc")}</p>
                                  </div>
                               ) : (
@@ -272,7 +272,7 @@ export function WorkbenchSidePanel({
                                        {editorState.problemsList.length > 0 ? (
                                           <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 opacity-60">
                                              <span className="material-symbols-outlined !text-5xl text-[var(--danger)] mb-2">{t("icon_visibility_off")}</span>
-                                             <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("preview_unavailable")}</h3>
+                                             <h3 className="text-sm font-black text-[var(--text)] tracking-widest capitalize">{t("preview_unavailable")}</h3>
                                              <p className="text-[11px] text-[var(--subtext)] leading-relaxed">{t("preview_resolve")}</p>
                                           </div>
                                        ) : currentVisualTemplate?.settings ? (
@@ -298,10 +298,10 @@ export function WorkbenchSidePanel({
                         <>
                            {layoutState.isResizingPreview && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
                            <div
-                              className="w-2 rounded-full cursor-col-resize hover:bg-[var(--accent)]/50 transition-colors flex items-center justify-center shrink-0 z-10"
+                              className="w-2 rounded-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors flex items-center justify-center shrink-0 z-10"
                               onMouseDown={(e) => { e.preventDefault(); layoutState.setIsResizingPreview(true); }}
                            >
-                              <div className="h-12 w-1 rounded-full bg-[var(--accent)]/30" />
+                              <div className="h-12 w-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
                            </div>
                         </>
                      )}
@@ -375,14 +375,14 @@ export function WorkbenchSidePanel({
                {isTemplateMode && (
                   <div className="flex justify-start items-center px-2 mt-2 mb-2 shrink-0 z-[100]">
                      <div className="flex-1 flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5">
-                        <HubTabButton id="preview" activeTab={previewMode} setTab={setPreviewMode} label={t("preview") || "Preview"} icon="visibility" />
-                        <HubTabButton id="file" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_file") || "File"} icon="description" />
-                        <HubTabButton id="off" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_off") || "Off"} icon="visibility_off" />
+                        <HubTabButton id="preview" activeTab={previewMode} setTab={setPreviewMode} label={t("preview")} icon="visibility" />
+                        <HubTabButton id="file" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_file")} icon="description" />
+                        <HubTabButton id="off" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_off")} icon="visibility_off" />
                      </div>
                      {(previewMode === 'preview' || previewMode === 'file') && (
-                        <button onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)} className={`ml-4 shrink-0 h-10 px-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all ${layoutState.isScrollLocked ? 'glass-panel !bg-[var(--accent)]/[15%] !border-[var(--accent)]/[50%] !text-[var(--accent)] !shadow-md' : 'glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                        <button onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)} className={`ml-4 shrink-0 h-10 px-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${layoutState.isScrollLocked ? 'glass-panel !bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)] !shadow-md' : 'glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                            <span className="material-symbols-outlined !text-[18px]">{layoutState.isScrollLocked ? 'lock' : 'lock_open'}</span>
-                           {t("sync_scroll") || "Sync Scroll"}
+                           {t("sync_scroll")}
                         </button>
                      )}
                   </div>
@@ -438,21 +438,21 @@ export function WorkbenchSidePanel({
                         <>
                            {layoutState.isResizingPreview && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
                            <div
-                              className="w-2 rounded-full cursor-col-resize hover:bg-[var(--accent)]/50 transition-colors flex items-center justify-center shrink-0 z-10"
+                              className="w-2 rounded-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors flex items-center justify-center shrink-0 z-10"
                               onMouseDown={(e) => { e.preventDefault(); layoutState.setIsResizingPreview(true); }}
                            >
-                              <div className="h-12 w-1 rounded-full bg-[var(--accent)]/30" />
+                              <div className="h-12 w-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
                            </div>
                            <div className={`shrink-0 glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: layoutState.previewWidth }}>
                               <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 text-center flex items-center justify-start">
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">{previewMode === 'preview' ? t("workbench_preview_title") : (editorState.parsedData?.target_file || 'Target File')}</span>
+                                 <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-2">{previewMode === 'preview' ? t("workbench_preview_title") : (editorState.parsedData?.target_file || 'Target File')}</span>
                               </div>
                               <div ref={layoutState.visualScrollRef} className="flex-1 overflow-y-auto custom-scrollbar p-6">
                                  {previewMode === 'preview' ? (
                                     editorState.problemsList.length > 0 ? (
                                        <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 opacity-60">
                                           <span className="material-symbols-outlined !text-5xl text-[var(--danger)] mb-2">{t("icon_visibility_off")}</span>
-                                          <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("preview_unavailable")}</h3>
+                                          <h3 className="text-sm font-black text-[var(--text)] tracking-widest capitalize">{t("preview_unavailable")}</h3>
                                           <p className="text-[11px] text-[var(--subtext)] leading-relaxed">{t("preview_resolve")}</p>
                                        </div>
                                     ) : (
