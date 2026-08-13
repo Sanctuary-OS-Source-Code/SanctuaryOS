@@ -1,4 +1,4 @@
-import { ScreenUtilityBar } from "./shared";
+import { ScreenUtilityBar, FilterTabs, FilterTabButton } from "./shared";
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, ActionButton } from "./shared";
@@ -391,10 +391,10 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         searchPlaceholder={t("search_ph") as string}
         className="px-6 !mb-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
       >
-        <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex">
-          <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
-          <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_completed")}</button>
-        </div>
+        <FilterTabs className="hidden md:flex">
+          <FilterTabButton id="pending" activeTab={filterTab} setTab={setFilterTab} label={t("pending")} />
+          <FilterTabButton id="completed" activeTab={filterTab} setTab={setFilterTab} label={t("status_completed")} />
+        </FilterTabs>
       </ScreenUtilityBar>
 
       <div className="p-6 flex flex-col gap-10 pb-32">

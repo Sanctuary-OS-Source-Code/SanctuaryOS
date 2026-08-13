@@ -89,6 +89,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         subtitle={t("mason_hub_subtitle")}
         icon={t("icon_construction")}
         iconColorClass="text-[var(--accent)]"
+        breadcrumb={masonActiveTab !== "command_center" ? masonActiveTab.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
       />
 
       <HoverTabDrawer

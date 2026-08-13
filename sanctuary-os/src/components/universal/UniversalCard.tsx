@@ -103,9 +103,9 @@ export function UniversalCard({
   const opacityClasses = isGhosted ? "opacity-50 grayscale-[0.8]" : isDisabled ? "opacity-50 cursor-not-allowed grayscale" : "";
 
   // The hover effect
-  const hoverClasses = !isDisabled ? "group-hover/card:brightness-110 group-hover/card:-translate-y-1 group-hover/card:scale-[1.02] transition-all duration-300" : "";
+  const hoverClasses = !isDisabled ? "group-hover/card:shadow-2xl group-hover/card:shadow-[color-mix(in_srgb,currentColor_10%,transparent)] group-hover/card:-translate-y-1 transition-all duration-700 ease-out" : "";
 
-  const containerClasses = `glass-panel rounded-[var(--radius)] relative overflow-hidden transition-all duration-500 flex group/card ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${onClick ? 'cursor-pointer' : ''} ${className}`;
+  const containerClasses = `glass-panel rounded-[var(--radius)] relative overflow-hidden flex group/card ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${onClick ? 'cursor-pointer' : ''} ${className}`;
 
   const renderMedia = () => {
     if (!image && !icon && !customIcon) return null;
@@ -169,8 +169,12 @@ export function UniversalCard({
       style={style}
       {...restProps}
     >
-      {/* Background Gradient overlay - REMOVED so it doesn't ruin the glass */}
-      <div className="absolute inset-0 transition-colors duration-500 pointer-events-none z-0" />
+      {/* Flagship Glass Glare & Light Leaks */}
+      <div className="absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-700 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-transparent to-[color-mix(in_srgb,var(--base)_10%,transparent)] mix-blend-overlay" />
+        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
+        <div className="absolute inset-0 shadow-[inset_0_0_30px_color-mix(in_srgb,var(--text)_2%,transparent)]" />
+      </div>
 
       {/* Floating or Inline Actions */}
       {actions && layout !== 'horizontal' && layout !== 'compact' && (
@@ -196,8 +200,8 @@ export function UniversalCard({
           <div className={`flex min-w-0 w-full ${layout === 'stat' || (!image && !customIcon && (layout === 'vertical' || layout === 'vertical-compact')) ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
             {/* If no image and it's a vertical layout, show a beautiful large icon! */}
             {!image && !customIcon && icon && (layout === 'vertical' || layout === 'vertical-compact') && (
-              <div className="w-16 h-16 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined opacity-80 theme-text-accent shrink-0 animate-pulse">
+              <div className="w-16 h-16 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,currentColor_5%,transparent)] border border-[color-mix(in_srgb,currentColor_20%,transparent)] flex items-center justify-center shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_2%,transparent)] group-hover/card:shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)] group-hover/card:scale-110 group-hover/card:border-[color-mix(in_srgb,currentColor_40%,transparent)] transition-all duration-500">
+                <span className="material-symbols-outlined opacity-60 group-hover/card:opacity-100 theme-text-accent shrink-0 group-hover/card:drop-shadow-[0_0_15px_currentColor] transition-all duration-500">
                   {icon}
                 </span>
               </div>

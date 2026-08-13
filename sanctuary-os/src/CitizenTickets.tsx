@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { EmptyState } from "./shared";
+import { EmptyState, FilterTabs, FilterTabButton } from "./shared";
 import { supabase } from "./supabase";
 import { UniversalCard } from "./components/universal/UniversalCard";
 
@@ -66,17 +66,18 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
           </div>
         </div>
         
-        <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5 w-full">
-          {["all", "open", "pending", "closed"].map(filter => (
-             <button 
-               key={filter}
-               onClick={() => setActiveFilter(filter as any)}
-               className={`h-full flex-1 px-6 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${activeFilter === filter ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-             >
-               {filter}
-             </button>
-          ))}
-        </div>
+          <FilterTabs className="w-full">
+            {["all", "open", "pending", "closed"].map(filter => (
+               <FilterTabButton 
+                 key={filter}
+                 id={filter}
+                 activeTab={activeFilter}
+                 setTab={setActiveFilter}
+                 label={filter}
+                 className="flex-1"
+               />
+            ))}
+          </FilterTabs>
       </div>
 
       <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 pr-2">

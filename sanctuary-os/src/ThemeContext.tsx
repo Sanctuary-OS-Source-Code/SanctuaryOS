@@ -16,7 +16,7 @@ const DEFAULT_CORE_THEMES: any = {
     panelBackground: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 30%, transparent 100%)",
     panelBorder: "1px solid rgba(255, 255, 255, 0.1)",
     panelShadow: "0 20px 40px -10px rgba(0, 0, 0, 0.4), 0 0 30px rgba(56, 189, 248, 0.05)",
-    panelInnerShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.25), inset 0 0 30px rgba(255, 255, 255, 0.02)",
+    panelInnerShadow: "inset 0 1px 1px rgba(14, 9, 9, 0.25), inset 0 0 30px rgba(255, 255, 255, 0.02)",
     animated: true, ambientOrb: true, ambientNoise: true,
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
@@ -50,7 +50,7 @@ const DEFAULT_CORE_THEMES: any = {
     animated: true, ambientOrb: true, ambientNoise: true,
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  }, 
+  },
   bunker: {
     name: "Bunker", bg: "#020602", sidebar: "#020602", sidebartext: "#00ff41", accent: "#00ff41",
     text: "#00ff41", subtext: "#008f11", success: "#0ce471", warning: "#ffea00", danger: "#ff003c",
@@ -244,7 +244,7 @@ export const ThemeProvider = ({ children }: any) => {
     Object.entries(currentTheme).forEach(([key, val]) => {
       if (key !== 'name') {
         let finalVal = val as string;
-        
+
         // Ensure glassOpacity is a decimal!
         if (key === 'glassOpacity' && typeof finalVal === 'string' && finalVal.endsWith('%')) {
           finalVal = (parseFloat(finalVal) / 100).toString();
@@ -293,7 +293,7 @@ export const ThemeProvider = ({ children }: any) => {
       const tb = parseInt(textHex.substring(4, 6), 16);
       root.style.setProperty('--text-rgb', `${tr}, ${tg}, ${tb}`);
     }
-    
+
     // Fallback support for older Webview2 missing calc() inside rgb() alpha or color-mix() percentages
     let finalOpacityStr = String(currentTheme.glassOpacity || "0.35");
     if (finalOpacityStr.endsWith('%')) {
@@ -301,7 +301,7 @@ export const ThemeProvider = ({ children }: any) => {
     }
     const rawOpacity = parseFloat(finalOpacityStr);
     root.style.setProperty('--glassOpacitySurface', (rawOpacity * 0.7).toString());
-    
+
     const yiq = (((parseInt(bgHex.substring(0, 2), 16) || 0) * 299) + ((parseInt(bgHex.substring(2, 4), 16) || 0) * 587) + ((parseInt(bgHex.substring(4, 6), 16) || 0) * 114)) / 1000;
     const isLight = yiq >= 128;
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {

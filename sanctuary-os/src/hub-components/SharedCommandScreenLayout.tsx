@@ -1,36 +1,10 @@
 import React from 'react';
 import { useLexicon } from '../LexiconContext';
-import { extractPostImage, stripMarkdown } from '../shared';
+import { extractPostImage, stripMarkdown, DashboardStatTile } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 
-export function DashboardStatTile({ icon, number, label, colorClass, onClick, setStatus }: any) {
-    const isStatusRed = colorClass?.includes('red') || colorClass?.includes('danger');
-    const isStatusYellow = colorClass?.includes('amber') || colorClass?.includes('warning');
-    const isStatusGreen = colorClass?.includes('emerald') || colorClass?.includes('teal') || colorClass?.includes('success');
-    const isStatusBlue = colorClass?.includes('blue') || colorClass?.includes('cyan') || colorClass?.includes('info');
+export { DashboardStatTile };
 
-    let textColor = "text-[var(--text)]";
-    if (isStatusRed) { textColor = "text-[var(--danger)]"; }
-    else if (isStatusYellow) { textColor = "text-[var(--warning)]"; }
-    else if (isStatusGreen) { textColor = "text-[var(--success)]"; }
-    else if (isStatusBlue) { textColor = "text-[var(--accent)]"; }
-    else if (colorClass) { textColor = colorClass.split(' ').find((c: string) => c.startsWith('text-')) || textColor; }
-
-    const cleanColorClass = typeof colorClass === "string"
-      ? colorClass.split(' ').filter((c: string) => !c.startsWith('bg-') && !c.startsWith('hover:bg-')).join(' ')
-      : "";
-
-    return (
-        <div onClick={onClick} className={`flex-1 min-w-[200px] xl:min-w-[250px] h-full flex flex-col justify-center items-start gap-1 p-6 glass-panel ${cleanColorClass} ${textColor} transition-all cursor-pointer relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl`}>
-            <div className="absolute inset-0 bg-current opacity-[0.02] group-hover:opacity-[0.08] transition-opacity duration-300 pointer-events-none rounded-[inherit]" />
-            <div className="flex items-center gap-3 w-full relative z-10">
-                <span className="text-3xl opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md">{icon}</span>
-                <span className={`text-4xl lg:text-5xl font-black drop-shadow-lg tracking-tighter`}>{number}</span>
-            </div>
-            <span className="text-[9px] capitalize tracking-[0.2em] font-bold text-[var(--subtext)] opacity-60 mt-2 relative z-10">{label}</span>
-        </div>
-    );
-}
 export function CommandScreenLayout({ children }: any) {
     return (
         <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32">
@@ -77,8 +51,16 @@ export function CommandScreenSectionHeading({
 }
 
 export function CommandScreenStats({ children }: any) {
+    const validCount = React.Children.toArray(children).filter(Boolean).length;
+    
+    let gridClass = "grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
+    if (validCount === 4) gridClass = "grid-cols-2 lg:grid-cols-4";
+    else if (validCount === 3) gridClass = "grid-cols-1 md:grid-cols-3";
+    else if (validCount === 2) gridClass = "grid-cols-2";
+    else if (validCount === 1) gridClass = "grid-cols-1";
+
     return (
-        <div className="flex flex-wrap items-stretch gap-6 w-full">
+        <div className={`grid ${gridClass} gap-4 w-full`}>
             {children}
         </div>
     );
@@ -130,22 +112,33 @@ export function UrgentBroadcastBanner({ urgentBroadcast, setViewingPost, setUrge
     if (!urgentBroadcast || localStorage.getItem("sanctuary_notify_alert_banner") === "false") return null;
 
     return (
-        <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel  bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-[var(--radius)] p-6 flex flex-col md:flex-row items-center gap-6 shadow-md cursor-pointer hover:scale-[1.02] hover:brightness-110 transition-all group overflow-hidden relative backdrop-blur-md">
-            <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent z-0 pointer-events-none" />
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] blur-[50px] rounded-full pointer-events-none" />
-            <div className="w-16 h-16 rounded-full bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]  flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform shadow-inner">
-                <span className="material-symbols-outlined !text-4xl text-[var(--danger)] animate-pulse">{t("icon_warning_amber")}</span>
+        <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel rounded-[1.25rem] p-5 md:p-6 flex flex-col md:flex-row items-center gap-6 shadow-xl hover:shadow-2xl cursor-pointer hover:-translate-y-1 transition-all duration-700 ease-out group overflow-hidden relative border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_60%,transparent)]">
+            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] z-0 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
+            
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--danger)_50%,transparent)] to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
+            
+            <div className="w-14 h-14 rounded-[1rem] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform duration-500 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                <span className="material-symbols-outlined !text-[32px] text-[var(--danger)] drop-shadow-[0_0_15px_currentColor] animate-pulse">{t("icon_warning_amber")}</span>
             </div>
-            <div className="flex flex-col gap-2 flex-1 z-10">
+            
+            <div className="flex flex-col gap-1 flex-1 z-10 min-w-0">
                 <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]  text-[var(--danger)] text-[10px] font-black capitalize tracking-widest rounded-lg shadow-inner animate-pulse flex items-center gap-1"><span className="material-symbols-outlined !text-[12px]"></span>{t("urgent_alert")}</span>
-                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--danger)]">{new Date(urgentBroadcast.created_at).toLocaleDateString()}</span>
+                    <span className="px-3 py-1 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] text-[9px] font-[900] uppercase tracking-[0.2em] rounded-lg border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center gap-1"><span className="material-symbols-outlined !text-[12px]"></span>{t("urgent_alert")}</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-60 text-[var(--danger)]">{new Date(urgentBroadcast.created_at).toLocaleDateString()}</span>
                 </div>
-                <h3 className="text-xl md:text-2xl font-black capitalize tracking-widest text-[var(--danger)] group-hover:brightness-125 transition-all drop-shadow-md">{urgentBroadcast.title}</h3>
+                <h3 className="text-xl font-[900] tracking-tighter text-[var(--danger)] group-hover:brightness-150 group-hover:drop-shadow-[0_0_15px_currentColor] transition-all truncate mt-1">{urgentBroadcast.title}</h3>
             </div>
+            
             <div className="flex items-center gap-2 z-10 ml-auto">
-                <button onClick={(e) => { e.stopPropagation(); sessionStorage.setItem('dismissedAlertId', urgentBroadcast.id); setUrgentBroadcast(null); }} className="w-10 h-10 rounded-full  bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:scale-[1.02] hover:brightness-110 text-[var(--danger)] flex items-center justify-center transition-colors shadow-inner backdrop-blur-md hover:scale-110 active:scale-95 group/close" >
-                    <span className="material-symbols-outlined !text-[20px] group-hover/close:rotate-90 transition-transform duration-300">close</span>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        localStorage.setItem("sanctuary_notify_alert_banner", "false");
+                        setUrgentBroadcast(null);
+                    }}
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors opacity-50 hover:opacity-100"
+                >
+                    <span className="material-symbols-outlined !text-[20px]">{t("icon_close")}</span>
                 </button>
             </div>
         </div>
@@ -201,28 +194,27 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
 
 export function CommandScreenMetricTile({ icon, value, label, valueColorClass = "theme-text-accent", hoverBorderClass = "" }: any) {
     return (
-        <div className={`min-w-0 glass-panel  rounded-[var(--radius)] p-6 flex flex-col items-center justify-center gap-3 shadow-lg hover:scale-[1.02] hover:brightness-110 ${hoverBorderClass} transition-all text-center h-32 relative overflow-hidden group`}>
-            {icon && <span className={`absolute -left-4 -bottom-4 text-[80px] opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all material-symbols-outlined grayscale group-hover:grayscale-0 ${valueColorClass}`}>{icon}</span>}
-            <span className={`text-3xl font-black relative z-10 ${valueColorClass}`}>{value}</span>
-            <span className="text-[9px] font-black capitalize tracking-widest opacity-70 text-[var(--subtext)] leading-tight relative z-10 truncate w-full">{label}</span>
-        </div>
+        <DashboardStatTile icon={icon} value={value} label={label} colorClass={valueColorClass} />
     );
 }
 
 export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "group-hover:text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "group-", isAlert = false }: any) {
     return (
-        <button onClick={onClick} className="w-full p-6 glass-panel  rounded-[var(--radius)] hover:scale-[1.02] hover:brightness-110   transition-all text-left group relative overflow-hidden h-24">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-            <div className="flex items-center gap-5 h-full relative z-10">
-                <div className={`w-12 h-12 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${iconBorderHoverClass} ${isAlert ? 'text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group-hover:scale-[1.02] hover:brightness-110 shadow-sm' : ''}`}>
-                    <span className={`material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 ${iconShadowClass} ${isAlert ? 'animate-pulse' : ''}`}>{icon}</span>
+        <button onClick={onClick} className={`w-full p-5 glass-panel rounded-[1.25rem] transition-all duration-500 text-left group relative overflow-hidden h-24 shadow-md hover:shadow-xl hover:-translate-y-1 ${isAlert ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'hover:shadow-[0_10px_30px_color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>
+            <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none blur-xl ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`} />
+            
+            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none mix-blend-overlay" />
+
+            <div className="flex items-center gap-4 h-full relative z-10">
+                <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 transition-transform duration-500 group-hover:scale-110 shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_5%,transparent)] border ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-[var(--accent)]'}`}>
+                    <span className={`material-symbols-outlined !text-[28px] opacity-80 group-hover:opacity-100 transition-all duration-300 ${isAlert ? 'animate-pulse drop-shadow-[0_0_10px_currentColor]' : 'group-hover:drop-shadow-[0_0_15px_currentColor]'}`}>{icon}</span>
                 </div>
-                <div className="flex flex-col gap-1 flex-1 min-w-0">
-                    <h3 className={`text-[11px] font-black capitalize tracking-widest transition-colors truncate ${isAlert ? 'text-[var(--danger)] group-hover:brightness-125' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>{title}</h3>
-                    <span className={`text-[8px] capitalize font-bold opacity-80 tracking-widest flex items-center gap-2 truncate ${textColorClass} ${hoverTextColorClass}`}>{subtitle}
-                    </span>
+                <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
+                    <h3 className={`text-[11px] font-[900] uppercase tracking-widest transition-colors truncate ${isAlert ? 'text-[var(--danger)] group-hover:brightness-125' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>{title}</h3>
+                    <span className={`text-[9px] capitalize font-bold opacity-70 tracking-widest flex items-center gap-2 truncate ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>{subtitle}</span>
                 </div>
             </div>
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         </button>
     );
 }

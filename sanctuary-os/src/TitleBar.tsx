@@ -28,7 +28,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
   return (
     <>
       {/* Invisible drag region across the very top */}
-      <div 
+      <div
         data-tauri-drag-region
         onMouseDown={async (e) => {
           if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
@@ -38,7 +38,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
         onDoubleClick={(e) => {
           if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
             (window as any).__sanc_manual_max = true;
-            setTimeout(() => { (window as any).__sanc_manual_max = false; }, 1000);
+            setTimeout(() => { (window as any).__sanc_manual_max = false; }, 750);
           }
         }}
         className="fixed top-0 left-0 right-0 h-[24px] z-[999999] pointer-events-auto opacity-0"
@@ -46,7 +46,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
 
       {/* Container for pills */}
       <div className="fixed top-0 left-0 right-0 h-[70px] pointer-events-none flex items-center z-[999998] px-6">
-        
+
         {/* Spacer to respect sidebar width */}
         <div className="shrink-0 transition-all duration-500" style={{ width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)' }} />
 
@@ -73,7 +73,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
         </div>
 
         {/* Right Window Controls Pill */}
-        <div 
+        <div
           className="pointer-events-auto glass-panel rounded-full px-2 py-1.5 flex items-center gap-1.5 shadow-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
           data-tauri-drag-region
           onMouseDown={async (e) => {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ScreenUtilityBar } from "./shared";
+import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ScreenUtilityBar, FilterTabs, FilterTabButton } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { logArchitectAction } from "./lib/audit";
 
@@ -222,18 +222,16 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
         searchPlaceholder={t("ui_placeholder_search") as string}
         className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full"
       >
-          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex mr-4">
-            <button onClick={() => setFilterTab('pending')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
-            <button onClick={() => setFilterTab('completed')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_active")}</button>
-          </div>
-          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 hidden md:flex">
-            <button onClick={() => setTierFilter(null)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${tierFilter === null ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ql_all")}</button>
+          <FilterTabs className="hidden md:flex mr-4">
+            <FilterTabButton id="pending" activeTab={filterTab} setTab={setFilterTab} label={t("pending")} />
+            <FilterTabButton id="completed" activeTab={filterTab} setTab={setFilterTab} label={t("status_active")} />
+          </FilterTabs>
+          <FilterTabs className="hidden md:flex">
+            <FilterTabButton id={null} activeTab={tierFilter} setTab={setTierFilter} label={t("ql_all")} />
             {[4, 3].map(tLevel => (
-              <button key={tLevel} onClick={() => setTierFilter(tLevel)} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${tierFilter === tLevel ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                {t("ui_icon_logo")}{tLevel}
-              </button>
+              <FilterTabButton key={tLevel} id={tLevel} activeTab={tierFilter} setTab={setTierFilter} label={`${t("ui_icon_logo")}${tLevel}`} />
             ))}
-          </div>
+          </FilterTabs>
           <ActionButton
             onClick={() => { setEditConflictId(null); setModA(null); setModB(null); setNote(""); setSeverity(4); setIsSidePanelOpen(true); }}
             className="h-12 px-6 shrink-0 font-black capitalize tracking-widest text-[10px]"

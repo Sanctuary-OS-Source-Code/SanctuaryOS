@@ -323,7 +323,7 @@ export default function CommandCenter({
           colorClass="text-[var(--accent)]"
           onClick={() => { if (activeGameSchema?.features?.has_cc !== false) setIsBlueprintSwapOpen(true); }}
         />
-        <div className="relative group/ticket flex-1 flex min-w-[200px] xl:min-w-[250px]">
+        <div className="relative group/ticket flex-1 flex min-w-0">
           {!session && (
             <HoverTooltip
               variant="danger"

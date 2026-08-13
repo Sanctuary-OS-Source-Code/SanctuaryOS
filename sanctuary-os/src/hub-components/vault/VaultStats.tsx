@@ -1,5 +1,5 @@
 import React from 'react';
-import { DashboardStatTile } from '../SharedCommandScreenLayout';
+import { DashboardStatTile } from '../../shared';
 
 export function VaultStats({
   t,

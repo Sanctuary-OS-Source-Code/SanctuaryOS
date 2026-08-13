@@ -542,13 +542,12 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 {renderTextWithIcons(post.title)}
               </h1>
 
-              <div className="flex items-center gap-4 mt-2 mb-8 relative z-20">
-                <div 
-                  className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg cursor-pointer z-20 hover:scale-110 transition-transform shrink-0 overflow-hidden ${
-                    post.mason_id === 'system' || !post.masons?.avatar_url 
-                      ? 'glass-surface border border-[color-mix(in_srgb,var(--text)_20%,transparent)] backdrop-blur-md' 
-                      : 'border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent'
-                  }`}
+              <div className="flex items-center gap-4 mt-2 mb-0 relative z-20">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg cursor-pointer z-20 hover:scale-110 transition-transform shrink-0 overflow-hidden ${post.mason_id === 'system' || !post.masons?.avatar_url
+                    ? 'glass-surface border border-[color-mix(in_srgb,var(--text)_20%,transparent)] backdrop-blur-md'
+                    : 'border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent'
+                    }`}
                   onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}
                 >
                   {post.mason_id === 'system' ? (
@@ -561,10 +560,10 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                     </span>
                   )}
                 </div>
-                
+
                 <div className="flex flex-col z-20">
                   <div className="flex items-center gap-2">
-                    <span 
+                    <span
                       className="text-[13px] font-black capitalize tracking-widest text-[var(--text)] hover:theme-text-accent cursor-pointer transition-colors"
                       onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}
                     >
@@ -709,8 +708,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               </div>
               <div className="flex items-center gap-4">
                 {userId && !isPostAuthor && !isBanned && (
-                  <ActionButton 
-                    onClick={() => setFlagTarget({ id: post.id, type: 'post' })} 
+                  <ActionButton
+                    onClick={() => setFlagTarget({ id: post.id, type: 'post' })}
                     variant="danger"
                     icon="flag"
                     label={t("feed_btn_flag")}
@@ -724,8 +723,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       subtitle={isBanned ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
                       className="group-hover/flagbtn:flex z-[1000]"
                     />
-                    <ActionButton 
-                      disabled={true} 
+                    <ActionButton
+                      disabled={true}
                       className="opacity-30 grayscale cursor-not-allowed"
                       variant="danger"
                       icon="flag"
@@ -734,8 +733,8 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                   </div>
                 )}
                 {post.mason_id === 'system' && (
-                  <ActionButton 
-                    onClick={onClose} 
+                  <ActionButton
+                    onClick={onClose}
                     variant="glass"
                     icon="close"
                     label={t("btn_close")}

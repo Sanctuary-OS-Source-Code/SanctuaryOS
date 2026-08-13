@@ -1639,20 +1639,35 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
     ? colorClass.split(' ').filter((c: string) => !c.startsWith('bg-') && !c.startsWith('hover:bg-')).join(' ')
     : "";
 
+  const strVal = String(displayValue);
+  let sizeClass = "text-3xl lg:text-4xl xl:text-5xl";
+  if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
+  else if (strVal.length > 10) sizeClass = "text-lg xl:text-xl";
+  else if (strVal.length > 5) sizeClass = "text-xl lg:text-2xl xl:text-3xl";
+
   return (
     <div
       onClick={disabled ? undefined : onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={style}
-      className={`flex-1 min-w-[160px] xl:min-w-[220px] h-full flex flex-col justify-center items-start gap-1 p-5 glass-panel ${cleanColorClass} ${textColor} transition-all relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1 hover:brightness-110'}`}
+      className={`flex-1 min-w-0 h-full flex items-center p-3 gap-3 glass-panel ${cleanColorClass} ${textColor} transition-all duration-500 relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-2 hover:shadow-[0_20px_40px_-10px_currentColor]'}`}
     >
-      <div className="absolute inset-0 bg-current opacity-[0.02] group-hover:opacity-[0.08] transition-opacity duration-300 pointer-events-none rounded-[inherit]" />
-      <div className="flex items-center gap-3 w-full relative z-10">
-        <span className="opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-hover:scale-110 transition-all drop-shadow-md shrink-0 [&_.material-symbols-outlined]:!text-[36px]">{icon}</span>
-        <span className={`text-3xl lg:text-4xl xl:text-5xl font-black drop-shadow-lg tracking-tighter truncate`}>{displayValue}</span>
+      <div className="absolute inset-0 bg-current opacity-0 group-hover:opacity-[0.05] transition-opacity duration-700 pointer-events-none rounded-[inherit] blur-xl" />
+      
+      <div className="h-14 w-14 rounded-[1rem] flex flex-col items-center justify-center shrink-0 relative overflow-hidden bg-[color-mix(in_srgb,currentColor_10%,transparent)] border border-[color-mix(in_srgb,currentColor_30%,transparent)] group-hover:scale-105 transition-transform duration-500 shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)]">
+        <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none mix-blend-overlay" />
+        <span className="opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all drop-shadow-[0_0_15px_currentColor] shrink-0 [&_.material-symbols-outlined]:!text-[28px]">{icon}</span>
       </div>
-      <span className="text-[9px] capitalize tracking-[0.2em] font-bold text-[var(--subtext)] opacity-60 mt-2 relative z-10 truncate w-full">{label}</span>
+
+      <div className="w-[1px] h-10 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,currentColor_30%,transparent)] to-transparent shrink-0" />
+
+      <div className="flex flex-col flex-1 min-w-0 relative z-10 py-1">
+        <span className="text-[11px] uppercase tracking-widest font-black text-[var(--subtext)] opacity-70 mb-0 w-full leading-tight group-hover:opacity-100 transition-opacity duration-300">{label}</span>
+        <span className={`${sizeClass} font-[900] tracking-tighter truncate drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)] group-hover:drop-shadow-[0_0_20px_currentColor] transition-all duration-500`} title={strVal}>
+          {displayValue}
+        </span>
+      </div>
     </div>
   );
 };
