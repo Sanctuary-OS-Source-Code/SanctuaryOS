@@ -226,18 +226,16 @@ export function AuditLogViewer({
         ) : (
           <div className={`grid grid-cols-1 ${isSidePanel ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-6 w-full`}>
             {filteredLogs.map(log => (
-       <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md transition-all duration-500 relative min-h-[160px] cursor-pointer">
-                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-[inset_0_2px_0_0_color-mix(in_srgb,var(--accent)_50%,transparent)] !transition-none relative min-h-[160px] cursor-pointer overflow-hidden">
 
                 <div className="flex justify-start items-start w-full relative z-10 mb-4">
                   <div className="flex items-start gap-4 w-full">
-                    <div className="w-12 h-12 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
+                    <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:-translate-y-1 transition-transform duration-500">
                       <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">{t("icon_history")}</span>
                     </div>
                     <div className="flex flex-col pt-1 min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1 w-full">
-                        <span className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 truncate">{log.target_table.replace(/_/g, ' ')}</span>
+                        <span className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 truncate">{log.target_table?.replace(/_/g, ' ') || 'Unknown'}</span>
                         {log.game_name && (
                           <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] text-[8px] font-black capitalize tracking-widest shrink-0 shadow-inner ml-auto">
                             {log.game_name}
@@ -364,8 +362,6 @@ export function AuditLogViewer({
         subtitle={t("audit_desc")}
         icon="history"
         widthClass="w-[700px]"
-        panelZ="z-[100]"
-        backdropZ="z-[99]"
       >
         <div className="h-[80vh] relative -mx-6 -mt-6">
           {content}
