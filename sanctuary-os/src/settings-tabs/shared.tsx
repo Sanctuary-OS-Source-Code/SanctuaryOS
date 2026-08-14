@@ -10,7 +10,7 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
 
   return (
     <div className="relative w-full z-10">
-      <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className="w-full p-5 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] outline-none transition-all shadow-xl flex justify-start items-center text-[10px] font-black capitalize tracking-widest text-[var(--text)] focus:theme-border-accent group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-2xl hover:scale-[1.02] active:scale-95 backdrop-blur-3xl relative overflow-hidden">
+   <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className="w-full p-5 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] outline-none transition-all shadow-xl flex justify-start items-center text-[10px] font-black capitalize tracking-widest text-[var(--text)] focus:theme-border-accent group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-2xl hover:scale-[1.02] active:scale-95 backdrop-blur-3xl relative ">
         <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         <span className="relative z-10">{selected?.label}</span>
         <span className="text-[var(--subtext)] opacity-60 text-[10px] group-hover:text-[var(--text)] group-hover:theme-text-accent transition-colors relative z-10 material-symbols-outlined !text-[18px]">{isOpen ? 'expand_less' : 'expand_more'}</span>
@@ -18,7 +18,7 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
       {isOpen && createPortal(
         <>
           <div className="fixed inset-0 z-[50000]" onClick={() => setIsOpen(false)} />
-          <div className="fixed mt-3 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-[50001] animate-in fade-in zoom-in-95 slide-in-from-top-2 backdrop-blur-3xl"
+     <div className="fixed mt-3 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[50001] animate-in fade-in zoom-in-95 slide-in-from-top-2 backdrop-blur-3xl"
             style={{
               top: btnRef.current?.getBoundingClientRect().bottom,
               left: btnRef.current?.getBoundingClientRect().left,

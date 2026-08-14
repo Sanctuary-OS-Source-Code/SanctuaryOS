@@ -191,9 +191,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
 
 function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
   const { t } = useLexicon();
-  const [query, setQuery] = useState("");
-  if (!isOpen) return null;
-  const results = cloudMods.filter((m: any) =>
+  const [query, setQuery] = useState("");  const results = cloudMods.filter((m: any) =>
     (m.name || '').toLowerCase().includes((query || '').toLowerCase()) ||
     (m.master_author || '').toLowerCase().includes((query || '').toLowerCase())
   ).slice(0, 15);

@@ -293,7 +293,7 @@ export default function Lab({
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4">
                   {testHistory.length > 0 ? (
                     testHistory.slice(0, 10).map((test: any, index: number) => (
-                      <div key={test.id || index} onClick={() => setSelectedReport(test)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-colors flex flex-col gap-3 relative overflow-hidden group cursor-pointer ${test.errorFound ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]'}`}>
+           <div key={test.id || index} onClick={() => setSelectedReport(test)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-colors flex flex-col gap-3 relative group cursor-pointer ${test.errorFound ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]'}`}>
                         <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${test.errorFound ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)]'}`} />
 
                         <div className="flex items-center gap-3 relative z-10">
@@ -386,7 +386,7 @@ export default function Lab({
 
             {/* LEFT COLUMN: THE CORE (SUBJECT) */}
             <div className="flex flex-col gap-6 h-full">
-              <div className="glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative flex flex-col h-full min-h-[500px] overflow-hidden group">
+       <div className="glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative flex flex-col h-full min-h-[500px] group">
                 <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-50 pointer-events-none" />
 
                 <div className="flex flex-col items-center justify-center text-center p-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
@@ -596,7 +596,7 @@ export default function Lab({
             {filteredReports.map((report: any) => {
               const isError = report.errorFound;
               return (
-                <div key={report.id} onClick={() => setSelectedReport(report)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group cursor-pointer hover:shadow-xl ${isError ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]'}`}>
+        <div key={report.id} onClick={() => setSelectedReport(report)} className={`glass-panel rounded-2xl p-5 border shadow-md transition-all flex flex-col gap-3 relative group cursor-pointer hover:shadow-xl ${isError ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]'}`}>
                   <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[30px] pointer-events-none mix-blend-screen opacity-0 group-hover:opacity-100 transition-opacity ${isError ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)]'}`} />
 
                   <div className="flex items-center gap-3 relative z-10">
@@ -675,7 +675,7 @@ export default function Lab({
               <div className="flex flex-col gap-3">
                 <h3 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("payload_composition")}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center gap-3 relative overflow-hidden group">
+         <div className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center gap-3 relative group">
                     <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-50" />
                     <span className="material-symbols-outlined text-[var(--accent)] !text-[18px] relative z-10">science</span>
                     <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(selectedReport.mod)}</span>
@@ -683,7 +683,7 @@ export default function Lab({
                   </div>
                   
                   {selectedReport.conflictTarget && (
-                    <div className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center gap-3 relative overflow-hidden group">
+          <div className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center gap-3 relative group">
                       <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--danger)_10%,transparent)] to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--danger)] !text-[18px] relative z-10">warning</span>
                       <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(selectedReport.conflictTarget)}</span>
@@ -692,7 +692,7 @@ export default function Lab({
                   )}
                   
                   {selectedReport.stagedExtras?.map((m: any) => (
-                    <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3 relative overflow-hidden group">
+          <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3 relative group">
                       <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--subtext)] !text-[18px] relative z-10">extension</span>
                       <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(m)}</span>
@@ -701,7 +701,7 @@ export default function Lab({
                   ))}
                   
                   {selectedReport.conflictExtras?.map((m: any) => (
-                    <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center gap-3 relative overflow-hidden group">
+          <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center gap-3 relative group">
                       <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--warning)_10%,transparent)] to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--warning)] !text-[18px] relative z-10">extension</span>
                       <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(m)}</span>

@@ -203,7 +203,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                 onSearchChange={setSearchQuery}
                 searchPlaceholder={t("ui_placeholder_search") as string}
             >
-                <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12">
+        <div className="flex items-stretch glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12">
                     <button
                         onClick={() => setActiveTab("pending")}
                         className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${activeTab === 'pending' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}

@@ -402,7 +402,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       return (
         <div
           key={post.id}
-          className={`glass-panel p-4 rounded-[var(--radius)] flex flex-col gap-4 group transition-all duration-300 hover:shadow-xl relative overflow-hidden border ${isDraft ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' : post.is_pinned ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
+     className={`glass-panel p-4 rounded-[var(--radius)] flex flex-col gap-4 group transition-all duration-300 hover:shadow-xl relative border ${isDraft ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' : post.is_pinned ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
         >
           {/* Background Hover Effect */}
           <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />

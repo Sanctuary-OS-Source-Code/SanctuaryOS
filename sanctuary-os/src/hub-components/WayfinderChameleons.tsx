@@ -187,7 +187,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
         defaultWidth={1400}
         headerActions={
           <div className="flex items-center gap-2">
-            <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
+      <div className="flex items-center glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
               <div className="relative group flex">
                 <button onClick={() => {
                   if (livePreview) {

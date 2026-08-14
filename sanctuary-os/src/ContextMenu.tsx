@@ -408,7 +408,7 @@ export function ContextMenu() {
       className="flex"
     >
       <div
-        className="w-48 h-max glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl overflow-hidden flex flex-col py-1 animate-in fade-in zoom-in-95 duration-100"
+    className="w-48 h-max glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl flex flex-col py-1 animate-in fade-in zoom-in-95 duration-100"
         onContextMenu={(e) => e.preventDefault()}
       >
       {misspelledInfo && (

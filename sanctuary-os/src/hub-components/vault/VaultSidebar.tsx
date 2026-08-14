@@ -19,7 +19,7 @@ export function VaultSidebar({
       </div>
       
       <div className="flex flex-col gap-4">
-        <button onClick={() => setIsBulkMode(!isBulkMode)} className={`w-full p-5 glass-panel border rounded-[var(--radius)] transition-all text-left group relative overflow-hidden flex items-center gap-4 ${isBulkMode ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]'}`}>
+    <button onClick={() => setIsBulkMode(!isBulkMode)} className={`w-full p-5 glass-panel border rounded-[var(--radius)] transition-all text-left group relative flex items-center gap-4 ${isBulkMode ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]'}`}>
           <div className={`w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors ${isBulkMode ? 'bg-[color-mix(in_srgb,var(--success)_20%,transparent)] border-[color-mix(in_srgb,var(--success)_50%,transparent)] text-emerald-500' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-500 shadow-md'}`}>
             <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">{t("icon_checklist")}</span>
           </div>
@@ -29,7 +29,7 @@ export function VaultSidebar({
           </div>
         </button>
 
-        <button onClick={() => setLocalFolderModal(true)} className="w-full p-5 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all text-left group relative overflow-hidden flex items-center gap-4">
+    <button onClick={() => setLocalFolderModal(true)} className="w-full p-5 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all text-left group relative flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-purple-500 shadow-md">
             <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">{t("icon_account_tree")}</span>
           </div>
@@ -75,7 +75,7 @@ export function VaultSidebar({
             }
           });
           setPurgeTargetFiles(Array.from(allFilesToPurge.entries()).map(([file, name]) => ({ file, name })));
-        }} className="w-full p-5 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all text-left group relative overflow-hidden flex items-center gap-4">
+    }} className="w-full p-5 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all text-left group relative flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-rose-500 shadow-md">
             <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">{t("icon_delete_sweep")}</span>
           </div>
@@ -85,7 +85,7 @@ export function VaultSidebar({
           </div>
         </button>
 
-        <button onClick={() => useStore.getState().setView("nexus")} className="w-full p-5 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all text-left group relative overflow-hidden flex items-center gap-4">
+    <button onClick={() => useStore.getState().setView("nexus")} className="w-full p-5 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all text-left group relative flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--warning)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-500 shadow-md">
             <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">{t("icon_auto_awesome")}</span>
           </div>

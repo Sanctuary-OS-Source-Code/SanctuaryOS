@@ -24,9 +24,7 @@ import MarkdownRenderer from "../MarkdownRenderer";
 
 
 export function ServerHealthSidePanel({ isOpen, onClose, stats }: any) {
-  const { t } = useLexicon();
-  if (!isOpen) return null;
-
+  const { t } = useLexicon();
   return (
     <SidePanel
       isOpen={isOpen}

@@ -95,7 +95,7 @@ export default function MasonEditorPanel({
             defaultWidth={isFullscreen ? window.innerWidth : (showReference ? 1400 : 1000)}
             panelClass={isFullscreen ? "!w-full !max-w-[100vw] !border-r-0 !rounded-none transition-all duration-500" : "transition-all duration-500"}
             headerActions={
-               <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner mr-2 backdrop-blur-md">
+        <div className="flex items-center glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner mr-2 backdrop-blur-md">
                   <div className="relative group flex">
                      <button
                         onClick={() => setIsFullscreen(!isFullscreen)}

@@ -338,7 +338,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               {isDropdownOpen && !manualSelectedMod && manualSearchResults.length > 0 && createPortal(
                 <>
                   <div className="fixed inset-0 z-[50000]" onClick={() => setIsDropdownOpen(false)} />
-                  <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md overflow-hidden z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
+         <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
                     top: inputRef.current?.getBoundingClientRect().bottom,
                     left: inputRef.current?.getBoundingClientRect().left,
                     width: inputRef.current?.getBoundingClientRect().width,

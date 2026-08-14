@@ -255,7 +255,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
         </div>
 
         {blockedMods.length > 0 && (
-          <div className="mt-8 p-10 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] flex flex-col gap-6 shadow-2xl relative overflow-hidden transition-all duration-500 animate-in fade-in zoom-in-95 group">
+     <div className="mt-8 p-10 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] flex flex-col gap-6 shadow-2xl relative transition-all duration-500 animate-in fade-in zoom-in-95 group">
             <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
             <div className="flex items-center gap-5 relative z-10">
               <div className="w-14 h-14 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center text-[var(--danger)] shadow-[inset_0_0_20px_rgba(var(--danger-rgb),0.1)] shrink-0">

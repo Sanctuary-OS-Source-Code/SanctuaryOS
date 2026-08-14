@@ -146,7 +146,7 @@ export default function ArchitectTemplateOversight() {
                     />
                 </div>
 
-                <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 z-40">
+        <div className="flex items-stretch glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 z-40">
                     <button
                         onClick={() => setActiveFilterTab("active")}
                         className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${activeFilterTab === 'active' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
@@ -264,7 +264,7 @@ export default function ArchitectTemplateOversight() {
                                 return (
                                     <div
                                         onClick={() => setSelectedTemplateForPreview(defaultTmpl)}
-                                        className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] transition-all duration-300 cursor-pointer hover:shadow-[0_10px_30px_rgba(16,185,129,0.15)] relative overflow-hidden group"
+                    className="flex flex-col glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] transition-all duration-300 cursor-pointer hover:shadow-[0_10px_30px_rgba(16,185,129,0.15)] relative group"
                                     >
                                         <div className="absolute top-0 left-0 w-full h-1 bg-[var(--success)] opacity-50" />
                                         <div className="p-6 flex items-start gap-5">

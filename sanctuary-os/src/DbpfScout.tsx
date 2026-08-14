@@ -508,7 +508,7 @@ export const DbpfScout = () => {
                     <ScreenUtilityBar
                       leftContent={
                         <div className="flex items-center gap-4 pr-4">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border glass-panel relative overflow-hidden shadow-sm border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+             <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border glass-panel relative shadow-sm border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                             <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] relative z-10">map</span>
                           </div>
                           <h2 className="text-2xl font-black tracking-tighter capitalize leading-tight m-0 text-[var(--text)]">{t("select_blueprint")}</h2>
@@ -538,7 +538,7 @@ export const DbpfScout = () => {
                         const sCount = scanScope === blueprint.name && hasScanned ? softConflicts.length : cachedStats.soft;
 
                         return (
-                          <div key={blueprint.name} className={`glass-panel rounded-2xl p-6 border ${scanScope === blueprint.name ? 'border-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} shadow-lg flex flex-col gap-4 group transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] relative overflow-hidden`} style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--accent) 15%, transparent)' } : {}}>
+             <div key={blueprint.name} className={`glass-panel rounded-2xl p-6 border ${scanScope === blueprint.name ? 'border-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} shadow-lg flex flex-col gap-4 group transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] relative `} style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--accent) 15%, transparent)' } : {}}>
                             <div className="flex items-start justify-start">
                               <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-xl ${scanScope === blueprint.name ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'} border flex items-center justify-center transition-colors relative`}>
@@ -646,7 +646,7 @@ export const DbpfScout = () => {
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-12 shrink-0">
+         <div className="flex items-center glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-12 shrink-0">
                     <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 4 ? null : 4)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 4 ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)]' : 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S4</button>
                     <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 3 ? null : 3)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 3 ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)]' : 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S3</button>
                     <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 2 ? null : 2)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 2 ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S2</button>
@@ -918,7 +918,7 @@ export const DbpfScout = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-12 shrink-0">
+         <div className="flex items-center glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-12 shrink-0">
                     <button onClick={() => setOverrideTab("ACTIVE")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] capitalize tracking-widest transition-all ${overrideTab === "ACTIVE" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("active")}</button>
                     <button onClick={() => setOverrideTab("IGNORED")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] capitalize tracking-widest transition-all ${overrideTab === "IGNORED" ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ignored")}</button>
                   </div>

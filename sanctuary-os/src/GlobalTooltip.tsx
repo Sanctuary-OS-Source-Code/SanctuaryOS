@@ -84,7 +84,7 @@ export function GlobalTooltip() {
         ) : (
           <div 
             ref={tooltipRef}
-            className={`flex flex-col items-start justify-center px-5 py-3 max-w-[320px] w-max border ${borderColorClass} shadow-2xl animate-in fade-in zoom-in-95 rounded-xl relative overflow-hidden bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md`}
+            className={`flex flex-col items-start justify-center px-5 py-3 max-w-[320px] w-max border ${borderColorClass} shadow-2xl animate-in fade-in zoom-in-95 rounded-xl relative overflow-hidden bg-[color-mix(in_srgb,var(--text)_5%,transparent)]`}
           >
             {/* 3D Glass Inner Top Highlight */}
             <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-60 pointer-events-none z-0" />

@@ -56,7 +56,7 @@ export function DefconPanel() {
   };
 
   return (
-    <div className={`w-full max-w-xl mx-auto mt-12 glass-panel border rounded-[var(--radius)] p-8 flex flex-col items-center justify-center text-center gap-6 relative overflow-hidden shrink-0 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+  <div className={`w-full max-w-xl mx-auto mt-12 glass-panel border rounded-[var(--radius)] p-8 flex flex-col items-center justify-center text-center gap-6 relative shrink-0 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
       {defconLevel === 1 && <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] animate-pulse pointer-events-none" />}
 
       <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center relative z-10 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
@@ -80,7 +80,7 @@ export function DefconPanel() {
         {defconLevel === 1 ? t("defcon_stand_down") : t("defcon_initiate")}
       </button>      {showDefconConfirmModal && (
         <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] backdrop-blur-md animate-in fade-in duration-300 p-8">
-          <div className="relative w-full max-w-4xl glass-panel border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-12 shadow-2xl flex flex-col gap-8 overflow-hidden">
+     <div className="relative w-full max-w-4xl glass-panel border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-12 shadow-2xl flex flex-col gap-8 ">
             {defconLevel === 5 && (
               <>
                 <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(245,158,11,0.03)_25%,transparent,25%,transparent,50%,rgba(245,158,11,0.03),50%,rgba(245,158,11,0.03),75%,transparent,75%,transparent)] bg-[length:64px_64px] pointer-events-none opacity-50"></div>
@@ -254,7 +254,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
         ) : (
           <>
             <UniversalGroup title={t("defcon_override_title")} icon="admin_panel_settings">
-              <div className={`glass-panel rounded-2xl flex flex-col items-center justify-center p-10 text-center relative overflow-hidden transition-all duration-700 z-10 shadow-lg ${status?.defcon_level === 1 ? 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-[inset_0_0_40px_rgba(239,68,68,0.1)]' : 'border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}>
+       <div className={`glass-panel rounded-2xl flex flex-col items-center justify-center p-10 text-center relative transition-all duration-700 z-10 shadow-lg ${status?.defcon_level === 1 ? 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-[inset_0_0_40px_rgba(239,68,68,0.1)]' : 'border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}>
 
                 {status?.defcon_level === 1 && (
                   <>
@@ -305,7 +305,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                 </p>
               </div>
 
-              <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+       <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] p-4 rounded-xl flex items-center gap-4 relative ">
                 <div className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
                   <span className="material-symbols-outlined text-red-500 !text-sm animate-pulse">{t("icon_threat_intelligence")}</span>
                 </div>

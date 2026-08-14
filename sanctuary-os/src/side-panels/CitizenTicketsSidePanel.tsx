@@ -12,10 +12,7 @@ interface CitizenTicketsSidePanelProps {
 
 export default function CitizenTicketsSidePanel({ isOpen, onClose, userId }: CitizenTicketsSidePanelProps) {
   const { t } = useLexicon();
-  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
-
-  if (!isOpen) return null;
-
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   return (
     <>
       <SidePanel

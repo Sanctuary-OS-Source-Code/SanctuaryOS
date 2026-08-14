@@ -139,10 +139,7 @@ export function CustomStatusDropdown({ value, onChange }: { value: string, onCha
 
 function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { isOpen: boolean, onClose: () => void, onSelect: (targetId: string) => void, cloudMods: any[], mode: string }) {
   const { t } = useLexicon();
-  const [query, setQuery] = useState("");
-
-  if (!isOpen) return null;
-
+  const [query, setQuery] = useState("");
   const results = cloudMods.filter((m: any) =>
     (m.name || '').toLowerCase().includes((query || '').toLowerCase()) ||
     (m.master_author || '').toLowerCase().includes((query || '').toLowerCase())

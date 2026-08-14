@@ -1,5 +1,6 @@
 import { useStore } from './store';
 import { useLexicon } from "./LexiconContext";
+import { useTheme } from "./ThemeContext";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -371,7 +372,7 @@ export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(
     <header className="flex flex-col xl:flex-row w-full justify-start items-start mb-6 shrink-0 gap-6">
       <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
         {icon && (
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border glass-panel relative overflow-hidden group shadow-md`}>
+     <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border glass-panel relative group shadow-md`}>
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             {typeof icon === "string" ? (
               <span className={`material-symbols-outlined !text-[20px] relative z-10 ${iconColorClass}`}>{icon}</span>
@@ -462,7 +463,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
           return (
             <>
               <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
-              <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl overflow-hidden pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+       <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
                 zIndex: 200001,
                 top: shouldDropUp ? undefined : rect.bottom + 8,
                 bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
@@ -650,38 +651,54 @@ export function FilterPopover({ icon = "tune", label, options, activeTab, setTab
       </button>
 
       {isOpen && (
-        <>
-          <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
-          <div
-            className="absolute glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden pointer-events-auto animate-in fade-in zoom-in-95 duration-200 min-w-[200px] p-2 flex flex-col gap-1 backdrop-blur-xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)]"
-            style={{
-              zIndex: 200001,
-              top: 'calc(100% + 8px)',
-              right: (btnRef.current?.getBoundingClientRect().left || 0) >= window.innerWidth / 2 ? 0 : undefined,
-              left: (btnRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2 ? 0 : undefined,
-              width: 'max-content',
-            }}
-          >
-            {options.map((opt: any) => {
-              const active = isOptionActive(opt.id);
-              return (
-                <button
-                  key={opt.id}
-                  onClick={() => handleSelect(opt.id)}
-                  className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg transition-colors group ${active
-                    ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]'
-                    : 'text-[var(--text)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
-                    }`}
-                >
-                  <div className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors ${active ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]' : 'border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]'}`}>
-                    {active && <span className="material-symbols-outlined !text-[12px] font-bold">check</span>}
-                  </div>
-                  <span className="text-xs font-bold capitalize tracking-wide leading-none pt-0.5">{opt.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </>
+        (() => {
+          const portalRoot = document.getElementById("sa-portals");
+          if (!portalRoot) return null;
+          
+          const rect = btnRef.current?.getBoundingClientRect();
+          const isRightSide = (rect?.left || 0) >= window.innerWidth / 2;
+          
+          return createPortal(
+            <>
+              <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
+              <div
+        className="fixed glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 min-w-[200px] p-2 flex flex-col gap-1 backdrop-blur-2xl bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]"
+                style={{
+                  zIndex: 200001,
+                  top: rect ? rect.bottom + 8 : 0,
+                  left: rect ? (isRightSide ? rect.right : rect.left) : 0,
+                  transform: isRightSide ? 'translateX(-100%)' : undefined,
+                  width: 'max-content',
+                }}
+              >
+                {options.map((opt: any) => {
+                  const active = isOptionActive(opt.id);
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => handleSelect(opt.id)}
+                      className={`flex items-center justify-center gap-3 w-full px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden ${active
+                        ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)]'
+                        : 'text-[var(--text)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+                        }`}
+                    >
+                      {multiSelect && (
+                        <div className={`absolute left-4 w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${active ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]' : 'border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]'}`}>
+                          {active && <span className="material-symbols-outlined !text-[12px] font-bold">check</span>}
+                        </div>
+                      )}
+                      <span className={`text-[11px] font-black capitalize tracking-widest leading-none pt-0.5 text-center ${active ? 'drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]' : ''}`}>{opt.label}</span>
+                      {active && !multiSelect && (
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] absolute right-4 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]">check</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>,
+            portalRoot
+          );
+        })()
       )}
     </div>
   );
@@ -755,7 +772,7 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
           <div
             ref={menuRef}
-            className="absolute mt-2 min-w-[200px] glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl pointer-events-auto overflow-hidden flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
+      className="absolute mt-2 min-w-[200px] glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl pointer-events-auto flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
             style={{
               zIndex: 200001,
               top: 'calc(100% + 4px)',
@@ -992,7 +1009,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
       {isOpen && (
         <>
           <div className="fixed inset-0" style={{ zIndex: 99998 }} onClick={() => setIsOpen(false)} />
-          <div className="absolute glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl overflow-hidden animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+     <div className="absolute glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
             zIndex: 99999,
             top: 'calc(100% + 4px)',
             left: 0,
@@ -1099,7 +1116,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
       {isOpen && (
         <>
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
-          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden pointer-events-auto animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
+     <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
             zIndex: 200001,
             top: containerRef.current?.getBoundingClientRect().bottom,
           left: (containerRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2
@@ -1191,7 +1208,7 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
       {isOpen && (
         <>
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
-          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl overflow-hidden pointer-events-auto animate-in fade-in slide-in-from-top-2 p-4 w-64" style={{
+     <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-top-2 p-4 w-64" style={{
             zIndex: 200001,
             top: btnRef.current?.getBoundingClientRect().bottom,
             left: (btnRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2
@@ -1410,7 +1427,10 @@ export function SidePanel({
   coverImage?: string
 }) {
   const { t } = useLexicon();
+  const theme = useTheme();
   const depth = React.useContext(PanelDepthContext);
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const [panelWidth, setPanelWidth] = useState<number>(defaultWidth || 800);
   useEffect(() => {
     if (defaultWidth) setPanelWidth(defaultWidth);
@@ -1441,7 +1461,21 @@ export function SidePanel({
     };
   }, [isResizing, defaultWidth]);
 
-  if (!isOpen && !keepMounted) return null;
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      setIsAnimatingOut(false);
+    } else if (shouldRender && !keepMounted) {
+      setIsAnimatingOut(true);
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+        setIsAnimatingOut(false);
+      }, 500); // Wait for the 0.5s slide-out animation
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, shouldRender, keepMounted]);
+
+  if (!shouldRender && !keepMounted) return null;
 
   const calculatedBackdropZ = 40000 + (depth * 10);
   const calculatedPanelZ = 40000 + (depth * 10) + 1;
@@ -1450,22 +1484,25 @@ export function SidePanel({
   const finalBackdropZ = depth > 0 ? calculatedBackdropZ : parsedBackdropZ;
   const finalPanelZ = depth > 0 ? calculatedPanelZ : parsedPanelZ;
 
-  return (
+  const panelContent = (
     <PanelDepthContext.Provider value={depth + 1}>
-      <div className={`sa-side-panel-wrapper ${isOpen ? 'sa-panel-open' : ''}`} data-depth={depth} style={keepMounted && !isOpen ? { opacity: 0, pointerEvents: 'none', transition: 'opacity 0.2s ease-in-out' } : { opacity: 1, pointerEvents: 'auto', transition: 'opacity 0.2s ease-in-out' }}>
+      <div className={`sa-side-panel-wrapper ${isOpen && !isAnimatingOut ? 'sa-panel-open' : ''}`} data-depth={depth} style={keepMounted && (!isOpen || isAnimatingOut) ? { opacity: 0, pointerEvents: 'none', transition: 'opacity 0.2s ease-in-out' } : { opacity: 1, pointerEvents: 'auto', transition: 'opacity 0.2s ease-in-out' }}>
         {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
         <div
-          className={`sa-side-panel-backdrop fixed inset-0 z-0 ${depth > 0 || noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[3px]'} animate-in fade-in duration-500 transition-all`}
+          className={`sa-side-panel-backdrop fixed inset-0 z-0 ${depth > 0 || noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[3px]'} ${isAnimatingOut ? 'animate-out fade-out opacity-0 duration-500' : 'animate-in fade-in duration-500'}`}
           style={{ zIndex: finalBackdropZ }}
           onClick={onClose}
         />
         <div
           ref={panelRef}
-          className={`sa-side-panel-window ${position === 'left' ? 'sa-panel-left' : 'sa-panel-right'} fixed top-[0px] bottom-[0px] ${position === 'left' ? 'left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} flex flex-col ${depth > 0 ? '' : panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : 'duration-500 transition-all ease-out'} ${panelClass || ''} ${keepMounted ? '' : (position === 'left' ? 'animate-in slide-in-from-left' : 'animate-in slide-in-from-right')}`}
-          style={{ zIndex: finalPanelZ, ...(isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined } : {}), ...panelStyle }}
+          className={`sa-side-panel-window ${position === 'left' ? 'sa-panel-left' : 'sa-panel-right'} fixed top-[0px] bottom-[0px] ${position === 'left' ? 'left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} flex flex-col ${depth > 0 ? '' : panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''} ${keepMounted ? '' : (isAnimatingOut ? (position === 'left' ? 'sa-panel-slide-out-left' : 'sa-panel-slide-out-right') : (position === 'left' ? 'sa-panel-slide-left' : 'sa-panel-slide-right'))} ${noPanelBlur ? '' : 'backdrop-blur-[var(--glassBlur)]'}`}
+          style={{ zIndex: finalPanelZ, background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal) * 100%), transparent)`, ...(isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined } : {}), ...panelStyle }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className={`absolute inset-0 pointer-events-none z-[-2] glass-panel !border-none !shadow-none !rounded-none ${noPanelBlur ? '!backdrop-blur-none' : ''}`} />
+          {theme.ambientNoise && (
+            <div className="absolute inset-0 z-[-1] opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
+          )}
+          
           {isResizable && (
             <div
               className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
@@ -1509,7 +1546,7 @@ export function SidePanel({
               <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">
                 <h2 className="text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-6 min-w-0 w-full">
                   {icon && (
-                    <div className={`w-16 h-16 rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden group/iconbox ${iconColorClass || ''}`}>
+          <div className={`w-16 h-16 rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative group/iconbox ${iconColorClass || ''}`}>
                       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
                       <span className={`material-symbols-outlined opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
                         {icon}
@@ -1547,6 +1584,9 @@ export function SidePanel({
       </div>
     </PanelDepthContext.Provider>
   );
+
+  const portalRoot = document.getElementById('sa-portals') || document.body;
+  return createPortal(panelContent, portalRoot);
 }
 
 export function SearchBar({ value, onChange, placeholder = "Search...", className = "", isLoading }: { value: string; onChange: (v: string) => void; placeholder?: string, className?: string, isLoading?: boolean }) {
@@ -1680,20 +1720,19 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={style}
-      className={`flex-1 min-w-0 h-full flex items-center p-3 gap-3 glass-panel ${cleanColorClass} ${textColor} relative overflow-hidden group ${disabled ? 'opacity-50 cursor-not-allowed' : onClick ? 'cursor-pointer' : ''}`}
+      className={`flex-1 min-w-0 h-full flex items-center p-3 gap-3 glass-panel ${cleanColorClass} ${textColor} relative group transition duration-500 ${disabled ? 'opacity-50 cursor-not-allowed' : onClick ? 'cursor-pointer' : ''}`}
     >
-      <div className="absolute inset-0 bg-current opacity-0 pointer-events-none rounded-[inherit] blur-xl" />
+      <div className="absolute inset-0 bg-radial-[at_0%_0%] from-[color-mix(in_srgb,currentColor_15%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-[inherit]" />
 
-      <div className="h-14 w-14 rounded-[1rem] flex flex-col items-center justify-center shrink-0 relative overflow-hidden bg-[color-mix(in_srgb,currentColor_10%,transparent)] border border-[color-mix(in_srgb,currentColor_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent opacity-0 pointer-events-none mix-blend-overlay" />
-        <span className="opacity-80 drop-shadow-[0_0_15px_currentColor] shrink-0 [&_.material-symbols-outlined]:!text-[28px]">{icon}</span>
+      <div className="h-14 w-14 rounded-[1rem] flex flex-col items-center justify-center shrink-0 relative overflow-hidden transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_20px_color-mix(in_srgb,currentColor_20%,transparent)] bg-[color-mix(in_srgb,currentColor_10%,transparent)] border border-[color-mix(in_srgb,currentColor_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)]">
+        <span className="opacity-80 group-hover:opacity-100 transition-opacity duration-300 drop-shadow-[0_0_15px_currentColor] shrink-0 [&_.material-symbols-outlined]:!text-[28px]">{icon}</span>
       </div>
 
-      <div className="w-[1px] h-10 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,currentColor_30%,transparent)] to-transparent shrink-0" />
+      <div className="w-[1px] h-10 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,currentColor_30%,transparent)] to-transparent shrink-0 opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
 
       <div className="flex flex-col flex-1 min-w-0 relative z-10 py-1">
-        <span className="text-[11px] uppercase tracking-widest font-black text-[var(--subtext)] opacity-70 mb-0 w-full leading-tight">{label}</span>
-        <span className={`${sizeClass} font-[900] tracking-tighter truncate drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)]`} title={strVal}>
+        <span className="text-[11px] uppercase tracking-widest font-black text-[var(--subtext)] opacity-70 group-hover:opacity-100 transition-opacity duration-500 mb-0 w-full leading-tight">{label}</span>
+        <span className={`${sizeClass} font-[900] tracking-tighter truncate drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)] group-hover:brightness-125 transition-all duration-500`}>
           {displayValue}
         </span>
       </div>
@@ -2298,3 +2337,4 @@ export function SystemAlertBanner({ type = 'info', title, message, icon, action,
     </div>
   );
 };
+

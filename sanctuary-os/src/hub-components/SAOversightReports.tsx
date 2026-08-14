@@ -148,7 +148,7 @@ export default function SAOversightReports() {
                         setViewingReport(report); 
                       }
                     }}
-                    className={`cursor-pointer glass-panel rounded-[var(--radius)] flex flex-col group/card border transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[160px] ${isMalware ? 'border-red-900/50 hover:border-red-500 hover:shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md'}`}
+          className={`cursor-pointer glass-panel rounded-[var(--radius)] flex flex-col group/card border transition-all duration-500 relative bg-gradient-to-br from-white/5 to-transparent min-h-[160px] ${isMalware ? 'border-red-900/50 hover:border-red-500 hover:shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md'}`}
                   >
                     <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                       <div className="flex justify-between items-start gap-4">
@@ -276,7 +276,7 @@ export default function SAOversightReports() {
                     <div 
                       key={r.id} 
                       onClick={() => setViewingReport(r)}
-                      className={`p-4 glass-panel rounded-2xl cursor-pointer transition-colors flex flex-col gap-1 border overflow-hidden relative group/item ${isMalware ? 'border-red-900/30 hover:border-red-500' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]'}`}
+           className={`p-4 glass-panel rounded-2xl cursor-pointer transition-colors flex flex-col gap-1 border relative group/item ${isMalware ? 'border-red-900/30 hover:border-red-500' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]'}`}
                     >
                        <div className="flex justify-between items-start gap-2 relative z-10 mb-1">
                           <span className="text-sm font-black text-[var(--text)] tracking-widest">{rDate.toLocaleDateString()}</span>

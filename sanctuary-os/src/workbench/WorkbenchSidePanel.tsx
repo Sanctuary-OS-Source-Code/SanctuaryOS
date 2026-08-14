@@ -74,7 +74,7 @@ export function WorkbenchSidePanel({
          defaultWidth={layoutState.isFullscreen ? window.innerWidth : ((isTemplateMode && previewMode !== 'off') || activeTab === 'dual' ? 1400 : 900)}
          panelClass={layoutState.isFullscreen ? "!w-full !max-w-[100vw] !border-r-0 !rounded-none" : ""}
          headerActions={
-            <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner mr-2 backdrop-blur-md">
+      <div className="flex items-center glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner mr-2 backdrop-blur-md">
                <div className="relative group flex">
                   <button
                      onClick={() => layoutState.setIsFullscreen(!layoutState.isFullscreen)}
@@ -306,7 +306,7 @@ export function WorkbenchSidePanel({
                         </>
                      )}
 
-                     <div ref={layoutState.rawContainerRef} className={`monaco-wrapper relative flex flex-col glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${activeTab === 'dual' ? 'shrink-0' : 'flex-1 min-w-0 min-h-0'} ${activeTab !== 'raw' && activeTab !== 'dual' ? 'hidden' : ''}`} style={activeTab === 'dual' ? { width: layoutState.isResizingPreview ? layoutState.dragPreviewWidthRef.current : layoutState.previewWidth } : {}}>
+           <div ref={layoutState.rawContainerRef} className={`monaco-wrapper relative flex flex-col glass-panel rounded-[var(--radius)] shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${activeTab === 'dual' ? 'shrink-0' : 'flex-1 min-w-0 min-h-0'} ${activeTab !== 'raw' && activeTab !== 'dual' ? 'hidden' : ''}`} style={activeTab === 'dual' ? { width: layoutState.isResizingPreview ? layoutState.dragPreviewWidthRef.current : layoutState.previewWidth } : {}}>
                            <WorkbenchRawEditor
                               value={editorState.rawText}
                               onChange={editorState.handleRawChange}
@@ -443,7 +443,7 @@ export function WorkbenchSidePanel({
                            >
                               <div className="h-12 w-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
                            </div>
-                           <div className={`shrink-0 glass-panel rounded-[var(--radius)] overflow-hidden shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: layoutState.previewWidth }}>
+              <div className={`shrink-0 glass-panel rounded-[var(--radius)] shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: layoutState.previewWidth }}>
                               <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 text-center flex items-center justify-start">
                                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-2">{previewMode === 'preview' ? t("workbench_preview_title") : (editorState.parsedData?.target_file || 'Target File')}</span>
                               </div>

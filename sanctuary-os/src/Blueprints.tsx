@@ -253,7 +253,7 @@ export default function Blueprints({
     const isPinned = pinnedBlueprints.includes(set.name);
     const hasAlerts = alertStatus && alertStatus.total > 0;
     return (
-      <div key={set.name} className={`glass-panel p-6 rounded-3xl flex flex-col transition-all min-h-[14rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative overflow-hidden group/card ${activeSetName === set.name ? 'border-[var(--success)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)]'}`} style={activeSetName === set.name ? { backgroundColor: 'color-mix(in srgb, var(--success) 10%, transparent)' } : {}}>
+   <div key={set.name} className={`glass-panel p-6 rounded-3xl flex flex-col transition-all min-h-[14rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative group/card ${activeSetName === set.name ? 'border-[var(--success)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)]'}`} style={activeSetName === set.name ? { backgroundColor: 'color-mix(in srgb, var(--success) 10%, transparent)' } : {}}>
         <div className={`absolute inset-0 bg-gradient-to-br pointer-events-none transition-opacity duration-500 opacity-0 group-hover/card:opacity-100 ${activeSetName === set.name ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent'}`} />
 
         <button onClick={() => togglePin(set.name)} className={`absolute top-6 right-6 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${isPinned ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] opacity-100 shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)]' : 'text-[var(--subtext)] opacity-0 group-hover/card:opacity-50 hover:!opacity-100 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
@@ -482,7 +482,7 @@ export default function Blueprints({
                   iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                 />
                 {syncInputVisible ? (
-                  <div className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] rounded-[var(--radius)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] relative overflow-hidden h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
+         <div className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] rounded-[var(--radius)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] relative h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
                     <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_10%,transparent)] via-transparent to-transparent opacity-100" />
                     <div className="flex items-center gap-5 h-full relative z-10 w-full">
                       <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
@@ -586,7 +586,7 @@ export default function Blueprints({
 
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-12">
             {isDraftingSet && (
-              <div className="glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-6 rounded-[var(--radius)] flex flex-col gap-4 animate-in zoom-in-95 shadow-[0_0_30px_rgba(var(--accent-rgb),0.1)] relative overflow-hidden bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] min-h-[14rem] justify-center">
+       <div className="glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-6 rounded-[var(--radius)] flex flex-col gap-4 animate-in zoom-in-95 shadow-[0_0_30px_rgba(var(--accent-rgb),0.1)] relative bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] min-h-[14rem] justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />
                 <input
                   autoFocus
@@ -655,7 +655,7 @@ export default function Blueprints({
                   return (
                     <div
                       key={bp.code}
-                      className={`flex flex-col items-start gap-4 p-6 rounded-3xl glass-panel border transition-all text-left group/btn animate-in slide-in-from-bottom-2 duration-500 fill-mode-both shadow-[0_20px_50px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)] min-h-[14rem] relative overflow-hidden ${inVault ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
+           className={`flex flex-col items-start gap-4 p-6 rounded-3xl glass-panel border transition-all text-left group/btn animate-in slide-in-from-bottom-2 duration-500 fill-mode-both shadow-[0_20px_50px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)] min-h-[14rem] relative ${inVault ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
                       style={{ animationDelay: `${i * 50}ms` }}
                     >
                       <div className={`absolute inset-0 bg-gradient-to-br transition-opacity duration-500 opacity-0 group-hover/btn:opacity-100 pointer-events-none ${inVault ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent'}`} />

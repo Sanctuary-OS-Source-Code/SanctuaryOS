@@ -76,7 +76,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
       <div
         className={`fixed bottom-12 left-1/2 -translate-x-1/2 z-[140000] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${showToast ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-4 opacity-0 pointer-events-none"}`}
       >
-        <div 
+        <div
           onClick={() => setIsLogExpanded(!isLogExpanded)}
           className={`flex items-center gap-3 px-5 py-2.5 rounded-full shadow-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors ${statusBgClass}`}
         >
@@ -87,12 +87,12 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
           <span className={`${isErrorStatus ? 'text-red-100' : isSuccessStatus ? 'text-emerald-100' : 'text-[var(--text)]'} font-bold text-xs truncate max-w-[400px] flex items-center drop-shadow-md`}>
             {(() => {
               if (isScanning && scanProgress) {
-                 return (
-                   <span className="flex items-center gap-2">
-                     <span className="truncate">{t("btn_radar")}: {scanProgress.message}</span>
-                     <span className="text-[var(--accent)] font-black">{scanProgress.total > 0 ? Math.round((scanProgress.current / scanProgress.total) * 100) : 0}%</span>
-                   </span>
-                 );
+                return (
+                  <span className="flex items-center gap-2">
+                    <span className="truncate">{t("btn_radar")}: {scanProgress.message}</span>
+                    <span className="text-[var(--accent)] font-black">{scanProgress.total > 0 ? Math.round((scanProgress.current / scanProgress.total) * 100) : 0}%</span>
+                  </span>
+                );
               }
               if (typeof status !== 'string') return status;
               const match = status.match(/^([a-z_0-9]+)\s+(.*)$/);
@@ -112,160 +112,160 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
       </div>
 
       {/* Dock Area Container */}
-      <div 
+      <div
         className="fixed bottom-0 left-0 right-0 z-[140000] flex items-end justify-center pointer-events-none"
         onMouseEnter={handleDockEnter}
         onMouseLeave={handleDockLeave}
       >
-        
+
         {/* Contiguous Hover Wrapper */}
         <div className={`pointer-events-auto flex flex-col items-center justify-end transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${dockTransformClass} pb-4`}>
-          
+
           {/* Invisible hit bar to fully encapsulate tooltips so mouse-up doesn't drop hover */}
           <div className="w-[800px] max-w-[100vw] h-16 cursor-default" />
 
           {/* The Dock Pill */}
           <div className={`glass-panel rounded-full flex items-center px-4 py-1.5 gap-1 shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-opacity duration-500 ${dockOpacityClass}`}>
-          
 
 
-          {/* 1. Radar Sweep Modal */}
-          {dnaMatchQueue && dnaMatchQueue.length > 0 && (
+
+            {/* 1. Radar Sweep Modal */}
+            {dnaMatchQueue && dnaMatchQueue.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsDnaModalOpen(!isDnaModalOpen);
+                }}
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group/btn ${isDnaModalOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+              >
+                <span className="material-symbols-outlined !text-[20px] text-orange-500 drop-shadow-md animate-pulse">{t("icon_radar")}</span>
+                <HoverTooltip title={<><span className="font-black text-orange-500">{dnaMatchQueue.length}</span> {t("radar_title")}</>} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              </button>
+            )}
+
+            {/* 2. Unknown DNA */}
+            {scoutQueue && scoutQueue.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsScoutPanelOpen(!isScoutPanelOpen);
+                }}
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group/btn ${isScoutPanelOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+              >
+                <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)] animate-pulse">{t("icon_biotech")}</span>
+                <HoverTooltip title={<><span className="font-black text-[var(--accent)]">{scoutQueue.length}</span> {t("queue_title")}</>} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              </button>
+            )}
+
+            {/* 3. Nexus Asset Updates */}
+            {nexusUpdatesCount > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setView('nexus');
+                  if (nexusUpdateTabs && nexusUpdateTabs.length > 0) {
+                    setMarketTab(nexusUpdateTabs[0]);
+                  }
+                }}
+                className="flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group/btn text-[var(--accent)] relative"
+              >
+                <span className="material-symbols-outlined !text-[20px] animate-pulse">cloud_download</span>
+                <HoverTooltip title={<>{nexusUpdatesCount} {t("updates_ready")}</>} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              </button>
+            )}
+
+            {/* 4. Radar Sweep Panel */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setIsDnaModalOpen(!isDnaModalOpen);
+                setIsConflictRadarOpen(!isConflictRadarOpen);
               }}
-              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group/btn ${isDnaModalOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn ${isConflictRadarOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100'} relative`}
             >
-              <span className="material-symbols-outlined !text-[20px] text-orange-500 drop-shadow-md animate-pulse">{t("icon_radar")}</span>
-              <HoverTooltip title={<><span className="font-black text-orange-500">{dnaMatchQueue.length}</span> {t("radar_title")}</>} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              <span className={`material-symbols-outlined !text-[20px] ${radarIconColor}`}>{t("icon_radar")}</span>
+              <HoverTooltip title={t("btn_radar")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
             </button>
-          )}
 
-          {/* 2. Unknown DNA */}
-          {scoutQueue && scoutQueue.length > 0 && (
+            {/* 5. Blueprint Hot Swap */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setIsScoutPanelOpen(!isScoutPanelOpen);
+                setIsBlueprintSwapOpen(!isBlueprintSwapOpen);
               }}
-              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group/btn ${isScoutPanelOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-90 hover:opacity-100'} relative`}
+              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn ${isBlueprintSwapOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100'} relative`}
             >
-              <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] drop-shadow-[0_0_5px_var(--accent)] animate-pulse">{t("icon_biotech")}</span>
-              <HoverTooltip title={<><span className="font-black text-[var(--accent)]">{scoutQueue.length}</span> {t("queue_title")}</>} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              <span className={`material-symbols-outlined !text-[20px]`}>{t("icon_map")}</span>
+              <HoverTooltip title={t("playsets_title")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
             </button>
-          )}
 
-          {/* 3. Nexus Asset Updates */}
-          {nexusUpdatesCount > 0 && (
+            {/* 6. System Status */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setView('nexus');
-                if (nexusUpdateTabs && nexusUpdateTabs.length > 0) {
-                  setMarketTab(nexusUpdateTabs[0]);
-                }
-              }}
-              className="flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group/btn text-[var(--accent)] relative"
-            >
-              <span className="material-symbols-outlined !text-[20px] animate-pulse">cloud_download</span>
-              <HoverTooltip title={<>{nexusUpdatesCount} {t("updates_ready")}</>} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-            </button>
-          )}
-
-          {/* 4. Radar Sweep Panel */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsConflictRadarOpen(!isConflictRadarOpen);
-            }}
-            className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn ${isConflictRadarOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100'} relative`}
-          >
-            <span className={`material-symbols-outlined !text-[20px] ${radarIconColor}`}>{t("icon_radar")}</span>
-            <HoverTooltip title={t("btn_radar")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-          </button>
-
-          {/* 5. Blueprint Hot Swap */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsBlueprintSwapOpen(!isBlueprintSwapOpen);
-            }}
-            className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn ${isBlueprintSwapOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100'} relative`}
-          >
-            <span className={`material-symbols-outlined !text-[20px]`}>{t("icon_map")}</span>
-            <HoverTooltip title={t("playsets_title")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-          </button>
-
-          {/* 6. System Status */}
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsSystemStatusOpen((prev: boolean) => !prev); }}
-            className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative
+              onClick={(e) => { e.stopPropagation(); setIsSystemStatusOpen((prev: boolean) => !prev); }}
+              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative
                 ${isSystemStatusOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-white' : 'hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100'}
                 ${updatePayload ? 'theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] font-bold' : ''}
                 ${isErrorStatus ? 'text-red-500 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : ''}
                 ${isSuccessStatus ? 'text-emerald-500 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : ''}`}
-          >
-            <div className="relative flex items-center justify-center">
-              <span className={`material-symbols-outlined !text-[20px] transition-transform duration-500 group-hover/btn:scale-110 ${updatePayload || isErrorStatus ? 'animate-pulse' : ''}`}>
-                memory
-              </span>
-              {updatePayload && (
-                <span className="material-symbols-outlined absolute -bottom-1 -right-1 !text-[12px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),1)]">
-                  download
+            >
+              <div className="relative flex items-center justify-center">
+                <span className={`material-symbols-outlined !text-[20px] transition-transform duration-500 group-hover/btn:scale-110 ${updatePayload || isErrorStatus ? 'animate-pulse' : ''}`}>
+                  memory
                 </span>
-              )}
-            </div>
-            <HoverTooltip title={updatePayload ? t("sys_stat_update_available") : t("system_status")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-          </button>
+                {updatePayload && (
+                  <span className="material-symbols-outlined absolute -bottom-1 -right-1 !text-[12px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),1)]">
+                    download
+                  </span>
+                )}
+              </div>
+              <HoverTooltip title={updatePayload ? t("sys_stat_update_available") : t("system_status")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+            </button>
 
-          {/* Log Viewer Toggle */}
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsLogExpanded(!isLogExpanded); }}
-            className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn ${isLogExpanded ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100'} relative`}
-          >
-            <span className={`material-symbols-outlined !text-[20px]`}>terminal</span>
-            <HoverTooltip title={t("status")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-          </button>
+            {/* Log Viewer Toggle */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsLogExpanded(!isLogExpanded); }}
+              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn ${isLogExpanded ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100'} relative`}
+            >
+              <span className={`material-symbols-outlined !text-[20px]`}>terminal</span>
+              <HoverTooltip title={t("sys_log_history")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+            </button>
 
-          {/* 7. Side Browser */}
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsSideBrowserOpen(!isSideBrowserOpen); }}
-            className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative ${isSideBrowserOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-white opacity-100' : 'hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100'}`}
-          >
-            <span className="material-symbols-outlined !text-[20px] transition-transform duration-500 group-hover/btn:scale-110">public</span>
-            <HoverTooltip title={t("sidebar_web_browser")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-          </button>
+            {/* 7. Side Browser */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsSideBrowserOpen(!isSideBrowserOpen); }}
+              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative ${isSideBrowserOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-white opacity-100' : 'hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100'}`}
+            >
+              <span className="material-symbols-outlined !text-[20px] transition-transform duration-500 group-hover/btn:scale-110">public</span>
+              <HoverTooltip title={t("sidebar_web_browser")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+            </button>
 
-          {/* Divider */}
-          <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
+            {/* Divider */}
+            <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
 
-          {/* 8. Notifications */}
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsNotificationSidebarOpen(!isNotificationSidebarOpen); }}
-            className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]`}
-          >
-            <div className="relative flex items-center justify-center">
-              <span className={`material-symbols-outlined !text-[20px] transition-all ${isNotificationSidebarOpen ? 'text-[var(--accent)] drop-shadow-[0_0_8px_var(--accent)]' : unreadNotificationCount > 0 ? 'text-[var(--accent)] animate-pulse drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--text)] opacity-70 group-hover/btn:opacity-100'}`}>
-                {t("icon_notifications")}
+            {/* 8. Notifications */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsNotificationSidebarOpen(!isNotificationSidebarOpen); }}
+              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]`}
+            >
+              <div className="relative flex items-center justify-center">
+                <span className={`material-symbols-outlined !text-[20px] transition-all ${isNotificationSidebarOpen ? 'text-[var(--accent)] drop-shadow-[0_0_8px_var(--accent)]' : unreadNotificationCount > 0 ? 'text-[var(--accent)] animate-pulse drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--text)] opacity-70 group-hover/btn:opacity-100'}`}>
+                  {t("icon_notifications")}
+                </span>
+              </div>
+              <HoverTooltip title={t("tab_notifs")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+            </button>
+
+            {/* 9. Settings */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setView('settings'); }}
+              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]`}
+            >
+              <span className="material-symbols-outlined !text-[20px] text-[var(--text)] opacity-70 group-hover/btn:opacity-100 transition-opacity">
+                {t("icon_settings")}
               </span>
-            </div>
-            <HoverTooltip title={t("tab_notifs")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-          </button>
+              <HoverTooltip title={t("sidebar_settings")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+            </button>
 
-          {/* 9. Settings */}
-          <button
-            onClick={(e) => { e.stopPropagation(); setView('settings'); }}
-            className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]`}
-          >
-            <span className="material-symbols-outlined !text-[20px] text-[var(--text)] opacity-70 group-hover/btn:opacity-100 transition-opacity">
-              {t("icon_settings")}
-            </span>
-            <HoverTooltip title={t("sidebar_settings")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-          </button>
-
-        </div>
+          </div>
         </div>
       </div>
     </>,

@@ -101,7 +101,7 @@ export const UniversalBucketEditor = ({
   (items.addons || []).forEach((h: string) => flatItems.push({ hash: h, type: 'addons', label: t('editor_addon'), colorVar: '--warning' }));
 
   return (
-    <div className="glass-panel rounded-full overflow-hidden flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10">
+  <div className="glass-panel rounded-full flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10">
       {flatItems.map((item) => {
         const art = dataset.find((m: any) => m.hash === item.hash) || { name: item.hash, hash: item.hash };
         
@@ -167,7 +167,7 @@ export const UniversalListEditor = ({
   const { t } = useLexicon();
 
   return (
-    <div className="glass-panel rounded-full overflow-hidden flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10">
+  <div className="glass-panel rounded-full flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10">
       {items.map((hash: string) => {
         const art = dataset.find((d: any) => d.hash === hash);
         if (!art) return null;
@@ -226,7 +226,7 @@ export const UniversalListPicker = ({
   }
 
   return (
-    <div className="glass-panel rounded-full overflow-hidden flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10">
+  <div className="glass-panel rounded-full flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10">
       {items.map((item: any) => (
         <div 
           key={item.id}

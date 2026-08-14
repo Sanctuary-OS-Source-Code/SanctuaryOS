@@ -2588,7 +2588,7 @@ function App() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[120px] pointer-events-none mix-blend-screen"
             style={{ backgroundColor: `color-mix(in srgb, var(--accent) 10%, transparent)` }} />
 
-          <div className="relative w-full max-w-lg glass-panel backdrop-blur-2xl border rounded-[var(--radius)] p-12 flex flex-col gap-8 overflow-hidden items-center justify-center shadow-2xl"
+     <div className="relative w-full max-w-lg glass-panel backdrop-blur-2xl border rounded-[var(--radius)] p-12 flex flex-col gap-8 items-center justify-center shadow-2xl"
             style={{
               borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)`,
               boxShadow: `0 40px 100px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 1px 1px color-mix(in srgb, var(--text) 5%, transparent)`

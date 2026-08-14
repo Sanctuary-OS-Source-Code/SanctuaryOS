@@ -21,10 +21,7 @@ import { logArchitectAction } from "../lib/audit";
 export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOpen: boolean, onClose: () => void, onCreate: (name: string) => Promise<void> }) {
   const { t } = useLexicon();
   const [newMasonName, setNewMasonName] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-
-  if (!isOpen) return null;
-
+  const [isCreating, setIsCreating] = useState(false);
   const handleCreate = async () => {
     setIsCreating(true);
     await onCreate(newMasonName);
@@ -90,10 +87,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       };
       fetchMod();
     }
-  }, [isOpen, initialHash]);
-
-  if (!isOpen) return null;
-
+  }, [isOpen, initialHash]);
   const handleImport = async () => {
     try {
       const selected = await open({

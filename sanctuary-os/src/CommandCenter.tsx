@@ -275,7 +275,7 @@ export default function CommandCenter({
   }
 
   return (
-    <div className="flex flex-col gap-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="flex flex-col pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <ViewHeader title={t("center_title")} subtitle={t("center_subtitle")} icon={t("icon_desktop_windows")} iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
 
       <CommandScreenStats>
@@ -283,16 +283,16 @@ export default function CommandCenter({
           icon={<span className="material-symbols-outlined ">{radarState === 'optimal' ? t("icon_check_circle") : t("icon_warning")}</span>}
           number={
             activeGameSchema?.features?.has_cc === false ? "-" :
-            ((radarTier4Count + radarTier3Count + radarBrokenCount + radarUnstableCount) > 0
-              ? (radarTier4Count + radarTier3Count + radarBrokenCount + radarUnstableCount)
-              : (radarUpdatesCount > 0 ? radarUpdatesCount : 0))
+              ((radarTier4Count + radarTier3Count + radarBrokenCount + radarUnstableCount) > 0
+                ? (radarTier4Count + radarTier3Count + radarBrokenCount + radarUnstableCount)
+                : (radarUpdatesCount > 0 ? radarUpdatesCount : 0))
           }
           label={
             activeGameSchema?.features?.has_cc === false ? t("radar_title") :
-            (radarState === 'critical' ? (t("crit_fail")) :
-              radarState === 'warning' ? (t("action_rec")) :
-                radarState === 'update' ? (t("updates_avail")) :
-                  (t("sys_stable")))
+              (radarState === 'critical' ? (t("crit_fail")) :
+                radarState === 'warning' ? (t("action_rec")) :
+                  radarState === 'update' ? (t("updates_avail")) :
+                    (t("sys_stable")))
           }
           colorClass={
             radarState === 'critical' ? "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors duration-300" :

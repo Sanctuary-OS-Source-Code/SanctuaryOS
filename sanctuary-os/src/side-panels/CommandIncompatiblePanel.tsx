@@ -67,7 +67,7 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
 
         {delayedFlipped && (
           <div className="absolute inset-0 z-[100] pointer-events-none [transform:rotateY(180deg)] [backface-visibility:hidden]">
-            <div className={`pointer-events-auto relative h-full w-full glass-panel [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.1)_!important] flex flex-col border overflow-hidden [transform:translateZ(0)] ${isAmber ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'}`} style={{ borderRadius: 'var(--radius)' }}>
+      <div className={`pointer-events-auto relative h-full w-full glass-panel [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.1)_!important] flex flex-col border [transform:translateZ(0)] ${isAmber ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'}`} style={{ borderRadius: 'var(--radius)' }}>
               
               <div className="relative z-10 pt-5 pb-1 flex flex-col items-center justify-center gap-2 shrink-0">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-inner ${isAmber ? 'bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}`}>
@@ -206,8 +206,6 @@ export default function CommandIncompatiblePanel({
 
   const redMods = useMemo(() => brokenMods.filter((m: any) => m._alert_type === 'red'), [brokenMods]);
   const amberMods = useMemo(() => brokenMods.filter((m: any) => m._alert_type === 'amber'), [brokenMods]);
-
-  if (!isOpen) return null;
 
   return (
     <SidePanel

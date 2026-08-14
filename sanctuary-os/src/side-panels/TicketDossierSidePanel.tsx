@@ -329,7 +329,7 @@ export default function TicketDossierSidePanel({
         )}
 
         {(!isReadOnly && onTakeAction && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '')) && (
-          <div className="flex flex-col gap-4 mt-6 p-6 glass-panel rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden group">
+     <div className="flex flex-col gap-4 mt-6 p-6 glass-panel rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative group">
              <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none" />
              <div className="flex items-center gap-2 relative z-10 mb-2">
                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] drop-shadow-md">admin_panel_settings</span>

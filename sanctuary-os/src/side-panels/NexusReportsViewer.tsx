@@ -240,7 +240,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
             {filteredReports.map(report => (
               <div
                 key={report.id}
-                className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
+        className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 relative bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
                 onClick={() => setSelectedReport(report)}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />

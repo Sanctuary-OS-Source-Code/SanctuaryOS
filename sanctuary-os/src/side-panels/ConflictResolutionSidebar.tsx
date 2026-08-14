@@ -96,7 +96,7 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
             {t("conflict_details")}
           </h3>
           {conflict.is_ghost && (
-             <div className={`p-4 rounded-2xl border flex flex-col gap-2 relative overflow-hidden glass-panel backdrop-blur-md ${isTier4 ? "border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[inset_0_0_20px_rgba(239,68,68,0.05)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]" : "border-[color-mix(in_srgb,var(--warning)_20%,transparent)] shadow-[inset_0_0_20px_rgba(245,158,11,0.05)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)]"}`}>
+       <div className={`p-4 rounded-2xl border flex flex-col gap-2 relative glass-panel backdrop-blur-md ${isTier4 ? "border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[inset_0_0_20px_rgba(239,68,68,0.05)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]" : "border-[color-mix(in_srgb,var(--warning)_20%,transparent)] shadow-[inset_0_0_20px_rgba(245,158,11,0.05)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)]"}`}>
                <div className="flex items-center gap-2">
                  <span className={`material-symbols-outlined !text-[16px] drop-shadow-md ${isTier4 ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>{t("icon_policy")}</span>
                  <span className={`capitalize tracking-widest text-[10px] font-black ${isTier4 ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>{t("logical_clash")}</span>
@@ -135,7 +135,7 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                 <div className="flex flex-col relative z-10">
                   <div
                     onClick={() => setSelectedMod(modName)}
-                    className={`relative group cursor-pointer w-full rounded-2xl overflow-hidden transition-all duration-500 border glass-panel backdrop-blur-2xl ${isActive
+          className={`relative group cursor-pointer w-full rounded-2xl transition-all duration-500 border glass-panel backdrop-blur-2xl ${isActive
                         ? `border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] scale-[1.02] z-10`
                         : `border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl`
                       }`}

@@ -217,7 +217,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
         <div className="flex flex-col gap-8 shrink-0 relative z-10 w-full">
           <div className="flex flex-col gap-4">
             <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("upload_desc")}</h4>
-            <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative overflow-hidden group">
+      <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative group">
               <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_3%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
               <div className="relative z-10">
                 {data.description ? stripMarkdown(data.description) : t("no_desc_sub")}
@@ -281,7 +281,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
           {(data.changelog || data.release_notes || (data.json_data && (data.json_data.changelog || data.json_data.release_notes))) && (
             <div className="flex flex-col gap-4">
               <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("whats_new")}</h4>
-              <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative overflow-hidden group">
+       <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative group">
                 <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_3%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                 <div className="relative z-10">
                   {stripMarkdown(data.changelog || data.release_notes || (data.json_data?.changelog) || (data.json_data?.release_notes))}

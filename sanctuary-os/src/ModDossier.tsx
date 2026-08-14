@@ -350,7 +350,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
 
             <div className="absolute -bottom-6 w-full flex justify-center z-50 pointer-events-none">
-              <div className="inline-flex glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)] h-12 items-center flex-nowrap max-w-full pointer-events-auto">
+       <div className="inline-flex glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full shadow-[0_20px_60px_rgba(0,0,0,0.6)] h-12 items-center flex-nowrap max-w-full pointer-events-auto">
                 {editMode ? (
                   <>
                     {!isCorrecting && (
@@ -359,14 +359,14 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                           <span className="material-symbols-outlined !text-[16px]">{t("auto_save")}</span>
                           {isSaving ? t("dossier_btn_saving") : t("btn_save_local")}
                         </button>
-                        <button onClick={() => { if (onResetMetadata) onResetMetadata(mod.hash); onClose(); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-red-400 opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
+                        <button onClick={() => { if (onResetMetadata) onResetMetadata(mod.hash); onClose(); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--danger)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
                           <span className="material-symbols-outlined !text-[16px]">{t("icon_restart_alt")}</span>
                           {t("btn_reset_local")}
                         </button>
                       </>
                     )}
                     {isCorrecting && session && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
-                      <button onClick={handleSubmitToVault} disabled={isSaving} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-emerald-400 opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed">
+                      <button onClick={handleSubmitToVault} disabled={isSaving} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--success)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_send")}</span>
                         {isSaving ? t("btn_submitting") : t("btn_submit_corrections")}
                       </button>
@@ -375,25 +375,25 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 ) : (
                   <>
                     {(mod.hash?.startsWith('dev_sandbox_')) && (
-                      <button onClick={() => { if (onSyncToNetwork) onSyncToNetwork(mod); else setEditMode(true); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-emerald-400 opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]">
+                      <button onClick={() => { if (onSyncToNetwork) onSyncToNetwork(mod); else setEditMode(true); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--success)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_cloud_sync")}</span>
                         {t("btn_sync_network")}
                       </button>
                     )}
                     {mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
-                      <button onClick={() => { onClose(); onSendToLab(); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-cyan-400 opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
+                      <button onClick={() => { onClose(); onSendToLab(); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--accent)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_science")}</span>
                         {t("btn_send_to_lab")}
                       </button>
                     )}
                     {mod.name?.startsWith('LOCAL_SET_') ? (
-                      <button onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: mod.dbId })); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-yellow-400 opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
+                      <button onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: mod.dbId })); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--warning)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_tune")}</span>
                         {t("local_folders_edit")}
                       </button>
                     ) : (
                       <>
-                        <button onClick={() => setEditMode(true)} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-yellow-400 opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
+                        <button onClick={() => setEditMode(true)} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--warning)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
                           <span className="material-symbols-outlined !text-[16px]">{t("icon_edit")}</span>
                           {isCorrecting ? t("btn_submit_corrections") : t("btn_edit")}
                         </button>
@@ -401,7 +401,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       </>
                     )}
                     {userRole === 'oversight' && mod.compliance_tier === 3 && (
-                      <button onClick={() => { onClose(); onSecureShred(mod.name); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-red-400 opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
+                      <button onClick={() => { onClose(); onSecureShred(mod.name); }} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--danger)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever")}</span>
                         {t("malware_alert_btn_shred")}
                       </button>
@@ -412,7 +412,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   <>
                     {targetDbId && session && !isBanned && (
                       <div className="h-full relative group/flag">
-                        <button onClick={() => setShowFlagModal(true)} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-orange-400 opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] cursor-pointer">
+                        <button onClick={() => setShowFlagModal(true)} className="h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--warning)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] cursor-pointer">
                           <span className="material-symbols-outlined !text-[16px]">{t("icon_flag")}</span>
                           {t("btn_flag")}
                         </button>
@@ -466,16 +466,16 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[120px] gap-4 relative z-20">
 
-                <div className={`col-span-2 flex flex-col p-6 glass-panel backdrop-blur-3xl rounded-[var(--radius)] border transition-all hover:scale-[1.01] shadow-2xl relative overflow-hidden group ${(() => {
+        <div className={`col-span-2 flex flex-col p-6 glass-panel backdrop-blur-3xl rounded-[var(--radius)] border transition-all hover:scale-[1.01] shadow-2xl relative group ${(() => {
                   const s = statusType;
                   if (s === 'stable') return "border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--success-rgb),0.1)]";
                   if (s === 'unstable') return "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--warning-rgb),0.1)]";
                   if (s === 'broken' || s === 'corrupted') return "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(var(--danger-rgb),0.1)]";
                   if (s === 'under review') return "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--cyan)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(34,211,238,0.1)]";
-                  if (s === 'pending') return "border-sky-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--sky)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(14,165,233,0.1)]";
+                  if (s === 'pending') return "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(14,165,233,0.1)]";
                   if (s === 'early access') return "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--purple)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(168,85,247,0.1)]";
                   if (s === 'paid') return "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--amber)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(245,158,11,0.1)]";
-                  return "border-slate-500/[30%] bg-gradient-to-b from-[color-mix(in_srgb,var(--slate)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(100,116,139,0.1)]";
+                  return "border-[color-mix(in_srgb,var(--text)_30%,transparent)] bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-[color-mix(in_srgb,var(--bg)_60%,transparent)] shadow-[0_5px_30px_rgba(100,116,139,0.1)]";
                 })()
                   }`}>
                   {/* Tech Background Effects */}
@@ -493,11 +493,11 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         if (s === 'stable') return "bg-[var(--success)]";
                         if (s === 'unstable') return "bg-[var(--warning)]";
                         if (s === 'broken' || s === 'corrupted') return "bg-[var(--danger)]";
-                        if (s === 'under review') return "bg-cyan-500";
-                        if (s === 'pending') return "bg-sky-500";
-                        if (s === 'early access') return "bg-purple-500";
-                        if (s === 'paid') return "bg-amber-500";
-                        return "bg-slate-500";
+                        if (s === 'under review') return "bg-[var(--accent)]";
+                        if (s === 'pending') return "bg-[var(--accent)]";
+                        if (s === 'early access') return "bg-[var(--accent)]";
+                        if (s === 'paid') return "bg-[var(--warning)]";
+                        return "bg-[color-mix(in_srgb,var(--text)_50%,transparent)]";
                       })()
                         }`}></div>
 
@@ -507,11 +507,11 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         if (s === 'stable') return "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)]";
                         if (s === 'unstable') return "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]";
                         if (s === 'broken' || s === 'corrupted') return "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]";
-                        if (s === 'under review') return "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-cyan-400 border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
-                        if (s === 'pending') return "bg-sky-500/[10%] text-sky-400 border-sky-500/[30%]";
-                        if (s === 'early access') return "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-purple-400 border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
-                        if (s === 'paid') return "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_30%,transparent)]";
-                        return "bg-slate-500/[10%] text-slate-400 border-slate-500/[30%]";
+                        if (s === 'under review') return "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
+                        if (s === 'pending') return "bg-[var(--accent)]/[10%] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
+                        if (s === 'early access') return "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
+                        if (s === 'paid') return "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]";
+                        return "bg-[color-mix(in_srgb,var(--text)_50%,transparent)]/[10%] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_30%,transparent)]";
                       })()
                         }`}>
                         <span className="material-symbols-outlined !text-3xl drop-shadow-md">
@@ -541,11 +541,11 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         if (s === 'stable') return "text-[var(--success)]";
                         if (s === 'unstable') return "text-[var(--warning)]";
                         if (s === 'broken' || s === 'corrupted') return "text-[var(--danger)]";
-                        if (s === 'under review') return "text-cyan-400";
-                        if (s === 'pending') return "text-sky-400";
-                        if (s === 'early access') return "text-purple-400";
-                        if (s === 'paid') return "text-amber-400";
-                        return "text-slate-400";
+                        if (s === 'under review') return "text-[var(--accent)]";
+                        if (s === 'pending') return "text-[var(--accent)]";
+                        if (s === 'early access') return "text-[var(--accent)]";
+                        if (s === 'paid') return "text-[var(--warning)]";
+                        return "text-[var(--text)]";
                       })()
                         }`}>
                         {(() => {
@@ -615,26 +615,26 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 </div>
 
                 <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center transition-all hover:scale-[1.02] ${mod.is_early_access
-                  ? 'border-[color-mix(in_srgb,#a855f7_30%,transparent)] bg-[color-mix(in_srgb,#a855f7_5%,transparent)]'
+                  ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]'
                   : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
                   }`}>
-                  <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] mb-1 ${mod.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--subtext)]'}`}>
+                  <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] mb-1 ${mod.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>
                     {t("label_is_early_access")}
                   </p>
-                  <span className={`text-xs font-black capitalize tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--text)] opacity-90'}`}>
+                  <span className={`text-xs font-black capitalize tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--text)] opacity-90'}`}>
                     <span className="material-symbols-outlined !text-[16px]">{mod.is_early_access ? 'science' : 'public'}</span>
                     {mod.is_early_access ? (t("badge_early_access")) : "STANDARD"}
                   </span>
                 </div>
 
                 <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 glass-panel backdrop-blur-xl rounded-[var(--radius)] items-start text-left justify-center transition-all hover:scale-[1.02] ${mod.is_paid
-                  ? 'border-[color-mix(in_srgb,#eab308_30%,transparent)] bg-[color-mix(in_srgb,#eab308_5%,transparent)]'
+                  ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)]'
                   : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
                   }`}>
-                  <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] mb-1 ${mod.is_paid ? 'text-[#fef08a]' : 'text-[var(--subtext)]'}`}>
+                  <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] mb-1 ${mod.is_paid ? 'text-[var(--warning)]' : 'text-[var(--subtext)]'}`}>
                     {t("label_is_paid")}
                   </p>
-                  <span className={`text-xs font-black capitalize tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_paid ? 'text-[#fef08a]' : 'text-[var(--text)] opacity-90'}`}>
+                  <span className={`text-xs font-black capitalize tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_paid ? 'text-[var(--warning)]' : 'text-[var(--text)] opacity-90'}`}>
                     <span className="material-symbols-outlined !text-[16px]">{mod.is_paid ? 'monetization_on' : 'money_off'}</span>
                     {mod.is_paid ? (t("badge_paid")) : "FREE"}
                   </span>
@@ -719,30 +719,30 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             {editMode && (
               <div className="grid grid-cols-1 gap-4 mb-8 relative z-20">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className={`flex flex-row items-center justify-start gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-[var(--radius)] transition-all hover:scale-[1.02] cursor-pointer ${metaInputs.is_paid ? 'border-[color-mix(in_srgb,#eab308_30%,transparent)] bg-[color-mix(in_srgb,#eab308_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  <label className={`flex flex-row items-center justify-start gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-[var(--radius)] transition-all hover:scale-[1.02] cursor-pointer ${metaInputs.is_paid ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                     <div className="flex flex-col items-start gap-1">
-                      <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] ${metaInputs.is_paid ? 'text-[#fef08a]' : 'text-[var(--subtext)]'}`}>{t("label_is_paid")}</p>
-                      <span className={`text-xs font-black capitalize tracking-widest truncate flex items-center gap-2 ${metaInputs.is_paid ? 'text-[#fef08a]' : 'text-[var(--text)] opacity-90'}`}>
+                      <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] ${metaInputs.is_paid ? 'text-[var(--warning)]' : 'text-[var(--subtext)]'}`}>{t("label_is_paid")}</p>
+                      <span className={`text-xs font-black capitalize tracking-widest truncate flex items-center gap-2 ${metaInputs.is_paid ? 'text-[var(--warning)]' : 'text-[var(--text)] opacity-90'}`}>
                         <span className="material-symbols-outlined !text-[16px]">{metaInputs.is_paid ? 'monetization_on' : 'money_off'}</span>
                         {metaInputs.is_paid ? (t("badge_paid")) : "FREE"}
                       </span>
                     </div>
-                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_paid ? 'bg-[var(--warning)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                       <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${metaInputs.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
                       </div>
                     </div>
                     <input type="checkbox" checked={metaInputs.is_paid || false} onChange={e => setMetaInputs.is_paid(e.target.checked)} className="hidden" />
                   </label>
 
-                  <label className={`flex flex-row items-center justify-start gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-[var(--radius)] transition-all hover:scale-[1.02] cursor-pointer ${metaInputs.is_early_access ? 'border-[color-mix(in_srgb,#a855f7_30%,transparent)] bg-[color-mix(in_srgb,#a855f7_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                  <label className={`flex flex-row items-center justify-start gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-[var(--radius)] transition-all hover:scale-[1.02] cursor-pointer ${metaInputs.is_early_access ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                     <div className="flex flex-col items-start gap-1">
-                      <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] ${metaInputs.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--subtext)]'}`}>{t("label_is_early_access")}</p>
-                      <span className={`text-xs font-black capitalize tracking-widest truncate flex items-center gap-2 ${metaInputs.is_early_access ? 'text-[#d8b4fe]' : 'text-[var(--text)] opacity-90'}`}>
+                      <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] ${metaInputs.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>{t("label_is_early_access")}</p>
+                      <span className={`text-xs font-black capitalize tracking-widest truncate flex items-center gap-2 ${metaInputs.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--text)] opacity-90'}`}>
                         <span className="material-symbols-outlined !text-[16px]">{metaInputs.is_early_access ? 'science' : 'public'}</span>
                         {metaInputs.is_early_access ? (t("badge_early_access")) : "STANDARD"}
                       </span>
                     </div>
-                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_early_access ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                       <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${metaInputs.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
                       </div>
                     </div>
@@ -771,7 +771,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
               {editMode ? (
                 <textarea value={metaInputs.desc} onChange={e => setMetaInputs.desc(e.target.value)} className="text-sm text-[var(--text)] placeholder:text-[var(--text)] placeholder:opacity-30 font-mono bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-40 resize-none focus:outline-none focus:border-[var(--accent)] transition-all" placeholder={t("local_desc_placeholder")} />
               ) : (
-                <div className="text-sm text-[var(--text)] opacity-90 leading-relaxed font-medium glass-panel backdrop-blur-3xl p-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_10px_30px_rgba(0,0,0,0.3)] min-h-[120px] relative overflow-hidden group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
+        <div className="text-sm text-[var(--text)] opacity-90 leading-relaxed font-medium glass-panel backdrop-blur-3xl p-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_10px_30px_rgba(0,0,0,0.3)] min-h-[120px] relative group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
                   {mod.description || t("no_desc_manifest")}
                 </div>
               )}
@@ -826,10 +826,10 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                               if (s === 'unstable' || s === (t("label_unstable")).toLowerCase()) return "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]";
                               if (s === 'broken' || s === 'corrupted' || s === (t("status_broken")).toLowerCase()) return "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]";
                               if (s === 'under review') return "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
-                              if (s === 'pending') return "bg-sky-500/[10%] border-sky-500/[30%]";
+                              if (s === 'pending') return "bg-[var(--accent)]/[10%] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
                               if (s === 'early access') return "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
                               if (s === 'paid') return "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]";
-                              return "bg-slate-500/[10%] border-slate-500/[30%]";
+                              return "bg-[color-mix(in_srgb,var(--text)_50%,transparent)]/[10%] border-[color-mix(in_srgb,var(--text)_30%,transparent)]";
                             })()}`}>
 
                               <span className={`text-[7px] font-black capitalize tracking-widest truncate max-w-[140px] ${(() => {
@@ -837,11 +837,11 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                                 if (s === (t("status_dd_stable")).toLowerCase()) return "text-[var(--success)]";
                                 if (s === 'unstable' || s === (t("label_unstable")).toLowerCase()) return "text-[var(--warning)]";
                                 if (s === 'broken' || s === 'corrupted' || s === (t("status_broken")).toLowerCase()) return "text-[var(--danger)]";
-                                if (s === 'under review') return "text-cyan-400";
-                                if (s === 'pending') return "text-sky-400";
-                                if (s === 'early access') return "text-purple-400";
-                                if (s === 'paid') return "text-amber-400";
-                                return "text-slate-400";
+                                if (s === 'under review') return "text-[var(--accent)]";
+                                if (s === 'pending') return "text-[var(--accent)]";
+                                if (s === 'early access') return "text-[var(--accent)]";
+                                if (s === 'paid') return "text-[var(--warning)]";
+                                return "text-[var(--text)]";
                               })()}`}>
                                 {(() => {
                                   const raw = (kid.status || "");
@@ -970,7 +970,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1 p-5 glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-md relative overflow-hidden group hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-all hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+         <div className="flex flex-col gap-1 p-5 glass-panel backdrop-blur-md rounded-[var(--radius)] items-start text-left border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-md relative group hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-all hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 capitalize tracking-[0.2em] mb-1 z-10">{t("system_status")}</p>
                     <div className="relative z-10 flex items-center gap-2">
 
@@ -979,11 +979,11 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         if (s === (t("status_dd_stable")).toLowerCase()) return "text-[var(--success)]";
                         if (s === 'unstable' || s === (t("label_unstable")).toLowerCase()) return "text-[var(--warning)]";
                         if (s === 'broken' || s === 'corrupted' || s === (t("status_broken")).toLowerCase()) return "text-[var(--danger)]";
-                        if (s === 'under review') return "text-cyan-400";
-                        if (s === 'pending') return "text-sky-400";
-                        if (s === 'early access') return "text-purple-400";
-                        if (s === 'paid') return "text-amber-400";
-                        return "text-slate-400";
+                        if (s === 'under review') return "text-[var(--accent)]";
+                        if (s === 'pending') return "text-[var(--accent)]";
+                        if (s === 'early access') return "text-[var(--accent)]";
+                        if (s === 'paid') return "text-[var(--warning)]";
+                        return "text-[var(--text)]";
                       })()}`}>
                         {(() => {
                           const raw = (selectedKid.status || "");
@@ -1018,7 +1018,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   </div>
                 </div>
 
-                <div className="text-sm text-[var(--text)] opacity-90 leading-relaxed font-medium glass-panel backdrop-blur-3xl p-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_10px_30px_rgba(0,0,0,0.3)] relative overflow-hidden group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
+        <div className="text-sm text-[var(--text)] opacity-90 leading-relaxed font-medium glass-panel backdrop-blur-3xl p-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_10px_30px_rgba(0,0,0,0.3)] relative group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
                   {selectedKid.description || t("no_desc_sub")}
                 </div>
               </div>
@@ -1077,10 +1077,10 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
               <button onClick={() => handleFlagMod('Inaccurate Information')} className="w-full py-5 rounded-[var(--radius)] font-black capitalize tracking-widest transition-all shadow-xl hover:scale-[1.02] active:scale-95 border glass-panel backdrop-blur-md text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                 {t("flag_inaccurate")}
               </button>
-              <button onClick={() => handleFlagMod('NSFW')} className="w-full py-5 rounded-[var(--radius)] font-black capitalize tracking-widest transition-all shadow-xl hover:scale-[1.02] active:scale-95 border glass-panel backdrop-blur-md border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)]">
+              <button onClick={() => handleFlagMod('NSFW')} className="w-full py-5 rounded-[var(--radius)] font-black capitalize tracking-widest transition-all shadow-xl hover:scale-[1.02] active:scale-95 border glass-panel backdrop-blur-md border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)]">
                 {t("flag_nsfw")}
               </button>
-              <button onClick={() => handleFlagMod('adult')} className="w-full py-5 rounded-[var(--radius)] font-black capitalize tracking-widest transition-all shadow-xl hover:scale-[1.02] active:scale-95 border glass-panel backdrop-blur-md border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-orange-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)]">
+              <button onClick={() => handleFlagMod('adult')} className="w-full py-5 rounded-[var(--radius)] font-black capitalize tracking-widest transition-all shadow-xl hover:scale-[1.02] active:scale-95 border glass-panel backdrop-blur-md border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)]">
                 {t("flag_adult")}
               </button>
               <button onClick={() => handleFlagMod('Suspected Malware')} className="w-full py-5 rounded-[var(--radius)] font-black capitalize tracking-widest transition-all shadow-xl hover:scale-[1.02] active:scale-95 border glass-panel backdrop-blur-md border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)]">

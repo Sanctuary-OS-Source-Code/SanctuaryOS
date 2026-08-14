@@ -181,10 +181,7 @@ export function PushTemplateSidePanel({
     } finally {
       setIsUploading(false);
     }
-  };
-
-  if (!isOpen) return null;
-
+  };
   const actions = (
     <div className="flex gap-3">
       <button 

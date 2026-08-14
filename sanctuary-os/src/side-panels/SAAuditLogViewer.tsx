@@ -205,7 +205,7 @@ export function AuditLogViewer({
         {loading ? (
           <div className={`grid grid-cols-1 ${isSidePanel ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-6 w-full`}>
             {[...Array(isSidePanel ? 6 : 12)].map((_, i) => (
-              <div key={i} className="flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative overflow-hidden min-h-[160px]">
+       <div key={i} className="flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative min-h-[160px]">
                 <div className="flex justify-start items-start w-full relative z-10 mb-4">
                   <div className="flex items-start gap-4 w-full">
                     <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] animate-pulse shrink-0" />
@@ -226,7 +226,7 @@ export function AuditLogViewer({
         ) : (
           <div className={`grid grid-cols-1 ${isSidePanel ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-6 w-full`}>
             {filteredLogs.map(log => (
-              <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md transition-all duration-500 relative overflow-hidden min-h-[160px] cursor-pointer">
+       <div key={log.id} onClick={() => setSelectedLog(log)} className="flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md transition-all duration-500 relative min-h-[160px] cursor-pointer">
                 <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -356,7 +356,6 @@ export function AuditLogViewer({
   );
 
   if (isSidePanel) {
-    if (!isOpen) return null;
     return (
       <SidePanel
         isOpen={isOpen}

@@ -37,7 +37,7 @@ export function LocalFolderModal({ localFolderModal, setLocalFolderModal, localF
     >
       <div className="flex flex-col gap-6 p-8 h-full min-h-[400px]">
         {/* Sleek Segmented Input Row */}
-        <div className="flex items-center w-full overflow-hidden glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0">
+    <div className="flex items-center w-full glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0">
           <div className="relative flex-1 h-full flex items-center">
             <span className="absolute left-4 opacity-50 text-[18px] material-symbols-outlined pointer-events-none">
               {localFolderType === "CC_SET" ? 'category' : 'folder'}

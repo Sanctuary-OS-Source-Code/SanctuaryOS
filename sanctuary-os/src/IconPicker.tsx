@@ -1593,7 +1593,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
   }, [search]);
 
   return (
-    <div className="absolute top-full mt-2 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl pointer-events-auto w-[360px] z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col overflow-hidden">
+  <div className="absolute top-full mt-2 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl pointer-events-auto w-[360px] z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col ">
 
       <div className="p-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent shrink-0">
         <div className="relative">

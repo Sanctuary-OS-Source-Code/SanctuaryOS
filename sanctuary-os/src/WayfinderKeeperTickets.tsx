@@ -66,7 +66,7 @@ export default function WayfinderKeeperTickets({ userId, onSelectTicket, onOpenN
           </div>
         </div>
 
-        <div className="flex items-stretch overflow-hidden glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5 w-full">
+    <div className="flex items-stretch glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5 w-full">
           {["all", "open", "pending", "closed"].map(filter => (
             <button
               key={filter}
@@ -115,7 +115,7 @@ export default function WayfinderKeeperTickets({ userId, onSelectTicket, onOpenN
                   </span>
                 }
                 footer={
-                  <div className="flex justify-start items-center w-full">
+                  <div className="flex justify-between items-center w-full">
                     <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">
                       {new Date(ticket.created_at).toLocaleDateString()}
                     </span>

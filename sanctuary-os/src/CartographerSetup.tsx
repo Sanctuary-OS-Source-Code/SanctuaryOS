@@ -83,7 +83,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
       <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen transition-opacity duration-1000 animate-in fade-in" />
       <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 50%, transparent), var(--bg))' }} />
 
-      <div className="relative z-10 w-[95%] max-w-5xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row overflow-hidden group">
+   <div className="relative z-10 w-[95%] max-w-5xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row group">
 
         {/* LEFT COLUMN: The Setup Console */}
         <div className="p-8 lg:p-12 flex flex-col lg:w-1/2 border-b lg:border-b-0 lg:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-20 overflow-hidden">
@@ -275,7 +275,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
 
             {/* Fake Component 2: System Status widgets */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 relative overflow-hidden group/stat shadow-xl">
+       <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 relative group/stat shadow-xl">
                 <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--success)_10%,transparent)] to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
                 <span className="text-[9px] font-black tracking-[0.2em] theme-text-accent capitalize opacity-80 relative z-10 transition-colors duration-500">{t("status")}</span>
                 <div className="flex items-center gap-2.5 relative z-10">
@@ -283,7 +283,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
                   <span className="text-sm font-bold text-[var(--text)] tracking-wide">{t("status_operational")}</span>
                 </div>
               </div>
-              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex flex-col gap-2 relative overflow-hidden hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] transition-colors shadow-xl">
+       <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex flex-col gap-2 relative hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] transition-colors shadow-xl">
                 <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]" />
                 <span className="text-[9px] font-black tracking-[0.2em] text-[var(--warning)] capitalize opacity-90 relative z-10">{t("defcon_label")}</span>
                 <div className="flex items-center gap-2.5 relative z-10">

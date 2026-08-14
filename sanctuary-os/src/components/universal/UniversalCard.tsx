@@ -103,9 +103,9 @@ export function UniversalCard({
   const opacityClasses = isGhosted ? "opacity-50 grayscale-[0.8]" : isDisabled ? "opacity-50 cursor-not-allowed grayscale" : "";
 
   // The hover effect
-  const hoverClasses = !isDisabled ? "group-hover/card:shadow-2xl group-hover/card:shadow-[color-mix(in_srgb,currentColor_10%,transparent)] transition-all duration-700 ease-out" : "";
+  const hoverClasses = !isDisabled ? "group-hover/card:-translate-y-1 group-hover/card:shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]" : "";
 
-  const containerClasses = `glass-panel rounded-[var(--radius)] relative overflow-hidden flex group/card ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${onClick ? 'cursor-pointer' : ''} ${className}`;
+  const containerClasses = `glass-panel rounded-[var(--radius)] relative flex group/card ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${onClick ? 'cursor-pointer' : ''} ${className}`;
 
   const renderMedia = () => {
     if (!image && !icon && !customIcon) return null;
@@ -171,7 +171,7 @@ export function UniversalCard({
     >
       {/* Flagship Glass Glare & Light Leaks */}
       <div className="absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-700 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-transparent to-[color-mix(in_srgb,var(--base)_10%,transparent)] mix-blend-overlay" />
+        <div className="absolute inset-0 bg-radial from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
         <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
         <div className="absolute inset-0 shadow-[inset_0_0_30px_color-mix(in_srgb,var(--text)_2%,transparent)]" />
       </div>
@@ -265,3 +265,4 @@ export function UniversalCard({
     </div>
   );
 }
+

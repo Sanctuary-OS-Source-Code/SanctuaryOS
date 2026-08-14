@@ -17,7 +17,6 @@ import { ChameleonSandboxPreview } from './chameleon-components/ChameleonSandbox
 
 function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes }: any) {
   const { t } = useLexicon();
-  if (!isOpen) return null;
   return (
     <>
       <SidePanel
@@ -225,7 +224,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         headerActions={
           typeof editingThemeId === 'string' && editingThemeId.startsWith('dev_') ? (
             <div className="flex items-center gap-2">
-              <div className="flex items-center overflow-hidden glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
+       <div className="flex items-center glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
                 <div className="relative group flex">
                   <button onClick={() => {
                     if (livePreview) setActiveThemeId(originalThemeId);

@@ -99,12 +99,12 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
             const sSize = await invoke('get_directory_size', { path: devPath }).catch(() => 0);
             const backups = await invoke<any[]>('get_backups', { vaultPath: config.vault_path }).catch(() => []);
             const bSize = backups.reduce((acc, b) => acc + (b.size_mb || 0) * 1048576, 0);
-            
+
             setArtifactsSize(aSize as number);
             setDataSize(dSize as number);
             setSandboxSize(sSize as number);
             setTimeCapsuleSize(bSize as number);
-            
+
             // Total Vault Footprint is the sum of all components
             setVaultSize((aSize as number) + (dSize as number) + (sSize as number) + bSize);
           } catch (err) {
@@ -139,215 +139,215 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
         <div className="p-6 flex flex-col gap-8">
 
-        <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10" title={t("sys_info_app")} icon="terminal" innerClassName="flex flex-col gap-4">
-          {updatePayload && (
-            <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-start overflow-hidden relative group mt-2">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10" />
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-12 h-12 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">
-                  <span className="material-symbols-outlined theme-text-accent text-[24px] animate-bounce">downloading</span>
+          <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10" title={t("sys_info_app")} icon="terminal" innerClassName="flex flex-col gap-4">
+            {updatePayload && (
+              <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-start overflow-hidden relative group mt-2">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10" />
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="w-12 h-12 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">
+                    <span className="material-symbols-outlined theme-text-accent text-[24px] animate-bounce">downloading</span>
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <span className="text-[10px] font-black capitalize tracking-[0.2em] theme-text-accent opacity-90 drop-shadow-sm">{t("sys_stat_update_available")}</span>
+                    <span className="text-2xl font-black capitalize tracking-tighter theme-text-accent drop-shadow-md">V {updatePayload.version}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-start">
-                  <span className="text-[10px] font-black capitalize tracking-[0.2em] theme-text-accent opacity-90 drop-shadow-sm">{t("sys_stat_update_available")}</span>
-                  <span className="text-2xl font-black capitalize tracking-tighter theme-text-accent drop-shadow-md">V {updatePayload.version}</span>
+                <div className="relative z-10 opacity-50 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 duration-300 flex items-center pr-2">
+                  <span className="material-symbols-outlined theme-text-accent text-3xl">arrow_right_alt</span>
                 </div>
-              </div>
-              <div className="relative z-10 opacity-50 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 duration-300 flex items-center pr-2">
-                <span className="material-symbols-outlined theme-text-accent text-3xl">arrow_right_alt</span>
-              </div>
-            </button>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <StatBox
-              label={t("sys_stat_version")}
-              value={`V ${packageJson.version}`}
-              icon="new_releases"
-              glowColor="rgba(255,255,255,0.2)"
-              onClick={(e) => {
-                if (e.altKey) {
-                  setUpdatePayload({
-                    version: "9.9.9",
-                    date: new Date().toISOString(),
-                    body: "This is a simulated update payload for UI testing.",
-                    downloadAndInstall: async () => { console.log("Simulating install..."); }
-                  } as any);
-                }
-              }}
-            />
-            <StatBox
-              label={t("sys_stat_online")}
-              value={
-                <div className="flex items-center gap-2">
-                  <span>
-                    {telemetry ? t("sys_stat_connected_status") : t("sys_stat_scanning_status")}
-                  </span>
-                </div>
-              }
-              icon="cloud"
-              glowColor="rgba(255,255,255,0.2)"
-            />
-          </div>
-        </UniversalGroup>
-
-        <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150 ease-out fill-mode-both relative z-10" title={t("sys_info_os")} icon="public" innerClassName="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-              <div className="flex flex-col relative z-10 justify-center h-full">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="material-symbols-outlined !text-[14px]" style={{ color: "rgba(168,85,247,0.8)" }}>devices</span>
-                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-70 group-hover:opacity-100 transition-opacity drop-shadow-sm">{t("sys_stat_os_name")}</span>
-                </div>
-                <div className="text-[14px] font-black capitalize tracking-tighter drop-shadow-md relative z-10 transition-colors text-white break-words leading-tight">{telemetry?.host_os || navigator.userAgent}</div>
-              </div>
-            </div>
-            <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-              <div className="flex flex-col relative z-10 justify-center h-full">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="material-symbols-outlined !text-[14px]" style={{ color: "rgba(168,85,247,0.8)" }}>verified_user</span>
-                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-70 group-hover:opacity-100 transition-opacity drop-shadow-sm">{t("target_patch")}</span>
-                </div>
-                <div className="text-[14px] font-black capitalize tracking-tighter drop-shadow-md relative z-10 transition-colors text-white break-words leading-tight">{selectedVersion || t("status_unknown")}</div>
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <StatBox
-              label={t("sys_stat_cores")}
-              value={telemetry ? <AnimatedNumber value={telemetry.logical_cores} suffix={t("sys_stat_cores_suffix")} /> : t("scanning")}
-              icon="memory"
-              glowColor="rgba(168,85,247,0.4)"
-            />
-            <StatBox
-              label={t("sys_stat_ram")}
-              value={telemetry ? <AnimatedNumber value={Math.round(telemetry.total_memory / (1024 ** 3))} suffix={t("unit_gb")} /> : t("scanning")}
-              icon="speed"
-              glowColor="rgba(59,130,246,0.4)"
-            />
-          </div>
-        </UniversalGroup>
-
-        <UniversalGroup
-          className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200 ease-out fill-mode-both relative z-10"
-          title={t("sys_info_app_footprint")}
-          icon={t("icon_monitoring")}
-          headerAction={
-            <FilterTabs className="shrink-0 scale-90 origin-right !h-auto">
-              <FilterTabButton
-                id={false}
-                activeTab={usePrivateMemory}
-                setTab={setUsePrivateMemory}
-                label={t("sys_stat_working_set")}
-                className="py-1.5 px-3 text-[9px] whitespace-nowrap"
-              />
-              <FilterTabButton
-                id={true}
-                activeTab={usePrivateMemory}
-                setTab={setUsePrivateMemory}
-                label={t("sys_stat_private_set")}
-                className="py-1.5 px-3 text-[9px] whitespace-nowrap"
-              />
-            </FilterTabs>
-          }
-          innerClassName="flex flex-col gap-4"
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <StatBox
-              label={usePrivateMemory ? t("sys_stat_mem_private_set") : t("sys_stat_mem_working_set")}
-              value={appFootprint ? (() => { const s = parseBytes(usePrivateMemory ? appFootprint.memory_private : appFootprint.memory_used); return <AnimatedNumber value={s.val} suffix={s.unit} />; })() : t("scanning")}
-              icon={t("icon_memory")}
-              glowColor="rgba(234,88,12,0.4)"
-            />
-            <StatBox
-              label={t("sys_stat_cpu")}
-              value={appFootprint ? <AnimatedNumber value={appFootprint.cpu_usage} suffix="%" /> : t("scanning")}
-              icon={t("icon_speed")}
-              glowColor="rgba(234,88,12,0.4)"
-            />
-            <StatBox
-              label={t("sys_stat_total_disk_read")}
-              value={appFootprint ? (() => { const s = parseBytes(appFootprint.disk_read_speed); return <AnimatedNumber value={s.val} suffix={`${s.unit}/s`} />; })() : t("scanning")}
-              icon={t("icon_download")}
-              glowColor="rgba(234,88,12,0.4)"
-            />
-            <StatBox
-              label={t("sys_stat_total_disk_write")}
-              value={appFootprint ? (() => { const s = parseBytes(appFootprint.disk_write_speed); return <AnimatedNumber value={s.val} suffix={`${s.unit}/s`} />; })() : t("scanning")}
-              icon={t("icon_upload")}
-              glowColor="rgba(234,88,12,0.4)"
-            />
-          </div>
-        </UniversalGroup>
-
-        <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-300 ease-out fill-mode-both relative z-10" title={t("sys_info_local_storage")} icon="hard_drive" innerClassName="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <StatBox
-              label={t("sys_stat_usage")}
-              value={telemetry ? (() => { const s = parseBytes(telemetry.disk_used); return <AnimatedNumber value={s.val} suffix={s.unit} />; })() : t("scanning")}
-              icon="data_usage"
-              glowColor="rgba(244,63,94,0.4)"
-            />
-            <StatBox
-              label={t("sys_stat_quota")}
-              value={telemetry ? (() => { const s = parseBytes(telemetry.disk_total); return <AnimatedNumber value={s.val} suffix={s.unit} />; })() : t("scanning")}
-              icon="storage"
-              glowColor="rgba(20,184,166,0.4)"
-            />
-          </div>
-
-          {telemetry && telemetry.disk_total > 0 && (
-            <div className="w-full h-1.5 rounded-full overflow-hidden bg-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-1 shadow-inner relative">
-              <div
-                className="h-full theme-bg-accent transition-all duration-[1500ms] ease-out relative shadow-[0_0_15px_var(--accent)]"
-                style={{ width: `${(telemetry.disk_used / telemetry.disk_total) * 100}%` }}
-              >
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-30 animate-[shimmer_2s_linear_infinite]" />
-                <div className="absolute top-0 right-0 bottom-0 w-10 bg-gradient-to-r from-transparent to-white/50 animate-pulse" />
-              </div>
-            </div>
-          )}
-        </UniversalGroup>
-
-        {vaultSize !== null && (
-          <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-500 ease-out fill-mode-both relative z-10 mt-2" title={t("sys_info_vault_storage")} icon="inventory_2" innerClassName="flex flex-col gap-4">
-            <StatBox
-              label={t("sys_stat_vault")}
-              value={(() => { const s = parseBytes(vaultSize); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
-              icon="inventory_2"
-              glowColor="rgba(234,179,8,0.4)"
-            />
+              </button>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <StatBox
-                label={t("items")}
-                value={(() => { const s = parseBytes(artifactsSize || 0); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
-                icon="extension"
-                glowColor="rgba(59,130,246,0.4)"
+                label={t("sys_stat_version")}
+                value={`V ${packageJson.version}`}
+                icon="new_releases"
+                glowColor="rgba(255,255,255,0.2)"
+                onClick={(e) => {
+                  if (e.altKey) {
+                    setUpdatePayload({
+                      version: "9.9.9",
+                      date: new Date().toISOString(),
+                      body: "This is a simulated update payload for UI testing.",
+                      downloadAndInstall: async () => { console.log("Simulating install..."); }
+                    } as any);
+                  }
+                }}
               />
               <StatBox
-                label={t("sys_stat_data")}
-                value={(() => { const s = parseBytes(dataSize || 0); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
-                icon="database"
-                glowColor="rgba(16,185,129,0.4)"
-              />
-              <StatBox
-                label={t("filter_dev")}
-                value={(() => { const s = parseBytes(sandboxSize || 0); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
-                icon="science"
-                glowColor="rgba(245,158,11,0.4)"
-              />
-              <StatBox
-                label={t("backups_title")}
-                value={(() => { const s = parseBytes(timeCapsuleSize || 0); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
-                icon="history"
-                glowColor="rgba(168,85,247,0.4)"
+                label={t("sys_stat_online")}
+                value={
+                  <div className="flex items-center gap-2">
+                    <span>
+                      {telemetry ? t("sys_stat_connected_status") : t("sys_stat_scanning_status")}
+                    </span>
+                  </div>
+                }
+                icon="cloud"
+                glowColor="rgba(255,255,255,0.2)"
               />
             </div>
           </UniversalGroup>
-        )}
+
+          <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150 ease-out fill-mode-both relative z-10" title={t("sys_info_os")} icon="public" innerClassName="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                <div className="flex flex-col relative z-10 justify-center h-full">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="material-symbols-outlined !text-[14px]" style={{ color: "rgba(168,85,247,0.8)" }}>devices</span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-70 group-hover:opacity-100 transition-opacity drop-shadow-sm">{t("sys_stat_os_name")}</span>
+                  </div>
+                  <div className="text-[14px] font-black capitalize tracking-tighter drop-shadow-md relative z-10 transition-colors text-white break-words leading-tight">{telemetry?.host_os || navigator.userAgent}</div>
+                </div>
+              </div>
+              <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                <div className="flex flex-col relative z-10 justify-center h-full">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="material-symbols-outlined !text-[14px]" style={{ color: "rgba(168,85,247,0.8)" }}>verified_user</span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-70 group-hover:opacity-100 transition-opacity drop-shadow-sm">{t("target_patch")}</span>
+                  </div>
+                  <div className="text-[14px] font-black capitalize tracking-tighter drop-shadow-md relative z-10 transition-colors text-white break-words leading-tight">{selectedVersion || t("status_unknown")}</div>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <StatBox
+                label={t("sys_stat_cores")}
+                value={telemetry ? <AnimatedNumber value={telemetry.logical_cores} suffix={t("sys_stat_cores_suffix")} /> : t("scanning")}
+                icon="memory"
+                glowColor="rgba(168,85,247,0.4)"
+              />
+              <StatBox
+                label={t("sys_stat_ram")}
+                value={telemetry ? <AnimatedNumber value={Math.round(telemetry.total_memory / (1024 ** 3))} suffix={t("unit_gb")} /> : t("scanning")}
+                icon="speed"
+                glowColor="rgba(59,130,246,0.4)"
+              />
+            </div>
+          </UniversalGroup>
+
+          <UniversalGroup
+            className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200 ease-out fill-mode-both relative z-10"
+            title={t("sys_info_app_footprint")}
+            icon={t("icon_monitoring")}
+            headerAction={
+              <FilterTabs className="shrink-0 scale-90 origin-right !h-auto">
+                <FilterTabButton
+                  id={false}
+                  activeTab={usePrivateMemory}
+                  setTab={setUsePrivateMemory}
+                  label={t("sys_stat_working_set")}
+                  className="py-1.5 px-3 text-[9px] whitespace-nowrap"
+                />
+                <FilterTabButton
+                  id={true}
+                  activeTab={usePrivateMemory}
+                  setTab={setUsePrivateMemory}
+                  label={t("sys_stat_private_set")}
+                  className="py-1.5 px-3 text-[9px] whitespace-nowrap"
+                />
+              </FilterTabs>
+            }
+            innerClassName="flex flex-col gap-4"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <StatBox
+                label={usePrivateMemory ? t("sys_stat_mem_private_set") : t("sys_stat_mem_working_set")}
+                value={appFootprint ? (() => { const s = parseBytes(usePrivateMemory ? appFootprint.memory_private : appFootprint.memory_used); return <AnimatedNumber value={s.val} suffix={s.unit} />; })() : t("scanning")}
+                icon={t("icon_memory")}
+                glowColor="rgba(234,88,12,0.4)"
+              />
+              <StatBox
+                label={t("sys_stat_cpu")}
+                value={appFootprint ? <AnimatedNumber value={appFootprint.cpu_usage} suffix="%" /> : t("scanning")}
+                icon={t("icon_speed")}
+                glowColor="rgba(234,88,12,0.4)"
+              />
+              <StatBox
+                label={t("sys_stat_total_disk_read")}
+                value={appFootprint ? (() => { const s = parseBytes(appFootprint.disk_read_speed); return <AnimatedNumber value={s.val} suffix={`${s.unit}/s`} />; })() : t("scanning")}
+                icon={t("icon_download")}
+                glowColor="rgba(234,88,12,0.4)"
+              />
+              <StatBox
+                label={t("sys_stat_total_disk_write")}
+                value={appFootprint ? (() => { const s = parseBytes(appFootprint.disk_write_speed); return <AnimatedNumber value={s.val} suffix={`${s.unit}/s`} />; })() : t("scanning")}
+                icon={t("icon_upload")}
+                glowColor="rgba(234,88,12,0.4)"
+              />
+            </div>
+          </UniversalGroup>
+
+          <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-300 ease-out fill-mode-both relative z-10" title={t("sys_info_local_storage")} icon="hard_drive" innerClassName="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <StatBox
+                label={t("sys_stat_usage")}
+                value={telemetry ? (() => { const s = parseBytes(telemetry.disk_used); return <AnimatedNumber value={s.val} suffix={s.unit} />; })() : t("scanning")}
+                icon="data_usage"
+                glowColor="rgba(244,63,94,0.4)"
+              />
+              <StatBox
+                label={t("sys_stat_quota")}
+                value={telemetry ? (() => { const s = parseBytes(telemetry.disk_total); return <AnimatedNumber value={s.val} suffix={s.unit} />; })() : t("scanning")}
+                icon="storage"
+                glowColor="rgba(20,184,166,0.4)"
+              />
+            </div>
+
+            {telemetry && telemetry.disk_total > 0 && (
+              <div className="w-full h-1.5 rounded-full overflow-hidden bg-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-1 shadow-inner relative">
+                <div
+                  className="h-full theme-bg-accent transition-all duration-[1500ms] ease-out relative shadow-[0_0_15px_var(--accent)]"
+                  style={{ width: `${(telemetry.disk_used / telemetry.disk_total) * 100}%` }}
+                >
+                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-30 animate-[shimmer_2s_linear_infinite]" />
+                  <div className="absolute top-0 right-0 bottom-0 w-10 bg-gradient-to-r from-transparent to-white/50 animate-pulse" />
+                </div>
+              </div>
+            )}
+          </UniversalGroup>
+
+          {vaultSize !== null && (
+            <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-500 ease-out fill-mode-both relative z-10 mt-2" title={t("sys_info_vault_storage")} icon="inventory_2" innerClassName="flex flex-col gap-4">
+              <StatBox
+                label={t("sys_stat_vault")}
+                value={(() => { const s = parseBytes(vaultSize); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
+                icon="inventory_2"
+                glowColor="rgba(234,179,8,0.4)"
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <StatBox
+                  label={t("items")}
+                  value={(() => { const s = parseBytes(artifactsSize || 0); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
+                  icon="extension"
+                  glowColor="rgba(59,130,246,0.4)"
+                />
+                <StatBox
+                  label={t("sys_stat_data")}
+                  value={(() => { const s = parseBytes(dataSize || 0); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
+                  icon="database"
+                  glowColor="rgba(16,185,129,0.4)"
+                />
+                <StatBox
+                  label={t("filter_dev")}
+                  value={(() => { const s = parseBytes(sandboxSize || 0); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
+                  icon="science"
+                  glowColor="rgba(245,158,11,0.4)"
+                />
+                <StatBox
+                  label={t("backups_title")}
+                  value={(() => { const s = parseBytes(timeCapsuleSize || 0); return <AnimatedNumber value={s.val} suffix={s.unit} />; })()}
+                  icon="history"
+                  glowColor="rgba(168,85,247,0.4)"
+                />
+              </div>
+            </UniversalGroup>
+          )}
         </div>
       </div>
     </SidePanel>

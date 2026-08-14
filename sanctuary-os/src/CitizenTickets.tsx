@@ -58,26 +58,22 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
 
   return (
     <div className="flex flex-col gap-6 w-full p-6 pb-20 text-[var(--text)]">
-      <div className="flex flex-col gap-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4">
-        <div className="flex justify-start items-center">
-          <div className="flex flex-col">
-            <h2 className="text-xl font-black capitalize tracking-widest">{t("your_tickets")}</h2>
-            <p className="text-sm text-[var(--subtext)]">{t("create_new")}</p>
-          </div>
+      <div className="flex justify-between items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4">
+        <div className="flex flex-col">
+          <h2 className="text-xl font-black capitalize tracking-widest">{t("your_tickets")}</h2>
+          <p className="text-sm text-[var(--subtext)]">{t("create_new")}</p>
         </div>
-        
-          <FilterTabs className="w-full">
-            {["all", "open", "pending", "closed"].map(filter => (
-               <FilterTabButton 
-                 key={filter}
-                 id={filter}
-                 activeTab={activeFilter}
-                 setTab={setActiveFilter}
-                 label={filter}
-                 className="flex-1"
-               />
-            ))}
-          </FilterTabs>
+        <FilterTabs>
+          {["all", "open", "pending", "closed"].map(filter => (
+             <FilterTabButton 
+               key={filter}
+               id={filter}
+               activeTab={activeFilter}
+               setTab={setActiveFilter}
+               label={filter}
+             />
+          ))}
+        </FilterTabs>
       </div>
 
       <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 pr-2">
@@ -116,7 +112,7 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
                   </span>
                 }
                 footer={
-                  <div className="flex justify-start items-center w-full">
+                  <div className="flex justify-between items-center w-full">
                     <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">
                       {new Date(ticket.created_at).toLocaleDateString()}
                     </span>

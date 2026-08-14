@@ -52,7 +52,7 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
                           </div>
                        )}
                        {setting.type === "number" && (
-                          <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
+             <div className="flex items-stretch glass-panel rounded-xl divide-x divide-white/5 shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
                              <button type="button" className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--subtext)]">
                                 <span className="material-symbols-outlined !text-[16px]">{t("icon_remove")}</span>
                              </button>

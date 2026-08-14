@@ -14,10 +14,7 @@ interface CitizenTicketsSidePanelProps {
 export default function WayfinderKeeperSidePanel({ isOpen, onClose, userId }: CitizenTicketsSidePanelProps) {
   const { t } = useLexicon();
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-  if (!isOpen) return null;
-
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   return (
     <>
       <SidePanel

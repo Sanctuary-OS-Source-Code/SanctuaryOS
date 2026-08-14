@@ -440,7 +440,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
 
         {delayedConfirmMode && (
           <div className="absolute inset-0 z-[100] pointer-events-none [transform:rotateY(180deg)] [backface-visibility:hidden]">
-            <div className={`pointer-events-auto relative h-full w-full glass-panel [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.1)_!important] flex flex-col border overflow-hidden [transform:translateZ(0)] ${delayedConfirmMode === 'tier3' ? 'border-[color-mix(in_srgb,orange_30%,transparent)]' :
+      <div className={`pointer-events-auto relative h-full w-full glass-panel [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.1)_!important] flex flex-col border [transform:translateZ(0)] ${delayedConfirmMode === 'tier3' ? 'border-[color-mix(in_srgb,orange_30%,transparent)]' :
               delayedConfirmMode === 'flavor_swap' ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' :
                 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'
               }`} style={{ borderRadius: 'var(--radius)' }}>

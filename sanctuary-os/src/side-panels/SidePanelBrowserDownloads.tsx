@@ -8,7 +8,7 @@ export function SidePanelBrowserDownloads({ downloadsQueue, setDownloadsQueue }:
   if (downloadsQueue.length === 0) return null;
 
   return (
-    <div className="shrink-0 m-4 mt-0 glass-panel border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] rounded-[var(--radius)] p-4 flex flex-col gap-3 z-50 animate-in slide-in-from-bottom-10 backdrop-blur-3xl overflow-hidden">
+  <div className="shrink-0 m-4 mt-0 glass-panel border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] rounded-[var(--radius)] p-4 flex flex-col gap-3 z-50 animate-in slide-in-from-bottom-10 backdrop-blur-3xl ">
       <div className="flex items-center justify-start border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] animate-bounce">download</span>

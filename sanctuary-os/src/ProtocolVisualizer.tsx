@@ -77,7 +77,7 @@ function ServerModSearchDropdown({ onSelect, selectedItem, placeholder, masonId,
           return (
             <>
               <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-              <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl overflow-hidden z-[200001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+       <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl z-[200001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
                 top: shouldDropUp ? undefined : rect.bottom + 8,
                 bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
                 left: rect.left,
@@ -582,7 +582,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
 
         setActivePanel(panelType);
       }}
-      className="group glass-panel rounded-3xl p-8 shadow-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all text-left flex flex-col justify-start h-56 relative overflow-hidden hover:scale-[1.02] active:scale-[0.98]"
+   className="group glass-panel rounded-3xl p-8 shadow-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all text-left flex flex-col justify-start h-56 relative hover:scale-[1.02] active:scale-[0.98]"
     >
       <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[var(--accent)] opacity-[0.05] group-hover:opacity-[0.15] transition-opacity pointer-events-none rounded-full blur-2xl group-hover:scale-150 duration-700" />
 

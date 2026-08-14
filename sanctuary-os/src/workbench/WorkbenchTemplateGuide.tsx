@@ -25,7 +25,7 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
       panelZ="z-[50001]"
     >
       <div className="p-8 flex flex-col gap-6 text-[var(--text)] h-full overflow-y-auto custom-scrollbar">
-        <div className="glass-panel p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] relative overflow-hidden shrink-0">
+    <div className="glass-panel p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] relative shrink-0">
 
           <h3 className="text-md font-black capitalize tracking-widest text-[var(--accent)] mb-2">{t("author_guide_intro")}</h3>
           <p className="text-[12px] opacity-80 leading-relaxed font-mono whitespace-pre-wrap">

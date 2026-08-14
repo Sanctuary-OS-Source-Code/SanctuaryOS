@@ -138,7 +138,7 @@ export default function TicketLogViewer({
         try {
             const parsed = JSON.parse(sec.content);
             return (
-                <div className="glass-panel group relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-300 rounded-[var(--radius)] overflow-hidden shadow-lg bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]">
+        <div className="glass-panel group relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-300 rounded-[var(--radius)] shadow-lg bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                   <div className="flex items-center gap-4 p-5 relative z-10">
                     <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">

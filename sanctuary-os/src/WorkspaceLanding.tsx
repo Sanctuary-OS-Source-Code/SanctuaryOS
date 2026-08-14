@@ -136,7 +136,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
       {!isTransparent && <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 transition-opacity duration-1000 animate-in fade-in mix-blend-overlay pointer-events-none" />}
       {!isTransparent && <div className="absolute inset-0 z-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] via-transparent to-[color-mix(in_srgb,var(--accent)_5%,transparent)] pointer-events-none" />}
 
-      <div className="relative z-10 w-[95%] max-w-5xl glass-panel bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[var(--radius)] shadow-md flex flex-col overflow-hidden max-h-[90vh]">
+   <div className="relative z-10 w-[95%] max-w-5xl glass-panel bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[var(--radius)] shadow-md flex flex-col max-h-[90vh]">
         {onClose && (
           <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full glass-surface flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-[var(--danger)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] z-50">
             <span className="material-symbols-outlined">close</span>

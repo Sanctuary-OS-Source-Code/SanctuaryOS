@@ -185,7 +185,7 @@ export function MassUpdateOversight() {
           <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} />
         </div>
 
-        <div className="flex items-stretch overflow-hidden glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] h-12 shrink-0 z-40">
+    <div className="flex items-stretch glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] h-12 shrink-0 z-40">
           <button
             onClick={() => setShowOnlySelected(!showOnlySelected)}
             className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${showOnlySelected ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}

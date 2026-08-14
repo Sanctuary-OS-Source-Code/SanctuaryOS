@@ -273,7 +273,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen animate-in fade-in transition-opacity duration-1000" />
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--bg)_80%,transparent)] to-[var(--bg)] pointer-events-none" />
 
-      <div className="relative z-10 w-[90%] max-w-lg glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-8 md:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col backdrop-blur-3xl overflow-hidden group">
+   <div className="relative z-10 w-[90%] max-w-lg glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-8 md:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col backdrop-blur-3xl group">
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent opacity-50" />
 
         <div className="flex flex-col items-center justify-center text-center mb-10 relative z-20">

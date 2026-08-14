@@ -206,7 +206,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
 
 
           
-          <div className="absolute top-12 left-10 opacity-0 pointer-events-none group-hover/card:opacity-100 group-hover/card:pointer-events-auto transition-all scale-95 group-hover/card:scale-100 w-48 h-max glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl overflow-hidden flex flex-col py-1 z-[60] origin-top-left">
+     <div className="absolute top-12 left-10 opacity-0 pointer-events-none group-hover/card:opacity-100 group-hover/card:pointer-events-auto transition-all scale-95 group-hover/card:scale-100 w-48 h-max glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl flex flex-col py-1 z-[60] origin-top-left">
             {node.type === "file" && availableMods && (
               <button onClick={() => setActiveDropdown(activeDropdown === node.id ? null : node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--accent)] group">
                 <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">link</span>

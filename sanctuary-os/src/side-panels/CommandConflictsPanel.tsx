@@ -157,10 +157,7 @@ export default function CommandConflictsPanel({
         />
       </div>
     );
-  };
-
-  if (!isOpen) return null;
-
+  };
   const tier4Count = activeConflicts.filter((c: any) => c.conflict.severity_rank === 4).length;
   const tier3Count = activeConflicts.length - tier4Count;
 

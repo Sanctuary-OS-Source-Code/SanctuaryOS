@@ -22,10 +22,7 @@ export default function BlueprintSwapSidePanel({
     if (equipPlaySet && playSets && playSets[index]) {
       await equipPlaySet(playSets[index].name);
     }
-  };
-
-  if (!isOpen) return null;
-
+  };
   return (
     <SidePanel
       isOpen={isOpen}
