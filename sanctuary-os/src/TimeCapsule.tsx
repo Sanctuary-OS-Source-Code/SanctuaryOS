@@ -124,7 +124,7 @@ export default function TimeCapsule({
     const themeLed = isEngine ? 'bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.8)]' : 'bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.8)]';
 
     return (
-      <div key={backupName} className={`relative bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 p-5 rounded-[var(--radius)] flex flex-col gap-4 shadow-xl min-h-[13rem] overflow-hidden group ${themeHoverBorder} transition-all duration-300`}>
+      <div key={backupName} className={`relative glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 shadow-xl min-h-[13rem] overflow-hidden group ${themeHoverBorder} transition-all duration-300`}>
         <div className={`absolute inset-0 bg-gradient-to-br ${themeGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
 
         <div className="flex justify-between items-start relative z-10">

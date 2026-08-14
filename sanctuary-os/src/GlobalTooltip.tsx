@@ -70,7 +70,7 @@ export function GlobalTooltip() {
   return createPortal(
     <div className="fixed inset-0 z-[999999] pointer-events-none">
       <div 
-        className="absolute pointer-events-none transition-all duration-200"
+        className="absolute pointer-events-none"
         style={{ 
           left: `${finalLeft}px`,
           top: `${finalTop}px`,

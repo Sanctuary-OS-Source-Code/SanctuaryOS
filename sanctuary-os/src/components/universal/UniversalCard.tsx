@@ -170,7 +170,7 @@ export function UniversalCard({
       {...restProps}
     >
       {/* Flagship Glass Glare & Light Leaks */}
-      <div className="absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-700 pointer-events-none z-0">
+      <div className="absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-700 pointer-events-none z-0 rounded-[inherit] overflow-hidden">
         <div className="absolute inset-0 bg-radial from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
         <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
         <div className="absolute inset-0 shadow-[inset_0_0_30px_color-mix(in_srgb,var(--text)_2%,transparent)]" />

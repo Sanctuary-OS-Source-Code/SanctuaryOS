@@ -89,7 +89,7 @@ export function Sidebar({
 
   return (
     <nav
-      className={`${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex flex-col relative z-20 transition-all duration-500 rounded-3xl border border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] shadow-2xl backdrop-blur-[var(--glassBlur)]`}
+      className={`${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex flex-col relative z-20 transition-all duration-500 rounded-3xl border border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] backdrop-blur-[var(--glassBlur)]`}
       style={{
         width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',
         minWidth: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',
