@@ -142,7 +142,7 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                   >
                     {isActive && (
                       <>
-                        <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] to-transparent opacity-10 pointer-events-none mix-blend-screen" />
+                        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[var(--accent)] to-transparent opacity-10 pointer-events-none mix-blend-screen" />
                         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-50" />
                         <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-20" />
                       </>
@@ -177,3 +177,6 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
     </SidePanel>
   );
 }
+
+
+

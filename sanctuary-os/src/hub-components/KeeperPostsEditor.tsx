@@ -420,11 +420,11 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
     return filteredPosts.map(post => {
       const hasUnsavedEdits = draftSet.has(post.id);
       return (
-    <div key={post.id} onClick={() => openEditor(post)} className={`glass-panel p-5 rounded-[var(--radius)] relative group flex flex-col gap-4 transition-all duration-500 shadow-lg backdrop-blur-3xl cursor-pointer ${hasUnsavedEdits ? '!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 !bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : isPostPinned(post) ? '!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] shadow-[0_10px_30px_rgba(var(--danger-rgb),0.1)]' : 'border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
+    <div key={post.id} onClick={() => openEditor(post)} className={`glass-panel p-5 rounded-2xl relative group flex flex-col gap-4 transition-all duration-500 shadow-lg backdrop-blur-3xl cursor-pointer ${hasUnsavedEdits ? '!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 !bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : isPostPinned(post) ? '!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] shadow-[0_10px_30px_rgba(var(--danger-rgb),0.1)]' : 'border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)]'}`}>
           <div className={`absolute -top-32 -right-32 w-64 h-64 blur-[80px] rounded-full pointer-events-none transition-opacity duration-700 z-0 ${isPostPinned(post) ? 'bg-[var(--danger)] opacity-20' : 'bg-[var(--text)] opacity-0 group-hover:opacity-[0.03]'}`} />
           {extractPostImage(post) && (
             <div className="-mx-5 -mt-5 rounded-t-3xl overflow-hidden h-36 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 z-10">
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
+              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
               <img src={extractPostImage(post)} alt={t("auto_cover")} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
             </div>
           )}
@@ -771,17 +771,17 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                   <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-2">{t("live_preview")}</h3>
 
                   {imageUrl && (
-                    <div className="w-full h-48 sm:h-64 relative shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] overflow-hidden shadow-lg -mb-8">
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--background)] z-10 opacity-90" />
+                    <div className="w-full h-48 sm:h-64 relative shrink-0 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl overflow-hidden shadow-lg -mb-8">
+                      <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-transparent via-transparent to-[var(--background)] z-10 opacity-90" />
                       <img src={imageUrl} className="w-full h-full object-cover object-center relative z-0 opacity-80 mix-blend-screen" alt={t("auto_post_cover_preview")} />
                     </div>
                   )}
 
-                  <div className={`relative z-20 ${imageUrl ? 'p-6 -mx-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--background)_40%,transparent)] backdrop-blur-2xl shadow-2xl mt-4 mb-2' : 'mb-6'}`}>
+                  <div className={`relative z-20 ${imageUrl ? 'p-6 -mx-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--background)_40%,transparent)] backdrop-blur-2xl shadow-2xl mt-4 mb-2' : 'mb-6'}`}>
                     <h1 className="text-3xl font-black text-[var(--text)] capitalize tracking-tight">{title || (t("untitled"))}</h1>
                   </div>
 
-                  <div className="markdown-body p-6 glass-surface rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-inner relative z-20">
+                  <div className="markdown-body p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-inner relative z-20">
                     {content ? <MarkdownRenderer content={content} onAssetClick={(type: string, id: string) => setActiveAsset({ type, id })} /> : <p className="text-[var(--subtext)] opacity-50 italic">{t("no_content_preview")}</p>}
                   </div>
                 </div>
@@ -845,4 +845,8 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
     </>
   );
 }
+
+
+
+
 

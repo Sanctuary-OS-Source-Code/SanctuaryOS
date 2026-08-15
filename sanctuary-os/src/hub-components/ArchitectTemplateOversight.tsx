@@ -228,7 +228,7 @@ export default function ArchitectTemplateOversight() {
                             value={newFileName}
                             onChange={(e) => setNewFileName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleAddSubmit()}
-                            className="h-12 w-full px-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
+                            className="h-12 w-full px-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
                             autoFocus
                         />
                         <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">{t("desc_file_name")}</span>
@@ -299,7 +299,7 @@ export default function ArchitectTemplateOversight() {
                                     placeholder={t("search_tmpl")}
                                     value={tmplSearch}
                                     onChange={(e) => setTmplSearch(e.target.value)}
-                                    className="w-full h-12 pl-10 pr-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-black/20 text-[12px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
+                                    className="w-full h-12 pl-10 pr-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-black/20 text-[12px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
                                 />
                             </div>
                             <div className="shrink-0 flex items-center gap-2 w-max min-w-[192px] max-w-xs">
@@ -365,7 +365,7 @@ export default function ArchitectTemplateOversight() {
                                 {t("nav_cancel")}
                             </button>
                             {selectedTemplateForPreview.is_community_default ? (
-                                <button disabled={true} className="px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
+                                <button disabled={true} className="px-8 py-4 rounded-2xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
                                     <span className="material-symbols-outlined !text-[18px]">{t("template_icon_verified")}</span>
                                     {t("active_default")}</button>
                             ) : (
@@ -392,7 +392,7 @@ export default function ArchitectTemplateOversight() {
                                 </div>
                             )}
 
-                            <div className="flex-1 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10 p-6 overflow-y-auto custom-scrollbar min-h-[400px]">
+                            <div className="flex-1 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10 p-6 overflow-y-auto custom-scrollbar min-h-[400px]">
                                 <TemplatePreviewer templateData={selectedTemplateForPreview.parsedData} />
                             </div>
                         </div>
@@ -402,4 +402,6 @@ export default function ArchitectTemplateOversight() {
         </div>
     );
 }
+
+
 

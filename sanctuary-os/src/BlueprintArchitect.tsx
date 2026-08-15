@@ -291,13 +291,14 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
               const tier3Count = activeConflicts.length - tier4Count;
               return (
                 <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative mb-4">
-                  <div className="flex items-center justify-start w-full relative z-10">
+                  <div className="flex items-center justify-between w-full relative z-10 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
                     <h3 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-[0.2em] opacity-80">{t("bp_load_order_conflicts")}</h3>
-                    <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
+                    <div className="flex items-center gap-3 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
                       <span>{activeConflicts.length} {t("items")}</span>
                       {(tier4Count > 0 || tier3Count > 0) && <span className="opacity-50">•</span>}
-                      {tier4Count > 0 && <span className="text-red-400">{tier4Count} {t("bp_pill_fatal")}</span>}
-                      {tier3Count > 0 && <span className="text-amber-400">{tier3Count} {t("bp_pill_overlaps")}</span>}
+                      {tier4Count > 0 && <span className="text-red-400 font-bold">{tier4Count} {t("bp_pill_fatal")}</span>}
+                      {(tier4Count > 0 && tier3Count > 0) && <span className="opacity-30">|</span>}
+                      {tier3Count > 0 && <span className="text-amber-400 font-bold">{tier3Count} {t("bp_pill_overlaps")}</span>}
                       {activeConflicts.length === 0 && <span className="text-[var(--success)]">• {t("bp_no_conflicts_detected")}</span>}
                     </div>
                   </div>
@@ -308,9 +309,9 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
             <div className={activeConflicts.length === 0 ? "flex flex-col flex-1" : "flex flex-col gap-6 pb-24"}>
               {activeConflicts.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center space-y-6 py-12 relative group">
-                  <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-transparent rounded-[var(--radius)] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                  <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-transparent  opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                   <div className="relative w-24 h-24 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.2)] group-hover:shadow-[0_0_50px_rgba(var(--success-rgb),0.3)] transition-all duration-700">
-                    <div className="absolute inset-0 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[ping_3s_ease-in-out_infinite] opacity-20" />
+                    <div className="absolute inset-0 rounded-[inherit]  border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[ping_3s_ease-in-out_infinite] opacity-20" />
                     <span className="material-symbols-outlined text-[var(--success)] drop-shadow-[0_0_10px_rgba(var(--success-rgb),0.5)] group-hover:scale-110 transition-transform duration-500">{t("icon_security")}</span>
                   </div>
                   <div className="flex flex-col items-center gap-1">
@@ -358,7 +359,7 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
                             else newSet.add(ac.pairId);
                             setIgnoredConflicts(newSet);
                           }}
-                          className="w-7 h-7 rounded-[max(0px,calc(var(--radius)-4px))] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all active:scale-95 flex items-center justify-center shrink-0 group relative"
+                          className="w-7 h-7 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all active:scale-95 flex items-center justify-center shrink-0 group relative"
                         >
                           <span className="material-symbols-outlined !text-[14px]">
                             {isIgnored ? "visibility" : "visibility_off"}
@@ -473,13 +474,14 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
         <div className="flex-[5] flex flex-col min-h-0 min-w-0">
           <div className="flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-4">
             <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative mb-4">
-              <div className="flex items-center justify-start w-full relative z-10">
+              <div className="flex items-center justify-between w-full relative z-10 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
                 <h3 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-[0.2em] opacity-80">{t("bp_compatibility_scanner")}</h3>
-                <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
+                <div className="flex items-center gap-3 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
                   <span>{brokenMods.length} {t("items")}</span>
                   {(redMods.length > 0 || amberMods.length > 0) && <span className="opacity-50">•</span>}
-                  {redMods.length > 0 && <span className="text-red-400">{redMods.length} {t("bp_pill_corrupted")}</span>}
-                  {amberMods.length > 0 && <span className="text-amber-400">{amberMods.length} {t("bp_pill_unstable")}</span>}
+                  {redMods.length > 0 && <span className="text-red-400 font-bold">{redMods.length} {t("bp_pill_corrupted")}</span>}
+                  {(redMods.length > 0 && amberMods.length > 0) && <span className="opacity-30">|</span>}
+                  {amberMods.length > 0 && <span className="text-amber-400 font-bold">{amberMods.length} {t("bp_pill_unstable")}</span>}
                   {brokenMods.length === 0 && <span className="text-[var(--success)]">• {t("auto_0")} {t("items")}</span>}
                 </div>
               </div>
@@ -508,9 +510,9 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
             <div className={brokenMods.length === 0 ? "flex flex-col flex-1" : "grid grid-cols-2 gap-4 pb-24"}>
               {brokenMods.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center space-y-6 py-12 relative group">
-                  <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-transparent rounded-[var(--radius)] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                  <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-transparent  opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                   <div className="relative w-24 h-24 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.2)] group-hover:shadow-[0_0_50px_rgba(var(--success-rgb),0.3)] transition-all duration-700">
-                    <div className="absolute inset-0 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[ping_3s_ease-in-out_infinite] opacity-20" />
+                    <div className="absolute inset-0 rounded-[inherit]  border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[ping_3s_ease-in-out_infinite] opacity-20" />
                     <span className="material-symbols-outlined text-[var(--success)] drop-shadow-[0_0_10px_rgba(var(--success-rgb),0.5)] group-hover:scale-110 transition-transform duration-500">{t("icon_check_circle")}</span>
                   </div>
                   <div className="flex flex-col items-center gap-1">
@@ -540,4 +542,9 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
     </SidePanel>
   );
 }
+
+
+
+
+
 

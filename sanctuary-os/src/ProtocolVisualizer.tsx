@@ -77,7 +77,7 @@ function ServerModSearchDropdown({ onSelect, selectedItem, placeholder, masonId,
           return (
             <>
               <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-       <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl z-[200001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+       <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-2xl z-[200001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
                 top: shouldDropUp ? undefined : rect.bottom + 8,
                 bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
                 left: rect.left,
@@ -610,11 +610,11 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
     });
 
     return (
-      <div className="absolute inset-0 flex flex-col xl:flex-row bg-transparent p-6 xl:p-8 gap-6 xl:gap-8 isolate">
+      <div className="absolute inset-0 rounded-[inherit] flex flex-col xl:flex-row bg-transparent p-6 xl:p-8 gap-6 xl:gap-8 isolate">
 
         {/* Left Side: The Master Hero Card */}
         <div className="w-full xl:w-[380px] shrink-0 flex flex-col relative z-10 h-full">
-          <div className="w-full h-full glass-panel rounded-[32px] p-6 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
+          <div className="w-full h-full glass-panel rounded-3xl p-6 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
 
             {/* Hero Background Effects */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
@@ -759,7 +759,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                         </div>
                         <button
                           onClick={() => setShowCommunityGroupModal(true)}
-                          className="w-12 h-12 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center shrink-0 relative group"
+                          className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center shrink-0 relative group"
                         >
                           <HoverTooltip title={t("community_groups_create")} />
                           <span className="material-symbols-outlined !text-[20px]">{t("icon_add")}</span>
@@ -828,7 +828,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
         </div>
 
         {/* Right Side: Available Artifacts */}
-        <div className="flex-1 flex flex-col h-full min-w-0 relative z-10 glass-panel rounded-[32px] p-6 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
+        <div className="flex-1 flex flex-col h-full min-w-0 relative z-10 glass-panel rounded-3xl p-6 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
 
           {/* Right Master Card Background Effects */}
           <div className="absolute top-0 right-0 w-96 h-96 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-full blur-[100px] pointer-events-none -translate-y-1/3 translate-x-1/3" />
@@ -1060,3 +1060,8 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
     </div>
   );
 }
+
+
+
+
+

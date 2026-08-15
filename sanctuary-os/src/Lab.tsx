@@ -386,8 +386,8 @@ export default function Lab({
 
             {/* LEFT COLUMN: THE CORE (SUBJECT) */}
             <div className="flex flex-col gap-6 h-full">
-       <div className="glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative flex flex-col h-full min-h-[500px] group">
-                <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-50 pointer-events-none" />
+       <div className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative flex flex-col h-full min-h-[500px] group">
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-50 pointer-events-none" />
 
                 <div className="flex flex-col items-center justify-center text-center p-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
                   <div className="w-20 h-20 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shrink-0 mb-4 shadow-md">
@@ -408,7 +408,7 @@ export default function Lab({
                     />
                   ) : (
                     <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-8 rounded-2xl shadow-md flex flex-col items-center text-center group/core h-full justify-center">
-                      <div className="absolute inset-0 border-[2px] border-dashed border-[var(--accent)] opacity-20 rounded-2xl animate-[spin_20s_linear_infinite] pointer-events-none scale-150" />
+                      <div className="absolute inset-0 rounded-[inherit] border-[2px] border-dashed border-[var(--accent)] opacity-20  animate-[spin_20s_linear_infinite] pointer-events-none scale-150" />
                       <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)] opacity-10 blur-[50px] rounded-full pointer-events-none" />
 
                       <span className="material-symbols-outlined !text-[64px] text-[var(--accent)] drop-shadow-md mb-6">view_in_ar</span>
@@ -436,7 +436,7 @@ export default function Lab({
             <div className="flex flex-col gap-8 pb-10">
 
               {/* SYMBIOTIC GRID */}
-              <div className={`glass-panel p-8 rounded-[var(--radius)] border shadow-xl relative flex flex-col h-max min-h-[300px] transition-all ${!activeLabMod ? 'opacity-30 pointer-events-none border-[color-mix(in_srgb,var(--text)_5%,transparent)] grayscale' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+              <div className={`glass-panel p-8 rounded-2xl border shadow-xl relative flex flex-col h-max min-h-[300px] transition-all ${!activeLabMod ? 'opacity-30 pointer-events-none border-[color-mix(in_srgb,var(--text)_5%,transparent)] grayscale' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                 <CommandScreenSectionHeading 
                   shape="circle"
                   title={t("symbiotic_deps")} 
@@ -510,8 +510,8 @@ export default function Lab({
               </div>
 
               {/* ADVERSARIAL GRID */}
-              <div className={`glass-panel p-8 rounded-[var(--radius)] border shadow-xl relative flex flex-col h-max min-h-[300px] transition-all ${!activeLabMod ? 'opacity-30 pointer-events-none border-[color-mix(in_srgb,var(--text)_5%,transparent)] grayscale' : 'border-[color-mix(in_srgb,var(--warning)_20%,transparent)]'}`}>
-                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent opacity-50 rounded-[inherit] pointer-events-none" />
+              <div className={`glass-panel p-8 rounded-2xl border shadow-xl relative flex flex-col h-max min-h-[300px] transition-all ${!activeLabMod ? 'opacity-30 pointer-events-none border-[color-mix(in_srgb,var(--text)_5%,transparent)] grayscale' : 'border-[color-mix(in_srgb,var(--warning)_20%,transparent)]'}`}>
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent opacity-50  pointer-events-none" />
                 <CommandScreenSectionHeading 
                   shape="circle"
                   title={t("adversarial_entities")} 
@@ -647,7 +647,7 @@ export default function Lab({
                 <div className="flex flex-wrap items-center gap-4 mt-4 lg:mt-0">
                   <button
                     onClick={handleConcludeTest}
-                    className={`py-2.5 px-6 rounded-[var(--radius)] font-black text-[10px] capitalize tracking-[0.2em] transition-all flex items-center justify-center gap-2 border shadow-sm ${isError ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] hover:border-[var(--danger)]' : 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)]'}`}
+                    className={`py-2.5 px-6 rounded-2xl font-black text-[10px] capitalize tracking-[0.2em] transition-all flex items-center justify-center gap-2 border shadow-sm ${isError ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] hover:border-[var(--danger)]' : 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] hover:border-[var(--success)]'}`}
                   >
                     <span className="material-symbols-outlined !text-[16px]">{isError ? 'shield' : 'verified_user'}</span>
                     {isError ? (t("secure_broken")) : (t("secure_verified"))}
@@ -676,7 +676,7 @@ export default function Lab({
                 <h3 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("payload_composition")}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
          <div className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center gap-3 relative group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-50" />
+                    <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-50" />
                     <span className="material-symbols-outlined text-[var(--accent)] !text-[18px] relative z-10">science</span>
                     <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(selectedReport.mod)}</span>
                     <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--accent)] capitalize tracking-widest relative z-10">{t("payload_core")}</span>
@@ -684,7 +684,7 @@ export default function Lab({
                   
                   {selectedReport.conflictTarget && (
           <div className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center gap-3 relative group">
-                      <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--danger)_10%,transparent)] to-transparent opacity-50" />
+                      <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-[color-mix(in_srgb,var(--danger)_10%,transparent)] to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--danger)] !text-[18px] relative z-10">warning</span>
                       <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(selectedReport.conflictTarget)}</span>
                       <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--danger)] capitalize tracking-widest relative z-10">{t("payload_adversary")}</span>
@@ -693,7 +693,7 @@ export default function Lab({
                   
                   {selectedReport.stagedExtras?.map((m: any) => (
           <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3 relative group">
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-50" />
+                      <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-white/5 to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--subtext)] !text-[18px] relative z-10">extension</span>
                       <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(m)}</span>
                       <span className="ml-auto text-[9px] font-black opacity-50 text-[var(--text)] capitalize tracking-widest relative z-10">{t("payload_injected")}</span>
@@ -702,7 +702,7 @@ export default function Lab({
                   
                   {selectedReport.conflictExtras?.map((m: any) => (
           <div key={m.hash || m.name} className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center gap-3 relative group">
-                      <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--warning)_10%,transparent)] to-transparent opacity-50" />
+                      <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-[color-mix(in_srgb,var(--warning)_10%,transparent)] to-transparent opacity-50" />
                       <span className="material-symbols-outlined text-[var(--warning)] !text-[18px] relative z-10">extension</span>
                       <span className="text-[var(--text)] text-xs font-bold capitalize tracking-widest truncate relative z-10">{getModName(m)}</span>
                       <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--warning)] capitalize tracking-widest relative z-10">{t("payload_injected")}</span>
@@ -755,8 +755,8 @@ export default function Lab({
         >
           <div className="flex flex-col items-center justify-center min-h-[400px] gap-8 opacity-90 p-8">
              <div className="relative flex items-center justify-center">
-               <div className="absolute inset-0 border-[6px] border-[var(--accent)] rounded-full border-t-transparent animate-[spin_3s_linear_infinite] opacity-30 blur-[4px] scale-150"></div>
-               <div className="absolute inset-0 border-[2px] border-[var(--accent)] rounded-full border-b-transparent animate-[spin_2s_linear_infinite_reverse] opacity-50 scale-125"></div>
+               <div className="absolute inset-0 rounded-[inherit] border-[6px] border-[var(--accent)]  border-t-transparent animate-[spin_3s_linear_infinite] opacity-30 blur-[4px] scale-150"></div>
+               <div className="absolute inset-0 rounded-[inherit] border-[2px] border-[var(--accent)]  border-b-transparent animate-[spin_2s_linear_infinite_reverse] opacity-50 scale-125"></div>
                <div className="w-32 h-32 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md relative z-10">
                   <span className="material-symbols-outlined !text-[64px] text-[var(--accent)] animate-pulse drop-shadow-lg">radar</span>
                </div>
@@ -780,3 +780,7 @@ export default function Lab({
     </div>
   );
 }
+
+
+
+

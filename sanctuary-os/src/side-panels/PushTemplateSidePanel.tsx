@@ -241,7 +241,7 @@ export function PushTemplateSidePanel({
             {t("upload_template_name")}
           </label>
           <div className="relative group">
-            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-2xl blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
+            <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
             <input 
               type="text" 
               value={name}
@@ -259,7 +259,7 @@ export function PushTemplateSidePanel({
             {t("upload_target_file")}
           </label>
           <div className="relative group">
-            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-2xl blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
+            <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
             <input 
               type="text" 
               value={targetFile}
@@ -301,7 +301,7 @@ export function PushTemplateSidePanel({
               {t("update_version")}
             </label>
             <div className="relative group">
-              <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-2xl blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
+              <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
               <input 
                 type="text" 
                 value={version}
@@ -333,7 +333,7 @@ export function PushTemplateSidePanel({
             {t("upload_desc")}
           </label>
           <div className="relative group">
-             <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-2xl blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
+             <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
              <textarea 
                value={description}
                onChange={e => setDescription(e.target.value)}
@@ -349,7 +349,7 @@ export function PushTemplateSidePanel({
             {t("whats_new")}
           </label>
           <div className="relative group">
-             <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-2xl blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
+             <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
              <textarea 
                value={releaseNotes}
                onChange={e => setReleaseNotes(e.target.value)}
@@ -448,3 +448,7 @@ export function PushTemplateSidePanel({
     </SidePanel>
   );
 }
+
+
+
+

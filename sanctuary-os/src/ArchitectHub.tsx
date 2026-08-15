@@ -158,7 +158,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { i
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-[3px] animate-in fade-in">
-      <div className="w-full max-w-lg bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl flex flex-col overflow-hidden">
+      <div className="w-full max-w-lg bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <div className="flex justify-start items-center mb-4">
             <h3 className="text-sm font-black capitalize tracking-widest theme-text-accent">
@@ -287,3 +287,5 @@ export function CustomMasonDropdown({ value, options, onChange }: { value: strin
   const dropdownOptions = options.map(o => ({ id: o.id, label: o.name }));
   return <CustomDropdown disableTint={true} searchable={true} value={value} options={dropdownOptions} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason")} />;
 }
+
+

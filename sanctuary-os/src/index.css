@@ -73,14 +73,7 @@ html, body {
   animation: panel-slide-out-left 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Stacked SidePanel Logic */
-/* Completely hide underlying panels when another panel is opened after it */
-.sa-side-panel-wrapper.sa-panel-open:has(~ .sa-side-panel-wrapper.sa-panel-open) .sa-side-panel-window {
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transform: none !important;
-  transition: opacity 0.3s ease-out !important;
-}
+
 
 #sa-portals {
   position: absolute;

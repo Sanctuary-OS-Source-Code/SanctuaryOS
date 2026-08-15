@@ -68,7 +68,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
       if (isCloudMode) {
          try {
             setIsScanning(true);
-            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).supabase;
             const { data, error } = await client.from(internalCloudTarget).select('id');
             if (error) {
                console.error("Cloud fetch error:", error);
@@ -145,7 +145,8 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
             ? internalCloudTarget === 'sanctuary_lexicons'
             : (currentFile.content?.includes('_meta_lang') || currentFile.content?.includes('"a_citizen"') || currentFile.name.startsWith('en-') || currentFile.name.startsWith('de-') || currentFile.name.startsWith('es-') || currentFile.name.startsWith('fr-'));
 
-         const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+         const { supabaseAuth } = await import('../supabase');
+         const client = supabaseAuth;
          
          if (isLexicon) {
             const { data } = await client.from('sanctuary_lexicons').select('lexicon_data').eq('id', 'en-default').maybeSingle();
@@ -162,7 +163,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
          }
       };
       fetchRef();
-   }, [isCloudMode ? cloudActiveFileIndex : localActiveFileIndex, isCloudMode]);
+   }, [isCloudMode ? cloudActiveFileIndex : localActiveFileIndex, isCloudMode, internalCloudTarget]);
 
    const validateContent = (text: string, monaco: any, model: any) => {
       let problems: any[] = [];
@@ -214,7 +215,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
          try {
             let content = "";
             if (isCloudMode) {
-               const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+               const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).supabase;
                const { data, error } = await client.from(internalCloudTarget).select(internalCloudTarget === 'sanctuary_lexicons' ? 'lexicon_data' : 'schema_data').eq('id', file.name.replace('.json', '')).maybeSingle();
                if (!error && data) {
                   content = internalCloudTarget === 'sanctuary_lexicons' ? JSON.stringify((data as any).lexicon_data, null, 2) : JSON.stringify((data as any).schema_data, null, 2);
@@ -279,7 +280,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
       try {
          if (isCloudMode) {
             const fileId = path.replace('cloud://', '');
-            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).supabase;
             const token = session?.access_token;
             if (!isKeepers && token) {
                 const { error } = await client.rpc('secure_delete_cloud_file', {
@@ -320,7 +321,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
          if (isCloudMode) {
             const oldId = baseOldName;
             const newId = renameInput.trim();
-            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).supabase;
             
             const { data: oldData, error: fetchErr } = await client.from(internalCloudTarget).select('*').eq('id', oldId).maybeSingle();
             if (fetchErr) throw fetchErr;
@@ -382,7 +383,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
       try {
          if (isCloudMode) {
             const fileId = createFileName.trim();
-            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).getActiveGameClient();
+            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).supabase;
             const contentToSave = (isCloudMode && internalCloudTarget === 'sanctuary_lexicons') || (!isCloudMode && createMode === 'lexicon')
                ? { _meta_lang: lexiconLang.toLowerCase(), _meta_name: fileId } 
                : { schema_version: 1, metadata: {} };

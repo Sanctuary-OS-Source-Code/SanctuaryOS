@@ -486,7 +486,7 @@ export default function SidePanelBrowser() {
       >
         <div className="pt-6 px-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex flex-col gap-3 rounded-tl-[3rem] !rounded-tr-none">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
-          <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-transparent pointer-events-none" />
+          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-transparent pointer-events-none" />
 
           <div className="flex items-center gap-4 pl-4 pr-4">
             <button
@@ -602,12 +602,12 @@ export default function SidePanelBrowser() {
         <div className="flex-1 w-full flex flex-row relative min-h-0">
 
           <div className="flex-1 h-full pb-6 flex overflow-hidden relative min-h-0 pl-4 pr-2">
-            <div className={`flex-1 h-full bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-xl flex pointer-events-none rounded-[var(--radius)] overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-[10px] relative ${isBookmarksDropdownOpen ? 'gap-[10px]' : ''}`}>
-              <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent pointer-events-none" />
+            <div className={`flex-1 h-full bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-xl flex pointer-events-none rounded-2xl overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-[10px] relative ${isBookmarksDropdownOpen ? 'gap-[10px]' : ''}`}>
+              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent pointer-events-none" />
 
               <div id="side-panel-browser-container" ref={containerRef} className="flex-1 rounded-[0.5rem] overflow-hidden relative pointer-events-auto shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] bg-black/50">
                 {browserTabs.length === 0 && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-50 animate-in fade-in duration-500">
+                  <div className="absolute inset-0 rounded-[inherit] flex flex-col items-center justify-center pointer-events-none z-50 animate-in fade-in duration-500">
                     <span className="material-symbols-outlined !text-[64px] text-[var(--subtext)] opacity-30 mb-4 drop-shadow-md">public</span>
                     <h2 className="text-[18px] font-black tracking-widest text-[var(--text)] opacity-50 capitalize drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{t("browser_ready_to_browse")}</h2>
                     <p className="text-[12px] text-[var(--subtext)] opacity-50 mt-2 max-w-xs text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">{t("browser_ready_to_browse_desc")}</p>
@@ -803,3 +803,6 @@ export default function SidePanelBrowser() {
     </div>
   );
 }
+
+
+

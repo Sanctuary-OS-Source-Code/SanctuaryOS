@@ -30,10 +30,10 @@ const SettingNode = React.memo(({ setting, val, dataPath, isHighlighted, isPrevi
    };
 
    return (
-      <div data-setting-key={setting.key} className={`rounded-[var(--radius)] border p-4 sm:p-6 flex justify-start group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 gap-4 sm:gap-6 transform-gpu backface-hidden relative overflow-hidden ${isPreview ? 'flex-col' : 'flex-col flex-wrap md:flex-row md:items-center'} ${isHighlighted ? 'z-10 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-transparent'}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '80px' }}>
+      <div data-setting-key={setting.key} className={`rounded-2xl border p-4 sm:p-6 flex justify-start group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 gap-4 sm:gap-6 transform-gpu backface-hidden relative overflow-hidden ${isPreview ? 'flex-col' : 'flex-col flex-wrap md:flex-row md:items-center'} ${isHighlighted ? 'z-10 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-transparent'}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '80px' }}>
          {isHighlighted && (
             <>
-               <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: `linear-gradient(90deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent)` }} />
+               <div className="absolute inset-0 rounded-[inherit] z-0 pointer-events-none" style={{ background: `linear-gradient(90deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent)` }} />
                <div className="absolute top-0 right-0 w-32 h-32 blur-[50px] rounded-full pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 15%, transparent)` }} />
             </>
          )}
@@ -297,3 +297,6 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
       </>
    );
 };
+
+
+

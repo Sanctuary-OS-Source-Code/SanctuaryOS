@@ -286,7 +286,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
           <div className="flex flex-col gap-6">
 
             <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none rounded-2xl" />
+              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none " />
 
               <div className="flex flex-col gap-2 relative z-10">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
@@ -307,7 +307,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
             </div>
 
             <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none rounded-2xl" />
+              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
               <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
                 {t("btn_view")}
@@ -350,7 +350,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
             </div>
 
             <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none rounded-2xl" />
+              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none " />
               <h4 className="text-[10px] font-black text-emerald-400 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span>
                 {t("label_resources")}
@@ -373,7 +373,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
             </div>
 
             <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none rounded-2xl" />
+              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none " />
               <h4 className="text-[10px] font-black text-purple-400 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                 <span className="material-symbols-outlined !text-[14px]">{t("verified")}</span>
                 {t("compliance_tier")}
@@ -422,4 +422,8 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
     </div>
   )
 }
+
+
+
+
 

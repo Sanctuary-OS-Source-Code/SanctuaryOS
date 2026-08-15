@@ -109,12 +109,12 @@ export function WayfinderComms() {
     <div className="flex-1 flex flex-col h-full w-full relative overflow-hidden">
       <div className="absolute top-[-100px] left-[-100px] w-96 h-96 theme-bg-accent opacity-10 blur-[100px] rounded-full pointer-events-none z-0" />
 
-      <div className="flex-1 bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] flex flex-col mb-6 overflow-y-auto p-8 gap-5 custom-scrollbar shadow-inner relative z-10 backdrop-blur-[3px]">
+      <div className="flex-1 bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl flex flex-col mb-6 overflow-y-auto p-8 gap-5 custom-scrollbar shadow-inner relative z-10 backdrop-blur-[3px]">
         {commsMessages.length === 0 ? (
           <EmptyState icon={t("icon_cell_tower")} title={t("comms_offline")} subtitle={t("comms_handshake")} className="col-span-full py-16" />
         ) : (
           commsMessages.map((msg, i) => (
-            <div key={msg.id || i} className="flex flex-col gap-3 text-left glass-surface p-6 rounded-[var(--radius)] animate-in fade-in slide-in-from-bottom-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all shadow-lg group relative overflow-hidden">
+            <div key={msg.id || i} className="flex flex-col gap-3 text-left glass-surface p-6 rounded-2xl animate-in fade-in slide-in-from-bottom-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all shadow-lg group relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-1 w-1 theme-bg-accent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex justify-start items-center opacity-70 mb-1">
                 <span className="text-[10px] font-black capitalize tracking-[0.2em] theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)] flex items-center gap-2">
@@ -139,7 +139,7 @@ export function WayfinderComms() {
         )}
       </div>
 
-      <div className="flex gap-3 relative z-10 bg-black/20 p-2.5 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-2xl">
+      <div className="flex gap-3 relative z-10 bg-black/20 p-2.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-2xl">
         <input
           type="text"
           value={commsInput}
@@ -158,4 +158,6 @@ export function WayfinderComms() {
     </div>
   );
 }
+
+
 

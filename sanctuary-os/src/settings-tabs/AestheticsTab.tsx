@@ -46,3 +46,5 @@ export default function AestheticsTab({ config }: any) {
     </>
   );
 }
+
+

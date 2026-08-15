@@ -187,7 +187,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         <p className="text-xs font-bold capitalize tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc")}</p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 px-8 py-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black capitalize tracking-widest group"
+          className="mt-4 px-8 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black capitalize tracking-widest group"
         >
           <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">refresh</span>
           {t("offline_mode_refresh")}
@@ -237,7 +237,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
             </div>
             {(startDate || endDate) && (
               <div className="shrink-0 h-12 flex">
-                <ActionButton icon="close" label={t("btn_clear")} onClick={() => { setStartDate(null); setEndDate(null); }} className="h-full py-0 rounded-[calc(var(--radius)-4px)]" />
+                <ActionButton icon="close" label={t("btn_clear")} onClick={() => { setStartDate(null); setEndDate(null); }} className="h-full py-0 rounded-xl" />
               </div>
             )}
             <div className="w-max min-w-[150px] shrink-0 h-12">
@@ -379,6 +379,8 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
     </div>
   );
 }
+
+
 
 
 

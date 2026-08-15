@@ -83,3 +83,5 @@ export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, exec
     </SidePanel>
   );
 }
+
+

@@ -24,7 +24,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
   const removeAction = onRemove ? (
     <button
       onClick={handleRemove}
-      className={`w-8 h-8 rounded-[var(--radius)] bg-black/50 backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg shadow-black/20 ${confirmDelete ? 'bg-[color-mix(in_srgb,var(--danger)_40%,transparent)] backdrop-blur-md border-[color-mix(in_srgb,var(--danger)_60%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_50%,transparent)] scale-110 text-white shadow-md' : 'hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-md'}`}
+      className={`w-8 h-8 rounded-2xl bg-black/50 backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg shadow-black/20 ${confirmDelete ? 'bg-[color-mix(in_srgb,var(--danger)_40%,transparent)] backdrop-blur-md border-[color-mix(in_srgb,var(--danger)_60%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_50%,transparent)] scale-110 text-white shadow-md' : 'hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-md'}`}
     >
       <span className="material-symbols-outlined !text-[16px]">{confirmDelete ? (t("icon_warning_amber")) : (t("icon_close"))}</span>
     </button>
@@ -44,12 +44,12 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
   const imageOverlay = layout === 'vertical' ? (
     <>
       {cleanStatus && (
-        <div className={`absolute top-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-lg capitalize tracking-widest shadow-lg z-20 border ${statusBadgeColor}`}>
+        <div className={`absolute top-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-xl capitalize tracking-widest shadow-lg z-20 border ${statusBadgeColor}`}>
           {cleanStatus}
         </div>
       )}
       {mod?.file_extension && (
-        <div className="absolute bottom-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-lg capitalize tracking-widest shadow-lg z-20 border bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] drop-shadow-md">
+        <div className="absolute bottom-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-xl capitalize tracking-widest shadow-lg z-20 border bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] drop-shadow-md">
           {mod.file_extension.replace(/^\./, '')}
         </div>
       )}
@@ -59,7 +59,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
   const horizontalBadges = layout === 'horizontal' ? (
     <>
       {cleanStatus && (
-        <div className={`text-[8px] font-black px-1.5 py-0.5 backdrop-blur-md rounded-md capitalize tracking-widest border shrink-0 ${statusBadgeColor}`}>
+        <div className={`text-[8px] font-black px-1.5 py-0.5 backdrop-blur-md rounded-xl capitalize tracking-widest border shrink-0 ${statusBadgeColor}`}>
           {cleanStatus}
         </div>
       )}
@@ -67,7 +67,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
         {mod?.category_override || mod?.suggested_type || t("vlocal")}
       </span>
       {mod?.file_extension && (
-        <div className="text-[8px] font-black px-1.5 py-0.5 backdrop-blur-md rounded-md capitalize tracking-widest border shrink-0 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] ml-2">
+        <div className="text-[8px] font-black px-1.5 py-0.5 backdrop-blur-md rounded-xl capitalize tracking-widest border shrink-0 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] ml-2">
           {mod.file_extension.replace(/^\./, '')}
         </div>
       )}
@@ -107,7 +107,7 @@ export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonName
   const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("mason");
 
   const imageOverlay = (
-    <div className="absolute top-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-lg capitalize tracking-widest shadow-lg z-20 border bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
+    <div className="absolute top-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-xl capitalize tracking-widest shadow-lg z-20 border bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
       {t("stat_tier")} {setItem.compliance_tier || 0}
     </div>
   );
@@ -137,3 +137,5 @@ export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonName
     />
   );
 }
+
+

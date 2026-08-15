@@ -99,7 +99,7 @@ function EditableVersionRow({
 
   return (
     <div className="relative group/item flex flex-col p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate">
-      <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none rounded-3xl" />
+      <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none " />
       
       {/* Top Row: Icon + Badge */}
       <div className="flex items-start justify-start gap-3 mb-4 relative z-10">
@@ -268,7 +268,7 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
 
   return (
     <>
-    <div className="w-full h-full glass-panel rounded-[32px] p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
+    <div className="w-full h-full glass-panel rounded-3xl p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
       
       {/* Hero Background Effects */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
@@ -386,3 +386,9 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
     </>
   );
 }
+
+
+
+
+
+

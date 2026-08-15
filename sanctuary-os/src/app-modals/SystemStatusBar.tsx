@@ -7,6 +7,7 @@ import { HoverTooltip } from '../shared';
 
 export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen, setIsNotificationSidebarOpen, unreadNotificationCount, isLogExpanded, setIsLogExpanded, status, isScanning, isErrorStatus, isSuccessStatus, statusBgClass, statusAccentClass, statusIconClass, statusTextClass, updatePayload, isSystemStatusOpen, setIsSystemStatusOpen, setIsSideBrowserOpen }: any) {
   const { t } = useLexicon();
+  const isConfigured = useStore(state => state.isConfigured);
   const nexusUpdatesCount = useStore(state => state.nexusUpdatesCount);
   const nexusUpdateTabs = useStore(state => state.nexusUpdateTabs);
   const setView = useStore(state => state.setView);
@@ -119,7 +120,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
       >
 
         {/* Contiguous Hover Wrapper */}
-        <div className={`pointer-events-auto flex flex-col items-center justify-end transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${dockTransformClass} pb-4`}>
+        <div className={`pointer-events-auto flex flex-col items-center justify-end transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${dockTransformClass} pb-4 ${!isConfigured ? 'pointer-events-none opacity-50 grayscale' : ''}`}>
 
           {/* Invisible hit bar to fully encapsulate tooltips so mouse-up doesn't drop hover */}
           <div className="w-[800px] max-w-[100vw] h-16 cursor-default" />

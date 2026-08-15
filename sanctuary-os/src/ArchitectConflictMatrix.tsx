@@ -251,9 +251,9 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                   <div
                     key={g.id}
                     onClick={() => handleEditConflict(g)}
-          className="glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl transition-all duration-500 relative cursor-pointer"
+          className="glass-panel p-5 rounded-2xl flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl transition-all duration-500 relative cursor-pointer"
                   >
-                    <div className="absolute inset-0 pointer-events-none transition-all duration-700 opacity-20 group-hover:opacity-40" />
+                    <div className="absolute inset-0 rounded-[inherit] pointer-events-none transition-all duration-700 opacity-20 group-hover:opacity-40" />
 
                     {/* Header */}
                     <div className="flex justify-start items-start z-10 relative">
@@ -328,7 +328,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                     const tierColor = g.severity_rank == 4 ? 'text-[var(--danger)]' : g.severity_rank == 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]';
                     const borderHover = g.severity_rank == 4 ? 'hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : g.severity_rank == 3 ? 'hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]';
                     return (
-           <div key={g.id} onClick={() => handleEditConflict(g)} className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl ${borderHover} transition-all duration-500 relative`}>
+           <div key={g.id} onClick={() => handleEditConflict(g)} className={`glass-panel p-5 rounded-2xl flex flex-col gap-4 group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl ${borderHover} transition-all duration-500 relative`}>
 
                         <div className="flex justify-start items-center z-10">
                           <div className="flex items-center gap-2">
@@ -390,7 +390,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
             footer={
               <div className="flex flex-col gap-4 w-full">
                 {isDeleting ? (
-                  <div className="flex flex-col gap-4 p-5 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
+                  <div className="flex flex-col gap-4 p-5 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
                     <span className="text-sm font-black text-[var(--danger)] capitalize tracking-widest text-center">{t("ui_confirm_delete")}</span>
                     <input
                       value={deleteReason}
@@ -508,4 +508,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
     </div>
   );
 }
+
+
+
 

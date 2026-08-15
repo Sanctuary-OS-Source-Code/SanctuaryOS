@@ -123,14 +123,14 @@ export function DnaMatchQueueSidePanel({
                   <div className="flex justify-center items-center gap-2 w-full mt-2 pointer-events-auto">
                     <button
                       onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve([match], "ignore"); }}
-                      className="flex-1 min-w-0 py-2 rounded-[16px] border bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] text-[9px] font-black capitalize tracking-widest flex items-center justify-center gap-1 transition-all shadow-sm active:scale-95 hover:shadow-md"
+                      className="flex-1 min-w-0 py-2 rounded-2xl border bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] text-[9px] font-black capitalize tracking-widest flex items-center justify-center gap-1 transition-all shadow-sm active:scale-95 hover:shadow-md"
                     >
                       <span className="material-symbols-outlined !text-[12px]">{t("icon_close")}</span>
                       {t("defcon_btn_skip")}
                     </button>
                     <button
                       onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve([match], "replace"); }}
-                      className="flex-1 min-w-0 py-2 rounded-[16px] border bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[9px] font-black capitalize tracking-widest flex items-center justify-center gap-1 transition-all shadow-sm active:scale-95 hover:shadow-md"
+                      className="flex-1 min-w-0 py-2 rounded-2xl border bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[9px] font-black capitalize tracking-widest flex items-center justify-center gap-1 transition-all shadow-sm active:scale-95 hover:shadow-md"
                     >
                       <span className="material-symbols-outlined !text-[12px]">{t("icon_done")}</span>
                       {t("btn_keep_new")}
@@ -182,3 +182,7 @@ export function DnaMatchQueueSidePanel({
     </SidePanel>
   );
 }
+
+
+
+

@@ -432,3 +432,5 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     </SidePanel>
   );
 }
+
+

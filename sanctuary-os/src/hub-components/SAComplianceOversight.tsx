@@ -208,7 +208,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
           {loading ? (
-            <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning")}</div>
+            <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning")}</div>
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {filteredMods.map(mod => {
@@ -350,4 +350,6 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     </div>
   );
 }
+
+
 

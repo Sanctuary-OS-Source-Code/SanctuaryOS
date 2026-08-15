@@ -658,7 +658,7 @@ export const DbpfScout = () => {
               {!hasScanned && !loading && !error && (
                 <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
                   <div className="w-56 h-56 rounded-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-md flex items-center justify-center relative group cursor-pointer" onClick={() => runRadar()}>
-                    <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-[var(--accent)] opacity-20 animate-[spin_20s_linear_infinite]" />
+                    <div className="absolute inset-0 rounded-[inherit]  border-[2px] border-dashed border-[var(--accent)] opacity-20 animate-[spin_20s_linear_infinite]" />
                     <div className="absolute inset-4 rounded-full border border-[var(--text)] opacity-10 animate-[spin_15s_linear_infinite_reverse]" />
                     <div className="absolute inset-10 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-10 animate-[spin_25s_linear_infinite]" />
                     <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 drop-shadow-md">
@@ -681,7 +681,7 @@ export const DbpfScout = () => {
               {loading && (
                 <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
                   <div className="w-56 h-56 rounded-full border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shadow-md flex items-center justify-center relative group">
-                    <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-[var(--accent)] opacity-80 animate-[spin_3s_linear_infinite]" />
+                    <div className="absolute inset-0 rounded-[inherit]  border-[2px] border-dashed border-[var(--accent)] opacity-80 animate-[spin_3s_linear_infinite]" />
                     <div className="absolute inset-4 rounded-full border-[4px] border-solid border-transparent border-t-[var(--accent)] opacity-60 animate-[spin_1s_linear_infinite_reverse]" />
                     <div className="absolute inset-8 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-40 animate-[spin_5s_linear_infinite]" />
                     <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] animate-pulse drop-shadow-md">
@@ -701,10 +701,10 @@ export const DbpfScout = () => {
 
               {hasScanned && stats.totalClashes === 0 && !loading && (
                 <div className="py-24 flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in-95 duration-700 relative">
-                  <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] blur-[100px] rounded-full pointer-events-none" />
+                  <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] blur-[100px]  pointer-events-none" />
                   <div className="relative">
                     <div className="w-32 h-32 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-md flex items-center justify-center relative backdrop-blur-md">
-                      <div className="absolute inset-0 rounded-full border-[2px] border-dashed border-[color-mix(in_srgb,var(--success)_50%,transparent)] animate-[spin_10s_linear_infinite]" />
+                      <div className="absolute inset-0 rounded-[inherit]  border-[2px] border-dashed border-[color-mix(in_srgb,var(--success)_50%,transparent)] animate-[spin_10s_linear_infinite]" />
                       <div className="absolute inset-2 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[spin_15s_linear_infinite_reverse]" />
                       <span className="material-symbols-outlined !text-[64px] text-[var(--success)] animate-pulse drop-shadow-md">
                         {t("icon_check")}
@@ -821,7 +821,7 @@ export const DbpfScout = () => {
                   </div>
 
                   {confirmMassVault && (
-                    <div className="animate-in slide-in-from-top-2 p-6 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] flex flex-col md:flex-row gap-6 items-center justify-start shadow-xl mb-6">
+                    <div className="animate-in slide-in-from-top-2 p-6 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl flex flex-col md:flex-row gap-6 items-center justify-start shadow-xl mb-6">
                       <p className="text-sm font-black theme-text-danger capitalize tracking-widest">
                         {t("secure_quarantine") || `Yeet ${selectedForVault.length} duplicates to the Vault?`}
                       </p>
@@ -852,7 +852,7 @@ export const DbpfScout = () => {
               )}
 
               {hasScanned && filteredSoft.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 1) && (
-                <details className="group space-y-6 glass-surface p-6 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer mt-12 mb-32 transition-all hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <details className="group space-y-6 glass-surface p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer mt-12 mb-32 transition-all hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <summary className="flex flex-col gap-1 list-none outline-none">
                     <div className="flex justify-start items-center w-full">
                       <h3 className="text-sm font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest flex items-center gap-3 group-open:text-[var(--text)] transition-colors">
@@ -987,8 +987,8 @@ export const DbpfScout = () => {
                         const displayLoserName = override.isManual ? cleanLoserPath : formatDisplayName(cleanLoserPath, activeGameSchema);
 
                         return (
-                          <div key={`active_${idx}`} className="p-5 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-xl relative group/card hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">
-                            <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--bg)_5%,transparent)] to-transparent pointer-events-none z-0" />
+                          <div key={`active_${idx}`} className="p-5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-xl relative group/card hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">
+                            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-tr from-[color-mix(in_srgb,var(--bg)_5%,transparent)] to-transparent pointer-events-none z-0" />
                             <div className="flex items-center justify-start relative z-10">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]">
@@ -1041,8 +1041,8 @@ export const DbpfScout = () => {
                         const rightName = right.split(/[/\\]/).pop();
 
                         return (
-                          <div key={`ignored_${i}`} className="p-5 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl relative group/card hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-                            <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--bg)_5%,transparent)] to-transparent pointer-events-none z-0" />
+                          <div key={`ignored_${i}`} className="p-5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl relative group/card hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+                            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-tr from-[color-mix(in_srgb,var(--bg)_5%,transparent)] to-transparent pointer-events-none z-0" />
                             <div className="flex items-center justify-start relative z-10">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] shadow-sm">
@@ -1115,3 +1115,7 @@ export const DbpfScout = () => {
     </>
   );
 };
+
+
+
+

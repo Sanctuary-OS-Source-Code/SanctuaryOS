@@ -169,7 +169,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                       : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                     }`}
                 >
-                  {activeLang === code && <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
+                  {activeLang === code && <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
 
                   <div className="flex justify-start items-start mb-3 relative z-10">
                     <div className="w-6 h-6 rounded-full shadow-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shrink-0 flex items-center justify-center text-[var(--accent)]">
@@ -242,7 +242,7 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
                           : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                         }`}
                     >
-                      {activeLang === code && <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
+                      {activeLang === code && <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
 
                       <div className="flex justify-start items-start mb-3 relative z-10">
                         <div className="w-6 h-6 rounded-full shadow-md border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shrink-0 flex items-center justify-center text-[var(--accent)]">
@@ -295,3 +295,6 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
     </SidePanel>
   );
 }
+
+
+

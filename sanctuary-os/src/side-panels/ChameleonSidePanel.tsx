@@ -172,7 +172,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                       : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                       }`}
                   >
-                    {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
+                    {activeThemeId === id && <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
 
                     <div className="flex justify-start items-start mb-3 relative z-10">
                       <div className="w-6 h-6 rounded-full shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0" style={{ backgroundColor: data.accent }} />
@@ -273,7 +273,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                           : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                           }`}
                       >
-                        {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
+                        {activeThemeId === id && <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
 
                         <div className="flex justify-start items-start mb-3 relative z-10">
                           <div className="w-6 h-6 rounded-full shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0" style={{ backgroundColor: data.accent }} />
@@ -382,7 +382,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                       : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                       }`}
                   >
-                    {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
+                    {activeThemeId === id && <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
 
                     <div className="flex justify-start items-start mb-3 relative z-10">
                       <div className="w-6 h-6 rounded-full shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0" style={{ backgroundColor: data.accent }} />
@@ -494,7 +494,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                           : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
                           }`}
                       >
-                        {activeThemeId === id && <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
+                        {activeThemeId === id && <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />}
 
                         <div className="flex justify-start items-start mb-3 relative z-10">
                           <div className="w-6 h-6 rounded-full shadow-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0" style={{ backgroundColor: data.accent }} />
@@ -583,3 +583,6 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
     </SidePanel>
   );
 }
+
+
+

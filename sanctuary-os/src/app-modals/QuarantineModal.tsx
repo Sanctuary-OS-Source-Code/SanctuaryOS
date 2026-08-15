@@ -8,7 +8,7 @@ export function QuarantineModal({ showQuarantineModal, setShowQuarantineModal, q
 
   return (
     <div className="fixed inset-0 z-[150000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] backdrop-blur-2xl animate-in fade-in duration-300">
-      <div className="glass-panel border-2 theme-border-danger p-8 rounded-[var(--radius)] w-full max-w-2xl shadow-2xl flex flex-col gap-6" style={{ color: 'var(--text)' }}>
+      <div className="glass-panel border-2 theme-border-danger p-8 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col gap-6" style={{ color: 'var(--text)' }}>
         <h2 className="text-3xl font-black capitalize text-red-500 tracking-tighter flex items-center gap-3"><span className="material-symbols-outlined text-red-500">{t("icon_warning_amber")}</span> {t("quarantine_modal_title")}</h2>
         <p className="opacity-80 font-bold text-sm">{t("quarantine_modal_desc")}</p>
         
@@ -33,3 +33,5 @@ export function QuarantineModal({ showQuarantineModal, setShowQuarantineModal, q
     </div>
   );
 }
+
+

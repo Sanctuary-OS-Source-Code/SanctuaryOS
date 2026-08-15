@@ -124,8 +124,8 @@ export default function TimeCapsule({
     const themeLed = isEngine ? 'bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.8)]' : 'bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.8)]';
 
     return (
-      <div key={backupName} className={`relative glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 shadow-xl min-h-[13rem] overflow-hidden group ${themeHoverBorder} transition-all duration-300`}>
-        <div className={`absolute inset-0 bg-gradient-to-br ${themeGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
+      <div key={backupName} className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-4 shadow-xl min-h-[13rem] overflow-hidden group ${themeHoverBorder} transition-all duration-300`}>
+        <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${themeGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
 
         <div className="flex justify-between items-start relative z-10">
           <div className={`w-12 h-12 rounded-xl theme-glass-panel border ${themeBorder} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
@@ -152,7 +152,7 @@ export default function TimeCapsule({
 
         <div className="mt-auto relative z-20 h-10">
 
-          <div className={`absolute inset-0 flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName || confirmDeleteBackup === backupName ? 'opacity-0 translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
+          <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName || confirmDeleteBackup === backupName ? 'opacity-0 translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
             <button
               onClick={() => setConfirmRestoreBackup(backupName)}
               className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${themeColor} bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all rounded-xl shadow-sm backdrop-blur-md`}
@@ -174,7 +174,7 @@ export default function TimeCapsule({
             </button>
           </div>
 
-          <div className={`absolute inset-0 flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+          <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
             <button
               onClick={() => { setConfirmRestoreBackup(null); useModalStore.getState().setRestoreType(isEngine ? 'engine' : 'world'); if (restoreGameBackup) restoreGameBackup(backupName); }}
               className={`flex-[2] h-full ${themeColor} ${themeBg} hover:brightness-110 border ${themeBorder} transition-all text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm backdrop-blur-md`}
@@ -186,7 +186,7 @@ export default function TimeCapsule({
             </button>
           </div>
 
-          <div className={`absolute inset-0 flex gap-2 transition-all duration-300 ${confirmDeleteBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+          <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmDeleteBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
             <button
               onClick={() => { setConfirmDeleteBackup(null); if (deleteBackup) deleteBackup(backupName); }}
               className="flex-[2] h-full text-red-500 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm backdrop-blur-md"
@@ -439,7 +439,7 @@ export default function TimeCapsule({
             )}
 
             {activeTab === "LANDING" && worldBackups.length === 0 && engineBackups.length === 0 && (
-              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
+              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl w-full">
                 <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
                   <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
                   {t("timecapsule_no_backups")}
@@ -448,7 +448,7 @@ export default function TimeCapsule({
             )}
 
             {activeTab === "WORLD" && worldBackups.length === 0 && (
-              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
+              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl w-full">
                 <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
                   <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
                   {t("timecapsule_no_backups")}
@@ -457,7 +457,7 @@ export default function TimeCapsule({
             )}
 
             {activeTab === "ENGINE" && engineBackups.length === 0 && (
-              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl w-full">
+              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl w-full">
                 <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
                   <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
                   {t("timecapsule_no_backups")}
@@ -466,7 +466,7 @@ export default function TimeCapsule({
             )}
           </>
         ) : (
-          <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-[var(--radius)] shadow-xl">
+          <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl">
             <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
               <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
               {t("timecapsule_no_backups")}
@@ -478,3 +478,6 @@ export default function TimeCapsule({
     </div>
   );
 }
+
+
+

@@ -38,8 +38,8 @@ export function ThemeCard({
       : (t("ui_personal_theme"));
 
   const customIcon = (
-    <div className={`w-12 h-12 rounded-[var(--radius)] shrink-0 overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md transition-colors z-10`}>
-      <div className="absolute inset-0" style={{ backgroundColor: theme.bg || '#000' }} />
+    <div className={`w-12 h-12 rounded-2xl shrink-0 overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md transition-colors z-10`}>
+      <div className="absolute inset-0 rounded-[inherit]" style={{ backgroundColor: theme.bg || '#000' }} />
       <div className="absolute top-0 left-0 bottom-0 w-3" style={{ backgroundColor: theme.sidebar || '#000' }} />
       <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.accent || '#fff' }} />
     </div>
@@ -76,3 +76,6 @@ export function ThemeCard({
     />
   );
 }
+
+
+

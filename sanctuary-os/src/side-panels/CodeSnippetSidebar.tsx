@@ -80,7 +80,7 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
           </div>
         </div>
 
-        <div className="w-full flex-1 min-h-0 rounded-[var(--radius)] overflow-hidden shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-xl flex flex-col relative">
+        <div className="w-full flex-1 min-h-0 rounded-2xl overflow-hidden shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-xl flex flex-col relative">
           
           <div className="flex-1 overflow-auto custom-scrollbar relative z-0">
             {!searchTerm ? (
@@ -116,3 +116,5 @@ export default function CodeSnippetSidebar({ code, onClose, widthClass = "w-[50v
     </SidePanel>
   );
 }
+
+

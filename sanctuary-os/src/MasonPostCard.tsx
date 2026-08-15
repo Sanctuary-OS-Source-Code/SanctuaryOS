@@ -170,3 +170,5 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
     </UniversalCard>
   );
 }
+
+

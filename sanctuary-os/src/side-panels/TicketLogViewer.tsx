@@ -138,8 +138,8 @@ export default function TicketLogViewer({
         try {
             const parsed = JSON.parse(sec.content);
             return (
-        <div className="glass-panel group relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-300 rounded-[var(--radius)] shadow-lg bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        <div className="glass-panel group relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-300 rounded-2xl shadow-lg bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]">
+                  <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                   <div className="flex items-center gap-4 p-5 relative z-10">
                     <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
                       <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">{t("icon_map")}</span>
@@ -294,7 +294,7 @@ export default function TicketLogViewer({
                       {blueprintJson.mods?.filter((m: string) => m.toLowerCase().includes(searchQuery.toLowerCase())).map((m: string, i: number) => {
                           const displayName = m.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || m.replace(/[-_]/g, ' ');
                           return (
-                            <div key={i} className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-colors p-4 rounded-[var(--radius)] flex flex-col items-center justify-center text-center gap-3 shadow-sm group aspect-square">
+                            <div key={i} className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-colors p-4 rounded-2xl flex flex-col items-center justify-center text-center gap-3 shadow-sm group aspect-square">
                                 <div className="w-12 h-12 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0">
                                   <span className="material-symbols-outlined !text-[24px] text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors">{t("icon_extension")}</span>
                                 </div>
@@ -313,3 +313,6 @@ export default function TicketLogViewer({
     </div>
   );
 }
+
+
+

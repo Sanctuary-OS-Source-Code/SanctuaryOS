@@ -31,7 +31,7 @@ function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: any) {
                   e.stopPropagation(); 
                   handleOpenUrl(update.download_url || update.url || `https://www.google.com/search?q=${encodeURIComponent(useStore.getState().activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanSearchName(update.displayName || update.name || "", useStore.getState().activeGameSchema))}`); 
                 }} 
-                className={`relative group/actionbtn w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 pointer-events-auto theme-panel-accent border-[var(--accent)] theme-text-accent`}
+                className={`relative group/actionbtn w-8 h-8 rounded-xl backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 pointer-events-auto theme-panel-accent border-[var(--accent)] theme-text-accent`}
               >
                 <span className="material-symbols-outlined !text-[16px]">{update.download_url || update.url ? (t("icon_download")) : (t("icon_search"))}</span>
                 <HoverTooltip className="z-[100] !right-0 !translate-x-0 !left-auto" title={update.download_url || update.url ? (t("btn_download")) : (t("btn_search_web"))} variant="accent" />
@@ -40,13 +40,13 @@ function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: any) {
           }
           badges={
             <div className="flex flex-wrap items-center gap-2">
-               <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
+               <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-1">
                  <span className="text-[7px] font-black capitalize tracking-widest text-cyan-400">{update.version || "v.Local"}</span>
                  <span className="opacity-40 mx-1 text-[8px] text-cyan-400">-</span> 
                  <span className="theme-text-accent font-black text-[7px] capitalize tracking-widest">{update.newVersion}</span>
                </div>
                {update.newGameVersion && (
-                 <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
+                 <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-1">
                    <span className="material-symbols-outlined !text-[10px] text-purple-500">{t("icon_sports_esports")}</span>
                    <span className="text-[7px] font-black capitalize tracking-widest text-purple-500">{update.newGameVersion}</span>
                  </div>
@@ -81,9 +81,9 @@ export function UpdatesSidePanel({
     >
       <div className="flex flex-col gap-4 w-full">
         <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative">
-          <div className="flex items-center justify-start w-full relative z-10">
+          <div className="flex items-center justify-between w-full relative z-10 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
             <h3 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-[0.2em] opacity-80">{t("updates_modal_title")}</h3>
-            <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
+            <div className="flex items-center gap-3 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
               {activeUpdates.length > 0 ? (
                 <span>
                   {Object.keys(activeUpdates.reduce((acc: any, update: any) => { acc[update.dbId || update.displayName || update.name] = true; return acc; }, {})).length} {t("items")}
@@ -120,3 +120,5 @@ export function UpdatesSidePanel({
     </SidePanel>
   );
 }
+
+

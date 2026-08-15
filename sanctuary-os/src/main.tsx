@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "material-symbols/outlined.css";
 import "./index.css";
+import "./theme-radius.css";
 import App from "./App";
 import { useStore } from "./store";
 
@@ -35,3 +36,4 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     </LexiconProvider>
   </React.StrictMode>
 );
+

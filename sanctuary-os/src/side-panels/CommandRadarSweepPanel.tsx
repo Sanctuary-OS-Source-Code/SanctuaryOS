@@ -112,8 +112,8 @@ export default function CommandRadarSweepPanel({
     >
       <div className="flex flex-col gap-6 w-full p-8 pb-12">
 
-    <div className={`glass-panel rounded-[var(--radius)] p-8 py-10 relative group border ${c_panelBorder} shadow-xl flex flex-col justify-center shrink-0`}>
-          <div className={`absolute inset-0 bg-gradient-to-br ${c_bgGradient} via-transparent to-transparent opacity-50`} />
+    <div className={`glass-panel rounded-2xl p-8 py-10 relative group border ${c_panelBorder} shadow-xl flex flex-col justify-center shrink-0`}>
+          <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${c_bgGradient} via-transparent to-transparent opacity-50`} />
           <div className="relative z-10 flex flex-col items-center text-center">
             <button
               onClick={() => { if (!isScanning && runRadarSweep) runRadarSweep(); }}
@@ -249,3 +249,6 @@ export default function CommandRadarSweepPanel({
     </SidePanel>
   );
 }
+
+
+

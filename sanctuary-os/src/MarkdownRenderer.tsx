@@ -69,7 +69,7 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
               >
                 <img src={src} alt={alt} className={`w-full object-cover transition-all duration-500 ${isExpanded ? 'max-h-none' : 'max-h-96 group-hover:scale-105 group-hover:blur-[2px]'}`} {...props} />
                 {!isExpanded && (
-                  <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
+                  <span className="absolute inset-0 rounded-[inherit] bg-black/0 group-hover:bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
                     <span className="material-symbols-outlined !text-5xl text-white drop-shadow-xl scale-50 group-hover:scale-100 transition-transform duration-500 ease-out">fullscreen</span>
                   </span>
                 )}
@@ -90,7 +90,7 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
               return (
                 <span 
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAssetClick?.(type, id); }}
-                  className="my-2 mx-1 group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-[var(--radius)] border glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-2xl backdrop-blur-2xl transition-all cursor-pointer hover:scale-[1.01] w-[calc(100%-0.5rem)] align-top no-underline"
+                  className="my-2 mx-1 group relative flex flex-row items-center justify-between gap-3 p-4 px-5 rounded-2xl border glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-2xl backdrop-blur-2xl transition-all cursor-pointer hover:scale-[1.01] w-[calc(100%-0.5rem)] align-top no-underline"
                 >
                   <span className="flex flex-col min-w-0 flex-1">
                     <span className="text-sm font-black text-[var(--text)] capitalize truncate group-hover:theme-text-accent transition-colors drop-shadow-sm flex items-center gap-2">
@@ -141,3 +141,7 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
     </div>
   );
 }
+
+
+
+

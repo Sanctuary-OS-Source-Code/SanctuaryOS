@@ -71,13 +71,17 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
   type?: "button" | "submit" | "reset";
   form?: string;
   children?: React.ReactNode;
-  variant?: "default" | "primary" | "success" | "danger" | "accent" | "glass" | "warning" | "world" | "engine";
+  variant?: "default" | "primary" | "success" | "danger" | "accent" | "glass" | "warning" | "world" | "engine" | "solid";
 }) {
   let variantClasses = "";
   let borderColorVar = "--accent";
   let customHoverColor = "";
 
   switch (variant) {
+    case "solid":
+      variantClasses = "!border-[var(--accent)] !bg-[var(--accent)] !text-[var(--bg)] hover:!bg-[color-mix(in_srgb,var(--accent)_80%,white)] hover:!border-[color-mix(in_srgb,var(--accent)_80%,white)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_40%,transparent)]";
+      borderColorVar = "transparent";
+      break;
     case "world":
       variantClasses = "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !text-indigo-500 hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_20px_rgba(99,102,241,0.2)]";
       customHoverColor = "rgba(99, 102, 241, 0.5)";
@@ -117,7 +121,7 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       disabled={disabled}
-      className={`glass-surface px-8 py-4 rounded-[var(--radius)] text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
+      className={`${variant === 'solid' ? 'shadow-md border' : 'glass-surface'} px-8 py-4 rounded-[var(--radius)] text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
       style={!disabled ? { '--tw-hover-border-color': customHoverColor || `color-mix(in srgb, var(${borderColorVar}) 50%, transparent)` } as React.CSSProperties : undefined}
     >
       {icon && <span className="material-symbols-outlined !text-[16px] relative z-10 transition-transform group-hover:-translate-y-0.5">{icon}</span>}
@@ -372,7 +376,7 @@ export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(
     <header className="flex flex-col xl:flex-row w-full justify-start items-start mb-6 shrink-0 gap-6">
       <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
         {icon && (
-     <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border glass-panel relative group shadow-md`}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border glass-panel relative group shadow-md`}>
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             {typeof icon === "string" ? (
               <span className={`material-symbols-outlined !text-[20px] relative z-10 ${iconColorClass}`}>{icon}</span>
@@ -463,7 +467,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
           return (
             <>
               <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
-       <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+              <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
                 zIndex: 200001,
                 top: shouldDropUp ? undefined : rect.bottom + 8,
                 bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
@@ -610,7 +614,7 @@ export function ViewToggle({ options, activeTab, setTab, className = "" }: any) 
   );
 }
 
-export function FilterPopover({ icon = "tune", label, options, activeTab, setTab, multiSelect = false, className = "", buttonClassName = "" }: any) {
+export function FilterPopover({ icon = "tune", label, options, activeTab, setTab, multiSelect = false, className = "", buttonClassName = "", children }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const btnRef = React.useRef<HTMLButtonElement>(null);
 
@@ -642,7 +646,7 @@ export function FilterPopover({ icon = "tune", label, options, activeTab, setTab
         ref={btnRef}
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center justify-center gap-2 h-12 ${label ? 'px-5' : 'w-12'} rounded-[calc(var(--radius)-4px)] transition-all duration-300 backdrop-blur-[3px] ${hasActiveFilter || isOpen
-          ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-md'
+          ? 'border border-[var(--accent)] text-[var(--accent)] bg-transparent shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
           : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'
           } ${buttonClassName}`}
       >
@@ -654,15 +658,15 @@ export function FilterPopover({ icon = "tune", label, options, activeTab, setTab
         (() => {
           const portalRoot = document.getElementById("sa-portals");
           if (!portalRoot) return null;
-          
+
           const rect = btnRef.current?.getBoundingClientRect();
           const isRightSide = (rect?.left || 0) >= window.innerWidth / 2;
-          
+
           return createPortal(
             <>
               <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
               <div
-        className="fixed glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 min-w-[200px] p-2 flex flex-col gap-1 backdrop-blur-2xl bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]"
+                className="fixed glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 min-w-[200px] p-2 flex flex-col gap-1 backdrop-blur-2xl bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]"
                 style={{
                   zIndex: 200001,
                   top: rect ? rect.bottom + 8 : 0,
@@ -671,7 +675,7 @@ export function FilterPopover({ icon = "tune", label, options, activeTab, setTab
                   width: 'max-content',
                 }}
               >
-                {options.map((opt: any) => {
+                {children ? children : options?.map((opt: any) => {
                   const active = isOptionActive(opt.id);
                   return (
                     <button
@@ -772,7 +776,7 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
           <div
             ref={menuRef}
-      className="absolute mt-2 min-w-[200px] glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl pointer-events-auto flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
+            className="absolute mt-2 min-w-[200px] glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl pointer-events-auto flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
             style={{
               zIndex: 200001,
               top: 'calc(100% + 4px)',
@@ -995,69 +999,69 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
     ? selectedValues.length > 0
     : value !== undefined && value !== null && String(value).trim() !== "" && String(value).toLowerCase() !== "all" && String(value).toLowerCase() !== "any" && String(value).toLowerCase() !== "vlocal");
 
-  if (isOpen) {
-    const rect = btnRef.current?.getBoundingClientRect();
-    console.log("CustomDropdown isOpen is TRUE! Rect:", rect, "Window InnerHeight:", window.innerHeight);
-  }
+  const dropdownMenu = isOpen ? createPortal(
+    <>
+      <div className="fixed inset-0" style={{ zIndex: 99998 }} onClick={() => setIsOpen(false)} />
+      <div className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+        zIndex: 99999,
+        top: btnRef.current ? btnRef.current.getBoundingClientRect().bottom + 4 : 0,
+        left: btnRef.current ? btnRef.current.getBoundingClientRect().left : 0,
+        width: btnRef.current ? btnRef.current.getBoundingClientRect().width : 'max-content',
+        minWidth: btnRef.current ? btnRef.current.getBoundingClientRect().width : 200,
+      }}>
+        {searchable && (
+          <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 bg-transparent z-10 shrink-0 flex items-center px-4">
+            <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] mr-3 opacity-60">search</span>
+            <input
+              type="text"
+              placeholder={t("shared_search") || "Search"}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className="w-full bg-transparent border-none py-3.5 text-xs font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-40 tracking-wider min-w-0"
+            />
+          </div>
+        )}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {options.filter((opt: any) => {
+            if (!searchable || !query) return true;
+            const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
+            return searchTarget.toLowerCase().includes(query.toLowerCase());
+          }).map((o: any, index: number) => {
+            const isSelected = multiSelect ? selectedValues.includes(o.id) : String(o.id) === String(value);
+            return (
+              <button type="button" key={`${o.id}-${index}`} onClick={() => handleSelect(o.id)} className={`w-full text-left px-4 py-3 text-sm font-bold transition-all border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-start ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-[inset_2px_0_0_var(--accent)]' : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                <span className={`text-[11px] font-black capitalize w-full flex items-center ${isSelected ? 'text-[var(--accent)]' : o.className || 'text-[var(--text)]'}`}>{o.label}</span>
+                {isSelected && !multiSelect && (
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] absolute right-4 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]">check</span>
+                )}
+              </button>
+            );
+          })}
+          {searchable && query && options.filter((opt: any) => {
+            const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
+            return searchTarget.toLowerCase().includes(query.toLowerCase());
+          }).length === 0 && !allowCustom && (
+              <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">{t("shared_no_options")}</div>
+            )}
+          {searchable && query && allowCustom && !options.some((o: any) => String(o.id).toLowerCase() === query.toLowerCase() || (typeof o.label === 'string' && o.label.toLowerCase() === query.toLowerCase())) && (
+            <button type="button" onClick={() => handleSelect(query)} className="w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[16px] opacity-60">add</span>
+              <span className="text-[11px] font-black capitalize w-full">Create "{query}"</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </>,
+    document.getElementById('sa-portals') || document.body
+  ) : null;
 
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className || ''}`}>
-      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-start items-center focus:outline-none group relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[calc(var(--radius)-4px)]'} shadow-inner text-sm font-bold backdrop-blur-[3px] ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-md' : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'}`} ${buttonClassName || ''}`}>
-        <span className="truncate pr-4 flex-1 text-left flex items-center h-full capitalize">{getSelectedLabel()}</span>
-        <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)]'}`}><span className={`material-symbols-outlined ${flat ? '!text-[16px]' : '!text-[20px]'}`}>{isOpen ? 'expand_less' : 'expand_more'}</span></span>
+      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[12px]'} text-sm font-bold ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-[calc(var(--radius)-4px)] text-[var(--accent)] shadow-md' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] focus:border-[var(--accent)] transform-gpu'}`} ${buttonClassName || ''}`}>
+        <span className="pr-4 flex-1 text-left flex items-center h-full capitalize overflow-hidden">{getSelectedLabel()}</span>
+        <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 hover:text-[var(--text)]'}`}><span className={`material-symbols-outlined ${flat ? '!text-[16px]' : '!text-[20px]'}`}>{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
-      {isOpen && (
-        <>
-          <div className="fixed inset-0" style={{ zIndex: 99998 }} onClick={() => setIsOpen(false)} />
-     <div className="absolute glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
-            zIndex: 99999,
-            top: 'calc(100% + 4px)',
-            left: 0,
-            minWidth: '100%',
-            width: 'max-content',
-          }}>
-            {searchable && (
-              <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 bg-transparent z-10 shrink-0 flex items-center px-4">
-                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] mr-3 opacity-60">search</span>
-                <input
-                  type="text"
-                  placeholder={t("shared_search") || "Search"}
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  className="w-full bg-transparent border-none py-3.5 text-xs font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-40 tracking-wider min-w-0"
-                />
-              </div>
-            )}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              {options.filter((opt: any) => {
-                if (!searchable || !query) return true;
-                const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
-                return searchTarget.toLowerCase().includes(query.toLowerCase());
-              }).map((o: any, index: number) => {
-                const isSelected = multiSelect ? selectedValues.includes(o.id) : String(o.id) === String(value);
-                return (
-                  <button type="button" key={`${o.id}-${index}`} onClick={() => handleSelect(o.id)} className={`w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-start ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_2px_0_0_var(--accent)]' : 'text-[var(--text)]'}`}>
-                    <span className={`text-[11px] font-black capitalize w-full flex items-center ${isSelected ? 'text-[var(--accent)]' : o.className || 'text-[var(--text)]'}`}>{o.label}</span>
-                    {isSelected && <span className="text-[12px] shrink-0 ml-4 flex items-center justify-center text-[var(--accent)]"><span className="material-symbols-outlined !text-[16px]">{t("icon_check")}</span></span>}
-                  </button>
-                );
-              })}
-              {searchable && query && options.filter((opt: any) => {
-                const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
-                return searchTarget.toLowerCase().includes(query.toLowerCase());
-              }).length === 0 && !allowCustom && (
-                  <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">{t("shared_no_options")}</div>
-                )}
-              {searchable && query && allowCustom && !options.some((o: any) => String(o.id).toLowerCase() === query.toLowerCase() || (typeof o.label === 'string' && o.label.toLowerCase() === query.toLowerCase())) && (
-                <button type="button" onClick={() => handleSelect(query)} className="w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] opacity-60">add</span>
-                  <span className="text-[11px] font-black capitalize w-full">Create "{query}"</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      {dropdownMenu}
     </div>
   );
 }
@@ -1116,50 +1120,50 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
       {isOpen && (
         <>
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
-     <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
+          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
             zIndex: 200001,
             top: containerRef.current?.getBoundingClientRect().bottom,
-          left: (containerRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2
-            ? containerRef.current?.getBoundingClientRect().left
-            : undefined,
-          right: (containerRef.current?.getBoundingClientRect().left || 0) >= window.innerWidth / 2
-            ? window.innerWidth - (containerRef.current?.getBoundingClientRect().right || 0)
-            : undefined,
-          width: containerRef.current?.getBoundingClientRect().width,
-        }}>
-          <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
-            {filtered.map(v => (
-              <button
-                key={v.version}
-                type="button"
-                onClick={() => {
-                  console.log('Version clicked:', v.version);
-                  toggleVersion(v.version);
-                  setQuery("");
-                  setIsOpen(false);
-                }}
-                className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--text)] flex justify-start cursor-pointer"
-              >
-                <span>{v.version}</span>
-                {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("icon_check")}</span></span>}
-              </button>
-            ))}
-            {query && !versions.some(v => v.version === query) && (
-              <button
-                type="button"
-                onClick={() => {
-                  console.log('Custom version added:', query);
-                  toggleVersion(query);
-                  setQuery("");
-                  setIsOpen(false);
-                }}
-                className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-emerald-400 cursor-pointer"
-              >
-                + {t("cc_btn_add")} "{query}"
-              </button>
-            )}
+            left: (containerRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2
+              ? containerRef.current?.getBoundingClientRect().left
+              : undefined,
+            right: (containerRef.current?.getBoundingClientRect().left || 0) >= window.innerWidth / 2
+              ? window.innerWidth - (containerRef.current?.getBoundingClientRect().right || 0)
+              : undefined,
+            width: containerRef.current?.getBoundingClientRect().width,
+          }}>
+            <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
+              {filtered.map(v => (
+                <button
+                  key={v.version}
+                  type="button"
+                  onClick={() => {
+                    console.log('Version clicked:', v.version);
+                    toggleVersion(v.version);
+                    setQuery("");
+                    setIsOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--text)] flex justify-start cursor-pointer"
+                >
+                  <span>{v.version}</span>
+                  {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("icon_check")}</span></span>}
+                </button>
+              ))}
+              {query && !versions.some(v => v.version === query) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('Custom version added:', query);
+                    toggleVersion(query);
+                    setQuery("");
+                    setIsOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-emerald-400 cursor-pointer"
+                >
+                  + {t("cc_btn_add")} "{query}"
+                </button>
+              )}
+            </div>
           </div>
-        </div>
         </>
       )}
     </div>
@@ -1208,7 +1212,7 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
       {isOpen && (
         <>
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
-     <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-top-2 p-4 w-64" style={{
+          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-top-2 p-4 w-64" style={{
             zIndex: 200001,
             top: btnRef.current?.getBoundingClientRect().bottom,
             left: (btnRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2
@@ -1395,6 +1399,7 @@ export function SidePanel({
   panelStyle,
   position,
   keepMounted = false,
+  forceShowCloseBtn = false,
   coverImage
 }: {
   isOpen: boolean,
@@ -1424,7 +1429,7 @@ export function SidePanel({
   panelStyle?: React.CSSProperties,
   position?: "left" | "right",
   keepMounted?: boolean,
-  coverImage?: string
+  coverImage?: string, forceShowCloseBtn?: boolean
 }) {
   const { t } = useLexicon();
   const theme = useTheme();
@@ -1502,7 +1507,7 @@ export function SidePanel({
           {theme.ambientNoise && (
             <div className="absolute inset-0 z-[-1] opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
           )}
-          
+
           {isResizable && (
             <div
               className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
@@ -1518,6 +1523,12 @@ export function SidePanel({
             <div className={`absolute inset-0 overflow-hidden pointer-events-none z-[-1] ${position === 'left' ? 'rounded-r-[var(--radius)]' : 'rounded-l-[var(--radius)]'}`}>
               {ambientGlows}
             </div>
+          )}
+
+          {hideHeader && forceShowCloseBtn && (
+            <button onClick={onClose} className="absolute top-8 right-8 z-[10000] w-12 h-12 rounded-2xl flex items-center justify-center text-[var(--text)] transition-all bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-[4px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
+              <span className="material-symbols-outlined !text-[28px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("icon_close")}</span>
+            </button>
           )}
 
           {!hideHeader && (
@@ -1546,7 +1557,7 @@ export function SidePanel({
               <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">
                 <h2 className="text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-6 min-w-0 w-full">
                   {icon && (
-          <div className={`w-16 h-16 rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative group/iconbox ${iconColorClass || ''}`}>
+                    <div className={`w-16 h-16 rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative group/iconbox ${iconColorClass || ''}`}>
                       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
                       <span className={`material-symbols-outlined opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
                         {icon}
@@ -1562,7 +1573,7 @@ export function SidePanel({
                         </span>
                       </div>
                     )}
-                    <span className="leading-tight text-3xl tracking-tighter truncate w-full drop-shadow-md">{title}</span>
+                    <span className="leading-tight text-3xl tracking-tight truncate w-full drop-shadow-md">{title}</span>
                     {subtitle && <span className="text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 capitalize tracking-[0.25em] line-clamp-2 break-words">{subtitle}</span>}
                   </div>
                 </h2>

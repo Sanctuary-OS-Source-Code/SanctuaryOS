@@ -281,7 +281,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
         noPadding
       >
         <div className="flex flex-col h-[calc(100vh-100px)] w-full overflow-hidden p-8">
-          <div className="flex-1 flex flex-col h-full min-w-0 relative z-10 glass-panel rounded-[32px] p-6 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl">
+          <div className="flex-1 flex flex-col h-full min-w-0 relative z-10 glass-panel rounded-3xl p-6 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl">
             
             {/* Background Effects */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-full blur-[100px] pointer-events-none -translate-y-1/3 translate-x-1/3" />
@@ -398,3 +398,6 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
     </div>
   );
 }
+
+
+

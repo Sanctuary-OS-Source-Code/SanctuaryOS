@@ -175,15 +175,16 @@ export default function CommandConflictsPanel({
       widthClass="w-[550px]"
     >
       <div className="flex flex-col gap-4 w-full">
-        <div className="px-1 py-2 shrink-0 flex items-center justify-start relative">
+        <div className="px-1 py-2 shrink-0 flex items-center justify-between w-full relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4">
           <h3 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-[0.2em] opacity-80">
             {t("bp_load_order_conflicts")}
           </h3>
-          <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
+          <div className="flex items-center gap-3 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
             <span>{activeConflicts.length} {t("items")}</span>
             {(tier4Count > 0 || tier3Count > 0) && <span className="opacity-50">•</span>}
-            {tier4Count > 0 && <span className="text-red-400">{tier4Count} {t("bp_pill_fatal")}</span>}
-            {tier3Count > 0 && <span className="text-amber-400">{tier3Count} {t("bp_pill_overlaps")}</span>}
+            {tier4Count > 0 && <span className="text-red-400 font-bold">{tier4Count} {t("bp_pill_fatal")}</span>}
+            {(tier4Count > 0 && tier3Count > 0) && <span className="opacity-30">|</span>}
+            {tier3Count > 0 && <span className="text-amber-400 font-bold">{tier3Count} {t("bp_pill_overlaps")}</span>}
             {activeConflicts.length === 0 && <span className="text-[var(--success)]">• {t("bp_no_conflicts_detected")}</span>}
           </div>
         </div>
@@ -406,3 +407,5 @@ export default function CommandConflictsPanel({
     </SidePanel>
   );
 }
+
+

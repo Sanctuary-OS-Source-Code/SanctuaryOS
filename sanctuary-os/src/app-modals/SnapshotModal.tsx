@@ -11,7 +11,7 @@ export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, s
 
   return (
     <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-[var(--radius)] p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-2xl p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
         <div>
           <h2 className="text-2xl font-black capitalize theme-text-accent tracking-tighter mb-1">{t("snapshot_title")}</h2>
           <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
@@ -39,3 +39,5 @@ export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, s
     </div>
   );
 }
+
+

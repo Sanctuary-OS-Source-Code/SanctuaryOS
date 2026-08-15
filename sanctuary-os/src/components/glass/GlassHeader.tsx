@@ -11,7 +11,7 @@ interface GlassHeaderProps {
 export function GlassHeader({ title, subtitle, icon, actions, children }: GlassHeaderProps) {
   return (
     <div className="sticky top-0 z-50 w-full mb-6">
-      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] backdrop-blur-3xl border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[0_10px_30px_-15px_rgba(0,0,0,0.2)] pointer-events-none" />
+      <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] backdrop-blur-3xl border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[0_10px_30px_-15px_rgba(0,0,0,0.2)] pointer-events-none" />
       
       <div className="relative px-8 py-6 flex flex-col md:flex-row md:items-center justify-start gap-4">
         <div className="flex items-center gap-4">
@@ -48,3 +48,6 @@ export function GlassHeader({ title, subtitle, icon, actions, children }: GlassH
     </div>
   );
 }
+
+
+

@@ -162,7 +162,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
     >
       <div className="flex flex-col gap-8">
         <div className="grid grid-cols-2 gap-4">
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isPublic ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(true)}>
+          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${isPublic ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(true)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isPublic ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_public")}</span>
@@ -177,7 +177,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             </p>
           </div>
 
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isPublic ? 'theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(false)}>
+          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${!isPublic ? 'theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(false)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isPublic ? 'theme-text-accent' : 'text-[var(--subtext)]'}`}>{t("icon_visibility_off")}</span>
@@ -192,7 +192,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             </p>
           </div>
 
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isLocked ? 'theme-border-danger bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(true)}>
+          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${isLocked ? 'theme-border-danger bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(true)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isLocked ? 'theme-text-danger' : 'text-[var(--subtext)]'}`}>{t("icon_lock")}</span>
@@ -207,7 +207,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             </p>
           </div>
 
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isLocked ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(false)}>
+          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${!isLocked ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(false)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isLocked ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_lock_open")}</span>
@@ -222,7 +222,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             </p>
           </div>
 
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${isMarketListed ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(true)}>
+          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${isMarketListed ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(true)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isMarketListed ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_storefront")}</span>
@@ -237,7 +237,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
             </p>
           </div>
 
-          <div className={`p-8 rounded-[var(--radius)] border transition-all cursor-pointer group flex flex-col gap-4 ${!isMarketListed ? 'theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(false)}>
+          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${!isMarketListed ? 'theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(false)}>
             <div className="flex items-center justify-start">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--subtext)]'}`}>{t("icon_visibility_off")}</span>
@@ -255,8 +255,8 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
         </div>
 
         {blockedMods.length > 0 && (
-     <div className="mt-8 p-10 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] flex flex-col gap-6 shadow-2xl relative transition-all duration-500 animate-in fade-in zoom-in-95 group">
-            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+     <div className="mt-8 p-10 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] flex flex-col gap-6 shadow-2xl relative transition-all duration-500 animate-in fade-in zoom-in-95 group">
+            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
             <div className="flex items-center gap-5 relative z-10">
               <div className="w-14 h-14 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center text-[var(--danger)] shadow-[inset_0_0_20px_rgba(var(--danger-rgb),0.1)] shrink-0">
                 <span className="material-symbols-outlined !text-3xl text-[var(--danger)]">{t("icon_warning_amber")}</span>
@@ -287,7 +287,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
           </div>
         )}
 
-        <div className="glass-panel p-8 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4 shadow-xl">
+        <div className="glass-panel p-8 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4 shadow-xl">
           <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest opacity-80">{t("sidebar_uplink")}</span>
           <div className="flex items-center gap-3">
             <input
@@ -328,4 +328,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
     </SidePanel>, document.body
   );
 }
+
+
+
 

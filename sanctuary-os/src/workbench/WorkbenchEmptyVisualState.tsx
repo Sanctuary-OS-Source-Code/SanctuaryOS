@@ -22,3 +22,5 @@ export const WorkbenchEmptyVisualState: React.FC<WorkbenchEmptyVisualStateProps>
       </div>
    </div>
 );
+
+

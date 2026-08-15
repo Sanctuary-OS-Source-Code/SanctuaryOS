@@ -142,8 +142,8 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
           <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10" title={t("sys_info_app")} icon="terminal" innerClassName="flex flex-col gap-4">
             {updatePayload && (
               <button onClick={() => { setIsUpdatePanelOpen(true); }} className="w-full glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.3)] flex items-center justify-start overflow-hidden relative group mt-2">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10" />
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                <div className="absolute inset-0 rounded-[inherit] bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-10" />
                 <div className="flex items-center gap-4 relative z-10">
                   <div className="w-12 h-12 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">
                     <span className="material-symbols-outlined theme-text-accent text-[24px] animate-bounce">downloading</span>
@@ -194,7 +194,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
           <UniversalGroup className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150 ease-out fill-mode-both relative z-10" title={t("sys_info_os")} icon="public" innerClassName="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
                 <div className="flex flex-col relative z-10 justify-center h-full">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="material-symbols-outlined !text-[14px]" style={{ color: "rgba(168,85,247,0.8)" }}>devices</span>
@@ -204,7 +204,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
                 </div>
               </div>
               <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
                 <div className="flex flex-col relative z-10 justify-center h-full">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="material-symbols-outlined !text-[14px]" style={{ color: "rgba(168,85,247,0.8)" }}>verified_user</span>
@@ -304,7 +304,7 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
                   className="h-full theme-bg-accent transition-all duration-[1500ms] ease-out relative shadow-[0_0_15px_var(--accent)]"
                   style={{ width: `${(telemetry.disk_used / telemetry.disk_total) * 100}%` }}
                 >
-                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-30 animate-[shimmer_2s_linear_infinite]" />
+                  <div className="absolute inset-0 rounded-[inherit] bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-30 animate-[shimmer_2s_linear_infinite]" />
                   <div className="absolute top-0 right-0 bottom-0 w-10 bg-gradient-to-r from-transparent to-white/50 animate-pulse" />
                 </div>
               </div>
@@ -378,14 +378,14 @@ function StatBox({ label, value, icon, accent = false, pulseIcon = false, glowCo
       ${accent ? 'glass-surface theme-border-accent bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-[0_4px_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-lg'}`}
     >
       <div
-        className="absolute inset-0 pointer-events-none transition-opacity duration-300 z-0 mix-blend-screen"
+        className="absolute inset-0 rounded-[inherit] pointer-events-none transition-opacity duration-300 z-0 mix-blend-screen"
         style={{
           opacity: isHovered ? 1 : 0,
           background: `radial-gradient(120px circle at ${mousePos.x}px ${mousePos.y}px, ${glowColor.replace('0.4', '0.15')}, transparent 80%)`
         }}
       />
 
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none z-0" />
+      <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none z-0" />
 
       <div className="flex items-center gap-2 relative z-10">
         <span className={`material-symbols-outlined !text-[16px] transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 ${pulseIcon ? 'animate-pulse' : ''}`} style={{ color: glowColor.replace('0.4', '1').replace('0.5', '1') }}>{icon}</span>
@@ -397,4 +397,7 @@ function StatBox({ label, value, icon, accent = false, pulseIcon = false, glowCo
     </div>
   );
 }
+
+
+
 

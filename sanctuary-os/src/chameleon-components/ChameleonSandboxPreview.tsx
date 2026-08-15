@@ -29,7 +29,7 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
       fontFamily: currentTheme.fontFamily || 'Inter, sans-serif'
     } as React.CSSProperties}>
 
-      <div className="absolute inset-0 flex z-10">
+      <div className="absolute inset-0 rounded-[inherit] flex z-10">
         {/* Fake Content Area */}
         <div className="flex-1 flex flex-col p-8 gap-10 overflow-y-auto custom-scrollbar pt-10 pb-32">
 
@@ -98,3 +98,4 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
     </div>
   );
 }
+

@@ -402,10 +402,10 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       return (
         <div
           key={post.id}
-     className={`glass-panel p-4 rounded-[var(--radius)] flex flex-col gap-4 group transition-all duration-300 hover:shadow-xl relative border ${isDraft ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' : post.is_pinned ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
+     className={`glass-panel p-4 rounded-2xl flex flex-col gap-4 group transition-all duration-300 hover:shadow-xl relative border ${isDraft ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' : post.is_pinned ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
         >
           {/* Background Hover Effect */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
           {/* Floating Status Badges (Absolute to Card) */}
           <div className="absolute top-4 right-4 z-20 flex gap-2">
@@ -448,7 +448,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
           {/* Image (if any) */}
           {showImage && (
-            <div className="w-full h-40 rounded-[calc(var(--radius)-8px)] overflow-hidden shrink-0 relative shadow-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] z-10">
+            <div className="w-full h-40 rounded-lg overflow-hidden shrink-0 relative shadow-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] z-10">
               <img src={imageUrl} onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.style.display = 'none'; }} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
             </div>
           )}
@@ -724,7 +724,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
                   <h1 className="text-3xl font-black text-[var(--text)] capitalize tracking-tight">{title || (t("untitled"))}</h1>
 
-                  <div className="markdown-body p-6 glass-surface rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-inner">
+                  <div className="markdown-body p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-inner">
                     {content ? <MarkdownRenderer content={content} onAssetClick={(type: string, id: string) => setActiveAsset({ type, id })} /> : <p className="text-[var(--subtext)] opacity-50 italic">{t("no_content_preview")}</p>}
                   </div>
                 </div>
@@ -788,3 +788,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     </>
   );
 }
+
+
+
+
+

@@ -498,7 +498,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
 
               <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none rounded-2xl" />
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
                 <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_my_location")}</span>
                   {t("target_artifact")}
@@ -509,7 +509,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
               </div>
 
               <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none rounded-2xl" />
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
                 <div className="flex flex-col gap-1 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                   <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_account_tree")}</span>
@@ -542,7 +542,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
               </div>
 
               <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none rounded-2xl" />
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none " />
                 <div className="flex flex-col gap-1 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
                   <h4 className="text-[10px] font-black text-[var(--warning)] capitalize tracking-widest flex items-center gap-2">
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_warning")}</span>
@@ -578,7 +578,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
 
               {testRun && (
                 <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative animate-in slide-in-from-bottom-4">
-                  <div className={`absolute inset-0 bg-gradient-to-br ${testPassed ? 'from-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'from-[color-mix(in_srgb,var(--danger)_10%,transparent)]'} to-transparent pointer-events-none rounded-2xl`} />
+                  <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${testPassed ? 'from-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'from-[color-mix(in_srgb,var(--danger)_10%,transparent)]'} to-transparent pointer-events-none `} />
                   <h4 className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2 ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                     <span className="material-symbols-outlined !text-[14px]">{t("icon_science")}</span>
                     {t("diagnostic_results")}
@@ -650,7 +650,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         }
       >
         <div className="flex flex-col p-8 gap-6">
-          <div className="p-6 glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-[var(--radius)] flex flex-col items-center justify-center gap-4 text-center mt-8">
+          <div className="p-6 glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col items-center justify-center gap-4 text-center mt-8">
             <span className="material-symbols-outlined !text-[48px] text-[var(--warning)] opacity-80">{t("icon_extension_off")}</span>
             <div className="flex flex-col gap-1">
               <span className="text-sm font-black text-[var(--text)] capitalize tracking-widest">{activeReport?.name}</span>
@@ -662,5 +662,9 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
     </div>
   );
 }
+
+
+
+
 
 

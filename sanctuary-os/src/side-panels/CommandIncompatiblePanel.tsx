@@ -42,7 +42,7 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
             <div className="flex items-center gap-1.5 pointer-events-auto">
               <button
                 onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
-                className={`relative group/actionbtn w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 pointer-events-auto ${isIgnored ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)]' : isAmber ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500' : 'theme-panel-danger border-[var(--danger)] text-[var(--text)]'}`}
+                className={`relative group/actionbtn w-8 h-8 rounded-xl backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 pointer-events-auto ${isIgnored ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)]' : isAmber ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500' : 'theme-panel-danger border-[var(--danger)] text-[var(--text)]'}`}
               >
                 <span className="material-symbols-outlined !text-[16px]">{iconName}</span>
                 {!isFlipped && !delayedFlipped && (
@@ -58,7 +58,7 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
           }
           badges={
             <div className="flex flex-wrap items-center gap-2">
-               <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1">
+               <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-1">
                  <span className="text-[7px] font-black capitalize tracking-widest text-cyan-400">{mod.version || "v.Local"}</span>
                </div>
             </div>
@@ -66,7 +66,7 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
         />
 
         {delayedFlipped && (
-          <div className="absolute inset-0 z-[100] pointer-events-none [transform:rotateY(180deg)] [backface-visibility:hidden]">
+          <div className="absolute inset-0 rounded-[inherit] z-[100] pointer-events-none [transform:rotateY(180deg)] [backface-visibility:hidden]">
       <div className={`pointer-events-auto relative h-full w-full glass-panel [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.1)_!important] flex flex-col border [transform:translateZ(0)] ${isAmber ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'}`} style={{ borderRadius: 'var(--radius)' }}>
               
               <div className="relative z-10 pt-5 pb-1 flex flex-col items-center justify-center gap-2 shrink-0">
@@ -98,7 +98,7 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
                     else newSet.add(mod.name);
                     setIgnoredBroken(newSet);
                     setIsFlipped(false); 
-                 }} className={`flex-1 min-w-0 py-2 rounded-[16px] border font-black text-[10px] capitalize tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)]`}>
+                 }} className={`flex-1 min-w-0 py-2 rounded-2xl border font-black text-[10px] capitalize tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)]`}>
                     {isIgnored ? t("bp_restore_alert") : t("btn_ignore")}
                  </button>
                  {allow_write && toggleInActiveSet && (
@@ -106,11 +106,11 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
                       e.stopPropagation(); 
                       toggleInActiveSet(mod._originalSetName || mod.name, true, true);
                       setIsFlipped(false); 
-                   }} className={`flex-1 min-w-0 py-2 rounded-[16px] border font-black text-[10px] capitalize tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all ${isAmber ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]'}`}>
+                   }} className={`flex-1 min-w-0 py-2 rounded-2xl border font-black text-[10px] capitalize tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all ${isAmber ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]'}`}>
                       {t("icon_delete")}
                    </button>
                  )}
-                 <button onClick={(e) => { e.stopPropagation(); setIsFlipped(false); }} className="flex-1 min-w-0 py-2 rounded-[16px] border border-[color-mix(in_srgb,var(--safe)_30%,transparent)] bg-[color-mix(in_srgb,var(--safe)_10%,transparent)] text-[var(--safe)] font-black text-[10px] capitalize tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words">
+                 <button onClick={(e) => { e.stopPropagation(); setIsFlipped(false); }} className="flex-1 min-w-0 py-2 rounded-2xl border border-[color-mix(in_srgb,var(--safe)_30%,transparent)] bg-[color-mix(in_srgb,var(--safe)_10%,transparent)] text-[var(--safe)] font-black text-[10px] capitalize tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words">
                     {t("btn_back")}
                  </button>
               </div>
@@ -219,13 +219,14 @@ export default function CommandIncompatiblePanel({
     >
       <div className="flex flex-col gap-4 w-full">
         <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative">
-          <div className="flex items-center justify-start w-full relative z-10">
+          <div className="flex items-center justify-between w-full relative z-10 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
             <h3 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-[0.2em] opacity-80">{t("incompatible_broken")}</h3>
-          <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
+          <div className="flex items-center gap-3 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
             <span>{brokenMods.length} {t("items")}</span>
             {(redMods.length > 0 || amberMods.length > 0) && <span className="opacity-50">•</span>}
-            {redMods.length > 0 && <span className="text-red-400">{redMods.length} {t("bp_pill_corrupted")}</span>}
-            {amberMods.length > 0 && <span className="text-amber-400">{amberMods.length} {t("bp_pill_unstable")}</span>}
+            {redMods.length > 0 && <span className="text-red-400 font-bold">{redMods.length} {t("bp_pill_corrupted")}</span>}
+            {(redMods.length > 0 && amberMods.length > 0) && <span className="opacity-30">|</span>}
+            {amberMods.length > 0 && <span className="text-amber-400 font-bold">{amberMods.length} {t("bp_pill_unstable")}</span>}
             {brokenMods.length === 0 && <span className="text-[var(--success)]">• {t("auto_0")} {t("items")}</span>}
           </div>
         </div>
@@ -279,4 +280,9 @@ export default function CommandIncompatiblePanel({
     </SidePanel>
   );
 }
+
+
+
+
+
 

@@ -176,10 +176,10 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                         <div className="flex flex-col gap-3">
                           {extractPostImage(post) ? (
                             <div className="w-full h-32 rounded-xl overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner bg-[var(--bg)] shrink-0">
-                              <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] z-0" />
-                              <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_20%,transparent)] to-transparent z-10 pointer-events-none" />
+                              <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] z-0" />
+                              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_20%,transparent)] to-transparent z-10 pointer-events-none" />
                               <img src={extractPostImage(post)} className="w-full h-full object-cover relative z-0 opacity-60 mix-blend-luminosity group-hover:scale-105 group-hover:mix-blend-normal group-hover:opacity-100 transition-all duration-700" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-transparent to-transparent opacity-80 z-10 pointer-events-none" />
+                              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-t from-[var(--bg)] via-transparent to-transparent opacity-80 z-10 pointer-events-none" />
                             </div>
                           ) : (
                             <div className="flex-1 flex flex-col items-center justify-center py-4 min-h-[128px]">
@@ -209,4 +209,7 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
     </>
   );
 }
+
+
+
 

@@ -126,3 +126,5 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
     </SidePanel>
   );
 }
+
+

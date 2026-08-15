@@ -46,7 +46,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
         </div>
       </ViewHeader>
 
-      <div className="flex flex-col md:flex-row justify-start items-center gap-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-[var(--radius)] shadow-inner shrink-0">
+      <div className="flex flex-col md:flex-row justify-start items-center gap-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-2xl shadow-inner shrink-0">
 
         <div className="flex items-center gap-3 glass-panel px-4 py-2 rounded-xl w-full md:w-96">
           <span className="theme-text-accent">{t("_")}</span>
@@ -101,13 +101,13 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
 
                   <div className="flex-1 relative w-full bg-black flex items-center justify-center overflow-hidden">
                     {mod.image_url ? (
-                      <img src={mod.image_url} alt={t("cover_alt")} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                      <img src={mod.image_url} alt={t("cover_alt")} className="absolute inset-0 rounded-[inherit] w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                     ) : (
                       <span className="material-symbols-outlined text-4xl opacity-20 group-hover:opacity-40 transition-opacity">
                         {t(useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === (mod.type || mod.category_override))?.icon_key || "icon_extension")}
                       </span>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                    <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                   </div>
 
                   <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border backdrop-blur-[3px] transition-all
@@ -132,3 +132,6 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
     </div>
   );
 }
+
+
+

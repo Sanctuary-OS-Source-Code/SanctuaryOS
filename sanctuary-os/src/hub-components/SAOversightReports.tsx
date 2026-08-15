@@ -124,7 +124,7 @@ export default function SAOversightReports() {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
           {isLoading ? (
-            <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning")}</div>
+            <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning")}</div>
           ) : groupedReports.length === 0 ? (
             <EmptyState icon={t("icon_threat_intelligence")} title={t("sa_no_reports")} className="col-span-full py-16" />
           ) : (
@@ -148,7 +148,7 @@ export default function SAOversightReports() {
                         setViewingReport(report); 
                       }
                     }}
-          className={`cursor-pointer glass-panel rounded-[var(--radius)] flex flex-col group/card border transition-all duration-500 relative bg-gradient-to-br from-white/5 to-transparent min-h-[160px] ${isMalware ? 'border-red-900/50 hover:border-red-500 hover:shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md'}`}
+          className={`cursor-pointer glass-panel rounded-2xl flex flex-col group/card border transition-all duration-500 relative bg-gradient-to-br from-white/5 to-transparent min-h-[160px] ${isMalware ? 'border-red-900/50 hover:border-red-500 hover:shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md'}`}
                   >
                     <div className="p-6 flex flex-col gap-4 flex-1 relative z-10">
                       <div className="flex justify-between items-start gap-4">
@@ -378,4 +378,6 @@ export default function SAOversightReports() {
     </div>
   );
 }
+
+
 

@@ -132,11 +132,11 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                         className="relative w-full h-14 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer rounded-2xl overflow-hidden shrink-0 shadow-inner hover:scale-105 hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all flex items-center justify-start px-4"
                         style={{ backgroundColor: currentTheme[key] }}
                       >
-                         <div className="absolute inset-0 z-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjY2NjIiAvPgo8cmVjdCB4PSI0IiB5PSI0IiB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjY2NjIiAvPgo8L3N2Zz4=')] opacity-20 pointer-events-none" />
-                         <div className="absolute inset-0 z-10 pointer-events-none" style={{ backgroundColor: currentTheme[key] }} />
+                         <div className="absolute inset-0 rounded-[inherit] z-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjY2NjIiAvPgo8cmVjdCB4PSI0IiB5PSI0IiB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjY2NjIiAvPgo8L3N2Zz4=')] opacity-20 pointer-events-none" />
+                         <div className="absolute inset-0 rounded-[inherit] z-10 pointer-events-none" style={{ backgroundColor: currentTheme[key] }} />
                          
                          {key === 'success' || key === 'warning' || key === 'danger' ? (
-                           <div className="absolute inset-0 z-30 flex items-center justify-end px-4 pointer-events-none">
+                           <div className="absolute inset-0 rounded-[inherit] z-30 flex items-center justify-end px-4 pointer-events-none">
                              <span className="material-symbols-outlined text-[14px] text-white/50">lock</span>
                            </div>
                          ) : null}
@@ -151,7 +151,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                       <>
                         {/* Invisible backdrop to catch clicks outside */}
                         <div className="fixed inset-0 z-[50000]" onClick={(e) => { e.stopPropagation(); setActiveColorPicker(null); }} />
-                        <div className="fixed z-[50001] p-8 glass-panel backdrop-blur-3xl rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200" style={pickerCoords || {}}>
+                        <div className="fixed z-[50001] p-8 glass-panel backdrop-blur-3xl rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200" style={pickerCoords || {}}>
                           <div className="flex gap-4 mb-8">
                           {!(key === 'success' || key === 'warning' || key === 'danger') ? (
                             <input
@@ -162,7 +162,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                             />
                           ) : (
               <div className="flex-1 glass-panel border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] rounded-2xl shadow-lg shadow-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex items-center justify-center text-center relative ">
-                              <div className="absolute inset-0 bg-[var(--warning)] opacity-10 pointer-events-none" />
+                              <div className="absolute inset-0 rounded-[inherit] bg-[var(--warning)] opacity-10 pointer-events-none" />
                               <span className="relative z-10 text-[var(--warning)] px-5 py-4 text-[10px] font-black capitalize tracking-[0.2em] drop-shadow-sm">
                                 {t("color_restricted")}
                               </span>
@@ -358,11 +358,11 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                     }`}
                   >
                     {preset.id.endsWith('.png') ? (
-                      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url("${preset.id}")` }} />
+                      <div className="absolute inset-0 rounded-[inherit] bg-cover bg-center" style={{ backgroundImage: `url("${preset.id}")` }} />
                     ) : (
-                      <div className="absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity" style={{ background: preset.id === 'none' ? currentTheme.bg : preset.id }} />
+                      <div className="absolute inset-0 rounded-[inherit] opacity-80 group-hover:opacity-100 transition-opacity" style={{ background: preset.id === 'none' ? currentTheme.bg : preset.id }} />
                     )}
-                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
+                    <div className="absolute inset-0 rounded-[inherit] bg-black/40 group-hover:bg-black/20 transition-colors" />
                     <span className={`relative z-10 text-[10px] font-black capitalize tracking-widest drop-shadow-lg text-center ${
                       (currentTheme.bgImage === preset.id) || (currentTheme.bgGradient === preset.id) || (!currentTheme.bgGradient && !currentTheme.bgImage && preset.id === 'none') 
                         ? 'text-white text-shadow-[0_0_15px_var(--accent)]' 
@@ -438,7 +438,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                           setShowInstalledImages(false); 
                         }}
                       >
-                        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url("${img.url}")` }} />
+                        <div className="absolute inset-0 rounded-[inherit] bg-cover bg-center" style={{ backgroundImage: `url("${img.url}")` }} />
                         <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] font-mono truncate px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">{img.name}</div>
                       </div>
                     ))}
@@ -477,3 +477,6 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
     </SidePanel>
   );
 }
+
+
+

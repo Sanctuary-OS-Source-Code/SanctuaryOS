@@ -2095,7 +2095,7 @@ function App() {
       className={`flex flex-col h-screen w-screen overflow-hidden relative ${currentTheme?.animated !== false ? 'animated-fluid-bg' : ''}`}
       style={{ color: "var(--text)" } as React.CSSProperties}
     >
-      <div id="sa-portals" className="absolute"></div>
+      <div id="sa-portals" className="fixed inset-0 z-[99999] pointer-events-none [&>*]:pointer-events-auto"></div>
       <SystemBackground />
 
       <div className="relative z-10 flex flex-col h-full w-full overflow-hidden py-6 pl-6 pr-0 gap-6">
@@ -2119,243 +2119,249 @@ function App() {
             <div className="relative z-10 w-full h-full pb-[100px]">
               {isGlobalConfigLoaded && (
                 <>
-                  {(view === "dashboard" || view === "BlueprintArchitect") && (
-                    <div style={{ width: '100%', height: '100%' }}>
-                      <ErrorBoundary moduleName="Command Center">
-                        <CommandCenter
-                          isScanning={isScanning}
-                          runRadarSweep={runRadarSweep}
-                          modList={modList}
-                          quarantineList={quarantineList}
-                          isConfigured={isConfigured}
-                          modsPath={modsPath}
-                          vaultPath={vaultPath}
-                          triggerShelter={triggerShelter}
-                          shelterActive={shelterActive}
-                          shelterContents={shelterContents}
-                          setShowQuarantineModal={setShowQuarantineModal}
-                          setShowBrokenModal={setShowBrokenModal}
-                          handleOpenMasonProfile={handleOpenMasonProfile}
-                          massIngestToCloud={massIngestToCloud}
-                          networkUpdates={networkUpdates}
-                          toggleInActiveSet={toggleInActiveSet}
-                          setView={setView}
-                          setFilterStatus={setFilterStatus}
-                          setIsSupportDeskOpen={setIsSupportModalOpen}
-                          setIsCitizenTicketsOpen={setIsCitizenTicketsOpen}
-                          equipPlaySet={equipPlaySet}
-                        />
-                      </ErrorBoundary>
-                    </div>
-                  )}
+                  {!isConfigured ? (
+                    <WorkspaceLanding />
+                  ) : (
+                    <>
+                      {(view === "dashboard" || view === "BlueprintArchitect") && (
+                        <div style={{ width: '100%', height: '100%' }}>
+                          <ErrorBoundary moduleName="Command Center">
+                            <CommandCenter
+                              isScanning={isScanning}
+                              runRadarSweep={runRadarSweep}
+                              modList={modList}
+                              quarantineList={quarantineList}
+                              isConfigured={isConfigured}
+                              modsPath={modsPath}
+                              vaultPath={vaultPath}
+                              triggerShelter={triggerShelter}
+                              shelterActive={shelterActive}
+                              shelterContents={shelterContents}
+                              setShowQuarantineModal={setShowQuarantineModal}
+                              setShowBrokenModal={setShowBrokenModal}
+                              handleOpenMasonProfile={handleOpenMasonProfile}
+                              massIngestToCloud={massIngestToCloud}
+                              networkUpdates={networkUpdates}
+                              toggleInActiveSet={toggleInActiveSet}
+                              setView={setView}
+                              setFilterStatus={setFilterStatus}
+                              setIsSupportDeskOpen={setIsSupportModalOpen}
+                              setIsCitizenTicketsOpen={setIsCitizenTicketsOpen}
+                              equipPlaySet={equipPlaySet}
+                            />
+                          </ErrorBoundary>
+                        </div>
+                      )}
 
-                  {view === "nexus" && (
-                    <Nexus
-                      ownedHashes={modList.map((m) => m.hash).filter((h) => !!h)}
-                      onSetStatus={setStatus}
-                      onOpenMasonProfile={handleOpenMasonProfile}
-                      onOpenDossier={setActiveDossier}
-                      syncBlueprintByCode={syncBlueprintByCode}
-                    />
-                  )}
-                  {view === "vault" && (
-                    <ErrorBoundary moduleName="Vault">
-                      <Vault
-                        view={view}
-                        setView={setView}
-                        statusLog={statusLog}
-                        isScanning={isScanning}
-                        isBulkMode={isBulkMode} setIsBulkMode={setIsBulkMode}
-                        selectedMods={selectedMods} setSelectedMods={setSelectedMods}
-                        setConfirmDialog={setConfirmDialog} setStatus={setStatus}
-                        runRadarSweep={runRadarSweep} setIsDropzoneOpen={setIsDropzoneOpen}
-                        setLocalFolderModal={setLocalFolderModal} playSets={playSets}
-                        equipFilter={equipFilter} setEquipFilter={setEquipFilter}
-                        searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-                        filterStatus={filterStatus} setFilterStatus={setFilterStatus}
-                        activeCategory={activeCategory} setActiveCategory={setActiveCategory}
-                        activeSubType={activeSubType} setActiveSubType={setActiveSubType}
-                        visibleMods={visibleMods} displayModList={displayModList}
-                        activePlaySetIndex={activePlaySetIndex}
-                        setActivePlaySetIndex={setActivePlaySetIndex}
-                        toggleInActiveSet={toggleInActiveSet}
-                        openUrl={openUrl} setLocalFolderName={setLocalFolderName} setLocalFolderType={setLocalFolderType}
-                        executeHotSwap={executeHotSwap} equipPlaySet={equipPlaySet} setMetaNameInput={setMetaNameInput} setMetaAuthorInput={setMetaAuthorInput}
-                        setMetaVersionInput={setMetaVersionInput} setMetaUrlInput={setMetaUrlInput} setActiveDossier={setActiveDossier} setDrawerConfirmHash={setDrawerConfirmHash}
-                        quarantineList={quarantineList} restoreMod={restoreMod} purgeMod={purgeMod}
-                        ownedDLC={ownedDLC} maskedDLC={maskedDLC} setMetaDescInput={setMetaDescInput}
-                        setMetaImageInput={setMetaImageInput} setMetaAllowWriteInput={setMetaAllowWriteInput}
-                        expandedFolder={expandedFolder} setExpandedFolder={setExpandedFolder}
-                        drawerConfirmHash={drawerConfirmHash} modList={modList} anarchyRules={anarchyRules}
-                        setBulkModal={setBulkModal}
-                      />
-                    </ErrorBoundary>
-                  )}
-                  {view === "playsets" && (
-                    <ErrorBoundary moduleName="Blueprints">
-                      <Blueprints
-                        playSets={playSets}
-                        setPlaySets={setPlaySets}
-                        activeSetName={activeSetName}
-                        setActiveSetName={setActiveSetName}
-                        equipPlaySet={equipPlaySet}
-                        isDraftingSet={isDraftingSet}
-                        setIsDraftingSet={setIsDraftingSet}
-                        draftSetName={draftSetName}
-                        setDraftSetName={setDraftSetName}
-                        finalizeDraftSet={finalizeDraftSet}
-                        renamePlaySet={renamePlaySet}
-                        deletePlaySet={deletePlaySet}
-                        exportPlaySet={exportPlaySet}
-                        importPlaySet={importPlaySet}
-                        uploadBlueprintToCloud={uploadBlueprintToCloud}
-                        syncBlueprintByCode={syncBlueprintByCode}
-                        setView={setView}
-                        setSnapshotModal={setSnapshotModal}
-                        globalSearchQuery={globalSearchQuery}
-                        setGlobalSearchQuery={setGlobalSearchQuery}
-                        isSearchingCloud={isSearchingCloud}
-                        searchGlobalNetwork={searchGlobalNetwork}
-                        cloudSearchResults={cloudSearchResults}
-                        syncCode={syncCode}
-                        setSyncCode={setSyncCode}
-                        modList={modList}
-                        activePlaySetIndex={activePlaySetIndex}
-                        setActivePlaySetIndex={setActivePlaySetIndex}
-                        toggleInActiveSet={toggleInActiveSet}
-                        getMissingStrings={getMissingStrings}
-                        ignoreMissingString={ignoreMissingString}
-                        purgeMissingString={purgeMissingString}
-                      />
-                    </ErrorBoundary>
-                  )}
-                  {view === "GlobalFeed" && (
-                    <ErrorBoundary moduleName="Global Feed">
-                      <GlobalFeed
-                        onOpenMasonProfile={handleOpenMasonProfile}
-                      />
-                    </ErrorBoundary>
-                  )}
-                  {view === "BlueprintArchitect" && playSets[activePlaySetIndex] && (
-                    <ErrorBoundary moduleName="Blueprint Architect">
-                      <BlueprintArchitect
-                        isOpen={true}
-                        onClose={() => setView("dashboard")}
-                        playSet={playSets[activePlaySetIndex]}
-                        modList={modList}
-                        toggleInActiveSet={toggleInActiveSet}
-                        globalSearchQuery={globalSearchQuery}
-                        setGlobalSearchQuery={setGlobalSearchQuery}
-                        onSearchNetwork={searchGlobalNetwork}
-                        cloudResults={cloudSearchResults}
-                        isSearching={isSearchingCloud}
-                        allow_write={true}
-                        onCloudUpload={uploadBlueprintToCloud}
-                        vaultPath={vaultPath}
-                        onRefreshMods={runRadarSweep}
-                        displayModList={displayModList}
-                      />
-                    </ErrorBoundary>
-                  )}
-                  {view === "lab" && (
-                    <ErrorBoundary moduleName="Homestead Lab">
-                      <Lab
-                        onOpenDossier={setActiveDossier}
-                        executeHotSwap={runProvingRun}
-                        shelterActive={shelterActive}
-                        labSearchQuery={labSearchQuery}
-                        setLabSearchQuery={setLabSearchQuery}
-                        labVerificationQueue={labVerificationQueue}
-                        labQueue={labQueue}
-                        activeLabMod={activeLabMod}
-                        setActiveLabMod={setActiveLabMod}
-                        testErrorFound={testErrorFound}
-                        testLogSnippet={testLogSnippet}
-                        isSubmittingReport={isSubmittingReport}
-                        submitLabReport={submitLabReport}
-                        concludeTest={concludeTest}
-                        openWorkbench={openWorkbench}
-                        userRole={userRole}
-                        modList={modList}
-                        setConflictTarget={setConflictTarget}
-                        conflictTarget={conflictTarget}
-                        runLabSimulation={runLabSimulation}
-                        isLoadingAssociated={isLoadingAssociated}
-                        associatedMods={associatedMods}
-                        runProvingRun={runProvingRun}
-                        labConflicts={labConflicts}
-                        setLabConflicts={setLabConflicts}
-                      />
-                    </ErrorBoundary>
-                  )}
-                  {view === "backups" && (
-                    <TimeCapsule
-                      selectedVersion={selectedVersion}
-                      setSelectedVersion={setSelectedVersion}
-                      triggerPrePatchSnapshot={triggerPrePatchSnapshot}
-                      isBackingUp={isBackingUp}
-                      backupProgress={backupProgress}
-                      triggerFullEngineBackup={triggerFullEngineBackup}
-                      backupList={backupList}
-                      getBackupSignature={getBackupSignature}
-                      restoreGameBackup={restoreGameBackup}
-                      renameGameBackup={async (oldName: string, newName: string) => {
-                        try {
-                          await invoke("rename_backup", { oldName, newName });
-                          fetchBackups();
-                        } catch (err) {
-                          alert(err);
-                        }
-                      }}
-                      deleteBackup={deleteBackup}
-                    />
-                  )}
-                  {view === "MasonHub" &&
-                    ["mason", "wayfinder", "admin"].includes(userRole) && <MasonHub sandboxMod={activeSandboxMod} clearSandboxMod={() => setActiveSandboxMod(null)} vaultPath={vaultPath} handleOpenMasonProfile={handleOpenMasonProfile} />}
-                  {view === "ArchitectHub" &&
-                    ["architect", "oversight", "wayfinder", "admin"].includes(
-                      userRole,
-                    ) && (
-                      <ErrorBoundary moduleName="Architect Hub">
-                        <ArchitectHub userRole={userRole} equipPlaySet={equipPlaySet} modList={modList} setStatus={setStatus} />
-                      </ErrorBoundary>
-                    )}
-                  {view === "Oversight" &&
-                    ["oversight", "wayfinder", "admin"].includes(userRole) && (
-                      <ErrorBoundary moduleName="Oversight">
-                        <Oversight />
-                      </ErrorBoundary>
-                    )}
-                  {view === "WayfinderHub" &&
-                    ["wayfinder", "admin"].includes(userRole) && (
-                      <ErrorBoundary moduleName="Wayfinder Hub">
-                        <WayfinderHub onOpenMasonProfile={handleOpenMasonProfile} />
-                      </ErrorBoundary>
-                    )}
-                  {view === "KeepersCore" &&
-                    ["core_dev", "admin"].includes(userRole) && (
-                      <ErrorBoundary moduleName="Keepers Core">
-                        <KeepersCore />
-                      </ErrorBoundary>
-                    )}
-                  {view === "DbpfScout" && <DbpfScout />}
-                  {view === "CitizensWorkbench" && <CitizensWorkbench onOpenMasonProfile={handleOpenMasonProfile} />}
-                  {view === "settings" && (
-                    <ErrorBoundary moduleName="Settings">
-                      <Settings
-                        anarchyRules={anarchyRules}
-                        setAnarchyRules={setAnarchyRules}
-                      />
-                    </ErrorBoundary>
-                  )}
-                  {view === "MasonProfile" && activeMasonProfileId && (
-                    <ErrorBoundary moduleName="Mason Profile">
-                      <MasonProfile
-                        masonId={activeMasonProfileId}
-                        initialPostId={activeMasonPostId}
-                        onModClick={(mod: any) => setActiveDossier(mod)}
-                      />
-                    </ErrorBoundary>
+                      {view === "nexus" && (
+                        <Nexus
+                          ownedHashes={modList.map((m) => m.hash).filter((h) => !!h)}
+                          onSetStatus={setStatus}
+                          onOpenMasonProfile={handleOpenMasonProfile}
+                          onOpenDossier={setActiveDossier}
+                          syncBlueprintByCode={syncBlueprintByCode}
+                        />
+                      )}
+                      {view === "vault" && (
+                        <ErrorBoundary moduleName="Vault">
+                          <Vault
+                            view={view}
+                            setView={setView}
+                            statusLog={statusLog}
+                            isScanning={isScanning}
+                            isBulkMode={isBulkMode} setIsBulkMode={setIsBulkMode}
+                            selectedMods={selectedMods} setSelectedMods={setSelectedMods}
+                            setConfirmDialog={setConfirmDialog} setStatus={setStatus}
+                            runRadarSweep={runRadarSweep} setIsDropzoneOpen={setIsDropzoneOpen}
+                            setLocalFolderModal={setLocalFolderModal} playSets={playSets}
+                            equipFilter={equipFilter} setEquipFilter={setEquipFilter}
+                            searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+                            filterStatus={filterStatus} setFilterStatus={setFilterStatus}
+                            activeCategory={activeCategory} setActiveCategory={setActiveCategory}
+                            activeSubType={activeSubType} setActiveSubType={setActiveSubType}
+                            visibleMods={visibleMods} displayModList={displayModList}
+                            activePlaySetIndex={activePlaySetIndex}
+                            setActivePlaySetIndex={setActivePlaySetIndex}
+                            toggleInActiveSet={toggleInActiveSet}
+                            openUrl={openUrl} setLocalFolderName={setLocalFolderName} setLocalFolderType={setLocalFolderType}
+                            executeHotSwap={executeHotSwap} equipPlaySet={equipPlaySet} setMetaNameInput={setMetaNameInput} setMetaAuthorInput={setMetaAuthorInput}
+                            setMetaVersionInput={setMetaVersionInput} setMetaUrlInput={setMetaUrlInput} setActiveDossier={setActiveDossier} setDrawerConfirmHash={setDrawerConfirmHash}
+                            quarantineList={quarantineList} restoreMod={restoreMod} purgeMod={purgeMod}
+                            ownedDLC={ownedDLC} maskedDLC={maskedDLC} setMetaDescInput={setMetaDescInput}
+                            setMetaImageInput={setMetaImageInput} setMetaAllowWriteInput={setMetaAllowWriteInput}
+                            expandedFolder={expandedFolder} setExpandedFolder={setExpandedFolder}
+                            drawerConfirmHash={drawerConfirmHash} modList={modList} anarchyRules={anarchyRules}
+                            setBulkModal={setBulkModal}
+                          />
+                        </ErrorBoundary>
+                      )}
+                      {view === "playsets" && (
+                        <ErrorBoundary moduleName="Blueprints">
+                          <Blueprints
+                            playSets={playSets}
+                            setPlaySets={setPlaySets}
+                            activeSetName={activeSetName}
+                            setActiveSetName={setActiveSetName}
+                            equipPlaySet={equipPlaySet}
+                            isDraftingSet={isDraftingSet}
+                            setIsDraftingSet={setIsDraftingSet}
+                            draftSetName={draftSetName}
+                            setDraftSetName={setDraftSetName}
+                            finalizeDraftSet={finalizeDraftSet}
+                            renamePlaySet={renamePlaySet}
+                            deletePlaySet={deletePlaySet}
+                            exportPlaySet={exportPlaySet}
+                            importPlaySet={importPlaySet}
+                            uploadBlueprintToCloud={uploadBlueprintToCloud}
+                            syncBlueprintByCode={syncBlueprintByCode}
+                            setView={setView}
+                            setSnapshotModal={setSnapshotModal}
+                            globalSearchQuery={globalSearchQuery}
+                            setGlobalSearchQuery={setGlobalSearchQuery}
+                            isSearchingCloud={isSearchingCloud}
+                            searchGlobalNetwork={searchGlobalNetwork}
+                            cloudSearchResults={cloudSearchResults}
+                            syncCode={syncCode}
+                            setSyncCode={setSyncCode}
+                            modList={modList}
+                            activePlaySetIndex={activePlaySetIndex}
+                            setActivePlaySetIndex={setActivePlaySetIndex}
+                            toggleInActiveSet={toggleInActiveSet}
+                            getMissingStrings={getMissingStrings}
+                            ignoreMissingString={ignoreMissingString}
+                            purgeMissingString={purgeMissingString}
+                          />
+                        </ErrorBoundary>
+                      )}
+                      {view === "GlobalFeed" && (
+                        <ErrorBoundary moduleName="Global Feed">
+                          <GlobalFeed
+                            onOpenMasonProfile={handleOpenMasonProfile}
+                          />
+                        </ErrorBoundary>
+                      )}
+                      {view === "BlueprintArchitect" && playSets[activePlaySetIndex] && (
+                        <ErrorBoundary moduleName="Blueprint Architect">
+                          <BlueprintArchitect
+                            isOpen={true}
+                            onClose={() => setView("dashboard")}
+                            playSet={playSets[activePlaySetIndex]}
+                            modList={modList}
+                            toggleInActiveSet={toggleInActiveSet}
+                            globalSearchQuery={globalSearchQuery}
+                            setGlobalSearchQuery={setGlobalSearchQuery}
+                            onSearchNetwork={searchGlobalNetwork}
+                            cloudResults={cloudSearchResults}
+                            isSearching={isSearchingCloud}
+                            allow_write={true}
+                            onCloudUpload={uploadBlueprintToCloud}
+                            vaultPath={vaultPath}
+                            onRefreshMods={runRadarSweep}
+                            displayModList={displayModList}
+                          />
+                        </ErrorBoundary>
+                      )}
+                      {view === "lab" && (
+                        <ErrorBoundary moduleName="Homestead Lab">
+                          <Lab
+                            onOpenDossier={setActiveDossier}
+                            executeHotSwap={runProvingRun}
+                            shelterActive={shelterActive}
+                            labSearchQuery={labSearchQuery}
+                            setLabSearchQuery={setLabSearchQuery}
+                            labVerificationQueue={labVerificationQueue}
+                            labQueue={labQueue}
+                            activeLabMod={activeLabMod}
+                            setActiveLabMod={setActiveLabMod}
+                            testErrorFound={testErrorFound}
+                            testLogSnippet={testLogSnippet}
+                            isSubmittingReport={isSubmittingReport}
+                            submitLabReport={submitLabReport}
+                            concludeTest={concludeTest}
+                            openWorkbench={openWorkbench}
+                            userRole={userRole}
+                            modList={modList}
+                            setConflictTarget={setConflictTarget}
+                            conflictTarget={conflictTarget}
+                            runLabSimulation={runLabSimulation}
+                            isLoadingAssociated={isLoadingAssociated}
+                            associatedMods={associatedMods}
+                            runProvingRun={runProvingRun}
+                            labConflicts={labConflicts}
+                            setLabConflicts={setLabConflicts}
+                          />
+                        </ErrorBoundary>
+                      )}
+                      {view === "backups" && (
+                        <TimeCapsule
+                          selectedVersion={selectedVersion}
+                          setSelectedVersion={setSelectedVersion}
+                          triggerPrePatchSnapshot={triggerPrePatchSnapshot}
+                          isBackingUp={isBackingUp}
+                          backupProgress={backupProgress}
+                          triggerFullEngineBackup={triggerFullEngineBackup}
+                          backupList={backupList}
+                          getBackupSignature={getBackupSignature}
+                          restoreGameBackup={restoreGameBackup}
+                          renameGameBackup={async (oldName: string, newName: string) => {
+                            try {
+                              await invoke("rename_backup", { oldName, newName });
+                              fetchBackups();
+                            } catch (err) {
+                              alert(err);
+                            }
+                          }}
+                          deleteBackup={deleteBackup}
+                        />
+                      )}
+                      {view === "MasonHub" &&
+                        ["mason", "wayfinder", "admin"].includes(userRole) && <MasonHub sandboxMod={activeSandboxMod} clearSandboxMod={() => setActiveSandboxMod(null)} vaultPath={vaultPath} handleOpenMasonProfile={handleOpenMasonProfile} />}
+                      {view === "ArchitectHub" &&
+                        ["architect", "oversight", "wayfinder", "admin"].includes(
+                          userRole,
+                        ) && (
+                          <ErrorBoundary moduleName="Architect Hub">
+                            <ArchitectHub userRole={userRole} equipPlaySet={equipPlaySet} modList={modList} setStatus={setStatus} />
+                          </ErrorBoundary>
+                        )}
+                      {view === "Oversight" &&
+                        ["oversight", "wayfinder", "admin"].includes(userRole) && (
+                          <ErrorBoundary moduleName="Oversight">
+                            <Oversight />
+                          </ErrorBoundary>
+                        )}
+                      {view === "WayfinderHub" &&
+                        ["wayfinder", "admin"].includes(userRole) && (
+                          <ErrorBoundary moduleName="Wayfinder Hub">
+                            <WayfinderHub onOpenMasonProfile={handleOpenMasonProfile} />
+                          </ErrorBoundary>
+                        )}
+                      {view === "KeepersCore" &&
+                        ["core_dev", "admin"].includes(userRole) && (
+                          <ErrorBoundary moduleName="Keepers Core">
+                            <KeepersCore />
+                          </ErrorBoundary>
+                        )}
+                      {view === "DbpfScout" && <DbpfScout />}
+                      {view === "CitizensWorkbench" && <CitizensWorkbench onOpenMasonProfile={handleOpenMasonProfile} />}
+                      {view === "settings" && (
+                        <ErrorBoundary moduleName="Settings">
+                          <Settings
+                            anarchyRules={anarchyRules}
+                            setAnarchyRules={setAnarchyRules}
+                          />
+                        </ErrorBoundary>
+                      )}
+                      {view === "MasonProfile" && activeMasonProfileId && (
+                        <ErrorBoundary moduleName="Mason Profile">
+                          <MasonProfile
+                            masonId={activeMasonProfileId}
+                            initialPostId={activeMasonPostId}
+                            onModClick={(mod: any) => setActiveDossier(mod)}
+                          />
+                        </ErrorBoundary>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -2588,12 +2594,12 @@ function App() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[120px] pointer-events-none mix-blend-screen"
             style={{ backgroundColor: `color-mix(in srgb, var(--accent) 10%, transparent)` }} />
 
-     <div className="relative w-full max-w-lg glass-panel backdrop-blur-2xl border rounded-[var(--radius)] p-12 flex flex-col gap-8 items-center justify-center shadow-2xl"
+          <div className="relative w-full max-w-lg glass-panel backdrop-blur-2xl border rounded-2xl p-12 flex flex-col gap-8 items-center justify-center shadow-2xl"
             style={{
               borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)`,
               boxShadow: `0 40px 100px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 1px 1px color-mix(in srgb, var(--text) 5%, transparent)`
             }}>
-            <div className="absolute inset-0 animate-pulse pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)` }} />
+            <div className="absolute inset-0 rounded-[inherit] animate-pulse pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)` }} />
             <div className="absolute top-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 50%, transparent), transparent)` }} />
             <div className="absolute bottom-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 20%, transparent), transparent)` }} />
 
@@ -2605,7 +2611,7 @@ function App() {
                   borderWidth: '1px',
                   boxShadow: `0 0 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 5%, transparent)`
                 }}>
-                <div className="absolute inset-0 rounded-full border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
+                <div className="absolute inset-0 rounded-[inherit]  border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
                 <span className="material-symbols-outlined animate-spin"
                   style={{ color: 'var(--accent)', filter: `drop-shadow(0 0 15px var(--accent))` }}>sync</span>
               </div>
@@ -2623,10 +2629,9 @@ function App() {
         </div>
       )}
 
-      {isGlobalConfigLoaded && !isConfigured && (
-        <WorkspaceLanding isModal={true} />
-      )}
     </div>
   );
 }
 export default App;
+
+

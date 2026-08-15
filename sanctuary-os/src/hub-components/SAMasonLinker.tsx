@@ -189,7 +189,7 @@ export function MasonLinker() {
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
         {loading ? (
-          <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("audit_fetching")}</div>
+          <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("audit_fetching")}</div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
             {filteredMasons.map((m: any) => (
@@ -256,7 +256,7 @@ export function MasonLinker() {
         <div className="p-6 flex flex-col h-full gap-8">
 
           <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none rounded-2xl" />
+            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
             <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
               {t("metadata")}
@@ -274,7 +274,7 @@ export function MasonLinker() {
           </div>
 
           <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none rounded-2xl" />
+            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none " />
             <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
               <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span>
               {t("linking_verification")}
@@ -379,4 +379,8 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
     </div>
   );
 }
+
+
+
+
 

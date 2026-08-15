@@ -298,3 +298,5 @@ export default function MasonProfileAssets({
 
   return null;
 }
+
+

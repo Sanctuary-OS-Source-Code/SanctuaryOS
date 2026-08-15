@@ -143,9 +143,9 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
                 <button
                   key={`ws-${ws.id}-${idx}`}
                   onClick={() => selectWorkspace(ws)}
-         className={`flex flex-col justify-start p-6 rounded-[var(--radius)] glass-panel border group transition-all duration-500 relative min-h-[160px] text-left ${isActive ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-md'}`}
+         className={`flex flex-col justify-start p-6 rounded-2xl glass-panel border group transition-all duration-500 relative min-h-[160px] text-left ${isActive ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-md'}`}
                 >
-                  <div className={`absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-transparent transition-opacity duration-700 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                  <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-transparent transition-opacity duration-700 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
 
                   <div className="flex justify-start items-start w-full relative z-10 mb-4">
                     <div className="flex items-start gap-4 w-full pr-8">
@@ -192,3 +192,6 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
     </SidePanel>
   );
 }
+
+
+

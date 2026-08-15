@@ -358,8 +358,8 @@ export default function CommandCenter({
                   <div className="absolute top-0 left-0 w-[400px] h-[400px] rounded-full blur-[80px] opacity-20 pointer-events-none -translate-x-1/2 -translate-y-1/2 bg-[var(--danger)] group-hover:opacity-30 transition-opacity duration-500" />
 
                   <div className="flex items-center gap-4 relative z-10">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 relative bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)]">
-                      <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-[var(--danger)]" />
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 relative bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)]">
+                      <div className="absolute inset-0 rounded-[inherit]  animate-ping opacity-20 bg-[var(--danger)]" />
                       <span className="material-symbols-outlined !text-[28px] drop-shadow-md text-[var(--danger)]">{t("icon_warning_amber")}</span>
                     </div>
 
@@ -370,7 +370,7 @@ export default function CommandCenter({
                   </div>
 
                   <div className="flex items-center md:ml-auto relative z-10">
-                    <button onClick={(e) => { e.stopPropagation(); localStorage.setItem('sanctuary_dismissed_alert_id', String(urgentBroadcast.id)); setUrgentBroadcast(null); }} className="w-9 h-9 rounded-full flex items-center justify-center text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] transition-all active:scale-95 group/close" >
+                    <button onClick={(e) => { e.stopPropagation(); localStorage.setItem('sanctuary_dismissed_alert_id', String(urgentBroadcast.id)); setUrgentBroadcast(null); }} className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] transition-all active:scale-95 group/close" >
                       <span className="material-symbols-outlined !text-[20px] group-hover/close:rotate-90 transition-transform duration-300">close</span>
                     </button>
                   </div>
@@ -382,7 +382,7 @@ export default function CommandCenter({
                   <div className="absolute top-0 left-0 w-[400px] h-[400px] rounded-full blur-[80px] opacity-20 pointer-events-none -translate-x-1/2 -translate-y-1/2 bg-[var(--warning)]" />
 
                   <div className="flex items-center gap-4 relative z-10">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 relative bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border border-[color-mix(in_srgb,var(--warning)_40%,transparent)]">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 relative bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border border-[color-mix(in_srgb,var(--warning)_40%,transparent)]">
                       <span className="material-symbols-outlined !text-[28px] drop-shadow-md text-[var(--warning)]">{t("icon_warning_amber")}</span>
                     </div>
 
@@ -393,11 +393,11 @@ export default function CommandCenter({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 md:ml-auto relative z-10">
-                    <button onClick={() => invoke("open_developer_settings")} className="h-9 px-4 rounded-full border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] transition-all flex items-center gap-2 shadow-sm font-black capitalize tracking-widest text-[10px]">
+                    <button onClick={() => invoke("open_developer_settings")} className="h-9 px-4 rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] transition-all flex items-center gap-2 shadow-sm font-black capitalize tracking-widest text-[10px]">
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_settings")}</span>
                       <span>{t("perm_btn_dev")}</span>
                     </button>
-                    <button onClick={checkPerms} className="w-9 h-9 rounded-full flex items-center justify-center text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] transition-all shadow-sm group/refresh" >
+                    <button onClick={checkPerms} className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] transition-all shadow-sm group/refresh" >
                       <span className="material-symbols-outlined !text-[18px] group-hover/refresh:rotate-180 transition-transform duration-500">{t("icon_refresh")}</span>
                     </button>
                   </div>
@@ -413,8 +413,8 @@ export default function CommandCenter({
                     <div className="absolute top-0 left-0 w-[400px] h-[400px] rounded-full blur-[80px] opacity-20 pointer-events-none -translate-x-1/2 -translate-y-1/2 transition-opacity duration-500 group-hover/radar:opacity-30" style={{ backgroundColor: alertVar }} />
 
                     <div className="flex items-center gap-4 relative z-10">
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 relative" style={{ backgroundColor: `color-mix(in srgb, ${alertVar} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${alertVar} 40%, transparent)` }}>
-                        {radarState === 'critical' && <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ backgroundColor: alertVar }} />}
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 relative" style={{ backgroundColor: `color-mix(in srgb, ${alertVar} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${alertVar} 40%, transparent)` }}>
+                        {radarState === 'critical' && <div className="absolute inset-0 rounded-[inherit]  animate-ping opacity-20" style={{ backgroundColor: alertVar }} />}
                         <span className="material-symbols-outlined !text-[28px] drop-shadow-md" style={{ color: alertVar }}>{t(`ui_icon_${alertIcon}`) || alertIcon}</span>
                       </div>
 
@@ -430,14 +430,16 @@ export default function CommandCenter({
 
                     <div className="flex items-center gap-2 md:ml-auto relative z-10 shrink-0">
                       {activeUpdates.length > 0 && (
-                        <button onClick={() => setShowUpdatesModal(true)} title={`${activeUpdates.length} ${t("updates_modal_title")}`} className="h-10 px-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] transition-all flex items-center justify-center gap-2 shadow-sm font-black text-sm">
+                        <button onClick={() => setShowUpdatesModal(true)} className="h-10 px-4 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] transition-all flex items-center justify-center gap-2 shadow-sm font-black text-sm relative">
+                          <HoverTooltip title={`${activeUpdates.length} ${t("updates_modal_title")}`} variant="accent" />
                           <span className="material-symbols-outlined !text-[18px]">{t("icon_update")}</span>
                           <span>{activeUpdates.length}</span>
                         </button>
                       )}
 
                       {(radarBrokenCount + radarUnstableCount) > 0 && (
-                        <button onClick={() => setShowIncompatiblePanel(true)} title={`${radarBrokenCount} ${t("status_broken")} / ${radarUnstableCount} ${t("label_unstable")}`} className="h-10 px-4 rounded-xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] transition-all flex items-center justify-center gap-3 shadow-sm font-black text-sm">
+                        <button onClick={() => setShowIncompatiblePanel(true)} className="h-10 px-4 rounded-[calc(var(--radius)-4px)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] transition-all flex items-center justify-center gap-3 shadow-sm font-black text-sm relative">
+                          <HoverTooltip title={`${radarBrokenCount} ${t("status_broken")} / ${radarUnstableCount} ${t("label_unstable")}`} variant="danger" />
                           {radarBrokenCount > 0 && (
                             <div className="flex items-center gap-1.5">
                               <span className="material-symbols-outlined !text-[18px]">gpp_bad</span>
@@ -454,23 +456,30 @@ export default function CommandCenter({
                         </button>
                       )}
 
-                      {activeConflictCount.total > 0 && (
-                        <button onClick={() => setShowConflictsPanel(true)} title={`${activeConflictCount.tier4} ${t("stat_tier4")} / ${activeConflictCount.tier3} ${t("stat_tier3")}`} className="h-10 px-4 rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] transition-all flex items-center justify-center gap-3 shadow-sm font-black text-sm">
-                          {activeConflictCount.tier4 > 0 && (
-                            <div className="flex items-center gap-1.5 text-[var(--danger)]">
-                              <span className="material-symbols-outlined !text-[18px]">gpp_bad</span>
-                              <span>{activeConflictCount.tier4}</span>
-                            </div>
-                          )}
-                          {activeConflictCount.tier4 > 0 && activeConflictCount.tier3 > 0 && <div className="w-[1px] h-4 bg-[var(--warning)] opacity-30" />}
-                          {activeConflictCount.tier3 > 0 && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="material-symbols-outlined !text-[18px]">{t("icon_warning_amber")}</span>
-                              <span>{activeConflictCount.tier3}</span>
-                            </div>
-                          )}
-                        </button>
-                      )}
+                      {activeConflictCount.total > 0 && (() => {
+                        const hasTier4 = activeConflictCount.tier4 > 0;
+                        const borderColor = hasTier4 ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]';
+                        const bgColor = hasTier4 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]';
+                        const textColor = hasTier4 ? 'text-[var(--danger)]' : 'text-[var(--warning)]';
+                        return (
+                          <button onClick={() => setShowConflictsPanel(true)} className={`h-10 px-4 rounded-[calc(var(--radius)-4px)] border ${borderColor} ${bgColor} ${textColor} transition-all flex items-center justify-center gap-3 shadow-sm font-black text-sm relative`}>
+                            <HoverTooltip title={`${activeConflictCount.tier4} ${t("stat_tier4")} / ${activeConflictCount.tier3} ${t("stat_tier3")}`} variant={hasTier4 ? "danger" : "warning"} />
+                            {activeConflictCount.tier4 > 0 && (
+                              <div className="flex items-center gap-1.5 text-[var(--danger)]">
+                                <span className="material-symbols-outlined !text-[18px]">gpp_bad</span>
+                                <span>{activeConflictCount.tier4}</span>
+                              </div>
+                            )}
+                            {activeConflictCount.tier4 > 0 && activeConflictCount.tier3 > 0 && <div className={`w-[1px] h-4 ${hasTier4 ? 'bg-[var(--danger)]' : 'bg-[var(--warning)]'} opacity-30`} />}
+                            {activeConflictCount.tier3 > 0 && (
+                              <div className={`flex items-center gap-1.5 ${hasTier4 ? 'text-[var(--warning)]' : ''}`}>
+                                <span className="material-symbols-outlined !text-[18px]">{t("icon_warning_amber")}</span>
+                                <span>{activeConflictCount.tier3}</span>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -585,3 +594,7 @@ export default function CommandCenter({
     </div>
   );
 }
+
+
+
+

@@ -71,3 +71,5 @@ export function ScoutQueueSidePanel({
     </SidePanel>
   );
 }
+
+

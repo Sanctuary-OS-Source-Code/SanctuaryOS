@@ -232,7 +232,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
         {loading ? (
-          <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading")}</div>
+          <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading")}</div>
         ) : filteredReports.length === 0 ? (
           <EmptyState icon={t("icon_security")} title={t("auto_no_tickets_found_38")} className="col-span-full py-16" />
         ) : (
@@ -240,10 +240,10 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
             {filteredReports.map(report => (
               <div
                 key={report.id}
-        className="glass-panel rounded-[var(--radius)] flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 relative bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
+        className="glass-panel rounded-2xl flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.15)] transition-all duration-500 relative bg-gradient-to-br from-white/5 to-transparent min-h-[220px]"
                 onClick={() => setSelectedReport(report)}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
                 <div className={`absolute top-0 left-0 w-full h-1 transition-all duration-500
                       ${report.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_50%,transparent)] group-hover:bg-amber-500 group-hover:shadow-md' : 'bg-[color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]'}
@@ -441,4 +441,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
     </div>
   );
 }
+
+
+
 

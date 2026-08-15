@@ -144,11 +144,11 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
     >
       <div className="flex flex-col gap-3">
         {loading ? (
-          <div className="p-12 text-center text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 glass-panel rounded-[var(--radius)]">
+          <div className="p-12 text-center text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 glass-panel rounded-2xl">
             {t("loading")}
           </div>
         ) : notifications.length === 0 ? (
-          <div className="p-12 text-center text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 glass-panel rounded-[var(--radius)]">
+          <div className="p-12 text-center text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 glass-panel rounded-2xl">
             {t("notif_empty")}
           </div>
         ) : (
@@ -156,7 +156,7 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
             <div
               key={n.id}
               onClick={() => handleNotificationClick(n)}
-              className={`p-5 rounded-[var(--radius)] cursor-pointer transition-all border group relative shadow-lg ${n.is_read
+              className={`p-5 rounded-2xl cursor-pointer transition-all border group relative shadow-lg ${n.is_read
                   ? "bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-70 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)]"
                   : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[var(--accent)]"
                 }`}
@@ -189,3 +189,4 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
     </SidePanel>
   );
 }
+

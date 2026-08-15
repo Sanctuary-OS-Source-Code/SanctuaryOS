@@ -70,8 +70,8 @@ export function ImportTemplateSidePanel({
     >
       <div className="flex flex-col gap-6 p-8 h-full min-h-0 relative">
         <div className="relative shrink-0 group">
-          <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-[var(--radius)] blur-xl group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
-          <div className="relative flex items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-inner overflow-hidden transition-all group-focus-within:border-[var(--accent)] group-focus-within:shadow-[0_0_25px_rgba(var(--accent-rgb),0.1)]">
+          <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-xl group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
+          <div className="relative flex items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-inner overflow-hidden transition-all group-focus-within:border-[var(--accent)] group-focus-within:shadow-[0_0_25px_rgba(var(--accent-rgb),0.1)]">
             <div className="pl-6 pr-2 py-4 flex items-center justify-center">
                <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("icon_search")}</span>
             </div>
@@ -87,12 +87,12 @@ export function ImportTemplateSidePanel({
 
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 pb-8">
           {isLoading ? (
-             <div className="flex flex-col items-center justify-center p-12 opacity-40 glass-panel rounded-[var(--radius)] border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
+             <div className="flex flex-col items-center justify-center p-12 opacity-40 glass-panel rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
                <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)] animate-spin">{t("icon_refresh")}</span>
                <p className="text-sm font-black capitalize tracking-widest">{t("loading_templates")}</p>
              </div>
           ) : filteredTemplates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 opacity-40 glass-panel rounded-[var(--radius)] border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
+            <div className="flex flex-col items-center justify-center p-12 opacity-40 glass-panel rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
               <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)]">{t("icon_search_off")}</span>
               <p className="text-sm font-black capitalize tracking-widest">{t("empty_title_templates")}</p>
             </div>
@@ -103,11 +103,11 @@ export function ImportTemplateSidePanel({
                 onClick={() => {
                   onSelectTemplate(JSON.stringify(template, null, 2));
                 }}
-        className="flex flex-col items-start gap-4 p-6 glass-panel rounded-[var(--radius)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] transition-all duration-300 group text-left border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative w-full"
+        className="flex flex-col items-start gap-4 p-6 glass-panel rounded-2xl hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] transition-all duration-300 group text-left border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative w-full"
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-full blur-3xl group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
                 
-                <div className="flex items-center justify-start w-full relative z-10">
+                <div className="flex items-center justify-between w-full relative z-10">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
                        <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]">{t("icon_data_object")}</span>
@@ -145,3 +145,7 @@ export function ImportTemplateSidePanel({
     </SidePanel>
   );
 }
+
+
+
+

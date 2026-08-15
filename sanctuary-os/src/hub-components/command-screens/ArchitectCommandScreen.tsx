@@ -201,8 +201,8 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
 
         <CommandScreenSidebar title={t("wf_quick_links")} icon="rocket_launch">
           {urgentBroadcast && (
-      <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative h-24">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
+      <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative h-24">
+              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
               <div className="flex items-center gap-5 h-full">
                 <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] shadow-md">
                   <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 animate-pulse drop-shadow-md">
@@ -250,3 +250,6 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
     </CommandScreenLayout>
   );
 }
+
+
+

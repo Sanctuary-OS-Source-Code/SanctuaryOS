@@ -15,7 +15,7 @@ export function SystemBackground() {
       */}
       {currentTheme.bgImage ? (
         <div 
-          className="absolute inset-0 w-full h-full opacity-100 transition-all duration-1000" 
+          className="absolute inset-0 rounded-[inherit] w-full h-full opacity-100 transition-all duration-1000" 
           style={{ 
             backgroundImage: `url("${currentTheme.bgImage}")`,
             backgroundSize: 'cover',
@@ -25,7 +25,7 @@ export function SystemBackground() {
         />
       ) : (
         <div 
-          className="absolute inset-0 w-full h-full opacity-100 transition-colors duration-1000" 
+          className="absolute inset-0 rounded-[inherit] w-full h-full opacity-100 transition-colors duration-1000" 
           style={{ background: currentTheme.bgGradient || currentTheme.bg }} 
         />
       )}
@@ -35,7 +35,7 @@ export function SystemBackground() {
         Spawns massive, overlapping orbs that physically mix colors.
       */}
       {ambientOrb && volumetricOrbs && volumetricOrbs.length > 0 ? (
-        <div className="absolute inset-0 w-full h-full">
+        <div className="absolute inset-0 rounded-[inherit] w-full h-full">
           {volumetricOrbs.map((orb: any, index: number) => (
             <div 
               key={`${currentTheme.name || 'theme'}-${index}`}
@@ -58,7 +58,7 @@ export function SystemBackground() {
       */}
       {ambientNoise && (
         <div 
-          className="absolute inset-0 w-full h-full opacity-[0.06] mix-blend-overlay pointer-events-none"
+          className="absolute inset-0 rounded-[inherit] w-full h-full opacity-[0.06] mix-blend-overlay pointer-events-none"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
             backgroundRepeat: 'repeat'
@@ -71,7 +71,7 @@ export function SystemBackground() {
       */}
       {currentTheme.scanlines && (
         <div 
-          className="absolute inset-0 w-full h-full pointer-events-none opacity-20"
+          className="absolute inset-0 rounded-[inherit] w-full h-full pointer-events-none opacity-20"
           style={{
             background: 'linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2))',
             backgroundSize: '100% 4px'
@@ -81,3 +81,4 @@ export function SystemBackground() {
     </div>
   );
 }
+

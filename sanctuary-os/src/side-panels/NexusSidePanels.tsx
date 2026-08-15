@@ -35,9 +35,9 @@ export function MarketUploadPanel({
           <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
         </button>
         <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pt-6 pb-2 px-6">
-          <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] blur-[50px] pointer-events-none rounded-full transform scale-150 -translate-y-1/2"></div>
+          <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] blur-[50px] pointer-events-none  transform scale-150 -translate-y-1/2"></div>
           <div className="flex items-center gap-6 relative z-10 w-full pr-12">
-            <div className="w-20 h-20 shrink-0 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center">
+            <div className="w-20 h-20 shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center">
               <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '40px' }}>
                 {marketTab === 'LEXICONS' ? 'translate' : marketTab === 'TEMPLATES' ? 'draw' : 'palette'}
               </span>
@@ -230,9 +230,9 @@ export function MarketReportPanel({
         noScroll={true}
       >
         <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-red-500/10 to-transparent pt-6 pb-4 px-6">
-          <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] blur-[50px] pointer-events-none rounded-full transform scale-150 -translate-y-1/2"></div>
+          <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] blur-[50px] pointer-events-none  transform scale-150 -translate-y-1/2"></div>
           <div className="flex items-center gap-6 relative z-10 w-full pr-12">
-            <div className="w-16 h-16 shrink-0 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-inner flex items-center justify-center">
+            <div className="w-16 h-16 shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-inner flex items-center justify-center">
               <span className="material-symbols-outlined text-red-500 drop-shadow-md" style={{ fontSize: '32px' }}>{t("icon_flag")}</span>
             </div>
             <div className="flex flex-col min-w-0 flex-1 pt-1">
@@ -470,9 +470,9 @@ export function MarketBlueprintPanel({
           <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
         </button>
         <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pt-6 pb-2 px-10">
-          <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] blur-[50px] pointer-events-none rounded-full transform scale-150 -translate-y-1/2"></div>
+          <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] blur-[50px] pointer-events-none  transform scale-150 -translate-y-1/2"></div>
           <div className="flex items-start gap-6 relative z-10 w-full pr-12">
-            <div className="w-20 h-20 shrink-0 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center">
+            <div className="w-20 h-20 shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center">
               <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '40px' }}>{t("icon_map")}</span>
             </div>
             <div className="flex flex-col min-w-0 flex-1 pt-1">
@@ -618,3 +618,7 @@ export function MarketBlueprintPanel({
     </>
   );
 }
+
+
+
+

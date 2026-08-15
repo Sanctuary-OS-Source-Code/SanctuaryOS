@@ -197,9 +197,9 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                   <div
                     key={c.id}
                     onClick={() => handleEditConflict(c)}
-          className="glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl transition-all duration-500 relative cursor-pointer"
+          className="glass-panel p-5 rounded-2xl flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl transition-all duration-500 relative cursor-pointer"
                   >
-                    <div className="absolute inset-0 pointer-events-none transition-all duration-700 opacity-20 group-hover:opacity-40" />
+                    <div className="absolute inset-0 rounded-[inherit] pointer-events-none transition-all duration-700 opacity-20 group-hover:opacity-40" />
 
                     {/* Header */}
                     <div className="flex justify-start items-start z-10 relative">
@@ -426,4 +426,7 @@ function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val
     </div>
   );
 }
+
+
+
 

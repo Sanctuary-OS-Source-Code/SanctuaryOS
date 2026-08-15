@@ -3,7 +3,7 @@ import { formatDisplayName, getHighestVersion, mapDlcCode, getExtensionRegex, ge
 import { ModCard } from '../../ModCard';
 
 export function VaultGrid(props: any) {
-  const { paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, toggleModSelection, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, drawerCasualties, selectedVersion, hasMissingDeps, missingPacks, isSwappedState, isBetaSwap, isFlavorGhosted, isFlavorEquipped, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, flavorGhostReason, setIsDropzoneOpen, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, setSelectedMods, setActiveLocalFolder, setIsLocalFolderEditorOpen } = props;
+  const { vaultLayout = "standard", paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, toggleModSelection, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, drawerCasualties, selectedVersion, hasMissingDeps, missingPacks, isSwappedState, isBetaSwap, isFlavorGhosted, isFlavorEquipped, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, flavorGhostReason, setIsDropzoneOpen, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, setSelectedMods, setActiveLocalFolder, setIsLocalFolderEditorOpen } = props;
   const localSets = JSON.parse(localStorage.getItem("sanctuary_local_sets") || "[]");
   const [drawerSearchQuery, setDrawerSearchQuery] = React.useState("");
   React.useEffect(() => {
@@ -505,9 +505,11 @@ export function VaultGrid(props: any) {
   }, [paginatedMods, activeSetMods, equippedDisplayMods, dependencyGraph, activeGameSchema, localSets, anarchyRules, ownedDLC, maskedDLC, selectedVersion, checkConflicts, expandedFolder]);
 
 
+  const gridLayoutClass = vaultLayout === "list" ? "grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(450px,1fr))]" : vaultLayout === "compact" ? "grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(220px,1fr))]" : "grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))]";
+
   return (
     <>
-      <div id="vault-grid-container" className={`grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-24 pl-2 pr-6 relative`}>
+      <div id="vault-grid-container" className={`${gridLayoutClass} gap-6 pb-24 pl-2 pr-6 relative`}>
         {paginatedMods.length === 0 ? (
           <EmptyState icon="search_off" title={t("registry_no_mods")} subtitle={t("vault_no_results_sub")} className="col-span-full py-24" />
         ) : (
@@ -520,6 +522,7 @@ export function VaultGrid(props: any) {
 
             const renderedModCard = (
               <ModCard
+                layout={vaultLayout}
                 id={`mod-card-${mainKey}`}
                 mod={renderedMod}
                 gameVersion={selectedVersion}
@@ -651,18 +654,18 @@ export function VaultGrid(props: any) {
                 </div>
 
                 <AccordionDrawer isOpen={expandedFolder === mainKey}>
-                  <div className="w-full glass-panel rounded-[32px] p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
+                  <div className="w-full glass-panel rounded-3xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
 
                   {/* Unified Full-Width Header */}
-                  <div className="flex flex-wrap gap-4 items-center justify-start pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
+                  <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10 w-full">
                     <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
+                      <div className="w-12 h-12 rounded-xl glass-surface flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
                         <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">folder_open</span>
                       </div>
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-3">
                           <h3 className="text-2xl md:text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-none">
-                            {formatDisplayName(renderedMod.displayName || renderedMod.name)}
+                            {String(formatDisplayName(renderedMod.displayName || renderedMod.name)).toLowerCase()}
                           </h3>
                         </div>
                         <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
@@ -677,10 +680,11 @@ export function VaultGrid(props: any) {
                           value={drawerSearchQuery}
                           onChange={(v: string) => setDrawerSearchQuery(v)}
                           placeholder={t("search_ph")}
+                          className="h-10 rounded-[calc(var(--radius)-4px)]"
                         />
                       </div>
-                      <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
-                        <span className="material-symbols-outlined !text-[24px]">close</span>
+                      <button onClick={() => setExpandedFolder(null)} className="w-10 h-10 rounded-[calc(var(--radius)-4px)] glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
+                        <span className="material-symbols-outlined !text-[20px]">close</span>
                       </button>
                     </div>
                   </div>
@@ -689,7 +693,7 @@ export function VaultGrid(props: any) {
                   <div className="w-full relative z-10">
                     <DeferredRender>
                       {/* Inner Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 max-h-[500px] lg:max-h-[600px] overflow-y-auto custom-scrollbar p-2 lg:p-6">
+                      <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-5 max-h-[500px] lg:max-h-[600px] overflow-y-auto custom-scrollbar p-2 lg:p-6">
                       {(renderedMod.flavors || [])
                           .filter((flavor: any) => {
                             if (!drawerSearchQuery) return true;
@@ -789,3 +793,6 @@ export function VaultGrid(props: any) {
     </>
   );
 }
+
+
+

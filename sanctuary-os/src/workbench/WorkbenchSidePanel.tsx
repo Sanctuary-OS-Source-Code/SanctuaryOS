@@ -267,7 +267,7 @@ export function WorkbenchSidePanel({
                                     <p className="text-[11px] text-[var(--subtext)] leading-relaxed">{t("syntax_error_desc")}</p>
                                  </div>
                               ) : (
-                                 <div ref={layoutState.visualScrollRef} className="absolute inset-0 overflow-y-scroll overflow-x-hidden custom-scrollbar pr-2 z-10 pb-20">
+                                 <div ref={layoutState.visualScrollRef} className="absolute inset-0 rounded-[inherit] overflow-y-scroll overflow-x-hidden custom-scrollbar pr-2 z-10 pb-20">
                                     <div className="flex flex-col gap-4 min-h-[300px] px-2 pt-2">
                                        {editorState.problemsList.length > 0 ? (
                                           <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 opacity-60">
@@ -306,7 +306,7 @@ export function WorkbenchSidePanel({
                         </>
                      )}
 
-           <div ref={layoutState.rawContainerRef} className={`monaco-wrapper relative flex flex-col glass-panel rounded-[var(--radius)] shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${activeTab === 'dual' ? 'shrink-0' : 'flex-1 min-w-0 min-h-0'} ${activeTab !== 'raw' && activeTab !== 'dual' ? 'hidden' : ''}`} style={activeTab === 'dual' ? { width: layoutState.isResizingPreview ? layoutState.dragPreviewWidthRef.current : layoutState.previewWidth } : {}}>
+           <div ref={layoutState.rawContainerRef} className={`monaco-wrapper relative flex flex-col glass-panel rounded-2xl shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${activeTab === 'dual' ? 'shrink-0' : 'flex-1 min-w-0 min-h-0'} ${activeTab !== 'raw' && activeTab !== 'dual' ? 'hidden' : ''}`} style={activeTab === 'dual' ? { width: layoutState.isResizingPreview ? layoutState.dragPreviewWidthRef.current : layoutState.previewWidth } : {}}>
                            <WorkbenchRawEditor
                               value={editorState.rawText}
                               onChange={editorState.handleRawChange}
@@ -390,8 +390,8 @@ export function WorkbenchSidePanel({
 
                {isTemplateMode && (
                   <div className={`flex-1 flex gap-4 min-w-0 min-h-0 ${previewMode === 'off' ? 'flex-col' : 'flex-row'}`}>
-                     <div className="flex-1 glass-panel rounded-[var(--radius)] overflow-visible shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative flex flex-col min-h-0 min-w-0 z-[110]">
-                        <div className="p-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 flex items-center justify-start z-10 w-full overflow-visible flex-wrap rounded-t-[var(--radius)]">
+                     <div className="flex-1 glass-panel rounded-2xl overflow-visible shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative flex flex-col min-h-0 min-w-0 z-[110]">
+                        <div className="p-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 flex items-center justify-start z-10 w-full overflow-visible flex-wrap rounded-t-2xl">
                            <WorkbenchTemplateTools
                               parsedData={editorState.parsedData}
                               rawText={editorState.rawText}
@@ -403,7 +403,7 @@ export function WorkbenchSidePanel({
                            />
                         </div>
 
-                        <div className="flex-1 relative w-full min-w-0 min-h-0 overflow-hidden rounded-b-[var(--radius)]">
+                        <div className="flex-1 relative w-full min-w-0 min-h-0 overflow-hidden rounded-b-2xl">
                            <WorkbenchRawEditor
                               value={editorState.rawText}
                               onChange={editorState.handleRawChange}
@@ -443,7 +443,7 @@ export function WorkbenchSidePanel({
                            >
                               <div className="h-12 w-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
                            </div>
-              <div className={`shrink-0 glass-panel rounded-[var(--radius)] shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: layoutState.previewWidth }}>
+              <div className={`shrink-0 glass-panel rounded-2xl shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: layoutState.previewWidth }}>
                               <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 text-center flex items-center justify-start">
                                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-2">{previewMode === 'preview' ? t("workbench_preview_title") : (editorState.parsedData?.target_file || 'Target File')}</span>
                               </div>
@@ -505,3 +505,6 @@ export function WorkbenchSidePanel({
       </SidePanel>
    );
 }
+
+
+

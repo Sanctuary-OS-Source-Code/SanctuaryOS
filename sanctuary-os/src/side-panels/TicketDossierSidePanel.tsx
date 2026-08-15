@@ -165,7 +165,7 @@ export default function TicketDossierSidePanel({
 
         {ticket.metadata?.restricted_violations && ticket.metadata.restricted_violations.length > 0 && (
           <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] p-5 rounded-2xl flex flex-col gap-3 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
             <div className="flex items-center gap-3 relative z-10">
               <span className="material-symbols-outlined !text-[20px] text-rose-500">{t("icon_warning")}</span>
               <span className="text-rose-400 font-black text-[10px] tracking-widest capitalize">{t("dossier_restricted_detected")}</span>
@@ -274,10 +274,10 @@ export default function TicketDossierSidePanel({
             {replies.map((r, idx) => (
               <div
                 key={idx}
-                className="relative group w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-lg"
+                className="relative group w-full rounded-2xl overflow-hidden transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-lg"
               >
-                <div className="absolute inset-0 glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
+                <div className="absolute inset-0 rounded-[inherit] glass-panel opacity-100 group-hover:opacity-0 transition-opacity duration-500" />
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
 
                 <div className="relative p-5 flex flex-col gap-4 z-10">
                   <div className="flex justify-start items-start gap-4">
@@ -330,7 +330,7 @@ export default function TicketDossierSidePanel({
 
         {(!isReadOnly && onTakeAction && !['resolved', 'rejected'].includes(ticket.status?.toLowerCase() || '')) && (
      <div className="flex flex-col gap-4 mt-6 p-6 glass-panel rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative group">
-             <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none" />
+             <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-tr from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none" />
              <div className="flex items-center gap-2 relative z-10 mb-2">
                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] drop-shadow-md">admin_panel_settings</span>
                 <span className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{t("admin_actions")}</span>
@@ -365,3 +365,6 @@ export default function TicketDossierSidePanel({
     </SidePanel>
   );
 }
+
+
+

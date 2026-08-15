@@ -98,7 +98,7 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
   return (
     <div 
       onClick={(!onKeepA && !onKeepB) ? onClick : undefined}
-   className={`glass-panel p-5 rounded-[var(--radius)] flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-xl ${borderHover} transition-all duration-500 relative ${isSelected ? 'ring-2 ring-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]' : ''} ${(!onKeepA && !onKeepB) ? 'cursor-pointer' : ''}`}
+   className={`glass-panel p-5 rounded-2xl flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-xl ${borderHover} transition-all duration-500 relative ${isSelected ? 'ring-2 ring-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]' : ''} ${(!onKeepA && !onKeepB) ? 'cursor-pointer' : ''}`}
     >
 
 
@@ -180,3 +180,5 @@ const arePropsEqual = (prev: ConflictCardProps, next: ConflictCardProps) => {
 };
 
 export default React.memo(ConflictCardInner, arePropsEqual);
+
+

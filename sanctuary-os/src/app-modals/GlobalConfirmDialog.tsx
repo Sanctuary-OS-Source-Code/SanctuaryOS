@@ -11,15 +11,15 @@ export function GlobalConfirmDialog() {
   return (
     <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] backdrop-blur-md">
       {confirmDialog.isDefcon ? (
-        <div className="relative w-full max-w-4xl bg-white/[0.02] backdrop-blur-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-[var(--radius)] p-12 shadow-md flex flex-col gap-8 overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="relative w-full max-w-4xl bg-white/[0.02] backdrop-blur-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl p-12 shadow-md flex flex-col gap-8 overflow-hidden animate-in zoom-in-95 duration-200">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] blur-[120px] pointer-events-none mix-blend-screen" />
-          <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] animate-pulse pointer-events-none" />
+          <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] animate-pulse pointer-events-none" />
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--danger)_50%,transparent)] to-transparent opacity-80" />
           <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--danger)_20%,transparent)] to-transparent opacity-80" />
           
           <div className="flex items-start gap-8 relative z-10 text-left">
             <div className="relative w-32 h-32 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] flex items-center justify-center shrink-0 shadow-md">
-              <div className="absolute inset-0 rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] animate-ping opacity-30"></div>
+              <div className="absolute inset-0 rounded-[inherit]  border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] animate-ping opacity-30"></div>
               <span className="material-symbols-outlined !text-6xl text-[var(--danger)] animate-pulse drop-shadow-[0_0_15px_var(--danger)]">{t("icon_warning_amber")}</span>
             </div>
             <div className="flex flex-col gap-3 pt-2 flex-1">
@@ -43,7 +43,7 @@ export function GlobalConfirmDialog() {
           </div>
         </div>
       ) : (
-        <div className={`relative w-[500px] bg-white/[0.02] backdrop-blur-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-10 shadow-[0_40px_100px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.05)] flex flex-col gap-8 text-center animate-in zoom-in-95 duration-300 overflow-hidden`}>
+        <div className={`relative w-[500px] bg-white/[0.02] backdrop-blur-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl p-10 shadow-[0_40px_100px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.05)] flex flex-col gap-8 text-center animate-in zoom-in-95 duration-300 overflow-hidden`}>
           <div className={`absolute top-0 left-0 w-full h-1 ${confirmDialog.isAlert ? "bg-[var(--warning)] shadow-[0_0_20px_var(--warning)]" : "bg-[var(--accent)] shadow-[0_0_20px_var(--accent)]"}`} />
           <div className={`absolute -top-32 -left-32 w-64 h-64 rounded-full opacity-20 blur-[80px] pointer-events-none ${confirmDialog.isAlert ? "bg-[var(--warning)]" : "bg-[var(--accent)]"}`} />
 
@@ -73,3 +73,7 @@ export function GlobalConfirmDialog() {
     </div>
   );
 }
+
+
+
+

@@ -110,7 +110,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             const fileId = file.name.replace(".json", "");
 
             const actualCloudTarget = isLex ? 'sanctuary_lexicons' : 'sanctuary_schemas';
-            const client = isKeepers ? (await import('./supabase')).supabaseAuth : (await import('./supabase')).getActiveGameClient();
+            const client = isKeepers ? (await import('./supabase')).supabaseAuth : (await import('./supabase')).supabase;
 
             const payload = actualCloudTarget === 'sanctuary_lexicons'
                ? { id: fileId, name: fileId, badge: parsed._meta_badge || 'Sanctuary', version: parsed._meta_version || 1, lexicon_data: parsed, updated_at: new Date().toISOString() }
@@ -329,8 +329,9 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
    let validationStats: { total: number, missing: number, completelyMissing: number, deprecated: number } | null = null;
    const isLexicon = isCloudMode ? internalCloudTarget === 'sanctuary_lexicons' : (activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) !== null);
    const isSchema = isCloudMode ? internalCloudTarget === 'sanctuary_schemas' : (activeFile?.content?.includes('"schema_version"'));
+   const isGame = isCloudMode && internalCloudTarget === 'sanctuary_games';
 
-   if (activeFile && (isLexicon || isSchema)) {
+   if (activeFile && (isLexicon || isSchema || isGame)) {
       try {
          const parsed = JSON.parse(activeFile.content);
          const isEnDefault = activeFile?.name.includes('en-default');
@@ -631,3 +632,5 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
       </div>
    );
 }
+
+

@@ -223,7 +223,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
 
             {isWayfinder && (
               <div className={`flex flex-col gap-6 p-6 glass-surface rounded-2xl border ${isCommBanned ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
-                <div className={`absolute inset-0 bg-gradient-to-br ${isCommBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none rounded-2xl transition-colors`} />
+                <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${isCommBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none  transition-colors`} />
                 <h4 className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 border-b ${isCommBanned ? 'border-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-red-400' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
                   {t("identities_punitive_comm")}
@@ -333,7 +333,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-8">
         {loading ? (
-          <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("audit_fetching")}</div>
+          <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("audit_fetching")}</div>
         ) : (
           <>
             <div className="flex flex-col gap-4">
@@ -409,3 +409,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
     </div>
   );
 }
+
+
+
+

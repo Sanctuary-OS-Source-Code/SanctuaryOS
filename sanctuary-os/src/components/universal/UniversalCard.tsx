@@ -68,17 +68,17 @@ export function UniversalCard({
   switch (layout) {
     case "horizontal":
       layoutClasses = "flex-row items-center min-h-[96px]";
-      imageContainerClasses = "w-28 self-stretch rounded-l-[inherit]";
+      imageContainerClasses = "w-28 self-stretch rounded-l-2xl";
       contentClasses = "flex-col justify-center p-4 pr-5";
       break;
     case "vertical-compact":
       layoutClasses = "flex-col h-full";
-      imageContainerClasses = "w-full h-24 rounded-t-[inherit]";
+      imageContainerClasses = "w-full h-24 rounded-t-2xl";
       contentClasses = `flex-col flex-1 p-4 pt-5 ${(!image && !customIcon) ? 'justify-center items-center text-center' : ''}`;
       break;
     case "compact":
       layoutClasses = "flex-row items-center p-3 min-h-[64px] gap-4 hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] transition-colors";
-      imageContainerClasses = "w-11 h-11 rounded-[max(0px,calc(var(--radius)-4px))] overflow-hidden shrink-0 shadow-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-center";
+      imageContainerClasses = "w-11 h-11 rounded-xl overflow-hidden shrink-0 shadow-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-center";
       contentClasses = "flex-col justify-center flex-1 min-w-0";
       break;
     case "stat":
@@ -89,7 +89,7 @@ export function UniversalCard({
     case "vertical":
     default:
       layoutClasses = "flex-col h-full";
-      imageContainerClasses = "w-full h-32 rounded-t-[inherit]";
+      imageContainerClasses = "w-full h-32";
       contentClasses = `flex-col flex-1 p-5 ${(!image && !customIcon) ? 'justify-center items-center text-center px-6' : ''}`;
       break;
   }
@@ -102,10 +102,11 @@ export function UniversalCard({
   // For ghosted or disabled states
   const opacityClasses = isGhosted ? "opacity-50 grayscale-[0.8]" : isDisabled ? "opacity-50 cursor-not-allowed grayscale" : "";
 
-  // The hover effect
-  const hoverClasses = !isDisabled ? "group-hover/card:-translate-y-1 group-hover/card:shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]" : "";
+  // The hover effect should only apply if the card is interactive
+  const isInteractive = !!onClick || !!onContextMenu;
+  const hoverClasses = !isDisabled && isInteractive ? "group-hover/card:-translate-y-1 group-hover/card:shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]" : "transition-all duration-500";
 
-  const containerClasses = `glass-panel rounded-[var(--radius)] relative flex group/card ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${onClick ? 'cursor-pointer' : ''} ${className}`;
+  const containerClasses = `glass-panel rounded-[inherit] relative flex group/card ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
 
   const renderMedia = () => {
     if (!image && !icon && !customIcon) return null;
@@ -142,13 +143,23 @@ export function UniversalCard({
 
     return (
       <div
-        className={`relative flex flex-col items-center justify-center shrink-0 overflow-hidden ${imageContainerClasses}`}
-        style={(image && !imageError && (layout === 'vertical' || layout === 'vertical-compact')) ? { WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)', maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)' } : {}}
+        className={`relative flex flex-col items-center justify-center shrink-0 overflow-hidden [transform:translateZ(0)] ${imageContainerClasses}`}
+        style={{
+          ...(layout === 'horizontal' ? { borderTopLeftRadius: 'inherit', borderBottomLeftRadius: 'inherit' } : { borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' })
+        }}
       >
         {(image && !imageError) ? (
-          <img src={image} onError={() => setImageError(true)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
+          <img 
+            src={image} 
+            onError={() => setImageError(true)} 
+            className={`w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700`} 
+            style={{
+              ...(layout === 'horizontal' ? { borderTopLeftRadius: 'inherit', borderBottomLeftRadius: 'inherit' } : { borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }),
+              ...((layout === 'vertical' || layout === 'vertical-compact') ? { WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)', maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)' } : {})
+            }}
+          />
         ) : (
-          <div className="absolute inset-0 bg-transparent flex items-center justify-center transition-colors duration-500 overflow-hidden">
+          <div className="absolute inset-0 rounded-[inherit] bg-transparent flex items-center justify-center transition-colors duration-500 overflow-hidden">
             {customIcon ? customIcon : (
               <span className={`material-symbols-outlined opacity-60 group-hover:opacity-100 theme-text-accent transition-all duration-500 drop-shadow-lg group-hover:scale-110 relative z-10 ${layout === 'horizontal' ? '!text-[36px]' : layout === 'vertical-compact' ? '!text-[48px]' : '!text-[72px]'}`}>
                 {icon || "folder"}
@@ -170,10 +181,10 @@ export function UniversalCard({
       {...restProps}
     >
       {/* Flagship Glass Glare & Light Leaks */}
-      <div className="absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-700 pointer-events-none z-0 rounded-[inherit] overflow-hidden">
-        <div className="absolute inset-0 bg-radial from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
+      <div className="absolute inset-0 rounded-[inherit] opacity-0 group-hover/card:opacity-100 transition-opacity duration-700 pointer-events-none z-0  overflow-hidden">
+        <div className="absolute inset-0 rounded-[inherit] bg-radial from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
         <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
-        <div className="absolute inset-0 shadow-[inset_0_0_30px_color-mix(in_srgb,var(--text)_2%,transparent)]" />
+        <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0_0_30px_color-mix(in_srgb,var(--text)_2%,transparent)]" />
       </div>
 
       {/* Floating or Inline Actions */}
@@ -186,83 +197,90 @@ export function UniversalCard({
       {/* Main Content Layout */}
       {renderMedia()}
 
-      {/* Dividers (Removed for a cleaner glass look) */}
-      <div className={`flex flex-1 min-w-0 relative z-10 self-stretch ${contentClasses}`}>
-        {/* Title & Subtitle */}
-        <div className={`flex flex-col gap-1 w-full min-w-0 ${layout === 'stat' || (!image && !customIcon && (layout === 'vertical' || layout === 'vertical-compact')) ? 'items-center' : ''}`}>
+      {/* Body & Footer Column (Fixes flex squishing in horizontal layout) */}
+      <div className="flex flex-col flex-1 min-w-0 self-stretch h-full">
+        {/* Dividers (Removed for a cleaner glass look) */}
+        <div className={`flex flex-col flex-1 min-w-0 relative z-10 self-stretch ${contentClasses}`}>
+          {/* Title & Subtitle */}
+          <div className={`flex flex-col gap-1 w-full min-w-0 ${layout === 'stat' || (!image && !customIcon && (layout === 'vertical' || layout === 'vertical-compact')) ? 'items-center' : ''}`}>
 
-          {subtitle && layout === 'stat' && (
-            <div className="sanctuary-subtitle">
-              {subtitle}
-            </div>
-          )}
-
-          <div className={`flex min-w-0 w-full ${layout === 'stat' || (!image && !customIcon && (layout === 'vertical' || layout === 'vertical-compact')) ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
-            {/* If no image and it's a vertical layout, show a beautiful large icon! */}
-            {!image && !customIcon && icon && (layout === 'vertical' || layout === 'vertical-compact') && (
-              <div className="w-16 h-16 rounded-[calc(var(--radius)-4px)] bg-[color-mix(in_srgb,currentColor_5%,transparent)] border border-[color-mix(in_srgb,currentColor_20%,transparent)] flex items-center justify-center shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_2%,transparent)] group-hover/card:shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)] group-hover/card:scale-110 group-hover/card:border-[color-mix(in_srgb,currentColor_40%,transparent)] transition-all duration-500">
-                <span className="material-symbols-outlined opacity-60 group-hover/card:opacity-100 theme-text-accent shrink-0 group-hover/card:drop-shadow-[0_0_15px_currentColor] transition-all duration-500">
-                  {icon}
-                </span>
+            {subtitle && layout === 'stat' && (
+              <div className="sanctuary-subtitle">
+                {subtitle}
               </div>
             )}
 
-            {!image && !customIcon && icon && (layout !== 'vertical' && layout !== 'vertical-compact' && layout !== 'compact' && layout !== 'stat') && (
-              <span className="material-symbols-outlined !text-[20px] opacity-60 theme-text-accent shrink-0">
-                {icon}
-              </span>
-            )}
+            <div className={`flex min-w-0 w-full ${layout === 'stat' || (!image && !customIcon && (layout === 'vertical' || layout === 'vertical-compact')) ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
+              {/* If no image and it's a vertical layout, show a beautiful large icon! */}
+              {!image && !customIcon && icon && (layout === 'vertical' || layout === 'vertical-compact') && (
+                <div className="w-16 h-16 rounded-xl bg-[color-mix(in_srgb,currentColor_5%,transparent)] border border-[color-mix(in_srgb,currentColor_20%,transparent)] flex items-center justify-center shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_2%,transparent)] group-hover/card:shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)] group-hover/card:scale-110 group-hover/card:border-[color-mix(in_srgb,currentColor_40%,transparent)] transition-all duration-500">
+                  <span className="material-symbols-outlined opacity-60 group-hover/card:opacity-100 theme-text-accent shrink-0 group-hover/card:drop-shadow-[0_0_15px_currentColor] transition-all duration-500">
+                    {icon}
+                  </span>
+                </div>
+              )}
 
-            <span className={`flex-1 min-w-0 block w-full capitalize ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm truncate' : layout === 'vertical-compact' ? 'text-base line-clamp-2 text-balance leading-snug' : layout === 'stat' ? 'text-base' : 'text-lg md:text-xl line-clamp-2 text-balance leading-tight'} sanctuary-title group-hover:theme-text-accent transition-colors`}>
-              {typeof title === 'string' ? title.toLowerCase() : title}
-            </span>
-            {layout !== 'stat' && typeof title === 'string' && (
-              <HoverTooltip title={title} variant="default" noIcon={true} className="!hidden group-hover/title:!flex !bottom-[calc(100%+4px)] !left-0 !translate-x-0 z-[200]" />
+              {!image && !customIcon && icon && (layout !== 'vertical' && layout !== 'vertical-compact' && layout !== 'compact' && layout !== 'stat') && (
+                <span className="material-symbols-outlined !text-[20px] opacity-60 theme-text-accent shrink-0">
+                  {icon}
+                </span>
+              )}
+
+              <span className={`flex-1 min-w-0 block w-full capitalize ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm line-clamp-2 text-balance leading-snug' : layout === 'vertical-compact' ? 'text-base line-clamp-2 text-balance leading-snug' : layout === 'stat' ? 'text-base' : 'text-lg md:text-xl line-clamp-2 text-balance leading-tight'} sanctuary-title group-hover:theme-text-accent transition-colors`}>
+                {typeof title === 'string' ? title.toLowerCase() : title}
+              </span>
+              {layout !== 'stat' && typeof title === 'string' && (
+                <HoverTooltip title={title} variant="default" noIcon={true} align="center" vAlign="top" className="!hidden group-hover/title:!flex z-[200]" />
+              )}
+            </div>
+
+            {subtitle && layout !== 'stat' && (
+              <div className={`sanctuary-subtitle line-clamp-2 relative group/subtitle w-max max-w-full ${(!image && !customIcon && (layout === 'vertical' || layout === 'vertical-compact')) ? 'text-center' : ''}`}>
+                {subtitle}
+                {typeof subtitle === 'string' && (
+                  <HoverTooltip title={subtitle} variant="default" noIcon={true} align="center" vAlign="top" className="!hidden group-hover/subtitle:!flex z-[200]" />
+                )}
+              </div>
             )}
           </div>
 
-          {subtitle && layout !== 'stat' && (
-            <div className={`sanctuary-subtitle line-clamp-2 relative group/subtitle w-full ${(!image && !customIcon && (layout === 'vertical' || layout === 'vertical-compact')) ? 'text-center' : ''}`}>
-              {subtitle}
-              {typeof subtitle === 'string' && (
-                <HoverTooltip title={subtitle} variant="default" noIcon={true} className="!hidden group-hover/subtitle:!flex !bottom-[calc(100%+4px)] !left-0 !translate-x-0 z-[200]" />
-              )}
+          {/* Badges / Extras inline (especially useful for horizontal/compact) */}
+          {badges && (
+            <div className={`flex flex-wrap items-center gap-2 ${layout === 'vertical-compact' ? 'mt-auto pt-2' : 'mt-2'}`}>
+              {badges}
+            </div>
+          )}
+
+          {/* Children (Custom Body content) */}
+          {children && (
+            <div className="mt-3 w-full flex flex-col">
+              {children}
             </div>
           )}
         </div>
 
-        {/* Badges / Extras inline (especially useful for horizontal/compact) */}
-        {badges && (
-          <div className={`flex flex-wrap items-center gap-2 ${layout === 'vertical-compact' ? 'mt-auto pt-2' : 'mt-2'}`}>
-            {badges}
-          </div>
-        )}
-
-        {/* Children (Custom Body content) */}
-        {children && (
-          <div className="mt-3 w-full flex flex-col">
-            {children}
+        {/* Footer Area */}
+        {footer && (
+          <div className="mt-auto w-full">
+            {(layout === 'vertical' || layout === 'vertical-compact') && <div className="relative h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent w-full flex items-center justify-center z-10 shrink-0" />}
+            <div className={`w-full relative z-10 ${layout === 'vertical-compact' ? 'py-2 px-4' : layout === 'vertical' ? 'p-4' : 'p-3'}`}>
+              {footer}
+            </div>
           </div>
         )}
       </div>
 
       {/* Inline Actions for horizontal/compact */}
       {actions && (layout === 'horizontal' || layout === 'compact') && (
-        <div className="relative z-50 flex items-center gap-2 shrink-0 pr-3 pl-2">
+        <div className="relative z-50 flex items-center justify-end gap-2 shrink-0 pr-3 pl-2">
           {actions}
         </div>
-      )}
-
-      {/* Footer Area */}
-      {footer && (
-        <>
-          {(layout === 'vertical' || layout === 'vertical-compact') && <div className="relative h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent w-full flex items-center justify-center z-10 shrink-0" />}
-          <div className={`w-full relative z-10 ${layout === 'vertical-compact' ? 'py-2 px-4' : layout === 'vertical' ? 'p-4' : 'p-3'}`}>
-            {footer}
-          </div>
-        </>
       )}
     </div>
   );
 }
+
+
+
+
 

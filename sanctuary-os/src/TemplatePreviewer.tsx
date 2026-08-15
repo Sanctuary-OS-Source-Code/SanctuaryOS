@@ -35,7 +35,7 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
           {settings.map((setting: any, idx: number) => {
               const val = setting.default;
               return (
-                 <div key={idx} className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-6 shadow-inner flex flex-col xl:flex-row xl:items-center justify-start group hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all duration-300 gap-6 opacity-80 pointer-events-none select-none">
+                 <div key={idx} className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl p-6 shadow-inner flex flex-col xl:flex-row xl:items-center justify-start group hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all duration-300 gap-6 opacity-80 pointer-events-none select-none">
                     <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                        <div className="flex flex-wrap items-center gap-3">
                           <span className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{resolveText(setting.label_key, setting.key)}</span>
@@ -80,3 +80,5 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
       </div>
   );
 }
+
+

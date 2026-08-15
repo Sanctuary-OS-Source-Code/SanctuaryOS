@@ -15,12 +15,12 @@ interface State {
 function ErrorBoundaryContent({ moduleName, error, resetErrorBoundary }: any) {
   const { t } = useLexicon();
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full min-h-[500px] relative overflow-hidden group rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-md">
-      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--bg)_85%,#ef4444_5%)] backdrop-blur-3xl"></div>
+    <div className="flex flex-col items-center justify-center w-full h-full min-h-[500px] relative overflow-hidden group rounded-2xl border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-md">
+      <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--bg)_85%,#ef4444_5%)] backdrop-blur-3xl"></div>
       
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.05)_0%,transparent_70%)]"></div>
+      <div className="absolute inset-0 rounded-[inherit] bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.05)_0%,transparent_70%)]"></div>
       
-      <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: "linear-gradient(var(--text) 1px, transparent 1px), linear-gradient(90deg, var(--text) 1px, transparent 1px)", backgroundSize: "30px 30px" }}></div>
+      <div className="absolute inset-0 rounded-[inherit] opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: "linear-gradient(var(--text) 1px, transparent 1px), linear-gradient(90deg, var(--text) 1px, transparent 1px)", backgroundSize: "30px 30px" }}></div>
       
       <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-red-500/60 to-transparent shadow-md"></div>
       <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-500/10 to-transparent"></div>
@@ -85,3 +85,6 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+
+
+

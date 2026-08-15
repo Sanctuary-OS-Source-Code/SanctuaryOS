@@ -391,7 +391,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
                 <div className="flex flex-col gap-2 xl:col-span-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc")}</label>
-                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({ ...activeMod, description: e.target.value })} className="w-full glass-panel rounded-[var(--radius)] px-6 py-5 text-[var(--text)] text-sm font-bold min-h-[150px] custom-scrollbar resize-none focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner" />
+                  <textarea value={activeMod.description || ""} onChange={e => setActiveMod({ ...activeMod, description: e.target.value })} className="w-full glass-panel rounded-2xl px-6 py-5 text-[var(--text)] text-sm font-bold min-h-[150px] custom-scrollbar resize-none focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner" />
                 </div>
 
                 <div className="flex flex-col gap-2 xl:col-span-2">
@@ -517,3 +517,5 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
     </div>
   );
 }
+
+

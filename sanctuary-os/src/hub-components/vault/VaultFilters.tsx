@@ -1,5 +1,5 @@
 import React from 'react';
-import { CustomDropdown, isVersionMatch, getHighestVersion, getLowestVersion, SearchBar, ScreenUtilityBar } from "../../shared";
+import { CustomDropdown, isVersionMatch, getHighestVersion, getLowestVersion, SearchBar, ScreenUtilityBar, FilterPopover, HoverTooltip } from "../../shared";
 
 export function DebouncedSearchInput({ value, onChange, placeholder, t }: { value: string, onChange: (val: string) => void, placeholder: string, t: any }) {
   const [localValue, setLocalValue] = React.useState(value);
@@ -43,44 +43,78 @@ export function VaultFilters({
   selectedVersion,
   hideGhostCards,
   setHideGhostCards,
+  vaultLayout,
+  setVaultLayout,
   onCreateLocalFolder,
   setSelectedMods
 }: any) {
+  const FilterSection = ({ title, options, value, onChange }: any) => {
+    if (!options || options.length === 0) return null;
+    return (
+      <div className="flex flex-col mb-5 w-full last:mb-0">
+        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+          {title}
+          <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {options.map((opt: any) => {
+            const active = value === opt.id;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => onChange(opt.id)}
+                className={`rounded-full px-4 py-1.5 transition-all flex items-center justify-center text-[10px] font-bold capitalize tracking-widest border ${active
+                  ? 'border-[var(--accent)] text-[var(--accent)] bg-transparent shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
+                  : 'border-[color-mix(in_srgb,var(--text)_15%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-[var(--text)]'
+                  }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
-        <ScreenUtilityBar
-      search={searchQuery}
-      onSearchChange={setSearchQuery}
-      searchPlaceholder={t("search_ph")}
-      className="!mb-8 animate-in slide-in-from-top-4 duration-500 relative z-20"
-    >
+    <div className="flex items-center gap-3 animate-in slide-in-from-top-4 duration-500 relative z-20 w-full xl:w-auto">
+      <div className="relative flex-1 min-w-[200px] xl:w-[480px]">
+        <SearchBar
+          value={searchQuery || ""}
+          onChange={setSearchQuery}
+          placeholder={t("search_ph") || "Search..."}
+          className="h-12 w-full rounded-2xl"
+        />
+      </div>
 
-          <div className="flex items-center gap-2 flex-1 xl:flex-none xl:w-max min-w-[140px] shrink-0 relative z-50 h-12">
-            <div className="flex-1 xl:max-w-[200px] h-full">
-                <CustomDropdown disableTint={true}
-                  value={activeCategory}
-                  onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
-                  options={[
-                    { id: "ALL", label: t("ql_all") },
-                    ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
-                      id: cat.id,
-                      label: t(cat.lexicon_key) || cat.id
-                    })) || []),
-                    { id: "LOCAL_FOLDERS", label: t("filter_local") }
-                  ]}
-                />
-            </div>
-          </div>
 
-        {(() => {
-          const activeSchemaCategory = activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
-          const subcats = activeSchemaCategory?.subcategories || [];
-          if (subcats.length === 0) return null;
+      <FilterPopover icon="tune" label={t("filters")} className="shrink-0">
+        <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)]">
+          <FilterSection
+            title={t("filter_category") || "Category"}
+            value={activeCategory}
+            onChange={(val: string) => { setActiveCategory(val); setActiveSubType("ALL"); }}
+            options={[
+              { id: "ALL", label: t("ql_all") },
+              ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                id: cat.id,
+                label: t(cat.lexicon_key) || cat.id
+              })) || []),
+              { id: "LOCAL_FOLDERS", label: t("filter_local") }
+            ]}
+          />
 
-          return (
-            <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-50 h-12 animate-in fade-in slide-in-from-right-4">
-              <CustomDropdown disableTint={true}
+          {(() => {
+            const activeSchemaCategory = activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
+            const subcats = activeSchemaCategory?.subcategories || [];
+            if (subcats.length === 0) return null;
+
+            return (
+              <FilterSection
+                title={t("filter_subtype") || "Subtype"}
                 value={activeSubType}
-                onChange={(val: string[]) => setActiveSubType(val[0])}
+                onChange={(val: string) => setActiveSubType(val)}
                 options={[
                   { id: "ALL", label: t("ql_all") },
                   ...subcats.map((sub: any) => ({
@@ -89,14 +123,13 @@ export function VaultFilters({
                   }))
                 ]}
               />
-            </div>
-          );
-        })()}
+            );
+          })()}
 
-        <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[49] h-12">
-          <CustomDropdown disableTint={true}
+          <FilterSection
+            title={t("filter_status") || "Status"}
             value={filterStatus}
-            onChange={(val: string[]) => setFilterStatus(val[0])}
+            onChange={(val: string) => setFilterStatus(val)}
             options={[
               { id: "ALL", label: t("ql_all") },
               { id: "STABLE", label: t("status_stable") },
@@ -107,82 +140,100 @@ export function VaultFilters({
               { id: "UNVERIFIED", label: t("status_unverified") },
             ]}
           />
+
+          {equipFilter === "ARCHIVES" && (
+            <>
+              {(() => {
+                const archiveOptionsRaw = Array.from(new Set(displayModList.flatMap((m: any) => {
+                  const getVersions = (target: any) => {
+                    const v = target.compatible_versions;
+                    return typeof v === 'string' ? v.split(',').map((s: string) => s.trim()) : (v || []);
+                  };
+                  let highest = "0.0.0";
+                  if (m.isVirtual) {
+                    const highestPerFlavor = (m.flavors || []).map((f: any) => getHighestVersion(getVersions(f)));
+                    highest = getLowestVersion(highestPerFlavor);
+                  } else {
+                    highest = getHighestVersion(getVersions(m));
+                  }
+
+                  if (selectedVersion && selectedVersion !== "") {
+                    if (isVersionMatch([highest], selectedVersion)) return [];
+                  }
+                  return [highest];
+                }).filter(Boolean)));
+
+                const archiveOptions = (archiveOptionsRaw as string[])
+                  .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }))
+                  .map(v => ({ id: v, label: v === "Unknown" ? t("status_unknown") : v }));
+
+                const activeVal = archiveVersionFilter && archiveOptions.some(o => o.id === archiveVersionFilter)
+                  ? archiveVersionFilter
+                  : (archiveOptions[0]?.id || "");
+
+                if (!archiveVersionFilter && activeVal) {
+                  setTimeout(() => setArchiveVersionFilter(activeVal), 0);
+                }
+
+                return (
+                  <FilterSection
+                    title={t("filter_archive_version") || "Archive Version"}
+                    value={activeVal}
+                    onChange={(val: string) => setArchiveVersionFilter(val || "")}
+                    options={archiveOptions}
+                  />
+                );
+              })()}
+            </>
+          )}
+
         </div>
-
-        {equipFilter === "ARCHIVES" && (
-          <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[48] h-12">
-            {(() => {
-              const archiveOptionsRaw = Array.from(new Set(displayModList.flatMap((m: any) => {
-                const getVersions = (target: any) => {
-                  const v = target.compatible_versions;
-                  return typeof v === 'string' ? v.split(',').map((s: string) => s.trim()) : (v || []);
-                };
-                let highest = "0.0.0";
-                if (m.isVirtual) {
-                  const highestPerFlavor = (m.flavors || []).map((f: any) => getHighestVersion(getVersions(f)));
-                  highest = getLowestVersion(highestPerFlavor);
-                } else {
-                  highest = getHighestVersion(getVersions(m));
-                }
-
-                if (selectedVersion && selectedVersion !== "") {
-                  if (isVersionMatch([highest], selectedVersion)) return [];
-                }
-                return [highest];
-              }).filter(Boolean)));
-
-              const archiveOptions = (archiveOptionsRaw as string[])
-                .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }))
-                .map(v => ({ id: v, label: v === "Unknown" ? t("status_unknown") : v }));
-
-              const activeVal = archiveVersionFilter && archiveOptions.some(o => o.id === archiveVersionFilter)
-                ? archiveVersionFilter
-                : (archiveOptions[0]?.id || "");
-
-              if (!archiveVersionFilter && activeVal) {
-                setTimeout(() => setArchiveVersionFilter(activeVal), 0);
-              }
-
-              return (
-                <CustomDropdown disableTint={true}
-                  options={archiveOptions}
-                  value={activeVal}
-                  onChange={(val: any) => {
-                    const newVal = Array.isArray(val) ? val[0] : val;
-                    setArchiveVersionFilter(newVal || "");
-                  }}
-                  placeholder={t("filter_archive_version")}
-                  multiSelect={false}
-                />
-              );
-            })()}
-          </div>
-        )}
-
-        {onCreateLocalFolder && (
+      </FilterPopover>
+      <div className="relative group shrink-0">
+        <button
+          onClick={() => {
+            if (vaultLayout === "standard") setVaultLayout("compact");
+            else if (vaultLayout === "compact") setVaultLayout("list");
+            else setVaultLayout("standard");
+          }}
+          className="w-12 h-12 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shadow-sm hover:shadow-md"
+        >
+          <span className="material-symbols-outlined !text-[24px]">
+            {vaultLayout === "standard" ? "view_module" : vaultLayout === "compact" ? "grid_view" : "view_list"}
+          </span>
+        </button>
+        <HoverTooltip title={t("layout_toggle") || "Toggle Layout"} variant="default" noIcon={true} className="!hidden group-hover:!flex !bottom-[calc(100%+8px)] z-[200]" />
+      </div>
+      {onCreateLocalFolder && (
+        <div className="relative group flex">
           <button
             onClick={() => { setSelectedMods && setSelectedMods([]); onCreateLocalFolder(); }}
-            className="h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center gap-2 border hover:scale-[1.02] active:scale-95 shrink-0 glass-surface text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+            className="w-12 h-12 rounded-xl overflow-hidden transition-all flex items-center justify-center border hover:scale-[1.02] active:scale-95 shrink-0 glass-surface text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
             <span className="material-symbols-outlined !text-[18px]">add_circle</span>
-            {t("btn_create_node")}
           </button>
-        )}
+          <HoverTooltip title={t("btn_create_node")} variant="default" />
+        </div>
+      )}
 
-        {(equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") && (
+      {(equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") && (
+        <div className="relative group flex">
           <button
             onClick={() => setHideGhostCards(!hideGhostCards)}
-            className={`h-12 px-5 rounded-2xl overflow-hidden text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center gap-2 border hover:scale-[1.02] active:scale-95 shrink-0 ${hideGhostCards
-              ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-inner'
+            className={`w-12 h-12 rounded-xl overflow-hidden transition-all flex items-center justify-center border shrink-0 ${hideGhostCards
+              ? 'border-[var(--success)] text-[var(--success)] bg-transparent shadow-[0_0_10px_rgba(var(--success-rgb),0.2)]'
               : 'glass-surface text-[var(--subtext)] hover:text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
               }`}
           >
             <span className="material-symbols-outlined !text-[18px]">
               {hideGhostCards ? "visibility_off" : "visibility"}
             </span>
-            {t("btn_hide_ghosts")}
           </button>
-        )}
-          </ScreenUtilityBar>
+          <HoverTooltip title={t("btn_hide_ghosts")} variant="default" />
+        </div>
+      )}
+    </div>
   );
 }
+
+

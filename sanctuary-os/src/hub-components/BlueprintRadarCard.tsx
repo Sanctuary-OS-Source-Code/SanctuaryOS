@@ -30,7 +30,7 @@ export const BlueprintRadarCard = ({
         label={isScanning ? t("radar_status_scanning") : t("btn_sweep_card")} 
         onClick={onSweep} 
         disabled={isScanning} 
-        className="!px-4 !py-1.5 !text-[9px] !rounded-[calc(var(--radius)-4px)]" 
+        className="!px-4 !py-1.5 !text-[9px] !rounded-xl" 
       />
     </div>
   );
@@ -71,7 +71,7 @@ export const BlueprintRadarCard = ({
        <button 
          onClick={(e) => { e.stopPropagation(); onView(); }} 
          disabled={!cache?.hasScanned} 
-         className={`w-full py-3 rounded-[var(--radius)] font-black capitalize tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 ${
+         className={`w-full py-3 rounded-2xl font-black capitalize tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 ${
            isActive 
              ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]' 
              : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
@@ -98,3 +98,6 @@ export const BlueprintRadarCard = ({
     </UniversalCard>
   );
 };
+
+
+

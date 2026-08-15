@@ -63,7 +63,7 @@ export function UniversalSearch({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`w-full h-14 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-[var(--radius)] px-6 pl-12 text-[12px] capitalize tracking-widest font-black text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner ${inputClassName}`}
+        className={`w-full h-14 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-2xl px-6 pl-12 text-[12px] capitalize tracking-widest font-black text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner ${inputClassName}`}
       />
       <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-[20px] pointer-events-none">
         search
@@ -194,3 +194,5 @@ export function UniversalToggle({
     </div>
   );
 }
+
+

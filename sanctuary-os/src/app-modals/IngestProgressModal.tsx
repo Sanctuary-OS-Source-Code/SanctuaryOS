@@ -16,9 +16,12 @@ export function IngestProgressModal({ ingestProgress }: any) {
       </div>
       <div className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full overflow-hidden">
         <div className="h-full theme-bg-accent transition-all duration-300 relative shadow-[0_0_10px_rgba(var(--accent-rgb),0.8)]" style={{ width: `${((ingestProgress?.current || 0) / (ingestProgress?.total || 1)) * 100}%` }}>
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-[200%] animate-pulse" />
+          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-white/30 to-transparent w-[200%] animate-pulse" />
         </div>
       </div>
     </div>
   );
 }
+
+
+

@@ -128,7 +128,7 @@ export function ChameleonControlDashboard({
                 {activeColorPicker === key && createPortal(
                   <>
                     <div className="fixed inset-0 z-[50000]" onClick={() => setActiveColorPicker(null)} />
-                    <div className="fixed z-[50001] p-8 glass-panel backdrop-blur-3xl rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200"
+                    <div className="fixed z-[50001] p-8 glass-panel backdrop-blur-3xl rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200"
                       style={{
                         top: Math.min(colorPickerRefs.current[key]?.getBoundingClientRect().bottom + 12, window.innerHeight - 350),
                         left: Math.min(colorPickerRefs.current[key]?.getBoundingClientRect().left, window.innerWidth - 450),
@@ -143,7 +143,7 @@ export function ChameleonControlDashboard({
                           />
                         ) : (
              <div className="flex-1 glass-panel border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] rounded-2xl shadow-lg shadow-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex items-center justify-center text-center relative ">
-                            <div className="absolute inset-0 bg-[var(--warning)] opacity-10 pointer-events-none" />
+                            <div className="absolute inset-0 rounded-[inherit] bg-[var(--warning)] opacity-10 pointer-events-none" />
                             <span className="relative z-10 text-[var(--warning)] px-5 py-4 text-[10px] font-black capitalize tracking-[0.2em] drop-shadow-sm">
                               {t("color_restricted")}
                             </span>
@@ -332,7 +332,7 @@ export function ChameleonControlDashboard({
             {currentTheme.bgImage ? (
               <div className="relative w-64 h-36 rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg group">
                 <img src={currentTheme.bgImage} alt="Wallpaper Preview" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="absolute inset-0 rounded-[inherit] bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <button 
                     onClick={() => handleUpdateTheme({ bgImage: null })}
                     className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/50 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"
@@ -355,7 +355,7 @@ export function ChameleonControlDashboard({
                   type="file" 
                   accept="image/*"
                   onChange={handleImageUpload}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  className="absolute inset-0 rounded-[inherit] w-full h-full opacity-0 cursor-pointer z-10"
                 />
                 <div className="w-full px-6 py-4 glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl flex items-center justify-center gap-3 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all">
                   <span className="material-symbols-outlined !text-[20px] text-[var(--accent)]">upload</span>
@@ -394,7 +394,7 @@ export function ChameleonControlDashboard({
                   backgroundColor: (currentTheme.bgGradient === preset.id || (!currentTheme.bgGradient && preset.id === 'none')) ? "color-mix(in srgb, var(--accent) 15%, transparent)" : undefined
                 }}
               >
-                <div className="absolute inset-0 opacity-40 group-hover:opacity-100 transition-opacity" style={{ background: preset.id === 'none' ? currentTheme.bg : preset.id }} />
+                <div className="absolute inset-0 rounded-[inherit] opacity-40 group-hover:opacity-100 transition-opacity" style={{ background: preset.id === 'none' ? currentTheme.bg : preset.id }} />
                 <span className={`relative z-10 text-[9px] font-black capitalize tracking-widest drop-shadow-md text-center ${(currentTheme.bgGradient === preset.id || (!currentTheme.bgGradient && preset.id === 'none')) ? 'theme-text-accent text-shadow-[0_0_10px_var(--accent)]' : 'text-white'}`}>{preset.label}</span>
               </button>
             ))}
@@ -458,3 +458,6 @@ export function ChameleonControlDashboard({
     </div>
   );
 }
+
+
+

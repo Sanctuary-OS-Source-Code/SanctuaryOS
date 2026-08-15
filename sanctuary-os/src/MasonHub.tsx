@@ -74,7 +74,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
 
   if (!masonProfile) return (
     <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
-      <div className="w-24 h-24 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
+      <div className="w-24 h-24 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
         <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_construction")}</span>
       </div>
       <h2 className="text-2xl font-black capitalize tracking-widest text-[var(--text)]">{t("unlinked")}</h2>
@@ -198,7 +198,7 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/20 backdrop-blur-[3px] animate-in fade-in">
-      <div className="w-full max-w-lg bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl flex flex-col overflow-hidden">
+      <div className="w-full max-w-lg bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
           <div className="flex justify-start items-center mb-4">
             <h3 className="text-sm font-black capitalize tracking-widest theme-text-accent">{t("sel_artifact")}</h3>
@@ -236,3 +236,5 @@ export function MasonStatusDropdown({ value, onChange }: { value: string, onChan
   }
   return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason")} />;
 }
+
+

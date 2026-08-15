@@ -150,7 +150,7 @@ export default function NotificationsTab() {
         iconColorClass="theme-text-accent"
       >
         <div className="flex flex-col space-y-4 relative z-10 w-full h-full p-4 overflow-y-auto accent-scrollbar">
-          {followedMasons.length === 0 && <div className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 text-center mt-12 p-8 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)]">{t("settings_no_masons")}</div>}
+          {followedMasons.length === 0 && <div className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 text-center mt-12 p-8 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl">{t("settings_no_masons")}</div>}
           <SettingsGrid>
             {followedMasons.map(m => (
               <UniversalCard 
@@ -168,3 +168,5 @@ export default function NotificationsTab() {
     </>
   );
 }
+
+

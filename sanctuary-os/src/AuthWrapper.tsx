@@ -183,7 +183,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                  borderWidth: '1px',
                  boxShadow: `0 0 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 5%, transparent)`
                }}>
-            <div className="absolute inset-0 rounded-full border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
+            <div className="absolute inset-0 rounded-[inherit]  border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
             <span className="material-symbols-outlined animate-spin"
                   style={{ color: 'var(--accent)', filter: `drop-shadow(0 0 15px var(--accent))` }}>sync</span>
           </div>
@@ -211,12 +211,12 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         className="flex h-screen w-screen bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] backdrop-blur-3xl relative overflow-hidden font-sans"
         onContextMenu={(e) => e.preventDefault()}
       >
-        <div className="absolute inset-0 bg-red-950/30 animate-pulse pointer-events-none" />
+        <div className="absolute inset-0 rounded-[inherit] bg-red-950/30 animate-pulse pointer-events-none" />
 
         <div className="absolute top-0 right-0 w-[50vw] h-[50vw] rounded-full bg-red-900/20 blur-[150px] pointer-events-none translate-x-1/4 -translate-y-1/4" />
         <div className="absolute bottom-0 left-0 w-[40vw] h-[40vw] rounded-full bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] blur-[150px] pointer-events-none -translate-x-1/4 translate-y-1/4" />
 
-        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(220, 38, 38, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(220, 38, 38, 0.2) 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
+        <div className="absolute inset-0 rounded-[inherit] opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(220, 38, 38, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(220, 38, 38, 0.2) 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
 
         <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-8 md:p-20">
           <div className="w-full max-w-6xl h-full max-h-[800px] bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-3xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl shadow-[0_40px_100px_rgba(220,38,38,0.15),inset_0_1px_1px_rgba(255,255,255,0.05)] flex flex-col overflow-hidden relative">
@@ -270,10 +270,10 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bgGradient)', color: 'var(--text)' }}>
-      <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen animate-in fade-in transition-opacity duration-1000" />
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--bg)_80%,transparent)] to-[var(--bg)] pointer-events-none" />
+      <div className="absolute inset-0 rounded-[inherit] z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen animate-in fade-in transition-opacity duration-1000" />
+      <div className="absolute inset-0 rounded-[inherit] z-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--bg)_80%,transparent)] to-[var(--bg)] pointer-events-none" />
 
-   <div className="relative z-10 w-[90%] max-w-lg glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-8 md:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col backdrop-blur-3xl group">
+   <div className="relative z-10 w-[90%] max-w-lg glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl p-8 md:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col backdrop-blur-3xl group">
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent opacity-50" />
 
         <div className="flex flex-col items-center justify-center text-center mb-10 relative z-20">
@@ -397,3 +397,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     </div>
   );
 }
+
+
+
+

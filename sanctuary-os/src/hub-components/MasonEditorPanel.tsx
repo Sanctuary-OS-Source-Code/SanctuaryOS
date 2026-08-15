@@ -80,7 +80,17 @@ export default function MasonEditorPanel({
       };
    }, [isScrollLocked, editorRef]);
 
-   const isLexiconActive = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.startsWith('en-') || activeFile?.name.startsWith('de-') || activeFile?.name.startsWith('es-') || activeFile?.name.startsWith('fr-');
+   const isLexiconActive = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) !== null;
+
+   const isJsonParseError = React.useMemo(() => {
+      if (!activeFile) return false;
+      try { JSON.parse(activeFile.content); return false; } catch (e) { return true; }
+   }, [activeFile?.content]);
+
+   const isValidationRequired = activeFile && (isLexiconActive || activeFile.name.includes('Sims4'));
+   const isPublishDisabled = !activeFile || !isDirty || problemsList.length > 0 || isJsonParseError || 
+      (isCloudMode && !isKeepers && isValidationRequired && !validationStats) || 
+      (!isKeepers && validationStats ? validationStats.missing > 0 : false);
 
    return (
       <>
@@ -95,7 +105,7 @@ export default function MasonEditorPanel({
             defaultWidth={isFullscreen ? window.innerWidth : (showReference ? 1400 : 1000)}
             panelClass={isFullscreen ? "!w-full !max-w-[100vw] !border-r-0 !rounded-none transition-all duration-500" : "transition-all duration-500"}
             headerActions={
-        <div className="flex items-center glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner mr-2 backdrop-blur-md">
+               <div className="flex items-center glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner mr-2 backdrop-blur-md">
                   <div className="relative group flex">
                      <button
                         onClick={() => setIsFullscreen(!isFullscreen)}
@@ -139,20 +149,74 @@ export default function MasonEditorPanel({
                </div>
             }
             footer={
-               <div className="flex items-center justify-center gap-3 w-full shrink-0">
-                  <div className="relative group">
-                     {(problemsList.length > 0 || (!isKeepers && validationStats && validationStats.missing > 0)) ? (
-                        <HoverTooltip title={problemsList.length > 0 ? t("publish_disabled_errors_desc") : t("lexicon_missing_keys_btn")} variant="error" className="z-[100]" />
+               <div className="flex items-center justify-center gap-3 w-full shrink-0 flex-wrap">
+                  {validationStats && (
+                     <div className={`flex items-center gap-4 glass-panel rounded-full border px-4 py-2 ${validationStats.missing > 0 || validationStats.deprecated > 0 ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-lg shadow-[color-mix(in_srgb,var(--warning)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-md'}`}>
+                        <div className="flex items-center gap-3">
+
+                           <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] whitespace-nowrap opacity-90">
+                              <strong>{validationStats.total - validationStats.missing}</strong> {
+                                 activeFile?.name.match(/^[a-z]{2}-.+\.json$/i)
+                                    ? (t("lexicon_translated_count")?.replace("{translated} / {total}", `/ ${validationStats.total}`) || `/ ${validationStats.total} Translated`)
+                                    : `/ ${validationStats.total} Validated`
+                              }
+                           </span>
+                        </div>
+                        {validationStats.missing > 0 || validationStats.deprecated > 0 ? (
+                           <>
+                              <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+                              <div className="flex items-center gap-2 relative group">
+                                 {!activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) && validationStats.deprecated === 0 && (
+                                    <HoverTooltip title="Tip: You can set any value to the JSON 'null' literal (without quotes) to legitimately leave it blank without triggering missing key errors!" variant="warning" className="z-[100] bottom-[120%]" />
+                                 )}
+                                 <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-2 opacity-90 whitespace-nowrap">
+                                    <span className="material-symbols-outlined !text-[16px] text-[var(--warning)]">warning</span>
+                                    {validationStats.deprecated > 0
+                                       ? `${validationStats.deprecated} ${activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? 'Deprecated Strings' : 'Unrecognized Fields'}`
+                                       : (activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? t("lexicon_missing_count")?.replace("{missing}", validationStats.missing.toString()) || `${validationStats.missing} Missing Strings` : `${validationStats.missing} Missing Schema Keys`)}
+                                 </span>
+                              </div>
+                              {validationStats.deprecated > 0 ? (
+                                 <button
+                                    onClick={purgeDeprecatedStrings}
+                                    className="ml-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[9px] font-black capitalize tracking-widest px-4 py-1.5 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
+                                 >
+                                    <span className="material-symbols-outlined !text-[14px]">delete</span>
+                                    <span>{t("lexicon_purge_keys")} ({validationStats.deprecated})</span>
+                                 </button>
+                              ) : validationStats.completelyMissing > 0 ? (
+                                 <button
+                                    onClick={addMissingStrings}
+                                    className="ml-2 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[9px] font-black capitalize tracking-widest px-4 py-1.5 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
+                                 >
+                                    <span className="material-symbols-outlined !text-[14px]">add_circle</span>
+                                    <span>{t("lexicon_add_missing")}</span>
+                                 </button>
+                              ) : (
+                                 <button
+                                    onClick={jumpToNextEmpty}
+                                    className="ml-2 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-black capitalize tracking-widest px-4 py-1.5 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
+                                 >
+                                    <span>{t("lexicon_next_empty")}</span>
+                                    <span className="material-symbols-outlined !text-[14px]">arrow_downward</span>
+                                 </button>
+                              )}
+                           </>
+                        ) : null}
+                     </div>
+                  )}
+
+                  <div className="relative group shrink-0">
+                     {isPublishDisabled ? (
+                        <HoverTooltip title={isJsonParseError ? "Cannot save invalid JSON" : (problemsList.length > 0 ? t("publish_disabled_errors_desc") : (isCloudMode && !isKeepers && isValidationRequired && !validationStats ? "Awaiting schema validation" : t("lexicon_missing_keys_btn")))} variant="error" className="z-[100]" />
                      ) : isDirty && (
                         <HoverTooltip title={t("unsaved_changes")} variant="warning" className="z-[100]" />
                      )}
 
                      <ActionButton
                         onClick={saveFile}
-                        disabled={!activeFile || !isDirty || problemsList.length > 0 || (!isKeepers && validationStats ? validationStats.missing > 0 : false)} label={isCloudMode ? (t("btn_publish")) : t("save")}
+                        disabled={isPublishDisabled} label={isCloudMode ? (t("btn_publish")) : t("save")}
                      >
-                        
-                        
                      </ActionButton>
                   </div>
 
@@ -197,62 +261,8 @@ export default function MasonEditorPanel({
 
                <div className="flex-1 relative flex w-full min-h-0">
 
-                  <div style={{ width: (showReference && isLexiconActive) ? `${splitRatio}%` : '100%' }} className="flex-shrink-0 relative h-full min-w-0 transition-none">
-                     {validationStats && (
-                        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-6 glass-panel rounded-full border px-6 py-3 shadow-md' : 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-md'}`}>
-                           <div className="flex items-center gap-3">
+                  <div style={{ width: (showReference && isLexiconActive) ? `${splitRatio}%` : '100%' }} className="flex-shrink-0 flex flex-col relative h-full min-w-0 transition-none">
 
-                              <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] whitespace-nowrap opacity-90">
-                                 <strong>{validationStats.total - validationStats.missing}</strong> {
-                                    activeFile?.name.match(/^[a-z]{2}-.+\.json$/i)
-                                       ? (t("lexicon_translated_count")?.replace("{translated} / {total}", `/ ${validationStats.total}`) || `/ ${validationStats.total} Translated`)
-                                       : `/ ${validationStats.total} Validated`
-                                 }
-                              </span>
-                           </div>
-                           {validationStats.missing > 0 || validationStats.deprecated > 0 ? (
-                              <>
-                                 <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
-                                 <div className="flex items-center gap-2 relative group">
-                                    {!activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) && validationStats.deprecated === 0 && (
-                                       <HoverTooltip title="Tip: You can set any value to the JSON 'null' literal (without quotes) to legitimately leave it blank without triggering missing key errors!" variant="warning" className="z-[100] bottom-[120%]" />
-                                    )}
-                                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-2 opacity-90 whitespace-nowrap">
-                                       <span className="material-symbols-outlined !text-[16px] text-[var(--warning)]">warning</span>
-                                       {validationStats.deprecated > 0
-                                          ? `${validationStats.deprecated} ${activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? 'Deprecated Strings' : 'Unrecognized Fields'}`
-                                          : (activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? t("lexicon_missing_count")?.replace("{missing}", validationStats.missing.toString()) || `${validationStats.missing} Missing Strings` : `${validationStats.missing} Missing Schema Keys`)}
-                                    </span>
-                                 </div>
-                                 {validationStats.deprecated > 0 ? (
-                                    <button
-                                       onClick={purgeDeprecatedStrings}
-                                       className="ml-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[9px] font-black capitalize tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
-                                    >
-                                       <span className="material-symbols-outlined !text-[14px]">delete</span>
-                                       <span>{t("lexicon_purge_keys")} ({validationStats.deprecated})</span>
-                                    </button>
-                                 ) : validationStats.completelyMissing > 0 ? (
-                                    <button
-                                       onClick={addMissingStrings}
-                                       className="ml-2 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[9px] font-black capitalize tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
-                                    >
-                                       <span className="material-symbols-outlined !text-[14px]">add_circle</span>
-                                       <span>{t("lexicon_add_missing")}</span>
-                                    </button>
-                                 ) : (
-                                    <button
-                                       onClick={jumpToNextEmpty}
-                                       className="ml-2 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-black capitalize tracking-widest px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-md active:scale-95 whitespace-nowrap"
-                                    >
-                                       <span>{t("lexicon_next_empty")}</span>
-                                       <span className="material-symbols-outlined !text-[14px]">arrow_downward</span>
-                                    </button>
-                                 )}
-                              </>
-                           ) : null}
-                        </div>
-                     )}
                      {activeFile && (
                         <Editor
                            height="100%"
@@ -333,20 +343,20 @@ export default function MasonEditorPanel({
                </div>
 
                {problemsList.length > 0 && (
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-[var(--radius)] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
-                     <div className="flex items-center justify-start px-6 py-3 border-b border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
+                  <div className="shrink-0 w-full bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-48">
+                     <div className="flex items-center justify-start px-6 py-2 border-b border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
                         <span className="text-[10px] font-black capitalize tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
                            <span className="material-symbols-outlined !text-[16px]">{t("icon_error")}</span>
                            {t("problems")} ({problemsList.length})
                         </span>
-                        <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
+                        <button onClick={() => setProblemsList([])} className="ml-auto w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
                            <span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span>
                         </button>
                      </div>
                      <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
                         {problemsList.map((p: any, i: number) => (
-                           <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
-                              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("nav_cancel")}</span>
+                           <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-2 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
+                              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("icon_cancel")}</span>
                               <div className="flex flex-col gap-0.5 min-w-0">
                                  <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
                                  <span className="text-[9px] text-[var(--subtext)] font-mono capitalize tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
@@ -385,3 +395,5 @@ export default function MasonEditorPanel({
       </>
    );
 }
+
+

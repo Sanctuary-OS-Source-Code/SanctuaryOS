@@ -37,7 +37,7 @@ export function HeuristicsReadOnlyList({ onEditClick, search }: { onEditClick: (
   return (
     <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
       {loading ? (
-        <div className="glass-panel p-8 rounded-[var(--radius)] text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("auto_loading_signatures")}</div>
+        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("auto_loading_signatures")}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredSignatures.map(sig => {
@@ -87,3 +87,5 @@ export function HeuristicsReadOnlyList({ onEditClick, search }: { onEditClick: (
     </div>
   );
 }
+
+

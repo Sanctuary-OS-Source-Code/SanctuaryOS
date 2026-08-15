@@ -15,15 +15,15 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
 
       <div className="relative py-8 group grid grid-cols-1 xl:grid-cols-[auto_1fr_280px] gap-8 items-start xl:items-center border-y border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--bg)_10%,transparent)] to-transparent backdrop-blur-sm">
 
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] opacity-10 pointer-events-none" />
+        <div className="absolute inset-0 rounded-[inherit] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] opacity-10 pointer-events-none" />
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-20" />
         <div className="absolute bottom-0 right-0 w-[40rem] h-[40rem] theme-bg-accent opacity-[0.02] blur-[100px] rounded-full pointer-events-none translate-y-1/2 translate-x-1/4" />
 
         <div className="flex items-center justify-center pl-4 xl:justify-start">
           <div className="relative w-[120px] h-[120px]">
-            <div className="absolute inset-0 border border-[var(--accent)] rotate-45 scale-[1.15] rounded-[var(--radius)] opacity-20 group-hover:rotate-90 group-hover:scale-100 transition-all duration-1000 blur-[2px] group-hover:blur-[1px]" />
-            <div className="absolute inset-0 rounded-[var(--radius)] bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] z-10 backdrop-blur-xl">
-              <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent z-20 pointer-events-none mix-blend-overlay" />
+            <div className="absolute inset-0 rounded-[inherit] border border-[var(--accent)] rotate-45 scale-[1.15]  opacity-20 group-hover:rotate-90 group-hover:scale-100 transition-all duration-1000 blur-[2px] group-hover:blur-[1px]" />
+            <div className="absolute inset-0 rounded-[inherit]  bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] z-10 backdrop-blur-xl">
+              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-tr from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent z-20 pointer-events-none mix-blend-overlay" />
               {mason.avatar_url ? (
                 <img src={mason.avatar_url} alt={t("auto_avatar")} className="w-full h-full object-cover filter contrast-[1.1] group-hover:scale-105 transition-transform duration-700" />
               ) : (
@@ -131,3 +131,7 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
     </div>
   );
 }
+
+
+
+

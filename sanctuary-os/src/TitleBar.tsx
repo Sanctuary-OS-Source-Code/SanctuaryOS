@@ -30,18 +30,14 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
       {/* Invisible drag region across the very top */}
       <div
         data-tauri-drag-region
-        onMouseDown={async (e) => {
-          if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
-            try { await getCurrentWebviewWindow().startDragging(); } catch (err) { console.error(err); }
-          }
-        }}
+        style={{ WebkitAppRegion: 'drag' } as any}
         onDoubleClick={(e) => {
           if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
             (window as any).__sanc_manual_max = true;
             setTimeout(() => { (window as any).__sanc_manual_max = false; }, 750);
           }
         }}
-        className="fixed top-0 left-0 right-0 h-[24px] z-[999999] pointer-events-auto opacity-0"
+        className="fixed top-0 left-0 right-0 h-[24px] z-[999999] pointer-events-auto bg-[rgba(0,0,0,0.01)]"
       />
 
       {/* Container for pills */}

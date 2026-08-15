@@ -210,7 +210,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                 <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder={t("link_search")} className="rounded-2xl h-[58px]" />
 
                 {searchQuery.length >= 2 && (
-         <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+         <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
                     {myMods.filter(m => !members.some(mem => mem.mod_id === m.id) && m.name.toLowerCase().includes(searchQuery.toLowerCase())).map(m => (
                       <button type="button" key={m.id} onClick={() => { handleAddMod(m.id); setSearchQuery(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center group transition-all shrink-0">
                         <span className="text-[10px] font-black text-[var(--text)] capitalize truncate">{m.name}</span>
@@ -556,7 +556,7 @@ export function CollectionForge({ setStatus }: any) {
                 <SearchBar value={assetSearch} onChange={setAssetSearch} placeholder={t("forge_search_assets")} className="rounded-2xl h-[58px]" isLoading={isSearching} />
 
                 {assetSearch.length >= 2 && availableAssets.length > 0 && (
-         <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+         <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
                     {availableAssets.filter(asset => !manifestMembers.some(m => m.mod_id === asset.id)).map(asset => (
                       <button type="button" key={asset.id} onClick={() => { addToManifest(asset.id); setAssetSearch(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center group transition-all shrink-0">
                         <div className="flex flex-col min-w-0 pr-4">
@@ -623,3 +623,6 @@ export function CollectionForge({ setStatus }: any) {
     </div>
   );
 }
+
+
+

@@ -28,12 +28,12 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[120px] pointer-events-none mix-blend-screen" 
            style={{ backgroundColor: `color-mix(in srgb, ${themeVar} 10%, transparent)` }} />
       
-      <div className="relative w-full max-w-4xl bg-white/[0.02] backdrop-blur-2xl border rounded-[var(--radius)] p-12 flex flex-col gap-8 overflow-hidden"
+      <div className="relative w-full max-w-4xl bg-white/[0.02] backdrop-blur-2xl border rounded-2xl p-12 flex flex-col gap-8 overflow-hidden"
            style={{ 
              borderColor: `color-mix(in srgb, ${themeVar} 20%, transparent)`,
              boxShadow: `0 40px 100px color-mix(in srgb, ${themeVar} 20%, transparent), inset 0 1px 1px rgba(255,255,255,0.05)` 
            }}>
-        <div className="absolute inset-0 animate-pulse pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, ${themeVar} 5%, transparent)` }} />
+        <div className="absolute inset-0 rounded-[inherit] animate-pulse pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, ${themeVar} 5%, transparent)` }} />
         <div className="absolute top-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, ${themeVar} 50%, transparent), transparent)` }} />
         <div className="absolute bottom-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, ${themeVar} 20%, transparent), transparent)` }} />
         
@@ -45,7 +45,7 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
                  borderWidth: '1px',
                  boxShadow: `0 0 30px color-mix(in srgb, ${themeVar} 10%, transparent), inset 0 0 20px color-mix(in srgb, ${themeVar} 5%, transparent)`
                }}>
-            <div className="absolute inset-0 rounded-2xl border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, ${themeVar} 20%, transparent)` }} />
+            <div className="absolute inset-0 rounded-[inherit]  border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, ${themeVar} 20%, transparent)` }} />
             <span className="material-symbols-outlined !text-6xl animate-pulse"
                   style={{ color: themeVar, filter: `drop-shadow(0 0 15px ${themeVar})` }}>{icon}</span>
           </div>
@@ -80,7 +80,7 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
                   boxShadow: `0 0 10px color-mix(in srgb, ${themeVar} 50%, transparent)`
                 }}
               >
-                <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_20%,transparent)] animate-[pulse_2s_ease-in-out_infinite]" />
+                <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--text)_20%,transparent)] animate-[pulse_2s_ease-in-out_infinite]" />
                 <div className="absolute top-0 right-0 w-10 h-full bg-gradient-to-r from-transparent to-white/30 blur-sm" />
               </div>
             </div>
@@ -106,3 +106,7 @@ export function BackupRestoreModals({ isBackingUp, isRestoring, backupType, rest
     </div>
   );
 }
+
+
+
+

@@ -14,7 +14,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
   return createPortal(
     <div
       ref={logModalRef}
-   className="!fixed bottom-14 right-4 w-[420px] max-h-[60vh] glass-panel pointer-events-auto border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-[var(--radius)] z-[99999] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/5 after:to-transparent after:pointer-events-none"
+   className="!fixed bottom-14 right-4 w-[420px] max-h-[60vh] glass-panel pointer-events-auto border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-2xl z-[99999] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/5 after:to-transparent after:pointer-events-none"
     >
       <div
         className="flex items-center justify-between p-5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 relative z-10 cursor-move"
@@ -123,3 +123,5 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
     portalRoot
   );
 }
+
+

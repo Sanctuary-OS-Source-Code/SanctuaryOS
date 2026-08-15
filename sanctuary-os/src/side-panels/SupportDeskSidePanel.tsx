@@ -306,7 +306,7 @@ export default function SupportDeskSidePanel({
         panelZ="z-[50001]"
       >
         <div className="flex flex-col gap-8 items-center justify-center py-20 text-center animate-in fade-in duration-500">
-          <div className="w-24 h-24 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
+          <div className="w-24 h-24 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
             <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_lock")}</span>
           </div>
           <h2 className="text-2xl font-black capitalize tracking-tighter text-[var(--text)]">{t("access_denied")}</h2>
@@ -342,7 +342,7 @@ export default function SupportDeskSidePanel({
       <div className="flex flex-col gap-6 relative">
         {error && (
             <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
-                <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
                     <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-rose-400">
                         <span className="material-symbols-outlined !text-[20px]">{t("icon_warning")}</span>
@@ -376,7 +376,7 @@ export default function SupportDeskSidePanel({
 
         {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
             <div className="bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--warning-rgb),0.15)] group mt-2">
-                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none" />
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
                     <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)]">
                         <span className="material-symbols-outlined !text-[20px]">{t("icon_warning")}</span>
@@ -603,3 +603,6 @@ export default function SupportDeskSidePanel({
     </SidePanel>
   );
 }
+
+
+

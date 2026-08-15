@@ -11,7 +11,7 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
     <>
       {renameModal && (
         <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-[var(--radius)] p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-2xl p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
             <div>
               <h2 className="text-2xl font-black capitalize theme-text-accent tracking-tighter mb-1">{t("rename_title")}</h2>
               <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
@@ -39,7 +39,7 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
       )}
       {renameTarget && (
         <div className="fixed inset-0 z-10000 flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_10%,transparent)] backdrop-blur-[2px] animate-in fade-in duration-200">
-          <div className="w-full max-w-md glass-panel border theme-border-accent rounded-[var(--radius)] p-8 shadow-2xl">
+          <div className="w-full max-w-md glass-panel border theme-border-accent rounded-2xl p-8 shadow-2xl">
             <h3 className="text-xs font-black tracking-[0.3em] theme-text-accent capitalize mb-6 flex items-center gap-2"><span className="w-2 h-2 theme-bg-accent rounded-full animate-pulse"></span>{t("rename_title")}</h3>
             <div className="space-y-4">
               <div className="space-y-1">
@@ -57,3 +57,5 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
     </>
   );
 }
+
+

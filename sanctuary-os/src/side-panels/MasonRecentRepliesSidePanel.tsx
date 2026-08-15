@@ -81,7 +81,7 @@ export default function MasonRecentRepliesSidePanel({
                         <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("loading_transmissions")}</span>
                     </div>
                 ) : replies.length === 0 ? (
-                    <div className="flex flex-col justify-center items-center h-64 glass-panel rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl group">
+                    <div className="flex flex-col justify-center items-center h-64 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl group">
                         <span className="text-6xl mb-4 grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:-rotate-12">{t("icon_mail")}</span>
                         <span className="text-sm font-black text-[var(--subtext)] capitalize tracking-widest text-center px-8 leading-relaxed">
                             {t("no_recent_replies")}
@@ -139,3 +139,5 @@ export default function MasonRecentRepliesSidePanel({
     </SidePanel>
   );
 }
+
+

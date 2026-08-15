@@ -1336,7 +1336,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         <p className="text-xs font-bold capitalize tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc")}</p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 px-8 py-4 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black capitalize tracking-widest group"
+          className="mt-4 px-8 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black capitalize tracking-widest group"
         >
           <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">refresh</span>
           {t("offline_mode_refresh")}
@@ -1444,7 +1444,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       const isFolder = item.feed_type === 'artifact' && (item.isVirtual || item.isParent || item.familyCount > 1);
 
                       const renderedCard = (
-            <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`} onClick={() => {
+            <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[inherit] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`} onClick={() => {
                           if (item.feed_type === 'artifact') {
                             if (onOpenDossier) onOpenDossier({ ...item, isNexusView: true });
                           } else if (item.feed_type === 'blueprint') {
@@ -1457,13 +1457,17 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             setPreviewAsset({ id: item.id, type: 'workbench_template' });
                           }
                         }}>
-                          <div className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
+                          <div 
+                            className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden [transform:translateZ(0)]"
+                            style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
+                          >
                             {(showImages !== false && item.image_url) ? (
                               <img
                                 src={item.image_url}
                                 alt={item.name || item.title}
                                 loading="lazy"
                                 className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                                style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
                             ) : (
@@ -1492,10 +1496,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
                               </span>
 
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none pt-3">
+                              <div className="absolute inset-0 rounded-[inherit] flex items-center justify-center pointer-events-none pt-3">
                                 {isFolder && (
                                   <div className="group/hitbox static flex items-center justify-center gap-2 font-black text-[9px] capitalize tracking-widest text-[var(--subtext)] group-hover/hitbox:text-[var(--text)] transition-colors pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}>
-                                    <div className="absolute inset-0 z-0 pointer-events-auto" />
+                                    <div className="absolute inset-0 rounded-[inherit] z-0 pointer-events-auto" />
                                     <span className="relative z-10 leading-none flex items-center mt-[2px]">{item.familyCount || (item.flavors?.length || 0)} {t("items")}</span>
                                     <span className={`relative z-10 material-symbols-outlined !text-[14px] transition-transform duration-300 ${expandedFolder === mainKey ? 'rotate-180' : ''}`}>expand_more</span>
                                   </div>
@@ -1515,7 +1519,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           </div>
 
                           <AccordionDrawer isOpen={expandedFolder === mainKey}>
-                            <div className="w-full glass-panel rounded-[32px] p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
+                            <div className="w-full glass-panel rounded-3xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
                               {/* Header */}
                               <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
                                 <div className="flex items-center gap-5">
@@ -1571,7 +1575,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                           <div
                                             key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
                                             onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
-                      className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
+                      className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
                                           >
                                             <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
                                               {(showImages !== false && flavor.image_url) ? (
@@ -1756,7 +1760,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       <div
                         key={mainKey}
                         onClick={() => onOpenDossier && onOpenDossier({ ...mod, isNexusView: true })}
-            className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`}
+            className={`relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`}
                       >
                         <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
                           {(showImages !== false && mod.image_url) ? (
@@ -1841,10 +1845,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("date_unknown")}
                             </span>
 
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pt-4">
+                            <div className="absolute inset-0 rounded-[inherit] flex items-center justify-center pointer-events-none pt-4">
                               {isFolder && (
                                 <div className="group/hitbox static flex items-center justify-center gap-2 font-black text-[9px] capitalize tracking-widest text-[var(--subtext)] group-hover/hitbox:text-[var(--text)] transition-colors pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}>
-                                  <div className="absolute inset-0 z-0 pointer-events-auto" />
+                                  <div className="absolute inset-0 rounded-[inherit] z-0 pointer-events-auto" />
                                   <span className="relative z-10 leading-none flex items-center mt-[2px]">{mod.familyCount || (mod.flavors?.length || 0)} {t("items")}</span>
                                   <span className={`relative z-10 material-symbols-outlined !text-[14px] transition-transform duration-300 ${expandedFolder === mainKey ? 'rotate-180' : ''}`}>expand_more</span>
                                 </div>
@@ -1864,7 +1868,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         </div>
 
                         <AccordionDrawer isOpen={expandedFolder === mainKey}>
-                          <div className="w-full glass-panel rounded-[32px] p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
+                          <div className="w-full glass-panel rounded-3xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
                             {/* Header */}
                             <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
                               <div className="flex items-center gap-5">
@@ -1920,7 +1924,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                         <div
                                           key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
                                           onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
-                     className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
+                     className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
                                         >
                                           <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
                                             {(showImages !== false && flavor.image_url) ? (
@@ -1959,7 +1963,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 </>
               ) : (
                 <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
-                  <div className="w-24 h-24 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
+                  <div className="w-24 h-24 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
                     <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_hub")}</span>
                   </div>
                   <p className="font-black capitalize tracking-widest text-xl mb-2">{t("empty_title")}</p>
@@ -2102,7 +2106,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       else if (marketTab === 'TEMPLATES') setPreviewAsset({ id: asset.id, type: 'workbench_template' });
                       else if (onOpenDossier) onOpenDossier({ ...asset, isNexusView: true });
                     }}
-          className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
+          className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
                   >
                     <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
                       <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>
@@ -2157,7 +2161,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       )}
 
                       <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative">
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none pt-4">
+                        <div className="absolute inset-0 rounded-[inherit] flex items-center justify-center pointer-events-none pt-4">
                           {(asset.isVirtual || asset.isParent || asset.familyCount > 1) && (
                             <div className="flex items-center justify-center gap-2 font-black text-[9px] capitalize tracking-widest text-[var(--subtext)] group-hover:text-[var(--text)] transition-colors">
                               <span className="leading-none flex items-center mt-[2px]">{asset.familyCount || (asset.flavors?.length || 0)} {t("items")}</span>
@@ -2248,7 +2252,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 ))
               ) : (
                 <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
-                  <div className="w-24 h-24 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
+                  <div className="w-24 h-24 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
                     <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{marketTab === 'BLUEPRINTS' ? (t("icon_map")) : marketTab === 'TEMPLATES' ? "draw" : (t("icon_palette"))}</span>
                   </div>
                   <p className="font-black capitalize tracking-widest text-xl mb-2">
@@ -2357,3 +2361,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     </>
   );
 }
+
+
+
+

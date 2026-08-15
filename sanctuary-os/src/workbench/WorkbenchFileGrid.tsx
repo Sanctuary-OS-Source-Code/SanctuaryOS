@@ -36,9 +36,9 @@ const WorkbenchFileCard = React.memo(({
       <div className="group relative break-inside-avoid">
          <button
             onClick={() => openFile(file)}
-            className={`w-full text-left p-6 rounded-[var(--radius)] transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] ${hasUnsavedEdits ? 'border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] backdrop-blur-[3px] shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}
+            className={`w-full text-left p-6 rounded-2xl transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative glass-panel group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] ${hasUnsavedEdits ? 'border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] backdrop-blur-[3px] shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}
          >
-            <div className="absolute inset-0 rounded-[var(--radius)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            <div className="absolute inset-0 rounded-[inherit]  bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-inner group-hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors ${isTmpl ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-500 border-[color-mix(in_srgb,var(--success)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-blue-500 border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}>
                <span className="material-symbols-outlined !text-2xl transition-colors">{isTmpl ? (t("icon_data_object")) : (t("icon_settings"))}</span>
             </div>
@@ -141,7 +141,7 @@ export const WorkbenchFileGrid = React.memo(({
 
    if (filteredMainFiles.length === 0) {
       return (
-         <div className="w-full p-12 rounded-[var(--radius)] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col items-center justify-center gap-4 opacity-60 shadow-inner">
+         <div className="w-full p-12 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col items-center justify-center gap-4 opacity-60 shadow-inner">
             <span className="material-symbols-outlined text-[var(--subtext)]">{mainTab === "CONFIGS" ? (t("icon_search_off")) : (t("icon_data_object"))}</span>
             <span className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{t("workbench_no_files_found")}</span>
          </div>
@@ -169,3 +169,7 @@ export const WorkbenchFileGrid = React.memo(({
       </div>
    );
 });
+
+
+
+

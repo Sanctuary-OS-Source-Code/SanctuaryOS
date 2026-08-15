@@ -56,8 +56,8 @@ export function DefconPanel() {
   };
 
   return (
-  <div className={`w-full max-w-xl mx-auto mt-12 glass-panel border rounded-[var(--radius)] p-8 flex flex-col items-center justify-center text-center gap-6 relative shrink-0 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-      {defconLevel === 1 && <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] animate-pulse pointer-events-none" />}
+  <div className={`w-full max-w-xl mx-auto mt-12 glass-panel border rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-6 relative shrink-0 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+      {defconLevel === 1 && <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] animate-pulse pointer-events-none" />}
 
       <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center relative z-10 ${defconLevel === 1 ? 'border-amber-900/50 shadow-lg' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
         <span className={`text-4xl material-symbols-outlined ${defconLevel === 1 ? 'animate-bounce text-amber-500' : 'text-white'}`}>{t("icon_warning_amber")}</span>
@@ -80,18 +80,18 @@ export function DefconPanel() {
         {defconLevel === 1 ? t("defcon_stand_down") : t("defcon_initiate")}
       </button>      {showDefconConfirmModal && (
         <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] backdrop-blur-md animate-in fade-in duration-300 p-8">
-     <div className="relative w-full max-w-4xl glass-panel border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] p-12 shadow-2xl flex flex-col gap-8 ">
+     <div className="relative w-full max-w-4xl glass-panel border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl p-12 shadow-2xl flex flex-col gap-8 ">
             {defconLevel === 5 && (
               <>
-                <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(245,158,11,0.03)_25%,transparent,25%,transparent,50%,rgba(245,158,11,0.03),50%,rgba(245,158,11,0.03),75%,transparent,75%,transparent)] bg-[length:64px_64px] pointer-events-none opacity-50"></div>
-                <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] animate-pulse pointer-events-none" />
+                <div className="absolute inset-0 rounded-[inherit] bg-[linear-gradient(45deg,rgba(245,158,11,0.03)_25%,transparent,25%,transparent,50%,rgba(245,158,11,0.03),50%,rgba(245,158,11,0.03),75%,transparent,75%,transparent)] bg-[length:64px_64px] pointer-events-none opacity-50"></div>
+                <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] animate-pulse pointer-events-none" />
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent opacity-80"></div>
               </>
             )}
 
             <div className="flex items-start gap-8 relative z-10 text-left">
-              <div className={`relative w-32 h-32 rounded-[var(--radius)] flex items-center justify-center text-6xl shrink-0 shadow-lg ${defconLevel === 5 ? 'bg-amber-900/10 border border-amber-900/50' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                {defconLevel === 5 && <div className="absolute inset-0 rounded-[var(--radius)] border-2 border-[color-mix(in_srgb,var(--warning)_20%,transparent)] animate-spin-slow"></div>}
+              <div className={`relative w-32 h-32 rounded-2xl flex items-center justify-center text-6xl shrink-0 shadow-lg ${defconLevel === 5 ? 'bg-amber-900/10 border border-amber-900/50' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                {defconLevel === 5 && <div className="absolute inset-0 rounded-[inherit]  border-2 border-[color-mix(in_srgb,var(--warning)_20%,transparent)] animate-spin-slow"></div>}
                 <span className={`drop-shadow-md animate-pulse material-symbols-outlined ${defconLevel === 5 ? 'text-amber-500' : 'text-white'}`}>{t("icon_warning_amber")}</span>
               </div>
               <div className="flex flex-col gap-4 pt-2 flex-1">
@@ -244,7 +244,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
       widthClass="w-[600px]"
     >
       <div className="flex flex-col gap-6 h-full p-8 animate-in fade-in duration-500 relative overflow-y-auto">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-50 z-0"></div>
+        <div className="absolute inset-0 rounded-[inherit] bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-50 z-0"></div>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50 relative z-10">
@@ -258,7 +258,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
 
                 {status?.defcon_level === 1 && (
                   <>
-                    <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] animate-pulse pointer-events-none" />
+                    <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] animate-pulse pointer-events-none" />
                     <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent opacity-80" />
                     <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent opacity-80" />
                   </>
@@ -266,8 +266,8 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
 
                 <div className="flex justify-center mb-6 relative z-30">
                   <div className={`w-20 h-20 rounded-full flex items-center justify-center border-4 ${status?.defcon_level === 1 ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_20%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)]'} shadow-inner relative`}>
-                    {status?.defcon_level === 1 && <div className="absolute inset-0 rounded-full border-2 border-[color-mix(in_srgb,var(--danger)_50%,transparent)] animate-ping opacity-50"></div>}
-                    {status?.defcon_level === 5 && <div className="absolute inset-0 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[spin_10s_linear_infinite] border-t-transparent border-l-transparent"></div>}
+                    {status?.defcon_level === 1 && <div className="absolute inset-0 rounded-[inherit]  border-2 border-[color-mix(in_srgb,var(--danger)_50%,transparent)] animate-ping opacity-50"></div>}
+                    {status?.defcon_level === 5 && <div className="absolute inset-0 rounded-[inherit]  border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[spin_10s_linear_infinite] border-t-transparent border-l-transparent"></div>}
                     <span className={`material-symbols-outlined text-4xl drop-shadow-lg ${status?.defcon_level === 1 ? 'text-red-500 animate-pulse' : 'theme-text-success opacity-80'}`}>
                       {status?.defcon_level === 1 ? 'warning' : 'verified_user'}
                     </span>
@@ -389,4 +389,8 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
     </SidePanel>
   );
 }
+
+
+
+
 

@@ -45,9 +45,9 @@ export default function MasonFileBrowser({
                <div key={file.path} className="group relative break-inside-avoid">
                   <div
                      onClick={() => !renamingFile && openFile(file)}
-                     className={`w-full text-left p-6 rounded-[var(--radius)] glass-panel bg-[color-mix(in_srgb,var(--text)_2%,transparent)] transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] cursor-pointer ${openFiles.find((o: any) => o.path === file.path && o.content !== o.originalContent) ? 'border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] backdrop-blur-xl shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:theme-border-accent shadow-lg'}`}
+                     className={`w-full text-left p-6 rounded-2xl glass-panel bg-[color-mix(in_srgb,var(--text)_2%,transparent)] transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] cursor-pointer ${openFiles.find((o: any) => o.path === file.path && o.content !== o.originalContent) ? 'border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] backdrop-blur-xl shadow-[0_8px_32px_rgba(245,158,11,0.15)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:theme-border-accent shadow-lg'}`}
                   >
-                     <div className="absolute inset-0 rounded-[var(--radius)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                     <div className="absolute inset-0 rounded-[inherit]  bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                      {openFiles.find((o: any) => o.path === file.path && o.content !== o.originalContent) && (
                         <div className="absolute top-6 right-6 flex items-center gap-1 text-[8px] font-black capitalize tracking-widest text-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] px-3 py-1.5 rounded-full shadow-lg z-20 pointer-events-none backdrop-blur-xl">
                            <span className="material-symbols-outlined !text-[12px]">{t("icon_warning")}</span>
@@ -140,3 +140,7 @@ export default function MasonFileBrowser({
       </div>
    );
 }
+
+
+
+

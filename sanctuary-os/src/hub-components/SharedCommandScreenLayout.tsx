@@ -14,13 +14,13 @@ export function CommandScreenLayout({ children }: any) {
 }
 
 export function CommandScreenSectionHeading({ 
-  title, subtitle, icon, actions, rightContent, 
+  title, subtitle, icon, actions, rightContent, onBack, breadcrumb,
   className = "", shape = "circle", 
   colorClass = "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]", 
   iconColorClass = "theme-text-accent" 
 }: any) {
   const { t } = useLexicon();
-  const shapeClass = shape === "square" ? "rounded-lg" : "rounded-full";
+  const shapeClass = shape === "square" ? "rounded-xl" : "rounded-2xl";
   
   return (
     <div className={`flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 w-full mb-8 relative z-10 ${className}`}>
@@ -28,14 +28,27 @@ export function CommandScreenSectionHeading({
       <div className="flex items-center gap-4 flex-1 min-w-0">
         {icon && (
      <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 border glass-panel relative group shadow-md`}>
-            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className={`material-symbols-outlined !text-[24px] relative z-10 ${iconColorClass}`}>{icon}</span>
           </div>
         )}
         <div className="flex flex-col gap-1 items-start text-left flex-1 min-w-0">
-          <h2 className="text-2xl font-black text-[var(--text)] capitalize tracking-widest drop-shadow-lg m-0 truncate">
-            {title}
-          </h2>
+          <div className="flex items-center gap-2 w-full">
+            <h2 
+                onClick={onBack}
+                className={`text-2xl font-black text-[var(--text)] capitalize tracking-widest drop-shadow-lg m-0 truncate shrink-0 ${onBack ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
+            >
+              {title}
+            </h2>
+            {breadcrumb && (
+              <div className="flex items-center gap-2 truncate">
+                <span className="text-[var(--subtext)] opacity-40 font-black text-2xl leading-none">/</span>
+                <span className="text-2xl font-black tracking-widest text-[var(--subtext)] animate-in fade-in slide-in-from-left-2 duration-300 leading-tight truncate capitalize drop-shadow-sm">
+                  {breadcrumb}
+                </span>
+              </div>
+            )}
+          </div>
           {subtitle && (
             <p className="font-black tracking-[0.3em] text-[10px] capitalize opacity-70 m-0 text-[var(--subtext)] drop-shadow-sm truncate">
               {subtitle}
@@ -84,14 +97,14 @@ export function CommandScreenMain({ children }: any) {
 
 export function CommandScreenSidebar({ title, icon, shape = "square", children }: any) {
     const { t } = useLexicon();
-    const shapeClass = shape === "square" ? "rounded-lg" : "rounded-full";
+    const shapeClass = shape === "square" ? "rounded-xl" : "rounded-2xl";
     return (
         <div className="w-[380px] shrink-0 flex flex-col">
             <div className="flex items-center gap-4 mb-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 relative z-10 w-full">
                 <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
                 {icon && (
           <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 border glass-panel relative group shadow-md`}>
-                        <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
                         <span className="material-symbols-outlined !text-[24px] relative z-10 theme-text-accent">{icon}</span>
                     </div>
                 )}
@@ -106,18 +119,29 @@ export function CommandScreenSidebar({ title, icon, shape = "square", children }
     );
 }
 
+export function CommandScreenStatusbar({ children }: any) {
+    return (
+        <div className="w-full shrink-0 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] pt-4 mt-8 relative z-10">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
+            <div className="flex items-center gap-4 w-full">
+                {children}
+            </div>
+        </div>
+    );
+}
+
 
 export function UrgentBroadcastBanner({ urgentBroadcast, setViewingPost, setUrgentBroadcast }: any) {
     const { t } = useLexicon();
     if (!urgentBroadcast || localStorage.getItem("sanctuary_notify_alert_banner") === "false") return null;
 
     return (
-    <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel rounded-[1.25rem] p-5 md:p-6 flex flex-col md:flex-row items-center gap-6 shadow-xl hover:shadow-2xl cursor-pointer transition-all duration-700 ease-out group relative border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_60%,transparent)]">
-            <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] z-0 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
+    <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel rounded-2xl p-5 md:p-6 flex flex-col md:flex-row items-center gap-6 shadow-xl hover:shadow-2xl cursor-pointer transition-all duration-700 ease-out group relative border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_60%,transparent)]">
+            <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] z-0 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
             
             <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--danger)_50%,transparent)] to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
             
-            <div className="w-14 h-14 rounded-[1rem] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform duration-500 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]">
+            <div className="w-14 h-14 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform duration-500 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]">
                 <span className="material-symbols-outlined !text-[32px] text-[var(--danger)] drop-shadow-[0_0_15px_currentColor] animate-pulse">{t("icon_warning_amber")}</span>
             </div>
             
@@ -136,7 +160,7 @@ export function UrgentBroadcastBanner({ urgentBroadcast, setViewingPost, setUrge
                         localStorage.setItem("sanctuary_notify_alert_banner", "false");
                         setUrgentBroadcast(null);
                     }}
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors opacity-50 hover:opacity-100"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors opacity-50 hover:opacity-100"
                 >
                     <span className="material-symbols-outlined !text-[20px]">{t("icon_close")}</span>
                 </button>
@@ -183,7 +207,7 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                     </UniversalCard>
                 );
             }) : (
-                <div className="w-full lg:col-span-3 glass-panel rounded-[var(--radius)] p-12 text-center text-[var(--subtext)] opacity-50 capitalize font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <div className="w-full lg:col-span-3 glass-panel rounded-2xl p-12 text-center text-[var(--subtext)] opacity-50 capitalize font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                     {t("system_no_broadcasts")}
                 </div>
             )}
@@ -200,11 +224,11 @@ export function CommandScreenMetricTile({ icon, value, label, valueColorClass = 
 
 export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "", isAlert = false }: any) {
     return (
-        <button onClick={onClick} className={`w-full p-5 glass-panel rounded-[1.25rem] transition duration-500 text-left group relative h-24 shadow-md ${isAlert ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
-            <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-[inherit] overflow-hidden ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-radial-[at_0%_0%] from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent'}`} />
+        <button onClick={onClick} className={`w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 shadow-md ${isAlert ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
+            <div className={`absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none  overflow-hidden ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-radial-[at_0%_0%] from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent'}`} />
 
             <div className="flex items-center gap-4 h-full relative z-10">
-                <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-110 shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_5%,transparent)] border ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-110 shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_5%,transparent)] border ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
                     <span className={`material-symbols-outlined !text-[28px] opacity-80 group-hover:opacity-100 transition-all duration-300 ${isAlert ? 'animate-pulse drop-shadow-[0_0_10px_currentColor]' : 'group-hover:drop-shadow-[0_0_10px_currentColor]'}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
@@ -216,4 +240,8 @@ export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColo
         </button>
     );
 }
+
+
+
+
 

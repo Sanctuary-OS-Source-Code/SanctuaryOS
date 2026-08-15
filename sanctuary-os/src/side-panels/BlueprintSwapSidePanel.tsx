@@ -34,7 +34,7 @@ export default function BlueprintSwapSidePanel({
     >
       <div className="flex flex-col gap-6 h-full pb-10 px-2">
         {!playSets || playSets.length === 0 ? (
-          <div className="flex justify-center items-center h-32 glass-surface rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+          <div className="flex justify-center items-center h-32 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-[0.2em] opacity-50 flex items-center gap-3">
               <span className="material-symbols-outlined !text-xl">{t("icon_scan_delete")}</span>
               {t("bp_no_blueprints_found")}
@@ -48,14 +48,14 @@ export default function BlueprintSwapSidePanel({
                 <div 
                   key={bp.name}
                   onClick={() => handleSelect(index)}
-                  className={`relative group cursor-pointer w-full rounded-[var(--radius)] overflow-hidden transition-all duration-500 border ${
+                  className={`relative group cursor-pointer w-full rounded-2xl overflow-hidden transition-all duration-500 border ${
                     isActive 
                       ? 'border-[var(--accent)] shadow-md hover:shadow-md hover:scale-[1.02]' 
                       : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-lg hover:shadow-md hover:scale-[1.02]'
                   }`}
                 >
-                  <div className={`absolute inset-0 rounded-[inherit] transition-opacity duration-500 ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] opacity-100' : 'glass-panel opacity-100 group-hover:opacity-0'}`} />
-                  <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 transition-opacity duration-500 ${isActive ? 'opacity-10' : 'group-hover:opacity-10'}`} />
+                  <div className={`absolute inset-0 rounded-[inherit]  transition-opacity duration-500 ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] opacity-100' : 'glass-panel opacity-100 group-hover:opacity-0'}`} />
+                  <div className={`absolute inset-0 rounded-[inherit]  bg-gradient-to-br from-[var(--accent)] via-transparent to-transparent opacity-0 transition-opacity duration-500 ${isActive ? 'opacity-10' : 'group-hover:opacity-10'}`} />
                   
                   <div className="relative p-6 flex flex-col sm:flex-row items-center gap-6 z-10">
                     <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center shrink-0 border transition-all duration-500 shadow-inner ${
@@ -98,3 +98,5 @@ export default function BlueprintSwapSidePanel({
     </SidePanel>
   );
 }
+
+

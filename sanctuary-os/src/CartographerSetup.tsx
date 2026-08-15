@@ -1,18 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore } from './store';
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useLexicon } from "./LexiconContext";
 import { useTheme } from "./ThemeContext";
-import { CustomDropdown } from "./shared";
+import { CustomDropdown, SidePanel, ActionButton, HoverTooltip } from "./shared";
+import { CommandScreenBody, CommandScreenMain, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
+import { UniversalCard } from "./components/universal/UniversalCard";
 
 export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGame?: any, onCancel?: () => void }) {
   const { t, activeLang, setActiveLang, registry, lexiconMeta } = useLexicon();
-  const { CORE_THEMES, activeThemeId, setActiveThemeId } = useTheme();
+  const { CORE_THEMES, customThemes, activeThemeId, setActiveThemeId, currentTheme } = useTheme();
+
   const [livePath, setLivePath] = React.useState("");
   const [modsPath, setModsPath] = React.useState("");
   const [vaultPath, setVaultPath] = React.useState("");
-  const [isGlobalVaultSet, setIsGlobalVaultSet] = React.useState(false);
+  const [isGlobalVaultSet, setIsGlobalVaultSet] = React.useState(true); // default true until checked
+
+  const [isThemePreviewOpen, setIsThemePreviewOpen] = useState(false);
+
   const setIsConfigured = useStore((state) => state.setIsConfigured);
   const setStatus = useStore((state) => state.setStatus);
 
@@ -23,9 +29,12 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
         if (config && config.vault_path) {
           setVaultPath(config.vault_path);
           setIsGlobalVaultSet(true);
+        } else {
+          setIsGlobalVaultSet(false);
         }
       } catch (e) {
         console.error(e);
+        setIsGlobalVaultSet(false);
       }
     }
     loadGlobal();
@@ -43,8 +52,9 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
     const s = await open({ directory: true });
     if (s) setVaultPath(s as string);
   }
+
   async function lockCoordinates() {
-    if (!livePath || !modsPath || !vaultPath) {
+    if (!livePath || !modsPath || (!isGlobalVaultSet && !vaultPath)) {
       alert(t("alert_select_paths"));
       return;
     }
@@ -71,235 +81,245 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
 
     globalConfig.workspaces = [...(globalConfig.workspaces || []), newWorkspace];
     globalConfig.active_workspace_id = newWorkspaceId;
-    globalConfig.vault_path = vaultPath;
+    if (!isGlobalVaultSet && vaultPath) {
+      globalConfig.vault_path = vaultPath;
+    }
 
     await invoke("save_coordinates", { config: globalConfig });
     setIsConfigured(true);
     setTimeout(() => window.location.reload(), 300);
   }
 
-  return (
-    <div className="flex h-screen w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bgGradient)', color: 'var(--text)' }}>
-      <div className="absolute inset-0 z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen transition-opacity duration-1000 animate-in fade-in" />
-      <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 50%, transparent), var(--bg))' }} />
-
-   <div className="relative z-10 w-[95%] max-w-5xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row group">
-
-        {/* LEFT COLUMN: The Setup Console */}
-        <div className="p-8 lg:p-12 flex flex-col lg:w-1/2 border-b lg:border-b-0 lg:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-20 overflow-hidden">
-          <div className="flex flex-col items-start mb-8 relative z-20">
-            {/* Centered Logo */}
-            <div className="relative mb-6 w-20 h-20 flex items-center justify-center">
-              <img
-                src={preselectedGame?.icon || "/icon.png"}
-                alt="Logo"
-                className="w-full h-full object-contain opacity-[0.25] hover:opacity-[0.8] hover:scale-110 hover:rotate-12 transition-all duration-700 cursor-pointer"
-              />
-            </div>
-            <h1 className="text-2xl lg:text-3xl font-black capitalize tracking-widest text-[var(--headerText)] drop-shadow-sm">
-              {preselectedGame?.name || t("setup_title")}
-            </h1>
-            <p className="text-[10px] font-bold capitalize tracking-[0.3em] theme-text-accent opacity-80 mt-2 transition-colors duration-500">
-              {preselectedGame ? t("status_cartographer_init") : t("status_cartographer_init")}
-            </p>
+  const lexiconOptions = React.useMemo(() => {
+    const buildOption = (id: string, name: string, badge: string, isCustom: boolean = false) => {
+      const displayName = isCustom ? `${t("badge_custom") || 'Custom'}: ${name}` : name;
+      const badgeColor = badge.toLowerCase() === 'sanctuary'
+        ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]'
+        : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]';
+      return {
+        id,
+        searchText: `${displayName} ${badge} ${id.toLowerCase().startsWith('en-') ? 'English' : ''} ${id.toLowerCase().startsWith('de-') ? 'German' : ''}`,
+        label: (
+          <div className="flex items-center justify-start w-full">
+            <span className="truncate pr-4 normal-case">{displayName}</span>
+            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black capitalize tracking-widest border ${badgeColor} shrink-0`}>
+              {badge}
+            </span>
           </div>
+        )
+      };
+    };
 
-          <div className="flex flex-col gap-3 w-full">
-            <button
-              onClick={async () => {
-                try {
-                  const paths: any = await invoke("auto_detect_paths");
-                  if (paths) {
-                    if (paths.live_path) setLivePath(paths.live_path);
-                    if (paths.mods_path) setModsPath(paths.mods_path);
-                    if (paths.vault_path) setVaultPath(paths.vault_path);
-                    setStatus(t("settings_auto_detect_success"));
-                  }
-                } catch (e) {
-                  console.error(e);
-                  setStatus(t("status_autodetect_failed"));
-                }
-              }}
-              className="w-full glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-5 py-3.5 rounded-xl text-[10px] font-black text-[var(--text)] hover:bg-[var(--accent)] hover:text-white hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] active:scale-[0.98] transition-all flex items-center justify-center gap-3 capitalize tracking-widest mb-3 shadow-sm"
+    const result: any[] = [];
+    const addedIds = new Set<string>();
+
+    if (lexiconMeta && lexiconMeta.length > 0) {
+      lexiconMeta.forEach((m: any) => {
+        let labelName = m.name;
+        if (labelName && labelName.toUpperCase() === 'EN-SIMS') labelName = 'English (Sims)';
+        if (labelName === 'EN-Sims') labelName = 'English (Sims)';
+
+        // Only include community lexicons if they match the game schema, OR if they are core OS lexicons
+        if (!m.schema_id || m.schema_id === 'core' || m.schema_id === preselectedGame?.schema_id) {
+          result.push(buildOption(m.id, labelName, m.badge || 'Community'));
+          addedIds.add(m.id);
+        }
+      });
+    }
+
+    const fallbacks = [
+      { id: 'en-sanctuary', name: 'English (Sanctuary)', badge: t("badge_sanctuary") || 'Sanctuary' },
+      { id: 'en-default', name: 'English (Default)', badge: t("badge_sanctuary") || 'Sanctuary' },
+      { id: 'en-sims', name: 'English (Sims)', badge: t("badge_community") || 'Community' },
+      { id: 'de-default', name: 'German (Default)', badge: t("badge_community") || 'Community' }
+    ];
+
+    fallbacks.forEach(f => {
+      if (!addedIds.has(f.id)) {
+        result.push(buildOption(f.id, f.name, f.badge));
+        addedIds.add(f.id);
+      }
+    });
+
+    Object.keys(registry || {}).forEach(k => {
+      if (!addedIds.has(k) && k !== 'default' && k !== 'sanctuary') {
+        result.push(buildOption(k, k, t("badge_local") || 'Local', true));
+        addedIds.add(k);
+      }
+    });
+
+    return result;
+  }, [lexiconMeta, registry, preselectedGame]);
+
+  const obfuscatePath = (p: string) => p ? p.replace(/([A-Za-z]:\\[Uu]sers\\[^\\]+)/, (match, p1) => {
+    const parts = p1.split('\\');
+    parts[2] = '***';
+    return parts.join('\\');
+  }) : t("path_not_set");
+
+  return (
+    <>
+      <CommandScreenSectionHeading
+        title={t("workspace_select_title")}
+        breadcrumb={`${t("setup_title")} ${preselectedGame?.name || ''}`}
+        subtitle={t("status_cartographer_init")}
+        icon="build"
+        shape="square"
+        onBack={onCancel}
+        rightContent={
+          <div className="flex gap-3">
+            <div className="relative group/detect">
+              <button
+                onClick={() => console.log('Auto detect mock')}
+                className="w-12 h-12 rounded-xl glass-surface flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-sm group disabled:opacity-30 disabled:cursor-not-allowed disabled:pointer-events-none"
+              >
+                <span className="material-symbols-outlined !text-[20px] opacity-70 group-hover:opacity-100 transition-transform group-hover:scale-110">{t("icon_search") || "search"}</span>
+              </button>
+              <HoverTooltip title={t("setup_btn_auto_detect") || "Auto-Detect"} noIcon={true} className="!hidden group-hover/detect:!flex !top-[calc(100%+8px)] !right-0 !translate-x-0 z-[200]" />
+            </div>
+
+            <div className="relative group/lock">
+              <button
+                onClick={lockCoordinates}
+                disabled={!livePath || !modsPath || (!isGlobalVaultSet && !vaultPath)}
+                className="w-12 h-12 rounded-xl glass-surface flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-md group disabled:opacity-30 disabled:cursor-not-allowed disabled:pointer-events-none"
+              >
+                <span className="material-symbols-outlined !text-[20px] opacity-80 group-hover:opacity-100 transition-transform group-hover:scale-110">{t("icon_lock") || "lock"}</span>
+              </button>
+              <HoverTooltip title={(!livePath || !modsPath || (!isGlobalVaultSet && !vaultPath)) ? t("alert_lock_requires_paths") : t("setup_btn_lock")} noIcon={true} variant={(!livePath || !modsPath || (!isGlobalVaultSet && !vaultPath)) ? "warning" : "accent"} className="!hidden group-hover/lock:!flex !top-[calc(100%+8px)] !right-0 !translate-x-0 z-[200]" />
+            </div>
+          </div>
+        }
+      />
+      <CommandScreenBody>
+        <CommandScreenMain>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full max-w-6xl mx-auto pb-20 items-start">
+            {/* Live Bin Path */}
+            <UniversalCard
+              title={t("tab_bin_folder")}
+              subtitle={obfuscatePath(livePath)}
+              icon={t("icon_folder_special") || "folder_special"}
+              onClick={pickLivePath}
+              layout="vertical"
+              className={!livePath ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)]'}
             >
-              <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">cloud</span> {t("auto_auto_detect_paths")}</span>
-            </button>
+              {!livePath && (
+                <div className="mt-4 px-3 py-2 rounded-lg bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] text-xs font-bold flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[14px]">{t("icon_warning") || "warning"}</span>
+                  {t("alert_select_paths")}
+                </div>
+              )}
+            </UniversalCard>
 
-            <button onClick={pickLivePath} className={`w-full glass-surface backdrop-blur-md border ${livePath ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-start group shadow-sm`}>
-              <span className="capitalize tracking-widest">{livePath ? t("setup_btn_bin_locked") : t("setup_btn_bin")}</span>
-              <div className={`w-2 h-2 rounded-full ${livePath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
-            </button>
-            <button onClick={pickModsPath} className={`w-full glass-surface backdrop-blur-md border ${modsPath ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-start group shadow-sm`}>
-              <span className="capitalize tracking-widest">{modsPath ? t("setup_btn_mods_locked") : t("setup_btn_mods")}</span>
-              <div className={`w-2 h-2 rounded-full ${modsPath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
-            </button>
-            <button onClick={!isGlobalVaultSet ? pickVaultPath : undefined} className={`w-full glass-surface backdrop-blur-md border ${vaultPath ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'} px-5 py-3.5 rounded-xl text-[10px] font-bold text-[var(--text)] focus:outline-none transition-all flex items-center justify-start group shadow-sm mb-3 ${isGlobalVaultSet ? 'opacity-80 cursor-not-allowed' : ''}`}>
-              <span className="capitalize tracking-widest">{vaultPath ? (isGlobalVaultSet ? "OS Master Vault Enforced" : "Master Vault Locked") : "Select Master OS Vault"}</span>
-              <div className={`w-2 h-2 rounded-full ${vaultPath ? 'theme-bg-success shadow-[0_0_10px_var(--success)]' : 'bg-[var(--warning)] shadow-[0_0_10px_var(--warning)] animate-pulse'}`} />
-            </button>
+            {/* Mods Path */}
+            <UniversalCard
+              title={t("tab_mods_folder")}
+              subtitle={obfuscatePath(modsPath)}
+              icon={t("icon_folder") || "folder"}
+              onClick={pickModsPath}
+              layout="vertical"
+              className={!modsPath ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)]'}
+            >
+              {!modsPath && (
+                <div className="mt-4 px-3 py-2 rounded-lg bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] text-xs font-bold flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[14px]">{t("icon_warning") || "warning"}</span>
+                  {t("alert_select_paths")}
+                </div>
+              )}
+            </UniversalCard>
 
-            <div className="flex flex-col gap-3 mb-4">
-              <div className="flex flex-col gap-1.5 relative z-50">
-                <label className="text-[9px] font-black capitalize tracking-widest theme-text-accent opacity-80 pl-1">{t("settings_tab_lexicons")}</label>
+            {/* Vault Path (Only if not set globally) */}
+            {!isGlobalVaultSet && (
+              <UniversalCard
+                title={t("tab_vault_folder")}
+                subtitle={obfuscatePath(vaultPath)}
+                icon={t("icon_dns") || "dns"}
+                onClick={pickVaultPath}
+                layout="vertical"
+                className={!vaultPath ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--success)_30%,transparent)]'}
+              >
+                <div className="mt-4 px-3 py-2 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] text-[10px] font-bold flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[14px]">{t("icon_info") || "info"}</span>
+                  {t("setup_vault_required") || "Initial OS Master Vault Setup Required"}
+                </div>
+              </UniversalCard>
+            )}
+
+            {/* Lexicon Dropdown */}
+            <UniversalCard
+              title={t("setup_lexicons")}
+              subtitle={t("settings_tab_lexicons_desc")}
+              icon={t("icon_translate") || "translate"}
+              layout="vertical"
+              className="overflow-visible z-30 relative"
+            >
+              <div className="mt-4 relative" onClick={(e) => e.stopPropagation()}>
                 <CustomDropdown
-                  searchable={true}
                   disableTint={true}
                   value={activeLang}
                   onChange={(v: string[]) => setActiveLang(v[0])}
-                  options={
-                    (() => {
-                      const buildOption = (id: string, name: string, badge: string, isCustom: boolean = false) => {
-                        const displayName = isCustom ? `Custom: ${name}` : name;
-                        const badgeColor = badge.toLowerCase() === 'sanctuary'
-                          ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]'
-                          : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]';
-                        return {
-                          id,
-                          searchText: `${displayName} ${badge} ${id.toLowerCase().startsWith('en-') ? 'English' : ''} ${id.toLowerCase().startsWith('de-') ? 'German' : ''}`,
-                          label: (
-                            <div className="flex items-center justify-start w-full">
-                              <span className="truncate pr-4 normal-case">{displayName}</span>
-                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black capitalize tracking-widest border ${badgeColor} shrink-0`}>
-                                {badge}
-                              </span>
-                            </div>
-                          )
-                        };
-                      };
-
-                      const result: any[] = [];
-                      const addedIds = new Set<string>();
-
-                      // 1. Add DB items (Cloud sync is source of truth for overwrites)
-                      if (lexiconMeta && lexiconMeta.length > 0) {
-                        lexiconMeta.forEach((m: any) => {
-                          let labelName = m.name;
-                          if (labelName && labelName.toUpperCase() === 'EN-SIMS') labelName = 'English (Sims)';
-                          if (labelName === 'EN-Sims') labelName = 'English (Sims)';
-                          result.push(buildOption(m.id, labelName, m.badge));
-                          addedIds.add(m.id);
-                        });
-                      }
-
-                      // 2. Add base OS fallbacks (Only if not provided by cloud)
-                      const fallbacks = [
-                        { id: 'en-sanctuary', name: 'English (Sanctuary)', badge: 'Sanctuary' },
-                        { id: 'en-default', name: 'English (Default)', badge: 'Sanctuary' },
-                        { id: 'en-sims', name: 'English (Sims)', badge: 'Community' },
-                        { id: 'de-default', name: 'German (Default)', badge: 'Community' }
-                      ];
-
-                      fallbacks.forEach(f => {
-                        if (!addedIds.has(f.id)) {
-                          result.push(buildOption(f.id, f.name, f.badge));
-                          addedIds.add(f.id);
-                        }
-                      });
-
-                      // 3. Add local registry items (excluding legacy duplicates and already added items)
-                      Object.keys(registry || {}).forEach(k => {
-                        if (!addedIds.has(k) && k !== 'default' && k !== 'sanctuary') {
-                          result.push(buildOption(k, k, 'Local', true));
-                          addedIds.add(k);
-                        }
-                      });
-
-                      return result;
-                    })()
-                  }
+                  options={lexiconOptions}
                 />
               </div>
-              <div className="flex flex-col gap-1.5 relative z-50">
-                <label className="text-[9px] font-black capitalize tracking-widest theme-text-accent opacity-80 pl-1">{t("settings_tab_themes")}</label>
-                <CustomDropdown
-                  disableTint={true}
-                  value={activeThemeId}
-                  onChange={(v: string[]) => setActiveThemeId(v[0])}
-                  options={Object.entries(CORE_THEMES).map(([id, t]: [string, any]) => ({ id: id, label: t.name }))}
-                />
-              </div>
-            </div>
+            </UniversalCard>
 
-            <button
-              onClick={lockCoordinates}
-              disabled={!livePath || !modsPath || !vaultPath}
-              className="w-full mt-2 py-4 rounded-xl font-black text-[11px] capitalize tracking-[0.2em] transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 group/lock"
+            {/* Theme Dropdown */}
+            <UniversalCard
+              title={t("settings_tab_themes")}
+              subtitle={t("settings_tab_themes_desc")}
+              icon={t("icon_palette") || "palette"}
+              onClick={() => setIsThemePreviewOpen(true)}
+              layout="vertical"
+              className="overflow-visible z-20 relative cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-colors"
             >
-              <span className="material-symbols-outlined !text-[16px] group-hover/lock:scale-110 transition-transform duration-500">lock</span>
-              {t("setup_btn_lock")}
-            </button>
+              <div className="mt-4 flex items-center gap-3">
+                <div className="flex -space-x-2">
+                  {Object.entries({ ...CORE_THEMES, ...customThemes }).slice(0, 3).map(([id, theme]: [string, any]) => (
+                    <div key={id} className={`w-8 h-8 rounded-full border-2 border-[var(--panelTint)] shadow-sm ${activeThemeId === id ? 'scale-110 z-10 border-[var(--accent)]' : ''}`} style={{ backgroundColor: theme.accent }} />
+                  ))}
+                </div>
+                <span className="text-[10px] font-bold text-[var(--subtext)]">{t("status_click_to_configure") || "Click to browse themes"}</span>
+              </div>
+            </UniversalCard>
+          </div>
+        </CommandScreenMain>
+      </CommandScreenBody>
+
+      <SidePanel
+        isOpen={isThemePreviewOpen}
+        onClose={() => setIsThemePreviewOpen(false)}
+        title={t("settings_tab_themes")}
+        icon="palette"
+      >
+        <div className="flex flex-col gap-6 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries({ ...CORE_THEMES, ...customThemes }).map(([id, theme]: [string, any]) => (
+              <div
+                key={id}
+                onClick={() => setActiveThemeId(id)}
+                className={`relative rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${activeThemeId === id ? 'border-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] scale-[1.02] z-10' : 'border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] opacity-70 hover:opacity-100'}`}
+              >
+                <div className="aspect-video bg-black relative">
+                  {theme.bgImage && <img src={theme.bgImage} className="absolute inset-0 w-full h-full object-cover" />}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                  <div className="absolute bottom-3 left-3 flex flex-col">
+                    <span className="text-white font-bold text-sm drop-shadow-md tracking-wider">{theme.name}</span>
+                    <div className="flex gap-1.5 mt-2">
+                      <div className="w-3 h-3 rounded-full shadow-sm border border-white/20" style={{ backgroundColor: theme.accent }} />
+                      <div className="w-3 h-3 rounded-full shadow-sm border border-white/20" style={{ backgroundColor: theme.bg }} />
+                    </div>
+                  </div>
+                  {activeThemeId === id && (
+                    <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[var(--accent)] text-white flex items-center justify-center shadow-md">
+                      <span className="material-symbols-outlined !text-[14px]">check</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-
-        {/* RIGHT COLUMN: The Aesthetic Preview */}
-        <div className="lg:w-1/2 p-8 lg:p-12 flex flex-col relative overflow-hidden">
-          <div className="absolute inset-0 theme-bg-accent opacity-[0.03] pointer-events-none transition-colors duration-1000" />
-
-          <h3 className="text-[10px] font-black capitalize tracking-[0.3em] mb-8 theme-text-accent drop-shadow-sm flex items-center gap-2 relative z-10 transition-colors duration-500">
-            <span className="material-symbols-outlined !text-[14px]">visibility</span>
-            {t("settings_tab_themes")}
-          </h3>
-
-          <div className="flex flex-col gap-6 relative z-10 flex-1 justify-center">
-            {/* Fake Component 1: Mod Card / Transmission */}
-            <div className="glass-panel p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-700">
-              <div className="flex items-center justify-start mb-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full theme-bg-accent/20 flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-colors duration-500">
-                    <span className="material-symbols-outlined theme-text-accent !text-[18px]">engineering</span>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-[var(--headerText)]">{t("sidebar_app_title")}</h4>
-                    <p className="text-[9px] theme-text-accent capitalize tracking-widest font-black opacity-80 transition-colors duration-500">{t("tab_mason")}</p>
-                  </div>
-                </div>
-                <div className="px-3 py-1.5 theme-bg-success/10 border border-[color-mix(in_srgb,var(--success)_20%,transparent)] rounded-full text-[var(--success)] text-[9px] font-black capitalize tracking-widest flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full theme-bg-success animate-pulse" />
-                  {t("status_online")}
-                </div>
-              </div>
-              <h5 className="text-sm font-bold mb-2 text-[var(--text)]">{t("comms_handshake")}</h5>
-              <p className="text-xs text-[var(--subtext)] leading-relaxed mb-6 line-clamp-2">
-                {t("alert_guest_mode_uploads")}
-              </p>
-              <div className="flex items-center gap-3">
-                <button className="px-5 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-lg text-[10px] font-black capitalize tracking-widest shadow-md hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 backdrop-blur-md">
-                  <span className="material-symbols-outlined !text-[14px]">bolt</span>
-                  {t("context_initialize")}
-                </button>
-                <button className="px-5 py-2 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-lg text-[10px] font-black capitalize tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
-                  {t("nav_cancel")}
-                </button>
-              </div>
-            </div>
-
-            {/* Fake Component 2: System Status widgets */}
-            <div className="grid grid-cols-2 gap-4">
-       <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 relative group/stat shadow-xl">
-                <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--success)_10%,transparent)] to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
-                <span className="text-[9px] font-black tracking-[0.2em] theme-text-accent capitalize opacity-80 relative z-10 transition-colors duration-500">{t("status")}</span>
-                <div className="flex items-center gap-2.5 relative z-10">
-                  <div className="w-2 h-2 rounded-full theme-bg-success shadow-[0_0_10px_var(--success)]" />
-                  <span className="text-sm font-bold text-[var(--text)] tracking-wide">{t("status_operational")}</span>
-                </div>
-              </div>
-       <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex flex-col gap-2 relative hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] transition-colors shadow-xl">
-                <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]" />
-                <span className="text-[9px] font-black tracking-[0.2em] text-[var(--warning)] capitalize opacity-90 relative z-10">{t("defcon_label")}</span>
-                <div className="flex items-center gap-2.5 relative z-10">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] drop-shadow-[0_0_8px_var(--warning)]">warning</span>
-                  <span className="text-sm font-bold text-[var(--text)] tracking-wide">LEVEL 3</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Decorative Background Elements */}
-          <div className="absolute -bottom-32 -right-32 w-96 h-96 theme-bg-accent rounded-full opacity-10 blur-[100px] pointer-events-none transition-all duration-1000" />
-          <div className="absolute top-10 -right-10 w-40 h-40 theme-bg-success rounded-full opacity-[0.05] blur-[80px] pointer-events-none transition-all duration-1000" />
-        </div>
-
-      </div>
-    </div>
+      </SidePanel>
+    </>
   );
 }
