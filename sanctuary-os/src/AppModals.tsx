@@ -7,7 +7,6 @@ import { YeetConfirmAlert } from "./side-panels/YeetConfirmAlert";
 import { DefconAlert } from "./DefconAlert";
 import { GlobalConfirmDialog } from "./app-modals/GlobalConfirmDialog";
 import { DropzoneSidePanel } from "./app-modals/DropzoneSidePanel";
-import { BrokenModsSidePanel } from "./app-modals/BrokenModsSidePanel";
 import { DnaMatchQueueSidePanel } from "./app-modals/DnaMatchQueueSidePanel";
 import { ScoutQueueSidePanel } from "./app-modals/ScoutQueueSidePanel";
 import { SystemStatusPanel } from "./side-panels/SystemStatusPanel";
@@ -182,8 +181,6 @@ export const AppModals = React.memo(function AppModals(props: any) {
       {!showDefconAlert && <GlobalConfirmDialog />}
       
       <DropzoneSidePanel isDropzoneOpen={isDropzoneOpen} isDragging={isDragging} setIsDragging={setIsDragging} dropzoneState={dropzoneState} setIsDropzoneOpen={setIsDropzoneOpen} setDropzoneState={setDropzoneState} droppedFiles={droppedFiles} setDroppedFiles={setDroppedFiles} ingestProgress={ingestProgress} handleDroppedFiles={handleDroppedFiles} runRadarSweep={runRadarSweep} />
-      
-      <BrokenModsSidePanel showBrokenModal={showBrokenModal} setShowBrokenModal={setShowBrokenModal} modList={modList} playSets={playSets} activePlaySetIndex={activePlaySetIndex} toggleInActiveSet={toggleInActiveSet} />
       
       {!showDefconAlert && <BackupRestoreModals isBackingUp={isBackingUp} isRestoring={isRestoring} backupType={backupType} restoreType={restoreType} t={useLexicon().t} />}
       

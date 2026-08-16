@@ -5,7 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import enDefault from '../lexicons/en-default.json';
 import { useLexicon } from "../LexiconContext";
 
-export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas", isKeepers = false }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons", isKeepers?: boolean }) {
+export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas", isKeepers = false }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons" | "sanctuary_games", isKeepers?: boolean }) {
    const { t } = useLexicon();
    const session = useStore(state => state.session);
    const pushStatus = useStore(state => state.pushStatus);
@@ -44,7 +44,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
    const [showReference, setShowReference] = useState(false);
    const [referenceData, setReferenceData] = useState<any>({});
    const [referenceLabel, setReferenceLabel] = useState<string>("en-default.json Reference");
-   const [internalCloudTarget, setInternalCloudTarget] = useState<"sanctuary_schemas" | "sanctuary_lexicons">(cloudTarget || "sanctuary_lexicons");
+   const [internalCloudTarget, setInternalCloudTarget] = useState<"sanctuary_schemas" | "sanctuary_lexicons" | "sanctuary_games">(cloudTarget || "sanctuary_lexicons");
    const [splitRatio, setSplitRatio] = useState(50);
    const [isFullscreen, setIsFullscreen] = useState(false);
    const [uploadState, setUploadState] = useState({
@@ -165,40 +165,34 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
       fetchRef();
    }, [isCloudMode ? cloudActiveFileIndex : localActiveFileIndex, isCloudMode, internalCloudTarget]);
 
-   const validateContent = (text: string, monaco: any, model: any) => {
-      let problems: any[] = [];
-      let markers: any[] = [];
-      const activeFile = openFiles[activeFileIndex];
-      const isJson = activeFile?.name.endsWith('.json') || (activeFile?.content && (activeFile.content.trim().startsWith('{') || activeFile.content.trim().startsWith('[')));
+   useEffect(() => {
+      if (!editorRef || !(window as any).monaco) return;
+      const monaco = (window as any).monaco;
+      const model = editorRef.getModel();
+      if (!model) return;
 
-      if (isJson) {
-         try {
-            JSON.parse(text);
-         } catch (err: any) {
-            const match = err.message.match(/at position (\d+)/);
-            let line = 1;
-            let col = 1;
-            if (match && model) {
-               const pos = parseInt(match[1], 10);
-               const p = model.getPositionAt(pos);
-               line = p.lineNumber;
-               col = p.column;
-            }
-            problems.push({ line, column: col, message: err.message });
-            markers.push({
-               startLineNumber: line,
-               startColumn: col,
-               endLineNumber: line,
-               endColumn: col + 1,
-               message: err.message,
-               severity: monaco.MarkerSeverity.Error
-            });
-         }
-      }
+      const updateMarkers = () => {
+         const markers = monaco.editor.getModelMarkers({});
+         setProblemsList(markers.map((m: any) => ({
+            line: m.startLineNumber,
+            column: m.startColumn,
+            message: m.message
+         })));
+      };
+      
+      const disposable = monaco.editor.onDidChangeMarkers(updateMarkers);
+      // Initialize immediately
+      updateMarkers();
+      
+      return () => disposable.dispose();
+   }, [editorRef, activeFileIndex]);
+
+   const validateContent = (text: string, monaco: any, model: any) => {
+      // Monaco's native JSON worker automatically provides syntax and schema validation markers.
+      // We no longer need to manually parse and set 'owner' markers, which was causing duplicate errors.
       if (model && monaco) {
-         monaco.editor.setModelMarkers(model, 'owner', markers);
+         monaco.editor.setModelMarkers(model, 'owner', []);
       }
-      setProblemsList(problems);
    };
 
    const openFile = async (file: { name: string, path: string }) => {

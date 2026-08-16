@@ -5,6 +5,22 @@ import { UniversalCard } from '../components/universal/UniversalCard';
 
 export { DashboardStatTile };
 
+export function AlertStatTile({ number, onClick, active, className = "" }: any) {
+    const { t } = useLexicon();
+    
+    return (
+        <DashboardStatTile
+            className={className}
+            icon={<span className="material-symbols-outlined ">campaign</span>}
+            number="!"
+            label={t("title_sanctuary_alerts")}
+            disableBgStrip={true}
+            colorClass={active ? "!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_15%,transparent)] animate-pulse w-full" : "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] w-full"}
+            onClick={onClick}
+        />
+    );
+}
+
 export function CommandScreenLayout({ children }: any) {
     return (
         <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32">
@@ -63,11 +79,12 @@ export function CommandScreenSectionHeading({
   );
 }
 
-export function CommandScreenStats({ children }: any) {
+export function CommandScreenStats({ children, gridClassOverride }: any) {
     const validCount = React.Children.toArray(children).filter(Boolean).length;
     
     let gridClass = "grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
-    if (validCount === 4) gridClass = "grid-cols-2 lg:grid-cols-4";
+    if (gridClassOverride) gridClass = gridClassOverride;
+    else if (validCount === 4) gridClass = "grid-cols-2 lg:grid-cols-4";
     else if (validCount === 3) gridClass = "grid-cols-1 md:grid-cols-3";
     else if (validCount === 2) gridClass = "grid-cols-2";
     else if (validCount === 1) gridClass = "grid-cols-1";

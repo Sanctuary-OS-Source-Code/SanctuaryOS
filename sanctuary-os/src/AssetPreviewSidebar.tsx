@@ -2,7 +2,7 @@ import React, { useState, useEffect, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
-import { stripMarkdown, getFileLabel, isSupportedExtension, formatDisplayName, compareVersions, SidePanel, SidePanelActionFooter } from "./shared";
+import { stripMarkdown, getFileLabel, isSupportedExtension, formatDisplayName, compareVersions, SidePanel, PanelHeaderGroup, PanelHeaderButton } from "./shared";
 import { useTheme } from "./ThemeContext";
 import { useStore } from "./store";
 import { readTextFile, writeTextFile, mkdir, exists, readDir } from "@tauri-apps/plugin-fs";
@@ -124,8 +124,8 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
     <SidePanel
       isOpen={true}
       onClose={onClose}
-      title={data ? (data.displayName || (data.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "") : t("loading")}
-      subtitle={data ? (data.author || data.master_author || t("vlocal")) : undefined}
+      title={assetType === 'chameleon' ? (t("chameleon_inspector") || "Chameleon Inspector") : assetType === 'lexicon' ? (t("lexicon_inspector") || "Lexicon Inspector") : assetType === 'workbench_template' ? (t("template_inspector") || "Template Inspector") : (t("asset_inspector") || "Asset Inspector")}
+      subtitle={assetType === 'chameleon' ? (t("chameleon_desc") || "Community Theme") : assetType === 'lexicon' ? (t("lexicon_desc") || "Community Language Pack") : assetType === 'workbench_template' ? (t("template_desc") || "Community Template") : (t("asset_desc") || "Community Asset")}
       icon={assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[500px]"
@@ -133,75 +133,61 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
       panelZ="z-[70001]"
       coverImage={data?.image_url || data?.thumbnail_url}
       headerActions={
-        data && (data.is_paid || data.is_early_access) ? (
-          <div className="flex gap-2 shrink-0 flex-col items-end">
-            {data.is_early_access && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-[2px] shadow-lg">
-                <span className="material-symbols-outlined !text-[12px] text-[#d8b4fe]">science</span>
-                <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access")}</span>
-              </div>
+        data ? (
+          <PanelHeaderGroup>
+            {session?.user?.user_metadata?.username !== data.author && onFlag && (
+              <PanelHeaderButton
+                icon="flag"
+                tooltip={t("feed_btn_flag")}
+                onClick={() => onFlag(assetId, assetType)}
+                variant="danger"
+              />
             )}
-            {data.is_paid && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-[2px] shadow-lg">
-                <span className="material-symbols-outlined !text-[12px] text-[#fef08a]">monetization_on</span>
-                <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#fef08a]">{t("badge_paid")}</span>
-              </div>
-            )}
-          </div>
-        ) : undefined
-      }
-      footer={
-        data && (
-          <SidePanelActionFooter
-            hideCancel={session?.user?.user_metadata?.username !== data.author && !onFlag}
-            onCancel={session?.user?.user_metadata?.username === data.author ? onClose : undefined}
-            onDanger={session?.user?.user_metadata?.username !== data.author && onFlag ? () => { onFlag(assetId, assetType); } : undefined}
-            dangerLabel={t("feed_btn_flag")}
-            dangerIcon="flag"
+            <PanelHeaderButton
+              icon={assetType === 'blueprint' ? "download" : (isInstalled(data) ? (isOutdated(data) ? "update" : "check_circle") : "download")}
+              tooltip={assetType === 'blueprint' ? (t("update_panel_install")) : (isInstalled(data) ? (isOutdated(data) ? "UPDATE" : t("btn_reinstall")) : (t("update_panel_install")))}
+              onClick={async (e?: React.MouseEvent) => {
+                e?.stopPropagation();
+                if (assetType === 'blueprint') {
+                  navigator.clipboard.writeText(data.json_data?.code || '').catch(() => { });
+                  useStore.getState().pushStatus("Copied Uplink Code: " + (data.json_data?.code || ''));
+                } else if (assetType === 'lexicon' || assetType === 'chameleon' || assetType === 'workbench_template') {
+                  if (assetType === 'lexicon') {
+                    const parsedData = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
+                    importLexicon({ ...parsedData, _meta_language: data.language || "Custom", _meta_version: data.version || '1.0.0' }, data.name);
+                    useStore.getState().pushStatus(`Successfully Installed Lexicon: ${data.name}`);
+                  } else if (assetType === 'chameleon') {
+                    importTheme(data.json_data);
+                    useStore.getState().pushStatus(`Successfully Installed Chameleon: ${data.name}`);
+                  } else if (assetType === 'workbench_template') {
+                    try {
+                      if (!vaultPath) throw new Error("Vault path not configured.");
 
-            onAction={async (e?: React.MouseEvent) => {
-              e?.stopPropagation();
-              if (assetType === 'blueprint') {
-                navigator.clipboard.writeText(data.json_data?.code || '').catch(() => { });
-                useStore.getState().pushStatus("Copied Uplink Code: " + (data.json_data?.code || ''));
-              } else if (assetType === 'lexicon' || assetType === 'chameleon' || assetType === 'workbench_template') {
-                if (assetType === 'lexicon') {
-                  const parsedData = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-                  importLexicon({ ...parsedData, _meta_language: data.language || "Custom", _meta_version: data.version || '1.0.0' }, data.name);
-                  useStore.getState().pushStatus(`Successfully Installed Lexicon: ${data.name}`);
-                } else if (assetType === 'chameleon') {
-                  importTheme(data.json_data);
-                  useStore.getState().pushStatus(`Successfully Installed Chameleon: ${data.name}`);
-                } else if (assetType === 'workbench_template') {
-                  try {
-                    if (!vaultPath) throw new Error("Vault path not configured.");
+                      let parsed = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
+                      const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
+                      const templateId = displayData?.template_id || "vlocal";
 
-                    let parsed = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-                    const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
-                    const templateId = displayData?.template_id || "vlocal";
+                      const templatesDir = `${vaultPath}\\Data\\Templates`;
+                      if (!(await exists(templatesDir))) {
+                        await mkdir(templatesDir, { recursive: true });
+                      }
 
-                    const templatesDir = `${vaultPath}\\Data\\Templates`;
-                    if (!(await exists(templatesDir))) {
-                      await mkdir(templatesDir, { recursive: true });
+                      await writeTextFile(`${templatesDir}\\${templateId}_template.json`, JSON.stringify(parsed, null, 2));
+                      useStore.getState().pushStatus(`Successfully Installed Template: ${data.name}`);
+                    } catch (err: any) {
+                      useStore.getState().pushStatus(`Failed to install template: ${err.message}`);
                     }
-
-                    await writeTextFile(`${templatesDir}\\${templateId}_template.json`, JSON.stringify(parsed, null, 2));
-                    useStore.getState().pushStatus(`Successfully Installed Template: ${data.name}`);
-                  } catch (err: any) {
-                    useStore.getState().pushStatus(`Failed to install template: ${err.message}`);
                   }
-                }
 
-                try {
-                  await supabase.rpc('increment_asset_downloads', { asset_id: assetId });
-                } catch (e) { console.error("Could not increment downloads", e); }
-              }
-            }}
-            actionLabel={assetType === 'blueprint' ? (t("update_panel_install")) : (isInstalled(data) ? (isOutdated(data) ? "UPDATE" : t("btn_reinstall")) : (t("update_panel_install")))}
-            actionIcon={assetType === 'blueprint' ? "download" : (isInstalled(data) ? (isOutdated(data) ? "update" : "check_circle") : "download")}
-            actionVariant={assetType === 'blueprint' ? (isInstalled(data) ? "primary" : "success") : (isInstalled(data) ? (isOutdated(data) ? "primary" : "glass") : "success")}
-          />
-        )
+                  try {
+                    await supabase.rpc('increment_asset_downloads', { asset_id: assetId });
+                  } catch (e) { console.error("Could not increment downloads", e); }
+                }
+              }}
+              variant={assetType === 'blueprint' ? (isInstalled(data) ? "primary" : "success") : (isInstalled(data) ? (isOutdated(data) ? "primary" : "glass") : "success")}
+            />
+          </PanelHeaderGroup>
+        ) : undefined
       }
     >
       {loading ? (
@@ -214,9 +200,61 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
           <span className="text-xs font-black capitalize tracking-widest text-[var(--danger)] text-center">{error}</span>
         </div>
       ) : data ? (
-        <div className="flex flex-col gap-8 shrink-0 relative z-10 w-full">
-          <div className="flex flex-col gap-4">
-            <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("upload_desc")}</h4>
+        <div className="flex flex-col relative z-10 w-full pb-10">
+          <div className="flex flex-col gap-8 pb-8 px-6 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none" style={{ transform: 'translate(20%, -20%)' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '300px' }}>{assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}</span>
+            </div>
+            <div className="flex items-start justify-between gap-6 relative z-10 w-full mt-6">
+              <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-full">
+                <h1 className="text-4xl font-black capitalize tracking-tight text-[var(--text)] drop-shadow-md break-words break-all" style={{ overflowWrap: 'anywhere' }}>
+                  {(data.displayName || (data.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "")}
+                </h1>
+                <div className="flex items-center gap-3 flex-wrap mt-2">
+                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-xs font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
+                    <span className="material-symbols-outlined !text-[16px] shrink-0">draft</span>
+                    <span className="truncate">{assetType === 'workbench_template' ? 'template' : assetType}</span>
+                  </span>
+                  {data.is_early_access && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-[2px] shadow-lg">
+                      <span className="material-symbols-outlined !text-[12px] text-[#d8b4fe]">science</span>
+                      <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access")}</span>
+                    </div>
+                  )}
+                  {data.is_paid && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-[2px] shadow-lg">
+                      <span className="material-symbols-outlined !text-[12px] text-[#fef08a]">monetization_on</span>
+                      <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#fef08a]">{t("badge_paid")}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 relative z-10 w-full flex-wrap">
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("author") || "Author"}</span>
+                <span className="text-lg font-black flex items-center gap-2 max-w-full"><span className="material-symbols-outlined !text-[20px] theme-text-accent shrink-0">person</span> <span className="truncate">{data.author || data.master_author || "Citizen"}</span></span>
+              </div>
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("update_version") || "Version"}</span>
+                <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">new_releases</span> {getAssetDisplayVersion(data) || "1.0.0"}</span>
+              </div>
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("downloads_count") || "Downloads"}</span>
+                <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">download</span> {data.downloads?.toLocaleString() || "0"}</span>
+              </div>
+              {data.created_at && (
+                <div className="flex-1 min-w-[140px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                  <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("created_date") || "Published"}</span>
+                  <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">calendar_today</span> {new Date(data.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="p-6 flex flex-col gap-8 flex-1">
+            <div className="flex flex-col gap-4">
+              <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("upload_desc")}</h4>
       <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative group">
               <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_3%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
               <div className="relative z-10">
@@ -258,25 +296,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
             );
           })()}
 
-          {assetType !== 'workbench_template' && (
-            <div className="flex flex-col gap-4">
-              <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("asset_details")}</h4>
-              <div className="flex flex-wrap gap-4">
-                {data.version && (
-                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("update_version")} subtitle={data.version} />
-                )}
-                {data.downloads !== undefined && (
-                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("downloads_count")} subtitle={data.downloads?.toLocaleString() || "0"} />
-                )}
-                {data.created_at && (
-                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("created_date")} subtitle={new Date(data.created_at).toLocaleDateString()} />
-                )}
-                {data.updated_at && data.updated_at !== data.created_at && (
-                  <UniversalCard layout="stat" className="flex-1 min-w-[120px]" title={t("updated_date")} subtitle={new Date(data.updated_at).toLocaleDateString()} />
-                )}
-              </div>
-            </div>
-          )}
+
 
           {(data.changelog || data.release_notes || (data.json_data && (data.json_data.changelog || data.json_data.release_notes))) && (
             <div className="flex flex-col gap-4">
@@ -289,6 +309,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
               </div>
             </div>
           )}
+        </div>
         </div>
       ) : null}
     </SidePanel>

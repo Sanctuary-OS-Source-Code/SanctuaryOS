@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { SidePanel , getExtensionRegex, HubTabButton, ActionButton, SidePanelActionFooter } from "../shared";
+import { SidePanel , getExtensionRegex, HubTabButton, ActionButton, SidePanelActionFooter, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { SearchBar } from "../shared";
@@ -267,16 +267,15 @@ export default function TicketLogViewer({
             icon={t("icon_map")}
             iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
             widthClass="w-full md:w-[550px]"
-            footer={
-                <SidePanelActionFooter 
-                    onCancel={() => setBlueprintJson(null)}
-                    cancelLabel={t("nav_cancel")}
-                    cancelIcon="close"
-                    onAction={handleImportBlueprint}
-                    actionLabel={t("playsets_btn_import")}
-                    actionIcon={t("icon_download")}
-                    actionVariant="success"
-                />
+            headerActions={
+                <PanelHeaderGroup>
+                    <PanelHeaderButton
+                        icon={t("icon_download")}
+                        tooltip={t("playsets_btn_import")}
+                        variant="success"
+                        onClick={handleImportBlueprint}
+                    />
+                </PanelHeaderGroup>
             }
           >
              <div className="flex flex-col min-h-full gap-4 relative pb-4">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, SidebarFooterButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, SearchBar, ScreenUtilityBar } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, SidebarFooterButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, SearchBar, ScreenUtilityBar, FilterPopover } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel } from './side-panels/NexusSidePanels';
@@ -1374,7 +1374,41 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     setCurrentPage(1);
   };
 
-
+  const FilterSection = ({ title, options, value, onChange, multiSelect }: any) => {
+    if (!options || options.length === 0) return null;
+    return (
+      <div className="flex flex-col mb-5 w-full last:mb-0">
+        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+          {title}
+          <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {options.map((opt: any) => {
+            const active = multiSelect ? (value || []).includes(opt.id) : value === opt.id;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => {
+                  if (multiSelect) {
+                    if ((value || []).includes(opt.id)) onChange((value || []).filter((v: string) => v !== opt.id));
+                    else onChange([...(value || []), opt.id]);
+                  } else {
+                    onChange(opt.id);
+                  }
+                }}
+                className={`rounded-full px-4 py-1.5 transition-all flex items-center justify-center text-[10px] font-bold capitalize tracking-widest border ${active
+                  ? 'border-[var(--accent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
+                  : 'border-[color-mix(in_srgb,var(--text)_15%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-[var(--text)]'
+                  }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -1386,7 +1420,130 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
           breadcrumb={marketTab !== 'HOME' ? (marketTab === 'HOME' ? t('tab_overview') : t(`tab_${marketTab.toLowerCase()}`) || marketTab) : undefined}
           onTitleClick={() => setMarketTab('HOME')}
-        />
+        >
+          {marketTab !== 'HOME' && (
+            <div className="flex flex-col xl:flex-row items-center gap-3 animate-in slide-in-from-top-4 duration-500 relative z-20 w-full xl:w-auto">
+              <div className="relative flex-1 min-w-[200px] w-full xl:w-[480px]">
+                <SearchBar
+                  value={marketTab === 'MODS' ? searchQuery : assetSearchQuery}
+                  onChange={(val: string) => {
+                    if (marketTab === 'MODS') setSearchQuery(val);
+                    else setAssetSearchQuery(val);
+                    setCurrentPage(1);
+                  }}
+                  placeholder={
+                    marketTab === 'MODS' ? (t("search_placeholder") as string) :
+                    marketTab === 'LEXICONS' ? (t("search_lexicons") as string) :
+                    marketTab === 'TEMPLATES' ? (t("search_tmpl") as string) :
+                    marketTab === 'BLUEPRINTS' ? (t("search_blueprints") as string) :
+                    (t("search_chameleons") as string)
+                  }
+                  className="h-12 w-full rounded-2xl"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 w-full xl:w-auto">
+                {(marketTab === 'MODS' || (marketTab === 'BLUEPRINTS' && gameVersions.length > 0)) && (
+                  <div className="flex-1 xl:w-[180px] shrink-0 relative z-[51] h-12">
+                    <CustomDropdown disableTint={true}
+                      value={selectedGameVersion}
+                      onChange={(val: string[]) => {
+                        setSelectedGameVersion(val[0]);
+                        setCurrentPage(1);
+                      }}
+                      options={[
+                        { id: "all", label: "ALL VERSIONS" },
+                        ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
+                        ...gameVersions.map(v => ({ id: v, label: v }))
+                      ]}
+                    />
+                  </div>
+                )}
+
+                <FilterPopover icon="tune" label={t("filters")} className="shrink-0 flex-1 xl:flex-none">
+                  <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)]">
+                    <FilterSection
+                      title={t("sort_by") || "Sort By"}
+                      value={marketTab === 'MODS' ? sortBy : assetSortBy}
+                      onChange={(val: string) => {
+                        if (marketTab === 'MODS') setSortBy(val);
+                        else setAssetSortBy(val);
+                        setCurrentPage(1);
+                      }}
+                      options={[
+                        { id: "newest", label: t("sort_newest") },
+                        { id: "oldest", label: t("sort_oldest") },
+                        { id: "name", label: t("sort_name") },
+                        { id: "author", label: t("sort_author") }
+                      ]}
+                    />
+
+                    {marketTab === 'MODS' && (
+                      <FilterSection
+                        title={t("filter_category") || "Category"}
+                        value={categoryFilter}
+                        onChange={(val: string) => {
+                          setCategoryFilter(val);
+                          setCurrentPage(1);
+                        }}
+                        options={[
+                          { id: "ALL", label: "ALL CATEGORIES" },
+                          ...categories.filter(c => c !== "ALL").map(cat => ({ id: cat, label: cat }))
+                        ]}
+                      />
+                    )}
+
+                    {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
+                      <FilterSection
+                        title={marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates"))}
+                        value={languageFilter}
+                        onChange={(val: string) => { setLanguageFilter(val); setCurrentPage(1); }}
+                        options={[
+                          { id: "all", label: "All Languages" },
+                          ...availableLanguages.map(l => ({ id: l, label: l }))
+                        ]}
+                      />
+                    )}
+
+                    {marketTab === 'LEXICONS' && (
+                      <FilterSection
+                        title={t("filter_type") || "Type"}
+                        value={lexiconTypeFilter}
+                        onChange={(val: string) => { setLexiconTypeFilter(val); setCurrentPage(1); }}
+                        options={[
+                          { id: "all", label: "All Types" },
+                          { id: "Default", label: t("type_default") },
+                          { id: "Theme", label: t("type_theme") }
+                        ]}
+                      />
+                    )}
+
+                    {marketTab === 'CHAMELEONS' && (
+                      <FilterSection
+                        title={t("filter_mode") || "Theme Mode"}
+                        value={themeModeFilter}
+                        onChange={(val: string) => { setThemeModeFilter(val); setCurrentPage(1); }}
+                        options={[
+                          { id: "all", label: "All Modes" },
+                          { id: "Dark", label: t("mode_dark") },
+                          { id: "Light", label: t("mode_light") }
+                        ]}
+                      />
+                    )}
+
+                    <FilterSection
+                      title={t("filter_view_options") || "View Options"}
+                      multiSelect={true}
+                      value={activeViewFilters}
+                      onChange={handleViewFiltersChange}
+                      options={viewFilterOptions.filter(o => o.id !== 'hide_installed')}
+                    />
+                  </div>
+                </FilterPopover>
+              </div>
+            </div>
+          )}
+        </ViewHeader>
 
         <HoverTabDrawer
           title="Nexus Navigation"
@@ -1680,70 +1837,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
         <div className={marketTab === 'MODS' ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <>
-            <ScreenUtilityBar
-              search={searchQuery}
-              onSearchChange={(val: string) => {
-                setSearchQuery(val);
-                setCurrentPage(1);
-              }}
-              searchPlaceholder={t("search_placeholder") as string}
-              className="mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500"
-            >                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
-                <CustomDropdown disableTint={true}
-                  value={selectedGameVersion}
-                  onChange={(val: string[]) => {
-                    setSelectedGameVersion(val[0]);
-                    setCurrentPage(1);
-                  }}
-                  options={[
-                    { id: "all", label: "ALL VERSIONS" },
-                    ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
-                    ...gameVersions.map(v => ({ id: v, label: v }))
-                  ]}
-                />
-              </div>
-
-              <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
-                <CustomDropdown disableTint={true}
-                  value={sortBy}
-                  onChange={(val: string[]) => setSortBy(val[0])}
-                  options={[
-                    { id: "newest", label: t("sort_newest") },
-                    { id: "oldest", label: t("sort_oldest") },
-                    { id: "name", label: t("sort_name") },
-                    { id: "author", label: t("sort_author") }
-                  ]}
-                />
-              </div>
-
-              <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[49] h-12">
-                <CustomDropdown disableTint={true}
-                  value={categoryFilter}
-                  onChange={(val: string[]) => {
-                    setCategoryFilter(val[0]);
-                    setCurrentPage(1);
-                  }}
-                  options={[
-                    { id: "ALL", label: "ALL CATEGORIES" },
-                    ...categories.filter(c => c !== "ALL").map(cat => ({ id: cat, label: cat }))
-                  ]}
-                />
-              </div>
-
-              {(marketTab === 'MODS' || marketTab === 'BLUEPRINTS') && (
-                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[48] h-12">
-                  <CustomDropdown
-                    disableTint={true}
-                    multiSelect={true}
-                    placeholder={t("filter_view_options")}
-                    value={activeViewFilters}
-                    selectedValues={activeViewFilters}
-                    onChange={handleViewFiltersChange}
-                    options={viewFilterOptions.filter(o => o.id !== 'hide_installed')}
-                  />
-                </div>
-              )}
-            </ScreenUtilityBar>
+            {/* ScreenUtilityBar removed in favor of ViewHeader filters */}
 
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingMods ? (
@@ -1998,97 +2092,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
         <div className={['BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].includes(marketTab) ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <div className="flex flex-col">
-            <ScreenUtilityBar
-              search={assetSearchQuery}
-              onSearchChange={(val: string) => {
-                setAssetSearchQuery(val);
-                setCurrentPage(1);
-              }}
-              searchPlaceholder={(marketTab === 'LEXICONS' ? (t("search_lexicons")) : marketTab === 'TEMPLATES' ? (t("search_tmpl")) : marketTab === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_chameleons"))) as string}
-              className="mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500"
-            >                {marketTab === 'BLUEPRINTS' && gameVersions.length > 0 && (
-              <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
-                <CustomDropdown disableTint={true}
-                  value={selectedGameVersion}
-                  onChange={(val: string[]) => {
-                    setSelectedGameVersion(val[0]);
-                    setCurrentPage(1);
-                  }}
-                  options={[
-                    { id: "all", label: "ALL VERSIONS" },
-                    ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
-                    ...gameVersions.map(v => ({ id: v, label: v }))
-                  ]}
-                />
-              </div>
-            )}
-
-              {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
-                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[51] h-12">
-                  <CustomDropdown disableTint={true}
-                    value={languageFilter}
-                    onChange={(val: string[]) => { setLanguageFilter(val[0]); setCurrentPage(1); }}
-                    options={[
-                      { id: "all", label: marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates")) },
-                      ...availableLanguages.map(l => ({ id: l, label: l }))
-                    ]}
-                  />
-                </div>
-              )}
-              {marketTab === 'LEXICONS' && (
-                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
-                  <CustomDropdown disableTint={true}
-                    value={lexiconTypeFilter}
-                    onChange={(val: string[]) => { setLexiconTypeFilter(val[0]); setCurrentPage(1); }}
-                    options={[
-                      { id: "all", label: t("filter_type") },
-                      { id: "Default", label: t("type_default") },
-                      { id: "Theme", label: t("type_theme") }
-                    ]}
-                  />
-                </div>
-              )}
-
-              {marketTab === 'CHAMELEONS' && (
-                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[50] h-12">
-                  <CustomDropdown disableTint={true}
-                    value={themeModeFilter}
-                    onChange={(val: string[]) => { setThemeModeFilter(val[0]); setCurrentPage(1); }}
-                    options={[
-                      { id: "all", label: t("filter_mode") },
-                      { id: "Dark", label: t("mode_dark") },
-                      { id: "Light", label: t("mode_light") }
-                    ]}
-                  />
-                </div>
-              )}
-
-              <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[49] h-12">
-                <CustomDropdown disableTint={true}
-                  value={assetSortBy}
-                  onChange={(val: string[]) => setAssetSortBy(val[0])}
-                  options={[
-                    { id: "newest", label: t("sort_newest") },
-                    { id: "oldest", label: t("sort_oldest") },
-                    { id: "name", label: t("sort_name") },
-                    { id: "author", label: t("sort_author") }
-                  ]}
-                />
-              </div>
-
-              {marketTab !== 'MODS' && (
-                <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[200px] shrink-0 relative z-[48] h-12">
-                  <CustomDropdown
-                    disableTint={true}
-                    multiSelect={true}
-                    placeholder={t("filter_view_options")}
-                    value={activeViewFilters}
-                    selectedValues={activeViewFilters}
-                    onChange={handleViewFiltersChange}
-                  />
-                </div>
-              )}
-            </ScreenUtilityBar>
+            {/* ScreenUtilityBar removed in favor of ViewHeader filters */}
 
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingAssets ? (

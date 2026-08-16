@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SidePanel, SidePanelActionFooter, standardAccentGlassButtonClass, standardButtonClass } from "../shared";
+import { SidePanel, SidePanelActionFooter, standardAccentGlassButtonClass, standardButtonClass, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import CitizenTickets from "../CitizenTickets";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import { useLexicon } from "../LexiconContext";
@@ -22,16 +22,17 @@ export default function CitizenTicketsSidePanel({ isOpen, onClose, userId }: Cit
         subtitle={t("support_desk_sub")}
         icon={t("icon_support_agent")}
         widthClass="w-[700px]"
-        footer={
-          <SidePanelActionFooter
-            onCancel={onClose}
-            cancelLabel={t("nav_cancel")}
-            onAction={() => {
-              document.dispatchEvent(new CustomEvent('open-support-modal'));
-            }}
-            actionLabel={t("support_title")}
-            actionIcon={t("icon_add_circle")}
-          />
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_add_circle")}
+              tooltip={t("support_title")}
+              variant="accent"
+              onClick={() => {
+                document.dispatchEvent(new CustomEvent('open-support-modal'));
+              }}
+            />
+          </PanelHeaderGroup>
         }
       >
         <div className="h-full relative pb-10">

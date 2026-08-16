@@ -83,33 +83,33 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
       borderColorVar = "transparent";
       break;
     case "world":
-      variantClasses = "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !text-indigo-500 hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_20px_rgba(99,102,241,0.2)]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] !text-indigo-500 hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_20px_rgba(99,102,241,0.2)]";
       customHoverColor = "rgba(99, 102, 241, 0.5)";
       break;
     case "engine":
-      variantClasses = "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-rose-500 hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_20px_rgba(244,63,94,0.2)]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] !text-rose-500 hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:shadow-[0_0_20px_rgba(244,63,94,0.2)]";
       customHoverColor = "rgba(244, 63, 94, 0.5)";
       break;
     case "danger":
-      variantClasses = "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] !text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]";
       borderColorVar = "--danger";
       break;
     case "success":
-      variantClasses = "!border-[color-mix(in_srgb,var(--success)_30%,transparent)] !text-[var(--success)] hover:!border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--success)_15%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--success)_20%,transparent)]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--success)_30%,transparent)] !bg-[color-mix(in_srgb,var(--success)_5%,transparent)] !text-[var(--success)] hover:!border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--success)_20%,transparent)]";
       borderColorVar = "--success";
       break;
     case "warning":
-      variantClasses = "!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] !text-[var(--warning)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)]";
       borderColorVar = "--warning";
       break;
     case "accent":
     case "primary":
     case "default":
-      variantClasses = "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] !text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)]";
       borderColorVar = "--accent";
       break;
     case "glass":
-      variantClasses = "!border-[color-mix(in_srgb,var(--text)_15%,transparent)] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:!bg-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--text)_10%,transparent)]";
+      variantClasses = "!border-[color-mix(in_srgb,var(--text)_15%,transparent)] !bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:!bg-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--text)_10%,transparent)]";
       borderColorVar = "--text";
       break;
   }
@@ -121,9 +121,16 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       disabled={disabled}
-      className={`${variant === 'solid' ? 'shadow-md border' : 'glass-surface'} px-8 py-4 rounded-[var(--radius)] text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
+      className={`${variant === 'solid' ? 'shadow-md border' : 'relative overflow-hidden backdrop-blur-md shadow-lg border hover:shadow-xl'} px-8 py-4 rounded-[var(--radius)] text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
       style={!disabled ? { '--tw-hover-border-color': customHoverColor || `color-mix(in srgb, var(${borderColorVar}) 50%, transparent)` } as React.CSSProperties : undefined}
     >
+      {variant !== 'solid' && (
+        <>
+          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,white_20%,transparent)] to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,white_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none" style={{ backgroundColor: `var(${borderColorVar})` }} />
+        </>
+      )}
       {icon && <span className="material-symbols-outlined !text-[16px] relative z-10 transition-transform group-hover:-translate-y-0.5">{icon}</span>}
       <span className="relative z-10 flex items-center gap-2">{label}{children}</span>
     </button>
@@ -132,44 +139,107 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
 
 export function LoadingScreen({ title, subtitle, icon = "sync" }: { title: string, subtitle?: string, icon?: string }) {
   return (
-    <div className="w-full h-full flex items-center justify-center min-h-[400px]">
-      <div className="relative p-12 rounded-[var(--radius)] overflow-hidden max-w-lg w-full mx-auto backdrop-blur-3xl"
-        style={{
-          backgroundColor: `color-mix(in srgb, var(--bg) 60%, transparent)`,
-          border: `1px solid color-mix(in srgb, var(--accent) 15%, transparent)`,
-          boxShadow: `0 40px 100px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 1px 1px color-mix(in srgb, var(--text) 5%, transparent)`
-        }}>
-        <div className="absolute inset-0 animate-pulse pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)` }} />
-        <div className="absolute top-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 50%, transparent), transparent)` }} />
-        <div className="absolute bottom-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 20%, transparent), transparent)` }} />
+    <div className="w-full h-full flex flex-col items-center justify-center min-h-[400px] relative overflow-hidden">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40vw] h-[40vw] max-w-[600px] max-h-[600px] rounded-full blur-[100px] opacity-10 pointer-events-none" 
+        style={{ backgroundColor: 'var(--accent)' }} />
 
-        <div className="flex flex-col items-center gap-6 relative z-10 text-center">
-          <div className="relative w-24 h-24 rounded-full flex items-center justify-center shrink-0"
-            style={{
-              backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)`,
-              borderColor: `color-mix(in srgb, var(--accent) 30%, transparent)`,
-              borderWidth: '1px',
-              boxShadow: `0 0 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 5%, transparent)`
-            }}>
-            <div className="absolute inset-0 rounded-full border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
-            <span className={`material-symbols-outlined ${icon === 'sync' ? 'animate-spin' : ''}`}
-              style={{ color: 'var(--accent)', filter: `drop-shadow(0 0 15px var(--accent))` }}>{icon}</span>
-          </div>
+      <div className="flex flex-col items-center gap-12 relative z-10 text-center">
+        <div className="relative w-28 h-28 flex items-center justify-center">
+          {/* Outer high-speed ring */}
+          <div className="absolute inset-0 rounded-full border-[2px] border-transparent border-t-[var(--accent)] border-r-[color-mix(in_srgb,var(--accent)_30%,transparent)] opacity-80" 
+            style={{ animation: 'spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite' }} />
+            
+          {/* Inner reverse ring */}
+          <div className="absolute inset-2 rounded-full border-[1px] border-transparent border-b-[var(--accent)] border-l-[color-mix(in_srgb,var(--accent)_50%,transparent)] opacity-60" 
+            style={{ animation: 'spin 3s linear infinite reverse' }} />
+            
+          {/* Dashed track */}
+          <div className="absolute inset-4 rounded-full border-[1px] border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]" 
+            style={{ animation: 'spin 10s linear infinite' }} />
 
-          <div>
-            <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] mb-2">
+          {/* Core glow */}
+          <div className="absolute inset-0 rounded-full bg-[var(--accent)] opacity-5 blur-xl animate-pulse" />
+
+          {/* Icon */}
+          <span className={`material-symbols-outlined !text-3xl ${icon === 'sync' ? 'animate-spin' : ''}`}
+            style={{ color: 'var(--text)', filter: `drop-shadow(0 0 10px var(--accent))` }}>{icon}</span>
+        </div>
+
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center gap-6 opacity-90">
+            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-[var(--accent)] opacity-50" />
+            <h2 className="text-xs font-black uppercase tracking-[0.4em] text-[var(--text)] drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_50%,transparent)]">
               {title}
             </h2>
-            {subtitle && (
-              <p className="text-sm font-medium text-[var(--subtext)] tracking-wider">
-                {subtitle}
-              </p>
-            )}
+            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[var(--accent)] opacity-50" />
           </div>
+          {subtitle && (
+            <p className="text-[10px] font-bold text-[var(--subtext)] tracking-[0.2em] uppercase opacity-50">
+              {subtitle}
+            </p>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+export function PanelHeaderGroup({ children, className = "" }: any) {
+   return (
+      <div className={`flex items-center bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-xl p-1.5 gap-1 shrink-0 ${className}`}>
+         {children}
+      </div>
+   );
+}
+
+export function PanelHeaderButton({
+   icon,
+   label,
+   tooltip,
+   onClick,
+   disabled = false,
+   variant = "default",
+   isActive = false,
+   tooltipAlign = "center",
+   tooltipVariant,
+   className = ""
+}: any) {
+   let colorClass = "text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+
+   if (isActive) {
+      if (variant === "accent" || variant === "default") colorClass = "!text-[var(--accent)] !opacity-100 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]";
+      else if (variant === "error" || variant === "danger") colorClass = "!text-[var(--danger)] !opacity-100 bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--danger)_10%,transparent)]";
+      else if (variant === "success") colorClass = "!text-[var(--success)] !opacity-100 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--success)_10%,transparent)]";
+   } else {
+      if (variant === "error" || variant === "danger") {
+         colorClass = "text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)]";
+      } else if (variant === "success") {
+         colorClass = "text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_15%,transparent)]";
+      } else if (variant === "warning") {
+         colorClass = "text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]";
+      }
+   }
+
+   if (disabled) {
+      colorClass = "text-[var(--text)] opacity-30 cursor-not-allowed";
+   }
+
+   const tVariant = tooltipVariant || (variant === "default" || variant === "accent" ? "info" : variant);
+
+   return (
+      <div className={`relative group/btn shrink-0 ${className}`}>
+         <button
+            onClick={(e) => { if (!disabled && onClick) onClick(e); }}
+            className={`flex items-center justify-center transition-all rounded-[10px] ${!disabled ? 'active:scale-95' : ''} ${label ? 'px-4 h-9 gap-2' : 'w-9 h-9'} ${colorClass}`}
+         >
+            <span className={`material-symbols-outlined ${label ? '!text-[15px] normal-case' : '!text-[18px]'}`}>{icon}</span>
+            {label && <span className="text-[10px] font-bold capitalize tracking-wider">{label}</span>}
+         </button>
+         {tooltip && (
+            <HoverTooltip title={tooltip} variant={disabled ? "error" : tVariant} align={tooltipAlign} vAlign="bottom" className="z-[100]" />
+         )}
+      </div>
+   );
 }
 
 export const deriveHumanReadableVersion = (path: string | undefined | null, fallbackHash: string | undefined | null, t?: (key: string) => string) => {
@@ -376,8 +446,8 @@ export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(
     <header className="flex flex-col xl:flex-row w-full justify-start items-start mb-6 shrink-0 gap-6">
       <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
         {icon && (
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border glass-panel relative group shadow-md`}>
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className={`w-10 h-10 ${shapeClass} flex items-center justify-center shrink-0 border glass-panel relative group shadow-md`}>
+            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             {typeof icon === "string" ? (
               <span className={`material-symbols-outlined !text-[20px] relative z-10 ${iconColorClass}`}>{icon}</span>
             ) : (
@@ -548,8 +618,21 @@ export function HubActionButton({ icon, label, onClick, className = "", isDanger
   );
 }
 
-export const HubTabButton = FilterTabButton;
-
+export function HubTabButton({ id, icon, label, activeTab, setTab }: any) {
+  const isActive = activeTab === id;
+  return (
+    <button
+      onClick={() => setTab(id)}
+      className={`h-full px-4 py-3 flex-1 flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${isActive
+        ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]'
+        : 'text-[var(--subtext)] hover:bg-white/5 hover:text-[var(--text)] opacity-60 hover:opacity-100'
+        }`}
+    >
+      {icon && <span className="material-symbols-outlined !text-lg">{icon}</span>}
+      {label}
+    </button>
+  );
+}
 export function HubTabs({ tabs, activeTab, setTab, className = "" }: any) {
   return (
     <FilterTabs className={className}>
@@ -901,21 +984,29 @@ export function VerticalTabDropdown({ icon, label, options, activeTab, setTab }:
   );
 }
 
-export function HoverTabDrawer({ title = "Navigation", tabs, activeTab, setTab, children, footer }: any) {
+export function HoverTabDrawer({ title = "Navigation", tabs, activeTab, setTab, children, footer, position = "right", className = "", panelClassName = "", panelStyle = {}, onHoverChange }: any) {
+  const isLeft = position === "left";
   return (
-    <div className="fixed right-0 top-[72px] bottom-[24px] z-[9999] group flex justify-end w-12 hover:w-[284px] transition-all duration-0 pointer-events-none">
+    <div 
+      className={`fixed ${isLeft ? 'left-0' : 'right-0'} top-[72px] bottom-[24px] z-[9999] group flex ${isLeft ? 'justify-start' : 'justify-end'} w-12 hover:w-[284px] transition-all duration-0 pointer-events-none ${className}`}
+      onMouseEnter={() => onHoverChange && onHoverChange(true)}
+      onMouseLeave={() => onHoverChange && onHoverChange(false)}
+    >
 
       {/* Invisible Trigger Area */}
-      <div className="absolute right-0 top-0 bottom-0 w-12 pointer-events-auto" />
+      <div className={`absolute ${isLeft ? 'left-0' : 'right-0'} top-0 bottom-0 w-6 pointer-events-auto`} />
 
       {/* Invisible Expanded Area Catcher */}
       <div className="absolute inset-0 pointer-events-none group-hover:pointer-events-auto" />
 
       {/* Sliding Panel */}
-      <div className="h-full w-[260px] mr-6 shrink-0 glass-panel rounded-3xl translate-x-[calc(100%+40px)] group-hover:translate-x-0 transition-transform duration-500 ease-[cubic-bezier(0.2,0.9,0.2,1)] flex flex-col items-start pt-6 shadow-2xl relative pointer-events-auto border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+      <div 
+        className={`h-full w-[260px] ${isLeft ? 'ml-6 rounded-3xl -translate-x-[calc(100%+40px)]' : 'mr-6 rounded-3xl translate-x-[calc(100%+40px)]'} shrink-0 glass-panel group-hover:translate-x-0 transition-transform duration-500 ease-[cubic-bezier(0.2,0.9,0.2,1)] flex flex-col items-start pt-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative pointer-events-auto border border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${panelClassName}`}
+        style={panelStyle}
+      >
 
         <div className="w-full px-6 mb-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 shrink-0">
-          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">swipe_left</span>
+          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">{isLeft ? 'folder_open' : 'swipe_left'}</span>
           <div className="font-black text-[10px] tracking-widest text-[var(--subtext)] capitalize">{title}</div>
         </div>
 
@@ -927,7 +1018,7 @@ export function HoverTabDrawer({ title = "Navigation", tabs, activeTab, setTab, 
         </div>
 
         {footer && (
-          <div className="w-full px-3 pb-6 mt-auto opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 shrink-0 flex flex-col gap-1">
+          <div className="w-full px-3 pb-4 mt-auto opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 shrink-0 flex flex-col gap-1">
             <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent mb-2" />
             {footer}
           </div>
@@ -1022,7 +1113,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
           </div>
         )}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {options.filter((opt: any) => {
+          {(options || []).filter((opt: any) => {
             if (!searchable || !query) return true;
             const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
             return searchTarget.toLowerCase().includes(query.toLowerCase());
@@ -1037,13 +1128,13 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
               </button>
             );
           })}
-          {searchable && query && options.filter((opt: any) => {
+          {searchable && query && (options || []).filter((opt: any) => {
             const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
             return searchTarget.toLowerCase().includes(query.toLowerCase());
           }).length === 0 && !allowCustom && (
               <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">{t("shared_no_options")}</div>
             )}
-          {searchable && query && allowCustom && !options.some((o: any) => String(o.id).toLowerCase() === query.toLowerCase() || (typeof o.label === 'string' && o.label.toLowerCase() === query.toLowerCase())) && (
+          {searchable && query && allowCustom && !(options || []).some((o: any) => String(o.id).toLowerCase() === query.toLowerCase() || (typeof o.label === 'string' && o.label.toLowerCase() === query.toLowerCase())) && (
             <button type="button" onClick={() => handleSelect(query)} className="w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] flex items-center gap-2">
               <span className="material-symbols-outlined !text-[16px] opacity-60">add</span>
               <span className="text-[11px] font-black capitalize w-full">Create "{query}"</span>
@@ -1400,7 +1491,8 @@ export function SidePanel({
   position,
   keepMounted = false,
   forceShowCloseBtn = false,
-  coverImage
+  coverImage,
+  hideCloseButton = false
 }: {
   isOpen: boolean,
   onClose: () => void,
@@ -1429,7 +1521,8 @@ export function SidePanel({
   panelStyle?: React.CSSProperties,
   position?: "left" | "right",
   keepMounted?: boolean,
-  coverImage?: string, forceShowCloseBtn?: boolean
+  coverImage?: string, forceShowCloseBtn?: boolean,
+  hideCloseButton?: boolean
 }) {
   const { t } = useLexicon();
   const theme = useTheme();
@@ -1526,9 +1619,16 @@ export function SidePanel({
           )}
 
           {hideHeader && forceShowCloseBtn && (
-            <button onClick={onClose} className="absolute top-8 right-8 z-[10000] w-12 h-12 rounded-2xl flex items-center justify-center text-[var(--text)] transition-all bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-[4px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
-              <span className="material-symbols-outlined !text-[28px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("icon_close")}</span>
-            </button>
+            <div className="absolute top-8 right-8 z-[10000]">
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon="close"
+                  tooltip={t("btn_close") || "Close"}
+                  variant="danger"
+                  onClick={onClose}
+                />
+              </PanelHeaderGroup>
+            </div>
           )}
 
           {!hideHeader && (
@@ -1544,21 +1644,25 @@ export function SidePanel({
                 </div>
               )}
 
-              {headerActions && (
-                <div className="absolute top-8 right-[88px] flex items-center gap-3 z-50">
-                  {headerActions}
-                </div>
-              )}
-
-              <button onClick={onClose} className="absolute top-8 right-8 z-50 w-12 h-12 rounded-[var(--radius)] flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn">
-                <span className="material-symbols-outlined !text-[22px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("icon_close")}</span>
-              </button>
+              <div className="absolute top-8 right-8 flex items-center gap-3 z-50">
+                {headerActions}
+                {!hideCloseButton && onClose && (
+                  <PanelHeaderGroup className={headerActions ? "ml-2" : ""}>
+                    <PanelHeaderButton
+                      icon="close"
+                      tooltip={t("btn_close") || "Close"}
+                      variant="danger"
+                      onClick={onClose}
+                    />
+                  </PanelHeaderGroup>
+                )}
+              </div>
 
               <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">
                 <h2 className="text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-6 min-w-0 w-full">
                   {icon && (
                     <div className={`w-16 h-16 rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative group/iconbox ${iconColorClass || ''}`}>
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
+                      <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
                       <span className={`material-symbols-outlined opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
                         {icon}
                       </span>
@@ -1701,7 +1805,7 @@ export function CustomTierDropdown({ value, onChange }: { value: number, onChang
     </div>
   );
 }
-export function DashboardStatTile({ icon, number, value, label, colorClass, style, onClick, disabled, onMouseEnter, onMouseLeave }: any) {
+export function DashboardStatTile({ icon, number, value, label, colorClass, style, onClick, disabled, onMouseEnter, onMouseLeave, disableBgStrip, className = "" }: any) {
   const displayValue = number !== undefined ? number : value;
   const isStatusRed = colorClass?.includes('red') || colorClass?.includes('danger');
   const isStatusYellow = colorClass?.includes('amber') || colorClass?.includes('warning');
@@ -1716,7 +1820,9 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
   else if (colorClass) { textColor = colorClass.split(' ').find((c: string) => c.startsWith('text-')) || textColor; }
 
   const cleanColorClass = typeof colorClass === "string"
-    ? colorClass.split(' ').filter((c: string) => !c.startsWith('bg-') && !c.startsWith('hover:bg-')).join(' ')
+    ? disableBgStrip 
+        ? colorClass 
+        : colorClass.split(' ').filter((c: string) => !c.startsWith('bg-') && !c.startsWith('hover:bg-')).join(' ')
     : "";
 
   const strVal = String(displayValue);
@@ -1731,7 +1837,7 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={style}
-      className={`flex-1 min-w-0 h-full flex items-center p-3 gap-3 glass-panel ${cleanColorClass} ${textColor} relative group transition duration-500 ${disabled ? 'opacity-50 cursor-not-allowed' : onClick ? 'cursor-pointer' : ''}`}
+      className={`flex-1 min-w-0 h-full flex items-center p-3 gap-3 glass-panel ${cleanColorClass} ${textColor} relative group transition duration-500 ${disabled ? 'opacity-50 cursor-not-allowed' : onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       <div className="absolute inset-0 bg-radial-[at_0%_0%] from-[color-mix(in_srgb,currentColor_15%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-[inherit]" />
 

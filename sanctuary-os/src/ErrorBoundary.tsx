@@ -15,44 +15,34 @@ interface State {
 function ErrorBoundaryContent({ moduleName, error, resetErrorBoundary }: any) {
   const { t } = useLexicon();
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full min-h-[500px] relative overflow-hidden group rounded-2xl border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-md">
-      <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--bg)_85%,#ef4444_5%)] backdrop-blur-3xl"></div>
+    <div className="flex flex-col items-center justify-center w-full h-full min-h-[500px] relative overflow-hidden group rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] p-12">
+      <div className="material-symbols-outlined !text-[80px] text-[color-mix(in_srgb,var(--danger)_80%,transparent)] mb-6 animate-pulse">{t("icon_warning_amber")}</div>
       
-      <div className="absolute inset-0 rounded-[inherit] bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.05)_0%,transparent_70%)]"></div>
-      
-      <div className="absolute inset-0 rounded-[inherit] opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: "linear-gradient(var(--text) 1px, transparent 1px), linear-gradient(90deg, var(--text) 1px, transparent 1px)", backgroundSize: "30px 30px" }}></div>
-      
-      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-red-500/60 to-transparent shadow-md"></div>
-      <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-500/10 to-transparent"></div>
-
-      <div className="material-symbols-outlined !text-[80px] text-red-500 mb-6 drop-shadow-md relative z-10 animate-pulse">{t("icon_warning_amber")}</div>
-      
-      <div className="relative z-10 flex flex-col items-center mb-8">
-        <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-400 to-red-600 capitalize tracking-[0.4em] mb-3 drop-shadow-sm">{t("err_module_fail")}</h2>
-        <div className="w-16 h-1 bg-[color-mix(in_srgb,var(--danger)_40%,transparent)] rounded-full shadow-md mb-6"></div>
-        <p className="text-[color-mix(in_srgb,var(--text)_70%,transparent)] text-sm text-center max-w-lg leading-relaxed font-medium">
-          {t("auto_the")} <strong className="text-red-500">{moduleName || (t("err_module_default"))}</strong> {t("err_module_desc")}
+      <div className="relative z-10 flex flex-col items-center mb-8 text-center">
+        <h2 className="text-3xl font-black text-[var(--text)] capitalize tracking-[0.2em] mb-4">{t("err_module_fail")}</h2>
+        <p className="text-[var(--subtext)] text-sm max-w-lg leading-relaxed font-semibold">
+          {t("auto_the")} <strong className="text-[var(--danger)]">{moduleName || (t("err_module_default"))}</strong> {t("err_module_desc")}
         </p>
       </div>
       
-      <div className="bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl p-6 rounded-2xl border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] w-full max-w-2xl max-h-[250px] overflow-auto custom-scrollbar shadow-[inset_0_0_30px_rgba(239,68,68,0.05)] relative z-10 flex flex-col group-hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] transition-colors duration-500">
-        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
-          <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-md"></div>
+      <div className="glass-panel p-6 rounded-2xl border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] w-full max-w-2xl max-h-[250px] overflow-auto custom-scrollbar relative z-10 flex flex-col transition-colors duration-500 hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)]">
+        <div className="flex items-center gap-4 mb-4 pb-4 border-b border-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
+          <div className="flex gap-2">
+            <div className="w-3 h-3 rounded-full bg-[color-mix(in_srgb,var(--danger)_50%,transparent)]"></div>
             <div className="w-3 h-3 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"></div>
             <div className="w-3 h-3 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"></div>
           </div>
-          <span className="text-[10px] font-black capitalize tracking-[0.3em] text-[color-mix(in_srgb,var(--danger)_80%,transparent)]">{t("err_exception_trace")}</span>
+          <span className="text-[10px] font-black capitalize tracking-[0.3em] text-[color-mix(in_srgb,var(--danger)_80%,transparent)] ml-2">{t("err_exception_trace")}</span>
           <span className="ml-auto material-symbols-outlined !text-[14px] text-[color-mix(in_srgb,var(--danger)_50%,transparent)]">{t("icon_code")}</span>
         </div>
-        <code className="text-[color-mix(in_srgb,var(--danger)_90%,transparent)] text-xs font-mono leading-relaxed whitespace-pre-wrap">{error?.toString()}</code>
+        <code className="text-[color-mix(in_srgb,var(--danger)_90%,transparent)] text-xs font-mono font-medium leading-relaxed whitespace-pre-wrap">{error?.toString()}</code>
       </div>
 
       <button 
         onClick={resetErrorBoundary}
-        className="mt-10 px-10 py-4 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-red-500 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-red-500 hover:shadow-md font-black text-[11px] capitalize tracking-[0.3em] transition-all duration-300 flex items-center gap-3 relative z-10 group/btn"
+        className="mt-10 px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] text-xs font-black capitalize tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-3 relative z-10 group/btn"
       >
-        <span className="material-symbols-outlined !text-[20px] group-hover/btn:-rotate-180 transition-transform duration-700">{t("icon_restart_alt")}</span>
+        <span className="material-symbols-outlined !text-[18px] group-hover/btn:-rotate-180 transition-transform duration-700">{t("icon_restart_alt")}</span>
         {t("err_reboot")}
       </button>
     </div>

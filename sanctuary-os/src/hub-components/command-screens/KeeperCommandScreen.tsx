@@ -100,11 +100,9 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
         <DashboardStatTile icon={<span className="material-symbols-outlined ">local_activity</span>} number={stats.tickets} label="Support Queue" colorClass="text-purple-500" onClick={() => setTab("support")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">campaign</span>} number={stats.activeBroadcasts} label="Active Broadcasts" colorClass="text-amber-500" onClick={() => setIsAlertsOpen(true)} />
 
-
         <DashboardStatTile icon={<span className="material-symbols-outlined ">group</span>} number={stats.citizens} label="Citizen Oversight" colorClass="text-blue-500" onClick={() => setTab("identities")} />
       </CommandScreenStats>
 
-      <UrgentBroadcastBanner urgentBroadcast={stats.urgentBroadcast} setViewingPost={setViewingPost} setUrgentBroadcast={(b: any) => setStats({ ...stats, urgentBroadcast: b })} />
 
       <CommandScreenBody>
         <CommandScreenMain>

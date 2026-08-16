@@ -82,6 +82,11 @@
   -webkit-user-drag: none;
 }
 
+/* Globally force absolute inset overlays to match their parent's border-radius */
+.absolute.inset-0 {
+  border-radius: inherit;
+}
+
 body {
   user-select: none;
 }
@@ -99,31 +104,66 @@ textarea,
   cursor: default !important;
 }
 
+/* ---- GLOBALLY FORCE MONACO THEME VARIABLES ---- */
+:root,
+body,
+.monaco-workbench,
+.monaco-editor {
+  --vscode-editorWidget-background: color-mix(in srgb, var(--bg) 85%, transparent) !important;
+  --vscode-editorWidget-border: color-mix(in srgb, var(--text) 10%, transparent) !important;
+  
+  --vscode-quickInput-background: color-mix(in srgb, var(--bg) 85%, transparent) !important;
+  --vscode-quickInput-foreground: var(--text) !important;
+  
+  --vscode-quickInputList-focusBackground: color-mix(in srgb, var(--accent) 30%, transparent) !important;
+  --vscode-quickInputList-focusForeground: var(--text) !important;
+  
+  --vscode-list-activeSelectionBackground: color-mix(in srgb, var(--accent) 30%, transparent) !important;
+  --vscode-list-activeSelectionForeground: var(--text) !important;
+  
+  --vscode-list-hoverBackground: color-mix(in srgb, var(--accent) 15%, transparent) !important;
+  --vscode-list-focusBackground: color-mix(in srgb, var(--accent) 15%, transparent) !important;
 
+  --vscode-editorSuggestWidget-background: color-mix(in srgb, var(--bg) 85%, transparent) !important;
+  --vscode-editorSuggestWidget-border: color-mix(in srgb, var(--text) 10%, transparent) !important;
+  --vscode-editorSuggestWidget-selectedBackground: color-mix(in srgb, var(--accent) 30%, transparent) !important;
+  
+  --vscode-editorHoverWidget-background: color-mix(in srgb, var(--bg) 85%, transparent) !important;
+  --vscode-editorHoverWidget-border: color-mix(in srgb, var(--text) 10%, transparent) !important;
+  
+  --vscode-input-background: color-mix(in srgb, var(--text) 5%, transparent) !important;
+  --vscode-input-foreground: var(--text) !important;
+  --vscode-input-border: color-mix(in srgb, var(--text) 10%, transparent) !important;
+  --vscode-focusBorder: var(--accent) !important;
+}
 
 .quick-input-widget {
   --vscode-focusBorder: transparent !important;
   --vscode-inputOption-activeBorder: transparent !important;
   --vscode-inputValidation-infoBorder: transparent !important;
 
-  --vscode-quickInput-background: rgba(15, 23, 42, 0.85) !important;
+  --vscode-quickInput-background: transparent !important;
   --vscode-quickInput-foreground: var(--text) !important;
   --vscode-quickInputList-focusBackground: transparent !important;
   --vscode-list-activeSelectionBackground: transparent !important;
   --vscode-list-hoverBackground: transparent !important;
 
-  backdrop-filter: blur(24px) !important;
-  -webkit-backdrop-filter: blur(24px) !important;
-  border: 1px solid var(--glass-border) !important;
+  background-color: color-mix(in srgb, var(--bg) 80%, transparent) !important;
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--text) 2%, transparent) 0%, transparent 100%) !important;
+  backdrop-filter: blur(24px) saturate(1.5) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.5) !important;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent) !important;
   border-radius: 12px !important;
-  overflow: hidden !important;
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
 }
 
 .quick-input-widget .monaco-list,
 .quick-input-widget .monaco-list-rows,
-.quick-input-widget .quick-input-list {
+.quick-input-widget .quick-input-list,
+.quick-input-widget .quick-input-header,
+.quick-input-widget .quick-input-and-more {
   background: transparent !important;
+  background-color: transparent !important;
 }
 
 .quick-input-widget .monaco-list-row {
@@ -182,8 +222,10 @@ textarea,
 }
 
 .quick-input-widget .monaco-list-row:hover,
-.quick-input-widget .monaco-list-row.focused {
-  background: color-mix(in srgb, var(--accent) 15%, transparent) !important;
+.quick-input-widget .monaco-list:focus .monaco-list-row.focused,
+.quick-input-widget .monaco-list-row.focused,
+.quick-input-widget .monaco-list-row.selected {
+  background-color: color-mix(in srgb, var(--accent) 15%, transparent) !important;
   color: var(--accent) !important;
 }
 
@@ -202,79 +244,7 @@ textarea,
   font-size: 10px !important;
 }
 
-.monaco-editor .find-widget {
-  background: rgba(15, 23, 42, 0.85) !important;
-  backdrop-filter: blur(24px) !important;
-  -webkit-backdrop-filter: blur(24px) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5) !important;
-  color: var(--text) !important;
-  --vscode-editorWidget-border: transparent !important;
-  --vscode-input-border: transparent !important;
-  --vscode-widget-shadow: transparent !important;
-}
 
-.monaco-editor .find-widget .monaco-inputbox {
-  background: color-mix(in srgb, var(--text) 5%, transparent) !important;
-  border: none !important;
-  border-radius: 6px !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-.monaco-editor .find-widget .monaco-inputbox.synthetic-focus {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent) !important;
-  background: color-mix(in srgb, var(--text) 8%, transparent) !important;
-}
-
-.monaco-editor .find-widget .monaco-inputbox input {
-  color: var(--text) !important;
-}
-
-.monaco-editor .find-widget .monaco-custom-checkbox {
-  opacity: 0.5 !important;
-  transition: all 0.2s ease !important;
-  border-radius: 4px !important;
-}
-
-.monaco-editor .find-widget .monaco-custom-checkbox:hover {
-  opacity: 1 !important;
-  background: color-mix(in srgb, var(--text) 10%, transparent) !important;
-}
-
-.monaco-editor .find-widget .monaco-custom-checkbox.checked {
-  opacity: 1 !important;
-  color: var(--accent) !important;
-  background: color-mix(in srgb, var(--accent) 15%, transparent) !important;
-}
-
-.monaco-editor .find-widget .button,
-.monaco-editor .find-widget .monaco-button,
-.monaco-editor .find-widget .monaco-action-bar .action-item .action-label {
-  background: transparent !important;
-  border: none !important;
-  color: var(--text) !important;
-  opacity: 0.6 !important;
-  border-radius: 6px !important;
-  transition: all 0.2s ease !important;
-  cursor: pointer !important;
-}
-
-.monaco-editor .find-widget .button:hover,
-.monaco-editor .find-widget .monaco-button:hover,
-.monaco-editor .find-widget .monaco-action-bar .action-item .action-label:hover {
-  background: color-mix(in srgb, var(--text) 15%, transparent) !important;
-  opacity: 1 !important;
-  color: var(--text) !important;
-}
-
-.monaco-editor .find-widget .matchesCount {
-  color: color-mix(in srgb, var(--text) 60%, transparent) !important;
-  font-family: var(--font-mono), Consolas, monospace !important;
-  font-size: 11px !important;
-  padding: 0 8px !important;
-}
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -611,7 +581,7 @@ input[type="date"].custom-date-input {
 
 
 .monaco-editor .sticky-widget {
-  background: color-mix(in srgb, var(--bg) 85%, transparent) !important;
+  background-color: color-mix(in srgb, var(--bg) 85%, transparent) !important;
   backdrop-filter: blur(12px) !important;
   border-bottom: 1px solid color-mix(in srgb, var(--text) 10%, transparent) !important;
 }
@@ -620,38 +590,57 @@ input[type="date"].custom-date-input {
   background-color: transparent !important;
 }
 
-.monaco-editor .scrollbar.vertical .slider {
-  background: color-mix(in srgb, var(--accent) 20%, transparent) !important;
+.monaco-editor .scrollbar.vertical .slider,
+.quick-input-widget .scrollbar.vertical .slider,
+.monaco-menu-container .scrollbar.vertical .slider,
+.suggest-widget .scrollbar.vertical .slider {
+  background-color: color-mix(in srgb, var(--accent) 20%, transparent) !important;
   border-radius: 10px !important;
   width: 6px !important;
   right: 2px !important;
   left: auto !important;
 }
 
-.monaco-editor .scrollbar.horizontal .slider {
-  background: color-mix(in srgb, var(--accent) 20%, transparent) !important;
+.monaco-editor .scrollbar.horizontal .slider,
+.quick-input-widget .scrollbar.horizontal .slider,
+.monaco-menu-container .scrollbar.horizontal .slider,
+.suggest-widget .scrollbar.horizontal .slider {
+  background-color: color-mix(in srgb, var(--accent) 20%, transparent) !important;
   border-radius: 10px !important;
   height: 6px !important;
   bottom: 2px !important;
   top: auto !important;
 }
 
-.monaco-editor .scrollbar .slider:hover {
-  background: color-mix(in srgb, var(--accent) 40%, transparent) !important;
+.monaco-editor .scrollbar .slider:hover,
+.quick-input-widget .scrollbar .slider:hover,
+.monaco-menu-container .scrollbar .slider:hover,
+.suggest-widget .scrollbar .slider:hover {
+  background-color: color-mix(in srgb, var(--accent) 40%, transparent) !important;
 }
 
-.monaco-editor .scrollbar .slider.active {
-  background: color-mix(in srgb, var(--accent) 60%, transparent) !important;
+.monaco-editor .scrollbar .slider.active,
+.quick-input-widget .scrollbar .slider.active,
+.monaco-menu-container .scrollbar .slider.active,
+.suggest-widget .scrollbar .slider.active {
+  background-color: color-mix(in srgb, var(--accent) 60%, transparent) !important;
 }
 
 /* ---- MONACO FIND WIDGET (UNIFIED) ---- */
 .monaco-editor .find-widget {
   background: transparent !important;
+  background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
   overflow: visible !important;
   margin-top: 10px !important;
   margin-right: 12px !important;
+}
+
+.monaco-editor .find-widget .find-part,
+.monaco-editor .find-widget .replace-part {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .monaco-editor .find-widget:not(.visible) {
@@ -665,12 +654,12 @@ input[type="date"].custom-date-input {
   left: -14px;
   right: -14px;
   bottom: -10px;
-  background: color-mix(in srgb, var(--bg-primary) 85%, transparent) !important;
+  background: color-mix(in srgb, var(--bg) 80%, transparent) !important;
   backdrop-filter: blur(24px) saturate(1.5) !important;
   -webkit-backdrop-filter: blur(24px) saturate(1.5) !important;
   border-radius: 12px !important;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid color-mix(in srgb, var(--text) 15%, transparent) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
   pointer-events: none !important;
   z-index: -1 !important;
 }
@@ -686,7 +675,7 @@ input[type="date"].custom-date-input {
 .monaco-editor .find-widget .monaco-inputbox,
 .monaco-editor .find-widget .replace-input,
 .monaco-editor .find-widget .find-input {
-  background: color-mix(in srgb, var(--glass-bg) 50%, transparent) !important;
+  background: color-mix(in srgb, var(--bg) 50%, transparent) !important;
   border: 1px solid color-mix(in srgb, var(--text) 10%, transparent) !important;
   border-radius: 6px !important;
 }
@@ -713,39 +702,47 @@ input[type="date"].custom-date-input {
   opacity: 0.8 !important;
 }
 
-.danger-accent-override {
-  --accent: var(--danger);
-  --accent-rgb: 244, 63, 94;
-  --accent-hover: #e11d48;
+/* ---- MONACO POPUPS (MENUS, SUGGEST) ---- */
+.monaco-menu-container,
+.suggest-widget,
+.editor-widget.suggest-widget {
+  background-color: color-mix(in srgb, var(--bg) 80%, transparent) !important;
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--text) 2%, transparent) 0%, transparent 100%) !important;
+  backdrop-filter: blur(24px) saturate(1.5) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.5) !important;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+  overflow: hidden !important;
 }
 
-.sanctuary-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  background: color-mix(in srgb, var(--text) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text) 5%, transparent);
-  border-radius: 9999px;
-  height: 0.5rem;
-  outline: none;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
-  transition: all 0.3s;
+.monaco-menu .monaco-action-bar.vertical .action-item {
+  border: none !important;
+  border-radius: 6px !important;
+  margin: 2px 4px !important;
 }
 
-.sanctuary-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid var(--text);
-  box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.8);
-  cursor: pointer;
-  transition: all 0.2s;
+.monaco-menu .monaco-action-bar.vertical .action-item:hover,
+.monaco-menu .monaco-action-bar.vertical .action-item.focused,
+.suggest-widget .monaco-list:focus .monaco-list-row.focused,
+.suggest-widget .monaco-list-row:hover,
+.suggest-widget .monaco-list-row.focused {
+  background-color: color-mix(in srgb, var(--accent) 20%, transparent) !important;
+  color: var(--accent) !important;
 }
 
-.sanctuary-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
+.monaco-menu .monaco-action-bar.vertical .action-item .action-label,
+.monaco-menu .monaco-action-bar.vertical .action-item .action-menu-item {
+  color: var(--text) !important;
+}
+
+.monaco-menu .monaco-action-bar.vertical .action-item:hover .action-label,
+.monaco-menu .monaco-action-bar.vertical .action-item.focused .action-label {
+  color: var(--accent) !important;
+}
+
+.suggest-widget .monaco-list {
+  background: transparent !important;
 }
 
 
@@ -770,66 +767,272 @@ body {
 
 
 @layer utilities {
-  .rounded-sm { border-radius: max(0px, calc(var(--radius) - 12px)) !important; }
-  .rounded-md { border-radius: max(0px, calc(var(--radius) - 10px)) !important; }
-  .rounded-lg { border-radius: max(0px, calc(var(--radius) - 8px)) !important; }
-  .rounded-xl { border-radius: max(0px, calc(var(--radius) - 4px)) !important; }
-  .rounded-2xl { border-radius: max(0px, var(--radius)) !important; }
-  .rounded-3xl { border-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+  .rounded-sm {
+    border-radius: max(0px, calc(var(--radius) - 12px)) !important;
+  }
 
-  .rounded-t-sm { border-top-left-radius: max(0px, calc(var(--radius) - 12px)) !important; border-top-right-radius: max(0px, calc(var(--radius) - 12px)) !important; }
-  .rounded-t-md { border-top-left-radius: max(0px, calc(var(--radius) - 10px)) !important; border-top-right-radius: max(0px, calc(var(--radius) - 10px)) !important; }
-  .rounded-t-lg { border-top-left-radius: max(0px, calc(var(--radius) - 8px)) !important; border-top-right-radius: max(0px, calc(var(--radius) - 8px)) !important; }
-  .rounded-t-xl { border-top-left-radius: max(0px, calc(var(--radius) - 4px)) !important; border-top-right-radius: max(0px, calc(var(--radius) - 4px)) !important; }
-  .rounded-t-2xl { border-top-left-radius: max(0px, var(--radius)) !important; border-top-right-radius: max(0px, var(--radius)) !important; }
-  .rounded-t-3xl { border-top-left-radius: max(0px, calc(var(--radius) + 8px)) !important; border-top-right-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+  .rounded-md {
+    border-radius: max(0px, calc(var(--radius) - 10px)) !important;
+  }
 
-  .rounded-b-sm { border-bottom-left-radius: max(0px, calc(var(--radius) - 12px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 12px)) !important; }
-  .rounded-b-md { border-bottom-left-radius: max(0px, calc(var(--radius) - 10px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 10px)) !important; }
-  .rounded-b-lg { border-bottom-left-radius: max(0px, calc(var(--radius) - 8px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 8px)) !important; }
-  .rounded-b-xl { border-bottom-left-radius: max(0px, calc(var(--radius) - 4px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 4px)) !important; }
-  .rounded-b-2xl { border-bottom-left-radius: max(0px, var(--radius)) !important; border-bottom-right-radius: max(0px, var(--radius)) !important; }
-  .rounded-b-3xl { border-bottom-left-radius: max(0px, calc(var(--radius) + 8px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+  .rounded-lg {
+    border-radius: max(0px, calc(var(--radius) - 8px)) !important;
+  }
 
-  .rounded-l-sm { border-top-left-radius: max(0px, calc(var(--radius) - 12px)) !important; border-bottom-left-radius: max(0px, calc(var(--radius) - 12px)) !important; }
-  .rounded-l-md { border-top-left-radius: max(0px, calc(var(--radius) - 10px)) !important; border-bottom-left-radius: max(0px, calc(var(--radius) - 10px)) !important; }
-  .rounded-l-lg { border-top-left-radius: max(0px, calc(var(--radius) - 8px)) !important; border-bottom-left-radius: max(0px, calc(var(--radius) - 8px)) !important; }
-  .rounded-l-xl { border-top-left-radius: max(0px, calc(var(--radius) - 4px)) !important; border-bottom-left-radius: max(0px, calc(var(--radius) - 4px)) !important; }
-  .rounded-l-2xl { border-top-left-radius: max(0px, var(--radius)) !important; border-bottom-left-radius: max(0px, var(--radius)) !important; }
-  .rounded-l-3xl { border-top-left-radius: max(0px, calc(var(--radius) + 8px)) !important; border-bottom-left-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+  .rounded-xl {
+    border-radius: max(0px, calc(var(--radius) - 4px)) !important;
+  }
 
-  .rounded-r-sm { border-top-right-radius: max(0px, calc(var(--radius) - 12px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 12px)) !important; }
-  .rounded-r-md { border-top-right-radius: max(0px, calc(var(--radius) - 10px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 10px)) !important; }
-  .rounded-r-lg { border-top-right-radius: max(0px, calc(var(--radius) - 8px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 8px)) !important; }
-  .rounded-r-xl { border-top-right-radius: max(0px, calc(var(--radius) - 4px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 4px)) !important; }
-  .rounded-r-2xl { border-top-right-radius: max(0px, var(--radius)) !important; border-bottom-right-radius: max(0px, var(--radius)) !important; }
-  .rounded-r-3xl { border-top-right-radius: max(0px, calc(var(--radius) + 8px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) + 8px)) !important; }
-  
-  .rounded-tl-sm { border-top-left-radius: max(0px, calc(var(--radius) - 12px)) !important; }
-  .rounded-tl-md { border-top-left-radius: max(0px, calc(var(--radius) - 10px)) !important; }
-  .rounded-tl-lg { border-top-left-radius: max(0px, calc(var(--radius) - 8px)) !important; }
-  .rounded-tl-xl { border-top-left-radius: max(0px, calc(var(--radius) - 4px)) !important; }
-  .rounded-tl-2xl { border-top-left-radius: max(0px, var(--radius)) !important; }
-  .rounded-tl-3xl { border-top-left-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+  .rounded-2xl {
+    border-radius: max(0px, var(--radius)) !important;
+  }
 
-  .rounded-tr-sm { border-top-right-radius: max(0px, calc(var(--radius) - 12px)) !important; }
-  .rounded-tr-md { border-top-right-radius: max(0px, calc(var(--radius) - 10px)) !important; }
-  .rounded-tr-lg { border-top-right-radius: max(0px, calc(var(--radius) - 8px)) !important; }
-  .rounded-tr-xl { border-top-right-radius: max(0px, calc(var(--radius) - 4px)) !important; }
-  .rounded-tr-2xl { border-top-right-radius: max(0px, var(--radius)) !important; }
-  .rounded-tr-3xl { border-top-right-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+  .rounded-3xl {
+    border-radius: max(0px, calc(var(--radius) + 8px)) !important;
+  }
 
-  .rounded-bl-sm { border-bottom-left-radius: max(0px, calc(var(--radius) - 12px)) !important; }
-  .rounded-bl-md { border-bottom-left-radius: max(0px, calc(var(--radius) - 10px)) !important; }
-  .rounded-bl-lg { border-bottom-left-radius: max(0px, calc(var(--radius) - 8px)) !important; }
-  .rounded-bl-xl { border-bottom-left-radius: max(0px, calc(var(--radius) - 4px)) !important; }
-  .rounded-bl-2xl { border-bottom-left-radius: max(0px, var(--radius)) !important; }
-  .rounded-bl-3xl { border-bottom-left-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+  .rounded-t-sm {
+    border-top-left-radius: max(0px, calc(var(--radius) - 12px)) !important;
+    border-top-right-radius: max(0px, calc(var(--radius) - 12px)) !important;
+  }
 
-  .rounded-br-sm { border-bottom-right-radius: max(0px, calc(var(--radius) - 12px)) !important; }
-  .rounded-br-md { border-bottom-right-radius: max(0px, calc(var(--radius) - 10px)) !important; }
-  .rounded-br-lg { border-bottom-right-radius: max(0px, calc(var(--radius) - 8px)) !important; }
-  .rounded-br-xl { border-bottom-right-radius: max(0px, calc(var(--radius) - 4px)) !important; }
-  .rounded-br-2xl { border-bottom-right-radius: max(0px, var(--radius)) !important; }
-  .rounded-br-3xl { border-bottom-right-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+  .rounded-t-md {
+    border-top-left-radius: max(0px, calc(var(--radius) - 10px)) !important;
+    border-top-right-radius: max(0px, calc(var(--radius) - 10px)) !important;
+  }
+
+  .rounded-t-lg {
+    border-top-left-radius: max(0px, calc(var(--radius) - 8px)) !important;
+    border-top-right-radius: max(0px, calc(var(--radius) - 8px)) !important;
+  }
+
+  .rounded-t-xl {
+    border-top-left-radius: max(0px, calc(var(--radius) - 4px)) !important;
+    border-top-right-radius: max(0px, calc(var(--radius) - 4px)) !important;
+  }
+
+  .rounded-t-2xl {
+    border-top-left-radius: max(0px, var(--radius)) !important;
+    border-top-right-radius: max(0px, var(--radius)) !important;
+  }
+
+  .rounded-t-3xl {
+    border-top-left-radius: max(0px, calc(var(--radius) + 8px)) !important;
+    border-top-right-radius: max(0px, calc(var(--radius) + 8px)) !important;
+  }
+
+  .rounded-b-sm {
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 12px)) !important;
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 12px)) !important;
+  }
+
+  .rounded-b-md {
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 10px)) !important;
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 10px)) !important;
+  }
+
+  .rounded-b-lg {
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 8px)) !important;
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 8px)) !important;
+  }
+
+  .rounded-b-xl {
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 4px)) !important;
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 4px)) !important;
+  }
+
+  .rounded-b-2xl {
+    border-bottom-left-radius: max(0px, var(--radius)) !important;
+    border-bottom-right-radius: max(0px, var(--radius)) !important;
+  }
+
+  .rounded-b-3xl {
+    border-bottom-left-radius: max(0px, calc(var(--radius) + 8px)) !important;
+    border-bottom-right-radius: max(0px, calc(var(--radius) + 8px)) !important;
+  }
+
+  .rounded-l-sm {
+    border-top-left-radius: max(0px, calc(var(--radius) - 12px)) !important;
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 12px)) !important;
+  }
+
+  .rounded-l-md {
+    border-top-left-radius: max(0px, calc(var(--radius) - 10px)) !important;
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 10px)) !important;
+  }
+
+  .rounded-l-lg {
+    border-top-left-radius: max(0px, calc(var(--radius) - 8px)) !important;
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 8px)) !important;
+  }
+
+  .rounded-l-xl {
+    border-top-left-radius: max(0px, calc(var(--radius) - 4px)) !important;
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 4px)) !important;
+  }
+
+  .rounded-l-2xl {
+    border-top-left-radius: max(0px, var(--radius)) !important;
+    border-bottom-left-radius: max(0px, var(--radius)) !important;
+  }
+
+  .rounded-l-3xl {
+    border-top-left-radius: max(0px, calc(var(--radius) + 8px)) !important;
+    border-bottom-left-radius: max(0px, calc(var(--radius) + 8px)) !important;
+  }
+
+  .rounded-r-sm {
+    border-top-right-radius: max(0px, calc(var(--radius) - 12px)) !important;
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 12px)) !important;
+  }
+
+  .rounded-r-md {
+    border-top-right-radius: max(0px, calc(var(--radius) - 10px)) !important;
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 10px)) !important;
+  }
+
+  .rounded-r-lg {
+    border-top-right-radius: max(0px, calc(var(--radius) - 8px)) !important;
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 8px)) !important;
+  }
+
+  .rounded-r-xl {
+    border-top-right-radius: max(0px, calc(var(--radius) - 4px)) !important;
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 4px)) !important;
+  }
+
+  .rounded-r-2xl {
+    border-top-right-radius: max(0px, var(--radius)) !important;
+    border-bottom-right-radius: max(0px, var(--radius)) !important;
+  }
+
+  .rounded-r-3xl {
+    border-top-right-radius: max(0px, calc(var(--radius) + 8px)) !important;
+    border-bottom-right-radius: max(0px, calc(var(--radius) + 8px)) !important;
+  }
+
+  .rounded-tl-sm {
+    border-top-left-radius: max(0px, calc(var(--radius) - 12px)) !important;
+  }
+
+  .rounded-tl-md {
+    border-top-left-radius: max(0px, calc(var(--radius) - 10px)) !important;
+  }
+
+  .rounded-tl-lg {
+    border-top-left-radius: max(0px, calc(var(--radius) - 8px)) !important;
+  }
+
+  .rounded-tl-xl {
+    border-top-left-radius: max(0px, calc(var(--radius) - 4px)) !important;
+  }
+
+  .rounded-tl-2xl {
+    border-top-left-radius: max(0px, var(--radius)) !important;
+  }
+
+  .rounded-tl-3xl {
+    border-top-left-radius: max(0px, calc(var(--radius) + 8px)) !important;
+  }
+
+  .rounded-tr-sm {
+    border-top-right-radius: max(0px, calc(var(--radius) - 12px)) !important;
+  }
+
+  .rounded-tr-md {
+    border-top-right-radius: max(0px, calc(var(--radius) - 10px)) !important;
+  }
+
+  .rounded-tr-lg {
+    border-top-right-radius: max(0px, calc(var(--radius) - 8px)) !important;
+  }
+
+  .rounded-tr-xl {
+    border-top-right-radius: max(0px, calc(var(--radius) - 4px)) !important;
+  }
+
+  .rounded-tr-2xl {
+    border-top-right-radius: max(0px, var(--radius)) !important;
+  }
+
+  .rounded-tr-3xl {
+    border-top-right-radius: max(0px, calc(var(--radius) + 8px)) !important;
+  }
+
+  .rounded-bl-sm {
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 12px)) !important;
+  }
+
+  .rounded-bl-md {
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 10px)) !important;
+  }
+
+  .rounded-bl-lg {
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 8px)) !important;
+  }
+
+  .rounded-bl-xl {
+    border-bottom-left-radius: max(0px, calc(var(--radius) - 4px)) !important;
+  }
+
+  .rounded-bl-2xl {
+    border-bottom-left-radius: max(0px, var(--radius)) !important;
+  }
+
+  .rounded-bl-3xl {
+    border-bottom-left-radius: max(0px, calc(var(--radius) + 8px)) !important;
+  }
+
+  .rounded-br-sm {
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 12px)) !important;
+  }
+
+  .rounded-br-md {
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 10px)) !important;
+  }
+
+  .rounded-br-lg {
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 8px)) !important;
+  }
+
+  .rounded-br-xl {
+    border-bottom-right-radius: max(0px, calc(var(--radius) - 4px)) !important;
+  }
+
+  .rounded-br-2xl {
+    border-bottom-right-radius: max(0px, var(--radius)) !important;
+  }
+
+  .rounded-br-3xl {
+    border-bottom-right-radius: max(0px, calc(var(--radius) + 8px)) !important;
+  }
+}
+
+/* ---- MONACO HOVER WIDGET (WEBGL BLEED FIX) ---- */
+.monaco-editor .monaco-hover {
+  background: color-mix(in srgb, var(--panelTint) 12%, var(--bg)) !important;
+  border: 1px solid color-mix(in srgb, var(--text) 15%, transparent) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8) !important;
+  padding: 4px !important;
+}
+
+.monaco-editor .monaco-hover .monaco-hover-content {
+  color: var(--text) !important;
+  font-family: var(--font-sans), system-ui, sans-serif !important;
+}
+
+.monaco-editor .monaco-hover code {
+  background: color-mix(in srgb, var(--text) 10%, transparent) !important;
+  border-radius: 4px !important;
+  color: var(--accent) !important;
+}
+
+/* ---- MONACO EDITOR TRANSPARENCY OVERRIDES ---- */
+.monaco-editor,
+.monaco-editor-background,
+.monaco-editor .margin,
+.monaco-editor-wrapper,
+section:has(.monaco-editor) {
+  background-color: transparent !important;
 }

@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, SidePanelActionFooter, SidebarActionButton, CustomDropdown, getFileLabel, isSupportedExtension, formatDisplayName, HoverTooltip, HubTabs, ActionButton, getModIcon, SearchBar } from "../shared";
+import { SidePanel, SidePanelActionFooter, SidebarActionButton, CustomDropdown, getFileLabel, isSupportedExtension, formatDisplayName, HoverTooltip, HubTabs, ActionButton, getModIcon, SearchBar, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useStore } from "../store";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
@@ -192,31 +192,34 @@ export function VaultLocalFolderEditorSidePanel({
         backdropZ="z-[115000]"
         panelZ="z-[115001]"
 
-        footer={
-          <SidePanelActionFooter
-            hideCancel={true}
-            centerDanger={true}
-            dangerLabel={deleteConfirm ? (t("btn_confirm_delete")) : t("local_folders_delete")}
-            dangerIcon={deleteConfirm ? "warning" : "delete"}
-            onDanger={() => {
-              if (deleteConfirm) {
-                const updatedSets = localSets.filter((s: any) => s.id !== target);
-                localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
-                setDeleteConfirm(false);
-                setIsLocalFolderEditorOpen(false);
-              } else {
-                setDeleteConfirm(true);
-                setTimeout(() => setDeleteConfirm(false), 3000);
-              }
-            }}
-            actionLabel={t("btn_done")}
-            actionIcon="check"
-            actionVariant="accent"
-            onAction={() => {
-              if (deleteConfirm) setDeleteConfirm(false);
-              else setIsLocalFolderEditorOpen(false);
-            }}
-          />
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={deleteConfirm ? "warning" : "delete"}
+              tooltip={deleteConfirm ? t("btn_confirm_delete") : t("local_folders_delete")}
+              variant="danger"
+              onClick={() => {
+                if (deleteConfirm) {
+                  const updatedSets = localSets.filter((s: any) => s.id !== target);
+                  localStorage.setItem("sanctuary_local_sets", JSON.stringify(updatedSets));
+                  setDeleteConfirm(false);
+                  setIsLocalFolderEditorOpen(false);
+                } else {
+                  setDeleteConfirm(true);
+                  setTimeout(() => setDeleteConfirm(false), 3000);
+                }
+              }}
+            />
+            <PanelHeaderButton
+              icon="check"
+              tooltip={t("btn_done")}
+              variant="accent"
+              onClick={() => {
+                if (deleteConfirm) setDeleteConfirm(false);
+                else setIsLocalFolderEditorOpen(false);
+              }}
+            />
+          </PanelHeaderGroup>
         }
       >
         <div className="flex flex-col gap-6 w-full pb-24">

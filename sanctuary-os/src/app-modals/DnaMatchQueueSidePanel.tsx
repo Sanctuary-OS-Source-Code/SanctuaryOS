@@ -20,21 +20,27 @@ export function DnaMatchQueueSidePanel({
   const [resolveStats, setResolveStats] = React.useState({ kept: 0, skipped: 0 });
 
   React.useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    
     if (dnaMatchQueue?.length === 0 && prevQueueLength.current > 0) {
       if (isResolvingRef.current) {
         setIsSuccess(true);
         const finalMsg = resolveStats.kept > 0 ? t("status_ingest_success") : (t("status_conflicts_resolved"));
         if (setStatus) setStatus(finalMsg);
-        const timer = setTimeout(() => {
+        timer = setTimeout(() => {
           setIsSuccess(false);
           isResolvingRef.current = false;
           setResolveStats({ kept: 0, skipped: 0 });
           runRadarSweep(true);
         }, 2000);
-        return () => clearTimeout(timer);
       }
     }
+    
     prevQueueLength.current = dnaMatchQueue?.length || 0;
+    
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [dnaMatchQueue?.length, runRadarSweep, setStatus, t, resolveStats]);
 
   const settingsConflicts = dnaMatchQueue.filter((m: any) => m.reason === "SETTINGS_CONFLICT");
@@ -73,7 +79,7 @@ export function DnaMatchQueueSidePanel({
     if (group.length === 0) return null;
     return (
       <details className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner group/details" open>
-        <summary className="cursor-pointer select-none p-5 flex items-center justify-start font-black text-xs capitalize tracking-widest text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-t-2xl transition-all">
+        <summary className="cursor-pointer select-none p-5 flex items-center justify-between font-black text-xs capitalize tracking-widest text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-t-2xl transition-all">
           <div className="flex items-center gap-3 min-w-0">
             <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">{icon}</span>
             <div className="flex items-center gap-2 min-w-0">
@@ -120,19 +126,19 @@ export function DnaMatchQueueSidePanel({
                 }
                 className="h-[250px] shadow-xl z-10 hover:z-[100]"
                 badges={
-                  <div className="flex justify-center items-center gap-2 w-full mt-2 pointer-events-auto">
+                  <div className="flex justify-center items-center gap-4 w-full mt-2 pointer-events-auto px-2">
                     <button
                       onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve([match], "ignore"); }}
-                      className="flex-1 min-w-0 py-2 rounded-2xl border bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] text-[9px] font-black capitalize tracking-widest flex items-center justify-center gap-1 transition-all shadow-sm active:scale-95 hover:shadow-md"
+                      className="h-9 px-6 rounded-xl bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_20%,transparent)] group/btn"
                     >
-                      <span className="material-symbols-outlined !text-[12px]">{t("icon_close")}</span>
+                      <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] transition-colors">{t("icon_close")}</span>
                       {t("defcon_btn_skip")}
                     </button>
                     <button
                       onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve([match], "replace"); }}
-                      className="flex-1 min-w-0 py-2 rounded-2xl border bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[9px] font-black capitalize tracking-widest flex items-center justify-center gap-1 transition-all shadow-sm active:scale-95 hover:shadow-md"
+                      className="h-9 px-6 rounded-xl bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] group/btn"
                     >
-                      <span className="material-symbols-outlined !text-[12px]">{t("icon_done")}</span>
+                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] transition-colors">{t("icon_done")}</span>
                       {t("btn_keep_new")}
                     </button>
                   </div>

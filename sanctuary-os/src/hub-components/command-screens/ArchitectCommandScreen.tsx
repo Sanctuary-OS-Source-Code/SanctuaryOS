@@ -4,7 +4,7 @@ import { useLexicon } from "../../LexiconContext";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
 import { WayfinderPostsEditor } from "../WayfinderPostsEditor";
 import { useStore } from '../../store';
-import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 
 export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }: any) {
   const { t } = useLexicon();
@@ -172,15 +172,22 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
 
   return (
     <CommandScreenLayout>
-      <CommandScreenStats>
+      <CommandScreenStats gridClassOverride={urgentBroadcast ? "grid-cols-2 lg:grid-cols-4" : undefined}>
+        {urgentBroadcast && (
+          <AlertStatTile className="col-span-2" number={urgentBroadcast ? 1 : 0} active={!!urgentBroadcast} onClick={() => setIsAlertsOpen(true)} />
+        )}
+        {urgentBroadcast && (
+          <DashboardStatTile className="col-span-2" icon={<span className="material-symbols-outlined ">{t("icon_flag")}</span>} number={stats.nexusReports} label={t("title_reports")} colorClass="text-amber-500" onClick={() => onNavigate("nexus_reports")} />
+        )}
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_search")}</span>} number={stats.scoutQueue} label={t("reviewing")} colorClass="text-blue-500" onClick={() => onNavigate("queue")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_handyman")}</span>} number={stats.masonQueue} label={t("stat_mason_queue")} colorClass="text-emerald-500" onClick={() => onNavigate("mason_queue")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_flag")}</span>} number={stats.nexusReports} label={t("title_reports")} colorClass="text-amber-500" onClick={() => onNavigate("nexus_reports")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_local_activity")}</span>} number={stats.supportTickets} label={t("ql_support")} colorClass="text-indigo-500" onClick={() => onNavigate("support_tickets")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={`${t("stat_nsfw_flags")} / ${t("stat_explicit_reports")}`} colorClass="text-orange-500" onClick={() => onNavigate('registry', 'nsfw')} />
+        {!urgentBroadcast && (
+          <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_flag")}</span>} number={stats.nexusReports} label={t("title_reports")} colorClass="text-amber-500" onClick={() => onNavigate("nexus_reports")} />
+        )}
       </CommandScreenStats>
 
-      <UrgentBroadcastBanner urgentBroadcast={urgentBroadcast} setViewingPost={setViewingPost} setUrgentBroadcast={setUrgentBroadcast} />
 
       <CommandScreenBody>
         <CommandScreenMain>

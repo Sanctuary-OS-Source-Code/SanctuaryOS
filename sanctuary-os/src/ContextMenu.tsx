@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLexicon } from "./LexiconContext";
+import { createPortal } from "react-dom";
 import { useStore } from "./store";
 import IconPicker from "./IconPicker";
 import { spellChecker } from "./SpellChecker";
@@ -396,14 +397,14 @@ export function ContextMenu() {
 
   if (!isVisible) return null;
 
-  return (
+  return createPortal(
     <div
       ref={menuRef}
       style={{
         position: "fixed",
         top: position.y,
         left: position.x,
-        zIndex: 999999,
+        zIndex: 9999999,
       }}
       className="flex"
     >
@@ -486,8 +487,7 @@ export function ContextMenu() {
             />
          </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
-
-

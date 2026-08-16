@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { SidePanel, SidePanelActionFooter } from "../shared";
+import { SidePanel, SidePanelActionFooter, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
@@ -48,29 +48,31 @@ export function UpdateSidePanel() {
       widthClass="w-[550px]"
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
-      footer={
-        <SidePanelActionFooter
-          actionLabel={t("update_panel_install")}
-          actionIcon="system_update_alt"
-          onAction={async () => {
-            setIsInstalling(true);
-            setStatus(t("status_downloading_update"));
-            try {
-              await updatePayload.downloadAndInstall((event: any) => {
-                if (event.event === 'Progress') {
-                }
-              });
-              setStatus(t("status_restarting"));
-              await relaunch();
-            } catch (e) {
-              setStatus("UPDATE FAILED: " + e);
-              setIsInstalling(false);
-            }
-          }}
-          isProcessing={isInstalling}
-          processingLabel={t("update_panel_installing")}
-          hideCancel={true}
-        />
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={isInstalling ? "sync" : "system_update_alt"}
+            tooltip={isInstalling ? t("update_panel_installing") : t("update_panel_install")}
+            variant="accent"
+            disabled={isInstalling}
+            className={isInstalling ? "animate-pulse" : ""}
+            onClick={async () => {
+              setIsInstalling(true);
+              setStatus(t("status_downloading_update"));
+              try {
+                await updatePayload.downloadAndInstall((event: any) => {
+                  if (event.event === 'Progress') {
+                  }
+                });
+                setStatus(t("status_restarting"));
+                await relaunch();
+              } catch (e) {
+                setStatus("UPDATE FAILED: " + e);
+                setIsInstalling(false);
+              }
+            }}
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8 relative">

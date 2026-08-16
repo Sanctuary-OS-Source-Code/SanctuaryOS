@@ -55,5 +55,9 @@
   "icon_warning": "warning",
   "icon_info": "info",
   "status_online": "Online",
-  "os_version": "v2.0.0"
+  "os_version": "v2.0.0",
+  "blueprint_inspector": "Blueprint Details",
+  "blueprint_desc": "Check out what is inside this blueprint!",
+  "filter_all": "See Everything",
+  "filter_missing": "Need to Download"
 }

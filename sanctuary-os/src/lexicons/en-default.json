@@ -2822,5 +2822,9 @@
   "badge_community": "Community",
   "badge_local": "Local",
   "setup_vault_required": "Initial OS Master Vault Setup Required",
-  "setup_btn_auto_detect": "Auto Detect Game Files"
+  "setup_btn_auto_detect": "Auto Detect Game Files",
+  "blueprint_inspector": "Playset Inspector",
+  "blueprint_desc": "Mod metadata and Asset repository",
+  "filter_missing": "Missing Only",
+  "sort_by": "Sort By"
 }

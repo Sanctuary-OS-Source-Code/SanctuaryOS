@@ -84,7 +84,7 @@ export function GlobalTooltip() {
         ) : (
           <div 
             ref={tooltipRef}
-            className={`flex flex-col items-start justify-center px-5 py-3 max-w-[320px] w-max border ${borderColorClass} shadow-2xl animate-in fade-in zoom-in-95 rounded-xl relative overflow-hidden bg-[color-mix(in_srgb,var(--text)_5%,transparent)]`}
+            className={`flex flex-col items-start justify-center px-5 py-3 max-w-[320px] w-max border ${borderColorClass} shadow-2xl animate-in fade-in zoom-in-95 rounded-xl relative overflow-hidden bg-[color-mix(in_srgb,var(--panelTint)_20%,transparent)] backdrop-blur-md`}
           >
             {/* 3D Glass Inner Top Highlight */}
             <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-60 pointer-events-none z-0" />
@@ -93,9 +93,9 @@ export function GlobalTooltip() {
             <div className="absolute inset-0 rounded-[inherit] z-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
 
             <div className="relative z-10 flex flex-col items-start gap-1 w-full">
-              <div className={`${normalFont ? 'text-[11px] font-bold' : 'text-[10px] font-black capitalize tracking-[0.2em]'} flex items-start text-left gap-2 whitespace-pre-line ${textColorClass}`}>
+              <div className={`${normalFont ? 'text-[11px] font-bold' : 'text-[10px] font-black capitalize tracking-[0.2em]'} flex items-start text-left gap-2 whitespace-pre-wrap ${textColorClass}`}>
                 {!noIcon && <span className="material-symbols-outlined !text-[14px] shrink-0 mt-[1px]">{iconName}</span>}
-                <span className="break-words">{title}</span>
+                <span className="break-all" style={{ overflowWrap: 'anywhere' }}>{title}</span>
               </div>
               {subtitle && (
                 <span className="text-[10px] font-bold text-[var(--subtext)] text-left whitespace-pre-line mt-0.5 w-full leading-relaxed break-words">{subtitle}</span>

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter } from "../shared";
+import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter, PanelHeaderGroup, PanelHeaderButton, ViewHeader, SearchBar, HoverTooltip, FilterPopover } from "../shared";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
@@ -27,35 +27,53 @@ export function MarketUploadPanel({
         widthClass="w-[550px] max-w-[100vw]"
         backdropZ={backdropZ}
         panelZ={panelZ}
-        hideHeader={true}
-        noPadding={true}
-        noScroll={true}
+        icon="cloud_upload"
+        title={marketTab === 'LEXICONS' ? (t("upload_lexicon_title") || "Upload Lexicon") : marketTab === 'TEMPLATES' ? (t("upload_template_title") || "Upload Template") : (t("upload_chameleon_title") || "Upload Chameleon")}
+        subtitle={t("auto_upload_new_asset") || "Upload your custom creation"}
+        headerActions={
+          <>
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={uploadState.isEdit ? "save" : "cloud_upload"}
+                tooltip={uploadState.isEdit ? (t("upload_btn_update") || "Update") : (t("upload_submit") || "Submit")}
+                onClick={submitUpload}
+                disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
+                variant="accent"
+              />
+            </PanelHeaderGroup>
+          </>
+        }
       >
-        <button type="button" onClick={() => setUploadState((s: any) => ({ ...s, isOpen: false }))} className="group absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
-          <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
-        </button>
-        <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pt-6 pb-2 px-6">
-          <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] blur-[50px] pointer-events-none  transform scale-150 -translate-y-1/2"></div>
-          <div className="flex items-center gap-6 relative z-10 w-full pr-12">
-            <div className="w-20 h-20 shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center">
-              <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '40px' }}>
-                {marketTab === 'LEXICONS' ? 'translate' : marketTab === 'TEMPLATES' ? 'draw' : 'palette'}
-              </span>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 relative z-10">
+          <div className="flex flex-col gap-8 pb-8 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none" style={{ transform: 'translate(20%, -20%)' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '300px' }}>cloud_upload</span>
             </div>
-            <div className="flex flex-col min-w-0 flex-1 pt-1">
-              <h3 className="text-3xl font-black text-[var(--text)] capitalize truncate leading-tight pb-1">
-                {marketTab === 'LEXICONS'
-                  ? (t("upload_lexicon_title"))
-                  : marketTab === 'TEMPLATES'
-                    ? (t("upload_template_title"))
-                    : (t("upload_chameleon_title"))}
-              </h3>
-              <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mt-1">{t("auto_upload_new_asset")}</p>
+            <div className="flex items-start justify-between gap-6 relative z-10 w-full">
+              <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-full">
+                <h1 className="text-4xl font-black capitalize tracking-tight text-[var(--text)] drop-shadow-md break-words break-all" style={{ overflowWrap: 'anywhere' }}>
+                  {uploadState.name || t("new_upload") || "New Upload"}
+                </h1>
+                <div className="flex items-center gap-3 flex-wrap mt-2">
+                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-xs font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
+                    <span className="material-symbols-outlined !text-[16px] shrink-0">draft</span>
+                    <span className="truncate">{marketTab}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 relative z-10 w-full flex-wrap">
+              <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("label_version") || "Version"}</span>
+                <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">new_releases</span> {uploadState.version || "1.0.0"}</span>
+              </div>
+              <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("upload_type") || "Upload Type"}</span>
+                <span className="text-lg font-black flex items-center gap-2 capitalize"><span className="material-symbols-outlined !text-[20px] theme-text-accent">{uploadState.isEdit ? 'edit' : 'add_circle'}</span> {uploadState.isEdit ? 'Update' : 'New Release'}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 relative z-10">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
               <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("upload_file")}</label>
@@ -188,23 +206,6 @@ export function MarketUploadPanel({
 
           </div>
         </div>
-        <div className="p-8 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-xl flex flex-row items-center justify-center gap-4 w-full relative z-50 shrink-0">
-          <button
-            onClick={() => setUploadState((s: any) => ({ ...s, isOpen: false }))}
-            className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black capitalize tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-          >
-            <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-            {t("nav_cancel")}
-          </button>
-          <button
-            onClick={submitUpload}
-            disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
-            className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black capitalize tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--success-rgb),0.2)] disabled:opacity-50 disabled:hover:scale-100 disabled:pointer-events-none"
-          >
-            <span className="material-symbols-outlined !text-[18px]">{uploadState.isEdit ? (t("icon_save")) : (t("icon_upload"))}</span>
-            {uploadState.isEdit ? (t("upload_btn_update")) : (t("upload_submit"))}
-          </button>
-        </div>
       </SidePanel>
     </>
   );
@@ -225,27 +226,51 @@ export function MarketReportPanel({
         widthClass="w-[500px] max-w-[100vw]"
         backdropZ="z-[65000]"
         panelZ="z-[65001]"
-        hideHeader={true}
-        noPadding={true}
-        noScroll={true}
+        icon="flag"
+        title={t("report_title") || "Report Content"}
+        subtitle={t("report_desc") || "Please describe the issue"}
+        headerActions={
+          <>
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon="flag"
+                tooltip={t("report_submit") || "Submit Report"}
+                onClick={() => handleReportSubmit({ preventDefault: () => { } } as any)}
+                variant="danger"
+              />
+            </PanelHeaderGroup>
+          </>
+        }
       >
-        <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-red-500/10 to-transparent pt-6 pb-4 px-6">
-          <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] blur-[50px] pointer-events-none  transform scale-150 -translate-y-1/2"></div>
-          <div className="flex items-center gap-6 relative z-10 w-full pr-12">
-            <div className="w-16 h-16 shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-inner flex items-center justify-center">
-              <span className="material-symbols-outlined text-red-500 drop-shadow-md" style={{ fontSize: '32px' }}>{t("icon_flag")}</span>
+        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative z-10 pt-6">
+          <div className="flex flex-col gap-8 pb-8 px-6 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none" style={{ transform: 'translate(20%, -20%)' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '300px' }}>flag</span>
             </div>
-            <div className="flex flex-col min-w-0 flex-1 pt-1">
-              <h3 className="text-2xl font-black text-[var(--text)] capitalize truncate leading-tight pb-1">{t("report_title")}</h3>
-              <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mt-1">{t("report_desc")}</p>
+            <div className="flex items-start justify-between gap-6 relative z-10 w-full">
+              <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-full">
+                <h1 className="text-4xl font-black capitalize tracking-tight text-[var(--text)] drop-shadow-md break-words break-all" style={{ overflowWrap: 'anywhere' }}>
+                  {t("report_content") || "Report Content"}
+                </h1>
+                <div className="flex items-center gap-3 flex-wrap mt-2">
+                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-xs font-black theme-text-danger uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
+                    <span className="material-symbols-outlined !text-[16px] shrink-0">warning</span>
+                    <span className="truncate">{t("action_required") || "Action Required"}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 relative z-10 w-full flex-wrap">
+              <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("target_asset") || "Target Asset"}</span>
+                <span className="text-lg font-black flex items-center gap-2 max-w-full min-w-0"><span className="material-symbols-outlined !text-[20px] theme-text-accent shrink-0">target</span> <span className="truncate">{reportState.assetId || "Unknown"}</span></span>
+              </div>
+              <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("asset_type") || "Asset Type"}</span>
+                <span className="text-lg font-black flex items-center gap-2 capitalize"><span className="material-symbols-outlined !text-[20px] theme-text-accent">category</span> {reportState.assetType || "Unknown"}</span>
+              </div>
             </div>
           </div>
-          <button type="button" onClick={() => setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' })} className="group absolute top-8 right-6 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
-            <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
-          </button>
-        </div>
-
-        <form onSubmit={handleReportSubmit} className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative z-10 pt-6">
           <div className="p-6 flex flex-col gap-6 flex-1">
             <div className="flex flex-col gap-2">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("reason")}</label>
@@ -259,18 +284,7 @@ export function MarketReportPanel({
               />
             </div>
           </div>
-
-          <div className="p-8 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] backdrop-blur-xl flex flex-row items-center justify-center gap-4 w-full relative z-50 shrink-0">
-            <button type="button" onClick={() => setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' })} className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black capitalize tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-              {t("nav_cancel")}
-            </button>
-            <button type="submit" className="flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black capitalize tracking-[0.2em] transition-all border backdrop-blur-md text-xs hover:scale-[1.02] active:scale-95 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[0_5px_20px_rgba(var(--danger-rgb),0.2)]">
-              <span className="material-symbols-outlined !text-[18px]">{t("icon_flag")}</span>
-              {t("report_submit")}
-            </button>
-          </div>
-        </form>
+        </div>
       </SidePanel>
     </>
   );
@@ -289,6 +303,7 @@ export function MarketBlueprintPanel({
   const [enrichedBlueprint, setEnrichedBlueprint] = useState(selectedBlueprint);
   const [visibleCount, setVisibleCount] = useState(100);
   const [filterTab, setFilterTab] = useState<'ALL' | 'MISSING'>('ALL');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const modList = useStore((state) => state.modList);
   const playSets = useStore((state) => state.playSets) || [];
@@ -301,9 +316,16 @@ export function MarketBlueprintPanel({
 
   const displayArtifacts = useMemo(() => {
     const artifacts = enrichedBlueprint?.json_data?.artifacts || [];
-    if (filterTab === 'ALL') return artifacts;
-    return artifacts.filter((m: any) => !localVaultHashes.has(m.hash));
-  }, [enrichedBlueprint, filterTab, localVaultHashes]);
+    let filtered = artifacts;
+    if (filterTab === 'MISSING') {
+      filtered = filtered.filter((m: any) => !localVaultHashes.has(m.hash));
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((m: any) => (m.name || '').toLowerCase().includes(q) || (m.author || '').toLowerCase().includes(q));
+    }
+    return filtered;
+  }, [enrichedBlueprint, filterTab, localVaultHashes, searchQuery]);
 
   const visibleArtifacts = useMemo(() => displayArtifacts.slice(0, visibleCount), [displayArtifacts, visibleCount]);
   const premiumMods = useMemo(() => visibleArtifacts.filter((m: any) => m.is_paid || m.is_early_access), [visibleArtifacts]);
@@ -322,11 +344,13 @@ export function MarketBlueprintPanel({
       }
       parsedJson = parsedJson || {};
 
-      // Ensure artifacts are picked up even if stored at the root of the blueprint
       parsedJson.artifacts = parsedJson.artifacts || bp.artifacts || [];
 
       setEnrichedBlueprint({
+        ...selectedBlueprint,
         ...bp,
+        master_author: selectedBlueprint.master_author || bp.master_author,
+        author: selectedBlueprint.author || bp.author,
         json_data: parsedJson
       });
       setVisibleCount(100);
@@ -342,12 +366,12 @@ export function MarketBlueprintPanel({
             if (aPremium !== bPremium) return bPremium - aPremium;
             return (a.name || '').localeCompare(b.name || '');
           });
-          setEnrichedBlueprint({
-            ...bp,
+          setEnrichedBlueprint((prev: any) => prev ? {
+            ...prev,
             is_paid: bp.is_paid || finalArtifacts.some((a: any) => a.is_paid),
             is_early_access: bp.is_early_access || finalArtifacts.some((a: any) => a.is_early_access),
             json_data: { ...parsedJson, artifacts: finalArtifacts }
-          });
+          } : null);
           return;
         }
 
@@ -393,7 +417,6 @@ export function MarketBlueprintPanel({
           });
         }
 
-        // Always sort to bring Premium/EA to the top so it doesn't look "Random" to the user
         finalArtifacts = [...finalArtifacts].sort((a: any, b: any) => {
           const aPremium = a.is_paid || a.is_early_access ? 1 : 0;
           const bPremium = b.is_paid || b.is_early_access ? 1 : 0;
@@ -401,19 +424,18 @@ export function MarketBlueprintPanel({
           return (a.name || '').localeCompare(b.name || '');
         });
 
-        setEnrichedBlueprint({
-          ...bp,
+        setEnrichedBlueprint((prev: any) => prev ? {
+          ...prev,
           is_paid: bp.is_paid || finalArtifacts.some((a: any) => a.is_paid),
           is_early_access: bp.is_early_access || finalArtifacts.some((a: any) => a.is_early_access),
           json_data: { ...parsedJson, artifacts: finalArtifacts }
-        });
+        } : null);
       };
 
       fetchPremiumStatus();
     };
 
     if (selectedBlueprint.json_data === undefined) {
-      // Missing json_data! Fetch the full record
       supabase.from('blueprints').select('*').eq('id', selectedBlueprint.id).single().then(({ data }) => {
         if (data) {
           processBlueprint(data);
@@ -436,180 +458,193 @@ export function MarketBlueprintPanel({
         widthClass="w-full max-w-4xl"
         backdropZ="z-[15000]"
         panelZ="z-[15001]"
-        hideHeader={true}
         noPadding={true}
         noScroll={true}
-        footer={
-          <SidePanelActionFooter
-            onCancel={() => setSelectedBlueprint(null)}
-            cancelLabel={t("nav_cancel")}
-            cancelIcon="close"
-            onAction={async () => {
-              if (syncBlueprintByCode) {
-                setIsSyncing(true);
-                const isCopy = playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code);
-                await syncBlueprintByCode(selectedBlueprint.json_data.code, isCopy ? " (Cloned)" : " (Downloaded)");
-                try {
-                  supabase.rpc('increment_blueprint_downloads', { blueprint_id: selectedBlueprint.id }).then();
-                  if (onDownloadSuccess) onDownloadSuccess(selectedBlueprint.id);
-                } catch (e) { console.error("Could not increment downloads", e); }
-                setIsSyncing(false);
-              }
-              setSelectedBlueprint(null);
-            }}
-            actionDisabled={isSyncing}
-            isProcessing={isSyncing}
-            processingLabel={t("btn_importing")}
-            actionLabel={playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? (t("btn_install_copy")) : t("update_panel_install")}
-            actionVariant={playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? "primary" : "success"}
-            actionIcon="download"
-          />
+        icon="map"
+        title={t("blueprint_inspector")}
+        subtitle={t("blueprint_desc")}
+        headerActions={
+          <>
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={isSyncing ? "sync" : "download"}
+                tooltip={playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? (t("btn_install_copy") || "Install Copy") : (t("update_panel_install") || "Install")}
+                onClick={async () => {
+                  if (playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code)) {
+                    setIsSyncing(true);
+                    await syncBlueprintByCode(selectedBlueprint.json_data.code);
+                    setIsSyncing(false);
+                  } else {
+                    onDownloadSuccess?.();
+                  }
+                  setSelectedBlueprint(null);
+                }}
+                disabled={isSyncing}
+                variant="accent"
+              />
+            </PanelHeaderGroup>
+          </>
         }
       >
-        <button onClick={() => setSelectedBlueprint(null)} className="group absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-110 active:scale-95">
-          <span className="material-symbols-outlined !text-[24px] transition-transform duration-300 group-hover:rotate-90">{t("icon_close")}</span>
-        </button>
-        <div className="relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 overflow-hidden bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pt-6 pb-2 px-10">
-          <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] blur-[50px] pointer-events-none  transform scale-150 -translate-y-1/2"></div>
-          <div className="flex items-start gap-6 relative z-10 w-full pr-12">
-            <div className="w-20 h-20 shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center">
-              <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" style={{ fontSize: '40px' }}>{t("icon_map")}</span>
-            </div>
-            <div className="flex flex-col min-w-0 flex-1 pt-1">
-              <div className="flex justify-start items-start gap-4">
-                <h3 className="text-3xl font-black text-[var(--text)] capitalize truncate leading-tight pb-1">{enrichedBlueprint.name}</h3>
-                {(enrichedBlueprint.is_paid || enrichedBlueprint.is_early_access) && (
-                  <div className="flex gap-2 shrink-0 flex-col items-end">
-                    {enrichedBlueprint.is_early_access && (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-md shadow-lg">
-                        <span className="material-symbols-outlined !text-[12px] text-[#d8b4fe]">science</span>
-                        <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access")}</span>
-                      </div>
-                    )}
-                    {enrichedBlueprint.is_paid && (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-md shadow-lg">
-                        <span className="material-symbols-outlined !text-[12px] text-[#fef08a]">monetization_on</span>
-                        <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#fef08a]">{t("badge_paid")}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
+        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative z-10 px-10 py-6">
+          <div className="flex flex-col gap-3 pb-8">
+            <div className="glass-panel p-8 rounded-[2rem] flex flex-col justify-start gap-6 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative overflow-hidden mb-4 shadow-xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-30"></div>
+
+              <div className="flex flex-col gap-3 relative z-10 w-full">
+                <h1 className="text-4xl font-black text-[var(--text)] tracking-tight drop-shadow-md break-words">{enrichedBlueprint.name}</h1>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-xs font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
+                    <span className="material-symbols-outlined !text-[16px] shrink-0">person</span>
+                    <span className="truncate">{enrichedBlueprint.creator_name || enrichedBlueprint.master_author || enrichedBlueprint.author || "Citizen"}</span>
+                  </span>
+                  {enrichedBlueprint.is_paid && <div className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] text-[#fef08a] text-xs font-black tracking-widest uppercase flex items-center gap-2 shadow-sm backdrop-blur-sm shrink-0"><span className="material-symbols-outlined !text-[16px]">monetization_on</span> Premium</div>}
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-6 mt-4">
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1">{t("blueprint_author_label")}</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined !text-[12px] text-[var(--text)] opacity-50">{t("icon_person")}</span>
-                    <span className="text-[10px] font-black text-[var(--text)] capitalize tracking-widest">{enrichedBlueprint.author || "Citizen"}</span>
-                  </div>
+
+              <div className="flex items-center gap-3 relative z-10 w-full flex-wrap">
+                <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                  <span className="text-[10px] uppercase font-black tracking-widest opacity-50">Game Version</span>
+                  <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">sell</span> {enrichedBlueprint.game_version || enrichedBlueprint.json_data?.game_version || "UNKNOWN"}</span>
                 </div>
-                <div className="w-[1px] h-6 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent hidden sm:block"></div>
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1">{t("blueprint_date_label")}</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined !text-[12px] text-[var(--text)] opacity-50">{t("icon_calendar")}</span>
-                    <span className="text-[10px] font-black text-[var(--text)] capitalize tracking-widest">{new Date(enrichedBlueprint.created_at).toLocaleDateString()}</span>
-                  </div>
+                <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                  <span className="text-[10px] uppercase font-black tracking-widest opacity-50">Downloads</span>
+                  <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">download</span> {enrichedBlueprint.downloads || 0}</span>
                 </div>
-                <div className="w-[1px] h-6 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent hidden sm:block"></div>
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1">{t("blueprint_version_label")}</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`material-symbols-outlined !text-[12px] ${enrichedBlueprint.json_data.game_version ? 'text-[var(--accent)]' : 'text-[var(--warning)]'}`}>
-                      {enrichedBlueprint.json_data.game_version ? (t("icon_verified")) : (t("icon_warning"))}
-                    </span>
-                    <span className={`text-[10px] font-black capitalize tracking-widest ${enrichedBlueprint.json_data.game_version ? 'text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.4)]' : 'text-[var(--warning)]'}`}>
-                      {enrichedBlueprint.json_data.game_version || "UNKNOWN"}
-                    </span>
-                  </div>
+                <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+                  <span className="text-[10px] uppercase font-black tracking-widest opacity-50">Published</span>
+                  <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">calendar_today</span> {new Date(enrichedBlueprint.created_at).toLocaleDateString()}</span>
                 </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+              <h3 className="text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-80 flex items-center gap-3">
+                <span className="px-2 py-1 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] theme-text-accent border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                  {displayArtifacts.length}
+                </span>
+                {t("blueprint_included") || "Included Artifacts"}
+              </h3>
+              <div className="flex items-center gap-3 flex-1 justify-end">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={(e: any) => setSearchQuery(e.target.value)}
+                  placeholder={t("search_artifacts") || "Query Artifacts..."}
+                  className="w-full max-w-xs h-10"
+                />
+                <FilterPopover
+                  icon="tune"
+                  options={[
+                    { id: 'ALL', label: t("filter_all") || "Show All", icon: "select_all" },
+                    { id: 'MISSING', label: t("filter_missing") || "Missing Only", icon: "warning" }
+                  ]}
+                  activeTab={filterTab}
+                  setTab={setFilterTab}
+                  className="shrink-0"
+                  buttonClassName="!w-10 !h-10 !rounded-xl"
+                />
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-10 py-4 flex flex-col gap-6 relative z-10">
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-start items-center">
-              <h3 className="text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-80 flex items-center gap-2">
-                <span className="theme-text-accent">{enrichedBlueprint.json_data.artifacts?.length || 0}</span> {t("blueprint_included")}
-              </h3>
-              <FilterTabs className="h-9">
-                <FilterTabButton id="ALL" label={t("artifacts_tab_all")} activeTab={filterTab} setTab={setFilterTab} />
-                <FilterTabButton id="MISSING" label={t("artifacts_tab_missing")} activeTab={filterTab} setTab={setFilterTab} />
-              </FilterTabs>
-            </div>
+          <div className="flex flex-col gap-8 pt-6">
 
             {(() => {
-              const renderMod = (mod: any, i: number) => (
-                <UniversalCard
-                  key={`${mod.hash || mod.name}_${i}`}
-                  layout="compact"
-                  title={cleanModName(mod.name || mod.id).name}
-                  subtitle={cleanModName(mod.name || mod.id).ext}
-                  className="!backdrop-blur-none will-change-transform"
-                  style={{ WebkitBackdropFilter: 'none', backdropFilter: 'none' }}
-                  onClick={() => onOpenDossier?.({ ...mod, isNexusView: true })}
-                  actions={
-                    <div className="flex items-center gap-2 shrink-0">
-                      {(mod.is_paid || mod.is_early_access) && (
-                        <div className="flex flex-wrap gap-2 mr-2">
-                          {mod.is_early_access && (
-                            <div className="px-2 py-1 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-lg flex items-center gap-1 shadow-md">
-                              <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
-                              <span className="text-[8px] font-black capitalize tracking-[0.1em] text-purple-500">{t("badge_early_access")}</span>
-                            </div>
-                          )}
-                          {mod.is_paid && (
-                            <div className="px-2 py-1 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-lg flex items-center gap-1 shadow-md">
-                              <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
-                              <span className="text-[8px] font-black capitalize tracking-[0.1em] text-yellow-500">{t("badge_paid")}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {mod.author && <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-4">{mod.author}</span>}
+              const renderMod = (mod: any, i: number) => {
+                const cleaned = cleanModName(mod.name || mod.id);
+                return (
+                  <div
+                    key={`${mod.hash || mod.name}_${i}`}
+                    onClick={() => onOpenDossier?.({ ...mod, isNexusView: true })}
+                    className="group relative flex flex-col h-28 rounded-2xl bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 cursor-pointer overflow-hidden shadow-sm hover:shadow-xl"
+                  >
+                    <HoverTooltip title={mod.name} />
+                    <div className="flex justify-between items-start p-3 pb-0 relative z-10">
+                      <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-[var(--accent)] transition-colors shadow-inner">
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {cleaned.ext === 'PACKAGE' ? 'inventory_2' : cleaned.ext === 'TS4SCRIPT' ? 'code' : 'insert_drive_file'}
+                        </span>
+                      </div>
+                      <div className="flex gap-1.5 flex-wrap justify-end">
+                        {mod.is_early_access && (
+                          <div className="w-6 h-6 rounded-md bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] flex items-center justify-center text-[#d8b4fe]" title={t("badge_early_access") || "Early Access"}>
+                            <span className="material-symbols-outlined !text-[12px]">science</span>
+                          </div>
+                        )}
+                        {mod.is_paid && (
+                          <div className="w-6 h-6 rounded-md bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] flex items-center justify-center text-[#fef08a]" title={t("badge_paid") || "Paid"}>
+                            <span className="material-symbols-outlined !text-[12px]">monetization_on</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  }
-                />
-              );
+
+                    <div className="flex flex-col flex-1 justify-end p-3 relative z-10">
+                      <span className="text-[10px] font-black text-[var(--text)] truncate group-hover:theme-text-accent transition-colors leading-tight mb-1">{cleaned.name}</span>
+                      <div className="flex items-center justify-between mt-auto">
+                        <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 tracking-widest">{cleaned.ext}</span>
+                        {mod.author && (
+                          <span className="text-[8px] font-bold text-[var(--subtext)] opacity-40 capitalize tracking-widest truncate max-w-[80px] text-right">{mod.author}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                  </div>
+                );
+              };
 
               return (
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-8">
                   {premiumMods.length > 0 && (
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-3 p-4 glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] shadow-md">
-                        <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-yellow-500">
-                          <span className="material-symbols-outlined !text-[20px]">workspace_premium</span>
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center justify-between pb-2 border-b border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-yellow-500 flex items-center justify-center shadow-inner">
+                            <span className="material-symbols-outlined !text-[16px]">workspace_premium</span>
+                          </div>
+                          <span className="text-[11px] font-black text-yellow-500 capitalize tracking-widest">{t("premium_artifacts") || "Premium Artifacts"}</span>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-black text-yellow-500 capitalize tracking-widest">{t("premium_artifacts")}</span>
-                          <span className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-wider opacity-80">
-                            {premiumMods.filter((m: any) => m.is_paid).length} Paid, {premiumMods.filter((m: any) => m.is_early_access).length} Early Access
-                          </span>
-                        </div>
+                        <span className="text-[9px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-60">
+                          {premiumMods.length} Items
+                        </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {premiumMods.map(renderMod)}
+
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+                        {premiumMods.map((mod: any, i: number) => renderMod(mod, i))}
                       </div>
                     </div>
                   )}
 
                   {standardMods.length > 0 && (
-                    <div className="grid grid-cols-2 gap-3">
-                      {standardMods.map(renderMod)}
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center justify-between pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] flex items-center justify-center shadow-inner opacity-80">
+                            <span className="material-symbols-outlined !text-[16px]">inventory_2</span>
+                          </div>
+                          <span className="text-[11px] font-black text-[var(--text)] capitalize tracking-widest">{t("standard_artifacts") || "Standard Artifacts"}</span>
+                        </div>
+                        <span className="text-[9px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-60">
+                          {standardMods.length} Items
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+                        {standardMods.map((mod: any, i: number) => renderMod(mod, i))}
+                      </div>
                     </div>
                   )}
                 </div>
               );
             })()}
-            {(filterTab === 'ALL' ? (enrichedBlueprint.json_data.artifacts?.length || 0) : ((enrichedBlueprint.json_data.artifacts || []).filter((m: any) => !modList.some((vaultMod: any) => vaultMod.hash === m.hash)).length)) > visibleCount && (
+            {displayArtifacts.length > visibleCount && (
               <button
                 onClick={() => setVisibleCount((prev: number) => prev + 100)}
                 className="w-full py-4 mt-2 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all flex items-center justify-center gap-2 shadow-md active:scale-[0.99]"
               >
                 <span className="material-symbols-outlined !text-[16px]">expand_more</span>
-                Load More Artifacts ({(filterTab === 'ALL' ? (enrichedBlueprint.json_data.artifacts?.length || 0) : ((enrichedBlueprint.json_data.artifacts || []).filter((m: any) => !modList.some((vaultMod: any) => vaultMod.hash === m.hash)).length)) - visibleCount} Remaining)
+                Load More Artifacts ({displayArtifacts.length - visibleCount} Remaining)
               </button>
             )}
           </div>

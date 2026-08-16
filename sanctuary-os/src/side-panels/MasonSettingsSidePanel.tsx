@@ -7,7 +7,7 @@ import {
   CustomComplianceDropdown, CustomDatePicker, HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, SidePanelActionFooter
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, SidePanelActionFooter, PanelHeaderGroup, PanelHeaderButton
 } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
@@ -84,8 +84,17 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
       title={t("masonhub_settings_title")}
       icon={t("icon_settings")}
       widthClass="w-[500px]"
-      footer={
-        <SidePanelActionFooter onCancel={onClose} cancelLabel={t("nav_cancel")} onAction={handleSave} actionDisabled={isSaving} actionLabel={t("save_configuration")} isProcessing={isSaving} processingLabel={t("saving_settings")} />
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={isSaving ? "sync" : "save"}
+            tooltip={isSaving ? t("saving_settings") : t("save_configuration")}
+            variant="accent"
+            disabled={isSaving}
+            className={isSaving ? "animate-pulse" : ""}
+            onClick={handleSave}
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="w-full flex flex-col gap-6">

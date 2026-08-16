@@ -4,7 +4,7 @@ import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import MarkdownRenderer from "../MarkdownRenderer";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, extractPostImage, renderTextWithIcons, EmptyState, HoverTooltip, ActionButton } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, extractPostImage, renderTextWithIcons, EmptyState, HoverTooltip, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import FlagContentSidePanel from './FlagContentSidePanel';
 import { handleOpenUrl } from "../shared";
 import { useStore } from '../store';
@@ -519,6 +519,61 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
             ? (t("alert_subtitle"))
             : (post.category ? (t("dispatch_subtitle")) : (t("transmission_subtitle")))
         }
+        headerActions={
+          <>
+            {(!userId || isBanned) ? (
+              <div className="relative group/flagbtn h-full flex items-center">
+                <HoverTooltip
+                  variant="danger"
+                  title={isBanned ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
+                  subtitle={isBanned ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
+                  className="group-hover/flagbtn:flex z-[1000]"
+                />
+                <PanelHeaderGroup>
+                  <PanelHeaderButton
+                    icon="flag"
+                    tooltip={t("feed_btn_flag")}
+                    disabled={true}
+                    variant="danger"
+                  />
+                </PanelHeaderGroup>
+              </div>
+            ) : (!isPostAuthor && (
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon="flag"
+                  tooltip={t("feed_btn_flag")}
+                  onClick={() => setFlagTarget({ id: post.id, type: 'post' })}
+                  variant="danger"
+                />
+              </PanelHeaderGroup>
+            ))}
+            {post.mason_id !== 'system' && (
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon="person"
+                  tooltip={t("btn_view_profile")}
+                  onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }}
+                />
+                {post.masons?.patreon_url && (
+                  <PanelHeaderButton
+                    icon="favorite"
+                    tooltip={t("btn_patreon")}
+                    onClick={() => handleOpenUrl(post.masons.patreon_url)}
+                    variant="danger"
+                  />
+                )}
+                {post.masons?.discord_url && (
+                  <PanelHeaderButton
+                    icon="forum"
+                    tooltip={t("btn_discord")}
+                    onClick={() => handleOpenUrl(post.masons.discord_url)}
+                  />
+                )}
+              </PanelHeaderGroup>
+            )}
+          </>
+        }
       >
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
           {imageUrl && (() => {
@@ -693,55 +748,6 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               </div>
             </div>
 
-            <div className="mt-12 pt-8 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center w-full gap-8">
-              <div className="flex items-center gap-4">
-                {post.mason_id !== 'system' && <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50">{t("creator_links")}</span>}
-                {post.mason_id !== 'system' && (
-                  <ActionButton onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }} variant="glass" icon="person" label={t("btn_view_profile")} />
-                )}
-                {post.masons?.patreon_url && (
-                  <ActionButton onClick={() => handleOpenUrl(post.masons.patreon_url)} variant="danger" icon="favorite" label={t("btn_patreon")} />
-                )}
-                {post.masons?.discord_url && (
-                  <ActionButton onClick={() => handleOpenUrl(post.masons.discord_url)} variant="glass" icon="forum" label={t("btn_discord")} />
-                )}
-              </div>
-              <div className="flex items-center gap-4">
-                {userId && !isPostAuthor && !isBanned && (
-                  <ActionButton
-                    onClick={() => setFlagTarget({ id: post.id, type: 'post' })}
-                    variant="danger"
-                    icon="flag"
-                    label={t("feed_btn_flag")}
-                  />
-                )}
-                {(!userId || isBanned) && (
-                  <div className="relative group/flagbtn">
-                    <HoverTooltip
-                      variant="danger"
-                      title={isBanned ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
-                      subtitle={isBanned ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
-                      className="group-hover/flagbtn:flex z-[1000]"
-                    />
-                    <ActionButton
-                      disabled={true}
-                      className="opacity-30 grayscale cursor-not-allowed"
-                      variant="danger"
-                      icon="flag"
-                      label={t("feed_btn_flag")}
-                    />
-                  </div>
-                )}
-                {post.mason_id === 'system' && (
-                  <ActionButton
-                    onClick={onClose}
-                    variant="glass"
-                    icon="close"
-                    label={t("btn_close")}
-                  />
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </SidePanel>

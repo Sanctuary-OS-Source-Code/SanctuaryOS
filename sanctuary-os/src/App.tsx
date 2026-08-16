@@ -1011,7 +1011,7 @@ function App() {
         } else {
           useStore.getState().setStatus(`${fileEditNames.slice(0, 2).join(", ")} and ${fileEditNames.length - 2} other files have cached changes from your last session.`);
         }
-      }, 2000);
+      }, 8000);
     }
 
     if (postEditNames.length > 0) {
@@ -1023,7 +1023,7 @@ function App() {
         } else {
           useStore.getState().setStatus(`${postEditNames.slice(0, 2).join(", ")} and ${postEditNames.length - 2} other drafts have cached changes from your last session.`);
         }
-      }, 2500);
+      }, 10000);
     }
   }, []);
   const { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet, getMissingStrings, ignoreMissingString, purgeMissingString } = usePlaySetLogic();

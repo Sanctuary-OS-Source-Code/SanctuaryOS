@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { SidePanel, standardButtonClass, standardDangerButtonClass, HubTabButton, HoverTooltip, CustomDropdown, ActionButton, SearchBar } from '../shared';
+import { SidePanel, standardButtonClass, standardDangerButtonClass, HubTabButton, HoverTooltip, CustomDropdown, ActionButton, SearchBar, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { WorkbenchRawEditor } from './WorkbenchRawEditor';
 import { WorkbenchVisualEditor } from './WorkbenchVisualEditor';
 import { WorkbenchEmptyVisualState } from './WorkbenchEmptyVisualState';
@@ -74,135 +74,167 @@ export function WorkbenchSidePanel({
          defaultWidth={layoutState.isFullscreen ? window.innerWidth : ((isTemplateMode && previewMode !== 'off') || activeTab === 'dual' ? 1400 : 900)}
          panelClass={layoutState.isFullscreen ? "!w-full !max-w-[100vw] !border-r-0 !rounded-none" : ""}
          headerActions={
-      <div className="flex items-center glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner mr-2 backdrop-blur-md">
-               <div className="relative group flex">
-                  <button
-                     onClick={() => layoutState.setIsFullscreen(!layoutState.isFullscreen)}
-                     className="w-12 h-12 flex items-center justify-center text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shrink-0"
-                  >
-                     <span className="material-symbols-outlined !text-[18px]">{layoutState.isFullscreen ? 'fullscreen_exit' : 'fullscreen'}</span>
-                  </button>
-                  <HoverTooltip title={layoutState.isFullscreen ? "Exit Fullscreen" : "Fullscreen"} variant="info" className="z-[100] top-[120%]" />
-               </div>
-
-               {isTemplateMode && (
-                  <div className="flex items-center">
-                     <button
-                        onClick={() => layoutState.setIsTemplateGuideOpen(true)}
-                        className="h-12 px-6 transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent font-black"
-                     >
-                        <span className="material-symbols-outlined text-xl normal-case">{t("icon_help")}</span>
-                        <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_info")}</span>
-                     </button>
-                  </div>
-               )}
-               <button
-                  onClick={() => setShowTimeline(true)}
-                  disabled={!selectedFile}
-                  className="h-12 px-6 rounded-none transition-all flex items-center justify-center gap-2 shrink-0 text-[var(--text)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] border border-transparent font-black disabled:opacity-50 disabled:pointer-events-none"
-               >
-                  <span className="material-symbols-outlined text-xl normal-case">{t("icon_history")}</span>
-                  <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_timeline")}</span>
-               </button>
-            </div>
-         }
-         footer={
-            <div className="flex items-center justify-center w-full gap-4">
-               {isTemplateMode && (
-                  <div className="relative group/publishbtn">
-                     {(!session || localStorage.getItem("sanctuary_blacklisted") === "true") ? (
-                        <HoverTooltip
-                           title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("alert_guest_mode")}
-                           subtitle={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
-                           className="group-hover/publishbtn:flex z-[1000] left-1/2 -translate-x-1/2 bottom-[120%]"
-                        />
-                     ) : editorState.problemsList.length > 0 ? (
-                        <HoverTooltip
-                           title={t("err_publish_blocks")}
-                           subtitle={t("publish_disabled_errors_desc")}
-                           variant="danger"
-                           className="group-hover/publishbtn:flex z-[1000] left-1/2 -translate-x-1/2 bottom-[120%]"
-                        />
-                     ) : null}
-                     <ActionButton
+            <>
+               <PanelHeaderGroup>
+                  {isTemplateMode && (
+                     <PanelHeaderButton
+                        icon={t("icon_cloud_upload")}
+                        tooltip={(!session || localStorage.getItem("sanctuary_blacklisted") === "true") ? (localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("alert_guest_mode")) : (editorState.problemsList.length > 0 ? t("err_publish_blocks") : t("btn_publish"))}
+                        variant="accent"
+                        disabled={editorState.problemsList.length > 0 || !session || localStorage.getItem("sanctuary_blacklisted") === "true"}
                         onClick={() => setIsPushModalOpen(true)}
-                        disabled={editorState.problemsList.length > 0 || !session || localStorage.getItem("sanctuary_blacklisted") === "true"} label={t("btn_publish")} icon={t("icon_cloud_upload")}
-                     >
-                        
-                        
-                     </ActionButton>
-                  </div>
-               )}
-               <div className="relative group">
+                     />
+                  )}
+                  
                   {editorState.problemsList.length > 0 && hasUnsavedChanges ? (
                      layoutState.confirmSaveWithErrors ? (
-                        <div className="flex items-center gap-2">
-                           <ActionButton
-                              onClick={() => layoutState.setConfirmSaveWithErrors(false)} label={t("nav_cancel")} icon="close"
-                           >
-                              
-                              
-                           </ActionButton>
-                           <ActionButton
+                        <>
+                           <PanelHeaderButton
+                              icon="close"
+                              tooltip={t("nav_cancel")}
+                              variant="danger"
+                              onClick={() => layoutState.setConfirmSaveWithErrors(false)}
+                           />
+                           <PanelHeaderButton
+                              icon="check"
+                              tooltip={t("btn_confirm_save_errors")}
+                              variant="warning"
+                              disabled={fileState.isSaving}
                               onClick={() => {
                                  layoutState.setConfirmSaveWithErrors(false);
                                  fileState.saveConfig(editorState.rawText);
                               }}
-                              disabled={fileState.isSaving} label={t("btn_confirm_save_errors")} icon="check" className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
-                           >
-                              
-                              
-                           </ActionButton>
-                        </div>
+                           />
+                        </>
                      ) : (
-                        <div className="relative group">
-                           <HoverTooltip title={t("save_with_errors_warning")} variant="danger" className="z-[100] right-0 translate-x-0 left-auto bottom-[120%]" />
-                           <ActionButton
-                              onClick={() => layoutState.setConfirmSaveWithErrors(true)}
-                              disabled={fileState.isSaving} label={fileState.isSaving ? (t("btn_saving")) : (t("btn_save_with_errors"))} icon="warning"
-                           >
-                              
-                              
-                           </ActionButton>
-                        </div>
+                        <PanelHeaderButton
+                           icon="warning"
+                           tooltip={t("save_with_errors_warning")}
+                           variant="warning"
+                           disabled={fileState.isSaving}
+                           onClick={() => layoutState.setConfirmSaveWithErrors(true)}
+                        />
                      )
                   ) : (
-                     <div className="relative group">
-                        {hasUnsavedChanges && (
-                           <HoverTooltip title={t("unsaved_changes")} variant="warning" className="z-[100] right-0 translate-x-0 left-auto bottom-[120%]" />
-                        )}
-                        <ActionButton
-                           onClick={() => fileState.saveConfig(editorState.rawText)}
-                           disabled={!hasUnsavedChanges || fileState.isSaving} label={fileState.isSaving ? (t("btn_saving")) : (t("save"))} icon={t("icon_save")}
-                        >
-                           
-                           
-                        </ActionButton>
-                     </div>
+                     <PanelHeaderButton
+                        icon={t("icon_save")}
+                        tooltip={fileState.isSaving ? t("btn_saving") : t("save")}
+                        variant={hasUnsavedChanges ? "success" : "default"}
+                        disabled={!hasUnsavedChanges || fileState.isSaving}
+                        onClick={() => fileState.saveConfig(editorState.rawText)}
+                     />
                   )}
+               </PanelHeaderGroup>
+
+               {!isTemplateMode ? (
+                  <PanelHeaderGroup className="ml-2">
+                     <PanelHeaderButton
+                        icon={t("icon_tune")}
+                        tooltip={t("tab_visual")}
+                        isActive={activeTab === 'visual'}
+                        onClick={() => setActiveTab('visual')}
+                     />
+                     <PanelHeaderButton
+                        icon={t("icon_code")}
+                        tooltip={t("tab_raw")}
+                        isActive={activeTab === 'raw'}
+                        onClick={() => setActiveTab('raw')}
+                     />
+                     <PanelHeaderButton
+                        icon="splitscreen"
+                        tooltip={t("tab_dual_vision")}
+                        isActive={activeTab === 'dual'}
+                        onClick={() => setActiveTab('dual')}
+                     />
+                  </PanelHeaderGroup>
+               ) : (
+                  <PanelHeaderGroup className="ml-2">
+                     <PanelHeaderButton
+                        icon="visibility"
+                        tooltip={t("preview")}
+                        isActive={previewMode === 'preview'}
+                        onClick={() => setPreviewMode('preview')}
+                     />
+                     <PanelHeaderButton
+                        icon="description"
+                        tooltip={t("tab_file")}
+                        isActive={previewMode === 'file'}
+                        onClick={() => setPreviewMode('file')}
+                     />
+                     <PanelHeaderButton
+                        icon="visibility_off"
+                        tooltip={t("tab_off")}
+                        isActive={previewMode === 'off'}
+                        onClick={() => setPreviewMode('off')}
+                     />
+                  </PanelHeaderGroup>
+               )}
+
+               <PanelHeaderGroup className="ml-2">
+                  {isTemplateMode && (
+                     <PanelHeaderButton
+                        icon={t("icon_help")}
+                        tooltip={t("btn_info")}
+                        onClick={() => layoutState.setIsTemplateGuideOpen(true)}
+                     />
+                  )}
+                  <PanelHeaderButton
+                     icon={t("icon_history")}
+                     tooltip={t("btn_timeline")}
+                     onClick={() => setShowTimeline(true)}
+                  />
+                  {((!isTemplateMode && activeTab === 'dual') || (isTemplateMode && (previewMode === 'preview' || previewMode === 'file'))) && (
+                     <PanelHeaderButton
+                        icon={layoutState.isScrollLocked ? 'lock' : 'lock_open'}
+                        tooltip={t("sync_scroll")}
+                        isActive={layoutState.isScrollLocked}
+                        onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)}
+                     />
+                  )}
+               </PanelHeaderGroup>
+               <PanelHeaderGroup className="ml-2">
+                  <PanelHeaderButton
+                     icon={layoutState.isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
+                     tooltip={layoutState.isFullscreen ? t("btn_exit_fullscreen") : t("btn_fullscreen")}
+                     onClick={() => layoutState.setIsFullscreen(!layoutState.isFullscreen)}
+                  />
+               </PanelHeaderGroup>
+            </>
+         }
+         footer={
+            editorState.problemsList.length > 0 ? (
+               <div className="flex flex-col gap-4 w-full relative z-50">
+                  <div className="w-full flex items-center justify-between gap-5 theme-panel-danger !rounded-2xl px-6 py-4 cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all group/problem"
+                       onClick={() => { if (editorState.editorRef && editorState.problemsList[0]) { editorState.editorRef.revealLineInCenter(editorState.problemsList[0].line); editorState.editorRef.setPosition({ lineNumber: editorState.problemsList[0].line, column: editorState.problemsList[0].column }); editorState.editorRef.focus(); } }}
+                  >
+                     <div className="flex items-center gap-5">
+                        <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] flex items-center justify-center text-[var(--danger)] group-hover/problem:animate-pulse shrink-0">
+                           <span className="material-symbols-outlined !text-[20px]">{t("icon_error") || "error"}</span>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                           <span className="text-sm font-bold text-[var(--danger)] flex items-center gap-2">
+                              <strong>{editorState.problemsList.length}</strong> {editorState.problemsList.length === 1 ? 'Syntax Error' : 'Syntax Errors'}
+                              <span className="text-[10px] text-[var(--danger)] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] ml-1">
+                                 Line {editorState.problemsList[0]?.line}
+                              </span>
+                           </span>
+                           <span className="text-xs text-[var(--danger)] opacity-80 font-mono truncate max-w-[600px] transition-colors mt-0.5">
+                              {editorState.problemsList[0]?.message}
+                           </span>
+                        </div>
+                     </div>
+                     
+                     <button onClick={(e) => { e.stopPropagation(); editorState.setProblemsList([]); }} className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] transition-all shrink-0">
+                        <span className="material-symbols-outlined !text-[18px]">{t("icon_close") || "close"}</span>
+                     </button>
+                  </div>
                </div>
-            </div>
+            ) : undefined
          }
       >
          <div className="flex-1 min-h-0 flex flex-col h-full w-full relative">
 
             <div className="flex-1 relative min-h-0 mx-2 mb-2 flex flex-col gap-4">
-               {!isTemplateMode && (
-                  <div className="flex justify-start items-center px-2 mt-2 shrink-0 z-[100]">
-                     <div className="flex-1 flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5">
-                        <HubTabButton id="visual" activeTab={activeTab} setTab={setActiveTab} label={t("tab_visual")} icon={t("icon_tune")} />
-                        <HubTabButton id="raw" activeTab={activeTab} setTab={setActiveTab} label={t("tab_raw")} icon={t("icon_code")} />
-                        <HubTabButton id="dual" activeTab={activeTab} setTab={setActiveTab} label={t("tab_dual_vision")} icon="splitscreen" />
-                     </div>
-                     {activeTab === 'dual' && (
-                        <button onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)} className={`ml-4 shrink-0 h-10 px-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${layoutState.isScrollLocked ? 'glass-panel !bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)] !shadow-md' : 'glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                           <span className="material-symbols-outlined !text-[18px]">{layoutState.isScrollLocked ? 'lock' : 'lock_open'}</span>
-                           {t("sync_scroll")}
-                        </button>
-                     )}
-                  </div>
-               )}
-
                {!isTemplateMode && (
                   <div className={`flex-1 flex gap-4 min-w-0 min-h-0 ${activeTab === 'dual' ? 'flex-row' : 'flex-col'}`}>
                      <div className={`flex flex-col gap-6 flex-1 relative min-w-0 min-h-0 ${activeTab !== 'visual' && activeTab !== 'dual' ? 'hidden' : ''}`}>
@@ -373,37 +405,23 @@ export function WorkbenchSidePanel({
 
 
                {isTemplateMode && (
-                  <div className="flex justify-start items-center px-2 mt-2 mb-2 shrink-0 z-[100]">
-                     <div className="flex-1 flex items-center overflow-x-auto overflow-y-hidden custom-scrollbar glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner divide-x divide-white/5">
-                        <HubTabButton id="preview" activeTab={previewMode} setTab={setPreviewMode} label={t("preview")} icon="visibility" />
-                        <HubTabButton id="file" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_file")} icon="description" />
-                        <HubTabButton id="off" activeTab={previewMode} setTab={setPreviewMode} label={t("tab_off")} icon="visibility_off" />
-                     </div>
-                     {(previewMode === 'preview' || previewMode === 'file') && (
-                        <button onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)} className={`ml-4 shrink-0 h-10 px-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${layoutState.isScrollLocked ? 'glass-panel !bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)] !shadow-md' : 'glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                           <span className="material-symbols-outlined !text-[18px]">{layoutState.isScrollLocked ? 'lock' : 'lock_open'}</span>
-                           {t("sync_scroll")}
-                        </button>
-                     )}
-                  </div>
-               )}
-
-               {isTemplateMode && (
                   <div className={`flex-1 flex gap-4 min-w-0 min-h-0 ${previewMode === 'off' ? 'flex-col' : 'flex-row'}`}>
-                     <div className="flex-1 glass-panel rounded-2xl overflow-visible shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative flex flex-col min-h-0 min-w-0 z-[110]">
-                        <div className="p-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 flex items-center justify-start z-10 w-full overflow-visible flex-wrap rounded-t-2xl">
-                           <WorkbenchTemplateTools
-                              parsedData={editorState.parsedData}
-                              rawText={editorState.rawText}
-                              setRawText={editorState.handleRawChange}
-                              files={files}
-                              t={t}
-                              handleInsertSnippet={editorState.handleInsertSnippet}
-                              handleAutoMap={editorState.handleAutoMap}
-                           />
+                     <div className="flex-1 relative flex flex-col min-h-0 min-w-0 z-[110]">
+                        <div className="shrink-0 flex items-center justify-center z-10 w-full overflow-visible flex-wrap pb-4 pt-2">
+                           <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full px-4 py-2 shadow-lg flex items-center gap-2">
+                              <WorkbenchTemplateTools
+                                 parsedData={editorState.parsedData}
+                                 rawText={editorState.rawText}
+                                 setRawText={editorState.handleRawChange}
+                                 files={files}
+                                 t={t}
+                                 handleInsertSnippet={editorState.handleInsertSnippet}
+                                 handleAutoMap={editorState.handleAutoMap}
+                              />
+                           </div>
                         </div>
 
-                        <div className="flex-1 relative w-full min-w-0 min-h-0 overflow-hidden rounded-b-2xl">
+                        <div className="flex-1 relative w-full min-w-0 min-h-0 overflow-hidden">
                            <WorkbenchRawEditor
                               value={editorState.rawText}
                               onChange={editorState.handleRawChange}
@@ -443,9 +461,11 @@ export function WorkbenchSidePanel({
                            >
                               <div className="h-12 w-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
                            </div>
-              <div className={`shrink-0 glass-panel rounded-2xl shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: layoutState.previewWidth }}>
-                              <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 text-center flex items-center justify-start">
-                                 <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-2">{previewMode === 'preview' ? t("workbench_preview_title") : (editorState.parsedData?.target_file || 'Target File')}</span>
+              <div className={`shrink-0 flex flex-col relative border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`} style={{ width: layoutState.previewWidth }}>
+                              <div className="p-4 shrink-0 text-center flex items-center justify-center">
+                                 <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full px-6 py-2 shadow-md">
+                                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{previewMode === 'preview' ? t("workbench_preview_title") : (editorState.parsedData?.target_file || 'Target File')}</span>
+                                 </div>
                               </div>
                               <div ref={layoutState.visualScrollRef} className="flex-1 overflow-y-auto custom-scrollbar p-6">
                                  {previewMode === 'preview' ? (

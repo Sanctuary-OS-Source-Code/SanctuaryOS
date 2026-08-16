@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { useLexicon } from '../LexiconContext';
 
@@ -26,6 +26,40 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
    const { t } = useLexicon();
    const [editorRef, setEditorRef] = useState<any>(null);
    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+   // Actively inject backdrop-filter directly onto Monaco's floating widgets
+   useEffect(() => {
+      const applyGlass = () => {
+         const processRoot = (root: Document | ShadowRoot) => {
+            const widgets = root.querySelectorAll('.quick-input-widget, .monaco-editor .find-widget, .suggest-widget, .monaco-hover');
+            widgets.forEach((w: any) => {
+               // Apply glassmorphism directly inline
+               w.style.setProperty('background', 'rgba(15, 23, 42, 0.4)', 'important');
+               w.style.setProperty('background-color', 'rgba(15, 23, 42, 0.4)', 'important');
+               w.style.setProperty('backdrop-filter', 'blur(24px) saturate(1.5)', 'important');
+               w.style.setProperty('-webkit-backdrop-filter', 'blur(24px) saturate(1.5)', 'important');
+               w.style.setProperty('border-radius', '12px', 'important');
+               w.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.1)', 'important');
+               w.style.setProperty('box-shadow', '0 20px 50px rgba(0,0,0,0.5)', 'important');
+
+               // Find internal wrappers and force them to be transparent
+               const internals = w.querySelectorAll('.quick-input-header, .quick-input-and-more, .quick-input-list, .monaco-list, .monaco-list-rows, .find-part, .replace-part');
+               internals.forEach((inner: any) => {
+                  inner.style.setProperty('background', 'transparent', 'important');
+                  inner.style.setProperty('background-color', 'transparent', 'important');
+               });
+            });
+         };
+
+         processRoot(document);
+         document.body.querySelectorAll('*').forEach(el => {
+            if (el.shadowRoot) processRoot(el.shadowRoot);
+         });
+      };
+      
+      const interval = setInterval(applyGlass, 100);
+      return () => clearInterval(interval);
+   }, []);
    const editorOptions = React.useMemo(() => ({
       automaticLayout: true,
       minimap: { enabled: true },
@@ -63,8 +97,19 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
             'editorLineNumber.foreground': '#ffffff40',
             'editorLineNumber.activeForeground': '#38bdf8',
             'editorIndentGuide.background': '#ffffff10',
-            'editorSuggestWidget.background': '#0f172a',
-            'editorSuggestWidget.border': '#334155',
+            'editorSuggestWidget.background': '#0f172aee',
+            'editorSuggestWidget.border': '#ffffff1a',
+            'editorSuggestWidget.selectedBackground': '#38bdf840',
+            'editorHoverWidget.background': '#0f172aee',
+            'editorHoverWidget.border': '#ffffff1a',
+            'editorWidget.background': '#0f172aee',
+            'editorWidget.border': '#ffffff1a',
+            'quickInput.background': '#0f172aee',
+            'quickInputList.focusBackground': '#38bdf840',
+            'list.activeSelectionBackground': '#38bdf840',
+            'list.hoverBackground': '#38bdf81a',
+            'input.background': '#ffffff0a',
+            'inputOption.activeBorder': '#38bdf880',
             'minimap.background': '#00000000',
             'minimapSlider.background': '#ffffff10',
             'minimapSlider.hoverBackground': '#ffffff20',
@@ -94,8 +139,8 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
             'editorLineNumber.foreground': '#00000040',
             'editorLineNumber.activeForeground': '#0284c7',
             'editorIndentGuide.background': '#00000010',
-            'editorSuggestWidget.background': '#f8fafc',
-            'editorSuggestWidget.border': '#cbd5e1',
+            'editorSuggestWidget.background': '#00000000',
+            'editorSuggestWidget.border': '#00000000',
             'minimap.background': '#00000000',
             'minimapSlider.background': '#00000010',
             'minimapSlider.hoverBackground': '#00000020',
@@ -146,31 +191,6 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
                }
             }}
          />
-
-         {problemsList.length > 0 && (
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 max-w-2xl w-[90%] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-2xl rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-[color-mix(in_srgb,var(--danger)_60%,transparent)] overflow-hidden animate-in slide-in-from-bottom-10 z-[100] flex flex-col max-h-72">
-               <div className="flex items-center justify-start px-6 py-3 border-b border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shrink-0">
-                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--danger)] flex items-center gap-2 drop-shadow-md">
-                     <span className="material-symbols-outlined !text-[16px]">{t("icon_error")}</span>
-                     {t("problems")} ({problemsList.length})
-                  </span>
-                  <button onClick={() => setProblemsList([])} className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
-                     <span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span>
-                  </button>
-               </div>
-               <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative z-10">
-                  {problemsList.map((p, i) => (
-                     <div key={i} onClick={() => { if (editorRef) { editorRef.revealLineInCenter(p.line); editorRef.setPosition({ lineNumber: p.line, column: p.column }); editorRef.focus(); } }} className="flex items-start gap-4 px-4 py-3 rounded-xl hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] cursor-pointer group transition-colors">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] mt-0.5">{t("icon_cancel")}</span>
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                           <span className="text-[11px] font-mono font-bold text-[var(--text)] group-hover:text-[var(--danger)] transition-colors whitespace-normal break-words">{p.message}</span>
-                           <span className="text-[9px] text-[var(--subtext)] font-mono capitalize tracking-widest opacity-60">{t("auto_ln")} {p.line}{t("auto_col")} {p.column}</span>
-                        </div>
-                     </div>
-                  ))}
-               </div>
-            </div>
-         )}
       </div>
    );
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, ModSearchDropdown, SidePanel, SidePanelActionFooter, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex} from "../shared";
+import { CustomDropdown, ModSearchDropdown, SidePanel, SidePanelActionFooter, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useStore } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -326,17 +326,17 @@ export default function SupportDeskSidePanel({
       widthClass="w-[600px]"
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
-      footer={
-        <SidePanelActionFooter
-          onCancel={onClose}
-          cancelLabel={t("nav_cancel")}
-          onAction={submitTicket}
-          actionDisabled={isSubmitting || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)}
-          actionTooltip={activeCategory?.requires_target_mod && activeAdultMods.length > 0 ? (t("support_err_adult_mods_blocked")) : undefined}
-          actionLabel={t("support_submit")}
-          isProcessing={isSubmitting}
-          processingLabel={t("scanning")}
-        />
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={isSubmitting ? "sync" : "send"}
+            tooltip={isSubmitting ? t("scanning") : (activeCategory?.requires_target_mod && activeAdultMods.length > 0 ? t("support_err_adult_mods_blocked") : t("support_submit"))}
+            variant={activeCategory?.requires_target_mod && activeAdultMods.length > 0 ? "error" : "accent"}
+            disabled={isSubmitting || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)}
+            className={isSubmitting ? "animate-pulse" : ""}
+            onClick={submitTicket}
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-6 relative">

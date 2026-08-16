@@ -3,7 +3,7 @@ import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from '../../store';
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
-import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 
 export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies, onOpenSupportDesk, setViewingPost }: any) {
   const { t } = useLexicon();
@@ -120,16 +120,22 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
 
   return (
     <CommandScreenLayout>
-      <CommandScreenStats>
+      <CommandScreenStats gridClassOverride={urgentBroadcast ? "grid-cols-2 lg:grid-cols-4" : undefined}>
+        {urgentBroadcast && (
+          <AlertStatTile className="col-span-2" number={urgentBroadcast ? 1 : 0} active={!!urgentBroadcast} onClick={() => setIsAlertsOpen(true)} />
+        )}
+        {urgentBroadcast && (
+          <DashboardStatTile className="col-span-2" icon={<span className="material-symbols-outlined ">{t("icon_bug_report")}</span>} number={stats.bugs} label={t("stat_bugs")} colorClass="text-rose-500" onClick={() => onNavigate("bug_reports")} />
+        )}
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_deployed_code")}</span>} number={stats.artifacts} label={t("items")} colorClass="text-blue-500" onClick={() => onNavigate("registry")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_collections_bookmark")}</span>} number={stats.collections} label={t("tab_cc")} colorClass="text-amber-500" onClick={() => onNavigate("collections")} />
-
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_bug_report")}</span>} number={stats.bugs} label={t("stat_bugs")} colorClass="text-rose-500" onClick={() => onNavigate("bug_reports")} />
+        {!urgentBroadcast && (
+          <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_bug_report")}</span>} number={stats.bugs} label={t("stat_bugs")} colorClass="text-rose-500" onClick={() => onNavigate("bug_reports")} />
+        )}
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_forum")}</span>} number={repliesCount} label={t("ui.replies")} colorClass="text-indigo-500" onClick={onOpenRecentReplies} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_local_activity")}</span>} number={stats.support} label={t("wf_tab_tickets")} colorClass="text-pink-500" onClick={onOpenSupportDesk} />
       </CommandScreenStats>
 
-      <UrgentBroadcastBanner urgentBroadcast={urgentBroadcast} setViewingPost={setViewingPost} setUrgentBroadcast={setUrgentBroadcast} />
 
       <CommandScreenBody>
         <CommandScreenMain>

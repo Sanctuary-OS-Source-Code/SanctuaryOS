@@ -1,7 +1,7 @@
 import { useState, Fragment } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { formatDisplayName, SidePanel, getFileLabel, isSupportedExtension, SidePanelActionFooter } from "../shared";
+import { formatDisplayName, SidePanel, getFileLabel, isSupportedExtension, SidePanelActionFooter, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 
 const extractType = (name: string) => {
   const upper = String(name).toUpperCase();
@@ -68,11 +68,14 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
       icon="warning"
       iconColorClass={isTier4 ? "text-[var(--danger)]" : isTier3 ? "text-[var(--warning)]" : "text-[var(--accent)]"}
       widthClass="w-[500px]"
-      footer={
+      headerActions={
         selectedMod ? (
-          <div className="w-full animate-in slide-in-from-bottom-4">
-            <SidePanelActionFooter
-              onAction={() => {
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_check_circle")}
+              tooltip={t("btn_set_winner")}
+              variant="success"
+              onClick={() => {
                 if (isTier3) {
                   onOverride(selectedMod, conflict.mod_pair);
                 } else {
@@ -81,12 +84,8 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                 }
                 onClose();
               }}
-              actionLabel={t("btn_set_winner")}
-              actionIcon={t("icon_check_circle")}
-              actionVariant="success"
-              onCancel={onClose}
             />
-          </div>
+          </PanelHeaderGroup>
         ) : undefined
       }
     >

@@ -16,7 +16,7 @@ import MasonEditorPanel from "./hub-components/MasonEditorPanel";
 import { deepCountKeys, deepCompare, createEmptyClone, deepAddMissing, deepPurgeDeprecated } from "./lib/MasonValidation";
 import { useMasonFiles } from "./hooks/useMasonFiles";
 
-export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas", isKeepers = false }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons", isKeepers?: boolean }) {
+export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas", isKeepers = false }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons" | "sanctuary_games", isKeepers?: boolean }) {
    const mason = useMasonFiles({ vaultPath, isCloudMode, cloudTarget, isKeepers });
    const {
       t, session, pushStatus,
@@ -246,7 +246,49 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
       }
    };
 
+   // Actively inject backdrop-filter directly onto Monaco's floating widgets
+   useEffect(() => {
+      const applyGlass = () => {
+         const processRoot = (root: Document | ShadowRoot) => {
+            const widgets = root.querySelectorAll('.quick-input-widget, .monaco-editor .find-widget, .suggest-widget, .monaco-hover');
+            widgets.forEach((w: any) => {
+               // Apply glassmorphism directly inline
+               w.style.setProperty('background', 'rgba(15, 23, 42, 0.4)', 'important');
+               w.style.setProperty('background-color', 'rgba(15, 23, 42, 0.4)', 'important');
+               w.style.setProperty('backdrop-filter', 'blur(24px) saturate(1.5)', 'important');
+               w.style.setProperty('-webkit-backdrop-filter', 'blur(24px) saturate(1.5)', 'important');
+               w.style.setProperty('border-radius', '12px', 'important');
+               w.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.1)', 'important');
+               w.style.setProperty('box-shadow', '0 20px 50px rgba(0,0,0,0.5)', 'important');
+
+               // Find internal wrappers and force them to be transparent
+               const internals = w.querySelectorAll('.quick-input-header, .quick-input-and-more, .quick-input-list, .monaco-list, .monaco-list-rows, .find-part, .replace-part');
+               internals.forEach((inner: any) => {
+                  inner.style.setProperty('background', 'transparent', 'important');
+                  inner.style.setProperty('background-color', 'transparent', 'important');
+               });
+            });
+         };
+
+         processRoot(document);
+         document.body.querySelectorAll('*').forEach(el => {
+            if (el.shadowRoot) processRoot(el.shadowRoot);
+         });
+      };
+      
+      const interval = setInterval(applyGlass, 100);
+      return () => clearInterval(interval);
+   }, []);
+
    const handleEditorWillMount = (monaco: any) => {
+      const bgCol = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0f172a';
+      const accentCol = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#38bdf8';
+      const getHex = (c: string, alpha: string) => {
+         if (!c || c === 'transparent') return `#0f172a${alpha}`;
+         if (c.startsWith('#') && c.length === 7) return `${c}${alpha}`;
+         return `#0f172a${alpha}`;
+      };
+      
       monaco.editor.defineTheme('sanctuary-glass-dark', {
          base: 'vs-dark',
          inherit: true,
@@ -267,14 +309,21 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             'editorLineNumber.foreground': '#ffffff40',
             'editorLineNumber.activeForeground': '#38bdf8',
             'editorIndentGuide.background': '#ffffff10',
-            'editorSuggestWidget.background': '#0f172a',
-            'editorSuggestWidget.border': '#334155',
-            'editorWidget.background': '#151515f2',
-            'editorWidget.border': '#00000000',
+            'editorSuggestWidget.background': getHex(bgCol, '80'),
+            'editorSuggestWidget.border': getHex(textCol, '1a'),
+            'editorSuggestWidget.selectedBackground': getHex(accentCol, '40'),
+            'editorHoverWidget.background': getHex(bgCol, '80'),
+            'editorHoverWidget.border': getHex(textCol, '1a'),
+            'editorWidget.background': getHex(bgCol, '80'),
+            'editorWidget.border': getHex(textCol, '1a'),
+            'quickInput.background': getHex(bgCol, '80'),
+            'quickInputList.focusBackground': getHex(accentCol, '40'),
+            'list.activeSelectionBackground': getHex(accentCol, '40'),
+            'list.hoverBackground': getHex(accentCol, '1a'),
             'editorWidget.foreground': textCol,
-            'input.background': '#00000000',
+            'input.background': getHex(textCol, '0a'),
             'input.foreground': textCol,
-            'inputOption.activeBorder': '#00000000',
+            'inputOption.activeBorder': getHex(accentCol, '80'),
             'minimap.background': '#00000000',
             'minimapSlider.background': '#ffffff10',
             'minimapSlider.hoverBackground': '#ffffff20',
@@ -304,9 +353,9 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             'editorLineNumber.foreground': '#00000040',
             'editorLineNumber.activeForeground': '#0284c7',
             'editorIndentGuide.background': '#00000010',
-            'editorSuggestWidget.background': '#f8fafc',
-            'editorSuggestWidget.border': '#cbd5e1',
-            'editorWidget.background': '#f8fafcf2',
+            'editorSuggestWidget.background': '#00000000',
+            'editorSuggestWidget.border': '#00000000',
+            'editorWidget.background': '#00000000',
             'editorWidget.border': '#00000000',
             'editorWidget.foreground': textCol,
             'input.background': '#00000000',
