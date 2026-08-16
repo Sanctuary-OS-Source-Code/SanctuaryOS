@@ -35,8 +35,8 @@ export function useGlobalListeners(
           
           useStore.setState(state => ({
             modList: state.modList.map(m => {
-              const normalizedModPath = (m.physical_path || m.name)?.replace(/\\/g, '/');
-              if (normalizedModPath && pathsToUpdate.has(normalizedModPath)) {
+              const normalizedModPath = (m.physical_path || m.name)?.replace(/\\/g, '/').toLowerCase();
+              if (normalizedModPath && Array.from(pathsToUpdate).some((p: string) => p.toLowerCase().endsWith('/' + normalizedModPath) || p.toLowerCase() === normalizedModPath)) {
                 return { ...m, hasUpdate: undefined, newVersion: undefined, newGameVersion: undefined, download_url: undefined };
               }
               return m;

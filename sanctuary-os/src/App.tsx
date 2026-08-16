@@ -681,6 +681,7 @@ function App() {
   );
 
   const ignoredHashesRef = useRef<Set<string>>(new Set());
+  const networkCheckIdRef = useRef<number>(0);
   useEffect(() => {
     let unlisten: any;
     listen("dna_match_detected", (event: any) => {
@@ -1145,6 +1146,7 @@ function App() {
 
 
   async function checkNetworkUpdates(currentModList: ModData[]) {
+    const currentCheckId = ++networkCheckIdRef.current;
     try {
       const syncedMods = currentModList.filter(
         (m) => !m.isVirtual,
@@ -1224,6 +1226,12 @@ function App() {
       try {
         localStorage.setItem("network_updates_debug", debugLog);
       } catch (e) { }
+      
+      if (networkCheckIdRef.current !== currentCheckId) {
+        console.warn("checkNetworkUpdates superseded by a newer sweep. Aborting stale state update.");
+        return;
+      }
+
       setNetworkUpdates({ broken, obsolete, updated });
 
       setModList((prevList: any[]) => {

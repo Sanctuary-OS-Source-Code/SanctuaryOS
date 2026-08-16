@@ -42,7 +42,23 @@ export default function SidePanelBrowser() {
     if (isBlockingModalOpen && isSideBrowserOpen) {
       setIsSideBrowserOpen(false);
     }
-  }, [isBlockingModalOpen, isSideBrowserOpen, setIsSideBrowserOpen]);
+
+    if (!isSideBrowserOpen || isBlockingModalOpen) {
+      setBrowserTabs((prev: any[]) => {
+        if (prev.some(t => !t.sleeping)) {
+          return prev.map(t => ({ ...t, sleeping: true }));
+        }
+        return prev;
+      });
+    } else if (isSideBrowserOpen && !isBlockingModalOpen && activeBrowserTabId) {
+      setBrowserTabs((prev: any[]) => {
+        if (prev.some(t => t.id === activeBrowserTabId && t.sleeping)) {
+          return prev.map(t => t.id === activeBrowserTabId ? { ...t, sleeping: false } : t);
+        }
+        return prev;
+      });
+    }
+  }, [isBlockingModalOpen, isSideBrowserOpen, activeBrowserTabId, setIsSideBrowserOpen, setBrowserTabs]);
 
   const [localUrlInput, setLocalUrlInput] = useState('');
 
@@ -225,18 +241,15 @@ export default function SidePanelBrowser() {
           const activeWv = webviewsRef.current.get(activeLabel);
           if (activeWv) {
             if (blockingModalRef.current) {
-              await activeWv.hide().catch(console.error);
+              await activeWv.setSize(new LogicalSize(1, 1)).catch(console.error);
+              await activeWv.setPosition(new LogicalPosition(0, window.innerHeight)).catch(console.error);
               lastShownTab = '';
             } else {
               await Promise.all([
                 activeWv.setPosition(new LogicalPosition(rect.x, rect.y)),
                 activeWv.setSize(new LogicalSize(rect.width, rect.height))
               ]);
-              if (lastShownTab !== activeLabel) {
-                await activeWv.show().catch(console.error);
-                await activeWv.setFocus().catch(console.error);
-                lastShownTab = activeLabel;
-              }
+              lastShownTab = activeLabel;
             }
           }
         }
@@ -282,9 +295,9 @@ export default function SidePanelBrowser() {
 
         let wv = webviewsRef.current.get(label);
 
-        const isTabActive = isSideBrowserOpen && tab.id === activeBrowserTabId;
-        const targetX = isTabActive ? containerRect.x : -9999;
-        const targetY = isTabActive ? containerRect.y : -9999;
+        const isTabActive = isSideBrowserOpen && !blockingModalRef.current && tab.id === activeBrowserTabId;
+        const targetX = isTabActive ? containerRect.x : 0;
+        const targetY = isTabActive ? containerRect.y : window.innerHeight;
 
         if (!wv) {
           wv = new Webview(appWindow, label, {
@@ -306,6 +319,8 @@ export default function SidePanelBrowser() {
           wv.setPosition(new LogicalPosition(targetX, targetY)).catch(console.error);
           if (isTabActive) {
             wv.setSize(new LogicalSize(containerRect.width, containerRect.height)).catch(console.error);
+          } else {
+            wv.setSize(new LogicalSize(1, 1)).catch(console.error);
           }
         }
 
@@ -605,13 +620,13 @@ export default function SidePanelBrowser() {
             <div className={`flex-1 h-full bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-xl flex pointer-events-none rounded-2xl overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-[10px] relative ${isBookmarksDropdownOpen ? 'gap-[10px]' : ''}`}>
               <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent pointer-events-none" />
 
-              <div id="side-panel-browser-container" ref={containerRef} className="flex-1 rounded-[0.5rem] overflow-hidden relative pointer-events-auto shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] bg-black/50">
+              <div id="side-panel-browser-container" ref={containerRef} className="flex-1 rounded-[0.5rem] overflow-hidden relative  shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] bg-black/50">
                 {browserTabs.length === 0 && (
                   <div className="absolute inset-0 rounded-[inherit] flex flex-col items-center justify-center pointer-events-none z-50 animate-in fade-in duration-500">
                     <span className="material-symbols-outlined !text-[64px] text-[var(--subtext)] opacity-30 mb-4 drop-shadow-md">public</span>
                     <h2 className="text-[18px] font-black tracking-widest text-[var(--text)] opacity-50 capitalize drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{t("browser_ready_to_browse")}</h2>
                     <p className="text-[12px] text-[var(--subtext)] opacity-50 mt-2 max-w-xs text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">{t("browser_ready_to_browse_desc")}</p>
-                    <button onClick={createNewTab} className="mt-8 pointer-events-auto px-8 py-3 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_4px_12px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:shadow-[0_4px_20px_rgba(var(--accent-rgb),0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-95 transition-all font-black text-[11px] tracking-widest capitalize flex items-center gap-2">
+                    <button onClick={createNewTab} className="mt-8  px-8 py-3 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_4px_12px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:shadow-[0_4px_20px_rgba(var(--accent-rgb),0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-95 transition-all font-black text-[11px] tracking-widest capitalize flex items-center gap-2">
                       <span className="material-symbols-outlined !text-[16px]">add</span>
                       {t("browser_new_tab")}
                     </button>
@@ -620,7 +635,7 @@ export default function SidePanelBrowser() {
               </div>
 
               {isBookmarksDropdownOpen && (
-                <div className="w-72 shrink-0 h-full flex flex-col animate-in slide-in-from-right-4 z-50 min-h-0 relative pointer-events-auto bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-[0.5rem] overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(0,0,0,0.3)]">
+                <div className="w-72 shrink-0 h-full flex flex-col animate-in slide-in-from-right-4 z-50 min-h-0 relative  bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-[0.5rem] overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(0,0,0,0.3)]">
                   <div className="px-5 py-4 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex justify-start items-center gap-3 relative">
                     <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
           <div className="flex-1 flex items-center glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner relative z-10 shrink-0">

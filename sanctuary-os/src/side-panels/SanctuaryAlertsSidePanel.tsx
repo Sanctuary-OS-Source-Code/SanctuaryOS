@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
-import { SidePanel, CustomDropdown, extractPostImage, stripMarkdown, EmptyState } from '../shared';
+import { SidePanel, CustomDropdown, extractPostImage, stripMarkdown, EmptyState, FilterPopover } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import MasonPostViewer from "./MasonPostViewer";
 import { useStore } from '../store';
@@ -74,40 +74,41 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
         subtitle={t("subtitle_sanctuary_alerts")}
       >
         <div className="flex flex-col h-full relative z-10">
-          <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col sm:flex-row sm:items-center justify-start gap-4 z-10 relative">
-            <h2 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px]">filter_list</span>
-              {t("ui_btn_filter")}
+          <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between z-10 relative">
+            <h2 className="text-[12px] font-black text-[var(--text)] capitalize tracking-widest px-2">
+              {t("title_sanctuary_alerts")}
             </h2>
-            <div className="flex items-center gap-4 flex-1 justify-end">
-              <div className="w-64 relative">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] !text-[18px]">search</span>
-                <input
-                  type="text"
-                  placeholder={t("ui_placeholder_search")}
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full h-12 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl pl-12 pr-4 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder-[var(--subtext)]"
-                />
+            <FilterPopover label={t("ui_btn_filter")}>
+              <div className="flex flex-col gap-4 p-2 w-[300px]">
+                <div className="w-full relative">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] !text-[18px]">search</span>
+                  <input
+                    type="text"
+                    placeholder={t("ui_placeholder_search")}
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full h-10 bg-black/40 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl pl-12 pr-4 text-xs font-bold text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder-[var(--subtext)]"
+                  />
+                </div>
+                <div className="w-full z-20">
+                  <CustomDropdown disableTint={true}
+                    value={filterCategory}
+                    onChange={(v: string[]) => setFilterCategory(v[0])}
+                    options={[
+                      { id: "All", label: t("all_classes") },
+                      { id: "Alert", label: t("category_alert") },
+                      { id: "Game Version Alert", label: t("category_game_version_alert") },
+                      { id: "Malware Alert", label: t("category_malware_alert") },
+                      { id: "Artifact Alert", label: t("category_artifact_alert") }
+                    ]}
+                  />
+                </div>
+                <div className="flex items-stretch glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-10 shrink-0 divide-x divide-white/5 overflow-hidden">
+                  <button onClick={() => setFilterStatus('Active')} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterStatus === 'Active' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_active")}</button>
+                  <button onClick={() => setFilterStatus('Inactive')} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterStatus === 'Inactive' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_inactive")}</button>
+                </div>
               </div>
-              <div className="w-max min-w-48 max-w-xs">
-                <CustomDropdown disableTint={true}
-                  value={filterCategory}
-                  onChange={(v: string[]) => setFilterCategory(v[0])}
-                  options={[
-                    { id: "All", label: t("all_classes") },
-                    { id: "Alert", label: t("category_alert") },
-                    { id: "Game Version Alert", label: t("category_game_version_alert") },
-                    { id: "Malware Alert", label: t("category_malware_alert") },
-                    { id: "Artifact Alert", label: t("category_artifact_alert") }
-                  ]}
-                />
-              </div>
-       <div className="flex items-stretch glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0 divide-x divide-white/5">
-                <button onClick={() => setFilterStatus('Active')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterStatus === 'Active' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_active")}</button>
-                <button onClick={() => setFilterStatus('Inactive')} className={`h-full px-5 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterStatus === 'Inactive' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_inactive")}</button>
-              </div>
-            </div>
+            </FilterPopover>
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar bg-transparent">

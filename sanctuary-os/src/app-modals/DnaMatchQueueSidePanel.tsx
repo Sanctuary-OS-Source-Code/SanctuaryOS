@@ -41,7 +41,7 @@ export function DnaMatchQueueSidePanel({
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [dnaMatchQueue?.length, runRadarSweep, setStatus, t, resolveStats]);
+  }, [dnaMatchQueue?.length, t]);
 
   const settingsConflicts = dnaMatchQueue.filter((m: any) => m.reason === "SETTINGS_CONFLICT");
   const fileConflicts = dnaMatchQueue.filter((m: any) => m.reason !== "SETTINGS_CONFLICT");

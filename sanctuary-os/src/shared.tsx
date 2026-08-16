@@ -536,9 +536,9 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
 
           return (
             <>
-              <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
+              <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 300000 }} onClick={() => setIsOpen(false)} />
               <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
-                zIndex: 200001,
+                zIndex: 300001,
                 top: shouldDropUp ? undefined : rect.bottom + 8,
                 bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
                 left: rect.left,
@@ -1092,9 +1092,9 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
 
   const dropdownMenu = isOpen ? createPortal(
     <>
-      <div className="fixed inset-0" style={{ zIndex: 99998 }} onClick={() => setIsOpen(false)} />
+      <div className="fixed inset-0" style={{ zIndex: 300000 }} onClick={() => setIsOpen(false)} />
       <div className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
-        zIndex: 99999,
+        zIndex: 300001,
         top: btnRef.current ? btnRef.current.getBoundingClientRect().bottom + 4 : 0,
         left: btnRef.current ? btnRef.current.getBoundingClientRect().left : 0,
         width: btnRef.current ? btnRef.current.getBoundingClientRect().width : 'max-content',
@@ -1455,6 +1455,7 @@ export const stripMarkdown = (text: string) => {
     .replace(/(?:^|\s+)[-*+]\s+/g, ' ')
     .replace(/(?:^|\s+)\d+\.\s+/g, ' ')
     .replace(/`{1,3}[^`\import { getExtensionRegex } from "./shared";\nn]+`{1,3}/g, '')
+    .replace(/<img[^>]*>/gi, '')
     .replace(/\n+/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { DashboardStatTile, ViewHeader, isVersionMatch, SidePanel, getHighestVersion, handleOpenUrl, getExtensionRegex, HoverTooltip, ActionButton } from "./shared";
+import { DashboardStatTile, ViewHeader, isVersionMatch, SidePanel, getHighestVersion, handleOpenUrl, getExtensionRegex, HoverTooltip, ActionButton, stripMarkdown } from "./shared";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
@@ -399,7 +399,7 @@ export default function CommandCenter({
                       <HoverTooltip
                         variant="danger"
                         title={urgentBroadcast.title || 'SYSTEM BROADCAST'}
-                        subtitle={urgentBroadcast.message || urgentBroadcast.content}
+                        subtitle={stripMarkdown(urgentBroadcast.message || urgentBroadcast.content)}
                         className="group-hover/broadcast:flex z-[1000] w-full"
                       />
                       <DashboardStatTile
@@ -494,28 +494,17 @@ export default function CommandCenter({
           <CommandScreenSectionHeading title={t("quick_actions")} icon={t("icon_bolt")} />
 
           <div className="flex flex-col gap-4">
-            {(urgentBroadcast || (radarTier4Count + radarBrokenCount) > 0 || (radarTier3Count + radarUnstableCount) > 0 || hasSymlinkPerms === false) ? (
+            {!!urgentBroadcast && (
               <CommandScreenQuickLink 
                 icon="priority_high"
                 title={t("title_sanctuary_alerts") || "Sanctuary Alerts"}
-                subtitle={urgentBroadcast ? (t("urgent_alert_active") || "URGENT SYSTEM BROADCAST") : (t("title_system_alerts") || "SYSTEM ALERTS ACTIVE")}
+                subtitle={t("urgent_alert_active") || "URGENT SYSTEM BROADCAST"}
                 onClick={() => setIsAlertsOpen(true)}
                 textColorClass="text-[var(--danger)]"
                 hoverTextColorClass="group-hover:text-red-400"
                 iconShadowClass="drop-shadow-[0_0_8px_currentColor]"
                 iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
                 isAlert={true}
-              />
-            ) : (
-              <CommandScreenQuickLink
-                icon="warning_off"
-                title={t("title_sanctuary_alerts") || "Sanctuary Alerts"}
-                subtitle={t("alert_empty") || "SYSTEM BROADCASTS"}
-                onClick={() => setIsAlertsOpen(true)}
-                textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]"
-                hoverTextColorClass="group-hover:text-amber-400"
-                iconShadowClass="drop-shadow-md"
-                iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
               />
             )}
 
@@ -579,6 +568,18 @@ export default function CommandCenter({
               iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
             />
 
+            {!urgentBroadcast && (
+              <CommandScreenQuickLink
+                icon="warning_off"
+                title={t("title_sanctuary_alerts") || "Sanctuary Alerts"}
+                subtitle={t("alert_empty") || "SYSTEM BROADCASTS"}
+                onClick={() => setIsAlertsOpen(true)}
+                textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]"
+                hoverTextColorClass="group-hover:text-amber-400"
+                iconShadowClass="drop-shadow-md"
+                iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
+              />
+            )}
 
           </div>
         </div>
