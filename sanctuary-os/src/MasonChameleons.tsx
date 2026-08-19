@@ -20,24 +20,17 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
   return (
     <>
       <SidePanel
-        isOpen={true}
+        isOpen={isOpen}
         onClose={onClose}
-        widthClass="w-[450px] max-w-[100vw]"
+        widthClass="w-[800px] max-w-[95vw]"
         backdropZ="z-[15000]"
         panelZ="z-[15001]"
-        hideHeader={true}
-        noPadding={true}
-        noScroll={true}
+        title={t("theme_select_base")}
+        subtitle={t("theme_choose_blueprint")}
+        icon="palette"
       >
-        <button type="button" onClick={onClose} className="absolute top-8 right-8 z-50 w-10 h-10 glass-panel hover:theme-bg-danger text-[var(--text)] hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-          <span className="material-symbols-outlined !text-[24px]">{t("icon_close")}</span>
-        </button>
-        <div className="px-8 pt-10 pb-6 relative flex-shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-          <h3 className="text-2xl font-black text-[var(--text)] capitalize">{t("theme_select_base")}</h3>
-          <p className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mt-1">{t("theme_choose_blueprint")}</p>
-        </div>
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-4">
-          <button onClick={() => onSelect(null)} className="w-full p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 group text-left">
+        <div className="flex flex-col gap-6">
+          <button onClick={() => onSelect(null)} className="w-full p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-[1.01] transition-all flex items-center gap-4 group text-left shadow-sm">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined text-[var(--accent)]">add</span>
             </div>
@@ -47,27 +40,35 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
             </div>
           </button>
 
-          <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mt-4 ml-2">{t("theme_core_arch")}</h4>
-          {Object.entries(CORE_THEMES).map(([id, theme]: any) => (
-            <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left">
-              <div className="w-12 h-12 rounded-xl shrink-0" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-black text-[var(--text)] capitalize tracking-widest truncate">{theme.name}</h4>
-                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">{t("theme_core_os")}</p>
-              </div>
-            </button>
-          ))}
+          <div>
+            <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mb-3 ml-2">{t("theme_core_arch")}</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(CORE_THEMES).map(([id, theme]: any) => (
+                <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left shadow-sm hover:shadow-md">
+                  <div className="w-12 h-12 rounded-xl shrink-0" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-black text-[var(--text)] capitalize tracking-widest truncate">{theme.name}</h4>
+                    <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">{t("theme_core_os")}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
 
-          <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mt-4 ml-2">{t("theme_personal")}</h4>
-          {Object.entries(customThemes).map(([id, theme]: any) => (
-            <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left">
-              <div className="w-12 h-12 rounded-xl shrink-0" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-black text-[var(--text)] capitalize tracking-widest truncate">{theme.name}</h4>
-                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">{t("theme_custom")}</p>
-              </div>
-            </button>
-          ))}
+          <div>
+            <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mb-3 ml-2">{t("theme_personal")}</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(customThemes).map(([id, theme]: any) => (
+                <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left shadow-sm hover:shadow-md">
+                  <div className="w-12 h-12 rounded-xl shrink-0" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-black text-[var(--text)] capitalize tracking-widest truncate">{theme.name}</h4>
+                    <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">{t("theme_custom")}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </SidePanel>
     </>

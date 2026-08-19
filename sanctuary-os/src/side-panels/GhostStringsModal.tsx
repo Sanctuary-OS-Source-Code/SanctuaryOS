@@ -70,7 +70,7 @@ export function GhostStringsModal({
           const standardGhosts = ghosts.filter((mod: string) => !ghostsMeta[mod]?.is_paid && !ghostsMeta[mod]?.is_early_access);
 
           const renderGhostList = (modList: string[]) => (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-3">
               {modList.map((mod: string, idx: number) => {
                 const meta = ghostsMeta[mod] || {};
                 const targetUrl = `https://www.google.com/search?q=${encodeURIComponent(`${useStore.getState().activeGameSchema?.display_name || "Mod"} ${cleanSearchName(mod, useStore.getState().activeGameSchema)}`)}`;
@@ -79,7 +79,7 @@ export function GhostStringsModal({
                     key={idx}
                     layout="vertical-compact"
                     title={cleanSearchName(mod, useStore.getState().activeGameSchema)}
-                    subtitle={mod}
+                    subtitle={mod.split('/').pop() || mod}
                     badges={
                       (meta.is_paid || meta.is_early_access) && (
                         <>
@@ -102,21 +102,21 @@ export function GhostStringsModal({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleOpenUrl(targetUrl)}
-                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] rounded-lg transition-all text-[var(--text)] group/btn relative"
+                          className="w-8 h-8 shrink-0 flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] rounded-lg transition-all text-[var(--text)] opacity-70 hover:opacity-100 group/btn relative"
                         >
                           <span className="material-symbols-outlined !text-[16px]">search</span>
                           <HoverTooltip title={t("btn_search_network")} variant="default" className="group-hover/btn:flex z-[200]" />
                         </button>
                         <button
                           onClick={() => onIgnore(mod)}
-                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:text-amber-500 border hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] rounded-lg transition-all text-[var(--text)] group/btn relative"
+                          className="w-8 h-8 shrink-0 flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:text-amber-500 rounded-lg transition-all text-[var(--text)] opacity-70 hover:opacity-100 group/btn relative"
                         >
                           <span className="material-symbols-outlined !text-[16px]">visibility_off</span>
                           <HoverTooltip title={t("btn_ignore_alert")} variant="default" className="group-hover/btn:flex z-[200]" />
                         </button>
                         <button
                           onClick={() => onPurge(mod)}
-                          className="w-8 h-8 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-red-500 border hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] rounded-lg transition-all text-[var(--text)] group/btn relative"
+                          className="w-8 h-8 shrink-0 flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-red-500 rounded-lg transition-all text-[var(--text)] opacity-70 hover:opacity-100 group/btn relative"
                         >
                           <span className="material-symbols-outlined !text-[16px]">delete</span>
                           <HoverTooltip title={t("btn_purge_string")} variant="danger" className="group-hover/btn:flex z-[200]" />

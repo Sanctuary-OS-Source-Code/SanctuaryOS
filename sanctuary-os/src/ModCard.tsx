@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { HoverTooltip, getFileLabel, formatDisplayName, isSupportedExtension, getExtensionRegex, getModIcon, CustomDropdown, cleanSearchName, mapDlcCode, isVersionMatch, getHighestVersion, getLowestVersion } from "./shared";
+import { HoverTooltip, getFileLabel, formatDisplayName, isSupportedExtension, getExtensionRegex, getModIcon, CustomDropdown, cleanSearchName, mapDlcCode, isVersionMatch, getHighestVersion, getLowestVersion, parseStringArray } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -59,42 +59,12 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
     }
   }, [confirmMode]);
 
-  let rawDLC: string[] = [];
-  if (mod.requiredDLC) {
-    if (typeof mod.requiredDLC === 'string') {
-      try {
-        const parsed = JSON.parse(mod.requiredDLC);
-        if (Array.isArray(parsed)) {
-          rawDLC = parsed.map((s: any) => String(s).trim());
-        } else {
-          rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
-        }
-      } catch (e) {
-        rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
-      }
-    } else if (Array.isArray(mod.requiredDLC)) {
-      rawDLC = [...mod.requiredDLC];
-    }
-  }
+  let rawDLC: string[] = parseStringArray(mod.requiredDLC);
   if (mod.flavors) {
     mod.flavors.forEach((f: any) => {
       if (f.requiredDLC) {
-        let fDLC = f.requiredDLC;
-        if (typeof fDLC === 'string') {
-          try {
-            const parsed = JSON.parse(fDLC);
-            if (Array.isArray(parsed)) {
-              fDLC = parsed.map((s: any) => String(s).trim());
-            } else {
-              fDLC = fDLC.split(',').map((s: string) => s.trim());
-            }
-          } catch (e) {
-            fDLC = fDLC.split(',').map((s: string) => s.trim());
-          }
-        }
-        if (Array.isArray(fDLC)) {
-          fDLC.forEach((d: string) => { if (!rawDLC.includes(d)) rawDLC.push(d); });
-        }
+        const fDLC = parseStringArray(f.requiredDLC);
+        fDLC.forEach((d: string) => { if (!rawDLC.includes(d)) rawDLC.push(d); });
       }
     });
   }
@@ -455,16 +425,16 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
               <div className="absolute inset-0 z-20 flex flex-col rounded-[inherit] overflow-hidden">
 
                 {/* Header */}
-                <div className={`relative z-10 pt-5 pb-1 flex flex-col items-center justify-center gap-2 shrink-0`}>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-inner ${delayedConfirmMode === 'tier3' ? 'bg-[color-mix(in_srgb,orange_5%,transparent)] border-[color-mix(in_srgb,orange_20%,transparent)]' :
+                <div className={`relative z-10 pt-4 pb-2 px-4 flex flex-row items-center justify-center gap-3 shrink-0`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border shadow-inner shrink-0 ${delayedConfirmMode === 'tier3' ? 'bg-[color-mix(in_srgb,orange_5%,transparent)] border-[color-mix(in_srgb,orange_20%,transparent)]' :
                     delayedConfirmMode === 'flavor_swap' ? 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]' :
                       'bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'
                     }`}>
-                    <span className={`material-symbols-outlined !text-[20px] ${delayedConfirmMode === 'tier3' ? 'text-orange-500' : delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>
+                    <span className={`material-symbols-outlined !text-[16px] ${delayedConfirmMode === 'tier3' ? 'text-orange-500' : delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>
                       {delayedConfirmMode === 'flavor_swap' ? 'swap_horiz' : delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? 'sports_esports' : hasMissingDeps ? 'extension' : 'currency_exchange') : delayedConfirmMode === 'broken' ? 'warning' : delayedConfirmMode === 'casualty' ? (!isInActiveSet ? (t("icon_crisis_alert")) : 'delete') : delayedConfirmMode === 'tier3' ? (t("icon_tune")) : 'delete'}
                     </span>
                   </div>
-                  <span className={`text-[12px] font-black capitalize tracking-widest text-center px-4 leading-normal ${delayedConfirmMode === 'tier3' ? 'text-orange-500' : delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>
+                  <span className={`text-[12px] font-black capitalize tracking-widest text-left leading-normal truncate ${delayedConfirmMode === 'tier3' ? 'text-orange-500' : delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>
                     {String(delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? t("unsupported_version") : hasMissingDeps ? t("missing_artifacts") : t("missing_dlc")) : (delayedConfirmMode === 'casualty' || delayedConfirmMode === 'flavor_swap') ? (delayedConfirmMode === 'flavor_swap' ? (isBetaSwap ? t("beta_swap") : (t("flavor_swap"))) : (!isInActiveSet ? t("fatal_conflict") : t("yeet_cascade"))) : delayedConfirmMode === 'broken' ? t("broken_artifacts") : t("tier3_conflict")).replace(/:$/, '')}
                   </span>
                 </div>

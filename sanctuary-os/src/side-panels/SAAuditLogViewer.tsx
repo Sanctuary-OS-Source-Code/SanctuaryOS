@@ -166,7 +166,7 @@ export function AuditLogViewer({
         isSidePanel={isSidePanel}
       >
         {isKeepers && (
-          <div className={`${isSidePanel ? 'flex-1' : 'w-max min-w-[160px]'} z-50 shrink-0`}>
+          <div className={`${isSidePanel ? 'flex-1 min-w-[140px]' : 'w-max min-w-[160px]'} z-50 shrink-0`}>
             <CustomDropdown disableTint={true}
               value={filterGame}
               onChange={(v: string[]) => setFilterGame(v[0])}
@@ -176,7 +176,7 @@ export function AuditLogViewer({
             />
           </div>
         )}
-        <div className={`${isSidePanel ? 'flex-1' : 'w-max min-w-[160px]'} z-40 shrink-0`}>
+        <div className={`${isSidePanel ? 'flex-1 min-w-[140px]' : 'w-max min-w-[160px]'} z-40 shrink-0`}>
           <CustomDropdown disableTint={true}
             value={filterAction}
             onChange={(v: string[]) => setFilterAction(v[0])}
@@ -185,17 +185,19 @@ export function AuditLogViewer({
             searchable={true}
           />
         </div>
-        <div className="flex items-center gap-2 text-[var(--subtext)] z-30 shrink-0">
+        <div className={`flex items-center gap-2 text-[var(--subtext)] z-30 shrink-0 ${isSidePanel ? 'flex-[1.5] min-w-[240px]' : ''}`}>
           <CustomDatePicker
+            className="flex-1 min-w-0"
             value={dateRange.start || null}
             onChange={(date) => setDateRange(prev => ({ ...prev, start: date }))}
-            placeholder="Start"
+            placeholder="Start Date"
           />
-          <span className="opacity-50">to</span>
+          <span className="material-symbols-outlined !text-[16px] opacity-40 shrink-0">arrow_forward</span>
           <CustomDatePicker
+            className="flex-1 min-w-0"
             value={dateRange.end || null}
             onChange={(date) => setDateRange(prev => ({ ...prev, end: date }))}
-            placeholder="End"
+            placeholder="End Date"
           />
         </div>
       </ScreenUtilityBar>

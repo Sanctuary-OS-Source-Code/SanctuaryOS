@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { logArchitectAction } from "./lib/audit";
@@ -21,96 +21,6 @@ const fetchAllPaginated = async (queryFn: () => any) => {
   return { data: allData, error: null };
 };
 
-
-function ServerModSearchDropdown({ onSelect, selectedItem, placeholder, masonId, isArchitect, onClear, className }: any) {
-  const { t } = useLexicon();
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const fetchResults = async () => {
-      if (!query.trim()) { setResults([]); return; }
-      let q = supabase.from('mods').select('id, name, master_author, latest_version, sub_type, file_extension, requiredDLC').ilike('name', `%${query}%`).limit(10);
-      if (!isArchitect && masonId) q = q.eq('mason_id', masonId);
-      const { data } = await q;
-      if (data) setResults(data);
-    };
-    const timeoutId = setTimeout(fetchResults, 300);
-    return () => clearTimeout(timeoutId);
-  }, [query, masonId, isArchitect]);
-
-  return (
-    <div className="relative w-full">
-      <div className={`relative flex items-center glass-surface ${className || 'rounded-full border border-transparent'} focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all shadow-inner group w-full h-12 z-[10]`}>
-        <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
-          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-focus-within:text-[var(--accent)] transition-colors">search</span>
-        </div>
-        <input
-          ref={inputRef}
-          type="text"
-          value={selectedItem ? (selectedItem.displayName || selectedItem.name || selectedItem.id) : query}
-          onChange={(e) => { if (!selectedItem) setQuery(e.target.value); setIsOpen(true); }}
-          onFocus={() => { if (!selectedItem) setIsOpen(true); }}
-          placeholder={placeholder}
-          readOnly={!!selectedItem}
-          className="w-full bg-transparent border-none px-2 py-2 text-[11px] font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-50 tracking-[0.2em] capitalize min-w-0"
-        />
-        {selectedItem ? (
-          <button className="pr-4 pl-2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold flex items-center justify-center" onClick={onClear}>
-            <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-          </button>
-        ) : (
-          <button className="pr-4 pl-2 text-[var(--subtext)] opacity-60 flex items-center justify-center" onClick={() => setIsOpen(!isOpen)}>
-            <span className="material-symbols-outlined !text-[20px]">{isOpen ? "expand_less" : "expand_more"}</span>
-          </button>
-        )}
-      </div>
-      {isOpen && !selectedItem && createPortal(
-        (() => {
-          const rect = inputRef.current?.getBoundingClientRect();
-          if (!rect) return null;
-          const spaceBelow = window.innerHeight - rect.bottom;
-          const shouldDropUp = spaceBelow < 300;
-
-          return (
-            <>
-              <div className="fixed inset-0 z-[200000]" onClick={() => setIsOpen(false)} />
-       <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-2xl z-[200001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
-                top: shouldDropUp ? undefined : rect.bottom + 8,
-                bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
-                left: rect.left,
-                width: rect.width,
-              }}>
-                {results.map((m: any, idx: number) => (
-                  <button
-                    key={`${m.hash || m.name}-${idx}`}
-                    onClick={() => { onSelect(m); setQuery(""); setIsOpen(false); }}
-                    className="w-full text-left px-5 py-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col gap-0.5"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-black text-[var(--text)] capitalize">{m.displayName || m.name.split('/').pop()}</span>
-                      {(m.file_extension || m.sub_type) && (
-                        <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-mono opacity-80 capitalize border border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-                          {(m.file_extension || m.sub_type).replace(".", "")}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[8px] font-mono text-[var(--subtext)] opacity-60">
-                      {m.version_label ? `Version(s): ${m.version_label}` : (m.master_author || m.author || (m.created_at ? `Created: ${new Date(m.created_at).toLocaleDateString()}` : `ID: ${m.id?.substring(0, 8).toUpperCase()}`))}
-                    </span>
-                  </button>
-                ))}
-                {results.length === 0 && <div className="p-5 text-center text-[10px] text-[var(--subtext)] font-bold capitalize">{query ? (t("link_no_results")) : "Type to search Supabase..."}</div>}
-              </div>
-            </>
-          );
-        })(), document.body
-      )}
-    </div>
-  );
-}
 const getDlcAbbreviation = (type: string) => {
   if (!type) return '';
   const t = type.toLowerCase();
@@ -154,10 +64,10 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
   const [editGroupName, setEditGroupName] = useState('');
 
   const fetchData = async () => {
-    let modsQuery = supabase.from('mods').select('*');
+    let modsQuery = supabase.from('mods').select('*').order('name');
     if (!isArchitect && masonId) modsQuery = modsQuery.eq('mason_id', masonId);
-
-
+    const { data: mods } = await fetchAllPaginated(() => modsQuery);
+    if (mods) setCloudMods(mods);
 
     const { data: groups } = await supabase.from('flavor_groups').select('*').order('name');
     if (groups) setAllFlavorGroups(groups);
@@ -953,17 +863,19 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
       {/* 1. The Seamless Header */}
       <ScreenUtilityBar
         className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20"
+        hideSearch={true}
+        leftContent={
+          <div className="w-full md:w-[400px] z-50">
+            <ModSearchDropdown
+              placeholder={t("search_ph")}
+              selectedItem={targetMod}
+              onSelect={(mod: any) => setTargetMod(mod)}
+              onClear={() => { setTargetMod(null); setActivePanel(null); }}
+              modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)}
+            />
+          </div>
+        }
       >
-        <div className="w-full md:w-[400px] z-50">
-          <ServerModSearchDropdown
-            masonId={masonId}
-            isArchitect={isArchitect}
-            onSelect={(mod: any) => setTargetMod(mod)}
-            selectedItem={targetMod}
-            onClear={() => { setTargetMod(null); setActivePanel(null); }}
-            placeholder={t("search_ph")}
-          />
-        </div>
       </ScreenUtilityBar>
 
       {/* 2. The Main Body (The Trigger Grid) */}
@@ -1055,7 +967,39 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
         </div>
       </SidePanel>
 
-
+      {/* Community Group Modal */}
+      <SidePanel
+        isOpen={showCommunityGroupModal}
+        onClose={() => { setShowCommunityGroupModal(false); setNewCommunityGroupName(''); }}
+        title={t("modal_create_community_group_title")}
+        icon="category"
+        footer={
+          <div className="flex justify-end gap-4 w-full">
+            <ActionButton
+              onClick={() => { setShowCommunityGroupModal(false); setNewCommunityGroupName(''); }} label={t("nav_cancel")}
+            >
+            </ActionButton>
+            <ActionButton
+              onClick={handleCreateCommunityGroup}
+              disabled={!newCommunityGroupName.trim()} label={t("modal_btn_create")} icon={t("icon_add_circle")}
+            >
+            </ActionButton>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("modal_community_group_name_label")}</label>
+          <input
+            autoFocus
+            type="text"
+            value={newCommunityGroupName}
+            onChange={(e) => setNewCommunityGroupName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateCommunityGroup()}
+            placeholder={t("modal_community_group_name_placeholder")}
+            className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
+          />
+        </div>
+      </SidePanel>
 
     </div>
   );

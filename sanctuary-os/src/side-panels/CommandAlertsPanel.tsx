@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { formatDisplayName, ViewHeader, CustomDropdown, mapDlcCode, isVersionMatch, SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getHighestVersion, getExtensionRegex, HoverTooltip, ActionButton } from "../shared";
+import { formatDisplayName, ViewHeader, CustomDropdown, mapDlcCode, isVersionMatch, SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getHighestVersion, getExtensionRegex, HoverTooltip, ActionButton, parseStringArray } from "../shared";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { tauriBridge } from "../lib/tauri-bridge";
@@ -129,12 +129,7 @@ export default function CommandAlertsPanel({ isOpen, onClose, playSet, modList, 
         alertType = 'red';
       } else {
         if (mod.requiredDLC) {
-          let rawDLC: string[] = [];
-          if (typeof mod.requiredDLC === 'string') {
-            rawDLC = mod.requiredDLC.split(',').map((s: string) => s.trim());
-          } else if (Array.isArray(mod.requiredDLC)) {
-            rawDLC = [...mod.requiredDLC];
-          }
+          const rawDLC = parseStringArray(mod.requiredDLC);
           const activeDLC = ownedDLC.filter((d: string) => !maskedDLC.includes(d));
           const missing = rawDLC.filter((req: string) => {
             const cleanReq = req.toUpperCase().trim();
@@ -143,18 +138,13 @@ export default function CommandAlertsPanel({ isOpen, onClose, playSet, modList, 
           });
           if (missing.length > 0) {
             const missingNames = missing.map((m: string) => mapDlcCode(m)).join(", ");
-            reason = `${t("bp_status_missing_dlc")}${missingNames}`;
+            reason = `${t("bp_status_missing_dlc")} ${missingNames}`;
             alertType = 'red';
           }
         }
 
         if (!reason && mod.dependencies) {
-          let rawDeps: string[] = [];
-          if (typeof mod.dependencies === 'string') {
-            rawDeps = mod.dependencies.split(',').map((s: string) => s.trim());
-          } else if (Array.isArray(mod.dependencies)) {
-            rawDeps = [...mod.dependencies];
-          }
+          const rawDeps = parseStringArray(mod.dependencies);
           if (rawDeps.length > 0) {
             const activeModNames = activeMods.map((m: any) => (m._originalSetName || m.name)?.toLowerCase());
             const missing = rawDeps.filter((req: string) => !activeModNames.includes(req.toLowerCase()));

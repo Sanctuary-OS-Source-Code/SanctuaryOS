@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useModalStore } from "./store/modalStore";
+import { useTooltipStore } from "./store/tooltipStore";
 import { supabase } from "./supabase";
 import { UniversalCard } from './components/universal/UniversalCard';
 
@@ -186,7 +187,7 @@ export function LoadingScreen({ title, subtitle, icon = "sync" }: { title: strin
 
 export function PanelHeaderGroup({ children, className = "" }: any) {
    return (
-      <div className={`flex items-center bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-xl p-1.5 gap-1 shrink-0 ${className}`}>
+      <div className={`flex items-center gap-1 shrink-0 ${className}`}>
          {children}
       </div>
    );
@@ -204,24 +205,24 @@ export function PanelHeaderButton({
    tooltipVariant,
    className = ""
 }: any) {
-   let colorClass = "text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+   let colorClass = "border border-transparent text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
 
    if (isActive) {
-      if (variant === "accent" || variant === "default") colorClass = "!text-[var(--accent)] !opacity-100 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]";
-      else if (variant === "error" || variant === "danger") colorClass = "!text-[var(--danger)] !opacity-100 bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--danger)_10%,transparent)]";
-      else if (variant === "success") colorClass = "!text-[var(--success)] !opacity-100 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--success)_10%,transparent)]";
+      if (variant === "accent" || variant === "default") colorClass = "!text-[var(--accent)] !opacity-100 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]";
+      else if (variant === "error" || variant === "danger") colorClass = "!text-[var(--danger)] !opacity-100 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--danger)_10%,transparent)]";
+      else if (variant === "success") colorClass = "!text-[var(--success)] !opacity-100 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--success)_10%,transparent)]";
    } else {
       if (variant === "error" || variant === "danger") {
-         colorClass = "text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)]";
+         colorClass = "border border-transparent text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]";
       } else if (variant === "success") {
-         colorClass = "text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_15%,transparent)]";
+         colorClass = "border border-transparent text-[var(--success)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]";
       } else if (variant === "warning") {
-         colorClass = "text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]";
+         colorClass = "border border-transparent text-[var(--warning)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]";
       }
    }
 
    if (disabled) {
-      colorClass = "text-[var(--text)] opacity-30 cursor-not-allowed";
+      colorClass = "border border-transparent text-[var(--text)] opacity-30 cursor-not-allowed";
    }
 
    const tVariant = tooltipVariant || (variant === "default" || variant === "accent" ? "info" : variant);
@@ -230,7 +231,7 @@ export function PanelHeaderButton({
       <div className={`relative group/btn shrink-0 ${className}`}>
          <button
             onClick={(e) => { if (!disabled && onClick) onClick(e); }}
-            className={`flex items-center justify-center transition-all rounded-[10px] ${!disabled ? 'active:scale-95' : ''} ${label ? 'px-4 h-9 gap-2' : 'w-9 h-9'} ${colorClass}`}
+            className={`flex items-center justify-center transition-all rounded-full ${!disabled ? 'active:scale-95' : ''} ${label ? 'px-4 h-9 gap-2' : 'w-9 h-9'} ${colorClass}`}
          >
             <span className={`material-symbols-outlined ${label ? '!text-[15px] normal-case' : '!text-[18px]'}`}>{icon}</span>
             {label && <span className="text-[10px] font-bold capitalize tracking-wider">{label}</span>}
@@ -440,6 +441,41 @@ export const getHighestVersion = (reqs: string[] | string) => {
   return sorted[0];
 };
 
+export const parseStringArray = (input: string | string[] | undefined | null): string[] => {
+  if (!input) return [];
+  
+  let rawArray: string[] = [];
+  if (Array.isArray(input)) {
+    rawArray = [...input];
+  } else if (typeof input === 'string') {
+    try {
+      let parsed = JSON.parse(input);
+      // Handle double-encoded JSON (e.g. '"[\"EP01\"]"' -> '["EP01"]')
+      if (typeof parsed === 'string' && parsed.startsWith('[') && parsed.endsWith(']')) {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch (e) {}
+      }
+      
+      if (Array.isArray(parsed)) {
+        rawArray = parsed.map(String);
+      } else {
+        rawArray = [String(parsed)];
+      }
+    } catch (e) {
+      rawArray = input.split(',');
+    }
+  }
+
+  // Aggressively clean any lingering array brackets, quotes, or whitespace
+  return rawArray.map(s => {
+    let clean = typeof s === 'string' ? s.trim() : String(s);
+    // Removes optional leading [ or " or ', and optional trailing ] or " or '
+    clean = clean.replace(/^\[?\s*["']?|["']?\s*\]?$/g, '');
+    return clean.trim();
+  }).filter(Boolean);
+};
+
 export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(--accent)]", children, onSubtitleClick, onTitleClick, breadcrumb, shape = "circle" }: any) {
   const shapeClass = shape === "square" ? "rounded-[calc(var(--radius)-4px)]" : "rounded-[var(--radius)]";
   return (
@@ -496,6 +532,31 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, isDropUp: false });
+
+  React.useLayoutEffect(() => {
+    if (!isOpen) return;
+    const updatePosition = () => {
+      if (inputRef.current) {
+        const rect = inputRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const shouldDropUp = dropUp !== undefined ? dropUp : spaceBelow < 300;
+        setCoords({
+          top: shouldDropUp ? window.innerHeight - rect.top + 8 : rect.bottom + 8,
+          left: rect.left,
+          width: rect.width,
+          isDropUp: shouldDropUp
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen, dropUp]);
 
   const rawResults = (modList || []).filter((m: any) =>
     !query ||
@@ -529,20 +590,16 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
       </div>
       {isOpen && !selectedItem && (
         (() => {
-          const rect = inputRef.current?.getBoundingClientRect();
-          if (!rect) return null;
-          const spaceBelow = window.innerHeight - rect.bottom;
-          const shouldDropUp = spaceBelow < 300;
-
-          return (
+          const portalRoot = document.getElementById("sa-portals") || document.body;
+          return createPortal(
             <>
-              <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 300000 }} onClick={() => setIsOpen(false)} />
-              <div className="fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+              <div className="!fixed inset-0 pointer-events-auto" style={{ zIndex: 300000 }} onClick={() => setIsOpen(false)} />
+              <div className="!fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
                 zIndex: 300001,
-                top: shouldDropUp ? undefined : rect.bottom + 8,
-                bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
-                left: rect.left,
-                width: rect.width,
+                top: coords.isDropUp ? undefined : coords.top,
+                bottom: coords.isDropUp ? coords.top : undefined,
+                left: coords.left,
+                width: coords.width,
               }}>
                 {results.map((m: any, idx: number) => (
                   <button
@@ -565,7 +622,7 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
                 ))}
                 {results.length === 0 && <div className="p-5 text-center text-[10px] text-[var(--subtext)] font-bold capitalize">{t("shared_no_signatures")}</div>}
               </div>
-            </>
+            </>, portalRoot
           );
         })()
       )}
@@ -697,20 +754,31 @@ export function ViewToggle({ options, activeTab, setTab, className = "" }: any) 
   );
 }
 
-export function FilterPopover({ icon = "tune", label, options, activeTab, setTab, multiSelect = false, className = "", buttonClassName = "", children }: any) {
+export function FilterPopover({ className = "", buttonClassName = "", icon = "tune", label, options, multiSelect, children, activeTab, setTab }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0, isRight: false });
 
-  const handleSelect = (id: string) => {
-    if (multiSelect) {
-      const current = Array.isArray(activeTab) ? activeTab : (activeTab ? [activeTab] : []);
-      const newVals = current.includes(id) ? current.filter((v: any) => v !== id) : [...current, id];
-      setTab(newVals);
-    } else {
-      setTab(id);
-      setIsOpen(false);
-    }
-  };
+  React.useLayoutEffect(() => {
+    if (!isOpen) return;
+    const updatePosition = () => {
+      if (btnRef.current) {
+        const rect = btnRef.current.getBoundingClientRect();
+        setCoords({
+          top: rect.bottom + 8,
+          left: rect.left >= window.innerWidth / 2 ? rect.right : rect.left,
+          isRight: rect.left >= window.innerWidth / 2
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
 
   const isOptionActive = (id: string) => {
     if (multiSelect) {
@@ -742,20 +810,19 @@ export function FilterPopover({ icon = "tune", label, options, activeTab, setTab
           const portalRoot = document.getElementById("sa-portals");
           if (!portalRoot) return null;
 
-          const rect = btnRef.current?.getBoundingClientRect();
-          const isRightSide = (rect?.left || 0) >= window.innerWidth / 2;
-
           return createPortal(
             <>
-              <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
+              <div className="!fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
               <div
-                className="fixed glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 min-w-[200px] p-2 flex flex-col gap-1 backdrop-blur-2xl bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]"
+                className="!fixed glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 min-w-[200px] p-2 flex flex-col gap-1 backdrop-blur-2xl bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]"
                 style={{
                   zIndex: 200001,
-                  top: rect ? rect.bottom + 8 : 0,
-                  left: rect ? (isRightSide ? rect.right : rect.left) : 0,
-                  transform: isRightSide ? 'translateX(-100%)' : undefined,
+                  top: coords.top,
+                  left: coords.left,
+                  transform: coords.isRight ? 'translateX(-100%)' : 'none',
+                  transition: 'none',
                   width: 'max-content',
+                  maxWidth: 'calc(100vw - 32px)'
                 }}
               >
                 {children ? children : options?.map((opt: any) => {
@@ -763,7 +830,16 @@ export function FilterPopover({ icon = "tune", label, options, activeTab, setTab
                   return (
                     <button
                       key={opt.id}
-                      onClick={() => handleSelect(opt.id)}
+                      onClick={() => {
+                        if (multiSelect) {
+                          const current = Array.isArray(activeTab) ? activeTab : (activeTab ? [activeTab] : []);
+                          const newVals = current.includes(opt.id) ? current.filter((v: any) => v !== opt.id) : [...current, opt.id];
+                          setTab(newVals);
+                        } else {
+                          setTab(opt.id);
+                          setIsOpen(false);
+                        }
+                      }}
                       className={`flex items-center justify-center gap-3 w-full px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden ${active
                         ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)]'
                         : 'text-[var(--text)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
@@ -1064,6 +1140,31 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [, forceUpdate] = useState({});
+
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, isRight: false });
+
+  React.useLayoutEffect(() => {
+    if (!isOpen) return;
+    const updatePosition = () => {
+      if (btnRef.current) {
+        const rect = btnRef.current.getBoundingClientRect();
+        setCoords({
+          top: rect.bottom + 4,
+          left: rect.left >= window.innerWidth / 2 ? rect.right : rect.left,
+          width: rect.width,
+          isRight: rect.left >= window.innerWidth / 2
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
 
   const getSelectedLabel = () => {
     if (multiSelect) {
@@ -1092,39 +1193,51 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
 
   const dropdownMenu = isOpen ? createPortal(
     <>
-      <div className="fixed inset-0" style={{ zIndex: 300000 }} onClick={() => setIsOpen(false)} />
-      <div className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+      <div className="!fixed inset-0" style={{ zIndex: 300000 }} onClick={() => setIsOpen(false)} />
+      <div className="!fixed pointer-events-auto glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
         zIndex: 300001,
-        top: btnRef.current ? btnRef.current.getBoundingClientRect().bottom + 4 : 0,
-        left: btnRef.current ? btnRef.current.getBoundingClientRect().left : 0,
-        width: btnRef.current ? btnRef.current.getBoundingClientRect().width : 'max-content',
-        minWidth: btnRef.current ? btnRef.current.getBoundingClientRect().width : 200,
+        top: coords.top,
+        left: coords.left,
+        transform: coords.isRight ? 'translateX(-100%)' : 'none',
+        transition: 'none',
+        width: coords.width || 'max-content',
+        minWidth: Math.max(coords.width, 200),
       }}>
         {searchable && (
           <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 bg-transparent z-10 shrink-0 flex items-center px-4">
-            <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] mr-3 opacity-60">search</span>
+            <span className="material-symbols-outlined !text-[16px] opacity-50 mr-2">search</span>
             <input
               type="text"
-              placeholder={t("shared_search") || "Search"}
+              autoFocus
+              placeholder={t("shared_search") || "Search..."}
               value={query}
-              onChange={e => setQuery(e.target.value)}
-              className="w-full bg-transparent border-none py-3.5 text-xs font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-40 tracking-wider min-w-0"
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full bg-transparent border-none py-3 text-[11px] font-black capitalize focus:outline-none text-[var(--text)] placeholder:opacity-30"
             />
           </div>
         )}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
           {(options || []).filter((opt: any) => {
             if (!searchable || !query) return true;
             const searchTarget = opt.searchText !== undefined ? opt.searchText : (typeof opt.label === 'string' ? opt.label : '');
             return searchTarget.toLowerCase().includes(query.toLowerCase());
-          }).map((o: any, index: number) => {
-            const isSelected = multiSelect ? selectedValues.includes(o.id) : String(o.id) === String(value);
+          }).map((opt: any) => {
+            const isSelected = multiSelect ? selectedValues.includes(opt.id) : String(value) === String(opt.id);
             return (
-              <button type="button" key={`${o.id}-${index}`} onClick={() => handleSelect(o.id)} className={`w-full text-left px-4 py-3 text-sm font-bold transition-all border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-start ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-[inset_2px_0_0_var(--accent)]' : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                <span className={`text-[11px] font-black capitalize w-full flex items-center ${isSelected ? 'text-[var(--accent)]' : o.className || 'text-[var(--text)]'}`}>{o.label}</span>
-                {isSelected && !multiSelect && (
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] absolute right-4 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]">check</span>
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => handleSelect(opt.id)}
+                className={`w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg text-[11px] font-black capitalize flex items-center gap-2 group transition-all ${isSelected ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--text)]'}`}
+              >
+                {multiSelect && (
+                  <div className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${isSelected ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]' : 'border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]'}`}>
+                    {isSelected && <span className="material-symbols-outlined !text-[12px] font-bold">check</span>}
+                  </div>
                 )}
+                {opt.icon && <span className="material-symbols-outlined !text-[16px] opacity-70 shrink-0">{opt.icon}</span>}
+                <span className="flex-1">{opt.label}</span>
+                {isSelected && !multiSelect && <span className="material-symbols-outlined !text-[16px] shrink-0">check</span>}
               </button>
             );
           })}
@@ -1163,6 +1276,19 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
   const [query, setQuery] = useState("");
   const [versions, setVersions] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [, forceUpdate] = useState({});
+
+  React.useLayoutEffect(() => {
+    if (!isOpen) return;
+    const updatePosition = () => forceUpdate({});
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     async function fetchVersions() {
@@ -1174,22 +1300,18 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
   }, []);
 
   const toggleVersion = (v: string) => {
-    console.log('toggleVersion called with:', v);
-    console.log('Current selectedVersions:', selectedVersions);
     if (selectedVersions.includes(v)) {
       const newVersions = selectedVersions.filter(ver => ver !== v);
-      console.log('Removing version, new array:', newVersions);
       onChange(newVersions);
     } else {
       const newVersions = [...selectedVersions, v];
-      console.log('Adding version, new array:', newVersions);
       onChange(newVersions);
     }
   };
 
   const filtered = versions.filter(v => v.version && v.version.includes(query)).slice(0, 10);
-
-  const containerRef = React.useRef<HTMLDivElement>(null);
+  const rect = containerRef.current?.getBoundingClientRect();
+  const isRightHalf = rect ? rect.left >= window.innerWidth / 2 : false;
 
   return (
     <div className="relative w-full" ref={containerRef}>
@@ -1209,53 +1331,50 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
         className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black capitalize tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:opacity-30"
       />
       {isOpen && (
+        createPortal(
         <>
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
-          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-top-2 flex flex-col" style={{
+          <div className="fixed pointer-events-none" style={{
             zIndex: 200001,
-            top: containerRef.current?.getBoundingClientRect().bottom,
-            left: (containerRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2
-              ? containerRef.current?.getBoundingClientRect().left
-              : undefined,
-            right: (containerRef.current?.getBoundingClientRect().left || 0) >= window.innerWidth / 2
-              ? window.innerWidth - (containerRef.current?.getBoundingClientRect().right || 0)
-              : undefined,
-            width: containerRef.current?.getBoundingClientRect().width,
+            top: rect ? rect.bottom : 0,
+            left: rect ? (isRightHalf ? undefined : rect.left) : 0,
+            right: rect ? (isRightHalf ? window.innerWidth - rect.right : undefined) : undefined,
+            width: rect ? rect.width : 'max-content',
           }}>
-            <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
-              {filtered.map(v => (
-                <button
-                  key={v.version}
-                  type="button"
-                  onClick={() => {
-                    console.log('Version clicked:', v.version);
-                    toggleVersion(v.version);
-                    setQuery("");
-                    setIsOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--text)] flex justify-start cursor-pointer"
-                >
-                  <span>{v.version}</span>
-                  {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("icon_check")}</span></span>}
-                </button>
-              ))}
-              {query && !versions.some(v => v.version === query) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('Custom version added:', query);
-                    toggleVersion(query);
-                    setQuery("");
-                    setIsOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-emerald-400 cursor-pointer"
-                >
-                  + {t("cc_btn_add")} "{query}"
-                </button>
-              )}
+            <div className="absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col">
+              <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
+                {filtered.map(v => (
+                  <button
+                    key={v.version}
+                    type="button"
+                    onClick={() => {
+                      toggleVersion(v.version);
+                      setQuery("");
+                      setIsOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--text)] flex justify-start cursor-pointer"
+                  >
+                    <span>{v.version}</span>
+                    {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("icon_check")}</span></span>}
+                  </button>
+                ))}
+                {query && !versions.some(v => v.version === query) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleVersion(query);
+                      setQuery("");
+                      setIsOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-emerald-400 cursor-pointer"
+                  >
+                    + {t("cc_btn_add")} "{query}"
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </>
+        </>, document.getElementById('sa-portals') || document.body)
       )}
     </div>
   );
@@ -1264,6 +1383,27 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
 export function CustomDatePicker({ value, onChange, placeholder, className = "" }: { value: string | null, onChange: (date: string | null) => void, placeholder?: string, className?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0, isRight: false });
+  React.useLayoutEffect(() => {
+    if (!isOpen) return;
+    const updatePosition = () => {
+      if (btnRef.current) {
+        const rect = btnRef.current.getBoundingClientRect();
+        setCoords({
+          top: rect.bottom,
+          left: rect.left >= window.innerWidth / 2 ? rect.right : rect.left,
+          isRight: rect.left >= window.innerWidth / 2
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
 
   const [viewDate, setViewDate] = useState(value ? new Date(value) : new Date());
 
@@ -1300,48 +1440,47 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
           </span>
         </div>
       </button>
-      {isOpen && (
+      {isOpen && createPortal(
         <>
-          <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
-          <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl pointer-events-auto animate-in fade-in slide-in-from-top-2 p-4 w-64" style={{
+          <div className="!fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
+          <div className="!fixed pointer-events-none" style={{
             zIndex: 200001,
-            top: btnRef.current?.getBoundingClientRect().bottom,
-            left: (btnRef.current?.getBoundingClientRect().left || 0) < window.innerWidth / 2
-              ? btnRef.current?.getBoundingClientRect().left
-              : undefined,
-            right: (btnRef.current?.getBoundingClientRect().left || 0) >= window.innerWidth / 2
-              ? window.innerWidth - (btnRef.current?.getBoundingClientRect().right || 0)
-              : undefined,
-            minWidth: btnRef.current?.getBoundingClientRect().width,
+            top: coords.top,
+            left: coords.left,
+            transform: coords.isRight ? 'translateX(-100%)' : 'none',
+            transition: 'none'
           }}>
-            <div className="flex justify-start items-center mb-4">
-              <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1">{'<'}</button>
-              <div className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{monthNames[month]} {year}</div>
-              <button onClick={() => setViewDate(new Date(year, month + 1, 1))} className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1">{'>'}</button>
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center mb-2">
-              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-                <div key={d} className="text-[8px] font-bold text-[var(--subtext)] opacity-60">{d}</div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center">
-              {blanks.map(b => <div key={`blank-${b}`} className="p-1" />)}
-              {days.map(d => {
-                const isSelected = value && new Date(value).getDate() === d && new Date(value).getMonth() === month && new Date(value).getFullYear() === year;
-                const isToday = new Date().getDate() === d && new Date().getMonth() === month && new Date().getFullYear() === year;
-                return (
-                  <button
-                    key={d}
-                    onClick={() => handleSelect(d)}
-                    className={`p-1.5 text-[10px] rounded-lg transition-all ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-black shadow-md backdrop-blur-sm scale-[1.05] relative z-10' : isToday ? 'border border-[color-mix(in_srgb,var(--text)_20%,transparent)] font-bold' : 'border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                  >
-                    {d}
-                  </button>
-                )
-              })}
+            <div className={`!absolute top-0 mt-2 pointer-events-auto glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl animate-in fade-in slide-in-from-top-2 p-4 w-64`}>
+              <div className="flex justify-start items-center mb-4">
+                <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1">{'<'}</button>
+                <div className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{monthNames[month]} {year}</div>
+                <button onClick={() => setViewDate(new Date(year, month + 1, 1))} className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1">{'>'}</button>
+              </div>
+              <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+                  <div key={d} className="text-[8px] font-bold text-[var(--subtext)] opacity-60">{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1 text-center">
+                {blanks.map(b => <div key={`blank-${b}`} className="p-1" />)}
+                {days.map(d => {
+                  const isSelected = value && new Date(value).getDate() === d && new Date(value).getMonth() === month && new Date(value).getFullYear() === year;
+                  const isToday = new Date().getDate() === d && new Date().getMonth() === month && new Date().getFullYear() === year;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => handleSelect(d)}
+                      className={`p-1.5 text-[10px] rounded-lg transition-all ${isSelected ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-black shadow-md backdrop-blur-sm scale-[1.05] relative z-10' : isToday ? 'border border-[color-mix(in_srgb,var(--text)_20%,transparent)] font-bold' : 'border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                    >
+                      {d}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
-        </>
+        </>,
+        document.getElementById('sa-portals') || document.body
       )}
     </div>
   );
@@ -1645,19 +1784,24 @@ export function SidePanel({
                 </div>
               )}
 
-              <div className="absolute top-8 right-8 flex items-center gap-3 z-50">
-                {headerActions}
-                {!hideCloseButton && onClose && (
-                  <PanelHeaderGroup className={headerActions ? "ml-2" : ""}>
-                    <PanelHeaderButton
-                      icon="close"
-                      tooltip={t("btn_close") || "Close"}
-                      variant="danger"
-                      onClick={onClose}
-                    />
-                  </PanelHeaderGroup>
-                )}
-              </div>
+              { (headerActions || !hideCloseButton) && (
+                <div className="absolute top-8 right-8 flex items-center z-50 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1 gap-1">
+                  {headerActions}
+                  {headerActions && !hideCloseButton && (
+                    <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
+                  )}
+                  {!hideCloseButton && (
+                    <PanelHeaderGroup className={headerActions ? "ml-1" : ""}>
+                      <PanelHeaderButton
+                        icon="close"
+                        tooltip={t("btn_close") || "Close"}
+                        variant="danger"
+                        onClick={onClose}
+                      />
+                    </PanelHeaderGroup>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center gap-6 relative z-10 w-full min-w-0 pr-16">
                 <h2 className="text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-6 min-w-0 w-full">
@@ -1857,8 +2001,6 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
     </div>
   );
 };
-
-import { useTooltipStore } from './store/tooltipStore';
 
 export function HoverTooltip({ title, subtitle, variant = 'default', className = '', noIcon = false, icon, normalFont = false, align: explicitAlign, vAlign: explicitVAlign, content, delay = 300 }: any) {
   const { setTooltip, clearTooltip } = useTooltipStore();

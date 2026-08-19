@@ -2305,6 +2305,8 @@
   "alert_error_mason_profile_missing": "Error: Creator Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "chameleon_inspector": "Chameleon Inspector",
+  "template_inspector": "Template Inspector",
   "tab_configs": "Configurations",
   "alert_lock_requires_paths": "You must select all required paths before proceeding.",
   "layout_toggle": "Toggle Layout",

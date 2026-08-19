@@ -29,7 +29,7 @@ export function UniversalGroup({
           {icon && <span className="material-symbols-outlined !text-[14px]">{icon}</span>}
           {title}
         </h4>
-        {headerAction && <div>{headerAction}</div>}
+        {headerAction && <div className="ml-auto">{headerAction}</div>}
       </div>
       <div className={innerClassName}>
         {children}

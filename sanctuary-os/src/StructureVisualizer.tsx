@@ -61,16 +61,19 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
       {/* 1. The Seamless Header */}
       <ScreenUtilityBar
         className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20"
+        hideSearch={true}
+        leftContent={
+          <div className="w-[400px] z-50">
+            <ModSearchDropdown 
+              placeholder={t("structure_select_artifact")}
+              selectedItem={targetMod}
+              onSelect={(mod: any) => setTargetMod(mod)}
+              onClear={() => setTargetMod(null)}
+              modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)} 
+            />
+          </div>
+        }
       >
-        <div className="w-[400px] z-50">
-          <ModSearchDropdown 
-            placeholder={t("structure_select_artifact")}
-            selectedItem={targetMod}
-            onSelect={(mod: any) => setTargetMod(mod)}
-            onClear={() => setTargetMod(null)}
-            modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)} 
-          />
-        </div>
         <div className="flex items-center gap-4 z-50">
             {targetMod && (
               <>

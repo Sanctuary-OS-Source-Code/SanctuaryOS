@@ -128,7 +128,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
       subtitle={assetType === 'chameleon' ? (t("chameleon_desc") || "Community Theme") : assetType === 'lexicon' ? (t("lexicon_desc") || "Community Language Pack") : assetType === 'workbench_template' ? (t("template_desc") || "Community Template") : (t("asset_desc") || "Community Asset")}
       icon={assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[500px]"
+      widthClass="w-[600px]"
       backdropZ="z-[70000]"
       panelZ="z-[70001]"
       coverImage={data?.image_url || data?.thumbnail_url}
@@ -200,7 +200,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
           <span className="text-xs font-black capitalize tracking-widest text-[var(--danger)] text-center">{error}</span>
         </div>
       ) : data ? (
-        <div className="flex flex-col relative z-10 w-full pb-10">
+        <div className="flex flex-col relative z-10 w-full pb-10 overflow-x-hidden">
           <div className="flex flex-col gap-8 pb-8 px-6 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none" style={{ transform: 'translate(20%, -20%)' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '300px' }}>{assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}</span>
@@ -251,65 +251,65 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
               )}
             </div>
           </div>
-          
+
           <div className="p-6 flex flex-col gap-8 flex-1">
             <div className="flex flex-col gap-4">
               <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("upload_desc")}</h4>
-      <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative group">
-              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_3%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-              <div className="relative z-10">
-                {data.description ? stripMarkdown(data.description) : t("no_desc_sub")}
-              </div>
-            </div>
-          </div>
-
-          {assetType === 'workbench_template' && data.json_data && (() => {
-            const parsedRaw = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-            const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
-            return (
-              <div className="flex flex-col gap-4">
-                <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("auto_template_architecture")}</h4>
-                <div className="flex flex-wrap gap-4">
-                  {parsed.template_id && (
-                    <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_template_id")} subtitle={parsed.template_id} />
-                  )}
-                  {parsed.target_file && (
-                    <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("upload_target_file")} subtitle={parsed.target_file} />
-                  )}
-                  {parsed.schema_version && (
-                    <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_schema")} subtitle={`${t("auto_v")}${parsed.schema_version}`} />
-                  )}
-                  {parsed.template_version && (
-                    <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("update_version")} subtitle={parsed.template_version} />
-                  )}
-                  {parsed.mod_author && (
-                    <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_mod_author")} subtitle={parsed.mod_author} />
-                  )}
-                  {parsed.parser_type && (
-                    <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_parser")} subtitle={parsed.parser_type} />
-                  )}
-                  {parsed.supported_mod_versions && Array.isArray(parsed.supported_mod_versions) && parsed.supported_mod_versions.length > 0 && (
-                    <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_supported_versions")} subtitle={parsed.supported_mod_versions.join(', ')} />
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
-
-
-          {(data.changelog || data.release_notes || (data.json_data && (data.json_data.changelog || data.json_data.release_notes))) && (
-            <div className="flex flex-col gap-4">
-              <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("whats_new")}</h4>
-       <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative group">
+              <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative group">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_3%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                 <div className="relative z-10">
-                  {stripMarkdown(data.changelog || data.release_notes || (data.json_data?.changelog) || (data.json_data?.release_notes))}
+                  {data.description ? stripMarkdown(data.description) : t("no_desc_sub")}
                 </div>
               </div>
             </div>
-          )}
-        </div>
+
+            {assetType === 'workbench_template' && data.json_data && (() => {
+              const parsedRaw = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
+              const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
+              return (
+                <div className="flex flex-col gap-4">
+                  <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("auto_template_architecture")}</h4>
+                  <div className="flex flex-wrap gap-4">
+                    {parsed.template_id && (
+                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_template_id")} subtitle={parsed.template_id} />
+                    )}
+                    {parsed.target_file && (
+                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("upload_target_file")} subtitle={parsed.target_file} />
+                    )}
+                    {parsed.schema_version && (
+                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_schema")} subtitle={`${t("auto_v")}${parsed.schema_version}`} />
+                    )}
+                    {parsed.template_version && (
+                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("update_version")} subtitle={parsed.template_version} />
+                    )}
+                    {parsed.mod_author && (
+                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_mod_author")} subtitle={parsed.mod_author} />
+                    )}
+                    {parsed.parser_type && (
+                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_parser")} subtitle={parsed.parser_type} />
+                    )}
+                    {parsed.supported_mod_versions && Array.isArray(parsed.supported_mod_versions) && parsed.supported_mod_versions.length > 0 && (
+                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_supported_versions")} subtitle={parsed.supported_mod_versions.join(', ')} />
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+
+
+            {(data.changelog || data.release_notes || (data.json_data && (data.json_data.changelog || data.json_data.release_notes))) && (
+              <div className="flex flex-col gap-4">
+                <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("whats_new")}</h4>
+                <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative group">
+                  <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_3%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                  <div className="relative z-10">
+                    {stripMarkdown(data.changelog || data.release_notes || (data.json_data?.changelog) || (data.json_data?.release_notes))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
     </SidePanel>
