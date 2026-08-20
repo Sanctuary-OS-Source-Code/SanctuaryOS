@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 
 interface NotificationSidebarProps {
   onClose: () => void;
@@ -151,28 +151,30 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
       icon={t("icon_notifications")}
       backdropZ="z-[15000]"
       panelZ="z-[15001]"
-      footer={
-        <div className="flex justify-center items-center gap-4 w-full">
+      headerActions={
+        <PanelHeaderGroup>
           {!notifications.some(n => !n.is_read) && (
-            <ActionButton type="button" onClick={onClose} label={t("nav_cancel")}>
-              
-            </ActionButton>
+            <PanelHeaderButton
+              icon="close"
+              tooltip={t("nav_cancel")}
+              onClick={onClose}
+            />
           )}
           {notifications.some(n => !n.is_read) && (
-            <ActionButton
-              onClick={markAllRead} label={t("notif_mark_read")}
-            >
-              
-            </ActionButton>
+            <PanelHeaderButton
+              icon="done_all"
+              tooltip={t("notif_mark_read")}
+              onClick={markAllRead}
+            />
           )}
           {notifications.length > 0 && (
-            <ActionButton
-              onClick={clearAll} label={t("notif_clear_all")}
-            >
-              
-            </ActionButton>
+            <PanelHeaderButton
+              icon="delete_sweep"
+              tooltip={t("notif_clear_all")}
+              onClick={clearAll}
+            />
           )}
-        </div>
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-3">

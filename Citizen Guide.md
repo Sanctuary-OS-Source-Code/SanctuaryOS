@@ -1,7 +1,7 @@
 # Sanctuary OS 
 
-![Version](https://img.shields.io/badge/version-0.5.0-blue)
-![Last Updated](https://img.shields.io/badge/last_updated-August_8th,_2026-brightgreen)
+![Version](https://img.shields.io/badge/version-0.5.2-blue)
+![Last Updated](https://img.shields.io/badge/last_updated-August_19th,_2026-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Alpha](https://img.shields.io/badge/Alpha-Early_Access-red)
 
@@ -157,8 +157,8 @@ Sanctuary OS handles automated backups using an ultra-fast, hardlink-based incre
 Security is handled through a tiered global compliance system managed by Oversight.
 
 - **DEFCON 1:** When an official game patch is actively rolling out, Wayfinders or Oversight trigger a network-wide DEFCON 1 signal. Sanctuary intercepts the game launch and forces an Emergency Backup to prevent data corruption.
-- **Compliance Tier 1 (NSFW) & Tier 2 (Explicit):** Adult content is permitted for local use and Vault storage. However, these artifacts are scrubbed from the Global Nexus Feed and stripped from public Cloud Blueprints to maintain legal compliance.
-- **Malware Interception (Compliance Tier 3):** If malware DNA is detected during a Radar Sweep, Sanctuary triggers a Zero-Choice Lockdown. You will be hit with an unclosable "Critical Danger" modal enforcing a **Secure Shred** - a destructive overwrite and removal of the malicious files via the Rust backend.
+- **Compliance Tiers 1-4 (Explicit, Illicit, Extreme Violence, Taboo):** Content ranging from NSFW to sensitive themes is permitted for local use and Vault storage. However, these artifacts are scrubbed from the Global Nexus Feed and stripped from public Cloud Blueprints to maintain legal compliance. Severe Artifacts (Tiers 3-5) will trigger a "Vault Lock" which disables support submissions until purged.
+- **Malware Interception (Compliance Tier 5):** If malware DNA is detected during a Radar Sweep, Sanctuary triggers a Zero-Choice Lockdown. You will be hit with an unclosable "Critical Danger" modal enforcing a **Secure Shred** - a destructive overwrite and removal of the malicious files via the Rust backend.
 - **External Secure Shred:** The OS takes the absolute path of a file, removes any read-only constraints, executes a destructive overwrite and removal of the malicious files via the Rust backend.
   - Files are not automatically deleted.
     - A Citizen’s Signature is required.
@@ -228,14 +228,14 @@ The Architect Console is the logic and data center used by the elite to maintain
 - **Template Oversight:** A dedicated hub for verifying, flagging, and approving community-submitted Config Templates for the Citizen's Workbench.
 - **Structure Matrix:** Visually define the exact folder structure a mod must maintain when deployed to ensure maximum engine performance.
 - **Nexus Reports Queue:** Review and triage user-flagged artifacts (e.g., Lexicon, Chameleons) directly from The Nexus.
-- **Citizen Support Desk:** A complete support ticketing system for resolving user issues seamlessly.
+- **Citizen Support Desk:** A complete support ticketing system for resolving user issues seamlessly. Features "Claim Ticket" functionality to allow elevated users to claim tickets, which will then only show for them until resolved, escalated, or manually released.
 
 ## Oversight (System Administrators)
 Oversight Command holds the keys to Sanctuary OS’s infrastructure, focusing on security, role governance, and advanced conflict escalations. Oversight operates from this hub, wielding elevated privileges over the global network.
 
 - **Global DEFCON Override:** Oversight can manually override/emergency-trigger network-wide game lockdowns and emergency backups ahead of unannounced game patches.
 - **Identity Matrix:** The master ledger of all Citizens. Instantly view, promote, demote, or ban identities.
-- **Compliance & Malware Oversight:** The master security dashboard. Oversight can manually flag dangerous DNA signatures as Compliance Tier 3 (Malware), triggering automatic SECURE SHREDS globally for any user with that file.
+- **Compliance & Malware Oversight:** The master security dashboard. Oversight can manually flag dangerous DNA signatures as Compliance Tier 5 (Malware), triggering automatic SECURE SHREDS globally for any user with that file.
 - **Mass Update Utility:** Batch-update hundreds of registry entries at once.
 - **Game Management:** The "Source of Truth" for game versions. Register new EA Patches and DLC IDs to the Global Registry.
 - **Mason Linker:** Manually verify and link Citizen identities to claimed Nexus mod author profiles.

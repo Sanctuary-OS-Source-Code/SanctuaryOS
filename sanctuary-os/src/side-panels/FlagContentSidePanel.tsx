@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useStore } from '../store';
 
 interface FlagContentSidePanelProps {
@@ -19,8 +19,8 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!reason.trim()) return;
     
     setIsSubmitting(true);
@@ -53,23 +53,21 @@ export default function FlagContentSidePanel({ isOpen, onClose, targetId, target
       widthClass="w-[450px]"
       backdropZ={backdropZ || "z-[110005]"}
       panelZ={panelZ || "z-[110006]"}
-      footer={
-        <div className="flex justify-center items-center gap-4 w-full">
-          <ActionButton 
-            type="button" 
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="close"
+            tooltip={t("nav_cancel")}
+            disabled={isSubmitting}
             onClick={onClose}
-            disabled={isSubmitting} label={t("nav_cancel")}
-          >
-            
-          </ActionButton>
-          <ActionButton 
-            type="submit" 
-            form="flag-form"
-            disabled={!reason.trim() || isSubmitting} label={t("flag_submit")}
-          >
-            
-          </ActionButton>
-        </div>
+          />
+          <PanelHeaderButton
+            icon="flag"
+            tooltip={t("flag_submit")}
+            disabled={!reason.trim() || isSubmitting}
+            onClick={() => handleSubmit()}
+          />
+        </PanelHeaderGroup>
       }
     >
       <form id="flag-form" onSubmit={handleSubmit} className="p-8 flex flex-col h-full">

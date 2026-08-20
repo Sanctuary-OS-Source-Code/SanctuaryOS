@@ -1,5 +1,5 @@
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, standardDangerButtonClass, standardButtonClass, ActionButton } from "../shared";
+import { SidePanel, standardDangerButtonClass, standardButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 
 export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending, }: any) {
   const { t } = useLexicon();
@@ -15,21 +15,20 @@ export function YeetConfirmAlert({ yeetConfirmPending, setYeetConfirmPending, }:
       backdropZ="z-[100002]"
       panelZ="z-[100002]"
       widthClass="w-[600px]"
-      footer={
-        <div className="flex flex-row justify-center gap-4 w-full">
-          <ActionButton
-            onClick={() => setYeetConfirmPending(null)} label={t("yeet_btn_abort")} icon={t("icon_close")}
-          >
-            
-            
-          </ActionButton>
-          <ActionButton
-            onClick={() => { yeetConfirmPending.onConfirm(); setYeetConfirmPending(null); }} label={t("yeet_btn_confirm")} icon={t("icon_delete")} className="!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
-          >
-            
-            
-          </ActionButton>
-        </div>
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={t("icon_close") || "close"}
+            tooltip={t("yeet_btn_abort")}
+            onClick={() => setYeetConfirmPending(null)}
+          />
+          <PanelHeaderButton
+            icon={t("icon_delete") || "delete"}
+            tooltip={t("yeet_btn_confirm")}
+            variant="error"
+            onClick={() => { yeetConfirmPending.onConfirm(); setYeetConfirmPending(null); }}
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-3">

@@ -43,12 +43,12 @@ import { useLexicon } from "./LexiconContext";
 import { WorkspaceLanding } from "./WorkspaceLanding";
 import { Sidebar } from "./Sidebar";
 import NotificationSidebar from "./side-panels/NotificationSidebar";
-import SupportDeskSidePanel from "./side-panels/SupportDeskSidePanel";
 import CitizenTicketsSidePanel from "./side-panels/CitizenTicketsSidePanel";
 import { NexusUpdatesChecker } from "./NexusUpdatesChecker";
 import MasonHub from "./MasonHub";
 import MasonProfile from "./MasonProfile";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
+import SupportHub from "./SupportHub";
 import CommandCenter from "./CommandCenter";
 import Blueprints from "./Blueprints";
 import Vault from "./Vault";
@@ -320,8 +320,6 @@ function App() {
   const [draftSetName, setDraftSetName] = useState("");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isBugModalOpen, setIsBugModalOpen] = useState(false);
-  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
-
   const [isCitizenTicketsOpen, setIsCitizenTicketsOpen] = useState(false);
 
   useEffect(() => {
@@ -330,7 +328,8 @@ function App() {
 
   useEffect(() => {
     const handleOpenSupport = () => {
-      setIsSupportModalOpen(true);
+      useModalStore.getState().setIsSupportPanelOpen(true);
+      window.dispatchEvent(new Event("force-resize-update"));
     };
     document.addEventListener("open-support-modal", handleOpenSupport);
     return () => document.removeEventListener("open-support-modal", handleOpenSupport);
@@ -2153,7 +2152,7 @@ function App() {
                               toggleInActiveSet={toggleInActiveSet}
                               setView={setView}
                               setFilterStatus={setFilterStatus}
-                              setIsSupportDeskOpen={setIsSupportModalOpen}
+                              setIsSupportDeskOpen={() => useModalStore.getState().setIsSupportPanelOpen(true)}
                               setIsCitizenTicketsOpen={setIsCitizenTicketsOpen}
                               equipPlaySet={equipPlaySet}
                             />
@@ -2248,6 +2247,7 @@ function App() {
                           />
                         </ErrorBoundary>
                       )}
+
                       {view === "BlueprintArchitect" && playSets[activePlaySetIndex] && (
                         <ErrorBoundary moduleName="Blueprint Architect">
                           <BlueprintArchitect
@@ -2588,10 +2588,10 @@ function App() {
               userId={session?.user?.id}
             />
           )}
-          <SupportDeskSidePanel isOpen={isSupportModalOpen} onClose={() => setIsSupportModalOpen(false)} />
 
           <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
           <UpdateSidePanel />
+          <SupportHub />
           <ContextMenu />
           <GlobalTooltip />
         </div>

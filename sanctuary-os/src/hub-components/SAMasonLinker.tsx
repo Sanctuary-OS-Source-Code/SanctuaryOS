@@ -11,7 +11,7 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown
+  fetchAllPaginated, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ArtifactCard, VaultCard } from "../Cards";
@@ -232,28 +232,30 @@ export function MasonLinker() {
         title={isCreating ? "LINK NEW MASON" : "EDIT MASON"}
         icon={t("icon_link")}
         subtitle={selectedMason ? `UUID: ${selectedMason.id}` : t("create_mason_subtitle")}
-        footer={
-          <div className="flex flex-col gap-4 w-full">
-            {status && (
-              <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-                <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
-              </div>
-            )}
-            <div className="flex justify-center items-center gap-4 w-full">
-              <ActionButton type="button" onClick={handleClosePanel} disabled={isSubmitting} label={t("nav_cancel")}>
-
-              </ActionButton>
-              <ActionButton
-                onClick={handleSave}
-                disabled={isSubmitting || !editName.trim()} label={isSubmitting ? t("identities_updating") : (isCreating ? t("btn_create_mason_naked") : t("ui_btn_commit"))}
-              >
-
-              </ActionButton>
-            </div>
-          </div>
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="close"
+              tooltip={t("nav_cancel")}
+              onClick={handleClosePanel}
+              disabled={isSubmitting}
+            />
+            <PanelHeaderButton
+              icon="save"
+              tooltip={isSubmitting ? t("identities_updating") : (isCreating ? t("btn_create_mason_naked") : t("ui_btn_commit"))}
+              variant="accent"
+              disabled={isSubmitting || !editName.trim()}
+              onClick={handleSave}
+            />
+          </PanelHeaderGroup>
         }
       >
         <div className="p-6 flex flex-col h-full gap-8">
+          {status && (
+            <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
+              <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
+            </div>
+          )}
 
           <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
             <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
@@ -315,6 +317,28 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const updatePosition = () => {
+      if (inputRef.current) {
+        const rect = inputRef.current.getBoundingClientRect();
+        setCoords({
+          top: rect.bottom,
+          left: rect.left,
+          width: rect.width
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
 
   const selectedProfile = profiles.find((p: any) => p.id === value);
   const displayValue = selectedProfile ? `${selectedProfile.username || 'Unknown'} (${selectedProfile.id.substring(0, 8)})` : query;
@@ -356,11 +380,12 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
 
       {isOpen && !value && createPortal(
         <>
-          <div className="fixed inset-0 z-[50000]" onClick={() => setIsOpen(false)} />
-     <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
-            top: inputRef.current?.getBoundingClientRect().bottom,
-            left: inputRef.current?.getBoundingClientRect().left,
-            width: inputRef.current?.getBoundingClientRect().width,
+          <div className="!fixed inset-0 pointer-events-auto" style={{ zIndex: 300000 }} onClick={() => setIsOpen(false)} />
+          <div className="!fixed mt-2 glass-panel pointer-events-auto border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
+            zIndex: 300001,
+            top: coords.top,
+            left: coords.left,
+            width: coords.width,
           }}>
             {filtered.map((p: any) => (
               <button
@@ -374,7 +399,8 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
             ))}
             {filtered.length === 0 && <EmptyState icon={t("ui_icon_person_off")} title={t("no_profiles")} className="col-span-full py-16" />}
           </div>
-        </>, document.body
+        </>,
+        document.getElementById('sa-portals') || document.body
       )}
     </div>
   );

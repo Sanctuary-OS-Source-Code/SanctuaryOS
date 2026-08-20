@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
-import { ViewHeader, stripMarkdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, CustomDatePicker, ActionButton, ScreenUtilityBar } from "./shared";
+import { ViewHeader, stripMarkdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, CustomDatePicker, ActionButton, ScreenUtilityBar, FilterPopover, SearchBar } from "./shared";
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
@@ -21,6 +21,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [selectedReplyId, setSelectedReplyId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"OVERVIEW" | "DISCOVER" | "FOLLOWING">("OVERVIEW");
   const [userId, setUserId] = useState<string | null>(null);
   const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
@@ -49,14 +50,15 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         const { data: masonData } = await supabase.from('masons').select('id').eq('profile_id', userId).maybeSingle();
         if (masonData) setMasonProfileId(masonData.id);
 
-        const [masonsRes, postsRes, likesRes, repliesRes] = await Promise.all([
+        const [masonsRes, postsRes] = await Promise.all([
           supabase.from('masons').select('id', { count: 'exact', head: true }),
-          supabase.from('mason_posts').select('id', { count: 'exact', head: true }),
-          supabase.from('mason_post_likes').select('id', { count: 'exact', head: true }),
-          supabase.from('mason_post_comments').select('id', { count: 'exact', head: true })
+          supabase.from('mason_posts').select('id', { count: 'exact', head: true })
         ]);
 
         let followingPostsCount = 0;
+        let myLikesCount = 0;
+        let myRepliesCount = 0;
+        
         if (userId) {
           const { data: followData } = await supabase.from('mason_followers').select('mason_id').eq('user_id', userId);
           const followedIds = followData?.map(f => f.mason_id) || [];
@@ -68,13 +70,26 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
               .gte('created_at', thirtyDaysAgo);
             followingPostsCount = count || 0;
           }
+          
+          if (masonData?.id) {
+            const { data: myPosts } = await supabase.from('mason_posts').select('id').eq('mason_id', masonData.id);
+            if (myPosts && myPosts.length > 0) {
+              const postIds = myPosts.map(p => p.id);
+              const [likesRes, repliesRes] = await Promise.all([
+                supabase.from('mason_post_likes').select('id', { count: 'exact', head: true }).in('post_id', postIds).neq('user_id', userId),
+                supabase.from('mason_post_comments').select('id', { count: 'exact', head: true }).in('post_id', postIds).neq('author_id', userId)
+              ]);
+              myLikesCount = likesRes.count || 0;
+              myRepliesCount = repliesRes.count || 0;
+            }
+          }
         }
 
         setOverviewStats({
           nodes: masonsRes.count || 0,
           posts: postsRes.count || 0,
-          likes: likesRes.count || 0,
-          replies: repliesRes.count || 0,
+          likes: myLikesCount,
+          replies: myRepliesCount,
           followingPosts: followingPostsCount
         });
       };
@@ -206,53 +221,69 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         shape="circle"
         breadcrumb={activeTab !== "OVERVIEW" ? (t(`tab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
         onTitleClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }}
-      />
+      >
+        {activeTab !== "OVERVIEW" && (
+          <div className="flex items-center gap-3 animate-in slide-in-from-top-4 duration-500 relative z-20 w-full xl:w-auto">
+            <div className="relative flex-1 min-w-[200px] xl:w-[480px]">
+              <SearchBar
+                value={searchQuery || ""}
+                onChange={setSearchQuery}
+                placeholder={t("mason_search_placeholder") || "Search..."}
+                className="h-12 w-full rounded-2xl"
+              />
+            </div>
+            <FilterPopover icon="tune" label={t("filters")} className="shrink-0" activeTab={startDate || endDate || activeSort !== "NEWEST" ? "active" : undefined}>
+              <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sort_by") || "Sort By"}</span>
+                  <CustomDropdown
+                    disableTint={true}
+                    value={activeSort}
+                    options={[
+                      { id: "NEWEST", label: t("sort_newest") || "Newest" },
+                      { id: "TOP", label: t("sort_top") || "Top" }
+                    ]}
+                    onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
+                  />
+                </div>
+                
+                <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+                
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("date_range") || "Date Range"}</span>
+                  <div className="flex flex-col gap-2">
+                    <CustomDatePicker
+                      value={startDate}
+                      onChange={setStartDate}
+                      placeholder={t("filter_start_date") || "Start Date"}
+                    />
+                    <CustomDatePicker
+                      value={endDate}
+                      onChange={setEndDate}
+                      placeholder={t("filter_end_date") || "End Date"}
+                    />
+                  </div>
+                </div>
+
+                {(startDate || endDate || activeSort !== "NEWEST") && (
+                  <ActionButton 
+                    icon="close" 
+                    label={t("btn_clear") || "Clear Filters"} 
+                    onClick={() => { setStartDate(null); setEndDate(null); setActiveSort("NEWEST"); }} 
+                    className="w-full mt-2" 
+                    variant="danger"
+                  />
+                )}
+              </div>
+            </FilterPopover>
+          </div>
+        )}
+      </ViewHeader>
       <HoverTabDrawer title="Comm-Link Navigation" activeTab={activeTab} setTab={setActiveTab}>
         <VerticalTabButton id="OVERVIEW" icon="dashboard" label={t("tab_overview")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
         <VerticalTabButton id="DISCOVER" icon="explore" label={t("tab_discover")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
         <VerticalTabButton id="FOLLOWING" icon="diversity_1" label={t("tab_following")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
       </HoverTabDrawer>
-
-
-      {activeTab !== "OVERVIEW" && (
-        <ScreenUtilityBar
-          search={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchPlaceholder={t("mason_search_placeholder") as string}
-          className="mx-2 !mb-8"
-        >
-            <div className="w-max min-w-[150px] shrink-0 h-12">
-              <CustomDatePicker
-                value={startDate}
-                onChange={setStartDate}
-                placeholder={t("filter_start_date")}
-              />
-            </div>
-            <div className="w-max min-w-[150px] shrink-0 h-12">
-              <CustomDatePicker
-                value={endDate}
-                onChange={setEndDate}
-                placeholder={t("filter_end_date")}
-              />
-            </div>
-            {(startDate || endDate) && (
-              <div className="shrink-0 h-12 flex">
-                <ActionButton icon="close" label={t("btn_clear")} onClick={() => { setStartDate(null); setEndDate(null); }} className="h-full py-0 rounded-xl" />
-              </div>
-            )}
-            <div className="w-max min-w-[150px] shrink-0 h-12">
-              <CustomDropdown
-                disableTint={true}
-                value={activeSort}
-                options={[
-                  { id: "NEWEST", label: t("sort_newest") },
-                  { id: "TOP", label: t("sort_top") }
-                ]}
-                onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
-              />
-            </div>
-        </ScreenUtilityBar>
-      )}
 
       {activeTab === "OVERVIEW" ? (
         <div className="flex-1 w-full">
@@ -335,16 +366,6 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         </div>
       )}
 
-      {selectedPost && (
-        <MasonPostViewer
-          post={selectedPost}
-          onClose={() => setSelectedPost(null)}
-          onOpenMasonProfile={onOpenMasonProfile}
-          onAssetClick={(type, id) => setActiveAsset({ type, id })}
-          userId={userId}
-        />
-      )}
-
       {activeAsset && (
         <AssetPreviewSidebar
           assetType={activeAsset.type}
@@ -358,8 +379,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         onClose={() => setIsRepliesOpen(false)}
         masonId={masonProfileId || undefined}
         userProfileId={userId || undefined}
-        onReplyClick={(postId) => {
-          setIsRepliesOpen(false);
+        onReplyClick={(post, replyId) => {
+          if (post) setSelectedPost(post);
+          if (replyId) setSelectedReplyId(replyId);
         }}
       />
 
@@ -376,6 +398,17 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           if (onOpenMasonProfile) onOpenMasonProfile(masonId);
         }}
       />
+
+      {selectedPost && (
+        <MasonPostViewer
+          post={selectedPost}
+          onClose={() => { setSelectedPost(null); setSelectedReplyId(null); }}
+          onOpenMasonProfile={onOpenMasonProfile}
+          onAssetClick={(type, id) => setActiveAsset({ type, id })}
+          userId={userId}
+          initialFocusCommentId={selectedReplyId}
+        />
+      )}
     </div>
   );
 }

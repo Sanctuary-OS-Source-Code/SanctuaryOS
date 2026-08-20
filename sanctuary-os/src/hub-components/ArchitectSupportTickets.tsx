@@ -27,11 +27,12 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
   const { t } = useLexicon();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<"new" | "pending" | "closed">("pending");
+  const [activeFilter, setActiveFilter] = useState<"new" | "pending" | "closed">("new");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
+  const currentUserId = useStore(state => state.session?.user?.id);
 
   const fetchTickets = async () => {
     setIsLoading(true);
@@ -44,7 +45,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     if (activeFilter === "new") {
       query = query.in('status', ['NEW', 'OPEN', 'new', 'open']);
     } else if (activeFilter === "pending") {
-      query = query.in('status', ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating']);
+      query = query.in('status', ['NEW', 'OPEN', 'new', 'open', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating']);
     } else if (activeFilter === "closed") {
       query = query.in('status', ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed']);
     }
@@ -172,7 +173,20 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
             if (!modAuthorId) dest = 'architect';
           }
 
-          return dest === userRole;
+          if (dest !== userRole) return false;
+
+          const isClaimedByMe = t.metadata?.claimed_by === currentUserId;
+          const isClaimedByOther = t.metadata?.claimed_by && !isClaimedByMe;
+
+          if (activeFilter === "new") {
+              if (isClaimedByOther || isClaimedByMe) return false;
+          } else if (activeFilter === "pending") {
+              if (!isClaimedByMe) return false;
+          } else if (activeFilter === "closed") {
+              // Usually closed tickets don't need claim filtering, but we can leave it visible to anyone, or just claimants
+          }
+
+          return true;
         });
       }
 
@@ -210,6 +224,10 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       ]
     };
 
+    if (actionType === "ESCALATED") {
+      delete newMetadata.claimed_by;
+    }
+
     const { error } = await supabase
       .from('sanctuary_tickets')
       .update({
@@ -232,6 +250,29 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     fetchTickets();
   };
 
+  const handleClaimTicket = async () => {
+    if (!selectedTicket || !currentUserId) return;
+    const newMetadata = { ...(selectedTicket.metadata || {}), claimed_by: currentUserId };
+    const { error } = await supabase.from('sanctuary_tickets').update({ metadata: newMetadata }).eq('id', selectedTicket.id);
+    if (!error) {
+       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
+       fetchTickets();
+       useStore.getState().pushStatus(t("ticket_claim") || "Ticket Claimed", "success");
+    }
+  };
+
+  const handleReleaseTicket = async () => {
+    if (!selectedTicket || !currentUserId) return;
+    const newMetadata = { ...(selectedTicket.metadata || {}) };
+    delete newMetadata.claimed_by;
+    const { error } = await supabase.from('sanctuary_tickets').update({ metadata: newMetadata }).eq('id', selectedTicket.id);
+    if (!error) {
+       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
+       fetchTickets();
+       useStore.getState().pushStatus(t("ticket_release") || "Ticket Released", "success");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 w-full pb-32 text-[var(--text)]">
       <ScreenUtilityBar
@@ -249,7 +290,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
           />
         </div>
         <FilterTabs className="h-12 z-40">
-          <FilterTabButton id="pending" label={t("pending")} activeTab={activeFilter} setTab={setActiveFilter} />
+          <FilterTabButton id="pending" label={t("ticket_tab_claimed") || t("pending")} activeTab={activeFilter} setTab={setActiveFilter} />
           <FilterTabButton id="new" label={t("ui_tab_new")} activeTab={activeFilter} setTab={setActiveFilter} />
           <FilterTabButton id="closed" label={t("ui_tab_closed")} activeTab={activeFilter} setTab={setActiveFilter} />
         </FilterTabs>
@@ -341,6 +382,9 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
         availableActions={["RESOLVED", "REJECTED", "ESCALATED", "PENDING"]}
         onTakeAction={handleTakeAction}
         onEditMetadata={onEditMetadata}
+        onClaim={handleClaimTicket}
+        onRelease={handleReleaseTicket}
+        currentUserId={currentUserId}
         onReplyAdded={() => {
           fetchTickets();
         }}

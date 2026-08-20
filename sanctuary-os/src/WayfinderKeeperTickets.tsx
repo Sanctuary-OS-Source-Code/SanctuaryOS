@@ -101,7 +101,7 @@ export default function WayfinderKeeperTickets({ userId, onSelectTicket, onOpenN
                 layout="vertical-compact"
                 statusColor={statusColorClass}
                 className={isResolved ? "opacity-70 grayscale-[0.2]" : ""}
-                title={ticket.title}
+                title={<span className="line-clamp-1 block w-full" title={ticket.title}>{ticket.title}</span>}
                 subtitle={ticket.ticket_type || "SUPPORT"}
                 onClick={() => onSelectTicket && onSelectTicket(ticket)}
                 badges={

@@ -508,8 +508,9 @@ export const DbpfScout = () => {
                     <ScreenUtilityBar
                       leftContent={
                         <div className="flex items-center gap-4 pr-4">
-             <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border glass-panel relative shadow-sm border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                            <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] relative z-10">map</span>
+                          <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border glass-panel relative group shadow-md">
+                            <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <span className="material-symbols-outlined !text-[24px] relative z-10 theme-text-accent">map</span>
                           </div>
                           <h2 className="text-2xl font-black tracking-tighter capitalize leading-tight m-0 text-[var(--text)]">{t("select_blueprint")}</h2>
                         </div>

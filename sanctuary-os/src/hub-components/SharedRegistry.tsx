@@ -250,7 +250,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
 
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
-                <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({ ...activeMod, compliance_tier: newTier })} includeTier3={false} />
+                <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({ ...activeMod, compliance_tier: newTier })} maxTier={4} />
               </div>
             </div>
 
@@ -657,7 +657,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
 
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
-                <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({ ...activeMod, compliance_tier: newTier })} includeTier3={false} />
+                <CustomComplianceDropdown value={activeMod.compliance_tier || 0} onChange={(newTier: number) => setActiveMod({ ...activeMod, compliance_tier: newTier })} maxTier={4} />
               </div>
             </div>
 

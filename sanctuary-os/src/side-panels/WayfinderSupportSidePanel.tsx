@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, ModSearchDropdown, SidePanel, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex, ActionButton, HoverTooltip } from "../shared";
+import { CustomDropdown, ModSearchDropdown, SidePanel, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex, ActionButton, HoverTooltip, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useStore } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -31,6 +31,11 @@ export default function WayfinderSupportSidePanel({
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState("");
 
+  const vaultExtremeMods = React.useMemo(() => {
+    if (!isOpen) return [];
+    return modList.filter((ml: any) => ml.compliance_tier >= 3 && ml.compliance_tier <= 5).map((ml: any) => ({ name: ml.displayName || ml.name, tier: ml.compliance_tier }));
+  }, [modList, isOpen]);
+
   const activeAdultMods = React.useMemo(() => {
     if (!activeSet?.mods || !isOpen) return [];
     
@@ -46,21 +51,23 @@ export default function WayfinderSupportSidePanel({
        if (base) activeBaseNames.add(base);
     }
     
-    const matchedAdultMods: string[] = [];
+    const matchedAdultMods: any[] = [];
     
     for (const am of adultModsInDB) {
         if (activeModsSet.has(am.name) || (am.displayName && activeModsSet.has(am.displayName))) {
-             matchedAdultMods.push(am.displayName || am.name);
+             matchedAdultMods.push({ name: am.displayName || am.name, tier: am.compliance_tier });
              continue;
         }
         
         const mBase = am.name?.split(/[\\/]/).pop()?.replace(extRegex, '');
         if (mBase && activeBaseNames.has(mBase)) {
-             matchedAdultMods.push(am.displayName || am.name);
+             matchedAdultMods.push({ name: am.displayName || am.name, tier: am.compliance_tier });
         }
     }
     
-    return [...new Set(matchedAdultMods)];
+    // remove duplicates by name
+    const uniqueMods = matchedAdultMods.filter((mod, index, self) => index === self.findIndex((m) => m.name === mod.name));
+    return uniqueMods;
   }, [activeSet?.mods, modList, activeGameSchema, isOpen]);
 
   useEffect(() => {
@@ -119,7 +126,7 @@ export default function WayfinderSupportSidePanel({
       let violations: string[] = [];
       if (activeCategory?.requires_target_mod && targetModId) {
           const m = storeState.modList.find(ml => ml.id === targetModId);
-          if (m && m.compliance_tier >= 1 && m.compliance_tier <= 3) {
+          if (m && m.compliance_tier >= 1 && m.compliance_tier <= 4) {
               hasViolations = true;
               violations.push(m.displayName || m.name);
           }
@@ -127,7 +134,7 @@ export default function WayfinderSupportSidePanel({
       if (activeCategory?.requires_target_mod && activeSet && activeSet.mods) {
           activeSet.mods.forEach((modName: string) => {
               const exactMatch = storeState.modList.find((ml: any) => ml.name === modName || ml.displayName === modName);
-              if (exactMatch && exactMatch.compliance_tier >= 1 && exactMatch.compliance_tier <= 3) {
+              if (exactMatch && exactMatch.compliance_tier >= 1 && exactMatch.compliance_tier <= 4) {
                   hasViolations = true;
                   violations.push(exactMatch.displayName || exactMatch.name);
                   return;
@@ -138,7 +145,7 @@ export default function WayfinderSupportSidePanel({
                  const targetBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
                  return mBase && targetBase && mBase === targetBase;
               });
-              if (fallbackMatch && fallbackMatch.compliance_tier >= 1 && fallbackMatch.compliance_tier <= 3) {
+              if (fallbackMatch && fallbackMatch.compliance_tier >= 1 && fallbackMatch.compliance_tier <= 4) {
                   hasViolations = true;
                   violations.push(fallbackMatch.displayName || fallbackMatch.name);
               }
@@ -191,7 +198,7 @@ export default function WayfinderSupportSidePanel({
                 if (text) {
                    if (activeCategory?.requires_target_mod) {
                        const store = useStore.getState();
-                       const adultModsInDB = store.modList.filter((ml: any) => ml.compliance_tier === 1 || ml.compliance_tier === 2);
+                       const adultModsInDB = store.modList.filter((ml: any) => ml.compliance_tier >= 1 && ml.compliance_tier <= 4);
                        const extRegex = getExtensionRegex(store.activeGameSchema);
                        const dirtyTraces: string[] = [];
                        const lowerText = text.toLowerCase();
@@ -267,7 +274,7 @@ export default function WayfinderSupportSidePanel({
         
         if (activeCategory?.requires_target_mod) {
             const store = useStore.getState();
-            const adultModsInDB = store.modList.filter((ml: any) => ml.compliance_tier === 1 || ml.compliance_tier === 2);
+            const adultModsInDB = store.modList.filter((ml: any) => ml.compliance_tier >= 1 && ml.compliance_tier <= 4);
             const extRegex = getExtensionRegex(store.activeGameSchema);
             const dirtyTraces: string[] = [];
             const lowerText = text.toLowerCase();
@@ -323,23 +330,34 @@ export default function WayfinderSupportSidePanel({
       title={t("wf_keeper_support_title")}
       subtitle={t("wf_keeper_support_subtitle")}
       icon={t("icon_admin_panel_settings")}
-      widthClass="w-[600px]"
+widthClass="w-[600px]"
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
-      footer={
-        <div className="flex flex-row items-center justify-center gap-4 w-full">
-           <ActionButton onClick={onClose} label={t("nav_cancel")}>
-             
-           </ActionButton>
-           <div 
-             className={activeCategory?.requires_target_mod && activeAdultMods.length > 0 ? "cursor-not-allowed" : ""}
-           >
-             {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && <HoverTooltip title={t("support_err_adult_mods_blocked")} variant="warning" />}
-             <ActionButton onClick={submitTicket} disabled={isSubmitting || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)} label={isSubmitting ? (t("scanning")) : (t("support_submit"))}>
-               
-             </ActionButton>
-           </div>
-        </div>
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="close"
+            tooltip={t("nav_cancel")}
+            onClick={onClose}
+          />
+          <PanelHeaderButton
+            icon="send"
+            tooltip={
+              vaultExtremeMods.length > 0
+                ? (t("support_err_vault_lock") || "Total Vault Lock: Severe Artifacts Detected")
+                : activeCategory?.requires_target_mod && activeAdultMods.length > 0
+                ? t("support_err_adult_mods_blocked")
+                : (isSubmitting ? t("scanning") : t("support_submit"))
+            }
+            variant={
+              vaultExtremeMods.length > 0 || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)
+                ? "error"
+                : "accent"
+            }
+            disabled={isSubmitting || vaultExtremeMods.length > 0 || !!(activeCategory?.requires_target_mod && activeAdultMods.length > 0)}
+            onClick={submitTicket}
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-6 relative">
@@ -377,7 +395,35 @@ export default function WayfinderSupportSidePanel({
             </div>
         )}
 
-        {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
+        {vaultExtremeMods.length > 0 && (
+            <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)] group mt-2">
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent pointer-events-none" />
+                <div className="flex items-start gap-4 p-5 relative z-10">
+                    <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]">
+                        <span className="material-symbols-outlined !text-[20px]">{t("icon_block")}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
+                        <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title") || "Vault Lock Engaged"}</span>
+                        <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">
+                            {t("support_vault_lock_desc") || `Your vault contains ${vaultExtremeMods.length} severe artifact(s) (Tier 3-5). Support submissions are completely disabled until these artifacts are purged from the system.`}
+                        </span>
+                    </div>
+                </div>
+                <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                    <div className="flex flex-col gap-2">
+                        {vaultExtremeMods.map((mod: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2 text-[color-mix(in_srgb,var(--danger)_90%,transparent)] text-[10px] font-mono bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                                <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_extension")}</span>
+                                <span className="px-1.5 py-0.5 rounded text-[8px] border border-current bg-black/20">T{mod.tier}</span>
+                                <span className="truncate">{mod.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {vaultExtremeMods.length === 0 && activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
             <div className="bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--warning-rgb),0.15)] group mt-2">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
@@ -393,10 +439,11 @@ export default function WayfinderSupportSidePanel({
                 </div>
                 <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
                     <div className="flex flex-col gap-2">
-                        {activeAdultMods.map((mod, i) => (
+                        {activeAdultMods.map((mod: any, i: number) => (
                             <div key={i} className="flex items-center gap-2 text-[color-mix(in_srgb,var(--warning)_90%,transparent)] text-[10px] font-mono bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
                                 <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_extension")}</span>
-                                <span className="truncate">{mod}</span>
+                                <span className="px-1.5 py-0.5 rounded text-[8px] border border-current bg-black/20">T{mod.tier}</span>
+                                <span className="truncate">{mod.name}</span>
                             </div>
                         ))}
                     </div>

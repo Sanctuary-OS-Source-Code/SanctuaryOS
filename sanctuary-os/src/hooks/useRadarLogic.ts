@@ -25,9 +25,12 @@ async function fetchVault() {
 
 async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isSilent) {
     if (activeGameSchema?.features?.has_cc === false) return;
-    if (useModalStore.getState().isScanning) return;
+    if (useModalStore.getState().isScanning || useModalStore.getState().isSilentScanning) return;
+    
+    useModalStore.getState().setIsScanning(!isSilent);
+    useModalStore.getState().setIsSilentScanning(isSilent);
+    
     if (!isSilent) {
-      useModalStore.getState().setIsScanning(true);
       setScanProgress({
         current: 5,
         total: 100,
@@ -72,7 +75,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             const { data: malwareData } = await supabase
               .from("mod_versions")
               .select("dna_hash, mods!inner(compliance_tier)")
-              .eq("mods.compliance_tier", 3);
+              .eq("mods.compliance_tier", 5);
             if (malwareData && malwareData.length > 0) {
               const malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
               await invoke("sync_security_definitions", { malware: malwareHashes, tier2: [] });
@@ -115,7 +118,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
       if (!allLocalMods || allLocalMods.length === 0) {
         setModList([]);
-        if (!isSilent) useModalStore.getState().setIsScanning(false);
+        useModalStore.getState().setIsScanning(false);
+        useModalStore.getState().setIsSilentScanning(false);
         useStore.setState({ isGlobalConfigLoaded: true });
         return;
       }
@@ -955,7 +959,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         return { ...m, conflicts: myConflicts.length > 0 ? myConflicts : undefined };
       });
 
-      const detectedMalware = masterList.filter((m: any) => (m.compliance_tier === 3 || (typeof m.status === 'string' && m.status.includes("QUARANTINED"))) && !m.isVirtual && !m.isLocalOverride);
+      const detectedMalware = masterList.filter((m: any) => (m.compliance_tier === 5 || (typeof m.status === 'string' && m.status.includes("QUARANTINED") && ![1, 2, 3, 4].includes(m.compliance_tier))) && !m.isVirtual && !m.isLocalOverride);
       if (detectedMalware.length > 0) {
         if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
           try {
@@ -1038,10 +1042,12 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
     } catch (err) {
       console.error("RADAR CRASH:", err);
       useStore.setState({ isGlobalConfigLoaded: true });
-      if (!isSilent) useModalStore.getState().setIsScanning(false);
+      useModalStore.getState().setIsScanning(false);
+      useModalStore.getState().setIsSilentScanning(false);
       setScanProgress({ current: 0, total: 100, message: "" });
     } finally {
-      if (!isSilent) useModalStore.getState().setIsScanning(false);
+      useModalStore.getState().setIsScanning(false);
+      useModalStore.getState().setIsSilentScanning(false);
     }
   }
 

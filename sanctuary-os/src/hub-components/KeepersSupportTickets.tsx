@@ -32,6 +32,7 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
+  const currentUserId = useStore(state => state.session?.user?.id);
 
   const fetchTickets = async () => {
     setIsLoading(true);
@@ -44,7 +45,7 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
     if (activeFilter === "new") {
       query = query.in('status', ['NEW', 'OPEN', 'new', 'open']);
     } else if (activeFilter === "pending") {
-      query = query.in('status', ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating']);
+      query = query.in('status', ['NEW', 'OPEN', 'new', 'open', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating']);
     } else if (activeFilter === "closed") {
       query = query.in('status', ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed']);
     }
@@ -102,6 +103,20 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
       let finalTickets = mergedTickets;
       // Removed role-based escalation filtering for Keepers since Keepers see all OS-level tickets directly.
 
+      finalTickets = mergedTickets.filter(t => {
+        const isClaimedByMe = t.metadata?.claimed_by === currentUserId;
+        const isClaimedByOther = t.metadata?.claimed_by && !isClaimedByMe;
+
+        if (activeFilter === "new") {
+            if (isClaimedByOther || isClaimedByMe) return false;
+        } else if (activeFilter === "pending") {
+            if (!isClaimedByMe) return false;
+        } else if (activeFilter === "closed") {
+            // Closed tickets visible to all
+        }
+        return true;
+      });
+
       setTickets(finalTickets);
 
       const uniqueCats = [...new Set(finalTickets.map(t => t.ticket_type || t.category || "GENERAL"))];
@@ -136,6 +151,10 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
       ]
     };
 
+    if (actionType === "ESCALATED") {
+      delete newMetadata.claimed_by;
+    }
+
     const { error } = await supabaseAuth
       .from('keeper_tickets')
       .update({
@@ -158,6 +177,29 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
     fetchTickets();
   };
 
+  const handleClaimTicket = async () => {
+    if (!selectedTicket || !currentUserId) return;
+    const newMetadata = { ...(selectedTicket.metadata || {}), claimed_by: currentUserId };
+    const { error } = await supabaseAuth.from('keeper_tickets').update({ metadata: newMetadata }).eq('id', selectedTicket.id);
+    if (!error) {
+       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
+       fetchTickets();
+       useStore.getState().pushStatus(t("ticket_claim") || "Ticket Claimed", "success");
+    }
+  };
+
+  const handleReleaseTicket = async () => {
+    if (!selectedTicket || !currentUserId) return;
+    const newMetadata = { ...(selectedTicket.metadata || {}) };
+    delete newMetadata.claimed_by;
+    const { error } = await supabaseAuth.from('keeper_tickets').update({ metadata: newMetadata }).eq('id', selectedTicket.id);
+    if (!error) {
+       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
+       fetchTickets();
+       useStore.getState().pushStatus(t("ticket_release") || "Ticket Released", "success");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 w-full pb-32 text-[var(--text)]">
       <ScreenUtilityBar
@@ -175,7 +217,7 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
           />
         </div>
         <FilterTabs className="h-12 z-40">
-          <FilterTabButton id="pending" label={t("pending")} activeTab={activeFilter} setTab={setActiveFilter} />
+          <FilterTabButton id="pending" label={t("ticket_tab_claimed") || t("pending")} activeTab={activeFilter} setTab={setActiveFilter} />
           <FilterTabButton id="new" label={t("ui_tab_new")} activeTab={activeFilter} setTab={setActiveFilter} />
           <FilterTabButton id="closed" label={t("ui_tab_closed")} activeTab={activeFilter} setTab={setActiveFilter} />
         </FilterTabs>
@@ -267,6 +309,9 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
         availableActions={["RESOLVED", "REJECTED", "ESCALATED", "PENDING"]}
         onTakeAction={handleTakeAction}
         onEditMetadata={onEditMetadata}
+        onClaim={handleClaimTicket}
+        onRelease={handleReleaseTicket}
+        currentUserId={currentUserId}
         onReplyAdded={() => {
           fetchTickets();
         }}

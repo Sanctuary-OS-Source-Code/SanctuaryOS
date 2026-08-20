@@ -4,7 +4,7 @@ import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
 import { useStore } from '../store';
-import { ActionButton, SidePanel, CustomDropdown, HoverTooltip, SearchBar, HubTabs, FilterTabs, FilterTabButton, ScreenUtilityBar } from '../shared';
+import { ActionButton, SidePanel, CustomDropdown, HoverTooltip, SearchBar, HubTabs, FilterTabs, FilterTabButton, ScreenUtilityBar, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { CommandScreenQuickLink } from '../hub-components/SharedCommandScreenLayout';
 import { ChameleonEditorPanel } from '../side-panels/ChameleonEditorPanel';
 
@@ -97,12 +97,24 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
       title={t("chameleon_title")}
       icon="palette"
       widthClass="w-[900px]"
-      footer={
-        <div className="flex justify-center items-center gap-4 w-full">
-          <ActionButton onClick={() => { setMarketTab('CHAMELEONS'); setView('nexus'); onClose(); }} label={t("tab_nexus")} icon="explore" />
-          <ActionButton onClick={handleImportTheme} label={t("btn_import")} icon="download" />
-          <ActionButton onClick={createNewTheme} label={t("btn_create_theme")} icon="add" />
-        </div>
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="explore"
+            tooltip={t("tab_nexus")}
+            onClick={() => { setMarketTab('CHAMELEONS'); setView('nexus'); onClose(); }}
+          />
+          <PanelHeaderButton
+            icon="download"
+            tooltip={t("btn_import")}
+            onClick={handleImportTheme}
+          />
+          <PanelHeaderButton
+            icon="add"
+            tooltip={t("btn_create_theme")}
+            onClick={createNewTheme}
+          />
+        </PanelHeaderGroup>
       }
       noPadding
     >

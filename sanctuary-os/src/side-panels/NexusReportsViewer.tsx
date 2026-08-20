@@ -13,7 +13,8 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   FilterTabs, FilterTabButton,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
+  PanelHeaderGroup, PanelHeaderButton
 } from "../shared";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { ArtifactCard, VaultCard } from "../Cards";
@@ -307,20 +308,24 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         title={t("report_details")}
         subtitle={t("dossier_subtitle")}
         icon="shield"
-        footer={selectedReport?.status === 'pending' ? (
-          <div className="flex justify-center items-center gap-4 w-full">
-            <button type="button" onClick={() => setSelectedReport(null)} className={standardButtonClass}>
-              {t("nav_cancel")}
-            </button>
-            <button
-              onClick={() => handleProcessReport(selectedAction as "dismiss" | "remove" | "ban")}
-              disabled={isSubmittingAction || !resolutionReason || !selectedAction || (selectedAction === 'ban' && !banDuration)}
-              className={standardAccentGlassButtonClass}
-            >
-              {t("dossier_btn_save")}
-            </button>
-          </div>
-        ) : undefined}
+        headerActions={
+          selectedReport?.status === 'pending' ? (
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon="close"
+                tooltip={t("nav_cancel")}
+                onClick={() => setSelectedReport(null)}
+              />
+              <PanelHeaderButton
+                icon="save"
+                tooltip={t("dossier_btn_save")}
+                variant="accent"
+                disabled={isSubmittingAction || !resolutionReason || !selectedAction || (selectedAction === 'ban' && !banDuration)}
+                onClick={() => handleProcessReport(selectedAction as "dismiss" | "remove" | "ban")}
+              />
+            </PanelHeaderGroup>
+          ) : undefined
+        }
       >
         <div className="p-6 flex flex-col gap-8">
           {selectedReport && (

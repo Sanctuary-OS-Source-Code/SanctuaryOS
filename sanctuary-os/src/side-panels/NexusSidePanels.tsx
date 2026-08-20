@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter, PanelHeaderGroup, PanelHeaderButton, ViewHeader, SearchBar, HoverTooltip, FilterPopover } from "../shared";
+import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter, PanelHeaderGroup, PanelHeaderButton, ViewHeader, SearchBar, HoverTooltip, FilterPopover, getNormalizedArtifactName } from "../shared";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
@@ -317,6 +317,15 @@ export function MarketBlueprintPanel({
   const displayArtifacts = useMemo(() => {
     const artifacts = enrichedBlueprint?.json_data?.artifacts || [];
     let filtered = artifacts;
+    
+    const seenNames = new Set<string>();
+    filtered = filtered.filter((a: any) => {
+        const norm = getNormalizedArtifactName(a.name || a.id);
+        if (seenNames.has(norm)) return false;
+        seenNames.add(norm);
+        return true;
+    });
+
     if (filterTab === 'MISSING') {
       filtered = filtered.filter((m: any) => !localVaultHashes.has(m.hash));
     }
@@ -528,7 +537,7 @@ export function MarketBlueprintPanel({
               <div className="flex items-center gap-3 flex-1 justify-end">
                 <SearchBar
                   value={searchQuery}
-                  onChange={(e: any) => setSearchQuery(e.target.value)}
+                  onChange={(v: string) => setSearchQuery(v)}
                   placeholder={t("search_artifacts") || "Query Artifacts..."}
                   className="w-full max-w-xs h-10"
                 />

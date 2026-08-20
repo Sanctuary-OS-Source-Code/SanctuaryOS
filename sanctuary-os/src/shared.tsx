@@ -56,8 +56,8 @@ export const handleOpenUrl = (url: string) => {
 };
 
 export const standardButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black capitalize tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black capitalize tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardPrimaryButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black capitalize tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:theme-border-accent hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group";
+export const standardGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black capitalize tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
+export const standardPrimaryButtonClass = "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black capitalize tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:theme-border-accent hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group";
 export const standardSuccessButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-success theme-btn-success text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
 export const standardDangerButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-danger theme-btn-danger text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
 export const standardAccentGlassButtonClass = "px-8 py-4 rounded-[var(--radius)] theme-panel-accent theme-btn-accent text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
@@ -122,7 +122,7 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       disabled={disabled}
-      className={`${variant === 'solid' ? 'shadow-md border' : 'relative overflow-hidden backdrop-blur-md shadow-lg border hover:shadow-xl'} px-8 py-4 rounded-[var(--radius)] text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
+      className={`${variant === 'solid' ? 'shadow-md border' : 'relative overflow-hidden shadow-lg border hover:shadow-xl'} px-8 py-4 rounded-[var(--radius)] text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
       style={!disabled ? { '--tw-hover-border-color': customHoverColor || `color-mix(in srgb, var(${borderColorVar}) 50%, transparent)` } as React.CSSProperties : undefined}
     >
       {variant !== 'solid' && (
@@ -145,25 +145,23 @@ export function LoadingScreen({ title, subtitle, icon = "sync" }: { title: strin
         style={{ backgroundColor: 'var(--accent)' }} />
 
       <div className="flex flex-col items-center gap-12 relative z-10 text-center">
-        <div className="relative w-28 h-28 flex items-center justify-center">
-          {/* Outer high-speed ring */}
-          <div className="absolute inset-0 rounded-full border-[2px] border-transparent border-t-[var(--accent)] border-r-[color-mix(in_srgb,var(--accent)_30%,transparent)] opacity-80" 
-            style={{ animation: 'spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite' }} />
-            
-          {/* Inner reverse ring */}
-          <div className="absolute inset-2 rounded-full border-[1px] border-transparent border-b-[var(--accent)] border-l-[color-mix(in_srgb,var(--accent)_50%,transparent)] opacity-60" 
-            style={{ animation: 'spin 3s linear infinite reverse' }} />
-            
-          {/* Dashed track */}
-          <div className="absolute inset-4 rounded-full border-[1px] border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]" 
-            style={{ animation: 'spin 10s linear infinite' }} />
+        <div className="relative w-24 h-24 flex items-center justify-center">
+          {/* Subtle background glow */}
+          <div className="absolute inset-0 rounded-full bg-[var(--accent)] opacity-[0.05] blur-xl animate-pulse" />
+          
+          {/* Outer track */}
+          <div className="absolute inset-0 rounded-full border border-[color-mix(in_srgb,var(--accent)_15%,transparent)]" />
+          
+          {/* Smooth spinning gradient ring */}
+          <div className="absolute inset-0 rounded-full border-[2px] border-transparent border-t-[var(--accent)] border-r-[color-mix(in_srgb,var(--accent)_50%,transparent)]" 
+            style={{ animation: 'spin 1.2s linear infinite' }} />
 
-          {/* Core glow */}
-          <div className="absolute inset-0 rounded-full bg-[var(--accent)] opacity-5 blur-xl animate-pulse" />
-
-          {/* Icon */}
-          <span className={`material-symbols-outlined !text-3xl ${icon === 'sync' ? 'animate-spin' : ''}`}
-            style={{ color: 'var(--text)', filter: `drop-shadow(0 0 10px var(--accent))` }}>{icon}</span>
+          {/* Icon Box */}
+          <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] relative z-10">
+            <span className={`material-symbols-outlined !text-[22px] text-[var(--accent)] ${icon === 'sync' ? 'animate-spin' : ''}`}>
+              {icon}
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-col items-center gap-4">
@@ -350,6 +348,15 @@ export const cleanSearchName = (raw: string, schema?: any) => {
   return name.replace(/[_-]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim();
 };
 
+export const getNormalizedArtifactName = (name: string): string => {
+  if (!name) return "";
+  let clean = String(name).split(/[\\/]/).pop() || "";
+  clean = clean.replace(/\.[^.]+$/, "");
+  clean = clean.replace(/_SCRIPT(S)?$/i, "");
+  clean = clean.replace(/[^a-z0-9]/gi, "");
+  return clean.toLowerCase();
+};
+
 let _cachedExtSchema: any = null;
 let _cachedExtRegex: RegExp | null = null;
 export const getExtensionRegex = (schema: any) => {
@@ -477,7 +484,7 @@ export const parseStringArray = (input: string | string[] | undefined | null): s
 };
 
 export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(--accent)]", children, onSubtitleClick, onTitleClick, breadcrumb, shape = "circle" }: any) {
-  const shapeClass = shape === "square" ? "rounded-[calc(var(--radius)-4px)]" : "rounded-[var(--radius)]";
+  const shapeClass = shape === "square" ? "rounded-[var(--radius)]" : "rounded-[var(--radius)]";
   return (
     <header className="flex flex-col xl:flex-row w-full justify-start items-start mb-6 shrink-0 gap-6">
       <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
@@ -754,7 +761,7 @@ export function ViewToggle({ options, activeTab, setTab, className = "" }: any) 
   );
 }
 
-export function FilterPopover({ className = "", buttonClassName = "", icon = "tune", label, options, multiSelect, children, activeTab, setTab }: any) {
+export function FilterPopover({ className = "", buttonClassName = "", icon = "tune", label, options, multiSelect, children, activeTab, setTab, defaultTab }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const [coords, setCoords] = useState({ top: 0, left: 0, isRight: false });
@@ -787,18 +794,20 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
     return activeTab === id;
   };
 
-  const hasActiveFilter = multiSelect
+  const effectiveDefaultTab = defaultTab !== undefined ? defaultTab : (options && options.length > 0 ? options[0].id : undefined);
+
+  const hasActiveFilter = activeTab === "active" || (multiSelect
     ? (Array.isArray(activeTab) && activeTab.length > 0)
-    : (activeTab !== undefined && activeTab !== null && String(activeTab).toLowerCase() !== "all" && String(activeTab).toLowerCase() !== "any");
+    : (activeTab !== undefined && activeTab !== null && String(activeTab).toLowerCase() !== "all" && String(activeTab).toLowerCase() !== "any" && activeTab !== effectiveDefaultTab));
 
   return (
     <div className={`relative ${className}`}>
       <button
         ref={btnRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-center gap-2 h-12 ${label ? 'px-5' : 'w-12'} rounded-[calc(var(--radius)-4px)] transition-all duration-300 backdrop-blur-[3px] ${hasActiveFilter || isOpen
-          ? 'border border-[var(--accent)] text-[var(--accent)] bg-transparent shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
-          : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:theme-border-accent'
+        className={`flex items-center justify-center gap-2 h-12 ${label ? 'px-5' : 'w-12'} rounded-[var(--radius)] transition-all duration-300 backdrop-blur-[3px] ${isOpen || hasActiveFilter
+          ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--accent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
+          : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
           } ${buttonClassName}`}
       >
         <span className="material-symbols-outlined !text-[20px]">{icon}</span>
@@ -935,7 +944,7 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
           <div
             ref={menuRef}
-            className="absolute mt-2 min-w-[200px] glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl pointer-events-auto flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
+            className="absolute mt-2 min-w-[200px] glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[var(--radius)] shadow-xl pointer-events-auto flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
             style={{
               zIndex: 200001,
               top: 'calc(100% + 4px)',
@@ -1064,7 +1073,7 @@ export function HoverTabDrawer({ title = "Navigation", tabs, activeTab, setTab, 
   const isLeft = position === "left";
   return (
     <div 
-      className={`fixed ${isLeft ? 'left-0' : 'right-0'} top-[72px] bottom-[24px] z-[9999] group flex ${isLeft ? 'justify-start' : 'justify-end'} w-12 hover:w-[284px] transition-all duration-0 pointer-events-none ${className}`}
+      className={`fixed ${isLeft ? 'left-0' : 'right-0'} top-[72px] bottom-[24px] z-[9999] group flex ${isLeft ? 'justify-start' : 'justify-end'} w-[284px] pointer-events-none ${className}`}
       onMouseEnter={() => onHoverChange && onHoverChange(true)}
       onMouseLeave={() => onHoverChange && onHoverChange(false)}
     >
@@ -1077,8 +1086,8 @@ export function HoverTabDrawer({ title = "Navigation", tabs, activeTab, setTab, 
 
       {/* Sliding Panel */}
       <div 
-        className={`h-full w-[260px] ${isLeft ? 'ml-6 rounded-3xl -translate-x-[calc(100%+40px)]' : 'mr-6 rounded-3xl translate-x-[calc(100%+40px)]'} shrink-0 glass-panel group-hover:translate-x-0 transition-transform duration-500 ease-[cubic-bezier(0.2,0.9,0.2,1)] flex flex-col items-start pt-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative pointer-events-auto border border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${panelClassName}`}
-        style={panelStyle}
+        className={`h-full w-[260px] ${isLeft ? 'ml-6 rounded-3xl -translate-x-[calc(100%+40px)]' : 'mr-6 rounded-3xl translate-x-[calc(100%+40px)]'} shrink-0 group-hover:translate-x-0 transition-transform duration-500 ease-[cubic-bezier(0.2,0.9,0.2,1)] transform-gpu will-change-transform backface-hidden flex flex-col items-start pt-6 relative pointer-events-auto border border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[var(--glassBlur,24px)] ${panelClassName}`}
+        style={{ background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 2%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal, 0.8) * 100%), transparent)`, ...panelStyle }}
       >
 
         <div className="w-full px-6 mb-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 shrink-0">
@@ -1194,7 +1203,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
   const dropdownMenu = isOpen ? createPortal(
     <>
       <div className="!fixed inset-0" style={{ zIndex: 300000 }} onClick={() => setIsOpen(false)} />
-      <div className="!fixed pointer-events-auto glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+      <div className="!fixed pointer-events-auto glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
         zIndex: 300001,
         top: coords.top,
         left: coords.left,
@@ -1261,7 +1270,7 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
 
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className || ''}`}>
-      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[12px]'} text-sm font-bold ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-[calc(var(--radius)-4px)] text-[var(--accent)] shadow-md' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] focus:border-[var(--accent)] transform-gpu'}`} ${buttonClassName || ''}`}>
+      <button type="button" ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90' : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[12px]'} text-sm font-bold ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-[var(--radius)] text-[var(--accent)] shadow-md' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] focus:border-[var(--accent)] transform-gpu'}`} ${buttonClassName || ''}`}>
         <span className="pr-4 flex-1 text-left flex items-center h-full capitalize overflow-hidden">{getSelectedLabel()}</span>
         <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 hover:text-[var(--text)]'}`}><span className={`material-symbols-outlined ${flat ? '!text-[16px]' : '!text-[20px]'}`}>{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
@@ -1341,7 +1350,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
             right: rect ? (isRightHalf ? window.innerWidth - rect.right : undefined) : undefined,
             width: rect ? rect.width : 'max-content',
           }}>
-            <div className="absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col">
+            <div className="absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col">
               <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
                 {filtered.map(v => (
                   <button
@@ -1380,7 +1389,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
   );
 }
 
-export function CustomDatePicker({ value, onChange, placeholder, className = "" }: { value: string | null, onChange: (date: string | null) => void, placeholder?: string, className?: string }) {
+export function CustomDatePicker({ value, onChange, placeholder, className = "", flat = false }: { value: string | null, onChange: (date: string | null) => void, placeholder?: string, className?: string, flat?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const [coords, setCoords] = useState({ top: 0, left: 0, isRight: false });
@@ -1427,8 +1436,8 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
 
   return (
     <div className={`relative w-full ${className}`}>
-      <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className="w-full h-12 px-5 rounded-[calc(var(--radius)-4px)] glass-surface outline-none transition-all shadow-inner flex justify-start items-center text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-[10]">
-        <span className="truncate pr-4">{value ? new Date(value).toLocaleDateString() : (placeholder || "Select Date...")}</span>
+      <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all group ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90' : 'h-12 px-5 rounded-[var(--radius)] glass-surface shadow-inner text-sm font-bold text-[var(--text)] focus:theme-border-accent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+        <span className={`${flat ? 'flex-1 text-left flex items-center h-full overflow-hidden' : 'truncate pr-4'}`}>{value ? new Date(value).toLocaleDateString() : (placeholder || "Select Date...")}</span>
         <div className="flex items-center gap-1 shrink-0">
           {value && (
             <span onClick={(e) => { e.stopPropagation(); onChange(null); }} className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-60 hover:opacity-100 transition-all cursor-pointer rounded-full hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] p-0.5">
@@ -1446,11 +1455,11 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
           <div className="!fixed pointer-events-none" style={{
             zIndex: 200001,
             top: coords.top,
-            left: coords.left,
-            transform: coords.isRight ? 'translateX(-100%)' : 'none',
+            left: coords.isRight ? undefined : coords.left,
+            right: coords.isRight ? window.innerWidth - coords.left : undefined,
             transition: 'none'
           }}>
-            <div className={`!absolute top-0 mt-2 pointer-events-auto glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[calc(var(--radius)-4px)] shadow-2xl animate-in fade-in slide-in-from-top-2 p-4 w-64`}>
+            <div className={`!absolute top-0 ${coords.isRight ? 'right-0' : 'left-0'} mt-2 pointer-events-auto glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl animate-in fade-in slide-in-from-top-2 p-4 w-64`}>
               <div className="flex justify-start items-center mb-4">
                 <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1">{'<'}</button>
                 <div className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{monthNames[month]} {year}</div>
@@ -1486,14 +1495,18 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "" 
   );
 }
 
-export function CustomComplianceDropdown({ value, onChange, includeTier3 }: { value: number, onChange: (val: number) => void, includeTier3?: boolean }) {
+export function CustomComplianceDropdown({ value, onChange, maxTier = 5 }: { value: number, onChange: (val: number) => void, maxTier?: number }) {
   const { t } = useLexicon();
-  const options = [
-    { id: 0, label: "Clean / Safe (Tier 0)" },
-    { id: 1, label: "NSFW (Tier 1)" },
-    { id: 2, label: "Explicit (Tier 2)" },
-    ...(includeTier3 ? [{ id: 3, label: "Malware (Tier 3)" }] : [])
+  const allOptions = [
+    { id: 0, label: t("tier_0_label") || "Clean / Safe (Tier 0)" },
+    { id: 1, label: t("tier_1_label") || "Explicit Content (Tier 1)" },
+    { id: 2, label: t("tier_2_label") || "Illicit / Substance (Tier 2)" },
+    { id: 3, label: t("tier_3_label") || "Extreme Violence (Tier 3)" },
+    { id: 4, label: t("tier_4_label") || "Taboo / Sensitive (Tier 4)" },
+    { id: 5, label: t("tier_5_label") || "Malware (Tier 5)" }
   ];
+
+  const options = allOptions.filter(opt => opt.id <= maxTier);
 
   return (
     <div className="w-full">
@@ -1719,8 +1732,8 @@ export function SidePanel({
   const calculatedPanelZ = 40000 + (depth * 10) + 1;
   const parsedBackdropZ = parseInt(backdropZ.replace(/\D/g, '')) || 40000;
   const parsedPanelZ = parseInt(panelZ.replace(/\D/g, '')) || 40001;
-  const finalBackdropZ = depth > 0 ? calculatedBackdropZ : parsedBackdropZ;
-  const finalPanelZ = depth > 0 ? calculatedPanelZ : parsedPanelZ;
+  const finalBackdropZ = depth > 0 ? Math.max(calculatedBackdropZ, parsedBackdropZ) : parsedBackdropZ;
+  const finalPanelZ = depth > 0 ? Math.max(calculatedPanelZ, parsedPanelZ) : parsedPanelZ;
 
   const panelContent = (
     <PanelDepthContext.Provider value={depth + 1}>

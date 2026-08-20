@@ -61,7 +61,7 @@ function RichReplyEditor({ value, onChange, placeholder, className, id }: { valu
   );
 }
 
-export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onAssetClick, userId }: { post: any, onClose: () => void, onOpenMasonProfile?: (id: string) => void, onAssetClick?: (type: string, id: string) => void, userId: string | null }) {
+export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onAssetClick, userId, initialFocusCommentId }: { post: any, onClose: () => void, onOpenMasonProfile?: (id: string) => void, onAssetClick?: (type: string, id: string) => void, userId: string | null, initialFocusCommentId?: string | null }) {
   const { t } = useLexicon();
   const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
   const [comments, setComments] = useState<any[]>([]);
@@ -132,6 +132,21 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
       fetchComments();
     }
   }, [post?.id]);
+
+  useEffect(() => {
+    if (initialFocusCommentId && comments.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`comment-${initialFocusCommentId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-[var(--accent)]', 'ring-offset-2', 'ring-offset-[var(--bg)]', 'transition-all', 'duration-1000');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-[var(--accent)]', 'ring-offset-2', 'ring-offset-[var(--bg)]');
+          }, 2000);
+        }
+      }, 100);
+    }
+  }, [initialFocusCommentId, comments]);
 
   useEffect(() => {
     if (post?.id && (newComment || codeSnippet)) {
@@ -370,11 +385,11 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
     const hiddenRepliesCount = allowedReplies.length - visibleReplies.length;
 
     return (
-      <div id={`comment-${c.id}`} key={c.id} className="flex flex-col gap-2 relative transition-all duration-500" style={{ marginLeft: depth > 0 ? '1.5rem' : '0' }}>
+      <div key={c.id} className="flex flex-col gap-2 relative transition-all duration-500" style={{ marginLeft: depth > 0 ? '1.5rem' : '0' }}>
         {depth > 0 && (
           <div className="absolute top-0 bottom-0 left-[-1.5rem] w-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
         )}
-        <div className={`p-4 rounded-2xl border ${c.is_hidden ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all shadow-md'} flex flex-col gap-2 relative`}>
+        <div id={`comment-${c.id}`} className={`p-4 rounded-2xl border ${c.is_hidden ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all shadow-md'} flex flex-col gap-2 relative`}>
           {depth > 0 && (
             <div className="absolute top-6 left-[-1.5rem] w-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
           )}

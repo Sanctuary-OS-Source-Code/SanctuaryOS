@@ -163,7 +163,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
 
           <div className="flex flex-col gap-2">
             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
-            <CustomComplianceDropdown value={setTier} onChange={setSetTier} includeTier3={false} />
+            <CustomComplianceDropdown value={setTier} onChange={setSetTier} maxTier={4} />
           </div>
         </div>
       </SidePanel>
@@ -484,7 +484,7 @@ export function CollectionForge({ setStatus }: any) {
 
           <div className="flex flex-col gap-2">
             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
-            <CustomComplianceDropdown value={setTier} onChange={setSetTier} includeTier3={false} />
+            <CustomComplianceDropdown value={setTier} onChange={setSetTier} maxTier={4} />
           </div>
 
           <div className="flex flex-col gap-2">
@@ -535,7 +535,7 @@ export function CollectionForge({ setStatus }: any) {
 
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
-                <CustomComplianceDropdown value={activeSet.compliance_tier || 0} onChange={(val: number) => setActiveSet({ ...activeSet, compliance_tier: val })} includeTier3={false} />
+                <CustomComplianceDropdown value={activeSet.compliance_tier || 0} onChange={(val: number) => setActiveSet({ ...activeSet, compliance_tier: val })} maxTier={4} />
               </div>
 
               <div className="flex flex-col gap-2">

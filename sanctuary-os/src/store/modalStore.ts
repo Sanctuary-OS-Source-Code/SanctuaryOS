@@ -55,6 +55,8 @@ interface ModalState {
   setIngestProgress: (val: any) => void;
   isScanning: boolean;
   setIsScanning: (val: boolean) => void;
+  isSilentScanning: boolean;
+  setIsSilentScanning: (val: boolean) => void;
   showDefconAlert: boolean;
   setShowDefconAlert: (val: boolean) => void;
   showQuarantineModal: boolean;
@@ -77,6 +79,8 @@ interface ModalState {
   setIsUpdatePanelOpen: (val: boolean) => void;
   isSideBrowserOpen: boolean;
   setIsSideBrowserOpen: (val: boolean) => void;
+  isSupportPanelOpen: boolean;
+  setIsSupportPanelOpen: (val: boolean) => void;
   isConflictRadarOpen: boolean;
   setIsConflictRadarOpen: (val: boolean) => void;
   isBlueprintSwapOpen: boolean;
@@ -172,6 +176,8 @@ export const useModalStore = create<ModalState>((set) => ({
   setIngestProgress: (ingestProgress) => set({ ingestProgress }),
   isScanning: false,
   setIsScanning: (isScanning) => set({ isScanning }),
+  isSilentScanning: false,
+  setIsSilentScanning: (isSilentScanning) => set({ isSilentScanning }),
   showDefconAlert: false,
   setShowDefconAlert: (showDefconAlert) => set({ showDefconAlert }),
   showQuarantineModal: false,
@@ -194,6 +200,8 @@ export const useModalStore = create<ModalState>((set) => ({
   setIsUpdatePanelOpen: (isUpdatePanelOpen) => set({ isUpdatePanelOpen }),
   isSideBrowserOpen: false,
   setIsSideBrowserOpen: (isSideBrowserOpen) => set({ isSideBrowserOpen }),
+  isSupportPanelOpen: false,
+  setIsSupportPanelOpen: (isSupportPanelOpen) => set({ isSupportPanelOpen }),
   isConflictRadarOpen: false,
   setIsConflictRadarOpen: (isConflictRadarOpen) => set({ isConflictRadarOpen }),
   isBlueprintSwapOpen: false,

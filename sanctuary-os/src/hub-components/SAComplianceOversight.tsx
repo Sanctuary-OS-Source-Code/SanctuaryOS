@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase, getActiveGameClient } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, ActionButton } from '../shared';
+import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 
@@ -14,8 +14,8 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   const [masonsList, setMasonsList] = useState<any[]>([]);
   const [metadataMod, setMetadataMod] = useState<any>(null);
   const [filterTier, setFilterTier] = useState<number | null>(() => {
-    if (initialFilter === "nsfw") return 1;
-    if (initialFilter === "explicit") return 2;
+    if (initialFilter === "nsfw") return null; // Show all compliance tiers by default when clicking the Adult/Sensitive tile
+    if (initialFilter === "explicit") return null;
     return null;
   });
   const [filterStatus, setFilterStatus] = useState<string>(() => {
@@ -36,7 +36,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     const { data } = await supabase
       .from('mods')
       .select('id, name, master_author, compliance_tier, status, mason_id')
-      .or('compliance_tier.in.(1,2),status.in.(under_review,pending)')
+      .or('compliance_tier.in.(1,2,3,4),status.in.(under_review,pending)')
       .order('compliance_tier', { ascending: false });
 
     if (data) setMods(data);
@@ -55,13 +55,15 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     try {
       await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: mod.id, compliance_tier: 0, status: 'verified' } });
       const userRes = await supabase.auth.getUser();
-      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-        action: `Cleared compliance flag for artifact: ${mod.name}`,
-        target_table: 'mods',
-        target_name: mod.id,
-        actor_id: userRes.data?.user?.id,
-        reason: editReason
-      }});
+      await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
+          action: `Cleared compliance flag for artifact: ${mod.name}`,
+          target_table: 'mods',
+          target_name: mod.id,
+          actor_id: userRes.data?.user?.id,
+          reason: editReason
+        }
+      });
       setEditReason("");
       fetchMods();
     } catch (err) {
@@ -80,13 +82,15 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     try {
       await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: mod.id, compliance_tier: 2, status: 'blacklisted' } });
       const userRes = await supabase.auth.getUser();
-      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-        action: `Set compliance flag for artifact: ${mod.name} to Tier 2`,
-        target_table: 'mods',
-        target_name: mod.id,
-        actor_id: userRes.data?.user?.id,
-        reason: editReason
-      }});
+      await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
+          action: `Set compliance flag for artifact: ${mod.name} to Tier 2`,
+          target_table: 'mods',
+          target_name: mod.id,
+          actor_id: userRes.data?.user?.id,
+          reason: editReason
+        }
+      });
       setEditReason("");
       fetchMods();
     } catch (err) {
@@ -121,13 +125,15 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       const userRes = await supabase.auth.getUser();
       const myId = userRes.data.user?.id;
 
-      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-        action: `Changed compliance tier from ${selectedMod.compliance_tier} to ${editTier}`,
-        target_table: 'mods',
-        target_name: selectedMod.name || selectedMod.id,
-        actor_id: myId,
-        reason: editReason.trim() || "Compliance Update"
-      }});
+      await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
+          action: `Changed compliance tier from ${selectedMod.compliance_tier} to ${editTier}`,
+          target_table: 'mods',
+          target_name: selectedMod.name || selectedMod.id,
+          actor_id: myId,
+          reason: editReason.trim() || "Compliance Update"
+        }
+      });
 
       setStatus("Success");
       setSelectedMod(null);
@@ -140,14 +146,17 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   };
 
   const filteredMods = mods.filter(m => {
+    if (m.compliance_tier === 5) return false;
     const matchesSearch = m.name?.toLowerCase().includes(search.toLowerCase());
     const matchesTier = filterTier ? m.compliance_tier === filterTier : true;
 
     let matchesStatus = true;
+    const isPending = ["under_review", "pending", "unverified"].includes(m.status?.toLowerCase() || "");
+    
     if (filterStatus === "pending") {
-      matchesStatus = ["under_review", "pending", "unverified", "blacklisted"].includes(m.status?.toLowerCase() || "");
-    } else if (filterStatus === "stable") {
-      matchesStatus = ["stable", "clean", "ok"].includes(m.status?.toLowerCase() || "");
+      matchesStatus = isPending;
+    } else if (filterStatus === "live") {
+      matchesStatus = !isPending && m.compliance_tier >= 1 && m.compliance_tier <= 4;
     }
 
     return matchesSearch && matchesTier && matchesStatus;
@@ -155,9 +164,12 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
   const getTierDetails = (tier: number) => {
     switch (tier) {
-      case 1: return { label: t("rating_nsfw"), color: 'theme-text-warning', bg: 'theme-bg-warning' };
-      case 2: return { label: t("rating_explicit"), color: 'theme-text-danger', bg: 'theme-bg-danger' };
-      default: return { label: t("tier_clean"), color: 'theme-text-success', bg: 'theme-bg-success' };
+      case 1: return { label: t("tier_1_label") || "Tier 1", color: 'text-amber-400', bg: 'bg-amber-400/10' };
+      case 2: return { label: t("tier_2_label") || "Tier 2", color: 'text-orange-500', bg: 'bg-orange-500/10' };
+      case 3: return { label: t("tier_3_label") || "Tier 3", color: 'text-red-400', bg: 'bg-red-400/10' };
+      case 4: return { label: t("tier_4_label") || "Tier 4", color: 'text-red-500', bg: 'bg-red-500/10' };
+      case 5: return { label: t("tier_5_label") || "Tier 5", color: 'text-rose-600', bg: 'bg-rose-600/10' };
+      default: return { label: t("tier_0_label") || "Tier 0", color: 'theme-text-success', bg: 'theme-bg-success' };
     }
   };
 
@@ -176,7 +188,9 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             options={[
               { id: "all", label: t("comp_filter_all_alerts") },
               { id: 1, label: getTierDetails(1).label },
-              { id: 2, label: getTierDetails(2).label }
+              { id: 2, label: getTierDetails(2).label },
+              { id: 3, label: getTierDetails(3).label },
+              { id: 4, label: getTierDetails(4).label }
             ]}
             placeholder={t("comp_filter_tier")}
           />
@@ -190,8 +204,8 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             setTab={setFilterStatus}
           />
           <FilterTabButton
-            id="stable"
-            label={t("status_dd_stable")}
+            id="live"
+            label={t("status_dd_live")}
             activeTab={filterStatus}
             setTab={setFilterStatus}
           />
@@ -257,42 +271,49 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         title={t("comp_edit_tier")}
         icon={t("icon_policy")}
         subtitle={selectedMod ? `UUID: ${selectedMod.id}` : undefined}
-        footer={
-          <div className="flex flex-col gap-4 w-full">
-            {status && (
-              <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-                <p className={`text-[10px] font-black capitalize tracking-widest ${status.includes('Failed') || status.includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
-              </div>
+        widthClass="w-[800px]"
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="close"
+              tooltip={t("nav_cancel")}
+              onClick={() => setSelectedMod(null)}
+            />
+            {(selectedMod?.status === 'pending' || selectedMod?.status === 'under_review') ? (
+              <>
+                <PanelHeaderButton
+                  icon="check_circle"
+                  tooltip={t("btn_clear_flag")}
+                  variant="success"
+                  disabled={isSubmitting || !editReason.trim()}
+                  onClick={(e: React.MouseEvent) => { e.preventDefault(); handleClearFlag(e, selectedMod); setSelectedMod(null); }}
+                />
+                <PanelHeaderButton
+                  icon="flag"
+                  tooltip={t("btn_set_flag")}
+                  variant="error"
+                  disabled={isSubmitting || !editReason.trim()}
+                  onClick={(e: React.MouseEvent) => { e.preventDefault(); handleSetFlag(e, selectedMod); setSelectedMod(null); }}
+                />
+              </>
+            ) : (
+              <PanelHeaderButton
+                icon="save"
+                tooltip={isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
+                variant="accent"
+                disabled={isSubmitting || !editReason.trim()}
+                onClick={handleSaveTier}
+              />
             )}
-            <div className="flex justify-center items-center gap-4 w-full">
-              {(selectedMod?.status === 'pending' || selectedMod?.status === 'under_review') ? (
-                <>
-                  <ActionButton
-                    onClick={(e) => { e.preventDefault(); handleClearFlag(e, selectedMod); setSelectedMod(null); }}
-                    disabled={isSubmitting || !editReason.trim()} label={t("btn_clear_flag")}
-                  >
-                    
-                  </ActionButton>
-                  <ActionButton
-                    onClick={(e) => { e.preventDefault(); handleSetFlag(e, selectedMod); setSelectedMod(null); }}
-                    disabled={isSubmitting || !editReason.trim()} label={t("btn_set_flag")}
-                  >
-                    
-                  </ActionButton>
-                </>
-              ) : (
-                <ActionButton
-                  onClick={handleSaveTier}
-                  disabled={isSubmitting || !editReason.trim()} label={isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
-                >
-                  
-                </ActionButton>
-              )}
-            </div>
-          </div>
+          </PanelHeaderGroup>
         }
       >
         <div className="p-6 flex flex-col h-full gap-8">
+          {status && (
+            <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
+              <p className={`text-[10px] font-black capitalize tracking-widest ${status.includes('Failed') || status.includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 shrink-0">
             <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
@@ -320,7 +341,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
               <CustomComplianceDropdown
                 value={editTier}
                 onChange={setEditTier}
-                includeTier3={false}
+                maxTier={5}
               />
             </div>
 

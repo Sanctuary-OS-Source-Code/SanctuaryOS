@@ -1443,23 +1443,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               </div>
 
               <div className="flex items-center gap-3 w-full xl:w-auto">
-                {(marketTab === 'MODS' || (marketTab === 'BLUEPRINTS' && gameVersions.length > 0)) && (
-                  <div className="flex-1 xl:w-[180px] shrink-0 relative z-[51] h-12">
-                    <CustomDropdown disableTint={true}
-                      value={selectedGameVersion}
-                      onChange={(val: string[]) => {
-                        setSelectedGameVersion(val[0]);
-                        setCurrentPage(1);
-                      }}
-                      options={[
-                        { id: "all", label: "ALL VERSIONS" },
-                        ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
-                        ...gameVersions.map(v => ({ id: v, label: v }))
-                      ]}
-                    />
-                  </div>
-                )}
-
                 <FilterPopover icon="tune" label={t("filters")} className="shrink-0 flex-1 xl:flex-none">
                   <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)]">
                     <FilterSection
@@ -1538,6 +1521,29 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       onChange={handleViewFiltersChange}
                       options={viewFilterOptions.filter(o => o.id !== 'hide_installed')}
                     />
+
+                    {(marketTab === 'MODS' || (marketTab === 'BLUEPRINTS' && gameVersions.length > 0)) && (
+                      <div className="flex flex-col mb-5 w-full last:mb-0">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                          {t("label_game_version") || "Game Version"}
+                          <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+                        </div>
+                        <div className="h-10 w-full relative z-[60]">
+                          <CustomDropdown disableTint={true}
+                            value={selectedGameVersion}
+                            onChange={(val: string[]) => {
+                              setSelectedGameVersion(val[0]);
+                              setCurrentPage(1);
+                            }}
+                            options={[
+                              { id: "all", label: t("filter_all_versions") || "ALL VERSIONS" },
+                              ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
+                              ...gameVersions.map(v => ({ id: v, label: v }))
+                            ]}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </FilterPopover>
               </div>

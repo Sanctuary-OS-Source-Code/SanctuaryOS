@@ -9,7 +9,7 @@ import {
   CustomComplianceDropdown, CustomDatePicker, DashboardStatTile,
   HubTabButton, ModSearchDropdown, EmptyState, ActionButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass,
+  standardDangerButtonClass, standardAccentGlassButtonClass, PanelHeaderGroup, PanelHeaderButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
 } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
@@ -38,11 +38,21 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
       widthClass="w-[320px]"
       panelZ="z-[15001]"
       backdropZ="z-[15000]"
-      footer={
-        <div className="flex gap-3 w-full">
-          <button onClick={onClose} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02] text-[var(--text)] font-black text-[11px] capitalize tracking-[0.2em] rounded-xl transition-all">{t("nav_cancel")}</button>
-          <ActionButton onClick={handleCreate} disabled={isCreating || !newMasonName.trim()} className="flex-1 shrink-0 h-12" label={isCreating ? t("create_btn_creating") : t("create_btn_create")} />
-        </div>
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="close"
+            tooltip={t("nav_cancel")}
+            onClick={onClose}
+          />
+          <PanelHeaderButton
+            icon="add"
+            tooltip={isCreating ? t("create_btn_creating") : t("create_btn_create")}
+            variant="accent"
+            disabled={isCreating || !newMasonName.trim()}
+            onClick={handleCreate}
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-6 w-full">
@@ -140,24 +150,12 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     const cleanFileName = fileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
     const hiddenPath = filePath.replace(/^(?:[A-Z]:)?[\/\\]Users[\/\\][^\/\\]+[\/\\]/i, '...\\');
 
-    const { error } = await supabase.from('sanctuary_tickets').insert({
-      author_id: userId,
-      status: "ESCALATED",
-      ticket_type: "DNA_FLAG",
-      title: `Flagged File: ${cleanFileName}`,
-      description: `File Path: ${hiddenPath}\n\nReason: ${flagReason}`,
-      metadata: { file_hash: fileHash, file_path: hiddenPath, flag_reason: flagReason, target_mod_id: fileHash }
-    });
-
+    await logArchitectAction(`Flagged Artifact: ${fileName}`, 'sanctuary_tickets', fileName, `User provided reason: ${flagReason}`);
+    
     setIsSubmitting(false);
-    if (!error) {
-      await logArchitectAction(`Flagged Artifact: ${fileName}`, 'sanctuary_tickets', fileName, `User provided reason: ${flagReason}`);
-      setSuccessMsg(t("verify_panel_flag_success"));
-      setShowFlagForm(false);
-      setFlagReason("");
-    } else {
-      console.error("Failed to flag:", error);
-    }
+    setSuccessMsg(t("verify_panel_flag_success"));
+    setShowFlagForm(false);
+    setFlagReason("");
   };
 
   let statusState = "AWAITING";
@@ -165,7 +163,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
   else if (isHashing) statusState = "SCANNING";
   else if (filePath && !fileHash) statusState = "SCANNING";
   else if (fileHash && matchedMod) {
-    if (matchedMod.compliance_tier === 3) statusState = "MALWARE";
+    if (matchedMod.compliance_tier === 5) statusState = "MALWARE";
     else if (matchedMod.compliance_tier === 2) statusState = "EXPLICIT";
     else statusState = "VERIFIED";
   }
@@ -409,7 +407,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                     <div className="flex items-center justify-start">
                       <span className="text-[9px] font-mono text-[var(--subtext)] truncate max-w-[150px]" title={item.hash}>{item.hash}</span>
                       {item.matchedMod ? (
-                        item.matchedMod.compliance_tier === 3 ? (
+                        item.matchedMod.compliance_tier === 5 ? (
                           <span className="text-[9px] font-black text-red-500 capitalize tracking-widest">{t("rating_malware")}</span>
                         ) : item.matchedMod.compliance_tier === 2 ? (
                           <span className="text-[9px] font-black text-yellow-400 capitalize tracking-widest">{t("rating_explicit")}</span>

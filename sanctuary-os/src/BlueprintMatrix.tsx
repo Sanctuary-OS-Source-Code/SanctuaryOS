@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
-import { formatDisplayName, ViewHeader, SidePanel, standardButtonClass, standardAccentGlassButtonClass, HoverTooltip, ActionButton } from "./shared";
+import { formatDisplayName, ViewHeader, SidePanel, standardButtonClass, standardAccentGlassButtonClass, HoverTooltip, ActionButton, getNormalizedArtifactName } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
+import { useModalStore } from "./store/modalStore";
 
 export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onUpload, onUpdatePlaySet }: any) {
   const { t } = useLexicon();
@@ -86,18 +87,24 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
     const allowed: any[] = [];
     const blocked: any[] = [];
 
+    const seenNames = new Set<string>();
     const rawMods = playSet.mods
       .map((m: any) => typeof m === 'string' ? m : (m?.name || ''))
       .filter((modName: string) => modName && !modName.startsWith("FOLDER_") && !modName.startsWith("SET_") && !modName.startsWith("LOCAL_SET_"))
-      .map((modName: string) => {
-        const mod = modList.find((m: any) => m.name === modName);
-        return { name: modName, hash: mod?.hash || "", url: mod?.url || "", author: mod?.author || "Unknown", compliance_tier: mod?.compliance_tier || 0, displayName: mod?.displayName, isVirtual: mod?.isVirtual };
-      });
+      .reduce((acc: any[], modName: string) => {
+        const norm = getNormalizedArtifactName(modName);
+        if (!seenNames.has(norm)) {
+          seenNames.add(norm);
+          const mod = modList.find((m: any) => m.name === modName || getNormalizedArtifactName(m.name) === norm);
+          acc.push({ name: modName, hash: mod?.hash || "", url: mod?.url || "", author: mod?.author || "Unknown", compliance_tier: mod?.compliance_tier || 0, displayName: mod?.displayName, isVirtual: mod?.isVirtual });
+        }
+        return acc;
+      }, []);
 
     rawMods.forEach((m: any) => {
       if (m.isVirtual) return;
 
-      if (m.compliance_tier === 1 || m.compliance_tier === 2) {
+      if (m.compliance_tier >= 1 && m.compliance_tier <= 5) {
         blocked.push(m);
       } else {
         const lower = m.name.toLowerCase();
@@ -115,20 +122,23 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
 
   const handleRemoveArtifact = (modName: string) => {
     if (!playSet || !onUpdatePlaySet) return;
-    const updatedMods = playSet.mods.filter((m: string) => m !== modName);
+    const targetNorm = getNormalizedArtifactName(modName);
+    const updatedMods = playSet.mods.filter((m: string) => getNormalizedArtifactName(m) !== targetNorm);
     onUpdatePlaySet({ ...playSet, mods: updatedMods });
   };
 
   const handleRemoveAllViolating = () => {
     if (!playSet || !onUpdatePlaySet) return;
-    const violatingNames = blockedMods.map((m: any) => m.name);
-    const updatedMods = playSet.mods.filter((m: string) => !violatingNames.includes(m));
+    const violatingNorms = blockedMods.map((m: any) => getNormalizedArtifactName(m.name));
+    const updatedMods = playSet.mods.filter((m: string) => !violatingNorms.includes(getNormalizedArtifactName(m)));
     onUpdatePlaySet({ ...playSet, mods: updatedMods });
   };
 
   const isGuest = !session;
   const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
-  const isUploadBlocked = isGuest || isBanned;
+  const hasViolations = blockedMods.length > 0;
+  const showDefconAlert = useModalStore((state: any) => state.showDefconAlert);
+  const isUploadBlocked = isGuest || isBanned || hasViolations || showDefconAlert;
 
   return createPortal(
     <SidePanel
@@ -136,118 +146,129 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
       onClose={onClose}
       title={t("matrix_title")}
       subtitle={t("matrix_subtitle")}
-      footer={
-        <div className="flex justify-center items-center gap-4 w-full">
-          <ActionButton onClick={onClose} label={t("nav_cancel")}>
-            
-          </ActionButton>
-          <div className="relative group/uplinkbtn">
-            {isUploadBlocked && (
+      headerActions={
+        <div className="flex items-center gap-1 mr-1">
+          <div className="relative group/uplinkbtn flex items-center">
+            {isUploadBlocked ? (
               <HoverTooltip
                 variant="danger"
-                title={isBanned ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
-                subtitle={isBanned ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
+                title={isBanned ? t("alert_comm_banned") : showDefconAlert ? t("alert_defcon_blocked") || "Alert Active" : hasViolations ? t("tooltip_uplink_blocked_title") : t("alert_guest_mode_uploads")}
+                subtitle={isBanned ? t("alert_comm_banned_desc") : showDefconAlert ? t("alert_defcon_blocked_desc") || "Please resolve security alerts before uplinking." : hasViolations ? t("tooltip_uplink_blocked_desc") : t("alert_guest_mode_desc")}
                 className="group-hover/uplinkbtn:flex z-[1000]"
+                vAlign="bottom"
+              />
+            ) : (
+              <HoverTooltip
+                title={isUploading ? t("scanning") : t("matrix_btn_upload")}
+                className="group-hover/uplinkbtn:flex z-[1000]"
+                vAlign="bottom"
               />
             )}
-            <ActionButton
+            <button
               onClick={handleUpload}
-              disabled={isUploading || isUploadBlocked} label={isUploading ? (t("scanning")) : (t("matrix_btn_upload"))}
+              disabled={isUploading || isUploadBlocked}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isUploading || isUploadBlocked ? 'text-[var(--subtext)] opacity-50' : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)]'}`}
             >
-              
-            </ActionButton>
+              <span className={`material-symbols-outlined !text-[18px] ${isUploading ? 'animate-spin' : ''}`}>{isUploading ? 'sync' : 'cloud_upload'}</span>
+            </button>
           </div>
         </div>
       }
     >
       <div className="flex flex-col gap-8">
         <div className="grid grid-cols-2 gap-4">
-          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${isPublic ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(true)}>
-            <div className="flex items-center justify-start">
+          <div className={`p-8 rounded-[2rem] border transition-all duration-500 cursor-pointer group flex flex-col gap-4 relative overflow-hidden ${isPublic ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_10px_40px_-10px_rgba(var(--success-rgb),0.3)] scale-[1.02] glass-panel' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:scale-[1.01] hover:shadow-lg glass-surface opacity-70 hover:opacity-100'}`} onClick={() => setIsPublic(true)}>
+            {isPublic && <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--success)] opacity-10 blur-[50px] pointer-events-none rounded-full transform translate-x-1/2 -translate-y-1/2" />}
+            <div className="flex items-center justify-between w-full relative z-10">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isPublic ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_public")}</span>
                 <span className={`text-sm font-black capitalize tracking-widest ${isPublic ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_public")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isPublic ? 'theme-border-success' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
+              <div className={`w-6 h-6 rounded-full border border-2 flex items-center justify-center transition-colors ${isPublic ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--subtext)_30%,transparent)]'}`}>
                 {isPublic && <div className="w-3 h-3 rounded-full theme-bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2 relative z-10">
               {t("matrix_public_desc")}
             </p>
           </div>
 
-          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${!isPublic ? 'theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsPublic(false)}>
-            <div className="flex items-center justify-start">
+          <div className={`p-8 rounded-[2rem] border transition-all duration-500 cursor-pointer group flex flex-col gap-4 relative overflow-hidden ${!isPublic ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_15%,transparent)] to-[color-mix(in_srgb,var(--accent)_5%,transparent)] shadow-[0_10px_40px_-10px_rgba(var(--accent-rgb),0.3)] scale-[1.02] glass-panel' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:scale-[1.01] hover:shadow-lg glass-surface opacity-70 hover:opacity-100'}`} onClick={() => setIsPublic(false)}>
+            {!isPublic && <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)] opacity-10 blur-[50px] pointer-events-none rounded-full transform translate-x-1/2 -translate-y-1/2" />}
+            <div className="flex items-center justify-between w-full relative z-10">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isPublic ? 'theme-text-accent' : 'text-[var(--subtext)]'}`}>{t("icon_visibility_off")}</span>
                 <span className={`text-sm font-black capitalize tracking-widest ${!isPublic ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_private")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isPublic ? 'theme-border-accent' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
+              <div className={`w-6 h-6 rounded-full border border-2 flex items-center justify-center transition-colors ${!isPublic ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--subtext)_30%,transparent)]'}`}>
                 {!isPublic && <div className="w-3 h-3 rounded-full theme-bg-accent shadow-[0_0_10px_rgba(var(--accent-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2 relative z-10">
               {t("matrix_private_desc")}
             </p>
           </div>
 
-          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${isLocked ? 'theme-border-danger bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(true)}>
-            <div className="flex items-center justify-start">
+          <div className={`p-8 rounded-[2rem] border transition-all duration-500 cursor-pointer group flex flex-col gap-4 relative overflow-hidden ${isLocked ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_15%,transparent)] to-[color-mix(in_srgb,var(--danger)_5%,transparent)] shadow-[0_10px_40px_-10px_rgba(var(--danger-rgb),0.3)] scale-[1.02] glass-panel' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:scale-[1.01] hover:shadow-lg glass-surface opacity-70 hover:opacity-100'}`} onClick={() => setIsLocked(true)}>
+            {isLocked && <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--danger)] opacity-10 blur-[50px] pointer-events-none rounded-full transform translate-x-1/2 -translate-y-1/2" />}
+            <div className="flex items-center justify-between w-full relative z-10">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isLocked ? 'theme-text-danger' : 'text-[var(--subtext)]'}`}>{t("icon_lock")}</span>
                 <span className={`text-sm font-black capitalize tracking-widest ${isLocked ? 'theme-text-danger' : 'text-[var(--text)]'}`}>{t("matrix_locked")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isLocked ? 'theme-border-danger' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
+              <div className={`w-6 h-6 rounded-full border border-2 flex items-center justify-center transition-colors ${isLocked ? 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--subtext)_30%,transparent)]'}`}>
                 {isLocked && <div className="w-3 h-3 rounded-full theme-bg-danger shadow-[0_0_10px_rgba(var(--danger-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2 relative z-10">
               {t("matrix_locked_desc")}
             </p>
           </div>
 
-          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${!isLocked ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsLocked(false)}>
-            <div className="flex items-center justify-start">
+          <div className={`p-8 rounded-[2rem] border transition-all duration-500 cursor-pointer group flex flex-col gap-4 relative overflow-hidden ${!isLocked ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_10px_40px_-10px_rgba(var(--success-rgb),0.3)] scale-[1.02] glass-panel' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:scale-[1.01] hover:shadow-lg glass-surface opacity-70 hover:opacity-100'}`} onClick={() => setIsLocked(false)}>
+            {!isLocked && <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--success)] opacity-10 blur-[50px] pointer-events-none rounded-full transform translate-x-1/2 -translate-y-1/2" />}
+            <div className="flex items-center justify-between w-full relative z-10">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isLocked ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_lock_open")}</span>
                 <span className={`text-sm font-black capitalize tracking-widest ${!isLocked ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_unlocked")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isLocked ? 'theme-border-success' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
+              <div className={`w-6 h-6 rounded-full border border-2 flex items-center justify-center transition-colors ${!isLocked ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--subtext)_30%,transparent)]'}`}>
                 {!isLocked && <div className="w-3 h-3 rounded-full theme-bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2 relative z-10">
               {t("matrix_unlocked_desc")}
             </p>
           </div>
 
-          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${isMarketListed ? 'theme-border-success bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(true)}>
-            <div className="flex items-center justify-start">
+          <div className={`p-8 rounded-[2rem] border transition-all duration-500 cursor-pointer group flex flex-col gap-4 relative overflow-hidden ${isMarketListed ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_10px_40px_-10px_rgba(var(--success-rgb),0.3)] scale-[1.02] glass-panel' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:scale-[1.01] hover:shadow-lg glass-surface opacity-70 hover:opacity-100'}`} onClick={() => setIsMarketListed(true)}>
+            {isMarketListed && <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--success)] opacity-10 blur-[50px] pointer-events-none rounded-full transform translate-x-1/2 -translate-y-1/2" />}
+            <div className="flex items-center justify-between w-full relative z-10">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${isMarketListed ? 'theme-text-success' : 'text-[var(--subtext)]'}`}>{t("icon_storefront")}</span>
                 <span className={`text-sm font-black capitalize tracking-widest ${isMarketListed ? 'theme-text-success' : 'text-[var(--text)]'}`}>{t("matrix_market")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isMarketListed ? 'theme-border-success' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
+              <div className={`w-6 h-6 rounded-full border border-2 flex items-center justify-center transition-colors ${isMarketListed ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--subtext)_30%,transparent)]'}`}>
                 {isMarketListed && <div className="w-3 h-3 rounded-full theme-bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2 relative z-10">
               {t("matrix_market_desc")}
             </p>
           </div>
 
-          <div className={`p-8 rounded-2xl border transition-all cursor-pointer group flex flex-col gap-4 ${!isMarketListed ? 'theme-border-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_30px_rgba(var(--accent-rgb),0.15)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] glass-panel'}`} onClick={() => setIsMarketListed(false)}>
-            <div className="flex items-center justify-start">
+          <div className={`p-8 rounded-[2rem] border transition-all duration-500 cursor-pointer group flex flex-col gap-4 relative overflow-hidden ${!isMarketListed ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_15%,transparent)] to-[color-mix(in_srgb,var(--accent)_5%,transparent)] shadow-[0_10px_40px_-10px_rgba(var(--accent-rgb),0.3)] scale-[1.02] glass-panel' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:scale-[1.01] hover:shadow-lg glass-surface opacity-70 hover:opacity-100'}`} onClick={() => setIsMarketListed(false)}>
+            {!isMarketListed && <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)] opacity-10 blur-[50px] pointer-events-none rounded-full transform translate-x-1/2 -translate-y-1/2" />}
+            <div className="flex items-center justify-between w-full relative z-10">
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined !text-3xl ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--subtext)]'}`}>{t("icon_visibility_off")}</span>
                 <span className={`text-sm font-black capitalize tracking-widest ${!isMarketListed ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("matrix_market_off")}</span>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${!isMarketListed ? 'theme-border-accent' : 'border-[color-mix(in_srgb,var(--subtext)_50%,transparent)]'}`}>
+              <div className={`w-6 h-6 rounded-full border border-2 flex items-center justify-center transition-colors ${!isMarketListed ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--subtext)_30%,transparent)]'}`}>
                 {!isMarketListed && <div className="w-3 h-3 rounded-full theme-bg-accent shadow-[0_0_10px_rgba(var(--accent-rgb),0.8)]" />}
               </div>
             </div>
-            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2">
+            <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 leading-relaxed mt-2 relative z-10">
               {t("matrix_market_off_desc")}
             </p>
           </div>
@@ -255,30 +276,38 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
         </div>
 
         {blockedMods.length > 0 && (
-     <div className="mt-8 p-10 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] flex flex-col gap-6 shadow-2xl relative transition-all duration-500 animate-in fade-in zoom-in-95 group">
-            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-            <div className="flex items-center gap-5 relative z-10">
-              <div className="w-14 h-14 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center text-[var(--danger)] shadow-[inset_0_0_20px_rgba(var(--danger-rgb),0.1)] shrink-0">
-                <span className="material-symbols-outlined !text-3xl text-[var(--danger)]">{t("icon_warning_amber")}</span>
+          <div className="mt-4 p-4 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 shadow-[0_0_15px_rgba(var(--danger-rgb),0.1)] relative transition-all duration-300 animate-in fade-in zoom-in-95 group overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent opacity-30 group-hover:opacity-60 transition-opacity duration-300 pointer-events-none" />
+            
+            <div className="flex items-center justify-between gap-3 relative z-10">
+              <div className="flex items-center gap-2">
+                 <span className="material-symbols-outlined !text-lg text-[var(--danger)]">{t("icon_warning_amber")}</span>
+                 <div className="flex flex-col">
+                   <h4 className="text-xs font-black theme-text-danger capitalize tracking-widest">{t("matrix_tier_warning_title")}</h4>
+                   <p className="text-[9px] font-bold text-[var(--danger)] opacity-70 tracking-wide">
+                     {t("matrix_tier_warning_desc")}
+                   </p>
+                 </div>
               </div>
-              <div className="flex flex-col gap-1 w-full">
-                <h4 className="text-xl font-black theme-text-danger capitalize tracking-widest">{t("matrix_tier_warning_title")}</h4>
-                <p className="text-xs font-bold text-[var(--subtext)] opacity-80 capitalize tracking-widest">{t("matrix_tier_warning_desc")}</p>
-              </div>
-            </div>
-            <div className="flex justify-end relative z-10 -mt-2">
-              <button onClick={handleRemoveAllViolating} className="px-4 py-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl text-[10px] font-black capitalize tracking-widest transition-all shadow-sm">
+              <button onClick={handleRemoveAllViolating} className="px-3 py-1.5 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-md text-[9px] font-black uppercase tracking-widest transition-all shadow-sm shrink-0 flex items-center gap-1 hover:scale-105 active:scale-95">
+                <span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span>
                 {t("matrix_btn_remove_all")}
               </button>
             </div>
-            <div className="glass-surface rounded-2xl p-6 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-2 relative z-10">
+            
+            <div className="rounded-lg border border-[color-mix(in_srgb,var(--danger)_15%,transparent)] max-h-32 overflow-y-auto custom-scrollbar flex flex-col relative z-10 glass-surface shadow-inner divide-y divide-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
               {blockedMods.map((mod: any) => (
-                <div key={mod.name} className="flex justify-start items-center py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 group">
-                  <span className="text-sm font-bold text-[var(--text)] truncate mr-4">{formatDisplayName(mod.name)}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-black theme-text-danger bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-4 py-2 rounded-xl shadow-inner whitespace-nowrap">{t("auto_tier")} {mod.compliance_tier}</span>
-                    <button onClick={() => handleRemoveArtifact(mod.name)} className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shrink-0">
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
+                <div key={mod.name} className="flex justify-between items-center px-3 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all group/item">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <span className="text-[10px] font-bold text-[var(--text)] truncate opacity-90">{formatDisplayName(mod.name)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded glass-panel bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                       <span className="w-1.5 h-1.5 rounded-full theme-bg-danger animate-pulse" />
+                       <span className="text-[8px] font-black theme-text-danger whitespace-nowrap tracking-wider">T{mod.compliance_tier}</span>
+                    </div>
+                    <button onClick={() => handleRemoveArtifact(mod.name)} className="w-6 h-6 rounded glass-panel bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all opacity-0 group-hover/item:opacity-100 hover:scale-110 active:scale-95">
+                      <span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span>
                     </button>
                   </div>
                 </div>

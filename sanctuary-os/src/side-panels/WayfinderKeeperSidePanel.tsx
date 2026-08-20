@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SidePanel, standardAccentGlassButtonClass, standardButtonClass, ActionButton } from "../shared";
+import { SidePanel, standardAccentGlassButtonClass, standardButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import WayfinderSupportSidePanel from "./WayfinderSupportSidePanel";
@@ -24,17 +24,20 @@ export default function WayfinderKeeperSidePanel({ isOpen, onClose, userId }: Ci
         subtitle={t("wf_keeper_support_subtitle")}
         icon={t("icon_admin_panel_settings")}
         widthClass="w-[700px]"
-        footer={
-          <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton onClick={onClose} label={t("nav_cancel")}>
-              
-            </ActionButton>
-            <ActionButton 
-              onClick={() => setIsCreateModalOpen(true)} label={t("support_title")} icon={t("icon_add_circle")}
-            >
-               
-            </ActionButton>
-          </div>
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="close"
+              tooltip={t("nav_cancel")}
+              onClick={onClose}
+            />
+            <PanelHeaderButton
+              icon={t("icon_add_circle") || "add_circle"}
+              tooltip={t("support_title")}
+              variant="accent"
+              onClick={() => setIsCreateModalOpen(true)}
+            />
+          </PanelHeaderGroup>
         }
       >
         <div className="h-full relative pb-10">

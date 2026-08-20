@@ -410,7 +410,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                       </>
                     )}
-                    {userRole === 'oversight' && mod.compliance_tier === 3 && (
+                    {userRole === 'oversight' && mod.compliance_tier === 5 && (
                       <button onClick={() => { handleClose(); onSecureShred(mod.name); }} className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--danger)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever")}</span>
                         {t("malware_alert_btn_shred")}
@@ -613,7 +613,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                 <div className="col-span-1 flex flex-col gap-1 p-6 glass-panel backdrop-blur-xl rounded-2xl items-start text-left justify-center transition-all hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:scale-[1.02]">
                   <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 capitalize tracking-[0.2em] mb-1">{t("label_mod_category")}</p>
-                  {editMode && !isCollection && !mod.isFlavorFolder && !mod.isParent ? (
+                  {editMode ? (
                     <div className="w-full">
                       <CustomClassificationDropdown value={localCategory || "Script"} onChange={(val: string) => setLocalCategory(val)} flat={true} />
                     </div>
@@ -686,8 +686,8 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <div className="flex flex-col gap-1 p-5 glass-panel backdrop-blur-md rounded-2xl items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-md">
                   <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 capitalize tracking-[0.2em] mb-1">{t("label_uploaded")}</p>
                   {editMode ? (
-                    <div className="w-full [&_button]:!bg-transparent [&_button]:!border-b-2 [&_button]:!border-transparent hover:[&_button]:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] [&_button]:!rounded-none [&_button]:!px-0 [&_button]:!py-1 [&_button]:!h-auto [&_button]:!min-h-0 [&_button]:!shadow-none [&_.truncate]:!text-xs [&_.truncate]:!font-black [&_.truncate]:!capitalize [&_.truncate]:!tracking-widest [&_.truncate]:!opacity-90">
-                      <CustomDatePicker value={localCreatedAt} onChange={setLocalCreatedAt} />
+                    <div className="w-full">
+                      <CustomDatePicker value={localCreatedAt} onChange={setLocalCreatedAt} flat={true} />
                     </div>
                   ) : (
                     <span className="text-xs font-black text-[var(--text)] opacity-90 capitalize tracking-widest truncate max-w-full">
@@ -706,8 +706,8 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <div className="flex flex-col gap-1 p-5 glass-panel backdrop-blur-md rounded-2xl items-start text-left justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-md">
                   <p className="text-[9px] font-black text-[var(--subtext)] opacity-50 capitalize tracking-[0.2em] mb-1">{t("updated_date")}</p>
                   {editMode ? (
-                    <div className="w-full [&_button]:!bg-transparent [&_button]:!border-b-2 [&_button]:!border-transparent hover:[&_button]:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] [&_button]:!rounded-none [&_button]:!px-0 [&_button]:!py-1 [&_button]:!h-auto [&_button]:!min-h-0 [&_button]:!shadow-none [&_.truncate]:!text-xs [&_.truncate]:!font-black [&_.truncate]:!capitalize [&_.truncate]:!tracking-widest [&_.truncate]:!opacity-90">
-                      <CustomDatePicker value={localUpdatedAt} onChange={setLocalUpdatedAt} />
+                    <div className="w-full">
+                      <CustomDatePicker value={localUpdatedAt} onChange={setLocalUpdatedAt} flat={true} />
                     </div>
                   ) : (
                     <span className="text-xs font-black text-[var(--text)] opacity-90 capitalize tracking-widest truncate max-w-full">

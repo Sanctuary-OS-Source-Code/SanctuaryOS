@@ -37,9 +37,9 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
       const { count: masonsCount } = await supabase.from('masons').select('*', { count: 'exact', head: true });
       const { count: citizensCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'citizen');
 
-      const { count: explicitCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 2);
-      const { count: malwareCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 3);
-      const { count: nsfwCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 1);
+      const { count: explicitCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).in('compliance_tier', [1,2,3,4]);
+      const { count: malwareCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 5);
+      const { count: nsfwCount } = { count: 0 };
 
       const { data: ticketsDataRaw } = await supabase.from('sanctuary_tickets')
         .select('created_at, ticket_type, status, metadata')

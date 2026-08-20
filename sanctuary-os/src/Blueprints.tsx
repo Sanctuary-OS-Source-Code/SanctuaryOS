@@ -181,7 +181,7 @@ export default function Blueprints({
       if (mod.compliance_tier === 4) {
         res.tier4++;
         hasAlert = true;
-      } else if (mod.compliance_tier === 3) {
+      } else if (mod.compliance_tier === 3 || mod.compliance_tier === 5) {
         res.tier3++;
         hasAlert = true;
       }

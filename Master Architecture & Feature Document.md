@@ -23,7 +23,7 @@ The ecosystem is sustained through distinct roles managed via the Identity Matri
 - **Sanctuary Foundry:** The core organization maintaining the Sanctuary OS platform. The Foundry is responsible for ensuring the success of both the core Sanctuary OS platform & all Sanctuary Partners.
 - **Keepers:** The core developers/maintainers working within the Foundry. This is the team responsible for the maintenance and evolution of the Sanctuary OS Platform.
 - **Wayfinders:** Community Managers responsible for Community maintenance, managing the Registry Health Status, and broadcasting via The Dispatch. Wayfinders can initiate scheduled/operational DEFCON events.
-- **Oversight:** System Administrators who manage global compliance. They possess the authority to manually flag artifacts as Compliance Tier 3 (Malware), oversee the Identity Matrix for promotions/demotions, and manage Game/DLC registration. Oversight can manually override/emergency-trigger network-wide game lockdowns and emergency backups ahead of unannounced game patches.
+- **Oversight:** System Administrators who manage global compliance. They possess the authority to manually flag artifacts as Compliance Tier 5 (Malware), oversee the Identity Matrix for promotions/demotions, and manage Game/DLC registration. Oversight can manually override/emergency-trigger network-wide game lockdowns and emergency backups ahead of unannounced game patches.
 - **Architects:** System moderators responsible for maintaining the Conflict Matrix, establishing global "Directives," reviewing the Scout Queue, and verifying Homestead Lab reports.
 - **Masons:** Mod Creators - The Builders. They utilize the Mason IDE and Protocol Orchestrator to define mod logic and dependencies. They manage creator-to-user relations via the Support Dossier.
 - **Citizens:** The core population. Everyday players who curate Blueprints, perform field-testing, and provide the crowdsourced data that powers the Nexus database.
@@ -77,8 +77,8 @@ Sanctuary provides a fully functional simulated boot environment for diagnostic 
 
 ## **Security & The Nuclear Override**
 A tiered compliance system maintains a balance between user sovereignty and network integrity.
-- **Compliance Tier 1 (NSFW) & Compliance Tier 2 (Explicit):** Adult content is permitted for local use and Vault storage. However, these artifacts are scrubbed from the Global Nexus Feed and stripped from public Cloud Blueprints to maintain legal compliance.
-- **Compliance Tier 3 (Malware):** Detected malware triggers a Zero-Choice Lockdown. The OS is halted, and the user has no option to continue normal operation, but destructive removal still requires explicit signature.
+- **Compliance Tiers 1-4 (Explicit, Illicit, Extreme Violence, Taboo):** Content ranging from NSFW to sensitive themes is permitted for local use and Vault storage. However, these artifacts are scrubbed from the Global Nexus Feed and stripped from public Cloud Blueprints to maintain legal compliance. Severe artifacts (Tiers 3-5) additionally trigger a Vault Lock restricting support operations.
+- **Compliance Tier 5 (Malware):** Detected malware triggers a Zero-Choice Lockdown. The OS is halted, and the user has no option to continue normal operation, but destructive removal still requires explicit signature.
 - **External Secure Shred:** The OS takes the absolute path of a file, removes any read-only constraints, executes a destructive overwrite and removal of the malicious files via the Rust backend.
 - Files are not automatically deleted.
 - A Citizen’s Signature is required.

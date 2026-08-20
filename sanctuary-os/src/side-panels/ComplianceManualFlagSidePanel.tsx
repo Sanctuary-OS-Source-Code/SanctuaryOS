@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown, ActionButton, FilterTabs, FilterTabButton } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown, ActionButton, FilterTabs, FilterTabButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from '../components/universal/UniversalLayout';
 import { useStore } from '../store';
 import { createPortal } from 'react-dom';
@@ -14,7 +14,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
   const [manualSearchQuery, setManualSearchQuery] = useState("");
   const [manualSearchResults, setManualSearchResults] = useState<any[]>([]);
   const [manualSelectedMod, setManualSelectedMod] = useState<any>(null);
-  const [manualTier, setManualTier] = useState<number>(3);
+  const [manualTier, setManualTier] = useState<number>(5);
   const [registryReason, setRegistryReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -63,7 +63,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     if (isOpen) {
       setManualSearchQuery(initialQuery);
       setManualSelectedMod(null);
-      setManualTier(isMalwareOnly ? 3 : 3);
+      setManualTier(isMalwareOnly ? 5 : 5);
       loadSignatures();
       
       if (initialHeuristicEdit) {
@@ -271,18 +271,20 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       subtitle={t("comp_manual_subtitle")}
       icon={t("icon_flag")}
       iconColorClass={isMalwareOnly ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" : "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"}
-      footer={
-        <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton onClick={onClose} label={t("nav_cancel")}>
-              
-            </ActionButton>
-          <ActionButton 
-            onClick={activeTab === 'registry' ? handleManualFlag : handleAddHeuristic} 
-            disabled={isSubmitting || (activeTab === 'registry' && ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())) || (activeTab === 'heuristic' && (!newSig.trim() || !notes.trim()))} label={isSubmitting ? (t("btn_submitting")) : (t("comp_manual_btn_insert"))}
-          >
-            
-          </ActionButton>
-        </div>
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="close"
+            tooltip={t("nav_cancel")}
+            onClick={onClose}
+          />
+          <PanelHeaderButton
+            icon="flag"
+            tooltip={isSubmitting ? (t("btn_submitting")) : (t("comp_manual_btn_insert"))}
+            disabled={isSubmitting || (activeTab === 'registry' && ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())) || (activeTab === 'heuristic' && (!newSig.trim() || !notes.trim()))}
+            onClick={activeTab === 'registry' ? handleManualFlag : handleAddHeuristic}
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="p-6 flex flex-col h-full gap-8">
@@ -357,7 +359,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
             {!isMalwareOnly && (
               <div className="flex flex-col gap-2 relative z-40 mt-4">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("Vault_stat_tier")}</label>
-                <CustomComplianceDropdown value={manualTier} onChange={setManualTier} includeTier3={false} />
+                <CustomComplianceDropdown value={manualTier} onChange={setManualTier} maxTier={5} />
               </div>
             )}
 

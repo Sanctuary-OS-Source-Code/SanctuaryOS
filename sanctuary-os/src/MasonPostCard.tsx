@@ -36,7 +36,7 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
   );
 
   const footer = (
-    <div className="flex items-center justify-start flex-wrap gap-y-3 w-full">
+    <div className="flex items-center justify-between flex-wrap gap-y-3 w-full">
       <div className="flex items-center gap-4 text-[10px] font-mono font-bold text-[var(--subtext)] opacity-50 group-hover:opacity-100 transition-opacity">
         <span className="relative group/tooltip flex items-center gap-1.5 hover:text-[var(--text)] cursor-pointer">
           <span className="material-symbols-outlined !text-[16px]">{t("icon_visibility")}</span> {(post.views?.[0]?.count || 0).toLocaleString()}
@@ -162,11 +162,9 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
       className={isFeatured ? 'lg:col-span-2' : ''}
       style={{ animationFillMode: "both", animationDelay: `${(index % 10) * 100}ms` }}
     >
-      {!isCompact && (
-        <div className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-medium mt-1">
-          {renderTextWithIcons(stripMarkdown(content))}
-        </div>
-      )}
+      <div className={`text-[var(--subtext)] leading-relaxed font-medium mt-1 ${isCompact ? 'text-[10px] line-clamp-2' : 'text-xs line-clamp-3'}`}>
+        {renderTextWithIcons(stripMarkdown(content))}
+      </div>
     </UniversalCard>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, formatDisplayName , getFileLabel, isSupportedExtension, getExtensionRegex, ActionButton } from "../shared";
+import { SidePanel, formatDisplayName , getFileLabel, isSupportedExtension, getExtensionRegex, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useStore } from '../store';
 
 interface UndoWinnersPanelProps {
@@ -80,16 +80,21 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
       widthClass="w-[525px]"
-      footer={
-        <div className="flex flex-col gap-3 w-full">
-          <ActionButton 
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="close"
+            tooltip={t("nav_cancel")}
+            onClick={onClose}
+          />
+          <PanelHeaderButton
+            icon={t("icon_warning_amber") || "warning"}
+            tooltip={t("nav_clear_all") || "Clear All"}
+            variant="error"
+            disabled={overrides.length === 0}
             onClick={clearAllOverrides}
-            disabled={overrides.length === 0} icon={t("icon_warning_amber")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
-          >
-            
-            
-          </ActionButton>
-        </div>
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-4 h-full px-2">

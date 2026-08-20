@@ -11,7 +11,7 @@ function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false
   return (
     <div className="px-4 relative group/navbtn">
       {isActive && (
-        <div className="absolute -left-1 inset-y-0 w-0 bg-[var(--accent)] rounded-r-full shadow-[0_0_5px_var(--accent)]" />
+        <div className="absolute -left-1 inset-y-0 w-0 bg-[var(--accent)] rounded-r-full" />
       )}
       <button
         onMouseEnter={(e) => {
@@ -98,7 +98,7 @@ export function Sidebar({
       }}
     >
       {/* Decoupled Blur & Background Layer */}
-      <div 
+      <div
         className="absolute inset-0 rounded-[inherit] -z-10 pointer-events-none backdrop-blur-[var(--glassBlur)]"
         style={{
           background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal) * 100%), transparent)`

@@ -144,8 +144,8 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
           return dest === 'architect' || dest === 'oversight';
         }).length;
       }
-      const { count: nsfwCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 1);
-      const { count: explicitCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 2);
+      const { count: nsfwCount } = { count: 0 };
+      const { count: explicitCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).in('compliance_tier', [1,2,3,4]);
 
       const { count: totalArtifactsCount } = await supabase.from('mods').select('*', { count: 'exact', head: true });
       const { count: unverifiedModsCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('status', 'unverified');

@@ -75,7 +75,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
     <>
       {/* Status Toast Notification (Centered Above Dock) */}
       <div
-        className={`fixed bottom-12 left-1/2 -translate-x-1/2 z-[140000] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${showToast ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-4 opacity-0 pointer-events-none"}`}
+        className={`fixed bottom-12 left-1/2 -translate-x-1/2 z-[9999999] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${showToast ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-4 opacity-0 pointer-events-none"}`}
       >
         <div
           onClick={() => setIsLogExpanded(!isLogExpanded)}
@@ -114,7 +114,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
 
       {/* Dock Area Container */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-[140000] flex items-end justify-center pointer-events-none"
+        className="fixed bottom-0 left-0 right-0 z-[9999999] flex items-end justify-center pointer-events-none"
         onMouseEnter={handleDockEnter}
         onMouseLeave={handleDockLeave}
       >

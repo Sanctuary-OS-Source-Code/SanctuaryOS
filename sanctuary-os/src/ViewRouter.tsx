@@ -94,6 +94,7 @@ export function ViewRouter({ props }: any) {
           <TimeCapsule {...props} />
         </ErrorBoundary>
       )}
+
       </div>
     </div>
   );

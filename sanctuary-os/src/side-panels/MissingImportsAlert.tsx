@@ -7,7 +7,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { createPortal } from "react-dom";
-import { SidePanel, getFileLabel, standardButtonClass, standardSuccessButtonClass, HoverTooltip, cleanSearchName, ActionButton } from "../shared";
+import { SidePanel, getFileLabel, standardButtonClass, standardSuccessButtonClass, HoverTooltip, cleanSearchName, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 
 export function MissingImportsAlert({ missingImportMods, setMissingImportMods, pendingImportSet, setPendingImportSet, finalizeImport, setIsDropzoneOpen }: any) {
   const { t } = useLexicon();
@@ -113,19 +113,21 @@ export function MissingImportsAlert({ missingImportMods, setMissingImportMods, p
       widthClass="w-full max-w-3xl"
       backdropZ="z-[100000]"
       panelZ="z-[100001]"
-      footer={
-        <div className="flex w-full justify-center gap-4">
-          <ActionButton
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="close"
+            tooltip={t("btn_abort")}
+            variant="error"
             onClick={() => { setMissingImportMods(null); setPendingImportSet(null); }}
-            className="!text-xs hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:!text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!shadow-md"
-            label={t("btn_abort")}
           />
-          <ActionButton
+          <PanelHeaderButton
+            icon="check"
+            tooltip={t("btn_confirm")}
+            variant="success"
             onClick={() => finalizeImport(pendingImportSet)}
-            className="!text-xs !bg-[color-mix(in_srgb,var(--success)_15%,transparent)] !border-[color-mix(in_srgb,var(--success)_30%,transparent)] !text-[var(--success)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:!border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:!shadow-md"
-            label={t("btn_confirm")}
           />
-        </div>
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-3">

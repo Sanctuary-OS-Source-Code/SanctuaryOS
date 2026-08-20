@@ -353,6 +353,43 @@ CREATE TABLE mason_post_comments (
 );
 
 -- ==========================================
+-- MODERATION TRIGGERS
+-- ==========================================
+-- Create a function to remove a specific hash from all blueprints
+CREATE OR REPLACE FUNCTION public.purge_flagged_hash_from_blueprints()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only trigger if compliance_tier was changed to 1-5
+    IF (TG_OP = 'INSERT' AND NEW.compliance_tier BETWEEN 1 AND 5) OR 
+       (TG_OP = 'UPDATE' AND NEW.compliance_tier BETWEEN 1 AND 5 AND OLD.compliance_tier IS DISTINCT FROM NEW.compliance_tier) THEN
+
+        -- Update artifacts column (if it contains data)
+        UPDATE public.blueprints
+        SET artifacts = (
+            SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+            FROM jsonb_array_elements(artifacts) AS elem
+            WHERE elem->>'hash' NOT IN (
+                SELECT dna_hash FROM public.mod_versions WHERE mod_id = NEW.id
+            )
+        )
+        WHERE EXISTS (
+            SELECT 1 FROM jsonb_array_elements(artifacts) AS elem
+            JOIN public.mod_versions mv ON mv.dna_hash = elem->>'hash'
+            WHERE mv.mod_id = NEW.id
+        );
+
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger on mods table
+CREATE TRIGGER trg_purge_flagged_hash_from_blueprints
+AFTER INSERT OR UPDATE OF compliance_tier ON public.mods
+FOR EACH ROW
+EXECUTE FUNCTION public.purge_flagged_hash_from_blueprints();
+
+-- ==========================================
 -- 9. MASTER SCHEMAS
 -- ==========================================
 CREATE TABLE sanctuary_schemas (

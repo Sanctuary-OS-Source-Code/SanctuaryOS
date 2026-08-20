@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, GameVersionMultiSelect, CustomDatePicker, CustomComplianceDropdown, CustomClassificationDropdown, ActionButton } from '../shared';
+import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, GameVersionMultiSelect, CustomDatePicker, CustomComplianceDropdown, CustomClassificationDropdown, ActionButton, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { CustomStatusDropdown, CustomMasonDropdown } from '../ArchitectHub';
 
 export function SharedMetadataEditorSidePanel({
@@ -104,23 +104,22 @@ export function SharedMetadataEditorSidePanel({
       title={t("ui_edit_metadata")}
       subtitle={`UUID: ${modForm?.id}`}
       icon={t("icon_inventory_2")}
-      footer={
-        <div className="flex justify-center items-center gap-4 w-full px-8">
-          <ActionButton 
-            onClick={onClose} 
-            disabled={isCommitting} 
-            label={t("nav_cancel")} 
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
             icon="close"
-            className="flex-1"
+            tooltip={t("nav_cancel")}
+            disabled={isCommitting}
+            onClick={onClose}
           />
-          <ActionButton 
-            onClick={handleCommitChanges} 
-            disabled={isCommitting} 
-            label={isCommitting ? (t("dossier_btn_saving")) : (t("ui_btn_commit"))} 
+          <PanelHeaderButton
             icon="save"
-            className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+            tooltip={isCommitting ? (t("dossier_btn_saving")) : (t("ui_btn_commit"))}
+            variant="accent"
+            disabled={isCommitting}
+            onClick={handleCommitChanges}
           />
-        </div>
+        </PanelHeaderGroup>
       }
     >
       {!modForm ? (
@@ -233,7 +232,7 @@ export function SharedMetadataEditorSidePanel({
 
             <div className="flex flex-col gap-2">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
-              <CustomComplianceDropdown value={modForm.compliance_tier || 0} onChange={(newTier: number) => setModForm({...modForm, compliance_tier: newTier})} includeTier3={false} />
+              <CustomComplianceDropdown value={modForm.compliance_tier || 0} onChange={(newTier: number) => setModForm({...modForm, compliance_tier: newTier})} maxTier={4} />
             </div>
           </div>
 

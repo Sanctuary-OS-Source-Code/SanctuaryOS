@@ -382,7 +382,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 relative z-10">
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("compliance_tier")}</label>
-                  <CustomComplianceDropdown value={editForm.compliance_tier || 0} onChange={(val: number) => setEditForm({ ...editForm, compliance_tier: val })} includeTier3={false} />
+                  <CustomComplianceDropdown value={editForm.compliance_tier || 0} onChange={(val: number) => setEditForm({ ...editForm, compliance_tier: val })} maxTier={4} />
                 </div>
 
                 <div className="flex flex-col gap-2">

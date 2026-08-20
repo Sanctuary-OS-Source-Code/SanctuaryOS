@@ -4,7 +4,7 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { supabase } from '../supabase';
-import { ActionButton, SidePanel, CustomDropdown, HoverTooltip, SearchBar, HubTabs, FilterTabs, FilterTabButton, ScreenUtilityBar } from '../shared';
+import { ActionButton, SidePanel, CustomDropdown, HoverTooltip, SearchBar, HubTabs, FilterTabs, FilterTabButton, ScreenUtilityBar, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 
 export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { t, registry, activeLang, setActiveLang, importLexicon, deleteLexicon, lexiconMeta, useGlobalLexicon, setUseGlobalLexicon } = useLexicon();
@@ -91,11 +91,19 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
       title={t("lexicon_title")}
       icon="language"
       widthClass="w-[900px]"
-      footer={
-        <div className="flex justify-center items-center gap-4 w-full">
-          <ActionButton onClick={() => { setMarketTab('LEXICONS'); setView('nexus'); onClose(); }} label={t("tab_nexus")} icon="explore" />
-          <ActionButton onClick={handleImportLexicon} label={t("btn_import")} icon="download" />
-        </div>
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="explore"
+            tooltip={t("tab_nexus")}
+            onClick={() => { setMarketTab('LEXICONS'); setView('nexus'); onClose(); }}
+          />
+          <PanelHeaderButton
+            icon="download"
+            tooltip={t("btn_import")}
+            onClick={handleImportLexicon}
+          />
+        </PanelHeaderGroup>
       }
       noPadding
     >

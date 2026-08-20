@@ -155,20 +155,20 @@ export default function TimeCapsule({
           <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName || confirmDeleteBackup === backupName ? 'opacity-0 translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
             <button
               onClick={() => setConfirmRestoreBackup(backupName)}
-              className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${themeColor} bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all rounded-xl shadow-sm backdrop-blur-md`}
+              className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${themeColor} bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all rounded-xl shadow-sm`}
             >
               <span className={`material-symbols-outlined !text-sm`}>{t("icon_restore")}</span>
               {t("btn_restore")}
             </button>
             <button
               onClick={() => { setSelectedBackupForInspection(backupName); setIsSidePanelOpen(true); }}
-              className="flex-[1] h-full flex items-center justify-center text-[color-mix(in_srgb,var(--text)_80%,transparent)] hover:text-[var(--text)] bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all rounded-xl shadow-sm backdrop-blur-md group/ins"
+              className="flex-[1] h-full flex items-center justify-center text-[color-mix(in_srgb,var(--text)_80%,transparent)] hover:text-[var(--text)] bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all rounded-xl shadow-sm group/ins"
             >
               <span className="material-symbols-outlined !text-sm group-hover/ins:scale-110 transition-transform">search</span>
             </button>
             <button
               onClick={() => setConfirmDeleteBackup(backupName)}
-              className="flex-[1] h-full flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_80%,transparent)] hover:text-red-500 bg-black/5 dark:bg-white/5 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-black/10 dark:border-white/10 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all rounded-xl shadow-sm backdrop-blur-md group/del"
+              className="flex-[1] h-full flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_80%,transparent)] hover:text-red-500 bg-black/5 dark:bg-white/5 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-black/10 dark:border-white/10 hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all rounded-xl shadow-sm group/del"
             >
               <span className="material-symbols-outlined !text-sm group-hover/del:scale-110 transition-transform">{t("icon_delete")}</span>
             </button>
@@ -177,11 +177,11 @@ export default function TimeCapsule({
           <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
             <button
               onClick={() => { setConfirmRestoreBackup(null); useModalStore.getState().setRestoreType(isEngine ? 'engine' : 'world'); if (restoreGameBackup) restoreGameBackup(backupName); }}
-              className={`flex-[2] h-full ${themeColor} ${themeBg} hover:brightness-110 border ${themeBorder} transition-all text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm backdrop-blur-md`}
+              className={`flex-[2] h-full ${themeColor} ${themeBg} hover:brightness-110 border ${themeBorder} transition-all text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm`}
             >
               {isEngine ? t("confirm_restore_engine_card") : t("confirm_restore_state")}
             </button>
-            <button onClick={() => setConfirmRestoreBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm backdrop-blur-md">
+            <button onClick={() => setConfirmRestoreBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm">
               {t("btn_cancel")}
             </button>
           </div>
@@ -189,11 +189,11 @@ export default function TimeCapsule({
           <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmDeleteBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
             <button
               onClick={() => { setConfirmDeleteBackup(null); if (deleteBackup) deleteBackup(backupName); }}
-              className="flex-[2] h-full text-red-500 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm backdrop-blur-md"
+              className="flex-[2] h-full text-red-500 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm"
             >
               {isEngine ? t("confirm_delete_engine_card") : t("confirm_delete_state")}
             </button>
-            <button onClick={() => setConfirmDeleteBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm backdrop-blur-md">
+            <button onClick={() => setConfirmDeleteBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] transition-colors bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-black/10 dark:border-white/10 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm">
               {t("btn_cancel")}
             </button>
           </div>
