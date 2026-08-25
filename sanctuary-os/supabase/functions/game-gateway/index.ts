@@ -151,6 +151,39 @@ serve(async (req) => {
         resultData = { success: true }
         break;
       }
+      case 'fetch_notifications': {
+        const { data, error } = await gameDb
+          .from('notifications')
+          .select('*')
+          .eq('user_id', v_user_id)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (error) throw error;
+        resultData = data;
+        break;
+      }
+      case 'mark_notifications_read': {
+        const { notification_id } = payload;
+        let query = gameDb.from('notifications').update({ is_read: true }).eq('user_id', v_user_id);
+        if (notification_id) {
+          query = query.eq('id', notification_id);
+        }
+        const { error } = await query;
+        if (error) throw error;
+        resultData = { success: true };
+        break;
+      }
+      case 'delete_notifications': {
+        const { notification_id } = payload;
+        let query = gameDb.from('notifications').delete().eq('user_id', v_user_id);
+        if (notification_id) {
+          query = query.eq('id', notification_id);
+        }
+        const { error } = await query;
+        if (error) throw error;
+        resultData = { success: true };
+        break;
+      }
       default:
         throw new Error('Unknown action')
     }

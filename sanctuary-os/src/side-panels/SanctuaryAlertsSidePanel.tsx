@@ -43,7 +43,15 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
 
       const { data } = await query;
 
-      if (data) setPosts(data);
+      if (data) {
+        const activeSchema = useStore.getState().activeGameSchema;
+        const teamName = tableName === 'keeper_system_broadcasts' ? t("author_sanctuary_team") : `${activeSchema?.display_name || activeSchema?.name || "Wayfinders"} Team`;
+
+        setPosts(data.map((p: any) => ({
+          ...p,
+          masons: { name: teamName }
+        })));
+      }
       setLoading(false);
     };
     fetchPosts();

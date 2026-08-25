@@ -268,7 +268,39 @@ export default function Lab({
         iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         breadcrumb={activeTab !== "DASHBOARD" ? (t(`tab_lab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
         onTitleClick={() => setActiveTab("DASHBOARD")}
-      />
+      >
+        {activeTab === "BUILDER" && activeLabMod && (
+          <div className="flex items-center gap-4 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="hidden lg:flex flex-col items-end gap-1 px-4 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("payload")}</span>
+              <span className="text-xs font-black text-[var(--text)] tracking-widest capitalize">
+                {t("core_plus")}{stagedExtras.length + (conflictTarget ? 1 : 0) + conflictExtras.length}{t("injected")}
+              </span>
+            </div>
+            {!shelterActive ? (
+              <ActionButton icon="bolt" label={t("btn_initiate_swap")} onClick={runCombinedHotSwap} />
+            ) : (
+              <ActionButton icon="science" label={t("btn_view_test")} onClick={() => setShowTestPanel(true)} className="!bg-[color-mix(in_srgb,var(--success)_10%,transparent)] !border-[color-mix(in_srgb,var(--success)_30%,transparent)] !text-[var(--success)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)]" />
+            )}
+          </div>
+        )}
+        
+        {activeTab === "REPORTS" && (
+          <div className="flex items-center gap-3 h-12 animate-in fade-in slide-in-from-right-4 duration-500">
+            <SearchBar
+              value={searchLogs}
+              onChange={setSearchLogs}
+              placeholder={t("search_logs") as string}
+              className="h-full rounded-xl min-w-[200px]"
+            />
+            <FilterTabs className="h-full shrink-0">
+              <FilterTabButton id="all" label={t("all_logs")} activeTab={logFilter} setTab={setLogFilter} />
+              <FilterTabButton id="verified" label={t("verified")} activeTab={logFilter} setTab={setLogFilter} />
+              <FilterTabButton id="fatal" label={t("fatal")} activeTab={logFilter} setTab={setLogFilter} />
+            </FilterTabs>
+          </div>
+        )}
+      </ViewHeader>
 
       <HoverTabDrawer title="Lab Navigation" activeTab={activeTab} setTab={setActiveTab}>
         <VerticalTabButton id="DASHBOARD" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
@@ -361,26 +393,6 @@ export default function Lab({
       {activeTab === "BUILDER" && (
         <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full mt-2 pb-32">
 
-          <div className="py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-6 relative z-20 shrink-0 flex justify-end">
-            {activeLabMod && (
-              <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                <div className="hidden lg:flex flex-col items-end gap-1 px-4 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("payload")}</span>
-                  <span className="text-xs font-black text-[var(--text)] tracking-widest capitalize">
-                    {t("core_plus")}{stagedExtras.length + (conflictTarget ? 1 : 0) + conflictExtras.length}{t("injected")}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-4 pl-2">
-                  {!shelterActive ? (
-                    <ActionButton icon="bolt" label={t("btn_initiate_swap")} onClick={runCombinedHotSwap} />
-                  ) : (
-                    <ActionButton icon="science" label={t("btn_view_test")} onClick={() => setShowTestPanel(true)} className="!bg-[color-mix(in_srgb,var(--success)_10%,transparent)] !border-[color-mix(in_srgb,var(--success)_30%,transparent)] !text-[var(--success)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)]" />
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-[1fr_2fr] gap-8 w-full max-w-[1600px] mx-auto">
 
@@ -577,20 +589,6 @@ export default function Lab({
       {activeTab === "REPORTS" && (
         <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full h-full min-h-[500px]">
 
-                    <ScreenUtilityBar
-            search={searchLogs}
-            onSearchChange={setSearchLogs}
-            searchPlaceholder={t("search_logs") as string}
-            className="!mb-6 animate-in slide-in-from-top-4 duration-500 relative z-20"
-          >
-            <div className="flex-1 xl:flex-none xl:w-max min-w-[140px] xl:max-w-[300px] shrink-0 relative z-50 h-12">
-              <FilterTabs className="w-full h-full">
-                <FilterTabButton id="all" label={t("all_logs")} activeTab={logFilter} setTab={setLogFilter} />
-                <FilterTabButton id="verified" label={t("verified")} activeTab={logFilter} setTab={setLogFilter} />
-                <FilterTabButton id="fatal" label={t("fatal")} activeTab={logFilter} setTab={setLogFilter} />
-              </FilterTabs>
-            </div>
-          </ScreenUtilityBar>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-32">
             {filteredReports.map((report: any) => {

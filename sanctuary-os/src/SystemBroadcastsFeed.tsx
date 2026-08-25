@@ -22,15 +22,15 @@ export default function SystemBroadcastsFeed({ audience, noCardWrapper, gridCols
         .in('category', ['Update', 'Info', 'Event'])
         .order('created_at', { ascending: false })
         .limit(5);
-        
+
       if (data) {
         const mappedData = data.map(b => ({
-            ...b,
-            content: b.message || b.content || "",
-            masons: { name: "System Oversight" },
-            likes: [],
-            views: [],
-            comments: []
+          ...b,
+          content: b.message || b.content || "",
+          masons: { name: `${useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || "Wayfinder"} Team` },
+          likes: [],
+          views: [],
+          comments: []
         }));
         setPosts(mappedData);
       }
@@ -51,11 +51,11 @@ export default function SystemBroadcastsFeed({ audience, noCardWrapper, gridCols
           const isCompact = posts.length >= 3 && index > 0;
           return (
             <div key={p.id} className={`break-inside-avoid ${isFeatured ? 'md:col-span-2' : ''}`}>
-              <MasonPostCard 
-                post={p} 
-                index={index} 
-                onPostClick={() => setSelectedPost(p)} 
-                onToggleLike={() => {}} 
+              <MasonPostCard
+                post={p}
+                index={index}
+                onPostClick={() => setSelectedPost(p)}
+                onToggleLike={() => { }}
                 isFeatured={isFeatured}
                 isCompact={isCompact}
               />
@@ -79,10 +79,10 @@ export default function SystemBroadcastsFeed({ audience, noCardWrapper, gridCols
       )}
 
       {selectedPost && (
-        <MasonPostViewer 
-          post={selectedPost} 
-          onClose={() => setSelectedPost(null)} 
-          userId={session?.user?.id || null} 
+        <MasonPostViewer
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+          userId={session?.user?.id || null}
         />
       )}
     </>

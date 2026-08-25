@@ -11,7 +11,7 @@ import {
   CustomComplianceDropdown, CustomDatePicker,
   HubTabButton, HubTabs, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass, HoverTooltip, ActionButton,
+  standardDangerButtonClass, standardAccentGlassButtonClass, HoverTooltip, ActionButton, PanelHeaderGroup, PanelHeaderButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
 } from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
@@ -20,6 +20,7 @@ import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
 import { MasonStatusDropdown } from "./MasonHub";
 import { logArchitectAction } from "./lib/audit";
 
+import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -54,7 +55,6 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [isPinned, setIsPinned] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -202,7 +202,6 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   }, [assets, assetSearchQuery, isAssetPanelOpen]);
 
   const openEditor = (post?: any) => {
-    setViewMode('edit');
     const draftId = post ? post.id : 'new';
     const draft = useStore.getState().masonHubDrafts[draftId];
 
@@ -309,7 +308,11 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
         if (!window.confirm(t("confirm_pin_replace"))) {
           return;
         }
-        await supabase.from('mason_posts').update({ is_pinned: false }).eq('id', existingPinned.id);
+        await supabase.rpc('secure_upsert_cloud_file', {
+          p_target: 'mason_posts',
+          p_payload: { id: existingPinned.id, is_pinned: false },
+          p_token: useStore.getState().session?.access_token || ''
+        });
       }
     }
 
@@ -327,14 +330,16 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     let error = null;
     let newPostId: string | null = null;
     const performSave = async (data: any) => {
-      if (editingPostId) {
-        const res = await supabase.from('mason_posts').update(data).eq('id', editingPostId).select();
-        return { error: res.error, data: res.data };
-      } else {
-        const res = await supabase.from('mason_posts').insert([data]).select();
-        if (!res.error && res.data && res.data.length > 0) newPostId = res.data[0].id;
-        return { error: res.error, data: res.data };
+      const payloadWithId = editingPostId ? { id: editingPostId, ...data } : data;
+      const res = await supabase.rpc('secure_upsert_cloud_file', {
+        p_target: 'mason_posts',
+        p_payload: payloadWithId,
+        p_token: useStore.getState().session?.access_token || ''
+      });
+      if (!res.error && res.data && res.data.length > 0 && !editingPostId) {
+        newPostId = res.data[0].id;
       }
+      return { error: res.error, data: res.data };
     };
 
     let resObj = await performSave(payload);
@@ -354,13 +359,28 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
           const { data: followers } = await supabase.from('mason_followers').select('user_id').eq('mason_id', masonId);
           if (followers && followers.length > 0) {
             const notifications = followers.map(f => ({
+              id: crypto.randomUUID(),
               user_id: f.user_id,
               actor_id: authUser.user!.id,
               type: 'new_post',
               reference_id: newPostId,
               message: `${masonName || 'A Mason you follow'} has broadcast a new Transmission.`
             }));
-            await supabase.from('notifications').insert(notifications);
+
+            try {
+              await Promise.all(notifications.map(notif => 
+                supabase.rpc('secure_upsert_cloud_file', {
+                  p_target: 'notifications',
+                  p_payload: notif,
+                  p_token: useStore.getState().session?.access_token || ''
+                }).then(res => {
+                  if (res.error) console.error("Notification insert error:", res.error);
+                })
+              ));
+              window.dispatchEvent(new CustomEvent('refresh_notifications'));
+            } catch (e) {
+              console.error("Failed to insert notifications:", e);
+            }
           }
         }
       }
@@ -380,7 +400,11 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('mason_posts').delete().eq('id', id);
+    await supabase.rpc('secure_delete_cloud_file', {
+      p_target: 'mason_posts',
+      p_id: id,
+      p_token: useStore.getState().session?.access_token || ''
+    });
     fetchPostsAndAssets();
   };
 
@@ -394,103 +418,18 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
   const postCards = useMemo(() => {
     const draftSet = new Set(draftKeysStr.split(','));
-    return filteredPosts.map(post => {
+    return filteredPosts.map((post, index) => {
       const isDraft = draftSet.has(post.id);
-      const imageUrl = extractPostImage(post);
-      const showImage = !!imageUrl;
 
       return (
-        <div
+        <MasonPostCard
           key={post.id}
-     className={`glass-panel p-4 rounded-2xl flex flex-col gap-4 group transition-all duration-300 hover:shadow-xl relative border ${isDraft ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' : post.is_pinned ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
-        >
-          {/* Background Hover Effect */}
-          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-          {/* Floating Status Badges (Absolute to Card) */}
-          <div className="absolute top-4 right-4 z-20 flex gap-2">
-            {post.is_pinned && (
-              <div className="w-6 h-6 rounded-full backdrop-blur-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] shadow-md flex items-center justify-center">
-                <span className="material-symbols-outlined !text-[12px] drop-shadow-md">{t("icon_push_pin")}</span>
-              </div>
-            )}
-            {isDraft && (
-              <div className="w-6 h-6 rounded-full backdrop-blur-md border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] shadow-md flex items-center justify-center group/draft">
-                <span className="material-symbols-outlined !text-[12px] drop-shadow-md">{t("icon_edit_note")}</span>
-                <div className="absolute right-full mr-2 px-2 py-1 bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] text-[8px] font-black capitalize tracking-widest rounded shadow-lg opacity-0 group-hover/draft:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                  {t("ph_unsaved_changes")}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Header: Author & Category */}
-          <div className="flex items-center justify-start relative z-10">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] flex items-center justify-center shadow-md cursor-pointer hover:scale-105 hover:border-[var(--accent)] transition-all"
-              >
-                <span className="text-sm font-black">{post.masons?.name?.charAt(0) || '?'}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">
-                  {post.masons?.name || t("unknown_architect")}
-                </span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">{new Date(post.created_at).toLocaleDateString()}</span>
-                  <span className="text-[8px] px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] font-black capitalize tracking-widest">
-                    {post.category === 'dispatch' ? (t("dispatch")) : (t("comm_link"))}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Image (if any) */}
-          {showImage && (
-            <div className="w-full h-40 rounded-lg overflow-hidden shrink-0 relative shadow-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] z-10">
-              <img src={imageUrl} onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.style.display = 'none'; }} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
-            </div>
-          )}
-
-          {/* Content Area */}
-          <div className="flex flex-col flex-1 z-10">
-            <h3 className="text-base font-black capitalize tracking-widest text-[var(--text)] leading-tight mb-2 group-hover:theme-text-accent transition-colors duration-300">
-              {post.title}
-            </h3>
-
-            <p className="text-[11px] font-mono text-[var(--subtext)] opacity-70 leading-relaxed whitespace-pre-wrap break-words line-clamp-3 transition-opacity group-hover:opacity-100">
-              {post.description ? post.description : (stripMarkdown(post.content).length > 300 ? stripMarkdown(post.content).substring(0, 300) + '...' : stripMarkdown(post.content))}
-            </p>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center z-10">
-            <div className="flex gap-2">
-              {confirmDelete === post.id ? (
-                <>
-                  <span className="text-[9px] font-black text-[var(--danger)] capitalize tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
-                  </span>
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors backdrop-blur-sm border border-transparent"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span></button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:scale-105 transition-all shadow-md"><span className="material-symbols-outlined !text-[14px] drop-shadow-md">{t("icon_delete_forever")}</span></button>
-                </>
-              ) : (
-                <>
-                  <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:text-[var(--accent)] border border-transparent backdrop-blur-sm transition-all flex items-center justify-center shadow-sm group/btn relative">
-                    <span className="material-symbols-outlined !text-[14px] drop-shadow-md">{t("icon_visibility")}</span>
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:text-[var(--warning)] border border-transparent backdrop-blur-sm transition-all flex items-center justify-center shadow-sm">
-                    <span className="material-symbols-outlined !text-[14px] drop-shadow-md">{t("icon_edit")}</span>
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:text-[var(--danger)] border border-transparent backdrop-blur-sm transition-all flex items-center justify-center shadow-sm">
-                    <span className="material-symbols-outlined !text-[14px] drop-shadow-md">{t("icon_delete")}</span>
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+          post={post}
+          index={index}
+          onPostClick={openEditor}
+          onToggleLike={() => {}}
+          hasUnsavedEdits={isDraft}
+        />
       );
     });
   }, [filteredPosts, draftKeysStr, confirmDelete, t, setPreviewPost]);
@@ -534,72 +473,73 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
             widthClass="w-[800px]"
             title={editingPostId ? (t("update_transmission")) : (t("post_broadcast"))}
             subtitle={editingPostId ? (t("editing_record")) : (t("composing_broadcast"))}
-            footer={
-              <div className="flex justify-center items-center gap-4 w-full">
+            headerActions={
+              <PanelHeaderGroup>
                 {((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? (
-                  <ActionButton
+                  <PanelHeaderButton
                     onClick={handleDiscardChanges}
                     disabled={isSubmitting}
-                    label={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))}
+                    tooltip={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))}
+                    icon={confirmDiscard ? "warning" : "delete"}
                     variant="danger"
-                    icon="delete"
+                    className={confirmDiscard ? "animate-pulse" : ""}
                   />
                 ) : (
-                  <ActionButton
+                  <PanelHeaderButton
                     onClick={closeEditor}
                     disabled={isSubmitting}
-                    label={t("nav_cancel")}
-                    variant="danger"
+                    tooltip={t("nav_cancel")}
                     icon="close"
                   />
                 )}
-
-                <ActionButton
+                <PanelHeaderButton
+                  onClick={() => setIsPinned(!isPinned)}
+                  disabled={isSubmitting}
+                  tooltip={t("pin_transmission")}
+                  icon="push_pin"
+                  isActive={isPinned}
+                />
+                {editingPostId && (
+                  confirmDelete === editingPostId ? (
+                    <PanelHeaderButton
+                      onClick={(e: any) => { e.stopPropagation(); handleDelete(editingPostId); setConfirmDelete(null); closeEditor(); }}
+                      disabled={isSubmitting}
+                      tooltip={t("btn_confirm")}
+                      icon="delete_forever"
+                      variant="danger"
+                      className="animate-pulse"
+                    />
+                  ) : (
+                    <PanelHeaderButton
+                      onClick={(e: any) => { e.stopPropagation(); setConfirmDelete(editingPostId); }}
+                      disabled={isSubmitting}
+                      tooltip={t("purge")}
+                      icon="delete"
+                      variant="danger"
+                    />
+                  )
+                )}
+                <PanelHeaderButton
                   onClick={closeEditor}
                   disabled={isSubmitting}
-                  variant="accent"
-                  label={t("local_save")}
+                  tooltip={t("local_save")}
                   icon="save"
                 />
-
-                <div className="relative group/btn flex">
-                  <ActionButton
-                    onClick={handleSubmit}
-                    disabled={isSubmitting || !title || !content}
-                    variant={((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? "warning" : "success"}
-                    label={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
-                    icon="cloud_upload"
-                  />
-                  {((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) && (
-                    <HoverTooltip title={t("ph_unsaved_changes")} variant="warning" className="group-hover/btn:flex z-[100]" />
-                  )}
-                </div>
-              </div>
+                <PanelHeaderButton
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !title || !content}
+                  tooltip={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
+                  icon={isSubmitting ? "sync" : "send"}
+                  variant={((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? "warning" : "accent"}
+                  className={isSubmitting ? "animate-pulse" : ""}
+                />
+              </PanelHeaderGroup>
             }
           >
             <div className="flex flex-col gap-6">
 
-              <div className="flex border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4 pb-4">
-                <div className="w-96 shrink-0">
-                  <HubTabs
-                    tabs={[{ id: 'edit', label: t("editor") }, { id: 'preview', label: t("preview") }]}
-                    activeTab={viewMode}
-                    setTab={setViewMode}
-                  />
-                </div>
-
-                <label className="ml-auto pr-4 flex items-center gap-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity">
-                  <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} className="hidden" />
-                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shadow-inner backdrop-blur-md ${isPinned ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.3)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                    {isPinned && <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_check")}</span>}
-                  </div>
-                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-1"><span className="material-symbols-outlined !text-[16px]">{t("icon_push_pin")}</span> {t("pin_transmission")}</span>
-                </label>
-              </div>
-
-              {viewMode === 'edit' ? (
-                <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("post_title")}</label>
                     <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
                   </div>
@@ -623,18 +563,18 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                     </div>
                     <div className="flex flex-col flex-1 glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
                       <div className="shrink-0 sticky top-0 z-50 flex flex-col items-center p-3 bg-transparent pointer-events-none">
-                        <div className="relative flex flex-col items-center w-full">
-                          <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-[1.25rem] shadow-md">
-                            <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered")}</span></button>
-                            <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code")}</span></button>
-                            <button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule")}</span></button>
-                            <button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">sentiment_satisfied</span></button>
+                        <div className="relative flex flex-col items-center pointer-events-auto w-fit">
+                          <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-[1.25rem] shadow-xl backdrop-blur-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]" style={{ backgroundColor: 'color-mix(in srgb, color-mix(in srgb, var(--text) 5%, var(--bg)) 85%, transparent)' }}>
+                            <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold")}</span></button><HoverTooltip title={t("editor_tt_bold")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                            <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic")}</span></button><HoverTooltip title={t("editor_tt_italic")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                            <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1")}</span></button><HoverTooltip title={t("editor_tt_h1")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                            <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2")}</span></button><HoverTooltip title={t("editor_tt_h2")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                            <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted")}</span></button><HoverTooltip title={t("editor_tt_bullets")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                            <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered")}</span></button><HoverTooltip title={t("editor_tt_numbers")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                            <div className="relative group/btn flex"><button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image")}</span></button><HoverTooltip title={t("editor_tt_image")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                            <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code")}</span></button><HoverTooltip title={t("editor_tt_code")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                            <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule")}</span></button><HoverTooltip title={t("editor_tt_hr")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                            <div className="relative group/btn flex"><button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">sentiment_satisfied</span></button><HoverTooltip title={t("editor_tt_icon")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
                           </div>
                           {showIconPicker && (
                             <IconPicker
@@ -712,24 +652,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-6 mt-4">
-                  <h3 className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-2">{t("live_preview")}</h3>
-
-                  {imageUrl && (
-                    <div className="w-full max-h-[400px] rounded-2xl overflow-hidden shrink-0 relative shadow-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] z-10 mb-6 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md">
-                      <img src={imageUrl} onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.style.display = 'none'; }} className="w-full h-auto object-contain max-h-[400px] mix-blend-screen" alt={t("auto_post_cover_preview")} />
-                    </div>
-                  )}
-
-                  <h1 className="text-3xl font-black text-[var(--text)] capitalize tracking-tight">{title || (t("untitled"))}</h1>
-
-                  <div className="markdown-body p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-inner">
-                    {content ? <MarkdownRenderer content={content} onAssetClick={(type: string, id: string) => setActiveAsset({ type, id })} /> : <p className="text-[var(--subtext)] opacity-50 italic">{t("no_content_preview")}</p>}
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
           </SidePanel>
         </>
       )}

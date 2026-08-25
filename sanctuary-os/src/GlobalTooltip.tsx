@@ -98,7 +98,7 @@ export function GlobalTooltip() {
                 <span className="break-all" style={{ overflowWrap: 'anywhere' }}>{title}</span>
               </div>
               {subtitle && (
-                <span className="text-[10px] font-bold text-[var(--subtext)] text-left whitespace-pre-line mt-0.5 w-full leading-relaxed break-words">{subtitle}</span>
+                <span className="text-[10px] font-bold text-[var(--subtext)] text-left whitespace-pre-line mt-0.5 w-full leading-relaxed break-words line-clamp-6">{subtitle}</span>
               )}
             </div>
           </div>

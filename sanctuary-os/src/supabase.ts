@@ -29,7 +29,7 @@ export function getActiveGameClient(): SupabaseClient {
             currentGameId = "legacy_fallback";
             currentToken = token;
             currentGameClient = createClient("https://chphhvpcgcpnyvshsudh.supabase.co", "sb_publishable_EdCfD4meHLUUgoTRkfwsTA_PFXnZx8D", {
-                auth: { persistSession: false }
+                auth: { persistSession: false, storageKey: "sanctuary-legacy-fallback-token" }
             });
         }
         return currentGameClient!;
@@ -40,7 +40,10 @@ export function getActiveGameClient(): SupabaseClient {
         currentGameId = activeWs.id;
         currentToken = token;
         currentGameClient = createClient(activeWs.supabase_url, activeWs.supabase_anon_key, {
-            auth: { persistSession: false }
+            auth: { persistSession: false, storageKey: `sanctuary-game-${activeWs.id}-token` },
+            global: {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined
+            }
         });
     }
 
@@ -85,7 +88,15 @@ export const supabase = new Proxy({} as SupabaseClient, {
                 const workspaces = state.workspaces || [];
                 const activeWs = workspaces.find((w: any) => w.id === activeWsId);
                 
-                const isInterceptedRpc = ['secure_upsert_cloud_file', 'secure_delete_cloud_file', 'secure_update_mason_profile', 'secure_toggle_mason_follow'].includes(fnName);
+                const isInterceptedRpc = [
+                    'secure_upsert_cloud_file', 
+                    'secure_delete_cloud_file', 
+                    'secure_update_mason_profile', 
+                    'secure_toggle_mason_follow',
+                    'secure_fetch_notifications',
+                    'secure_mark_notifications_read',
+                    'secure_delete_notifications'
+                ].includes(fnName);
                 
                 if (isInterceptedRpc) {
                     let targetGameId = activeWsId;
@@ -100,7 +111,10 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         'secure_upsert_cloud_file': 'upsert_cloud_file',
                         'secure_delete_cloud_file': 'delete_cloud_file',
                         'secure_update_mason_profile': 'update_mason_profile',
-                        'secure_toggle_mason_follow': args.p_action === 'follow' ? 'follow_mason' : 'unfollow_mason'
+                        'secure_toggle_mason_follow': args?.p_action === 'follow' ? 'follow_mason' : 'unfollow_mason',
+                        'secure_fetch_notifications': 'fetch_notifications',
+                        'secure_mark_notifications_read': 'mark_notifications_read',
+                        'secure_delete_notifications': 'delete_notifications'
                     };
 
                     let payload: any = {};
@@ -112,6 +126,10 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         payload = { mason_id: args.p_mason_id, profile_data: args.p_payload };
                     } else if (fnName === 'secure_toggle_mason_follow') {
                         payload = { mason_id: args.p_mason_id };
+                    } else if (fnName === 'secure_mark_notifications_read') {
+                        payload = { notification_id: args?.p_id };
+                    } else if (fnName === 'secure_delete_notifications') {
+                        payload = { notification_id: args?.p_id };
                     }
 
                     const res = await supabaseAuth.functions.invoke('game-gateway', {

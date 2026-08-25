@@ -432,11 +432,60 @@ export const DbpfScout = () => {
         <ViewHeader 
           title={t("radar_title")} 
           subtitle={t("radar_subtitle")} 
-          icon={t("icon_track_changes")} 
+          icon="crisis_alert" 
           iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" 
           breadcrumb={activeTab !== "COMMAND" ? (t(`tab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
           onTitleClick={() => setActiveTab("COMMAND")}
-        />
+        >
+          {activeTab === "CONFLICTS" && (
+            <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="w-64 shrink-0 hidden xl:block">
+                <CustomDropdown
+                  disableTint={true}
+                  options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
+                  value={scanScope}
+                  onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
+                  icon="map"
+                />
+              </div>
+              <SearchBar
+                value={conflictSearch}
+                onChange={(val: string) => setConflictSearch(val)}
+                placeholder={t("radar_search_conflicts") as string}
+                className="h-10 rounded-xl min-w-[200px]"
+              />
+              <div className="flex items-center glass-panel rounded-xl overflow-hidden divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-10 shrink-0 hidden md:flex">
+                <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 4 ? null : 4)} className={`h-full px-3 flex items-center justify-center gap-1 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 4 ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)]' : 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S4</button>
+                <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 3 ? null : 3)} className={`h-full px-3 flex items-center justify-center gap-1 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 3 ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)]' : 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S3</button>
+                <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 2 ? null : 2)} className={`h-full px-3 flex items-center justify-center gap-1 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 2 ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S2</button>
+                <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 1 ? null : 1)} className={`h-full px-3 flex items-center justify-center gap-1 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 1 ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-blue-400' : 'text-blue-400 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S1</button>
+              </div>
+            </div>
+          )}
+          {activeTab === "OVERRIDES" && (
+            <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="w-64 shrink-0 hidden xl:block">
+                <CustomDropdown
+                  disableTint={true}
+                  options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
+                  value={scanScope}
+                  onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
+                  icon="map"
+                />
+              </div>
+              <SearchBar
+                value={overrideSearch}
+                onChange={(val: string) => setOverrideSearch(val)}
+                placeholder={t("radar_search_overrides") as string}
+                className="h-10 rounded-xl min-w-[200px]"
+              />
+              <div className="flex items-center glass-panel rounded-xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-10 shrink-0 hidden md:flex">
+                <button onClick={() => setOverrideTab("ACTIVE")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] capitalize tracking-widest transition-all ${overrideTab === "ACTIVE" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("active")}</button>
+                <button onClick={() => setOverrideTab("IGNORED")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] capitalize tracking-widest transition-all ${overrideTab === "IGNORED" ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ignored")}</button>
+              </div>
+            </div>
+          )}
+        </ViewHeader>
 
         <HoverTabDrawer title="Radar Navigation" activeTab={activeTab} setTab={setActiveTab}>
           <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
@@ -505,30 +554,29 @@ export const DbpfScout = () => {
               <CommandScreenBody>
                 <CommandScreenMain>
                   <div className="flex flex-col gap-6 w-full">
-                    <ScreenUtilityBar
-                      leftContent={
-                        <div className="flex items-center gap-4 pr-4">
-                          <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border glass-panel relative group shadow-md">
-                            <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <span className="material-symbols-outlined !text-[24px] relative z-10 theme-text-accent">map</span>
+                    <CommandScreenSectionHeading
+                      title={t("select_blueprint")}
+                      icon="map"
+                      rightContent={
+                        <>
+                          <div className="w-48 shrink-0 relative z-50 h-[38px]">
+                            <CustomDropdown
+                              disableTint={true}
+                              options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
+                              value={scanScope}
+                              onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
+                              icon="map"
+                            />
                           </div>
-                          <h2 className="text-2xl font-black tracking-tighter capitalize leading-tight m-0 text-[var(--text)]">{t("select_blueprint")}</h2>
-                        </div>
+                          <SearchBar
+                            value={blueprintSearch}
+                            onChange={(val: string) => setBlueprintSearch(val)}
+                            placeholder={t("search_blueprints") as string}
+                            className="h-[38px] rounded-xl min-w-[200px]"
+                          />
+                        </>
                       }
-                      search={blueprintSearch}
-                      onSearchChange={setBlueprintSearch}
-                      searchPlaceholder={t("search_blueprints") as string}
-                    >
-                      <div className="w-48 shrink-0 relative z-50 h-[38px]">
-                        <CustomDropdown
-                          disableTint={true}
-                          options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
-                          value={scanScope}
-                          onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
-                          icon="map"
-                        />
-                      </div>
-                    </ScreenUtilityBar>
+                    />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {playSets.filter((bp: any) => !blueprintSearch || bp.name.toLowerCase().includes(blueprintSearch.toLowerCase())).map((blueprint: any) => {
                         const cachedStatsStr = localStorage.getItem(`radar_stats_${blueprint.name}`);
@@ -618,43 +666,7 @@ export const DbpfScout = () => {
 
           {activeTab === "CONFLICTS" && (
             <>
-              <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
-                <div className="flex items-center gap-4 hidden xl:flex shrink-0">
-
-                  <div className="w-64">
-                    <CustomDropdown
-                      disableTint={true}
-                      options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
-                      value={scanScope}
-                      onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
-                      icon="map"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                  <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">search</span>
-                    <input
-                      type="text"
-                      placeholder={t("radar_search_conflicts")}
-                      value={conflictSearch}
-                      onChange={(e) => setConflictSearch(e.target.value)}
-                      className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40"
-                    />
-                    {conflictSearch && (
-                      <button onClick={() => setConflictSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
-                        <span className="material-symbols-outlined text-sm">close</span>
-                      </button>
-                    )}
-                  </div>
-         <div className="flex items-center glass-panel rounded-xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-12 shrink-0">
-                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 4 ? null : 4)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 4 ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)]' : 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S4</button>
-                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 3 ? null : 3)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 3 ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)]' : 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S3</button>
-                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 2 ? null : 2)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 2 ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S2</button>
-                    <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 1 ? null : 1)} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 1 ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-blue-400' : 'text-blue-400 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S1</button>
-                  </div>
-                </div>
-              </div>
+              {/* ViewHeader filters now replace the inline filter bar */}
 
               {!hasScanned && !loading && !error && (
                 <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
@@ -884,47 +896,13 @@ export const DbpfScout = () => {
 
           {activeTab === "OVERRIDES" && (
             <div className="flex flex-col gap-6">
-              <div className="flex flex-col xl:flex-row xl:items-center gap-4 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
-                <div className="flex items-center gap-4 hidden xl:flex shrink-0">
-                  <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3 shrink-0">
-                    <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">rule</span>
-                    </div>
-                    <span className="truncate">{t("active_overrides")}</span>
-                  </h2>
-                  <div className="w-64">
-                    <CustomDropdown
-                      disableTint={true}
-                      options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
-                      value={scanScope}
-                      onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
-                      icon="map"
-                    />
+              <div className="flex items-center gap-4 mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
+                <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3 shrink-0">
+                  <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">rule</span>
                   </div>
-                </div>
-                <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 relative flex-1 xl:ml-auto xl:justify-end w-full xl:w-auto">
-                  <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">search</span>
-                    <input
-                      type="text"
-                      placeholder={t("radar_search_overrides")}
-                      value={overrideSearch}
-                      onChange={(e) => setOverrideSearch(e.target.value)}
-                      className="w-full glass-panel rounded-2xl pl-10 pr-10 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40"
-                    />
-                    {overrideSearch && (
-                      <button onClick={() => setOverrideSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center">
-                        <span className="material-symbols-outlined text-sm">close</span>
-                      </button>
-                    )}
-                  </div>
-
-         <div className="flex items-center glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-12 shrink-0">
-                    <button onClick={() => setOverrideTab("ACTIVE")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] capitalize tracking-widest transition-all ${overrideTab === "ACTIVE" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("active")}</button>
-                    <button onClick={() => setOverrideTab("IGNORED")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] capitalize tracking-widest transition-all ${overrideTab === "IGNORED" ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ignored")}</button>
-                  </div>
-
-                </div>
+                  <span className="truncate">{overrideTab === "IGNORED" ? t("ignored") : t("active_overrides")}</span>
+                </h2>
               </div>
               {(() => {
                 const activeSetMods = playSets.find((s: any) => s.name === scanScope)?.mods || [];
@@ -990,7 +968,7 @@ export const DbpfScout = () => {
                         return (
                           <div key={`active_${idx}`} className="p-5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-xl relative group/card hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">
                             <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-tr from-[color-mix(in_srgb,var(--bg)_5%,transparent)] to-transparent pointer-events-none z-0" />
-                            <div className="flex items-center justify-start relative z-10">
+                            <div className="flex items-center justify-between relative z-10">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]">
                                   <span className="material-symbols-outlined !text-[18px]">verified</span>
@@ -1044,7 +1022,7 @@ export const DbpfScout = () => {
                         return (
                           <div key={`ignored_${i}`} className="p-5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl relative group/card hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
                             <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-tr from-[color-mix(in_srgb,var(--bg)_5%,transparent)] to-transparent pointer-events-none z-0" />
-                            <div className="flex items-center justify-start relative z-10">
+                            <div className="flex items-center justify-between relative z-10">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] shadow-sm">
                                   <span className="material-symbols-outlined !text-[18px]">visibility_off</span>

@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { useStore } from "../store";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, PanelHeaderGroup, HoverTooltip, PanelHeaderButton } from "../shared";
 
 interface NotificationSidebarProps {
   onClose: () => void;
@@ -28,30 +29,31 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
     if (userId) {
       fetchNotifications();
     }
+
+    const handleNewNotification = () => {
+      if (userId) fetchNotifications();
+    };
+
+    window.addEventListener('new_notification_arrived', handleNewNotification);
+    return () => {
+      window.removeEventListener('new_notification_arrived', handleNewNotification);
+    };
   }, [userId]);
 
   const fetchNotifications = async () => {
     setLoading(true);
 
-    // Fetch from Game DB
-    const { data: gameData } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(50);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
 
-    // Fetch from OS DB
-    const { data: osData } = await supabaseAuth
-      .from("notifications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(50);
+    const { data: gameData, error } = await supabase.rpc('secure_fetch_notifications', { p_token: token });
+
+    if (error) {
+      console.error("NOTIFICATIONS FETCH ERROR:", error);
+    }
 
     let allData: any[] = [];
-    if (gameData) allData = [...allData, ...gameData.map(n => ({ ...n, _db: 'game' }))];
-    if (osData) allData = [...allData, ...osData.map(n => ({ ...n, _db: 'os' }))];
+    if (gameData) allData = [...allData, ...gameData.map((n: any) => ({ ...n, _db: 'game' }))];
 
     allData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     allData = allData.slice(0, 50);
@@ -84,13 +86,13 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
   const markAllRead = async () => {
     if (!userId) return;
     const gameHasUnread = notifications.some(n => !n.is_read && n._db === 'game');
-    const osHasUnread = notifications.some(n => !n.is_read && n._db === 'os');
 
-    const updates = [];
-    if (gameHasUnread) updates.push(supabase.from("notifications").update({ is_read: true }).eq("user_id", userId).eq("is_read", false));
-    if (osHasUnread) updates.push(supabaseAuth.from("notifications").update({ is_read: true }).eq("user_id", userId).eq("is_read", false));
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
 
-    await Promise.all(updates);
+    if (gameHasUnread) {
+      await supabase.rpc('secure_mark_notifications_read', { p_token: token });
+    }
 
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     notifyUpdate();
@@ -98,29 +100,31 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
 
   const clearAll = async () => {
     if (!userId) return;
-    await Promise.all([
-      supabase.from("notifications").delete().eq("user_id", userId),
-      supabaseAuth.from("notifications").delete().eq("user_id", userId)
-    ]);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    await supabase.rpc('secure_delete_notifications', { p_token: token });
+
     setNotifications([]);
     notifyUpdate();
   };
 
   const handleNotificationClick = async (notif: any) => {
     if (!notif.is_read) {
-      const targetDb = notif._db === 'os' ? supabaseAuth : supabase;
-      await targetDb.from("notifications").update({ is_read: true }).eq("id", notif.id);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      await supabase.rpc('secure_mark_notifications_read', { p_id: notif.id, p_token: token });
       setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)));
       notifyUpdate();
     }
 
     if (onOpenPost && notif.reference_id) {
-      const targetDb = notif._db === 'os' ? supabaseAuth : supabase;
-      let { data } = await targetDb.from("mason_posts").select("*").eq("id", notif.reference_id).single();
+      const targetDb = supabase;
+      let { data } = await targetDb.from("mason_posts").select("*, masons(*)").eq("id", notif.reference_id).single();
       if (!data) {
         const { data: sysData } = await targetDb.from("system_broadcasts").select("*").eq("id", notif.reference_id).single();
         if (sysData) {
-          data = { ...sysData, content: sysData.message || sysData.content, mason_id: 'system', views: 0, likes: 0, replies: 0 };
+          const activeSchema = useStore.getState().activeGameSchema;
+          data = { ...sysData, content: sysData.message || sysData.content, mason_id: 'system', masons: { name: `${activeSchema?.display_name || activeSchema?.name || "Wayfinders"} Team` }, views: 0, likes: 0, replies: 0 };
         }
       }
       if (data) {
@@ -132,8 +136,9 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
   const clearNotification = async (e: React.MouseEvent, id: string, db: string) => {
     e.stopPropagation();
     if (!userId) return;
-    const targetDb = db === 'os' ? supabaseAuth : supabase;
-    await targetDb.from("notifications").delete().eq("id", id);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    await supabase.rpc('secure_delete_notifications', { p_id: id, p_token: token });
     setNotifications((prev) => prev.filter((n) => n.id !== id));
     notifyUpdate();
   };
@@ -141,6 +146,24 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
   const formatTime = (isoString: string) => {
     const d = new Date(isoString);
     return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "reply": return "forum";
+      case "support_reply": return "support_agent";
+      case "new_post": return "campaign";
+      default: return "notifications";
+    }
+  };
+
+  const getNotificationColor = (type: string, isRead: boolean) => {
+    if (isRead) return "var(--subtext)";
+    switch (type) {
+      case "support_reply": return "var(--success, #4ade80)";
+      case "system_broadcast": return "var(--danger, #ef4444)";
+      default: return "var(--accent)";
+    }
   };
 
   return (
@@ -192,32 +215,44 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
               <div
                 key={n.id}
                 onClick={() => handleNotificationClick(n)}
-                className={`p-5 rounded-2xl cursor-pointer transition-all border group relative shadow-lg ${n.is_read
-                  ? "bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-70 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)]"
-                  : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[var(--accent)]"
+                className={`p-5 rounded-2xl cursor-pointer transition-all duration-300 group relative shadow-lg glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${n.is_read
+                  ? "opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]"
+                  : "hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
                   }`}
               >
-                <div className="flex justify-start items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className={`text-[10px] font-black capitalize tracking-widest ${n.is_read ? 'text-[var(--text)] opacity-80' : 'theme-text-accent'}`}>
-                      {n.type === "reply" ? (t("ui_btn_reply")) : n.type === "support_reply" ? (t("notif_type_support")) : n.type === "new_post" ? (t("post_broadcast")) : (t("category_system"))}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
+
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center w-full pr-4">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined !text-[14px]" style={{ color: getNotificationColor(n.type, n.is_read) }}>
+                        {getNotificationIcon(n.type)}
+                      </span>
+                      <span className={`text-[10px] font-black capitalize tracking-widest ${n.is_read ? 'text-[var(--text)] opacity-60' : 'theme-text-accent'}`}>
+                        {n.type === "reply" ? (t("ui_btn_reply")) : n.type === "support_reply" ? (t("notif_type_support")) : n.type === "new_post" ? (t("post_broadcast")) : (t("category_system"))}
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-bold text-[var(--subtext)] opacity-50 tracking-widest">
                       {formatTime(n.created_at)}
                     </span>
-                    <button
-                      onClick={(e) => clearNotification(e, n.id, n._db)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-red-500 text-[var(--subtext)]"
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
-                    </button>
+                  </div>
+
+                  <div className="flex justify-between items-end mt-1">
+                    <p className={`text-sm font-semibold leading-relaxed line-clamp-3 pr-2 ${n.is_read ? 'text-[var(--subtext)] opacity-80' : 'text-[var(--text)]'}`}>
+                      {n.message}
+                    </p>
+
+                    <div className="relative group/closebtn flex">
+                      <HoverTooltip title={t("icon_close")} variant="danger" noIcon={true} className="!hidden group-hover/closebtn:!flex !bottom-full !mb-2 !right-0 z-[60000]" />
+                      <button
+                        onClick={(e) => clearNotification(e, n.id, n._db)}
+                        className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-red-500 text-[var(--subtext)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">close</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <p className="text-sm text-[var(--text)] font-bold leading-relaxed line-clamp-3">
-                  {n.message}
-                </p>
               </div>
             ))
           )

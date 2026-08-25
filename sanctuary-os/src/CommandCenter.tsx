@@ -44,7 +44,7 @@ export default function CommandCenter({
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [urgentBroadcast, setUrgentBroadcast] = useState<any>(null);
   const [dismissedBroadcastId, setDismissedBroadcastId] = useState(localStorage.getItem('sanctuary_dismissed_alert_id'));
-  
+
   const [dismissedCritical, setDismissedCritical] = useState<string | null>(localStorage.getItem('sanctuary_dismiss_critical'));
   const [dismissedAlerts, setDismissedAlerts] = useState<string | null>(localStorage.getItem('sanctuary_dismiss_alerts'));
 
@@ -287,7 +287,7 @@ export default function CommandCenter({
         const showCritical = (radarTier4Count + radarBrokenCount) > 0;
         const showAlerts = (radarTier3Count + radarUnstableCount) > 0;
 
-        const hasCriticalOrAlerts = hasSymlinkPerms === false || 
+        const hasCriticalOrAlerts = hasSymlinkPerms === false ||
           (activeGameSchema?.features?.has_cc !== false && (showCritical || showAlerts)) ||
           (urgentBroadcast && localStorage.getItem("sanctuary_notify_alert_banner") !== "false");
 
@@ -300,6 +300,7 @@ export default function CommandCenter({
                 title={t("updates_avail") || "Updates Available"}
                 subtitle={t("updates_det") || "Artifact updates detected."}
                 className="group-hover/updates:flex z-[1000] w-full"
+                vAlign="bottom"
               />
               <DashboardStatTile
                 icon={<span className="material-symbols-outlined ">{t("icon_update")}</span>}
@@ -358,6 +359,7 @@ export default function CommandCenter({
                 title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
                 subtitle={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
                 className="group-hover/ticket:flex z-[1000] w-full"
+                vAlign="bottom"
               />
             )}
             <DashboardStatTile
@@ -383,6 +385,7 @@ export default function CommandCenter({
                         title={t("perm_restricted")}
                         subtitle={t("perm_hover_desc") || t("perm_desc")}
                         className="group-hover/perms:flex z-[1000] w-full"
+                        vAlign="bottom"
                       />
                       <DashboardStatTile
                         icon={<span className="material-symbols-outlined ">warning</span>}
@@ -401,6 +404,7 @@ export default function CommandCenter({
                         title={urgentBroadcast.title || 'SYSTEM BROADCAST'}
                         subtitle={stripMarkdown(urgentBroadcast.message || urgentBroadcast.content)}
                         className="group-hover/broadcast:flex z-[1000] w-full"
+                        vAlign="bottom"
                       />
                       <DashboardStatTile
                         icon={<span className="material-symbols-outlined ">{urgentBroadcast.icon || 'campaign'}</span>}
@@ -408,17 +412,17 @@ export default function CommandCenter({
                         label={urgentBroadcast.title || 'SYSTEM BROADCAST'}
                         disableBgStrip={true}
                         colorClass="!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_15%,transparent)] animate-pulse w-full"
-                        onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })}
+                        onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', masons: { name: `${useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || "Wayfinders"} Team` }, views: 0, likes: 0, replies: 0 })}
                       />
-                      <button 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          localStorage.setItem("sanctuary_dismissed_alert_id", String(urgentBroadcast.id)); 
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          localStorage.setItem("sanctuary_dismissed_alert_id", String(urgentBroadcast.id));
                           setDismissedBroadcastId(String(urgentBroadcast.id));
                         }}
                         className="absolute top-4 right-4 w-8 h-8 rounded-[10px] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-110 hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md cursor-pointer shadow-md"
                       >
-                        <HoverTooltip title="Dismiss Alert" variant="danger" />
+                        <HoverTooltip title="Dismiss Alert" variant="danger" vAlign="bottom" />
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_close") || "close"}</span>
                       </button>
                     </div>
@@ -430,6 +434,7 @@ export default function CommandCenter({
                         title={t("critical_failures_detected") || "Critical Failures"}
                         subtitle={t("radar_fatal_desc") || "Severe conflict detected. Click to view full diagnostic sweep."}
                         className="group-hover/critical:flex z-[1000] w-full"
+                        vAlign="bottom"
                       />
                       <DashboardStatTile
                         icon={<span className="material-symbols-outlined ">gpp_bad</span>}
@@ -448,6 +453,7 @@ export default function CommandCenter({
                         title={t("system_alerts_title") || "System Alerts"}
                         subtitle={t("radar_tuning_desc") || "Potential issues detected. Click to view full diagnostic sweep."}
                         className="group-hover/alerts:flex z-[1000] w-full"
+                        vAlign="bottom"
                       />
                       <DashboardStatTile
                         icon={<span className="material-symbols-outlined ">{t("icon_warning_amber")}</span>}
@@ -495,7 +501,7 @@ export default function CommandCenter({
 
           <div className="flex flex-col gap-4">
             {!!urgentBroadcast && (
-              <CommandScreenQuickLink 
+              <CommandScreenQuickLink
                 icon="priority_high"
                 title={t("title_sanctuary_alerts") || "Sanctuary Alerts"}
                 subtitle={t("urgent_alert_active") || "URGENT SYSTEM BROADCAST"}

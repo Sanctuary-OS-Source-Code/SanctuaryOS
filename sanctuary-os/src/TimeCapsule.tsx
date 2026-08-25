@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, HubTabButton, SearchBar, ScreenUtilityBar, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton, HoverTabDrawer, VerticalTabButton } from "./shared";
+import { ViewHeader, HubTabButton, SearchBar, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton, HoverTabDrawer, VerticalTabButton, FilterPopover } from "./shared";
 import { TimeCapsuleSidePanel } from "./side-panels/TimeCapsuleSidePanels";
 import { useModalStore } from "./store/modalStore";
 
@@ -212,7 +212,103 @@ export default function TimeCapsule({
         iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         breadcrumb={activeTab !== "LANDING" ? (activeTab === "WORLD" ? t("world_state") : t("engine_core")) : undefined}
         onTitleClick={() => setActiveTab("LANDING")}
-      />
+      >
+        {activeTab !== "LANDING" && (
+           <div className="flex items-center gap-3 h-12 animate-in fade-in slide-in-from-right-4 duration-500">
+             <SearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder={t("timecapsule_search") as string || "Search Chronograms..."}
+             />
+             <FilterPopover 
+                icon="tune" 
+                className="h-full shrink-0" 
+                activeTab={(versionFilter !== "ALL" || startDate || endDate) ? "active" : undefined}
+             >
+                <div className="flex flex-col gap-4 p-4 min-w-[220px]">
+                   <div className="flex flex-col gap-2">
+                     <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Game Version</div>
+                     <CustomDropdown disableTint={true}
+                       value={versionFilter}
+                       onChange={(val: string[]) => setVersionFilter(val[0])}
+                       options={[
+                         { id: "ALL", label: t("ql_all") },
+                         ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
+                       ]}
+                     />
+                   </div>
+                   <div className="flex flex-col gap-2 mt-2">
+                     <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Date Range</div>
+                     <CustomDatePicker
+                       value={startDate}
+                       onChange={setStartDate}
+                       placeholder={t("filter_start_date")}
+                     />
+                     <CustomDatePicker
+                       value={endDate}
+                       onChange={setEndDate}
+                       placeholder={t("filter_end_date")}
+                     />
+                   </div>
+                </div>
+             </FilterPopover>
+
+             {activeTab === "WORLD" && (
+               <div className="shrink-0 h-12">
+                 {!confirmSealWorld ? (
+                   <ActionButton
+                     icon="public"
+                     className="h-12 px-6 py-0"
+                     label={t("btn_seal_state")}
+                     onClick={() => setConfirmSealWorld(true)}
+                   />
+                 ) : (
+                   <div className="flex gap-2 shrink-0">
+                     <ActionButton
+                       icon="check_circle"
+                       label={t("btn_confirm")}
+                       onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }}
+                       className="h-12 px-6 py-0 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]"
+                     />
+                     <ActionButton
+                       icon="close"
+                       onClick={() => setConfirmSealWorld(false)}
+                       className="h-12 w-12 px-0 py-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+                     />
+                   </div>
+                 )}
+               </div>
+             )}
+
+             {activeTab === "ENGINE" && (
+               <div className="shrink-0 h-12">
+                 {!confirmSealEngine ? (
+                   <ActionButton
+                     icon="settings"
+                     className="h-12 px-6 py-0"
+                     label={t("btn_seal_engine")}
+                     onClick={() => setConfirmSealEngine(true)}
+                   />
+                 ) : (
+                   <div className="flex gap-2 shrink-0">
+                     <ActionButton
+                       icon="warning_amber"
+                       label={t("btn_confirm")}
+                       onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }}
+                       className="h-12 px-6 py-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]"
+                     />
+                     <ActionButton
+                       icon="close"
+                       onClick={() => setConfirmSealEngine(false)}
+                       className="h-12 w-12 px-0 py-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+                     />
+                   </div>
+                 )}
+               </div>
+             )}
+           </div>
+        )}
+      </ViewHeader>
 
       <HoverTabDrawer title="Time Capsule" activeTab={activeTab} setTab={setActiveTab}>
         <VerticalTabButton id="LANDING" icon="dashboard" label={t("tab_landing")} activeTab={activeTab} setTab={setActiveTab} />
@@ -249,95 +345,6 @@ export default function TimeCapsule({
             colorClass="text-cyan-500"
           />
         </div>
-      )}
-
-      {activeTab !== "LANDING" && (
-        <ScreenUtilityBar
-          search={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchPlaceholder={t("timecapsule_search") as string || "Search Chronograms..."}
-          className="!mb-6 relative z-20 w-full shrink-0"
-        >
-          <div className="w-max min-w-[180px] shrink-0">
-            <CustomDropdown disableTint={true}
-              value={versionFilter}
-              onChange={(val: string[]) => setVersionFilter(val[0])}
-              options={[
-                { id: "ALL", label: t("ql_all") },
-                ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
-              ]}
-            />
-          </div>
-
-          <div className="w-max min-w-[150px] shrink-0">
-            <CustomDatePicker
-              value={startDate}
-              onChange={setStartDate}
-              placeholder={t("filter_start_date")}
-            />
-          </div>
-          <div className="w-max min-w-[150px] shrink-0">
-            <CustomDatePicker
-              value={endDate}
-              onChange={setEndDate}
-              placeholder={t("filter_end_date")}
-            />
-          </div>
-
-          {activeTab === "WORLD" && (
-            <div className="shrink-0 h-12">
-              {!confirmSealWorld ? (
-                <ActionButton
-                  icon="public"
-                  className="h-12 px-6 py-0"
-                  label={t("btn_seal_state")}
-                  onClick={() => setConfirmSealWorld(true)}
-                />
-              ) : (
-                <div className="flex gap-2 shrink-0">
-                  <ActionButton
-                    icon="check_circle"
-                    label={t("btn_confirm")}
-                    onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }}
-                    className="h-12 px-6 py-0"
-                  />
-                  <ActionButton
-                    icon="close"
-                    onClick={() => setConfirmSealWorld(false)}
-                    className="h-12 w-12 px-0 py-0 flex items-center justify-center"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "ENGINE" && (
-            <div className="shrink-0 h-12">
-              {!confirmSealEngine ? (
-                <ActionButton
-                  icon="settings"
-                  className="h-12 px-6 py-0"
-                  label={t("btn_seal_engine")}
-                  onClick={() => setConfirmSealEngine(true)}
-                />
-              ) : (
-                <div className="flex gap-2 shrink-0">
-                  <ActionButton
-                    icon="warning_amber"
-                    label={t("btn_confirm")}
-                    onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }}
-                    className="h-12 px-6 py-0"
-                  />
-                  <ActionButton
-                    icon="close"
-                    onClick={() => setConfirmSealEngine(false)}
-                    className="h-12 w-12 px-0 py-0 flex items-center justify-center"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </ScreenUtilityBar>
       )}
       <div className="flex flex-col gap-10 pt-4">
         {backupList?.length > 0 ? (

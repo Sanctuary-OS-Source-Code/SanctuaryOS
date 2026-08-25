@@ -78,7 +78,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         className={`fixed bottom-12 left-1/2 -translate-x-1/2 z-[9999999] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${showToast ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-4 opacity-0 pointer-events-none"}`}
       >
         <div
-          onClick={() => setIsLogExpanded(!isLogExpanded)}
+          onClick={() => setIsNotificationSidebarOpen(true)}
           className={`flex items-center gap-3 px-5 py-2.5 rounded-full shadow-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors ${statusBgClass}`}
         >
           <span className={`material-symbols-outlined text-[16px] shrink-0 opacity-70 ${statusIconClass} ${isScanning ? 'animate-spin-slow text-[var(--accent)]' : ''}`}>
@@ -97,7 +97,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
               }
               if (typeof status !== 'string') return status;
               const match = status.match(/^([a-z_0-9]+)\s+(.*)$/);
-              const knownIcons = ['check_circle', 'warning', 'error', 'info', 'sync', 'flight_takeoff', 'radar', 'terminal', 'bug_report', 'extension', 'block', 'update', 'done', 'download', 'delete', 'close', 'add', 'verified', 'new_releases', 'local_fire_department', 'health_and_safety', 'folder_open', 'inventory_2', 'account_tree', 'priority_high'];
+              const knownIcons = ['check_circle', 'warning', 'error', 'info', 'sync', 'flight_takeoff', 'radar', 'terminal', 'bug_report', 'extension', 'block', 'update', 'done', 'download', 'delete', 'close', 'add', 'verified', 'new_releases', 'local_fire_department', 'health_and_safety', 'folder_open', 'inventory_2', 'account_tree', 'priority_high', 'notifications_active'];
               if (match && (knownIcons.includes(match[1]) || match[1].includes('_'))) {
                 return (
                   <span className="flex items-center gap-2">
@@ -112,13 +112,12 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         </div>
       </div>
 
-      {/* Dock Area Container */}
+        {/* Dock Area Container */}
       <div
         className="fixed bottom-0 left-0 right-0 z-[9999999] flex items-end justify-center pointer-events-none"
         onMouseEnter={handleDockEnter}
         onMouseLeave={handleDockLeave}
       >
-
         {/* Contiguous Hover Wrapper */}
         <div className={`pointer-events-auto flex flex-col items-center justify-end transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${dockTransformClass} pb-4 ${!isConfigured ? 'pointer-events-none opacity-50 grayscale' : ''}`}>
 

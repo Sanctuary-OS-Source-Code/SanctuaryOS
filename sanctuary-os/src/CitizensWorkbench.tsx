@@ -99,7 +99,22 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             icon="tune" 
             breadcrumb={mainTab !== "COMMAND" ? (t(`tab_${mainTab.toLowerCase()}`) || mainTab) : undefined}
             onTitleClick={() => setMainTab("COMMAND" as any)}
-         />
+         >
+            {mainTab !== "COMMAND" && (
+               <div className="flex items-center gap-3 h-12 animate-in fade-in slide-in-from-right-4 duration-500">
+                  <SearchBar
+                     value={mainSearchQuery}
+                     onChange={setMainSearchQuery}
+                     placeholder={t("search_files") as string}
+                     className="h-full rounded-xl min-w-[200px]"
+                  />
+                  <FilterTabs className="h-full shrink-0">
+                     <FilterTabButton id="ALL" label="ALL" activeTab={gridFilter} setTab={setGridFilter} />
+                     <FilterTabButton id="UNSAVED" label={t("unsaved_changes")} activeTab={gridFilter} setTab={setGridFilter} />
+                  </FilterTabs>
+               </div>
+            )}
+         </ViewHeader>
 
          <HoverTabDrawer title="Workbench Navigation" activeTab={mainTab} setTab={setMainTab as any}>
             <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={mainTab} setTab={setMainTab as any} />
@@ -212,17 +227,6 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
             {mainTab !== "COMMAND" && (
                <div className="flex flex-col gap-0 min-h-max w-full">
-                          <ScreenUtilityBar
-          search={mainSearchQuery}
-          onSearchChange={setMainSearchQuery}
-          searchPlaceholder={t("search_files")}
-          className="!mb-8 animate-in slide-in-from-top-4 duration-500 relative z-20"
-        >
-          <FilterTabs className="shrink-0 xl:ml-2 z-50">
-            <FilterTabButton id="ALL" label="ALL" activeTab={gridFilter} setTab={setGridFilter} />
-            <FilterTabButton id="UNSAVED" label={t("unsaved_changes")} activeTab={gridFilter} setTab={setGridFilter} />
-          </FilterTabs>
-        </ScreenUtilityBar>
 
                   <div className="flex-1 pb-10">
                      <WorkbenchFileGrid

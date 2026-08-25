@@ -285,6 +285,8 @@ function App() {
   const [isNotificationSidebarOpen, setIsNotificationSidebarOpen] = useState(false);
   const [globalViewingPost, setGlobalViewingPost] = useState<any>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const prevUnreadRef = useRef<number>(0);
+  const isInitialLoadRef = useRef<boolean>(true);
   const [activeDossier, setActiveDossier] = useState<ModData | null>(null);
   const [labQueue, setLabQueue] = useState<ModData[]>([]);
   const [activeLabMod, setActiveLabMod] = useState<ModData | null>(null);
@@ -352,32 +354,34 @@ function App() {
 
   useEffect(() => {
     if (!session?.user?.id) return;
+    
     const fetchUnread = async () => {
-      if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
-      const { data } = await supabase
-        .from('notifications')
-        .select('is_read')
-        .eq('user_id', session.user.id);
+      if (session?.user?.id) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const { data } = await supabase.rpc('secure_fetch_notifications', { p_token: token });
 
-      if (data) {
-        const unreadCount = data.filter(n => !n.is_read).length;
-        setUnreadNotificationCount(unreadCount);
+        if (data) {
+          const gameUnread = data.filter((n: any) => !n.is_read).length;
+          
+          if (!isInitialLoadRef.current && gameUnread > prevUnreadRef.current) {
+            setStatus(`notifications_active New Transmission Received`);
+          }
+          
+          prevUnreadRef.current = gameUnread;
+          isInitialLoadRef.current = false;
+          setUnreadNotificationCount(gameUnread);
+        } else {
+          setUnreadNotificationCount(0);
+        }
       }
     };
-    fetchUnread();
 
-    let channel: any = null;
     let interval: any = null;
 
-    const setupNetworkFeatures = () => {
-      if (navigator.onLine && localStorage.getItem("sanctuary_local_only") !== "true") {
-        if (!channel) {
-          channel = supabase.channel('notifs')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${session.user.id}` }, () => {
-              fetchUnread();
-            })
-            .subscribe();
-        }
+    const setupNetworkFeatures = async () => {
+      if (session) {
+        fetchUnread();
         if (!interval) {
           interval = setInterval(fetchUnread, 30000);
         }
@@ -398,7 +402,7 @@ function App() {
 
     return () => {
       if (interval) clearInterval(interval);
-      if (channel) supabase.removeChannel(channel);
+      if (interval) clearInterval(interval);
       window.removeEventListener('refresh_notifications', fetchUnread);
       window.removeEventListener('online', handleOnline);
     };

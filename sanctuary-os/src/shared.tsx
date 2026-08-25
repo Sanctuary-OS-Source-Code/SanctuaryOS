@@ -141,19 +141,19 @@ export function ActionButton({ icon, label, onClick, onDoubleClick, disabled, cl
 export function LoadingScreen({ title, subtitle, icon = "sync" }: { title: string, subtitle?: string, icon?: string }) {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center min-h-[400px] relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40vw] h-[40vw] max-w-[600px] max-h-[600px] rounded-full blur-[100px] opacity-10 pointer-events-none" 
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40vw] h-[40vw] max-w-[600px] max-h-[600px] rounded-full blur-[100px] opacity-10 pointer-events-none"
         style={{ backgroundColor: 'var(--accent)' }} />
 
       <div className="flex flex-col items-center gap-12 relative z-10 text-center">
         <div className="relative w-24 h-24 flex items-center justify-center">
           {/* Subtle background glow */}
           <div className="absolute inset-0 rounded-full bg-[var(--accent)] opacity-[0.05] blur-xl animate-pulse" />
-          
+
           {/* Outer track */}
           <div className="absolute inset-0 rounded-full border border-[color-mix(in_srgb,var(--accent)_15%,transparent)]" />
-          
+
           {/* Smooth spinning gradient ring */}
-          <div className="absolute inset-0 rounded-full border-[2px] border-transparent border-t-[var(--accent)] border-r-[color-mix(in_srgb,var(--accent)_50%,transparent)]" 
+          <div className="absolute inset-0 rounded-full border-[2px] border-transparent border-t-[var(--accent)] border-r-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
             style={{ animation: 'spin 1.2s linear infinite' }} />
 
           {/* Icon Box */}
@@ -184,61 +184,61 @@ export function LoadingScreen({ title, subtitle, icon = "sync" }: { title: strin
 }
 
 export function PanelHeaderGroup({ children, className = "" }: any) {
-   return (
-      <div className={`flex items-center gap-1 shrink-0 ${className}`}>
-         {children}
-      </div>
-   );
+  return (
+    <div className={`flex items-center gap-1 shrink-0 ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 export function PanelHeaderButton({
-   icon,
-   label,
-   tooltip,
-   onClick,
-   disabled = false,
-   variant = "default",
-   isActive = false,
-   tooltipAlign = "center",
-   tooltipVariant,
-   className = ""
+  icon,
+  label,
+  tooltip,
+  onClick,
+  disabled = false,
+  variant = "default",
+  isActive = false,
+  tooltipAlign = "center",
+  tooltipVariant,
+  className = ""
 }: any) {
-   let colorClass = "border border-transparent text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+  let colorClass = "border border-transparent text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
 
-   if (isActive) {
-      if (variant === "accent" || variant === "default") colorClass = "!text-[var(--accent)] !opacity-100 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]";
-      else if (variant === "error" || variant === "danger") colorClass = "!text-[var(--danger)] !opacity-100 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--danger)_10%,transparent)]";
-      else if (variant === "success") colorClass = "!text-[var(--success)] !opacity-100 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--success)_10%,transparent)]";
-   } else {
-      if (variant === "error" || variant === "danger") {
-         colorClass = "border border-transparent text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]";
-      } else if (variant === "success") {
-         colorClass = "border border-transparent text-[var(--success)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]";
-      } else if (variant === "warning") {
-         colorClass = "border border-transparent text-[var(--warning)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]";
-      }
-   }
+  if (isActive) {
+    if (variant === "accent" || variant === "default") colorClass = "!text-[var(--accent)] !opacity-100 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]";
+    else if (variant === "error" || variant === "danger") colorClass = "!text-[var(--danger)] !opacity-100 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--danger)_10%,transparent)]";
+    else if (variant === "success") colorClass = "!text-[var(--success)] !opacity-100 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--success)_10%,transparent)]";
+  } else {
+    if (variant === "error" || variant === "danger") {
+      colorClass = "border border-transparent text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]";
+    } else if (variant === "success") {
+      colorClass = "border border-transparent text-[var(--success)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]";
+    } else if (variant === "warning") {
+      colorClass = "border border-transparent text-[var(--warning)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]";
+    }
+  }
 
-   if (disabled) {
-      colorClass = "border border-transparent text-[var(--text)] opacity-30 cursor-not-allowed";
-   }
+  if (disabled) {
+    colorClass = "border border-transparent text-[var(--text)] opacity-30 cursor-not-allowed";
+  }
 
-   const tVariant = tooltipVariant || (variant === "default" || variant === "accent" ? "info" : variant);
+  const tVariant = tooltipVariant || (variant === "default" || variant === "accent" ? "info" : variant);
 
-   return (
-      <div className={`relative group/btn shrink-0 ${className}`}>
-         <button
-            onClick={(e) => { if (!disabled && onClick) onClick(e); }}
-            className={`flex items-center justify-center transition-all rounded-full ${!disabled ? 'active:scale-95' : ''} ${label ? 'px-4 h-9 gap-2' : 'w-9 h-9'} ${colorClass}`}
-         >
-            <span className={`material-symbols-outlined ${label ? '!text-[15px] normal-case' : '!text-[18px]'}`}>{icon}</span>
-            {label && <span className="text-[10px] font-bold capitalize tracking-wider">{label}</span>}
-         </button>
-         {tooltip && (
-            <HoverTooltip title={tooltip} variant={disabled ? "error" : tVariant} align={tooltipAlign} vAlign="bottom" className="z-[100]" />
-         )}
-      </div>
-   );
+  return (
+    <div className={`relative group/btn shrink-0 ${className}`}>
+      <button
+        onClick={(e) => { if (!disabled && onClick) onClick(e); }}
+        className={`flex items-center justify-center transition-all rounded-full ${!disabled ? 'active:scale-95' : ''} ${label ? 'px-4 h-9 gap-2' : 'w-9 h-9'} ${colorClass}`}
+      >
+        <span className={`material-symbols-outlined ${label ? '!text-[15px] normal-case' : '!text-[18px]'}`}>{icon}</span>
+        {label && <span className="text-[10px] font-bold capitalize tracking-wider">{label}</span>}
+      </button>
+      {tooltip && (
+        <HoverTooltip title={tooltip} variant={disabled ? "error" : tVariant} align={tooltipAlign} vAlign="bottom" className="z-[100]" />
+      )}
+    </div>
+  );
 }
 
 export const deriveHumanReadableVersion = (path: string | undefined | null, fallbackHash: string | undefined | null, t?: (key: string) => string) => {
@@ -450,7 +450,7 @@ export const getHighestVersion = (reqs: string[] | string) => {
 
 export const parseStringArray = (input: string | string[] | undefined | null): string[] => {
   if (!input) return [];
-  
+
   let rawArray: string[] = [];
   if (Array.isArray(input)) {
     rawArray = [...input];
@@ -461,9 +461,9 @@ export const parseStringArray = (input: string | string[] | undefined | null): s
       if (typeof parsed === 'string' && parsed.startsWith('[') && parsed.endsWith(']')) {
         try {
           parsed = JSON.parse(parsed);
-        } catch (e) {}
+        } catch (e) { }
       }
-      
+
       if (Array.isArray(parsed)) {
         rawArray = parsed.map(String);
       } else {
@@ -805,7 +805,7 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
       <button
         ref={btnRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-center gap-2 h-12 ${label ? 'px-5' : 'w-12'} rounded-[var(--radius)] transition-all duration-300 backdrop-blur-[3px] ${isOpen || hasActiveFilter
+        className={`flex items-center justify-center gap-0 h-12 ${label ? 'px-5' : 'w-12'} rounded-[var(--radius)] transition-all duration-300 backdrop-blur-[3px] ${isOpen || hasActiveFilter
           ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--accent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
           : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
           } ${buttonClassName}`}
@@ -1072,7 +1072,7 @@ export function VerticalTabDropdown({ icon, label, options, activeTab, setTab }:
 export function HoverTabDrawer({ title = "Navigation", tabs, activeTab, setTab, children, footer, position = "right", className = "", panelClassName = "", panelStyle = {}, onHoverChange }: any) {
   const isLeft = position === "left";
   return (
-    <div 
+    <div
       className={`fixed ${isLeft ? 'left-0' : 'right-0'} top-[72px] bottom-[24px] z-[9999] group flex ${isLeft ? 'justify-start' : 'justify-end'} w-[284px] pointer-events-none ${className}`}
       onMouseEnter={() => onHoverChange && onHoverChange(true)}
       onMouseLeave={() => onHoverChange && onHoverChange(false)}
@@ -1085,7 +1085,7 @@ export function HoverTabDrawer({ title = "Navigation", tabs, activeTab, setTab, 
       <div className="absolute inset-0 pointer-events-none group-hover:pointer-events-auto" />
 
       {/* Sliding Panel */}
-      <div 
+      <div
         className={`h-full w-[260px] ${isLeft ? 'ml-6 rounded-3xl -translate-x-[calc(100%+40px)]' : 'mr-6 rounded-3xl translate-x-[calc(100%+40px)]'} shrink-0 group-hover:translate-x-0 transition-transform duration-500 ease-[cubic-bezier(0.2,0.9,0.2,1)] transform-gpu will-change-transform backface-hidden flex flex-col items-start pt-6 relative pointer-events-auto border border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[var(--glassBlur,24px)] ${panelClassName}`}
         style={{ background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 2%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal, 0.8) * 100%), transparent)`, ...panelStyle }}
       >
@@ -1225,6 +1225,27 @@ export function CustomDropdown({ value, selectedValues = [], options, onChange, 
             />
           </div>
         )}
+        {multiSelect && options && options.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] sticky top-0 z-[5]">
+            <span className="text-[9px] font-black text-[var(--subtext)] opacity-70 tracking-widest uppercase">{selectedValues.length} {t("shared_selected") || "Selected"}</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onChange(options.map((o: any) => String(o.id)))}
+                className="text-[9px] font-black text-[var(--accent)] hover:text-white transition-colors uppercase tracking-widest"
+              >
+                {t("shared_select_all") || "Select All"}
+              </button>
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="text-[9px] font-black text-[var(--subtext)] hover:text-[var(--danger)] transition-colors uppercase tracking-widest"
+              >
+                {t("shared_clear") || "Clear"}
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
           {(options || []).filter((opt: any) => {
             if (!searchable || !query) return true;
@@ -1341,49 +1362,49 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
       />
       {isOpen && (
         createPortal(
-        <>
-          <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
-          <div className="fixed pointer-events-none" style={{
-            zIndex: 200001,
-            top: rect ? rect.bottom : 0,
-            left: rect ? (isRightHalf ? undefined : rect.left) : 0,
-            right: rect ? (isRightHalf ? window.innerWidth - rect.right : undefined) : undefined,
-            width: rect ? rect.width : 'max-content',
-          }}>
-            <div className="absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col">
-              <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
-                {filtered.map(v => (
-                  <button
-                    key={v.version}
-                    type="button"
-                    onClick={() => {
-                      toggleVersion(v.version);
-                      setQuery("");
-                      setIsOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--text)] flex justify-start cursor-pointer"
-                  >
-                    <span>{v.version}</span>
-                    {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("icon_check")}</span></span>}
-                  </button>
-                ))}
-                {query && !versions.some(v => v.version === query) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toggleVersion(query);
-                      setQuery("");
-                      setIsOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-emerald-400 cursor-pointer"
-                  >
-                    + {t("cc_btn_add")} "{query}"
-                  </button>
-                )}
+          <>
+            <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
+            <div className="fixed pointer-events-none" style={{
+              zIndex: 200001,
+              top: rect ? rect.bottom : 0,
+              left: rect ? (isRightHalf ? undefined : rect.left) : 0,
+              right: rect ? (isRightHalf ? window.innerWidth - rect.right : undefined) : undefined,
+              width: rect ? rect.width : 'max-content',
+            }}>
+              <div className="absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col">
+                <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
+                  {filtered.map(v => (
+                    <button
+                      key={v.version}
+                      type="button"
+                      onClick={() => {
+                        toggleVersion(v.version);
+                        setQuery("");
+                        setIsOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--text)] flex justify-start cursor-pointer"
+                    >
+                      <span>{v.version}</span>
+                      {selectedVersions.includes(v.version) && <span className="text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined !text-[14px]">{t("icon_check")}</span></span>}
+                    </button>
+                  ))}
+                  {query && !versions.some(v => v.version === query) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toggleVersion(query);
+                        setQuery("");
+                        setIsOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-emerald-400 cursor-pointer"
+                    >
+                      + {t("cc_btn_add")} "{query}"
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </>, document.getElementById('sa-portals') || document.body)
+          </>, document.getElementById('sa-portals') || document.body)
       )}
     </div>
   );
@@ -1797,7 +1818,7 @@ export function SidePanel({
                 </div>
               )}
 
-              { (headerActions || !hideCloseButton) && (
+              {(headerActions || !hideCloseButton) && (
                 <div className="absolute top-8 right-8 flex items-center z-50 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1 gap-1">
                   {headerActions}
                   {headerActions && !hideCloseButton && (
@@ -1864,7 +1885,7 @@ export function SidePanel({
 
 export function SearchBar({ value, onChange, placeholder = "Search...", className = "", isLoading }: { value: string; onChange: (v: string) => void; placeholder?: string, className?: string, isLoading?: boolean }) {
   return (
-    <div className={`relative flex items-center glass-surface ${className || 'rounded-full'} border border-transparent focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all shadow-inner group w-full`}>
+    <div className={`relative flex items-center glass-surface h-12 rounded-xl border border-transparent focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all shadow-inner group w-full ${className.replace(/h-\S+|!h-\S+|rounded-\S+|!rounded-\S+|w-full|h-full/g, '').trim()}`}>
       <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
         {isLoading ? (
           <span className="material-symbols-outlined !text-[16px] theme-text-accent animate-spin">refresh</span>
@@ -1978,9 +1999,9 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
   else if (colorClass) { textColor = colorClass.split(' ').find((c: string) => c.startsWith('text-')) || textColor; }
 
   const cleanColorClass = typeof colorClass === "string"
-    ? disableBgStrip 
-        ? colorClass 
-        : colorClass.split(' ').filter((c: string) => !c.startsWith('bg-') && !c.startsWith('hover:bg-')).join(' ')
+    ? disableBgStrip
+      ? colorClass
+      : colorClass.split(' ').filter((c: string) => !c.startsWith('bg-') && !c.startsWith('hover:bg-')).join(' ')
     : "";
 
   const strVal = String(displayValue);

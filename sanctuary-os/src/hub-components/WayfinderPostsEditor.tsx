@@ -9,7 +9,7 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, FilterTabs, FilterTabButton, ActionButton, ViewToggle, RadioCardGroup, RadioCard, FilterPopover } from "../shared";
+import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, FilterTabs, FilterTabButton, ActionButton, ViewToggle, RadioCardGroup, RadioCard, FilterPopover, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import MasonPostCard from "../MasonPostCard";
 import MarkdownRenderer from "../MarkdownRenderer";
@@ -27,6 +27,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   const [description, setDescription] = useState("");
   const [targetAudience, setTargetAudience] = useState<string[]>(["All"]);
   const targetAudienceOptions = isKeepers ? ["All", "Citizens", "Masons", "Oversight", "Wayfinders", "Keepers"] : ["All", "Citizens", "Masons", "Oversight", "Wayfinders"];
+  const [communityOptions, setCommunityOptions] = useState<string[]>([]);
   const [category, setCategory] = useState("Update");
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -181,6 +182,13 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     if (blueprintsData) combinedAssets.push(...blueprintsData.map(b => ({ id: b.id, name: b.name, type: 'blueprint' })));
     if (marketAssetsData) combinedAssets.push(...marketAssetsData.map(a => ({ id: a.id, name: a.name, type: a.asset_type })));
     setAssets(combinedAssets.sort((a, b) => a.name.localeCompare(b.name)));
+
+    if (isKeepers) {
+      const { data: gamesData } = await supabase.from('sanctuary_games').select('name').not('is_active', 'eq', false);
+      if (gamesData) {
+        setCommunityOptions(gamesData.map(g => `${g.name} Wayfinders`));
+      }
+    }
   };
 
   useEffect(() => { fetchPostsAndAssets(); }, []);
@@ -351,13 +359,11 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       let res;
       if (!isKeepers) {
         const payloadWithId = editingPostId ? { id: editingPostId, ...data } : data;
-        console.log("Sending payload to proxy:", payloadWithId);
         res = await supabase.rpc('secure_upsert_cloud_file', {
           p_target: targetTable,
           p_payload: payloadWithId,
           p_token: useStore.getState().session?.access_token || ''
         });
-        console.log("Proxy response:", res);
       } else {
         if (editingPostId) {
           res = await supabase.from(targetTable).update(data).eq('id', editingPostId).select();
@@ -389,20 +395,46 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
         const { data: authUser } = await supabase.auth.getUser();
         if (authUser.user) {
           const { data: followers } = await supabase.from('profiles').select("id");
+          console.log("Followers for dispatch:", followers);
           if (followers && followers.length > 0) {
-            const notifications = followers.map(f => ({
-              user_id: f.id,
-              actor_id: authUser.user!.id,
-              type: 'system_broadcast',
-              reference_id: newPostId,
-              message: `${masonName || 'A Wayfinder'} has broadcasted a new System Dispatch.`
-            }));
+            const activeSchema = useStore.getState().activeGameSchema;
+            let teamName = "Sanctuary OS Team";
+            if (!isKeepers) {
+              teamName = isOversight ? (activeSchema ? `${activeSchema.display_name || activeSchema.name} Oversight Team` : "Oversight Team") : (activeSchema ? `${activeSchema.display_name || activeSchema.name} Team` : "Wayfinder Team");
+            }
+
+            const notifications = followers.map(f => {
+              let actionWord = "a new System Dispatch";
+              if (payload.category === "Alert" || payload.category.includes("Alert")) {
+                actionWord = payload.is_pinned ? "an Urgent Alert" : "a new Alert";
+              } else if (payload.category === "Maintenance") {
+                actionWord = "a Maintenance Notice";
+              } else if (payload.category === "Update") {
+                actionWord = "a new Update";
+              } else if (payload.category === "Community") {
+                actionWord = "a Community Announcement";
+              }
+              
+              return {
+                id: crypto.randomUUID(),
+                user_id: f.id,
+                actor_id: authUser.user!.id,
+                type: 'system_broadcast',
+                reference_id: newPostId,
+                message: `${teamName} has posted ${actionWord}: ${payload.title}`
+              };
+            });
             try {
-              await supabase.rpc('secure_upsert_cloud_file', {
-                p_target: 'notifications',
-                p_payload: notifications,
-                p_token: useStore.getState().session?.access_token || ''
-              });
+              await Promise.all(notifications.map(notif =>
+                supabase.rpc('secure_upsert_cloud_file', {
+                  p_target: 'notifications',
+                  p_payload: notif,
+                  p_token: useStore.getState().session?.access_token || ''
+                }).then(res => {
+                  if (res.error) console.error("Notification insert error:", res.error);
+                })
+              ));
+              window.dispatchEvent(new CustomEvent('refresh_notifications'));
             } catch (e) {
               console.error("Failed to insert notifications:", e);
             }
@@ -580,34 +612,41 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
             title={editingPostId ? (t("update_transmission")) : (t("post_broadcast"))}
             subtitle={editingPostId ? (t("editing_record")) : (t("composing_broadcast"))}
             headerActions={
-              <button
-                onClick={() => setIsActive(!isActive)}
-                className={`flex items-center gap-2 px-5 h-[38px] rounded-full border transition-all font-black text-[10px] capitalize tracking-widest ${isActive ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] shadow-[inset_0_0_20px_rgba(34,197,94,0.1)]' : 'glass-panel bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-              >
-                {isActive ? "Live / Active" : "Draft Mode"}
-              </button>
-            }
-            footer={
-              <div className="flex justify-center items-center gap-4 w-full">
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  onClick={() => setIsActive(!isActive)}
+                  tooltip={isActive ? t("active", "Active") : t("filter_inactive", "Inactive")}
+                  icon={isActive ? "sensors" : "sensors_off"}
+                  variant={isActive ? "success" : "default"}
+                  isActive={isActive}
+                />
+                <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-2" />
                 {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? (
-                  <ActionButton onClick={handleDiscardChanges} disabled={isSubmitting} label={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
-
-                  </ActionButton>
-                ) : (
-                  <ActionButton onClick={closeEditor} disabled={isSubmitting} label={t("nav_cancel")}></ActionButton>
-                )}
-                <div className="relative group/btn flex">
-                  <ActionButton
-                    onClick={handleSubmit}
-                    disabled={isSubmitting || !title || !content}
-                    className={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? "!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] !text-[var(--warning)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:!text-[var(--warning)] hover:!shadow-[0_0_30px_rgba(var(--warning-rgb),0.4)]" : ""}
-                    label={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
+                  <PanelHeaderButton
+                    onClick={handleDiscardChanges}
+                    disabled={isSubmitting}
+                    tooltip={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))}
+                    icon={confirmDiscard ? "warning" : "delete"}
+                    variant="danger"
+                    className={confirmDiscard ? "animate-pulse" : ""}
                   />
-                  {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
-                    <HoverTooltip title={t("ph_unsaved_changes")} variant="warning" className="group-hover/btn:flex z-[100]" />
-                  )}
-                </div>
-              </div>
+                ) : (
+                  <PanelHeaderButton
+                    onClick={closeEditor}
+                    disabled={isSubmitting}
+                    tooltip={t("nav_cancel")}
+                    icon="close"
+                  />
+                )}
+                <PanelHeaderButton
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !title || !content}
+                  tooltip={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
+                  icon={isSubmitting ? "sync" : "send"}
+                  variant={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? "warning" : "accent"}
+                  className={isSubmitting ? "animate-pulse" : ""}
+                />
+              </PanelHeaderGroup>
             }
           >
             <div className="flex flex-col gap-6">
@@ -658,15 +697,20 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                     <div className="h-14">
                       <CustomDropdown disableTint={true}
                         multiSelect={true}
+                        searchable={true}
                         selectedValues={targetAudience}
                         onChange={setTargetAudience}
-                        options={[
-                          { id: "Citizens", label: "Citizens" },
-                          { id: "Masons", label: "Masons" },
-                          { id: "Architects", label: "Architects" },
-                          { id: "Oversight", label: "Oversight" },
-                          ...(!isOversight ? [{ id: "Wayfinders", label: "Wayfinders" }] : [])
-                        ]}
+                        options={
+                          isKeepers
+                            ? communityOptions.map(name => ({ id: name, label: name }))
+                            : [
+                              { id: "Citizens", label: "Citizens" },
+                              { id: "Masons", label: "Masons" },
+                              { id: "Architects", label: "Architects" },
+                              { id: "Oversight", label: "Oversight" },
+                              ...(!isOversight ? [{ id: "Wayfinders", label: "Wayfinders" }] : [])
+                            ]
+                        }
                         placeholder={t("auto_select_audience")}
                       />
                     </div>
@@ -720,18 +764,18 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                   </div>
                   <div className="flex flex-col flex-1 glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
                     <div className="shrink-0 sticky top-0 z-50 flex flex-col items-center p-3 bg-transparent pointer-events-none">
-                      <div className="relative flex flex-col items-center">
-                        <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-[1.25rem] shadow-md">
-                          <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold")}</span></button>
-                          <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic")}</span></button>
-                          <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1")}</span></button>
-                          <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2")}</span></button>
-                          <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted")}</span></button>
-                          <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered")}</span></button>
-                          <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image")}</span></button>
-                          <button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code")}</span></button>
-                          <button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule")}</span></button>
-                          <button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">sentiment_satisfied</span></button>
+                      <div className="relative flex flex-col items-center pointer-events-auto w-fit">
+                        <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-[1.25rem] shadow-xl backdrop-blur-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]" style={{ backgroundColor: 'color-mix(in srgb, color-mix(in srgb, var(--text) 5%, var(--bg)) 85%, transparent)' }}>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold")}</span></button><HoverTooltip title={t("editor_tt_bold")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic")}</span></button><HoverTooltip title={t("editor_tt_italic")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1")}</span></button><HoverTooltip title={t("editor_tt_h1")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2")}</span></button><HoverTooltip title={t("editor_tt_h2")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted")}</span></button><HoverTooltip title={t("editor_tt_bullets")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered")}</span></button><HoverTooltip title={t("editor_tt_numbers")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image")}</span></button><HoverTooltip title={t("editor_tt_image")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code")}</span></button><HoverTooltip title={t("editor_tt_code")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule")}</span></button><HoverTooltip title={t("editor_tt_hr")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">sentiment_satisfied</span></button><HoverTooltip title={t("editor_tt_icon")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
                         </div>
                         {showIconPicker && (
                           <IconPicker
