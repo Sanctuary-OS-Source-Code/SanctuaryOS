@@ -8,38 +8,38 @@ pub mod utils;
 pub mod watchers;
 #[macro_use]
 pub mod commands;
+use crate::commands::backups::*;
+use crate::commands::cache::*;
+use crate::commands::config::*;
+use crate::commands::deployment::*;
+use crate::commands::game_info::*;
+use crate::commands::library::*;
+use crate::commands::logs::*;
+use crate::commands::overrides::*;
+use crate::commands::radar::*;
+use crate::commands::shelter::*;
+use crate::commands::state_ops::*;
+use crate::commands::system::*;
 use crate::state::*;
 use crate::utils::*;
-use crate::commands::state_ops::*;
-use crate::commands::library::*;
-use crate::commands::deployment::*;
-use crate::commands::backups::*;
-use crate::commands::radar::*;
-use crate::commands::shelter::*;
-use crate::commands::config::*;
-use crate::commands::overrides::*;
-use crate::commands::system::*;
-use crate::commands::logs::*;
-use crate::commands::cache::*;
-use crate::commands::game_info::*;
 use crate::watchers::*;
 
-use crate::commands::state_ops::*;
-use crate::commands::library::*;
-use crate::commands::deployment::*;
 use crate::commands::backups::*;
+use crate::commands::cache::*;
+use crate::commands::config::*;
+use crate::commands::deployment::*;
+use crate::commands::game_info::*;
+use crate::commands::library::*;
+use crate::commands::logs::*;
+use crate::commands::overrides::*;
 use crate::commands::radar::*;
 use crate::commands::shelter::*;
-use crate::commands::config::*;
-use crate::commands::overrides::*;
+use crate::commands::state_ops::*;
 use crate::commands::system::*;
-use crate::commands::logs::*;
-use crate::commands::cache::*;
-use crate::commands::game_info::*;
-mod telemetry;
-pub mod schema;
-mod game_logic;
 mod dbpf;
+mod game_logic;
+pub mod schema;
+mod telemetry;
 
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
@@ -76,6 +76,7 @@ fn test_package_scanner(_: String) -> Result<String, String> {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState {
@@ -115,10 +116,8 @@ fn main() {
             run_conflict_radar,
             rename_backup,
             backup_universe,
-
             backup_engine_full,
             restore_game_data,
-
             evacuate_to_shelter,
             repopulate_from_shelter,
             wipe_symlinks,
@@ -181,7 +180,8 @@ fn main() {
             telemetry::get_directory_size,
             get_backup_contents,
             extract_backup_file,
-            diff_backup])
+            diff_backup
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

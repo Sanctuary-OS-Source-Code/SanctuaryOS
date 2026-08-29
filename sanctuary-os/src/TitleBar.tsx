@@ -3,6 +3,8 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { useLexicon } from "./LexiconContext";
 import { useStore } from './store';
 import { WorkspaceSidePanel } from './side-panels/WorkspaceSidePanel';
+import { isDesktop } from "./utils/envUtils";
+import { isRootDomain } from "./utils/routingUtils";
 
 export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIndex }: any) {
   const { t } = useLexicon();
@@ -48,7 +50,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
 
         {/* Center Game Selector Pill */}
         <div className="flex-1 flex justify-center h-full items-center">
-          {workspaces?.length > 0 && (
+          {workspaces?.length > 0 ? (
             <button
               className="pointer-events-auto glass-panel rounded-full px-5 py-2 flex items-center gap-3 cursor-pointer group/launcher hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
               onClick={() => setIsWorkspacePanelOpen(true)}
@@ -65,50 +67,69 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
                 expand_more
               </span>
             </button>
+          ) : !isDesktop() && !isRootDomain() && (
+            <button
+              className="pointer-events-auto glass-panel rounded-full px-5 py-2 flex items-center gap-3 cursor-pointer group/launcher hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all shadow-lg border border-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
+              onClick={() => {
+                const parts = window.location.host.split('.');
+                if (parts.length > 1) {
+                  window.location.href = `http://${parts.slice(1).join('.')}`;
+                } else {
+                  window.location.href = "/";
+                }
+              }}
+            >
+              <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] opacity-70 group-hover/launcher:opacity-100 transition-opacity pointer-events-none drop-shadow-md">arrow_back</span>
+              <span className="text-[14px] tracking-wide font-black capitalize text-[var(--text)] opacity-90 group-hover/launcher:opacity-100 transition-opacity pointer-events-none px-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                {t("btn_return_to_hub") || "Return to Hub"}
+              </span>
+            </button>
           )}
         </div>
 
         {/* Right Window Controls Pill */}
-        <div
-          className="pointer-events-auto glass-panel rounded-full px-2 py-1.5 flex items-center gap-1.5 shadow-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-          data-tauri-drag-region
-          onMouseDown={async (e) => {
-            if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
-              try { await getCurrentWebviewWindow().startDragging(); } catch (err) { console.error(err); }
-            }
-          }}
-          onDoubleClick={(e) => {
-            if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
-              (window as any).__sanc_manual_max = true;
-              setTimeout(() => { (window as any).__sanc_manual_max = false; }, 1000);
-            }
-          }}
-        >
-          <button
-            onClick={async () => { await getCurrentWebviewWindow().minimize(); }}
-            className="w-[28px] h-[24px] rounded-full bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_8%,transparent)] to-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-[0_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-center text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all outline-none group/btn"
-          >
-            <span className="material-symbols-outlined !text-[14px] leading-none transition-transform group-active/btn:scale-90">{t("icon_remove")}</span>
-          </button>
-
-          <button
-            onClick={async () => {
-              (window as any).__sanc_manual_max = true;
-              await getCurrentWebviewWindow().toggleMaximize();
-              setTimeout(() => { (window as any).__sanc_manual_max = false; }, 1000);
+        {isDesktop() && (
+          <div
+            className="pointer-events-auto glass-panel rounded-full px-2 py-1.5 flex items-center gap-1.5 shadow-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+            data-tauri-drag-region
+            onMouseDown={async (e) => {
+              if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
+                try { await getCurrentWebviewWindow().startDragging(); } catch (err) { console.error(err); }
+              }
             }}
-            className="w-[28px] h-[24px] rounded-full bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_8%,transparent)] to-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-[0_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-center text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all outline-none group/btn"
+            onDoubleClick={(e) => {
+              if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
+                (window as any).__sanc_manual_max = true;
+                setTimeout(() => { (window as any).__sanc_manual_max = false; }, 1000);
+              }
+            }}
           >
-            <span className="material-symbols-outlined !text-[12px] leading-none transition-transform group-active/btn:scale-90">{t("icon_fullscreen")}</span>
-          </button>
+            <button
+              onClick={async () => { await getCurrentWebviewWindow().minimize(); }}
+              className="w-[28px] h-[24px] rounded-full bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_8%,transparent)] to-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-[0_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-center text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all outline-none group/btn"
+            >
+              <span className="material-symbols-outlined !text-[14px] leading-none transition-transform group-active/btn:scale-90">{t("icon_remove")}</span>
+            </button>
 
-          <button
-            onClick={async () => { await getCurrentWebviewWindow().close(); }}
-            className="w-[28px] h-[24px] rounded-full bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_8%,transparent)] to-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-[0_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-center text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all outline-none group/btn"
-          >
-            <span className="material-symbols-outlined !text-[13px] leading-none transition-transform group-active/btn:scale-90">{t("icon_close")}</span>
-          </button>
-        </div>
+            <button
+              onClick={async () => {
+                (window as any).__sanc_manual_max = true;
+                await getCurrentWebviewWindow().toggleMaximize();
+                setTimeout(() => { (window as any).__sanc_manual_max = false; }, 1000);
+              }}
+              className="w-[28px] h-[24px] rounded-full bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_8%,transparent)] to-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-[0_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-center text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all outline-none group/btn"
+            >
+              <span className="material-symbols-outlined !text-[12px] leading-none transition-transform group-active/btn:scale-90">{t("icon_crop_square")}</span>
+            </button>
+
+            <button
+              onClick={async () => { await getCurrentWebviewWindow().close(); }}
+              className="w-[28px] h-[24px] rounded-full bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_8%,transparent)] to-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-[0_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-center text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--error)] hover:border-[color-mix(in_srgb,var(--error)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--error)_10%,transparent)] transition-all outline-none group/btn"
+            >
+              <span className="material-symbols-outlined !text-[14px] leading-none transition-transform group-active/btn:scale-90">{t("icon_close")}</span>
+            </button>
+          </div>
+        )}
 
       </div>
 

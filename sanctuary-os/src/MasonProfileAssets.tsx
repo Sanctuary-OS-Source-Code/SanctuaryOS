@@ -45,7 +45,7 @@ export default function MasonProfileAssets({
               image={asset.image_url ? asset.image_url : undefined}
               icon={!asset.image_url ? t("icon_map") : undefined}
               title={asset.name}
-              subtitle={`${mason.name || "UNKNOWN MASON"} • ${(asset.json_data?.artifacts?.length || 0)} ${t("items")}`}
+              subtitle={`${mason.name || "UNKNOWN MASON"}`}
               onClick={() => setSelectedBlueprint(asset)}
               imageOverlay={
                 <>
@@ -72,12 +72,17 @@ export default function MasonProfileAssets({
                     <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] capitalize tracking-widest shadow-lg">
                       {t("type_blueprint")}
                     </span>
+                    {(asset.json_data?.artifacts?.length || 0) > 0 && (
+                      <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] capitalize tracking-widest shadow-lg">
+                        {(asset.json_data?.artifacts?.length || 0)} {t("items")}
+                      </span>
+                    )}
                   </div>
                 </>
               }
               className="w-full h-full"
               footer={
-                <div className="flex items-center justify-start w-full pt-1">
+                <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
@@ -138,7 +143,7 @@ export default function MasonProfileAssets({
               }
               className="w-full h-full"
               footer={
-                <div className="flex items-center justify-start w-full pt-1">
+                <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
@@ -197,7 +202,7 @@ export default function MasonProfileAssets({
               }
               className="w-full h-full"
               footer={
-                <div className="flex items-center justify-start w-full pt-1">
+                <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
@@ -254,7 +259,7 @@ export default function MasonProfileAssets({
               }
               className="w-full h-full"
               footer={
-                <div className="flex items-center justify-start w-full pt-1">
+                <div className="flex items-center justify-between w-full pt-1">
                   <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("auto_dl")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton

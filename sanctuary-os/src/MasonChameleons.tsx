@@ -14,6 +14,7 @@ import { CommandScreenSectionHeading } from './hub-components/SharedCommandScree
 import { ThemeCard } from './chameleon-components/ThemeCard';
 import { ChameleonControlDashboard } from './chameleon-components/ChameleonControlDashboard';
 import { ChameleonSandboxPreview } from './chameleon-components/ChameleonSandboxPreview';
+import { PanelHeaderGroup, PanelHeaderButton } from './shared';
 
 function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes }: any) {
   const { t } = useLexicon();
@@ -225,7 +226,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         headerActions={
           typeof editingThemeId === 'string' && editingThemeId.startsWith('dev_') ? (
             <div className="flex items-center gap-2">
-       <div className="flex items-center glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
+              <div className="flex items-center glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
                 <div className="relative group flex">
                   <button onClick={() => {
                     if (livePreview) setActiveThemeId(originalThemeId);
@@ -257,24 +258,24 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                   </button>
                 </div>
               </div>
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon="cloud_upload"
+                  tooltip={t("btn_publish")}
+                  onClick={publishThemeToNexus}
+                  variant="primary"
+                />
+                <PanelHeaderButton
+                  icon="save"
+                  tooltip={t("ui_export_theme")}
+                  onClick={() => {
+                    exportDevThemeToCustom(editingThemeId);
+                    useStore.getState().pushStatus(t("ui_saved_personal"), "success");
+                  }}
+                  variant="primary"
+                />
+              </PanelHeaderGroup>
             </div>
-          ) : undefined
-        }
-        footer={
-          typeof editingThemeId === 'string' ? (
-            <>
-              <button onClick={publishThemeToNexus} className={standardAccentGlassButtonClass}>
-                <span className="material-symbols-outlined !text-[18px]">cloud_upload</span>
-                {t("btn_publish")}
-              </button>
-              <button onClick={() => {
-                exportDevThemeToCustom(editingThemeId);
-                useStore.getState().pushStatus(t("ui_saved_personal"), "success");
-              }} className={standardButtonClass}>
-                <span className="material-symbols-outlined !text-[18px]">save</span>
-                {t("ui_export_theme")}
-              </button>
-            </>
           ) : undefined
         }
       >

@@ -4,15 +4,17 @@ import { supabase } from "./supabase";
 import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, SidebarFooterButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, SearchBar, ScreenUtilityBar, FilterPopover } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
+import { useModalStore } from "./store/modalStore";
 import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel } from './side-panels/NexusSidePanels';
 import { useTheme } from "./ThemeContext";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readDir, readTextFile, writeTextFile, exists, mkdir, readFile } from '@tauri-apps/plugin-fs';
 import { appDataDir } from "@tauri-apps/api/path";
 import { invoke } from '@tauri-apps/api/core';
-import AssetPreviewSidebar from "./AssetPreviewSidebar";
+import { isDesktop } from "./utils/envUtils";
 import BlueprintMatrix from "./BlueprintMatrix";
 import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
+import AssetPreviewSidebar from "./AssetPreviewSidebar";
 
 
 declare global {
@@ -93,7 +95,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const { importTheme, CORE_THEMES, customThemes } = useTheme();
   const [assetResultsMap, setAssetResultsMap] = useState<Record<string, any[]>>(window.__nexusCache?.assetResultsMap || {});
   const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
-  const [previewAsset, setPreviewAsset] = useState<{ id: string, type: string } | null>(null);
+  const { nexusPreviewAsset: previewAsset, setNexusPreviewAsset: setPreviewAsset } = useModalStore();
   const [results, setResults] = useState<any[]>([]);
   const [loadingMods, setLoadingMods] = useState(false);
   const [loadingAssets, setLoadingAssets] = useState(false);
@@ -135,6 +137,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     name: '',
     version: '1.0.0',
     description: '',
+    releaseNotes: '',
     language: 'English',
     newLanguage: '',
     lexiconType: 'Theme',
@@ -391,6 +394,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   useEffect(() => {
     const fetchLocalTemplates = async () => {
+      if (!isDesktop()) return;
       try {
         const config: any = await invoke('get_saved_coordinates');
         const vaultPath = config.vault_path;
@@ -609,6 +613,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         name: '',
         version: '1.0.0',
         description: '',
+        releaseNotes: '',
         language: availableLanguages.length > 0 ? availableLanguages[0] : 'English',
         newLanguage: '',
         lexiconType: 'Theme',
@@ -625,15 +630,18 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       setMatrixBlueprintAsset(asset);
       return;
     }
+    const parsedContent = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+    const v = asset.version || '1.0.0';
     setUploadState({
       isOpen: true,
       isEdit: true,
       editId: asset.id,
-      fileContent: typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data,
+      fileContent: parsedContent,
       fileName: asset.name,
       name: asset.name,
-      version: asset.version || '1.0.0',
+      version: v,
       description: asset.description || '',
+      releaseNotes: asset.release_notes || '',
       language: asset.language || (availableLanguages.length > 0 ? availableLanguages[0] : 'English'),
       newLanguage: '',
       lexiconType: asset.lexicon_type || 'Theme',
@@ -681,6 +689,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         version: uploadState.version,
         author: session?.user?.user_metadata?.username || 'Citizen',
         description: uploadState.description,
+        release_notes: uploadState.releaseNotes,
         json_data: finalContent,
         language: marketTab === 'LEXICONS' ? finalLanguage : null,
         lexicon_type: marketTab === 'LEXICONS' ? uploadState.lexiconType : null,
@@ -776,6 +785,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   };
 
   const importTemplate = async (templateJson: any) => {
+    if (!isDesktop()) {
+      if (onSetStatus) onSetStatus(t("error_web_feature_disabled") || "Not available on Web");
+      return;
+    }
     try {
       const config: any = await invoke('get_saved_coordinates');
       const vaultPath = config.vault_path;
@@ -2330,15 +2343,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         })}
       />
 
-      {previewAsset && (
-        <AssetPreviewSidebar
-          assetId={previewAsset.id}
-          assetType={previewAsset.type}
-          onClose={() => setPreviewAsset(null)}
-          onFlag={(id, type) => setReportState({ isOpen: true, assetId: id, assetType: type, reason: '' })}
-        />
-      )}
-
       {matrixBlueprintAsset && (
         <BlueprintMatrix
           isOpen={true}
@@ -2366,6 +2370,14 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             }
           }}
           onUpdatePlaySet={() => { }}
+        />
+      )}
+
+      {previewAsset && (
+        <AssetPreviewSidebar
+          assetType={previewAsset.type}
+          assetId={previewAsset.id}
+          onClose={() => setPreviewAsset(null)}
         />
       )}
     </>

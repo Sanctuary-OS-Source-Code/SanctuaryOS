@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
+import { isDesktop } from "../utils/envUtils";
+import { isRootDomain } from "../utils/routingUtils";
 import { HoverTooltip } from '../shared';
 
 export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen, setIsNotificationSidebarOpen, unreadNotificationCount, isLogExpanded, setIsLogExpanded, status, isScanning, isErrorStatus, isSuccessStatus, statusBgClass, statusAccentClass, statusIconClass, statusTextClass, updatePayload, isSystemStatusOpen, setIsSystemStatusOpen, setIsSideBrowserOpen }: any) {
@@ -19,7 +21,8 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const activePlaySetIndex = useStore(state => state.activePlaySetIndex);
   const playSets = useStore(state => state.playSets);
   const scanProgress = useStore((state: any) => state.scanProgress);
-  const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen, dnaMatchQueue, isDnaModalOpen, setIsDnaModalOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen } = useModalStore();
+  const quarantineList = useStore(state => state.quarantineList);
+  const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen, dnaMatchQueue, isDnaModalOpen, setIsDnaModalOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen, setIsNexusUpdatesPanelOpen, setIsUpdatePanelOpen, setShowQuarantineModal } = useModalStore();
 
   const updatesCount = React.useMemo(() => {
     if (!networkUpdates?.updated || typeof activePlaySetIndex !== 'number' || !playSets || !playSets[activePlaySetIndex]) return 0;
@@ -68,6 +71,9 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
     }, 300);
   };
 
+  const isRoot = !isDesktop() && isRootDomain();
+  const hasDockNotifications = !isRoot && ((nexusUpdatesCount > 0) || (unreadNotificationCount > 0) || (scoutQueue && scoutQueue.length > 0) || (dnaMatchQueue && dnaMatchQueue.length > 0) || updatePayload || (quarantineList && quarantineList.length > 0));
+
   const dockTransformClass = isDockHovered ? 'translate-y-0' : 'translate-y-[calc(100%-16px)]';
   const dockOpacityClass = isDockHovered ? 'opacity-100' : 'opacity-40';
 
@@ -112,25 +118,82 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         </div>
       </div>
 
-        {/* Dock Area Container */}
-      <div
-        className="fixed bottom-0 left-0 right-0 z-[9999999] flex items-end justify-center pointer-events-none"
-        onMouseEnter={handleDockEnter}
-        onMouseLeave={handleDockLeave}
-      >
+      {/* Dock Area Container */}
+      <div className="fixed bottom-0 left-0 right-0 z-[9999999] flex flex-col items-center justify-end pointer-events-none">
+
+        {/* Floating Micro-Dock Notification Pill (When Dock is Hidden) */}
+        {!isRoot && (
+          <div className={`absolute bottom-[20px] transition-all duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${hasDockNotifications && !isDockHovered ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' : 'opacity-0 translate-y-8 scale-95 pointer-events-none'}`}>
+            <div className="glass-panel flex items-center gap-4 px-5 py-2 rounded-full border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_10px_30px_color-mix(in_srgb,var(--accent)_20%,transparent),inset_0_1px_0_color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] backdrop-blur-xl animate-[pulse_4s_cubic-bezier(0.4,0,0.6,1)_infinite]">
+              {quarantineList && quarantineList.length > 0 && isDesktop() && (
+                <button onClick={() => setShowQuarantineModal(true)} className="flex items-center gap-1.5 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)] hover:scale-110 transition-transform cursor-pointer">
+                  <span className="material-symbols-outlined !text-[15px]">warning_amber</span>
+                  <span className="text-[11px] font-black">{quarantineList.length}</span>
+                </button>
+              )}
+              {dnaMatchQueue && dnaMatchQueue.length > 0 && (
+                <button onClick={() => setIsDnaModalOpen(true)} className="flex items-center gap-1.5 text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)] hover:scale-110 transition-transform cursor-pointer">
+                  <span className="material-symbols-outlined !text-[15px]">radar</span>
+                  <span className="text-[11px] font-black">{dnaMatchQueue.length}</span>
+                </button>
+              )}
+              {scoutQueue && scoutQueue.length > 0 && isDesktop() && (
+                <button onClick={() => setIsScoutPanelOpen(true)} className="flex items-center gap-1.5 text-[var(--accent)] drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_80%,transparent)] hover:scale-110 transition-transform cursor-pointer">
+                  <span className="material-symbols-outlined !text-[15px]">biotech</span>
+                  <span className="text-[11px] font-black">{scoutQueue.length}</span>
+                </button>
+              )}
+              {nexusUpdatesCount > 0 && isDesktop() && (
+                <button onClick={() => setIsNexusUpdatesPanelOpen(true)} className="flex items-center gap-1.5 text-[var(--accent)] drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_80%,transparent)] hover:scale-110 transition-transform cursor-pointer">
+                  <span className="material-symbols-outlined !text-[15px]">cloud_download</span>
+                  <span className="text-[11px] font-black">{nexusUpdatesCount}</span>
+                </button>
+              )}
+              {updatePayload && (
+                <button onClick={() => setIsUpdatePanelOpen(true)} className="flex items-center gap-1.5 text-[var(--accent)] drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_80%,transparent)] hover:scale-110 transition-transform cursor-pointer">
+                  <span className="material-symbols-outlined !text-[15px]">memory</span>
+                  <span className="text-[11px] font-black text-[var(--danger)] animate-pulse">1</span>
+                </button>
+              )}
+              {unreadNotificationCount > 0 && (
+                <button onClick={() => setIsNotificationSidebarOpen(true)} className="flex items-center gap-1.5 text-[var(--accent)] drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_80%,transparent)] hover:scale-110 transition-transform cursor-pointer">
+                  <span className="material-symbols-outlined !text-[15px]">notifications_active</span>
+                  <span className="text-[11px] font-black">{unreadNotificationCount}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Contiguous Hover Wrapper */}
-        <div className={`pointer-events-auto flex flex-col items-center justify-end transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${dockTransformClass} pb-4 ${!isConfigured ? 'pointer-events-none opacity-50 grayscale' : ''}`}>
+        <div
+          onMouseEnter={handleDockEnter}
+          onMouseLeave={handleDockLeave}
+          className={`pointer-events-auto relative flex flex-col items-center justify-end transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${dockTransformClass} pb-4 ${!isConfigured ? 'pointer-events-none opacity-50 grayscale' : ''}`}>
+
 
           {/* Invisible hit bar to fully encapsulate tooltips so mouse-up doesn't drop hover */}
           <div className="w-[800px] max-w-[100vw] h-16 cursor-default" />
 
           {/* The Dock Pill */}
-          <div className={`glass-panel rounded-full flex items-center px-4 py-1.5 gap-1 shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-opacity duration-500 ${dockOpacityClass}`}>
+          <div className={`glass-panel rounded-full flex items-center px-4 py-1.5 gap-1 shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-500 ${dockOpacityClass}`}>
 
-
+            {/* 0. Quarantine / Malware */}
+            {quarantineList && quarantineList.length > 0 && isDesktop() && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowQuarantineModal(true);
+                }}
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] group/btn text-red-500 hover:opacity-100 opacity-90 relative`}
+              >
+                <span className="material-symbols-outlined !text-[20px] drop-shadow-[0_0_5px_currentColor] animate-pulse">warning_amber</span>
+                <HoverTooltip title={<><span className="font-black text-red-500">{quarantineList.length}</span> {t("quarantine_modal_title") || "Malware Detected"}</>} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              </button>
+            )}
 
             {/* 1. Radar Sweep Modal */}
-            {dnaMatchQueue && dnaMatchQueue.length > 0 && (
+            {dnaMatchQueue && dnaMatchQueue.length > 0 && isDesktop() && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -144,7 +207,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
             )}
 
             {/* 2. Unknown DNA */}
-            {scoutQueue && scoutQueue.length > 0 && (
+            {scoutQueue && scoutQueue.length > 0 && isDesktop() && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -158,14 +221,11 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
             )}
 
             {/* 3. Nexus Asset Updates */}
-            {nexusUpdatesCount > 0 && (
+            {nexusUpdatesCount > 0 && isDesktop() && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setView('nexus');
-                  if (nexusUpdateTabs && nexusUpdateTabs.length > 0) {
-                    setMarketTab(nexusUpdateTabs[0]);
-                  }
+                  setIsNexusUpdatesPanelOpen(true);
                 }}
                 className="flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group/btn text-[var(--accent)] relative"
               >
@@ -175,50 +235,66 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
             )}
 
             {/* 4. Radar Sweep Panel */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsConflictRadarOpen(!isConflictRadarOpen);
-              }}
-              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn ${isConflictRadarOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100'} relative`}
-            >
-              <span className={`material-symbols-outlined !text-[20px] ${radarIconColor}`}>{t("icon_radar")}</span>
-              <HoverTooltip title={t("btn_radar")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-            </button>
+            {isDesktop() && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsConflictRadarOpen(!isConflictRadarOpen);
+                }}
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn ${isConflictRadarOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100'} relative`}
+              >
+                <span className={`material-symbols-outlined !text-[20px] ${radarIconColor}`}>{t("icon_radar")}</span>
+                <HoverTooltip title={t("btn_radar")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              </button>
+            )}
 
             {/* 5. Blueprint Hot Swap */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsBlueprintSwapOpen(!isBlueprintSwapOpen);
-              }}
-              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn ${isBlueprintSwapOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100'} relative`}
-            >
-              <span className={`material-symbols-outlined !text-[20px]`}>{t("icon_map")}</span>
-              <HoverTooltip title={t("playsets_title")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-            </button>
+            {isDesktop() && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsBlueprintSwapOpen(!isBlueprintSwapOpen);
+                }}
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn ${isBlueprintSwapOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100'} relative`}
+              >
+                <span className={`material-symbols-outlined !text-[20px]`}>{t("icon_map")}</span>
+                <HoverTooltip title={t("playsets_title")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              </button>
+            )}
 
             {/* 6. System Status */}
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsSystemStatusOpen((prev: boolean) => !prev); }}
-              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative
-                ${isSystemStatusOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-white' : 'hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100'}
-                ${updatePayload ? 'theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] font-bold' : ''}
-                ${isErrorStatus ? 'text-red-500 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : ''}
-                ${isSuccessStatus ? 'text-emerald-500 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : ''}`}
-            >
-              <div className="relative flex items-center justify-center">
-                <span className={`material-symbols-outlined !text-[20px] transition-transform duration-500 group-hover/btn:scale-110 ${updatePayload || isErrorStatus ? 'animate-pulse' : ''}`}>
-                  memory
-                </span>
-                {updatePayload && (
-                  <span className="material-symbols-outlined absolute -bottom-1 -right-1 !text-[12px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),1)]">
-                    download
+            {isDesktop() && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsSystemStatusOpen((prev: boolean) => !prev); }}
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative
+                  ${isSystemStatusOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-white' : 'hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100'}
+                  ${updatePayload ? 'theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] font-bold' : ''}
+                  ${isErrorStatus ? 'text-red-500 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : ''}
+                  ${isSuccessStatus ? 'text-emerald-500 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : ''}`}
+              >
+                <div className="relative flex items-center justify-center">
+                  <span className={`material-symbols-outlined !text-[20px] transition-transform duration-500 group-hover/btn:scale-110 ${updatePayload || isErrorStatus ? 'animate-pulse' : ''}`}>
+                    memory
                   </span>
-                )}
-              </div>
-              <HoverTooltip title={updatePayload ? t("sys_stat_update_available") : t("system_status")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-            </button>
+                  {updatePayload && (
+                    <span className="material-symbols-outlined absolute -bottom-1 -right-1 !text-[12px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),1)]">
+                      download
+                    </span>
+                  )}
+                  {isErrorStatus && !updatePayload && (
+                    <span className="material-symbols-outlined absolute -bottom-1 -right-1 !text-[12px] text-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,1)]">
+                      warning
+                    </span>
+                  )}
+                  {isSuccessStatus && !updatePayload && !isErrorStatus && (
+                    <span className="material-symbols-outlined absolute -bottom-1 -right-1 !text-[12px] text-emerald-500 drop-shadow-[0_0_5px_rgba(16,185,129,1)]">
+                      check_circle
+                    </span>
+                  )}
+                </div>
+                <HoverTooltip title={isErrorStatus ? t("status_critical") : isSuccessStatus ? t("status_stable") : updatePayload ? t("updates_ready") : status || t("system_status")} variant={isErrorStatus ? "danger" : isSuccessStatus ? "success" : "default"} noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              </button>
+            )}
 
             {/* Log Viewer Toggle */}
             <button
@@ -242,17 +318,20 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
             <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1" />
 
             {/* 8. Notifications */}
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsNotificationSidebarOpen(!isNotificationSidebarOpen); }}
-              className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]`}
-            >
-              <div className="relative flex items-center justify-center">
-                <span className={`material-symbols-outlined !text-[20px] transition-all ${isNotificationSidebarOpen ? 'text-[var(--accent)] drop-shadow-[0_0_8px_var(--accent)]' : unreadNotificationCount > 0 ? 'text-[var(--accent)] animate-pulse drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--text)] opacity-70 group-hover/btn:opacity-100'}`}>
-                  {t("icon_notifications")}
-                </span>
-              </div>
-              <HoverTooltip title={t("tab_notifs")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
-            </button>
+            {!isRoot && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsNotificationSidebarOpen(!isNotificationSidebarOpen); }}
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all group/btn relative hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]`}
+              >
+                <div className="relative flex items-center justify-center">
+                  <span className={`material-symbols-outlined !text-[20px] transition-all ${isNotificationSidebarOpen ? 'text-[var(--accent)] drop-shadow-[0_0_8px_var(--accent)]' : unreadNotificationCount > 0 ? 'text-[var(--accent)] animate-pulse drop-shadow-[0_0_5px_var(--accent)]' : 'text-[var(--text)] opacity-70 group-hover/btn:opacity-100'}`}>
+                    {t("icon_notifications")}
+                  </span>
+                </div>
+                <HoverTooltip title={t("tab_notifs")} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              </button>
+            )}
+
 
             {/* 9. Settings */}
             <button

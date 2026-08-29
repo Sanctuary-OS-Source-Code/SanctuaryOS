@@ -7,6 +7,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { isDesktop } from "../utils/envUtils";
 
 export function MarketUploadPanel({
   uploadState,
@@ -44,7 +45,7 @@ export function MarketUploadPanel({
           </>
         }
       >
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 relative z-10">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-6 flex flex-col gap-6 relative z-10">
           <div className="flex flex-col gap-8 pb-8 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none" style={{ transform: 'translate(20%, -20%)' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '300px' }}>cloud_upload</span>
@@ -242,7 +243,7 @@ export function MarketReportPanel({
           </>
         }
       >
-        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative z-10 pt-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col relative z-10 pt-6">
           <div className="flex flex-col gap-8 pb-8 px-6 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none" style={{ transform: 'translate(20%, -20%)' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '300px' }}>flag</span>
@@ -475,27 +476,29 @@ export function MarketBlueprintPanel({
         headerActions={
           <>
             <PanelHeaderGroup>
-              <PanelHeaderButton
-                icon={isSyncing ? "sync" : "download"}
-                tooltip={playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? (t("btn_install_copy") || "Install Copy") : (t("update_panel_install") || "Install")}
-                onClick={async () => {
-                  if (playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code)) {
-                    setIsSyncing(true);
-                    await syncBlueprintByCode(selectedBlueprint.json_data.code);
-                    setIsSyncing(false);
-                  } else {
-                    onDownloadSuccess?.();
-                  }
-                  setSelectedBlueprint(null);
-                }}
-                disabled={isSyncing}
-                variant="accent"
-              />
+              {isDesktop() && (
+                <PanelHeaderButton
+                  icon={isSyncing ? "sync" : "download"}
+                  tooltip={playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? (t("btn_install_copy") || "Install Copy") : (t("update_panel_install") || "Install")}
+                  onClick={async () => {
+                    if (playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code)) {
+                      setIsSyncing(true);
+                      await syncBlueprintByCode(selectedBlueprint.json_data.code);
+                      setIsSyncing(false);
+                    } else {
+                      onDownloadSuccess?.();
+                    }
+                    setSelectedBlueprint(null);
+                  }}
+                  variant="accent"
+                  spinIcon={isSyncing}
+                />
+              )}
             </PanelHeaderGroup>
           </>
         }
       >
-        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative z-10 px-10 py-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col relative z-10 px-10 py-6">
           <div className="flex flex-col gap-3 pb-8">
             <div className="glass-panel p-8 rounded-[2rem] flex flex-col justify-start gap-6 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative overflow-hidden mb-4 shadow-xl">
               <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-30"></div>

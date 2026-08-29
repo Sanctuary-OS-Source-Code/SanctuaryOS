@@ -41,6 +41,9 @@ import Nexus from "./Nexus";
 import { DbpfScout } from "./DbpfScout";
 import { useLexicon } from "./LexiconContext";
 import { WorkspaceLanding } from "./WorkspaceLanding";
+import WebLandingPage from "./WebLandingPage";
+import { isDesktop } from "./utils/envUtils";
+import { isRootDomain } from "./utils/routingUtils";
 import { Sidebar } from "./Sidebar";
 import NotificationSidebar from "./side-panels/NotificationSidebar";
 import CitizenTicketsSidePanel from "./side-panels/CitizenTicketsSidePanel";
@@ -136,7 +139,7 @@ function App() {
   const activeGameSchema = useStore((state) => state.activeGameSchema);
 
   useEffect(() => {
-    if (activeGameSchema) {
+    if (activeGameSchema && isDesktop()) {
       invoke('update_active_game_schema', { schema: activeGameSchema }).catch(console.error);
     }
   }, [activeGameSchema]);
@@ -209,28 +212,32 @@ function App() {
       setIngestProgress({ active: false, current: 0, total: 0 });
     };
 
-    const unlistenPromise = getCurrentWebview().onDragDropEvent((event) => {
-      if (event.payload.type === "enter" || event.payload.type === "over") {
-        if (!localIsDragging) {
-          localIsDragging = true;
-          useModalStore.getState().setIsDragging(true);
-        }
-      } else if (event.payload.type === "leave") {
-        if (localIsDragging) {
+    let unlistenPromise: Promise<() => void> | null = null;
+
+    if (isDesktop()) {
+      unlistenPromise = getCurrentWebview().onDragDropEvent((event) => {
+        if (event.payload.type === "enter" || event.payload.type === "over") {
+          if (!localIsDragging) {
+            localIsDragging = true;
+            useModalStore.getState().setIsDragging(true);
+          }
+        } else if (event.payload.type === "leave") {
+          if (localIsDragging) {
+            localIsDragging = false;
+            useModalStore.getState().setIsDragging(false);
+          }
+        } else if (event.payload.type === "drop") {
           localIsDragging = false;
           useModalStore.getState().setIsDragging(false);
+          const paths = event.payload.paths as string[];
+          if (paths && paths.length > 0) {
+            dropQueue.push(...paths);
+            if (dropTimeout) clearTimeout(dropTimeout);
+            dropTimeout = setTimeout(processDropQueue, 150);
+          }
         }
-      } else if (event.payload.type === "drop") {
-        localIsDragging = false;
-        useModalStore.getState().setIsDragging(false);
-        const paths = event.payload.paths;
-        if (paths && paths.length > 0) {
-          dropQueue.push(...paths);
-          if (dropTimeout) clearTimeout(dropTimeout);
-          dropTimeout = setTimeout(processDropQueue, 150);
-        }
-      }
-    });
+      });
+    }
 
     const handleCancelDrag = () => {
       const state = useModalStore.getState();
@@ -250,7 +257,7 @@ function App() {
     window.addEventListener("keydown", handleNativeSearch, { capture: true });
 
     return () => {
-      unlistenPromise.then((unlisten) => unlisten());
+      if (unlistenPromise) unlistenPromise.then((unlisten) => unlisten());
       window.removeEventListener("mousemove", handleCancelDrag);
       window.removeEventListener("mousedown", handleCancelDrag);
       window.removeEventListener("keydown", handleCancelDrag);
@@ -354,7 +361,7 @@ function App() {
 
   useEffect(() => {
     if (!session?.user?.id) return;
-    
+
     const fetchUnread = async () => {
       if (session?.user?.id) {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -363,11 +370,11 @@ function App() {
 
         if (data) {
           const gameUnread = data.filter((n: any) => !n.is_read).length;
-          
+
           if (!isInitialLoadRef.current && gameUnread > prevUnreadRef.current) {
             setStatus(`notifications_active New Transmission Received`);
           }
-          
+
           prevUnreadRef.current = gameUnread;
           isInitialLoadRef.current = false;
           setUnreadNotificationCount(gameUnread);
@@ -687,24 +694,26 @@ function App() {
   const networkCheckIdRef = useRef<number>(0);
   useEffect(() => {
     let unlisten: any;
-    listen("dna_match_detected", (event: any) => {
-      const { hash, path } = event.payload;
-      if (hash && ignoredHashesRef.current.has(hash)) {
-        return;
-      }
-      if (!hash && ignoredHashesRef.current.has(path)) {
-        return;
-      }
-      setDnaMatchQueue((prev: any[]) => {
-        const isDuplicate = prev.some((m) => (hash ? m.hash === hash : m.path === path));
-        if (isDuplicate) return prev;
-        return [...prev, event.payload];
-      });
-    }).then((handler) => { unlisten = handler; });
+    if (isDesktop()) {
+    if (isDesktop()) { listen("dna_match_detected", (event: any) => {
+        const { hash, path } = event.payload;
+        if (hash && ignoredHashesRef.current.has(hash)) {
+          return;
+        }
+        if (!hash && ignoredHashesRef.current.has(path)) {
+          return;
+        }
+        setDnaMatchQueue((prev: any[]) => {
+          const isDuplicate = prev.some((m) => (hash ? m.hash === hash : m.path === path));
+          if (isDuplicate) return prev;
+          return [...prev, event.payload];
+        });
+      }).then((handler) => { unlisten = handler; }); }
+    }
 
     let unlistenMalware: () => void;
     let isMounted = true;
-    listen("malware_detected", async (event: any) => {
+    if (isDesktop()) { listen("malware_detected", async (event: any) => {
       const debounceKey = `${event.payload.hash}`;
       if (!event.payload.hash || insertingHashes.current.has(debounceKey)) return;
       insertingHashes.current.add(debounceKey);
@@ -746,7 +755,7 @@ function App() {
     }).then(unlisten => {
       if (!isMounted) unlisten();
       else unlistenMalware = unlisten;
-    });
+    }); }
 
     return () => {
       isMounted = false;
@@ -891,7 +900,7 @@ function App() {
     }
   }, [view]);
   useEffect(() => {
-    const unlisten = listen("vault_changed", () => fetchBackups());
+    const unlisten = isDesktop() ? listen("vault_changed", () => fetchBackups()) : Promise.resolve(() => { });
     const handleRefresh = () => runRadarSweep(true);
     window.addEventListener("refreshVault", handleRefresh);
     return () => {
@@ -905,25 +914,27 @@ function App() {
 
     if (!activeGameSchema?.extensions?.supported) return;
 
-    // Start the Rust downloads watcher
-    invoke("start_downloads_watch", {
-      extensions: activeGameSchema.extensions.supported
-    }).catch(console.warn);
+    if (isDesktop()) {
+      // Start the Rust downloads watcher
+    if (isDesktop()) { invoke("start_downloads_watch", {
+        extensions: activeGameSchema.extensions.supported
+      }).catch(console.warn);
 
-    listen("download_intercepted", (event: any) => {
-      useModalStore.getState().setDownloadsQueue((prev: string[]) => {
-        if (!prev.includes(event.payload.path)) {
-          return [...prev, event.payload.path];
-        }
-        return prev;
-      });
-    }).then((handler) => {
-      unlisten = handler;
-    });
+      listen("download_intercepted", (event: any) => {
+        useModalStore.getState().setDownloadsQueue((prev: string[]) => {
+          if (!prev.includes(event.payload.path)) {
+            return [...prev, event.payload.path];
+          }
+          return prev;
+        });
+      }).then((handler) => {
+        unlisten = handler;
+      }); }
+    }
 
     return () => {
       if (unlisten) unlisten();
-      invoke("stop_downloads_watch").catch(console.warn);
+      if (isDesktop()) if (isDesktop()) invoke("stop_downloads_watch").catch(console.warn);
     };
   }, [activeGameSchema]);
   useEffect(() => {
@@ -1110,6 +1121,11 @@ function App() {
     window.addEventListener('online', handleOnlineRoleFetch);
 
     async function boot() {
+      if (!isDesktop()) {
+        useStore.setState({ isGlobalConfigLoaded: true });
+        setIsConfigured(true);
+        return;
+      }
       try {
         localStorage.removeItem("sanctuary_cloud_cache");
         const config: any = await invoke("get_saved_coordinates");
@@ -1229,7 +1245,7 @@ function App() {
       try {
         localStorage.setItem("network_updates_debug", debugLog);
       } catch (e) { }
-      
+
       if (networkCheckIdRef.current !== currentCheckId) {
         console.warn("checkNetworkUpdates superseded by a newer sweep. Aborting stale state update.");
         return;
@@ -2130,7 +2146,9 @@ function App() {
             <div className="relative z-10 w-full h-full pb-[100px]">
               {isGlobalConfigLoaded && (
                 <>
-                  {!isConfigured ? (
+                  {!isDesktop() && isRootDomain() ? (
+                    <WebLandingPage />
+                  ) : !isConfigured ? (
                     <WorkspaceLanding />
                   ) : (
                     <>
@@ -2645,5 +2663,7 @@ function App() {
   );
 }
 export default App;
+
+
 
 

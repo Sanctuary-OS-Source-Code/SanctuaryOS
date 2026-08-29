@@ -1864,7 +1864,7 @@ export function SidePanel({
             </div>
           )}
 
-          <div className={`flex-1 min-h-0 flex flex-col relative z-10 ${noScroll ? '' : 'overflow-y-auto custom-scrollbar'} ${noPadding ? '' : 'p-8'} ${isResizing ? 'pointer-events-none select-none overflow-hidden' : ''}`}>
+          <div className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-x-hidden ${noScroll ? '' : 'overflow-y-auto custom-scrollbar'} ${noPadding ? '' : 'p-8'} ${isResizing ? 'pointer-events-none select-none overflow-hidden' : ''}`}>
             {children}
           </div>
 

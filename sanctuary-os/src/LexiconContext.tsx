@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { isDesktop } from './utils/envUtils';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
 import enSanctuary from './lexicons/en-sanctuary.json';
 import enDefault from './lexicons/en-default.json';
@@ -69,6 +70,7 @@ export const LexiconProvider = ({ children }: any) => {
   useEffect(() => {
     const scanVault = async () => {
       try {
+        if (!isDesktop()) return;
         const config: any = await invoke('get_saved_coordinates');
         if (!config?.vault_path) return;
         const lexiconsDir = `${config.vault_path}\\Data\\Lexicons`;
@@ -225,6 +227,7 @@ export const LexiconProvider = ({ children }: any) => {
 
     (async () => {
       try {
+        if (!isDesktop()) return;
         const config: any = await invoke('get_saved_coordinates');
         if (config?.vault_path) {
           const lexiconsDir = `${config.vault_path}\\Data\\Lexicons`;
@@ -243,6 +246,7 @@ export const LexiconProvider = ({ children }: any) => {
 
     (async () => {
       try {
+        if (!isDesktop()) return;
         const config: any = await invoke('get_saved_coordinates');
         if (config?.vault_path) {
           const filePath = `${config.vault_path}\\Data\\Lexicons\\${langCode}.json`;
@@ -260,4 +264,20 @@ export const LexiconProvider = ({ children }: any) => {
   );
 };
 
-export const useLexicon = () => useContext(LexiconContext);
+export const useLexicon = () => {
+  const ctx = useContext(LexiconContext);
+  if (!ctx) {
+    return {
+      t: (key: string) => `[${key}]`,
+      activeLang: 'en-sanctuary',
+      setActiveLang: () => {},
+      importLexicon: () => {},
+      deleteLexicon: () => {},
+      registry: {},
+      lexiconMeta: [],
+      useGlobalLexicon: false,
+      setUseGlobalLexicon: () => {}
+    };
+  }
+  return ctx;
+};

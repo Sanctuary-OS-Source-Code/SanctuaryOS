@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
 import { supabase } from './supabase';
+import { isDesktop } from './utils/envUtils';
 
 import { useStore } from './store';
 
@@ -185,6 +186,7 @@ export const ThemeProvider = ({ children }: any) => {
   useEffect(() => {
     const scanVault = async () => {
       try {
+        if (!isDesktop()) return;
         const config: any = await invoke('get_saved_coordinates');
         if (!config?.vault_path) return;
 
@@ -322,6 +324,7 @@ export const ThemeProvider = ({ children }: any) => {
   const saveThemeToVault = (id: string, json: any, isDev: boolean = false) => {
     (async () => {
       try {
+        if (!isDesktop()) return;
         const config: any = await invoke('get_saved_coordinates');
         if (config?.vault_path) {
           const dir = isDev ? `${config.vault_path}\\Data\\Dev\\Themes` : `${config.vault_path}\\Data\\Themes`;
@@ -442,6 +445,7 @@ export const ThemeProvider = ({ children }: any) => {
 
     (async () => {
       try {
+        if (!isDesktop()) return;
         const config: any = await invoke('get_saved_coordinates');
         if (config?.vault_path) {
           const dir = isDev ? `${config.vault_path}\\Data\\Dev\\Themes` : `${config.vault_path}\\Data\\Themes`;

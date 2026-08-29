@@ -1,14 +1,16 @@
-use crate::commands::state_ops::*;
-use crate::commands::library::*;
+use crate::commands::cache::*;
+use crate::commands::config::*;
 use crate::commands::deployment::*;
+use crate::commands::game_info::*;
+use crate::commands::library::*;
+use crate::commands::logs::*;
+use crate::commands::overrides::*;
 use crate::commands::radar::*;
 use crate::commands::shelter::*;
-use crate::commands::config::*;
-use crate::commands::overrides::*;
+use crate::commands::state_ops::*;
 use crate::commands::system::*;
-use crate::commands::logs::*;
-use crate::commands::cache::*;
-use crate::commands::game_info::*;
+use crate::state::*;
+use crate::utils::*;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -20,12 +22,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tauri::{Emitter, Manager};
-use crate::state::*;
-use crate::utils::*;
-
 
 #[tauri::command]
-pub async fn sanitize_vault(vault_path: String, _state: tauri::State<'_, AppState>) -> Result<String, String> {
+pub async fn sanitize_vault(
+    vault_path: String,
+    _state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let vault_root = PathBuf::from(&vault_path);
         let backups_dir = vault_root.join("Backups");
@@ -89,7 +91,7 @@ pub async fn sanitize_vault(vault_path: String, _state: tauri::State<'_, AppStat
         }
 
         let _ = sweep_empty_dirs(&mods_lane);
-        
+
         Ok(moved.to_string())
     })
     .await
@@ -103,23 +105,33 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
         let config = get_saved_coordinates();
         let base = PathBuf::from(&vault_path).join("Backups");
         let mut engine_core_seen = false;
-        
+
         let mut process_dir = |dir: &std::path::Path| {
             if let Ok(entries) = std::fs::read_dir(dir) {
                 for e in entries.flatten() {
                     let name = e.file_name().to_string_lossy().into_owned();
-                    if e.path().is_dir() && (name.starts_with("World_State") || name.starts_with("Engine_Core")) {
+                    if e.path().is_dir()
+                        && (name.starts_with("World_State") || name.starts_with("Engine_Core"))
+                    {
                         let size_file = e.path().join(".size_bytes.txt");
                         let diff_size_file = e.path().join(".diff_size_bytes.txt");
-                        
+
                         let logical_size = if size_file.exists() {
-                            std::fs::read_to_string(&size_file).unwrap_or_default().trim().parse::<u64>().unwrap_or(0)
+                            std::fs::read_to_string(&size_file)
+                                .unwrap_or_default()
+                                .trim()
+                                .parse::<u64>()
+                                .unwrap_or(0)
                         } else {
                             0
                         };
 
                         let physical_size = if diff_size_file.exists() {
-                            std::fs::read_to_string(&diff_size_file).unwrap_or_default().trim().parse::<u64>().unwrap_or(0)
+                            std::fs::read_to_string(&diff_size_file)
+                                .unwrap_or_default()
+                                .trim()
+                                .parse::<u64>()
+                                .unwrap_or(0)
                         } else {
                             0
                         };
@@ -134,14 +146,20 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
                                 let _ = std::fs::write(&d_clone, diff_size.to_string());
                             });
                         }
-                        
+
                         files.push(BackupInfo {
                             name,
                             size_mb: physical_size as f64 / 1_048_576.0,
                             logical_size_mb: Some(logical_size as f64 / 1_048_576.0),
                         });
-                    } else if e.path().is_file() && (e.path().extension() == Some(std::ffi::OsStr::new("zst")) || e.path().extension() == Some(std::ffi::OsStr::new("tar"))) {
-                        let size = e.metadata().map(|m| m.len() as f64 / 1_048_576.0).unwrap_or(0.0);
+                    } else if e.path().is_file()
+                        && (e.path().extension() == Some(std::ffi::OsStr::new("zst"))
+                            || e.path().extension() == Some(std::ffi::OsStr::new("tar")))
+                    {
+                        let size = e
+                            .metadata()
+                            .map(|m| m.len() as f64 / 1_048_576.0)
+                            .unwrap_or(0.0);
                         files.push(BackupInfo {
                             name,
                             size_mb: size,
@@ -155,12 +173,14 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
         process_dir(&base.join("World"));
         process_dir(&base.join("Mods"));
         process_dir(&base);
-        
+
         // Scan legacy vault Engine
         process_dir(&base.join("Engine"));
-        
+
         // Scan relocated Engine backups
-        if let Some(engine_dir) = crate::utils::get_engine_backups_dir(&config.live_path, &vault_path) {
+        if let Some(engine_dir) =
+            crate::utils::get_engine_backups_dir(&config.live_path, &vault_path)
+        {
             process_dir(&engine_dir);
         }
 
@@ -243,18 +263,30 @@ pub async fn backup_universe(
                 .unwrap()
                 .as_secs()
         );
-        let parent_dir = PathBuf::from(&config.vault_path).join("Backups").join("World");
+        let parent_dir = PathBuf::from(&config.vault_path)
+            .join("Backups")
+            .join("World");
         let backup_path = parent_dir.join(&backup_name);
-        
+
         let mut previous_backup = None;
         if let Ok(entries) = std::fs::read_dir(&parent_dir) {
-            let mut folders: Vec<_> = entries.flatten()
-                .filter(|e| e.file_type().map_or(false, |ft| ft.is_dir()) && e.file_name().to_string_lossy().starts_with("World_State--"))
+            let mut folders: Vec<_> = entries
+                .flatten()
+                .filter(|e| {
+                    e.file_type().map_or(false, |ft| ft.is_dir())
+                        && e.file_name().to_string_lossy().starts_with("World_State--")
+                })
                 .map(|e| e.path())
                 .collect();
             folders.sort_by(|a, b| {
-                let ma = a.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
-                let mb = b.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
+                let ma = a
+                    .metadata()
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::UNIX_EPOCH);
+                let mb = b
+                    .metadata()
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::UNIX_EPOCH);
                 ma.cmp(&mb)
             });
             previous_backup = folders.pop();
@@ -264,7 +296,7 @@ pub async fn backup_universe(
 
         let app_state = app.state::<AppState>();
         let game_schema = app_state.active_schema.lock().unwrap().clone();
-        
+
         let mut targets = Vec::new();
         if let Some(schema) = &game_schema {
             if let Some(time_capsule) = &schema.time_capsule {
@@ -284,7 +316,10 @@ pub async fn backup_universe(
 
         let total = files_to_backup.len();
         if total == 0 {
-            return Err(format!("No files found to backup in path: {}", game_docs_path.display()));
+            return Err(format!(
+                "No files found to backup in path: {}",
+                game_docs_path.display()
+            ));
         }
         let _ = app.emit(
             "backup-progress",
@@ -321,8 +356,12 @@ pub async fn backup_universe(
             if let Some(prev) = &previous_backup {
                 let prev_file = prev.join(&stripped);
                 if prev_file.exists() && prev_file.is_file() {
-                    if let (Ok(src_meta), Ok(prev_meta)) = (file_path.metadata(), prev_file.metadata()) {
-                        if src_meta.len() == prev_meta.len() && src_meta.modified().ok() == prev_meta.modified().ok() {
+                    if let (Ok(src_meta), Ok(prev_meta)) =
+                        (file_path.metadata(), prev_file.metadata())
+                    {
+                        if src_meta.len() == prev_meta.len()
+                            && src_meta.modified().ok() == prev_meta.modified().ok()
+                        {
                             if std::fs::hard_link(&prev_file, &dest_path).is_ok() {
                                 linked = true;
                             }
@@ -337,15 +376,24 @@ pub async fn backup_universe(
                 }
             } else {
                 if let Some(prev) = &previous_backup {
-                    if previous_backup.as_ref().map_or(false, |p| p.join(&stripped).exists()) {
+                    if previous_backup
+                        .as_ref()
+                        .map_or(false, |p| p.join(&stripped).exists())
+                    {
                         // It's a hardlink, no physical size added
                     }
                 }
             }
 
             if last_emit.elapsed() > std::time::Duration::from_millis(50) || i == total - 1 {
-                let mut current_pct = if total > 0 { (((i + 1) as f64 / total as f64) * 100.0) as usize } else { 0 };
-                if current_pct > 100 { current_pct = 100; }
+                let mut current_pct = if total > 0 {
+                    (((i + 1) as f64 / total as f64) * 100.0) as usize
+                } else {
+                    0
+                };
+                if current_pct > 100 {
+                    current_pct = 100;
+                }
                 let _ = app.emit(
                     "backup-progress",
                     serde_json::json!({
@@ -374,7 +422,10 @@ pub async fn backup_universe(
             }
         }
         let _ = std::fs::write(backup_path.join(".size_bytes.txt"), total_size.to_string());
-        let _ = std::fs::write(backup_path.join(".diff_size_bytes.txt"), diff_size.to_string());
+        let _ = std::fs::write(
+            backup_path.join(".diff_size_bytes.txt"),
+            diff_size.to_string(),
+        );
 
         if let Some(cycles) = config.world_retention_cycles {
             crate::utils::enforce_retention_policy(&parent_dir, cycles);
@@ -415,19 +466,33 @@ pub async fn backup_engine_full(
                 .as_secs()
         );
         let parent_dir = crate::utils::get_engine_backups_dir(&live_path, &config.vault_path)
-            .unwrap_or_else(|| PathBuf::from(&config.vault_path).join("Backups").join("Engine"));
-            
+            .unwrap_or_else(|| {
+                PathBuf::from(&config.vault_path)
+                    .join("Backups")
+                    .join("Engine")
+            });
+
         let backup_path = parent_dir.join(&backup_name);
-        
+
         let mut previous_backup = None;
         if let Ok(entries) = std::fs::read_dir(&parent_dir) {
-            let mut folders: Vec<_> = entries.flatten()
-                .filter(|e| e.file_type().map_or(false, |ft| ft.is_dir()) && e.file_name().to_string_lossy().starts_with("Engine_Core--"))
+            let mut folders: Vec<_> = entries
+                .flatten()
+                .filter(|e| {
+                    e.file_type().map_or(false, |ft| ft.is_dir())
+                        && e.file_name().to_string_lossy().starts_with("Engine_Core--")
+                })
                 .map(|e| e.path())
                 .collect();
             folders.sort_by(|a, b| {
-                let ma = a.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
-                let mb = b.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
+                let ma = a
+                    .metadata()
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::UNIX_EPOCH);
+                let mb = b
+                    .metadata()
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::UNIX_EPOCH);
                 ma.cmp(&mb)
             });
             previous_backup = folders.pop();
@@ -437,7 +502,7 @@ pub async fn backup_engine_full(
 
         let app_state = app.state::<AppState>();
         let game_schema = app_state.active_schema.lock().unwrap().clone();
-        
+
         let mut targets = Vec::new();
         if let Some(schema) = &game_schema {
             if let Some(time_capsule) = &schema.time_capsule {
@@ -465,7 +530,10 @@ pub async fn backup_engine_full(
 
         let total = files_to_backup.len();
         if total == 0 {
-            return Err(format!("No files found to backup in engine path: {}", base_path.display()));
+            return Err(format!(
+                "No files found to backup in engine path: {}",
+                base_path.display()
+            ));
         }
         let _ = app.emit(
             "backup-progress",
@@ -502,8 +570,12 @@ pub async fn backup_engine_full(
             if let Some(prev) = &previous_backup {
                 let prev_file = prev.join(&stripped);
                 if prev_file.exists() && prev_file.is_file() {
-                    if let (Ok(src_meta), Ok(prev_meta)) = (file_path.metadata(), prev_file.metadata()) {
-                        if src_meta.len() == prev_meta.len() && src_meta.modified().ok() == prev_meta.modified().ok() {
+                    if let (Ok(src_meta), Ok(prev_meta)) =
+                        (file_path.metadata(), prev_file.metadata())
+                    {
+                        if src_meta.len() == prev_meta.len()
+                            && src_meta.modified().ok() == prev_meta.modified().ok()
+                        {
                             if std::fs::hard_link(&prev_file, &dest_path).is_ok() {
                                 linked = true;
                             }
@@ -519,8 +591,14 @@ pub async fn backup_engine_full(
             }
 
             if last_emit.elapsed() > std::time::Duration::from_millis(50) || i == total - 1 {
-                let mut current_pct = if total > 0 { (((i + 1) as f64 / total as f64) * 100.0) as usize } else { 0 };
-                if current_pct > 100 { current_pct = 100; }
+                let mut current_pct = if total > 0 {
+                    (((i + 1) as f64 / total as f64) * 100.0) as usize
+                } else {
+                    0
+                };
+                if current_pct > 100 {
+                    current_pct = 100;
+                }
                 let _ = app.emit(
                     "backup-progress",
                     serde_json::json!({
@@ -549,7 +627,10 @@ pub async fn backup_engine_full(
             }
         }
         let _ = std::fs::write(backup_path.join(".size_bytes.txt"), total_size.to_string());
-        let _ = std::fs::write(backup_path.join(".diff_size_bytes.txt"), diff_size.to_string());
+        let _ = std::fs::write(
+            backup_path.join(".diff_size_bytes.txt"),
+            diff_size.to_string(),
+        );
 
         if let Some(cycles) = config.engine_retention_cycles {
             crate::utils::enforce_retention_policy(&parent_dir, cycles);
@@ -561,14 +642,18 @@ pub async fn backup_engine_full(
     .map_err(|e| e.to_string())?
 }
 
-fn differential_restore<F>(arc_dir: &std::path::Path, target_dir: &std::path::Path, progress_cb: &mut F) -> std::io::Result<()> 
-where 
+fn differential_restore<F>(
+    arc_dir: &std::path::Path,
+    target_dir: &std::path::Path,
+    progress_cb: &mut F,
+) -> std::io::Result<()>
+where
     F: FnMut(),
 {
     if !target_dir.exists() {
         std::fs::create_dir_all(target_dir)?;
     }
-    
+
     if let Ok(entries) = std::fs::read_dir(target_dir) {
         for e in entries.flatten() {
             let file_name = e.file_name();
@@ -583,20 +668,24 @@ where
             }
         }
     }
-    
+
     if let Ok(entries) = std::fs::read_dir(arc_dir) {
         for e in entries.flatten() {
             let file_name = e.file_name();
             let arc_path = e.path();
             let target_path = target_dir.join(&file_name);
-            
+
             if arc_path.is_dir() {
                 differential_restore(&arc_path, &target_path, progress_cb)?;
             } else {
                 let mut needs_copy = true;
                 if target_path.exists() && target_path.is_file() {
-                    if let (Ok(arc_meta), Ok(target_meta)) = (arc_path.metadata(), target_path.metadata()) {
-                        if arc_meta.len() == target_meta.len() && arc_meta.modified().ok() == target_meta.modified().ok() {
+                    if let (Ok(arc_meta), Ok(target_meta)) =
+                        (arc_path.metadata(), target_path.metadata())
+                    {
+                        if arc_meta.len() == target_meta.len()
+                            && arc_meta.modified().ok() == target_meta.modified().ok()
+                        {
                             needs_copy = false;
                         }
                     }
@@ -632,14 +721,26 @@ pub struct DiffEntry {
 }
 
 #[tauri::command]
-pub async fn get_backup_contents(vault_path: String, backup_name: String) -> Result<BackupInspectionResult, String> {
+pub async fn get_backup_contents(
+    vault_path: String,
+    backup_name: String,
+) -> Result<BackupInspectionResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let parent = if backup_name.starts_with("Engine_Core") { "Engine" } else { "World" };
-        let mut backup_dir = PathBuf::from(&vault_path).join("Backups").join(parent).join(&backup_name);
-        
+        let parent = if backup_name.starts_with("Engine_Core") {
+            "Engine"
+        } else {
+            "World"
+        };
+        let mut backup_dir = PathBuf::from(&vault_path)
+            .join("Backups")
+            .join(parent)
+            .join(&backup_name);
+
         if backup_name.starts_with("Engine_Core") && !backup_dir.exists() {
             let config = get_saved_coordinates();
-            if let Some(engine_dir) = crate::utils::get_engine_backups_dir(&config.live_path, &vault_path) {
+            if let Some(engine_dir) =
+                crate::utils::get_engine_backups_dir(&config.live_path, &vault_path)
+            {
                 backup_dir = engine_dir.join(&backup_name);
             }
         }
@@ -650,20 +751,24 @@ pub async fn get_backup_contents(vault_path: String, backup_name: String) -> Res
 
         let mut files = vec![];
         let all_files = get_all_files(&backup_dir);
-        
+
         for file in all_files {
             if let Ok(rel) = file.strip_prefix(&backup_dir) {
                 let rel_str = rel.to_string_lossy().replace("\\", "/");
-                if rel_str.starts_with(".") { continue; }
-                
-                let size = std::fs::metadata(&file).map(|m| m.len() as f64 / 1_048_576.0).unwrap_or(0.0);
+                if rel_str.starts_with(".") {
+                    continue;
+                }
+
+                let size = std::fs::metadata(&file)
+                    .map(|m| m.len() as f64 / 1_048_576.0)
+                    .unwrap_or(0.0);
                 files.push(BackupFile {
                     path: rel_str,
                     size_mb: size,
                 });
             }
         }
-        
+
         files.sort_by(|a, b| a.path.cmp(&b.path));
 
         let logical_size = std::fs::read_to_string(backup_dir.join(".size_bytes.txt"))
@@ -671,7 +776,7 @@ pub async fn get_backup_contents(vault_path: String, backup_name: String) -> Res
             .trim()
             .parse::<u64>()
             .unwrap_or(0);
-            
+
         let diff_size = std::fs::read_to_string(backup_dir.join(".diff_size_bytes.txt"))
             .unwrap_or_default()
             .trim()
@@ -690,14 +795,28 @@ pub async fn get_backup_contents(vault_path: String, backup_name: String) -> Res
 }
 
 #[tauri::command]
-pub async fn extract_backup_file(vault_path: String, docs_path: String, backup_name: String, file_path: String) -> Result<String, String> {
+pub async fn extract_backup_file(
+    vault_path: String,
+    docs_path: String,
+    backup_name: String,
+    file_path: String,
+) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let parent = if backup_name.starts_with("Engine_Core") { "Engine" } else { "World" };
-        let mut backup_dir = PathBuf::from(&vault_path).join("Backups").join(parent).join(&backup_name);
+        let parent = if backup_name.starts_with("Engine_Core") {
+            "Engine"
+        } else {
+            "World"
+        };
+        let mut backup_dir = PathBuf::from(&vault_path)
+            .join("Backups")
+            .join(parent)
+            .join(&backup_name);
         let config = get_saved_coordinates();
-        
+
         if backup_name.starts_with("Engine_Core") && !backup_dir.exists() {
-            if let Some(engine_dir) = crate::utils::get_engine_backups_dir(&config.live_path, &vault_path) {
+            if let Some(engine_dir) =
+                crate::utils::get_engine_backups_dir(&config.live_path, &vault_path)
+            {
                 backup_dir = engine_dir.join(&backup_name);
             }
         }
@@ -713,9 +832,17 @@ pub async fn extract_backup_file(vault_path: String, docs_path: String, backup_n
 
         let target_root = if backup_name.starts_with("Engine_Core") {
             let mut base = PathBuf::from(&config.live_path);
-            if base.is_file() { base.pop(); }
-            if base.to_string_lossy().to_lowercase().ends_with("bin") || base.to_string_lossy().to_lowercase().ends_with("bin_le") { base.pop(); }
-            if base.to_string_lossy().to_lowercase().ends_with("game") { base.pop(); }
+            if base.is_file() {
+                base.pop();
+            }
+            if base.to_string_lossy().to_lowercase().ends_with("bin")
+                || base.to_string_lossy().to_lowercase().ends_with("bin_le")
+            {
+                base.pop();
+            }
+            if base.to_string_lossy().to_lowercase().ends_with("game") {
+                base.pop();
+            }
             base
         } else {
             PathBuf::from(&docs_path)
@@ -734,14 +861,27 @@ pub async fn extract_backup_file(vault_path: String, docs_path: String, backup_n
 }
 
 #[tauri::command]
-pub async fn diff_backup(vault_path: String, docs_path: String, backup_name: String) -> Result<Vec<DiffEntry>, String> {
+pub async fn diff_backup(
+    vault_path: String,
+    docs_path: String,
+    backup_name: String,
+) -> Result<Vec<DiffEntry>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let parent = if backup_name.starts_with("Engine_Core") { "Engine" } else { "World" };
-        let mut backup_dir = PathBuf::from(&vault_path).join("Backups").join(parent).join(&backup_name);
+        let parent = if backup_name.starts_with("Engine_Core") {
+            "Engine"
+        } else {
+            "World"
+        };
+        let mut backup_dir = PathBuf::from(&vault_path)
+            .join("Backups")
+            .join(parent)
+            .join(&backup_name);
         let config = get_saved_coordinates();
-        
+
         if backup_name.starts_with("Engine_Core") && !backup_dir.exists() {
-            if let Some(engine_dir) = crate::utils::get_engine_backups_dir(&config.live_path, &vault_path) {
+            if let Some(engine_dir) =
+                crate::utils::get_engine_backups_dir(&config.live_path, &vault_path)
+            {
                 backup_dir = engine_dir.join(&backup_name);
             }
         }
@@ -752,9 +892,17 @@ pub async fn diff_backup(vault_path: String, docs_path: String, backup_name: Str
 
         let target_root = if backup_name.starts_with("Engine_Core") {
             let mut base = PathBuf::from(&config.live_path);
-            if base.is_file() { base.pop(); }
-            if base.to_string_lossy().to_lowercase().ends_with("bin") || base.to_string_lossy().to_lowercase().ends_with("bin_le") { base.pop(); }
-            if base.to_string_lossy().to_lowercase().ends_with("game") { base.pop(); }
+            if base.is_file() {
+                base.pop();
+            }
+            if base.to_string_lossy().to_lowercase().ends_with("bin")
+                || base.to_string_lossy().to_lowercase().ends_with("bin_le")
+            {
+                base.pop();
+            }
+            if base.to_string_lossy().to_lowercase().ends_with("game") {
+                base.pop();
+            }
             base
         } else {
             PathBuf::from(&docs_path)
@@ -767,27 +915,38 @@ pub async fn diff_backup(vault_path: String, docs_path: String, backup_name: Str
         for b_file in &backup_files {
             if let Ok(rel) = b_file.strip_prefix(&backup_dir) {
                 let rel_str = rel.to_string_lossy().replace("\\", "/");
-                if rel_str.starts_with(".") { continue; }
-                
+                if rel_str.starts_with(".") {
+                    continue;
+                }
+
                 checked.insert(rel_str.clone());
-                
+
                 let target_file = target_root.join(rel);
                 if !target_file.exists() {
-                    diffs.push(DiffEntry { path: rel_str, status: "Missing in Current".into() });
+                    diffs.push(DiffEntry {
+                        path: rel_str,
+                        status: "Missing in Current".into(),
+                    });
                 } else {
                     let b_meta = std::fs::metadata(&b_file).ok();
                     let t_meta = std::fs::metadata(&target_file).ok();
                     if let (Some(b), Some(t)) = (b_meta, t_meta) {
                         if b.len() != t.len() || b.modified().ok() != t.modified().ok() {
-                            diffs.push(DiffEntry { path: rel_str, status: "Modified".into() });
+                            diffs.push(DiffEntry {
+                                path: rel_str,
+                                status: "Modified".into(),
+                            });
                         } else {
-                            diffs.push(DiffEntry { path: rel_str, status: "Identical".into() });
+                            diffs.push(DiffEntry {
+                                path: rel_str,
+                                status: "Identical".into(),
+                            });
                         }
                     }
                 }
             }
         }
-        
+
         Ok(diffs)
     })
     .await
@@ -803,8 +962,9 @@ pub async fn restore_game_data(
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
-        let arc = find_backup(&config.vault_path, &backup_name).ok_or("Backup not found in Vault")?;
-        
+        let arc =
+            find_backup(&config.vault_path, &backup_name).ok_or("Backup not found in Vault")?;
+
         let target = if backup_name.contains("Engine") {
             PathBuf::from(live_path)
                 .parent()
@@ -816,46 +976,66 @@ pub async fn restore_game_data(
         };
 
         if arc.is_dir() {
-            let _ = app.emit("backup-progress", serde_json::json!({
-                "current": 0,
-                "total": 100,
-                "action": "Scanning Vault Data..."
-            }));
-            
+            let _ = app.emit(
+                "backup-progress",
+                serde_json::json!({
+                    "current": 0,
+                    "total": 100,
+                    "action": "Scanning Vault Data..."
+                }),
+            );
+
             let arc_files = crate::utils::get_all_files(&arc);
             let total = arc_files.len();
-            let action_str: String = if backup_name.contains("Engine") { "Restoring Engine Core...".into() } else { "Restoring World State...".into() };
-            
+            let action_str: String = if backup_name.contains("Engine") {
+                "Restoring Engine Core...".into()
+            } else {
+                "Restoring World State...".into()
+            };
+
             let mut i = 0;
             let mut last_emit = std::time::Instant::now();
-            
+
             let mut progress_cb = || {
                 i += 1;
                 if last_emit.elapsed() > std::time::Duration::from_millis(50) || i >= total {
-                    let mut current_pct = if total > 0 { ((i as f64 / total as f64) * 100.0) as usize } else { 0 };
-                    if current_pct > 100 { current_pct = 100; }
-                    let _ = app.emit("backup-progress", serde_json::json!({
-                        "current": current_pct,
-                        "total": 100,
-                        "action": action_str.clone()
-                    }));
+                    let mut current_pct = if total > 0 {
+                        ((i as f64 / total as f64) * 100.0) as usize
+                    } else {
+                        0
+                    };
+                    if current_pct > 100 {
+                        current_pct = 100;
+                    }
+                    let _ = app.emit(
+                        "backup-progress",
+                        serde_json::json!({
+                            "current": current_pct,
+                            "total": 100,
+                            "action": action_str.clone()
+                        }),
+                    );
                     last_emit = std::time::Instant::now();
                 }
             };
-            
+
             if let Ok(entries) = std::fs::read_dir(&arc) {
                 for e in entries.flatten() {
                     let file_name = e.file_name();
                     let arc_sub = e.path();
                     let target_sub = target.join(&file_name);
-                    
+
                     if arc_sub.is_dir() {
                         let _ = differential_restore(&arc_sub, &target_sub, &mut progress_cb);
                     } else {
                         let mut needs_copy = true;
                         if target_sub.exists() && target_sub.is_file() {
-                            if let (Ok(arc_meta), Ok(target_meta)) = (arc_sub.metadata(), target_sub.metadata()) {
-                                if arc_meta.len() == target_meta.len() && arc_meta.modified().ok() == target_meta.modified().ok() {
+                            if let (Ok(arc_meta), Ok(target_meta)) =
+                                (arc_sub.metadata(), target_sub.metadata())
+                            {
+                                if arc_meta.len() == target_meta.len()
+                                    && arc_meta.modified().ok() == target_meta.modified().ok()
+                                {
                                     needs_copy = false;
                                 }
                             }
@@ -873,7 +1053,7 @@ pub async fn restore_game_data(
                 let _ = std::fs::remove_dir_all(target.join("Saves"));
                 let _ = std::fs::remove_dir_all(target.join("Tray"));
             }
-            
+
             let tar_file = std::fs::File::open(&arc).map_err(|e| e.to_string())?;
             let total_size = tar_file.metadata().map(|m| m.len() as usize).unwrap_or(1);
 
@@ -890,14 +1070,26 @@ pub async fn restore_game_data(
                 fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
                     let n = self.inner.read(buf)?;
                     self.current += n;
-                    if self.last_emit.elapsed() > std::time::Duration::from_millis(50) || self.current >= self.total || n == 0 {
-                        let mut current_pct = if self.total > 0 { ((self.current as f64 / self.total as f64) * 100.0) as usize } else { 0 };
-                        if current_pct > 100 { current_pct = 100; }
-                        let _ = self.app.emit("backup-progress", serde_json::json!({
-                            "current": current_pct,
-                            "total": 100,
-                            "action": self.action.clone()
-                        }));
+                    if self.last_emit.elapsed() > std::time::Duration::from_millis(50)
+                        || self.current >= self.total
+                        || n == 0
+                    {
+                        let mut current_pct = if self.total > 0 {
+                            ((self.current as f64 / self.total as f64) * 100.0) as usize
+                        } else {
+                            0
+                        };
+                        if current_pct > 100 {
+                            current_pct = 100;
+                        }
+                        let _ = self.app.emit(
+                            "backup-progress",
+                            serde_json::json!({
+                                "current": current_pct,
+                                "total": 100,
+                                "action": self.action.clone()
+                            }),
+                        );
                         self.last_emit = std::time::Instant::now();
                     }
                     Ok(n)
@@ -909,7 +1101,11 @@ pub async fn restore_game_data(
                 current: 0,
                 total: total_size,
                 app: app.clone(),
-                action: if backup_name.contains("Engine") { "Restoring Engine Core...".into() } else { "Restoring World State...".into() },
+                action: if backup_name.contains("Engine") {
+                    "Restoring Engine Core...".into()
+                } else {
+                    "Restoring World State...".into()
+                },
                 last_emit: std::time::Instant::now(),
             };
 
@@ -918,15 +1114,17 @@ pub async fn restore_game_data(
             archive.unpack(target).map_err(|e| e.to_string())?;
         }
 
-        let _ = app.emit("backup-progress", serde_json::json!({
-            "current": 100,
-            "total": 100,
-            "action": "Restore Complete!"
-        }));
+        let _ = app.emit(
+            "backup-progress",
+            serde_json::json!({
+                "current": 100,
+                "total": 100,
+                "action": "Restore Complete!"
+            }),
+        );
 
         Ok("Restored".into())
     })
     .await
     .map_err(|e| e.to_string())?
 }
-

@@ -4,6 +4,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalPosition, LogicalSize } from '@tauri-apps/api/dpi';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { isDesktop } from '../utils/envUtils';
 import { SidePanel } from '../shared';
 import { useModalStore } from '../store/modalStore';
 import { useLexicon } from '../LexiconContext';
@@ -199,6 +200,7 @@ export default function SidePanelBrowser() {
   }, [activeBrowserTabId, browserTabs]);
 
   useEffect(() => {
+    if (!isDesktop()) return;
     const unlistenPromise = listen('webview-video-fullscreen', (event: any) => {
       setIsBrowserFullscreen(event.payload === "true" || event.payload === true);
     });

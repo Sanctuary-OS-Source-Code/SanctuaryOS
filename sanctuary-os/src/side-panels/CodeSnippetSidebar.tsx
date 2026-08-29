@@ -16,12 +16,38 @@ export default function CodeSnippetSidebar({ code, title, onClose, widthClass = 
   const { t } = useLexicon();
   const [wrapText, setWrapText] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
+  const [currentMatchIndex, setCurrentMatchIndex] = React.useState(0);
+  const markRefs = React.useRef<(HTMLElement | null)[]>([]);
+
+  React.useEffect(() => {
+    setCurrentMatchIndex(0);
+  }, [searchTerm]);
+
+  React.useEffect(() => {
+    if (markRefs.current[currentMatchIndex]) {
+      markRefs.current[currentMatchIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [currentMatchIndex, searchTerm]);
+
   
   const escapeRegExp = (string: string) => {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   };
 
   const matchCount = searchTerm ? (code.match(new RegExp(escapeRegExp(searchTerm), 'gi')) || []).length : 0;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (matchCount > 0) {
+        if (e.shiftKey) {
+          setCurrentMatchIndex((prev) => (prev - 1 + matchCount) % matchCount);
+        } else {
+          setCurrentMatchIndex((prev) => (prev + 1) % matchCount);
+        }
+      }
+    }
+  };
 
   return (
     <SidePanel
@@ -52,12 +78,13 @@ export default function CodeSnippetSidebar({ code, title, onClose, widthClass = 
               type="text" 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
+              onKeyDown={handleKeyDown}
               placeholder={t("ui_placeholder_search_code")}
               className="w-full h-12 bg-black/20 rounded-xl pl-12 pr-12 text-[13px] font-bold text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] border border-transparent focus:bg-black/40 transition-all shadow-inner relative z-0 focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)]"
             />
             {searchTerm && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-3 z-10">
-                <span className="text-[11px] font-black text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2.5 py-1 rounded-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-sm">{matchCount} matches</span>
+                <span className="text-[11px] font-black text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2.5 py-1 rounded-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-sm">{matchCount > 0 ? `${currentMatchIndex + 1} / ${matchCount}` : '0'}</span>
                 <button onClick={() => setSearchTerm("")} className="w-6 h-6 flex items-center justify-center rounded-md bg-black/30 text-[var(--subtext)] hover:text-white hover:bg-black/50 transition-colors">
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
                 </button>
@@ -99,11 +126,26 @@ export default function CodeSnippetSidebar({ code, title, onClose, widthClass = 
               </SyntaxHighlighter>
             ) : (
               <pre className="m-0 p-8 bg-transparent text-[13px] leading-[1.6] text-[#d4d4d4] font-mono" style={{ whiteSpace: wrapText ? 'pre-wrap' : 'pre', wordBreak: wrapText ? 'break-all' : 'normal', overflowWrap: 'anywhere' }}>
-                {code.split(new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi')).map((part, i) => 
-                  part.toLowerCase() === searchTerm.toLowerCase() ? 
-                    <mark key={i} className="bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-white font-black px-1 py-0.5 rounded-md shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] backdrop-blur-sm">{part}</mark> : 
-                    <span key={i}>{part}</span>
-                )}
+                {(() => {
+                  markRefs.current = []; // Reset refs on every render when there's a search
+                  let matchIndexCounter = -1;
+                  return code.split(new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi')).map((part, i) => {
+                    if (part.toLowerCase() === searchTerm.toLowerCase()) {
+                      matchIndexCounter++;
+                      const isCurrent = matchIndexCounter === currentMatchIndex;
+                      return (
+                        <mark 
+                          key={i} 
+                          ref={(el) => { if (el) markRefs.current.push(el); }}
+                          className={`bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-white font-black px-1 py-0.5 rounded-md shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] backdrop-blur-sm ${isCurrent ? 'ring-2 ring-white ring-offset-1 ring-offset-black scale-110 inline-block z-10 relative' : ''}`}
+                        >
+                          {part}
+                        </mark>
+                      );
+                    }
+                    return <span key={i}>{part}</span>;
+                  });
+                })()}
               </pre>
             )}
           </div>

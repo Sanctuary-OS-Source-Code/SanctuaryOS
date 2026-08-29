@@ -16,6 +16,7 @@ import NotificationsTab from './settings-tabs/NotificationsTab';
 import AestheticsTab from './settings-tabs/AestheticsTab';
 import LogicTab from './settings-tabs/LogicTab';
 import MalwareTab from './settings-tabs/MalwareTab';
+import { isDesktop } from './utils/envUtils';
 
 export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   const { t } = useLexicon();
@@ -27,7 +28,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       localStorage.removeItem("sanctuary_settings_tab");
       return override;
     }
-    return 'CORE';
+    return isDesktop() ? 'CORE' : 'CLIENT';
   });
   const [appVersion, setAppVersion] = useState("v1.0.1");
 
@@ -51,6 +52,12 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   const refreshConfig = async () => {
     try {
+      if (!isDesktop()) {
+        const dummyConfig = { id: 'web', vault_path: 'web', mods_path: 'web', live_path: 'web' };
+        setConfig(dummyConfig);
+        setGlobalConfig({ workspaces: [dummyConfig], active_workspace_id: 'web' });
+        return;
+      }
       const gConf: any = await invoke('get_global_config');
       setGlobalConfig(gConf);
       const activeId = gConf.active_workspace_id;
@@ -106,7 +113,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     { rustKey: 'live_path', label: t("setup_btn_bin"), value: config.live_path, icon: t("icon_push_pin") }
   ];
 
-  const TABS = [
+  let TABS = [
     { id: 'CORE', icon: t("icon_account_circle"), label: t("tab_core") },
     { id: 'ENGINE', icon: t("icon_history"), label: t("tab_engine") },
     { id: 'CLIENT', icon: t("icon_tune"), label: t("tab_preferences") },
@@ -115,6 +122,10 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     { id: 'LOGIC', icon: t("icon_flag"), label: t("tab_logic") }
   ];
   if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull"), label: t("malware_btn") });
+
+  if (!isDesktop()) {
+    TABS = TABS.filter(t => ['CLIENT', 'AESTHETICS', 'NOTIFICATIONS', 'CORE'].includes(t.id));
+  }
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">

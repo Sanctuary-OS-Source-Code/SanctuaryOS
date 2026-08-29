@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { isDesktop } from "../utils/envUtils";
 
 export const tauriBridge = {
   autoDetectPaths: () => invoke("auto_detect_paths"),
@@ -24,11 +25,12 @@ export const tauriBridge = {
   saveBlueprint: (path: string, content: string) => invoke("save_blueprint", { path, content }),
   moveModToPriorityFolder: (vaultPath: string, modName: string, targetFolder: string) => invoke("move_mod_to_priority_folder", { vaultPath, modName, targetFolder }),
   syncSecurityDefinitions: (malware: string[], tier2: string[]) => invoke('sync_security_definitions', { malware, tier2 }),
-  listenToVaultChanges: (callback: (path?: string) => void) => listen("vault_changed", (event: any) => callback(event.payload)),
-  listenToScanProgress: (callback: (payload: any) => void) => listen('scan-progress', (event: any) => callback(event.payload)),
-  listenToBackupProgress: (callback: (payload: any) => void) => listen('backup-progress', (event: any) => callback(event)),
-  listenToDnaMatch: (callback: (payload: any) => void) => listen('dna_match_detected', (event: any) => callback(event.payload)),
+  listenToVaultChanges: (callback: (path?: string) => void) => isDesktop() ? listen("vault_changed", (event: any) => callback(event.payload)) : Promise.resolve(() => {}),
+  listenToScanProgress: (callback: (payload: any) => void) => isDesktop() ? listen('scan-progress', (event: any) => callback(event.payload)) : Promise.resolve(() => {}),
+  listenToBackupProgress: (callback: (payload: any) => void) => isDesktop() ? listen('backup-progress', (event: any) => callback(event)) : Promise.resolve(() => {}),
+  listenToDnaMatch: (callback: (payload: any) => void) => isDesktop() ? listen('dna_match_detected', (event: any) => callback(event.payload)) : Promise.resolve(() => {}),
   setupDragDrop: (onEnter: () => void, onLeave: () => void, onDrop: (paths: string[]) => void): Promise<() => void> => {
+    if (!isDesktop()) return Promise.resolve(() => {});
     return getCurrentWebview().onDragDropEvent((event) => {
       if (event.payload.type === 'enter' || event.payload.type === 'over') {
         onEnter();

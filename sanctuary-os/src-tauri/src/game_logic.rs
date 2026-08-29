@@ -18,18 +18,21 @@ pub fn get_file_label(schema: &Option<GameSchema>, ext: &str) -> String {
     "UNKNOWN".to_string()
 }
 
-
-
 pub fn is_dlc_folder(schema: &Option<GameSchema>, folder_name: &str) -> bool {
     let name_up = folder_name.to_uppercase();
     if let Some(s) = schema {
         if let Some(prefixes) = &s.dlc_folder_prefixes {
-            return prefixes.iter().any(|p| name_up.starts_with(&p.to_uppercase()));
+            return prefixes
+                .iter()
+                .any(|p| name_up.starts_with(&p.to_uppercase()));
         }
     }
-    
+
     // Fallback
-    name_up.starts_with("EP") || name_up.starts_with("GP") || name_up.starts_with("SP") || name_up.starts_with("FP")
+    name_up.starts_with("EP")
+        || name_up.starts_with("GP")
+        || name_up.starts_with("SP")
+        || name_up.starts_with("FP")
 }
 
 pub fn get_magic_bytes(schema: &Option<GameSchema>, label: &str) -> Option<String> {
@@ -40,19 +43,33 @@ pub fn get_magic_bytes(schema: &Option<GameSchema>, label: &str) -> Option<Strin
             }
         }
     }
-    
+
     if label == "PACKAGE" {
         return Some("DBPF".to_string());
     }
     None
 }
 
-
 pub fn get_supported_extensions(schema: &Option<GameSchema>) -> Vec<String> {
     if let Some(s) = schema {
-        s.extensions.supported.iter().map(|ext| ext.trim_start_matches('.').to_lowercase()).collect()
+        s.extensions
+            .supported
+            .iter()
+            .map(|ext| ext.trim_start_matches('.').to_lowercase())
+            .collect()
     } else {
-        vec!["package".to_string(), "ts4script".to_string(), "zip".to_string(), "rar".to_string(), "cfg".to_string(), "ini".to_string(), "json".to_string(), "txt".to_string(), "xml".to_string(), "log".to_string()]
+        vec![
+            "package".to_string(),
+            "ts4script".to_string(),
+            "zip".to_string(),
+            "rar".to_string(),
+            "cfg".to_string(),
+            "ini".to_string(),
+            "json".to_string(),
+            "txt".to_string(),
+            "xml".to_string(),
+            "log".to_string(),
+        ]
     }
 }
 
@@ -60,13 +77,30 @@ pub fn get_vault_visible_extensions(schema: &Option<GameSchema>) -> Vec<String> 
     let mut ext_list = Vec::new();
     if let Some(s) = schema {
         if let Some(visible) = &s.extensions.vault_visible {
-            ext_list.extend(visible.iter().map(|ext| ext.trim_start_matches('.').to_lowercase()));
+            ext_list.extend(
+                visible
+                    .iter()
+                    .map(|ext| ext.trim_start_matches('.').to_lowercase()),
+            );
         }
         if let Some(ignore) = &s.extensions.ignore_unidentified {
-            ext_list.extend(ignore.iter().map(|ext| ext.trim_start_matches('.').to_lowercase()));
+            ext_list.extend(
+                ignore
+                    .iter()
+                    .map(|ext| ext.trim_start_matches('.').to_lowercase()),
+            );
         }
     } else {
-        ext_list.extend(vec!["package".to_string(), "ts4script".to_string(), "cfg".to_string(), "ini".to_string(), "json".to_string(), "txt".to_string(), "xml".to_string(), "log".to_string()]);
+        ext_list.extend(vec![
+            "package".to_string(),
+            "ts4script".to_string(),
+            "cfg".to_string(),
+            "ini".to_string(),
+            "json".to_string(),
+            "txt".to_string(),
+            "xml".to_string(),
+            "log".to_string(),
+        ]);
     }
     ext_list
 }
@@ -74,10 +108,12 @@ pub fn get_vault_visible_extensions(schema: &Option<GameSchema>) -> Vec<String> 
 pub fn is_cache_file(schema: &Option<GameSchema>, file_name: &str) -> bool {
     if let Some(s) = schema {
         if let Some(cache_files) = &s.extensions.cache_files {
-            return cache_files.iter().any(|c| c.eq_ignore_ascii_case(file_name));
+            return cache_files
+                .iter()
+                .any(|c| c.eq_ignore_ascii_case(file_name));
         }
     }
-    
+
     // Fallback for unmodified schemas
     let is_sims4 = schema.as_ref().map_or(true, |s| s.game_id == "the-sims-4");
     if is_sims4 {
@@ -139,7 +175,11 @@ pub fn get_executable_names(schema: &Option<GameSchema>) -> Vec<String> {
     if let Some(s) = schema {
         s.executable_names.clone()
     } else {
-        vec!["TS4_x64.exe".to_string(), "TS4.exe".to_string(), "TS4_DX9_x64.exe".to_string()]
+        vec![
+            "TS4_x64.exe".to_string(),
+            "TS4.exe".to_string(),
+            "TS4_DX9_x64.exe".to_string(),
+        ]
     }
 }
 
@@ -147,18 +187,20 @@ pub fn get_fatal_conflict_extensions(schema: &Option<GameSchema>) -> Vec<String>
     if let Some(s) = schema {
         if let Some(radar) = &s.conflict_radar {
             if let Some(fatal) = &radar.tier_4_fatal {
-                return fatal.iter().map(|e| e.trim_start_matches('.').to_lowercase()).collect();
+                return fatal
+                    .iter()
+                    .map(|e| e.trim_start_matches('.').to_lowercase())
+                    .collect();
             }
         }
     }
     vec!["pyc".to_string(), "pyo".to_string()]
 }
 
-
 pub fn expand_env_vars(path: &str) -> String {
     let mut result = String::new();
     let mut chars = path.chars().peekable();
-    
+
     while let Some(c) = chars.next() {
         if c == '%' {
             let mut var_name = String::new();
@@ -198,11 +240,23 @@ pub fn is_explicitly_local_dbpf(schema: &Option<GameSchema>, resources: &[DbpfRe
             let mut casp_count = 0;
             let mut objd_count = 0;
 
-            let cas_part_type = tax.cas_part_type.as_deref().and_then(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok()).unwrap_or(0);
-            let obj_def_type = tax.obj_def_type.as_deref().and_then(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok()).unwrap_or(0);
+            let cas_part_type = tax
+                .cas_part_type
+                .as_deref()
+                .and_then(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok())
+                .unwrap_or(0);
+            let obj_def_type = tax
+                .obj_def_type
+                .as_deref()
+                .and_then(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok())
+                .unwrap_or(0);
             for res in resources {
-                if res.t == cas_part_type && cas_part_type != 0 { casp_count += 1; }
-                if res.t == obj_def_type && obj_def_type != 0 { objd_count += 1; }
+                if res.t == cas_part_type && cas_part_type != 0 {
+                    casp_count += 1;
+                }
+                if res.t == obj_def_type && obj_def_type != 0 {
+                    objd_count += 1;
+                }
             }
 
             if casp_count > 50 || objd_count > 50 {
@@ -216,9 +270,33 @@ pub fn is_explicitly_local_dbpf(schema: &Option<GameSchema>, resources: &[DbpfRe
 pub fn get_severity_rank(schema: &Option<GameSchema>, t: u32) -> (bool, u8) {
     if let Some(s) = schema {
         if let Some(tax) = &s.taxonomy {
-            let harmless_types: Vec<u32> = tax.harmless_types.as_ref().map(|v| v.iter().filter_map(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok()).collect()).unwrap_or_default();
-            let critical_types: Vec<u32> = tax.critical_types.as_ref().map(|v| v.iter().filter_map(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok()).collect()).unwrap_or_default();
-            let warning_types: Vec<u32> = tax.warning_types.as_ref().map(|v| v.iter().filter_map(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok()).collect()).unwrap_or_default();
+            let harmless_types: Vec<u32> = tax
+                .harmless_types
+                .as_ref()
+                .map(|v| {
+                    v.iter()
+                        .filter_map(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok())
+                        .collect()
+                })
+                .unwrap_or_default();
+            let critical_types: Vec<u32> = tax
+                .critical_types
+                .as_ref()
+                .map(|v| {
+                    v.iter()
+                        .filter_map(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok())
+                        .collect()
+                })
+                .unwrap_or_default();
+            let warning_types: Vec<u32> = tax
+                .warning_types
+                .as_ref()
+                .map(|v| {
+                    v.iter()
+                        .filter_map(|h| u32::from_str_radix(h.trim_start_matches("0x"), 16).ok())
+                        .collect()
+                })
+                .unwrap_or_default();
 
             if harmless_types.contains(&t) {
                 return (true, 1);

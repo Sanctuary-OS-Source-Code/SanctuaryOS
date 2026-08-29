@@ -1,14 +1,16 @@
-use crate::commands::state_ops::*;
-use crate::commands::library::*;
-use crate::commands::deployment::*;
 use crate::commands::backups::*;
+use crate::commands::cache::*;
+use crate::commands::config::*;
+use crate::commands::deployment::*;
+use crate::commands::library::*;
+use crate::commands::logs::*;
+use crate::commands::overrides::*;
 use crate::commands::radar::*;
 use crate::commands::shelter::*;
-use crate::commands::config::*;
-use crate::commands::overrides::*;
+use crate::commands::state_ops::*;
 use crate::commands::system::*;
-use crate::commands::logs::*;
-use crate::commands::cache::*;
+use crate::state::*;
+use crate::utils::*;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -20,9 +22,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tauri::{Emitter, Manager};
-use crate::state::*;
-use crate::utils::*;
-
 
 #[tauri::command]
 pub fn rip_game_version(live_path: String) -> Result<String, String> {
@@ -30,7 +29,7 @@ pub fn rip_game_version(live_path: String) -> Result<String, String> {
     use std::path::PathBuf;
 
     let mut bin_path = PathBuf::from(live_path);
-    
+
     if bin_path.is_file() {
         bin_path.pop();
     } else if !bin_path.ends_with("Bin") && !bin_path.ends_with("bin") {
@@ -49,10 +48,11 @@ pub fn rip_game_version(live_path: String) -> Result<String, String> {
             if line.to_lowercase().starts_with("gameversion") {
                 if let Some(idx) = line.find('=') {
                     let raw_version = line[idx + 1..].trim();
-                    let version: String = raw_version.chars()
+                    let version: String = raw_version
+                        .chars()
                         .filter(|c| c.is_ascii_digit() || *c == '.')
                         .collect();
-                        
+
                     if !version.is_empty() {
                         return Ok(version);
                     }
@@ -65,7 +65,10 @@ pub fn rip_game_version(live_path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn scan_installed_dlc(live_path: String, state: tauri::State<'_, AppState>) -> Result<Vec<String>, String> {
+pub async fn scan_installed_dlc(
+    live_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<String>, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
     let mut installed_packs = Vec::new();
     let mut base_path = std::path::PathBuf::from(&live_path);
@@ -74,7 +77,11 @@ pub async fn scan_installed_dlc(live_path: String, state: tauri::State<'_, AppSt
         base_path.pop();
     }
 
-    let root = if base_path.ends_with("Bin") || base_path.ends_with("bin") || base_path.ends_with("Bin_LE") || base_path.ends_with("bin_le") {
+    let root = if base_path.ends_with("Bin")
+        || base_path.ends_with("bin")
+        || base_path.ends_with("Bin_LE")
+        || base_path.ends_with("bin_le")
+    {
         base_path
             .parent()
             .and_then(|p| p.parent())
@@ -99,7 +106,9 @@ pub async fn scan_installed_dlc(live_path: String, state: tauri::State<'_, AppSt
 
 #[tauri::command]
 pub fn get_heuristic_signatures(vault_path: String) -> Result<Vec<HeuristicSignature>, String> {
-    let p = std::path::Path::new(&vault_path).join("Data").join(".malware_signatures.json");
+    let p = std::path::Path::new(&vault_path)
+        .join("Data")
+        .join(".malware_signatures.json");
     if p.exists() {
         if let Ok(content) = std::fs::read_to_string(&p) {
             if let Ok(sigs) = serde_json::from_str::<Vec<HeuristicSignature>>(&content) {
@@ -107,33 +116,188 @@ pub fn get_heuristic_signatures(vault_path: String) -> Result<Vec<HeuristicSigna
             }
         }
     }
-    
+
     let defaults = vec![
-        HeuristicSignature { id: "default_1".into(), signature: "os.system(".into(), match_type: "file_content_contains".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_2".into(), signature: "subprocess.Popen(".into(), match_type: "file_content_contains".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_3".into(), signature: "__import__('os')".into(), match_type: "file_content_contains".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_4".into(), signature: "ctypes.windll".into(), match_type: "file_content_contains".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_5".into(), signature: "discord.com/api/webhooks".into(), match_type: "file_content_contains".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_6".into(), signature: "urllib.request.urlopen(".into(), match_type: "file_content_contains".into(), severity: "explicit".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_7".into(), signature: "requests.post(".into(), match_type: "file_content_contains".into(), severity: "explicit".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_8".into(), signature: "socket.socket(".into(), match_type: "file_content_contains".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_9".into(), signature: "base64.b64decode(".into(), match_type: "file_content_contains".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_10".into(), signature: "eval(compile(".into(), match_type: "file_content_contains".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_11".into(), signature: "loadstring(".into(), match_type: "file_content_contains".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_12".into(), signature: "exec(".into(), match_type: "file_content_contains".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_13".into(), signature: "grabber.py".into(), match_type: "file_name_exact".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_14".into(), signature: "stealer.exe".into(), match_type: "file_name_exact".into(), severity: "malware".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
-        HeuristicSignature { id: "default_15".into(), signature: ".vbs".into(), match_type: "file_name_contains".into(), severity: "explicit".into(), source: "system".into(), enabled: true, created_by: "system".into(), created_at: chrono::Local::now().to_rfc3339(), notes: "".into() },
+        HeuristicSignature {
+            id: "default_1".into(),
+            signature: "os.system(".into(),
+            match_type: "file_content_contains".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_2".into(),
+            signature: "subprocess.Popen(".into(),
+            match_type: "file_content_contains".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_3".into(),
+            signature: "__import__('os')".into(),
+            match_type: "file_content_contains".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_4".into(),
+            signature: "ctypes.windll".into(),
+            match_type: "file_content_contains".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_5".into(),
+            signature: "discord.com/api/webhooks".into(),
+            match_type: "file_content_contains".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_6".into(),
+            signature: "urllib.request.urlopen(".into(),
+            match_type: "file_content_contains".into(),
+            severity: "explicit".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_7".into(),
+            signature: "requests.post(".into(),
+            match_type: "file_content_contains".into(),
+            severity: "explicit".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_8".into(),
+            signature: "socket.socket(".into(),
+            match_type: "file_content_contains".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_9".into(),
+            signature: "base64.b64decode(".into(),
+            match_type: "file_content_contains".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_10".into(),
+            signature: "eval(compile(".into(),
+            match_type: "file_content_contains".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_11".into(),
+            signature: "loadstring(".into(),
+            match_type: "file_content_contains".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_12".into(),
+            signature: "exec(".into(),
+            match_type: "file_content_contains".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_13".into(),
+            signature: "grabber.py".into(),
+            match_type: "file_name_exact".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_14".into(),
+            signature: "stealer.exe".into(),
+            match_type: "file_name_exact".into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
+        HeuristicSignature {
+            id: "default_15".into(),
+            signature: ".vbs".into(),
+            match_type: "file_name_contains".into(),
+            severity: "explicit".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            notes: "".into(),
+        },
     ];
-    
+
     let _ = save_heuristic_signatures(vault_path, defaults.clone());
-    
+
     Ok(defaults)
 }
 
 #[tauri::command]
-pub fn save_heuristic_signatures(vault_path: String, signatures: Vec<HeuristicSignature>) -> Result<(), String> {
-    let p = std::path::Path::new(&vault_path).join("Data").join(".malware_signatures.json");
+pub fn save_heuristic_signatures(
+    vault_path: String,
+    signatures: Vec<HeuristicSignature>,
+) -> Result<(), String> {
+    let p = std::path::Path::new(&vault_path)
+        .join("Data")
+        .join(".malware_signatures.json");
     if let Some(parent) = p.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -191,9 +355,13 @@ pub fn commission_mod(_: String) -> serde_json::Value {
 }
 
 #[tauri::command]
-pub fn save_file_with_history(app: tauri::AppHandle, path: String, content: String) -> Result<String, String> {
-    use tauri::Manager;
+pub fn save_file_with_history(
+    app: tauri::AppHandle,
+    path: String,
+    content: String,
+) -> Result<String, String> {
     use std::time::{SystemTime, UNIX_EPOCH};
+    use tauri::Manager;
 
     std::fs::write(&path, &content).map_err(|e| format!("Failed to save file: {}", e))?;
 
@@ -208,12 +376,15 @@ pub fn save_file_with_history(app: tauri::AppHandle, path: String, content: Stri
 
         let history_dir = app_dir.join("file_history");
         std::fs::create_dir_all(&history_dir).unwrap_or_default();
-        
+
         let path_hash = format!("{:x}", md5::compute(&path));
         let file_history_dir = history_dir.join(path_hash);
         std::fs::create_dir_all(&file_history_dir).unwrap_or_default();
 
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         let history_file = file_history_dir.join(format!("{}.json", timestamp));
         let entry = HistoryEntry {
             timestamp,
@@ -228,24 +399,30 @@ pub fn save_file_with_history(app: tauri::AppHandle, path: String, content: Stri
 
         if let Ok(entries) = std::fs::read_dir(&file_history_dir) {
             let mut all_files = Vec::new();
-            for p in entries.flatten().filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("json")) {
+            for p in entries
+                .flatten()
+                .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("json"))
+            {
                 let path = p.path();
                 let is_pinned = std::fs::read_to_string(&path)
                     .ok()
                     .and_then(|content| serde_json::from_str::<HistoryEntry>(&content).ok())
                     .map(|h| h.pinned.unwrap_or(false))
                     .unwrap_or(false);
-                
+
                 let size = path.metadata().map(|m| m.len()).unwrap_or(0);
-                let modified = path.metadata().and_then(|m| m.modified()).unwrap_or(SystemTime::UNIX_EPOCH);
+                let modified = path
+                    .metadata()
+                    .and_then(|m| m.modified())
+                    .unwrap_or(SystemTime::UNIX_EPOCH);
                 all_files.push((path, is_pinned, size, modified));
             }
-            
+
             all_files.sort_by_key(|f| f.3);
-            
+
             let mut unpinned_count = all_files.iter().filter(|f| !f.1).count();
             let mut unpinned_size: u64 = all_files.iter().filter(|f| !f.1).map(|f| f.2).sum();
-            
+
             for (path, is_pinned, size, _) in all_files {
                 if unpinned_count <= max_copies && unpinned_size <= max_size_bytes {
                     break;
@@ -259,7 +436,7 @@ pub fn save_file_with_history(app: tauri::AppHandle, path: String, content: Stri
             }
         }
     }
-    
+
     Ok("Saved successfully".into())
 }
 
@@ -273,11 +450,11 @@ pub fn save_file_silently(path: String, content: String) -> Result<String, Strin
 pub fn get_file_history(app: tauri::AppHandle, path: String) -> Result<Vec<HistoryEntry>, String> {
     use tauri::Manager;
     let mut history = Vec::new();
-    
+
     if let Ok(app_dir) = app.path().app_data_dir() {
         let path_hash = format!("{:x}", md5::compute(&path));
         let file_history_dir = app_dir.join("file_history").join(path_hash);
-        
+
         if file_history_dir.exists() {
             if let Ok(entries) = std::fs::read_dir(file_history_dir) {
                 for entry in entries.flatten() {
@@ -290,7 +467,7 @@ pub fn get_file_history(app: tauri::AppHandle, path: String) -> Result<Vec<Histo
             }
         }
     }
-    
+
     history.sort_by(|a, b| {
         let a_pinned = a.pinned.unwrap_or(false);
         let b_pinned = b.pinned.unwrap_or(false);
@@ -304,12 +481,20 @@ pub fn get_file_history(app: tauri::AppHandle, path: String) -> Result<Vec<Histo
 }
 
 #[tauri::command]
-pub fn toggle_pin_version(app: tauri::AppHandle, path: String, timestamp: u64, pinned: bool) -> Result<(), String> {
+pub fn toggle_pin_version(
+    app: tauri::AppHandle,
+    path: String,
+    timestamp: u64,
+    pinned: bool,
+) -> Result<(), String> {
     use tauri::Manager;
     if let Ok(app_dir) = app.path().app_data_dir() {
         let path_hash = format!("{:x}", md5::compute(&path));
-        let history_file = app_dir.join("file_history").join(path_hash).join(format!("{}.json", timestamp));
-        
+        let history_file = app_dir
+            .join("file_history")
+            .join(path_hash)
+            .join(format!("{}.json", timestamp));
+
         if history_file.exists() {
             if let Ok(content) = std::fs::read_to_string(&history_file) {
                 if let Ok(mut h) = serde_json::from_str::<HistoryEntry>(&content) {
@@ -320,8 +505,8 @@ pub fn toggle_pin_version(app: tauri::AppHandle, path: String, timestamp: u64, p
                     }
                 }
             }
-            }
         }
+    }
     Err("Failed to update pin status".into())
 }
 
@@ -330,8 +515,11 @@ pub fn delete_version(app: tauri::AppHandle, path: String, timestamp: u64) -> Re
     use tauri::Manager;
     if let Ok(app_dir) = app.path().app_data_dir() {
         let path_hash = format!("{:x}", md5::compute(&path));
-        let history_file = app_dir.join("file_history").join(path_hash).join(format!("{}.json", timestamp));
-        
+        let history_file = app_dir
+            .join("file_history")
+            .join(path_hash)
+            .join(format!("{}.json", timestamp));
+
         if history_file.exists() {
             let _ = std::fs::remove_file(history_file);
             return Ok(());
@@ -341,12 +529,20 @@ pub fn delete_version(app: tauri::AppHandle, path: String, timestamp: u64) -> Re
 }
 
 #[tauri::command]
-pub fn rename_version(app: tauri::AppHandle, path: String, timestamp: u64, name: String) -> Result<(), String> {
+pub fn rename_version(
+    app: tauri::AppHandle,
+    path: String,
+    timestamp: u64,
+    name: String,
+) -> Result<(), String> {
     use tauri::Manager;
     if let Ok(app_dir) = app.path().app_data_dir() {
         let path_hash = format!("{:x}", md5::compute(&path));
-        let history_file = app_dir.join("file_history").join(path_hash).join(format!("{}.json", timestamp));
-        
+        let history_file = app_dir
+            .join("file_history")
+            .join(path_hash)
+            .join(format!("{}.json", timestamp));
+
         if history_file.exists() {
             if let Ok(content) = std::fs::read_to_string(&history_file) {
                 if let Ok(mut h) = serde_json::from_str::<HistoryEntry>(&content) {
@@ -361,4 +557,3 @@ pub fn rename_version(app: tauri::AppHandle, path: String, timestamp: u64, name:
     }
     Err("Failed to rename version".into())
 }
-

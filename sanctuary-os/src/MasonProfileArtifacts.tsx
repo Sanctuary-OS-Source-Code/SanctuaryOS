@@ -20,7 +20,13 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
               icon={!mod.image_url ? getModIcon(mod, activeGameSchema, t) : undefined}
               title={mod.name}
               subtitle={`${mason.name || "UNKNOWN MASON"}${mod.latest_version ? ` • ${mod.latest_version}` : ""}`}
-              onClick={() => onModClick({ ...mod, author: mason.name, isNexusView: true })}
+              onClick={() => {
+                if (isFolder) {
+                  setExpandedFolder(expandedFolder === mainKey ? null : mainKey);
+                } else {
+                  onModClick({ ...mod, author: mason.name, isNexusView: true });
+                }
+              }}
               imageOverlay={
                 <>
                   <div className="absolute top-4 left-4 z-30 pointer-events-auto">
@@ -78,7 +84,9 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
               }
               className={`w-full h-full transition-all duration-300 ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`}
               footer={
-                <div className="flex items-center justify-start w-full pt-1 relative min-h-[16px]">
+                <div className="flex items-center justify-between w-full pt-1 relative min-h-[16px]">
+                  <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{mod.updated_at ? new Date(mod.updated_at).toLocaleDateString() : ""}</span>
+                  
                   <div className="absolute inset-0 rounded-[inherit] flex items-center justify-center pointer-events-none">
                     {isFolder && (
                       <div className="group/hitbox static flex items-center justify-center gap-2 font-black text-[9px] capitalize tracking-widest text-[var(--subtext)] group-hover/hitbox:text-[var(--text)] transition-colors pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}>
@@ -88,10 +96,16 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                       </div>
                     )}
                   </div>
-                  <div className="ml-auto pointer-events-none">
-                    <span className="text-[10px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300 relative z-10 pointer-events-auto" onClick={(e) => { e.stopPropagation(); onModClick({ ...mod, author: mason.name, isNexusView: true }); }}>
-                      
-                    </span>
+                  <div className="flex gap-2 relative z-40">
+                    {!isFolder && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onModClick({ ...mod, author: mason.name, isNexusView: true }); }}
+                        className="px-3 py-1.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] text-[9px] font-black capitalize tracking-widest shadow-sm hover:scale-105 transition-all flex items-center gap-1.5 opacity-0 group-hover:opacity-100"
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">download</span>
+                        {t("update_panel_install")}
+                      </button>
+                    )}
                   </div>
                 </div>
               }

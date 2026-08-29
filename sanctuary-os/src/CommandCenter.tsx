@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { isDesktop } from "./utils/envUtils";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
 import { DashboardStatTile, ViewHeader, isVersionMatch, SidePanel, getHighestVersion, handleOpenUrl, getExtensionRegex, HoverTooltip, ActionButton, stripMarkdown } from "./shared";
@@ -7,11 +8,11 @@ import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
+import { notifyOS } from "./utils/notificationHelper";
 
 import CommandAlertsPanel from "./side-panels/CommandAlertsPanel";
 import CommandRadarSweepPanel from "./side-panels/CommandRadarSweepPanel";
 import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
-import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
 import { UpdatesSidePanel } from './side-panels/CommandCenterSidePanels';
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { CommandScreenStats, CommandScreenSectionHeading, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
@@ -65,7 +66,17 @@ export default function CommandCenter({
       const fetchUrgent = async () => {
         const { data } = await supabase.from('system_broadcasts').select('*').eq('is_active', true).eq('is_pinned', true).or('target_audience.ilike.%All%,target_audience.eq.Citizens,target_audience.ilike."Citizens,%",target_audience.ilike."%,Citizens,%",target_audience.ilike."%,Citizens"').order('created_at', { ascending: false }).limit(1);
         if (data && data.length > 0) {
-          setUrgentBroadcast(data[0]);
+          setUrgentBroadcast((prev: any) => {
+            if (!prev || prev.id !== data[0].id) {
+              if (localStorage.getItem("sanctuary_dismissed_alert_id") !== String(data[0].id)) {
+                if (!sessionStorage.getItem("sanctuary_notified_urgent_" + data[0].id)) {
+                  sessionStorage.setItem("sanctuary_notified_urgent_" + data[0].id, "true");
+                  notifyOS(data[0].title || 'SYSTEM BROADCAST', data[0].message || data[0].content || 'Urgent message from Wayfinders', 'URGENT_BROADCAST');
+                }
+              }
+            }
+            return data[0];
+          });
         } else {
           setUrgentBroadcast(null);
         }
@@ -277,6 +288,27 @@ export default function CommandCenter({
     radarState = "update";
   }
 
+  useEffect(() => {
+    const handleOpenUrgent = () => {
+      if (urgentBroadcast) {
+        setViewingPost(urgentBroadcast);
+      }
+    };
+    
+    const handleOpenMalware = () => {
+      setAlertsPanelMode("critical");
+      setIsAlertsOpen(true);
+    };
+
+    window.addEventListener('open_urgent_broadcast', handleOpenUrgent);
+    window.addEventListener('open_malware_alert', handleOpenMalware);
+
+    return () => {
+      window.removeEventListener('open_urgent_broadcast', handleOpenUrgent);
+      window.removeEventListener('open_malware_alert', handleOpenMalware);
+    };
+  }, [urgentBroadcast]);
+
   return (
     <div className="flex flex-col pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <ViewHeader title={t("center_title")} subtitle={t("center_subtitle")} icon={t("icon_desktop_windows")} iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
@@ -287,7 +319,7 @@ export default function CommandCenter({
         const showCritical = (radarTier4Count + radarBrokenCount) > 0;
         const showAlerts = (radarTier3Count + radarUnstableCount) > 0;
 
-        const hasCriticalOrAlerts = hasSymlinkPerms === false ||
+        const hasCriticalOrAlerts = (hasSymlinkPerms === false && isDesktop()) ||
           (activeGameSchema?.features?.has_cc !== false && (showCritical || showAlerts)) ||
           (urgentBroadcast && localStorage.getItem("sanctuary_notify_alert_banner") !== "false");
 
@@ -328,14 +360,16 @@ export default function CommandCenter({
         }
 
         const normalStatsElements = [
-          <DashboardStatTile
-            key="vault"
-            icon={<span className="material-symbols-outlined ">{t("icon_account_balance")}</span>}
-            number={activeGameSchema?.features?.has_cc === false ? "-" : (modList?.length || 0)}
-            label={t("vault_title")}
-            colorClass="text-[var(--accent)]"
-            onClick={() => { if (activeGameSchema?.features?.has_cc !== false) { if (setView) setView("vault"); if (setFilterStatus) setFilterStatus("ALL"); } }}
-          />,
+          isDesktop() && (
+            <DashboardStatTile
+              key="vault"
+              icon={<span className="material-symbols-outlined ">{t("icon_account_balance")}</span>}
+              number={activeGameSchema?.features?.has_cc === false ? "-" : (modList?.length || 0)}
+              label={t("vault_title")}
+              colorClass="text-[var(--accent)]"
+              onClick={() => { if (activeGameSchema?.features?.has_cc !== false) { if (setView) setView("vault"); if (setFilterStatus) setFilterStatus("ALL"); } }}
+            />
+          ),
           <DashboardStatTile
             key="nexus"
             icon={<span className="material-symbols-outlined ">{t("icon_hub")}</span>}
@@ -344,14 +378,16 @@ export default function CommandCenter({
             colorClass="text-[var(--text)]"
             onClick={() => { if (setView) setView("nexus"); }}
           />,
-          <DashboardStatTile
-            key="blueprints"
-            icon={<span className="material-symbols-outlined ">{t("icon_map")}</span>}
-            number={activeGameSchema?.features?.has_cc === false ? "-" : (playSets?.length || 0)}
-            label={t("stat_blueprints")}
-            colorClass="text-[var(--accent)]"
-            onClick={() => { if (activeGameSchema?.features?.has_cc !== false) setIsBlueprintSwapOpen(true); }}
-          />,
+          isDesktop() && (
+            <DashboardStatTile
+              key="blueprints"
+              icon={<span className="material-symbols-outlined ">{t("icon_map")}</span>}
+              number={activeGameSchema?.features?.has_cc === false ? "-" : (playSets?.length || 0)}
+              label={t("stat_blueprints")}
+              colorClass="text-[var(--accent)]"
+              onClick={() => { if (activeGameSchema?.features?.has_cc !== false) setIsBlueprintSwapOpen(true); }}
+            />
+          ),
           <div key="support" className="relative group/ticket flex-1 flex min-w-0">
             {!session && (
               <HoverTooltip
@@ -378,7 +414,7 @@ export default function CommandCenter({
             <>
               <div className="mb-4">
                 <CommandScreenStats>
-                  {hasSymlinkPerms === false && (
+                  {hasSymlinkPerms === false && isDesktop() && (
                     <div key="perms" className="relative group/perms flex-1 flex min-w-0 w-full h-full">
                       <HoverTooltip
                         variant="warning"
@@ -514,7 +550,7 @@ export default function CommandCenter({
               />
             )}
 
-            {activeGameSchema?.features?.has_cc !== false && (
+            {activeGameSchema?.features?.has_cc !== false && isDesktop() && (
               <CommandScreenQuickLink
                 icon={t("icon_radar")}
                 title={(t("btn_radar")).replace(/^[^\w]*/, '').trim()}
@@ -527,7 +563,7 @@ export default function CommandCenter({
               />
             )}
 
-            {activeGameSchema?.features?.has_cc !== false && (
+            {activeGameSchema?.features?.has_cc !== false && isDesktop() && (
               <CommandScreenQuickLink
                 icon={shelterActive ? t("icon_lock") : t("icon_lock_open")}
                 title={shelterActive ? ((t("btn_reclaim")).replace(/^[^\w]*/, '').trim()) : ((t("btn_lockdown")).replace(/^[^\w]*/, '').trim())}
@@ -596,12 +632,6 @@ export default function CommandCenter({
         isOpen={isAuditLogsOpen}
         onClose={() => setIsAuditLogsOpen(false)}
         hideEditIdentity={true}
-      />
-
-      <SanctuaryAlertsSidePanel
-        isOpen={isAlertsOpen}
-        onClose={() => setIsAlertsOpen(false)}
-        audience="Citizens"
       />
 
       {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId={session?.user?.id || null} />}

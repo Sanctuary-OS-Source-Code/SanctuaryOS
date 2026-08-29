@@ -200,7 +200,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
           <span className="text-xs font-black capitalize tracking-widest text-[var(--danger)] text-center">{error}</span>
         </div>
       ) : data ? (
-        <div className="flex flex-col relative z-10 w-full pb-10 overflow-x-hidden">
+        <div className="flex flex-col relative z-10 w-full pb-10 break-words">
           <div className="flex flex-col gap-8 pb-8 px-6 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none" style={{ transform: 'translate(20%, -20%)' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '300px' }}>{assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}</span>
@@ -231,9 +231,9 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
               </div>
             </div>
             <div className="flex items-center gap-3 relative z-10 w-full flex-wrap">
-              <div className="flex-1 min-w-[140px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
+              <div className="flex-[1.5] min-w-[200px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
                 <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("author") || "Author"}</span>
-                <span className="text-lg font-black flex items-center gap-2 max-w-full"><span className="material-symbols-outlined !text-[20px] theme-text-accent shrink-0">person</span> <span className="truncate">{data.author || data.master_author || "Citizen"}</span></span>
+                <span className="text-lg font-black flex items-center gap-2 max-w-full"><span className="material-symbols-outlined !text-[20px] theme-text-accent shrink-0">person</span> <span className="truncate" title={data.author || data.master_author || "Citizen"}>{data.author || data.master_author || "Citizen"}</span></span>
               </div>
               <div className="flex-1 min-w-[140px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
                 <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("update_version") || "Version"}</span>

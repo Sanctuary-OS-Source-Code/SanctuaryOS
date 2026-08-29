@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { isDesktop } from "./utils/envUtils";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
 import { useStore } from "./store";
@@ -384,24 +385,24 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   </>
                 ) : (
                   <>
-                    {(mod.hash?.startsWith('dev_sandbox_')) && (
+                    {(mod.hash?.startsWith('dev_sandbox_')) && isDesktop() && (
                       <button onClick={() => { if (onSyncToNetwork) onSyncToNetwork(mod); else setEditMode(true); }} className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--success)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_cloud_sync")}</span>
                         {t("btn_sync_network")}
                       </button>
                     )}
-                    {mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
+                    {mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && isDesktop() && (
                       <button onClick={() => { handleClose(); onSendToLab(); }} className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--accent)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_science")}</span>
                         {t("btn_send_to_lab")}
                       </button>
                     )}
-                    {mod.name?.startsWith('LOCAL_SET_') ? (
+                    {mod.name?.startsWith('LOCAL_SET_') ? isDesktop() && (
                       <button onClick={() => { handleClose(); window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: mod.dbId })); }} className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--warning)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_tune")}</span>
                         {t("local_folders_edit")}
                       </button>
-                    ) : (
+                    ) : isDesktop() && (
                       <>
                         <button onClick={() => setEditMode(true)} className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--warning)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
                           <span className="material-symbols-outlined !text-[16px]">{t("icon_edit")}</span>
@@ -430,7 +431,7 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     )}
                   </>
                 )}
-                {!editMode && (
+                {!editMode && isDesktop() && (
                   <button
                     onClick={(e) => {
                       e.preventDefault();

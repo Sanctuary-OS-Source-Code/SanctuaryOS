@@ -9,7 +9,9 @@ import KeepersActiveGames from './hub-components/KeepersActiveGames';
 import { KeeperCommandScreen } from "./hub-components/CommandScreens";
 import KeepersSupportTickets from './hub-components/KeepersSupportTickets';
 import { AuditLogViewer } from './side-panels/SAAuditLogViewer';
-import { WayfinderPostsEditor } from './hub-components/WayfinderPostsEditor';
+import { KeepersDispatchEditor } from './hub-components/KeepersDispatchEditor';
+import KeepersWebNewsEditor from './hub-components/KeepersWebNewsEditor';
+import KeepersWebLegalEditor from './hub-components/KeepersWebLegalEditor';
 import KeeperSupportSettings from './hub-components/KeeperSupportSettings';
 
 export default function KeepersCore() {
@@ -32,6 +34,8 @@ export default function KeepersCore() {
       <HoverTabDrawer title="Keepers Navigation" activeTab={activeTab} setTab={setActiveTab}>
         <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="keepers_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="web_news" icon="public" label="Website News" activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="web_legal" icon="gavel" label="Legal Documents" activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="active_games" icon="dns" label="Active Workspaces" activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="identities" icon="group" label="Citizen Oversight" activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="support" icon={t("icon_support_agent")} label="Support Center" activeTab={activeTab} setTab={setActiveTab} />
@@ -43,7 +47,9 @@ export default function KeepersCore() {
 
       <div className="w-full flex-1 flex flex-col min-h-0">
         {activeTab === "command_center" && <KeeperCommandScreen setTab={setActiveTab} />}
-        {activeTab === "keepers_comms" && <WayfinderPostsEditor authorId="system" authorProfileId="system" isOversight={true} isKeepers={true} />}
+        {activeTab === "keepers_comms" && <KeepersDispatchEditor authorId="system" authorProfileId="system" />}
+        {activeTab === "web_news" && <KeepersWebNewsEditor />}
+        {activeTab === "web_legal" && <KeepersWebLegalEditor />}
         {activeTab === "active_games" && <KeepersActiveGames />}
         {activeTab === "identities" && <IdentityMatrix isWayfinder={false} isKeepers={true} />}
         {activeTab === "support" && <KeepersSupportTickets />}

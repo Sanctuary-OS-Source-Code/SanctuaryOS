@@ -1,14 +1,16 @@
-use crate::commands::library::*;
-use crate::commands::deployment::*;
 use crate::commands::backups::*;
+use crate::commands::cache::*;
+use crate::commands::config::*;
+use crate::commands::deployment::*;
+use crate::commands::game_info::*;
+use crate::commands::library::*;
+use crate::commands::logs::*;
+use crate::commands::overrides::*;
 use crate::commands::radar::*;
 use crate::commands::shelter::*;
-use crate::commands::config::*;
-use crate::commands::overrides::*;
 use crate::commands::system::*;
-use crate::commands::logs::*;
-use crate::commands::cache::*;
-use crate::commands::game_info::*;
+use crate::state::*;
+use crate::utils::*;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -20,12 +22,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tauri::{Emitter, Manager};
-use crate::state::*;
-use crate::utils::*;
-
 
 #[tauri::command]
-pub fn update_active_game_schema(schema: crate::schema::GameSchema, state: tauri::State<'_, AppState>) -> Result<(), String> {
+pub fn update_active_game_schema(
+    schema: crate::schema::GameSchema,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
     *state.active_schema.lock().unwrap() = Some(schema);
     Ok(())
 }
@@ -41,10 +43,14 @@ pub fn get_global_config() -> SolderConfig {
                 }
             }
 
-            let live_path = v["live_path"].as_str().or(v["live_library_path"].as_str()).unwrap_or("").to_string();
+            let live_path = v["live_path"]
+                .as_str()
+                .or(v["live_library_path"].as_str())
+                .unwrap_or("")
+                .to_string();
             let mods_path = v["mods_path"].as_str().unwrap_or("").to_string();
             let vault_path = v["vault_path"].as_str().unwrap_or("").to_string();
-            
+
             if !live_path.is_empty() || !mods_path.is_empty() || !vault_path.is_empty() {
                 let default_workspace = WorkspaceConfig {
                     id: "default_workspace".to_string(),
@@ -56,15 +62,21 @@ pub fn get_global_config() -> SolderConfig {
                     engine_agency_level: v["engine_agency_level"].as_u64().map(|n| n as u32),
                     defcon_backup_target: v["defcon_backup_target"].as_u64().map(|n| n as u32),
                     backup_preference: v["backup_preference"].as_u64().map(|n| n as u32),
-                    engine_retention_cycles: v["engine_retention_cycles"].as_u64().map(|n| n as u32),
+                    engine_retention_cycles: v["engine_retention_cycles"]
+                        .as_u64()
+                        .map(|n| n as u32),
                     world_retention_cycles: v["world_retention_cycles"].as_u64().map(|n| n as u32),
                     vault_capacity_gb: v["vault_capacity_gb"].as_u64().map(|n| n as u32),
-                    timeline_retention_copies: v["timeline_retention_copies"].as_u64().map(|n| n as u32),
-                    timeline_retention_size_mb: v["timeline_retention_size_mb"].as_u64().map(|n| n as u32),
+                    timeline_retention_copies: v["timeline_retention_copies"]
+                        .as_u64()
+                        .map(|n| n as u32),
+                    timeline_retention_size_mb: v["timeline_retention_size_mb"]
+                        .as_u64()
+                        .map(|n| n as u32),
                     supabase_url: None,
                     supabase_anon_key: None,
                 };
-                
+
                 return SolderConfig {
                     active_workspace_id: Some("default_workspace".to_string()),
                     workspaces: vec![default_workspace],
@@ -89,7 +101,7 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
             active_workspace = Some(workspace.clone());
         }
     }
-    
+
     if active_workspace.is_none() {
         if let Some(workspace) = global_config.workspaces.first() {
             active_workspace = Some(workspace.clone());
@@ -106,19 +118,19 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
         }
         return workspace;
     }
-    
+
     WorkspaceConfig::default()
 }
 
 #[tauri::command]
 pub fn save_coordinates(config: SolderConfig) -> Result<String, String> {
     let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-    
+
     let config_path = get_config_path();
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    
+
     fs::write(config_path, json).map_err(|e| e.to_string())?;
     Ok("backend_locked".into())
 }
@@ -127,7 +139,7 @@ pub fn save_coordinates(config: SolderConfig) -> Result<String, String> {
 pub fn get_suggested_paths(state: tauri::State<'_, AppState>) -> WorkspaceConfig {
     let mut config = WorkspaceConfig::default();
     let game_schema = state.active_schema.lock().unwrap().clone();
-    
+
     let default_mod = if let Some(schema) = &game_schema {
         schema.paths.default_mod_dir_windows.clone()
     } else {
@@ -173,7 +185,10 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
     let mut vault_path = String::new();
     let game_schema = state.active_schema.lock().unwrap().clone();
 
-    let default_mod = game_schema.as_ref().map(|s| s.paths.default_mod_dir_windows.clone()).unwrap_or_default();
+    let default_mod = game_schema
+        .as_ref()
+        .map(|s| s.paths.default_mod_dir_windows.clone())
+        .unwrap_or_default();
 
     if let Ok(profile) = std::env::var("USERPROFILE") {
         let docs = std::path::Path::new(&profile);
@@ -202,4 +217,3 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
         "vault_path": vault_path
     })
 }
-

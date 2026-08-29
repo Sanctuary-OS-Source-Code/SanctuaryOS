@@ -261,6 +261,7 @@ export default function TimeCapsule({
                      className="h-12 px-6 py-0"
                      label={t("btn_seal_state")}
                      onClick={() => setConfirmSealWorld(true)}
+                     variant="world"
                    />
                  ) : (
                    <div className="flex gap-2 shrink-0">
@@ -268,12 +269,14 @@ export default function TimeCapsule({
                        icon="check_circle"
                        label={t("btn_confirm")}
                        onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }}
-                       className="h-12 px-6 py-0 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]"
+                       className="h-12 px-6 py-0"
+                       variant="success"
                      />
                      <ActionButton
                        icon="close"
                        onClick={() => setConfirmSealWorld(false)}
-                       className="h-12 w-12 px-0 py-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+                       className="h-12 w-12 px-0 py-0 flex items-center justify-center"
+                       variant="danger"
                      />
                    </div>
                  )}
@@ -288,6 +291,7 @@ export default function TimeCapsule({
                      className="h-12 px-6 py-0"
                      label={t("btn_seal_engine")}
                      onClick={() => setConfirmSealEngine(true)}
+                     variant="engine"
                    />
                  ) : (
                    <div className="flex gap-2 shrink-0">
@@ -295,12 +299,14 @@ export default function TimeCapsule({
                        icon="warning_amber"
                        label={t("btn_confirm")}
                        onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }}
-                       className="h-12 px-6 py-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]"
+                       className="h-12 px-6 py-0"
+                       variant="warning"
                      />
                      <ActionButton
                        icon="close"
                        onClick={() => setConfirmSealEngine(false)}
-                       className="h-12 w-12 px-0 py-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+                       className="h-12 w-12 px-0 py-0 flex items-center justify-center"
+                       variant="danger"
                      />
                    </div>
                  )}
@@ -366,6 +372,7 @@ export default function TimeCapsule({
                           className="h-10 px-6 py-0 shrink-0"
                           label={t("btn_seal_state")}
                           onClick={() => setConfirmSealWorld(true)}
+                          variant="world"
                         />
                       ) : (
                         <div className="flex gap-2 shrink-0">
@@ -374,11 +381,13 @@ export default function TimeCapsule({
                             label={t("btn_confirm")}
                             onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }}
                             className="h-10 px-6 py-0"
+                            variant="success"
                           />
                           <ActionButton
                             icon="close"
                             onClick={() => setConfirmSealWorld(false)}
                             className="h-10 w-10 px-0 py-0 flex items-center justify-center"
+                            variant="danger"
                           />
                         </div>
                       )}
@@ -404,6 +413,7 @@ export default function TimeCapsule({
                           className="h-10 px-6 py-0 shrink-0"
                           label={t("btn_seal_engine")}
                           onClick={() => setConfirmSealEngine(true)}
+                          variant="engine"
                         />
                       ) : (
                         <div className="flex gap-2 shrink-0">
@@ -412,11 +422,13 @@ export default function TimeCapsule({
                             label={t("btn_confirm")}
                             onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }}
                             className="h-10 px-6 py-0"
+                            variant="warning"
                           />
                           <ActionButton
                             icon="close"
                             onClick={() => setConfirmSealEngine(false)}
                             className="h-10 w-10 px-0 py-0 flex items-center justify-center"
+                            variant="danger"
                           />
                         </div>
                       )}

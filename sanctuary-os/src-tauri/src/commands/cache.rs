@@ -1,14 +1,16 @@
-use crate::commands::state_ops::*;
-use crate::commands::library::*;
-use crate::commands::deployment::*;
 use crate::commands::backups::*;
+use crate::commands::config::*;
+use crate::commands::deployment::*;
+use crate::commands::game_info::*;
+use crate::commands::library::*;
+use crate::commands::logs::*;
+use crate::commands::overrides::*;
 use crate::commands::radar::*;
 use crate::commands::shelter::*;
-use crate::commands::config::*;
-use crate::commands::overrides::*;
+use crate::commands::state_ops::*;
 use crate::commands::system::*;
-use crate::commands::logs::*;
-use crate::commands::game_info::*;
+use crate::state::*;
+use crate::utils::*;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -20,9 +22,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tauri::{Emitter, Manager};
-use crate::state::*;
-use crate::utils::*;
-
 
 #[tauri::command]
 pub fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<(), String> {
@@ -74,20 +73,32 @@ pub fn resolve_dna_match(
     let existing = Path::new(&resolved_existing);
 
     if action == "replace" {
-        let s_canon = source.canonicalize().unwrap_or_else(|_| source.to_path_buf());
-        let e_canon = existing.canonicalize().unwrap_or_else(|_| existing.to_path_buf());
-        
+        let s_canon = source
+            .canonicalize()
+            .unwrap_or_else(|_| source.to_path_buf());
+        let e_canon = existing
+            .canonicalize()
+            .unwrap_or_else(|_| existing.to_path_buf());
+
         if source.exists() && s_canon != e_canon {
             if let Some(parent) = existing.parent() {
                 let _ = std::fs::create_dir_all(parent);
-                let mut source_file_name = source.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let mut source_file_name = source
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 if source_file_name.ends_with(".tmp_sanctuary_conflict") {
                     source_file_name = source_file_name.replace(".tmp_sanctuary_conflict", "");
                 }
                 let new_target = parent.join(source_file_name);
 
-                let s_canon = source.canonicalize().unwrap_or_else(|_| source.to_path_buf());
-                let n_canon = new_target.canonicalize().unwrap_or_else(|_| new_target.clone());
+                let s_canon = source
+                    .canonicalize()
+                    .unwrap_or_else(|_| source.to_path_buf());
+                let n_canon = new_target
+                    .canonicalize()
+                    .unwrap_or_else(|_| new_target.clone());
 
                 let copy_result = if s_canon == n_canon {
                     Ok(0) // Dummy success if it's already the exact same file
@@ -99,12 +110,14 @@ pub fn resolve_dna_match(
                     Ok(_) => {
                         let now = filetime::FileTime::now();
                         let _ = filetime::set_file_times(&new_target, now, now);
-                        
-                        let n_canon_final = new_target.canonicalize().unwrap_or_else(|_| new_target.clone());
+
+                        let n_canon_final = new_target
+                            .canonicalize()
+                            .unwrap_or_else(|_| new_target.clone());
                         if e_canon != n_canon_final {
                             let _ = std::fs::remove_file(existing);
                         }
-                        
+
                         if let Some(ext) = source.extension() {
                             if ext.to_string_lossy() == "tmp_sanctuary_conflict" {
                                 let _ = std::fs::remove_file(source);
@@ -117,7 +130,7 @@ pub fn resolve_dna_match(
                                 }
                             }
                         }
-                    },
+                    }
                     Err(e) => {
                         return Err(format!("FAILED_TO_COPY: {}", e));
                     }
@@ -180,4 +193,3 @@ pub fn purge_vault_artifacts(vault_path: String, filenames: Vec<String>) -> Resu
     }
     Ok(format!("Purged {} artifacts.", deleted))
 }
-

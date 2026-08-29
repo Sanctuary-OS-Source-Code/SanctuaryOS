@@ -7,7 +7,13 @@ const authKey = "sb_publishable_UfZsGP0-5CvUlFOXpLJXaw_eCqQoKaC";
 
 // 1. Create the persistent Auth Client
 export const supabaseAuth = createClient(authUrl, authKey, {
-    auth: { storageKey: "sanctuary-os-auth-token" }
+    auth: { 
+        storageKey: "sanctuary-os-auth-token",
+        lock: async (name, acquireTimeout, fn) => {
+            // Bypass navigator.locks in development to prevent Vite HMR hangs
+            return await fn();
+        }
+    }
 });
 
 // Dynamic Game Client variables
@@ -29,7 +35,11 @@ export function getActiveGameClient(): SupabaseClient {
             currentGameId = "legacy_fallback";
             currentToken = token;
             currentGameClient = createClient("https://chphhvpcgcpnyvshsudh.supabase.co", "sb_publishable_EdCfD4meHLUUgoTRkfwsTA_PFXnZx8D", {
-                auth: { persistSession: false, storageKey: "sanctuary-legacy-fallback-token" }
+                auth: { 
+                    persistSession: false, 
+                    storageKey: "sanctuary-legacy-fallback-token",
+                    lock: async (name, acquireTimeout, fn) => await fn() 
+                }
             });
         }
         return currentGameClient!;
@@ -40,7 +50,11 @@ export function getActiveGameClient(): SupabaseClient {
         currentGameId = activeWs.id;
         currentToken = token;
         currentGameClient = createClient(activeWs.supabase_url, activeWs.supabase_anon_key, {
-            auth: { persistSession: false, storageKey: `sanctuary-game-${activeWs.id}-token` },
+            auth: { 
+                persistSession: false, 
+                storageKey: `sanctuary-game-${activeWs.id}-token`,
+                lock: async (name, acquireTimeout, fn) => await fn()
+            },
             global: {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined
             }
@@ -161,3 +175,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
         return (client as any)[prop];
     }
 });
+
+
+
+

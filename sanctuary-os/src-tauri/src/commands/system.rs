@@ -1,14 +1,16 @@
-use crate::commands::state_ops::*;
-use crate::commands::library::*;
-use crate::commands::deployment::*;
 use crate::commands::backups::*;
+use crate::commands::cache::*;
+use crate::commands::config::*;
+use crate::commands::deployment::*;
+use crate::commands::game_info::*;
+use crate::commands::library::*;
+use crate::commands::logs::*;
+use crate::commands::overrides::*;
 use crate::commands::radar::*;
 use crate::commands::shelter::*;
-use crate::commands::config::*;
-use crate::commands::overrides::*;
-use crate::commands::logs::*;
-use crate::commands::cache::*;
-use crate::commands::game_info::*;
+use crate::commands::state_ops::*;
+use crate::state::*;
+use crate::utils::*;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -20,9 +22,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tauri::{Emitter, Manager};
-use crate::state::*;
-use crate::utils::*;
-
 
 #[tauri::command]
 pub fn delete_local_file(path: String) -> Result<String, String> {
@@ -33,16 +32,18 @@ pub fn delete_local_file(path: String) -> Result<String, String> {
         } else {
             std::fs::remove_file(p).map_err(|e| e.to_string())?;
         }
-        
+
         let mut current = p.parent().map(|d| d.to_path_buf());
         while let Some(dir) = current {
-            if dir.file_name().and_then(|s| s.to_str()) == Some("Mods") { break; }
+            if dir.file_name().and_then(|s| s.to_str()) == Some("Mods") {
+                break;
+            }
             if std::fs::remove_dir(&dir).is_err() {
                 break;
             }
             current = dir.parent().map(|d| d.to_path_buf());
         }
-        
+
         Ok("Deleted".into())
     } else {
         Err("File not found".into())
@@ -67,10 +68,10 @@ pub fn check_symlink_permissions() -> Result<bool, String> {
         let link_path = temp_dir.join("sanctuary_symlink_test_link.txt");
 
         let _ = std::fs::write(&target_path, "test");
-        let _ = std::fs::remove_file(&link_path); 
+        let _ = std::fs::remove_file(&link_path);
 
         let result = symlink_file(&target_path, &link_path);
-        
+
         let _ = std::fs::remove_file(&link_path);
         let _ = std::fs::remove_file(&target_path);
 
@@ -96,7 +97,11 @@ pub fn open_developer_settings() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn webview_eval(app_handle: tauri::AppHandle, label: String, script: String) -> Result<(), String> {
+pub fn webview_eval(
+    app_handle: tauri::AppHandle,
+    label: String,
+    script: String,
+) -> Result<(), String> {
     use tauri::Manager;
     if let Some(webview) = app_handle.get_webview(&label) {
         webview.eval(&script).map_err(|e| e.to_string())
@@ -125,11 +130,14 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
     let app_version = app_handle.package_info().version.to_string();
-    
+
     let mut os_version = String::new();
     #[cfg(target_os = "windows")]
     {
-        if let Ok(output) = std::process::Command::new("cmd").args(["/c", "ver"]).output() {
+        if let Ok(output) = std::process::Command::new("cmd")
+            .args(["/c", "ver"])
+            .output()
+        {
             let ver_str = String::from_utf8_lossy(&output.stdout);
             let mut display_name = "Windows 10".to_string();
             if let Some(start) = ver_str.find("[Version ") {
@@ -159,9 +167,18 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
             os_version = ver_str.trim().to_string();
         }
     }
-    
-    let mut info = format!("OS: {}\nArchitecture: {}\nSanctuary OS Version: {}\n", if os_version.is_empty() { os.to_string() } else { os_version.clone() }, arch, app_version);
-    
+
+    let mut info = format!(
+        "OS: {}\nArchitecture: {}\nSanctuary OS Version: {}\n",
+        if os_version.is_empty() {
+            os.to_string()
+        } else {
+            os_version.clone()
+        },
+        arch,
+        app_version
+    );
+
     if let Ok(log_dir) = app_handle.path().app_log_dir() {
         let log_file = log_dir.join("sanctuary-os.log");
         if log_file.exists() {
@@ -172,7 +189,7 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
                 info.push_str(&last_logs);
             }
         }
-        
+
         let panic_file = log_dir.join("panic.log");
         if panic_file.exists() {
             if let Ok(content) = std::fs::read_to_string(&panic_file) {
@@ -181,7 +198,7 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
             }
         }
     }
-    
+
     Ok(info)
 }
 

@@ -1,14 +1,16 @@
-use crate::commands::state_ops::*;
-use crate::commands::library::*;
-use crate::commands::deployment::*;
 use crate::commands::backups::*;
-use crate::commands::radar::*;
-use crate::commands::config::*;
-use crate::commands::overrides::*;
-use crate::commands::system::*;
-use crate::commands::logs::*;
 use crate::commands::cache::*;
+use crate::commands::config::*;
+use crate::commands::deployment::*;
 use crate::commands::game_info::*;
+use crate::commands::library::*;
+use crate::commands::logs::*;
+use crate::commands::overrides::*;
+use crate::commands::radar::*;
+use crate::commands::state_ops::*;
+use crate::commands::system::*;
+use crate::state::*;
+use crate::utils::*;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -20,16 +22,19 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tauri::{Emitter, Manager};
-use crate::state::*;
-use crate::utils::*;
-
 
 #[tauri::command]
-pub fn purge_external_file(path: String, _hash: String, filename: String) -> Result<String, String> {
+pub fn purge_external_file(
+    path: String,
+    _hash: String,
+    filename: String,
+) -> Result<String, String> {
     let p = std::path::PathBuf::from(&path);
     let config = get_saved_coordinates();
-    let manifest_path = std::path::PathBuf::from(&config.vault_path).join("Quarantine").join(format!("{}.manifest.json", filename));
-    
+    let manifest_path = std::path::PathBuf::from(&config.vault_path)
+        .join("Quarantine")
+        .join(format!("{}.manifest.json", filename));
+
     if p.exists() {
         tauri::async_runtime::spawn_blocking(move || {
             if let Ok(mut perms) = p.metadata().map(|m| m.permissions()) {
@@ -44,7 +49,8 @@ pub fn purge_external_file(path: String, _hash: String, filename: String) -> Res
                     let mut remaining = std::cmp::min(meta.len(), 100 * 1024 * 1024);
                     while remaining > 0 {
                         let write_size = std::cmp::min(remaining, zeros.len() as u64);
-                        if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err() {
+                        if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err()
+                        {
                             break;
                         }
                         remaining -= write_size;
@@ -53,7 +59,7 @@ pub fn purge_external_file(path: String, _hash: String, filename: String) -> Res
                 }
             }
             let _ = std::fs::remove_file(&p);
-            
+
             if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                 if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
                     manifest.original_shredded = true;
@@ -94,14 +100,16 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
             return Err("Mods path not found.".into());
         }
         let mut items = Vec::new();
-        
+
         fn walk_physical_items(dir: &Path, items: &mut Vec<PathBuf>) {
             if let Ok(entries) = fs::read_dir(dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    let is_symlink_or_junction = fs::read_link(&path).is_ok() || 
-                        fs::symlink_metadata(&path).map(|m| m.file_type().is_symlink()).unwrap_or(false);
-                    
+                    let is_symlink_or_junction = fs::read_link(&path).is_ok()
+                        || fs::symlink_metadata(&path)
+                            .map(|m| m.file_type().is_symlink())
+                            .unwrap_or(false);
+
                     if is_symlink_or_junction {
                         items.push(path);
                     } else if path.is_dir() {
@@ -113,26 +121,34 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
                 }
             }
         }
-        
+
         walk_physical_items(&mods_dir, &mut items);
-        
+
         let mut moved = 0;
         let mut exorcised = 0;
-        
+
         items.sort_by_key(|p| p.to_string_lossy().len());
         items.reverse();
 
         for path in items {
-            let manifest_name = game_schema.as_ref().map(|s| s.paths.manifest_file.clone()).unwrap_or_default();
-            if path.file_name().map_or(false, |n| n == manifest_name.as_str()) {
+            let manifest_name = game_schema
+                .as_ref()
+                .map(|s| s.paths.manifest_file.clone())
+                .unwrap_or_default();
+            if path
+                .file_name()
+                .map_or(false, |n| n == manifest_name.as_str())
+            {
                 continue;
             }
             if let Ok(rel_path) = path.strip_prefix(&mods_dir) {
                 let dest = vault_mods_lane.join(rel_path);
-                
-                let is_symlink_or_junction = fs::read_link(&path).is_ok() || 
-                    fs::symlink_metadata(&path).map(|m| m.file_type().is_symlink()).unwrap_or(false);
-                
+
+                let is_symlink_or_junction = fs::read_link(&path).is_ok()
+                    || fs::symlink_metadata(&path)
+                        .map(|m| m.file_type().is_symlink())
+                        .unwrap_or(false);
+
                 if is_symlink_or_junction {
                     if fs::remove_file(&path).is_ok() || fs::remove_dir(&path).is_ok() {
                         exorcised += 1;
@@ -140,18 +156,17 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
                 } else if path.is_dir() {
                     let _ = fs::remove_dir(&path);
                 } else {
-                        if let Some(parent) = dest.parent() {
-                            let _ = fs::create_dir_all(parent);
-                        }
-                        if fs::rename(&path, &dest).is_ok() || fs::copy(&path, &dest).is_ok() {
-                            let _ = fs::remove_file(&path);
-                            moved += 1;
-                        }
+                    if let Some(parent) = dest.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+                    if fs::rename(&path, &dest).is_ok() || fs::copy(&path, &dest).is_ok() {
+                        let _ = fs::remove_file(&path);
+                        moved += 1;
                     }
                 }
             }
+        }
 
-        
         Ok(format!(
             "{} ghosts busted, {} physical moved.",
             exorcised, moved
@@ -192,23 +207,34 @@ pub async fn repopulate_from_shelter(state: tauri::State<'_, AppState>) -> Resul
 }
 
 #[tauri::command]
-pub async fn move_to_lab(filename: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
+pub async fn move_to_lab(
+    filename: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
         let vault_mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
-        
+
         let mut vault_path = vault_mods_lane.join(&filename);
-        let folders_to_check = vec!["", "!Sanctuary", "!Sanctuary2", "!Sanctuary3", "Sanctuary", "Sanctuary2", "Sanctuary3"];
+        let folders_to_check = vec![
+            "",
+            "!Sanctuary",
+            "!Sanctuary2",
+            "!Sanctuary3",
+            "Sanctuary",
+            "Sanctuary2",
+            "Sanctuary3",
+        ];
         let mut found = false;
-        
+
         for f in &folders_to_check {
             let base_test = if f.is_empty() {
                 vault_mods_lane.join(&filename)
             } else {
                 vault_mods_lane.join(f).join(&filename)
             };
-            
+
             if base_test.exists() {
                 vault_path = base_test;
                 found = true;
@@ -228,7 +254,7 @@ pub async fn move_to_lab(filename: String, state: tauri::State<'_, AppState>) ->
         if !found {
             return Err("Artifact not found in Vault.".into());
         }
-        
+
         let mods_path = PathBuf::from(config.mods_path).join(&filename);
 
         if let Some(parent) = mods_path.parent() {
@@ -250,7 +276,7 @@ pub async fn move_to_lab(filename: String, state: tauri::State<'_, AppState>) ->
 #[tauri::command]
 pub fn get_quarantine_list() -> Vec<String> {
     let config = get_saved_coordinates();
-    let q_path = PathBuf::from(config.vault_path).join("Quarantine");
+    let q_path = PathBuf::from(config.vault_path).join(".sanctuary_quarantine");
     if !q_path.exists() {
         return vec![];
     }
@@ -268,40 +294,35 @@ pub fn get_quarantine_list() -> Vec<String> {
 #[tauri::command]
 pub fn restore_quarantined_file(filename: String) -> String {
     let config = get_saved_coordinates();
+    let sq_path = PathBuf::from(&config.vault_path)
+        .join(".sanctuary_quarantine")
+        .join(&filename);
     let q_path = PathBuf::from(&config.vault_path)
         .join("Quarantine")
-        .join(&filename);
-    let sq_path = PathBuf::from(&config.vault_path)
-        .join("Quarantine")
-        .join(&filename);
-    let m_path = crate::utils::get_vault_mods_lane(&config.vault_path)
-        .join(&filename);
-        
+        .join(format!("{}.json", filename));
+    let m_path = crate::utils::get_vault_mods_lane(&config.vault_path).join(&filename);
+
     let mut cache = load_cache(&config.vault_path);
-    let mut cache_updated = false;
 
     let mut moved = false;
-    if q_path.exists() {
-        let path_str = q_path.to_string_lossy().to_string();
-        if cache.contains_key(&path_str) { 
-            cache.remove(&path_str); 
-            let conn = get_db_conn(&config.vault_path);
-            remove_cache_entry(&conn, &path_str);
-        }
-        let _ = fs::rename(&q_path, &m_path);
-        moved = true;
-    } else if sq_path.exists() {
-        let path_str = sq_path.to_string_lossy().to_string();
-        let path_str = sq_path.to_string_lossy().to_string();
-        if cache.contains_key(&path_str) { 
-            cache.remove(&path_str);
-            let conn = get_db_conn(&config.vault_path);
-            remove_cache_entry(&conn, &path_str);
-        }
+
+    let path_str = sq_path.to_string_lossy().to_string();
+    if cache.contains_key(&path_str) {
+        cache.remove(&path_str);
+        let conn = get_db_conn(&config.vault_path);
+        remove_cache_entry(&conn, &path_str);
+    }
+
+    if sq_path.exists() {
         let _ = fs::rename(&sq_path, &m_path);
         moved = true;
     }
-        if moved {
+
+    if q_path.exists() {
+        let _ = fs::remove_file(&q_path);
+    }
+
+    if moved {
         "Restored".into()
     } else {
         "Error: File missing".into()
@@ -318,6 +339,9 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
         PathBuf::from(&config.vault_path)
             .join(".sanctuary_quarantine")
             .join(&filename),
+        PathBuf::from(&config.vault_path)
+            .join("Quarantine")
+            .join(format!("{}.json", filename)),
     ];
 
     for q_path in paths_to_check {
@@ -343,7 +367,9 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
                         let mut remaining = std::cmp::min(meta.len(), 100 * 1024 * 1024);
                         while remaining > 0 {
                             let write_size = std::cmp::min(remaining, zeros.len() as u64);
-                            if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err() {
+                            if std::io::Write::write_all(&mut f, &zeros[..write_size as usize])
+                                .is_err()
+                            {
                                 break;
                             }
                             remaining -= write_size;
@@ -352,8 +378,17 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
                     }
                 }
                 let _ = std::fs::remove_file(&q_path_clone);
-                
-                let manifest_path = q_path_clone.parent().unwrap().parent().unwrap().join("Quarantine").join(format!("{}.manifest.json", q_path_clone.file_name().unwrap().to_string_lossy()));
+
+                let manifest_path = q_path_clone
+                    .parent()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .join("Quarantine")
+                    .join(format!(
+                        "{}.manifest.json",
+                        q_path_clone.file_name().unwrap().to_string_lossy()
+                    ));
                 if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                     if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
                         manifest.quarantined_file_shredded = true;
@@ -394,4 +429,3 @@ pub fn get_shelter_list(state: tauri::State<'_, AppState>) -> Vec<String> {
 pub fn trigger_emp(_: bool, _: String) -> String {
     "Done".into()
 }
-

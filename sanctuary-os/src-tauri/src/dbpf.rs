@@ -13,7 +13,7 @@ pub fn read_dbpf_index(path: &Path) -> Result<Vec<DbpfResource>, String> {
     let file = File::open(path).map_err(|e| e.to_string())?;
     let mut reader = BufReader::new(file);
     let mut buffer = [0u8; 72];
-    
+
     if reader.read_exact(&mut buffer).is_err() || &buffer[0..4] != b"DBPF" {
         return Err("Not a valid DBPF file".into());
     }
@@ -86,35 +86,45 @@ pub fn read_dbpf_index(path: &Path) -> Result<Vec<DbpfResource>, String> {
 
         if flags & 0x01 == 0 {
             let mut b = [0u8; 4];
-            if reader.read_exact(&mut b).is_err() { break; }
+            if reader.read_exact(&mut b).is_err() {
+                break;
+            }
             t = u32::from_le_bytes(b);
             bytes_read += 4;
         }
         if flags & 0x02 == 0 {
             let mut b = [0u8; 4];
-            if reader.read_exact(&mut b).is_err() { break; }
+            if reader.read_exact(&mut b).is_err() {
+                break;
+            }
             g = u32::from_le_bytes(b);
             bytes_read += 4;
         }
         if flags & 0x04 == 0 {
             let mut b = [0u8; 4];
-            if reader.read_exact(&mut b).is_err() { break; }
+            if reader.read_exact(&mut b).is_err() {
+                break;
+            }
             i_ex = u32::from_le_bytes(b);
             bytes_read += 4;
         }
 
         let mut b4 = [0u8; 4];
-        if reader.read_exact(&mut b4).is_err() { break; }
+        if reader.read_exact(&mut b4).is_err() {
+            break;
+        }
         let i_low = u32::from_le_bytes(b4);
         bytes_read += 4;
 
         let skip_bytes = record_size.saturating_sub(bytes_read);
         if skip_bytes > 0 {
-            if reader.seek(SeekFrom::Current(skip_bytes as i64)).is_err() { break; }
+            if reader.seek(SeekFrom::Current(skip_bytes as i64)).is_err() {
+                break;
+            }
         }
 
         let i = ((i_ex as u64) << 32) | (i_low as u64);
-        
+
         resources.push(DbpfResource { t, g, i });
     }
 

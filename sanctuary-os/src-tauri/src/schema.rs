@@ -13,7 +13,6 @@ pub struct TimeCapsuleConfig {
     pub engine_state_targets: Vec<BackupTarget>,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LogMatcher {
     #[serde(skip_serializing_if = "Option::is_none")]

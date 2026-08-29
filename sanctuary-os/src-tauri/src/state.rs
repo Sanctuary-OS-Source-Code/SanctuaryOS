@@ -1,3 +1,4 @@
+use crate::utils::*;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -9,8 +10,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tauri::{Emitter, Manager};
-use crate::utils::*;
-
 
 pub struct AppState {
     pub active_schema: std::sync::Mutex<Option<crate::schema::GameSchema>>,
@@ -42,7 +41,7 @@ pub struct SolderConfig {
     pub active_workspace_id: Option<String>,
     #[serde(default)]
     pub workspaces: Vec<WorkspaceConfig>,
-    
+
     // Legacy fields for backward compatibility during migration
     #[serde(default)]
     pub live_path: Option<String>,
@@ -159,7 +158,5 @@ pub struct HistoryEntry {
     #[serde(default)]
     pub name: Option<String>,
 }
-
-
 
 pub struct DownloadsWatcherState(pub std::sync::Mutex<Option<std::sync::mpsc::Sender<()>>>);

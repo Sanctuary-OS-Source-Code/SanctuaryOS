@@ -77,6 +77,10 @@ interface ModalState {
   setUpdatePayload: (val: any) => void;
   isUpdatePanelOpen: boolean;
   setIsUpdatePanelOpen: (val: boolean) => void;
+  isNexusUpdatesPanelOpen: boolean;
+  setIsNexusUpdatesPanelOpen: (val: boolean) => void;
+  nexusPreviewAsset: { id: string, type: string } | null;
+  setNexusPreviewAsset: (asset: { id: string, type: string } | null) => void;
   isSideBrowserOpen: boolean;
   setIsSideBrowserOpen: (val: boolean) => void;
   isSupportPanelOpen: boolean;
@@ -198,6 +202,10 @@ export const useModalStore = create<ModalState>((set) => ({
   setUpdatePayload: (updatePayload) => set({ updatePayload }),
   isUpdatePanelOpen: false,
   setIsUpdatePanelOpen: (isUpdatePanelOpen) => set({ isUpdatePanelOpen }),
+  isNexusUpdatesPanelOpen: false,
+  setIsNexusUpdatesPanelOpen: (isNexusUpdatesPanelOpen) => set({ isNexusUpdatesPanelOpen }),
+  nexusPreviewAsset: null,
+  setNexusPreviewAsset: (nexusPreviewAsset) => set({ nexusPreviewAsset }),
   isSideBrowserOpen: false,
   setIsSideBrowserOpen: (isSideBrowserOpen) => set({ isSideBrowserOpen }),
   isSupportPanelOpen: false,

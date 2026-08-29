@@ -3,7 +3,8 @@ import { supabase, supabaseAuth } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { invoke } from "@tauri-apps/api/core";
-
+import { hashString } from "./lib/cryptoUtils";
+import { isDesktop } from "./utils/envUtils";
 export default function AuthWrapper({ children }: { children: React.ReactNode }) {
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
@@ -12,6 +13,9 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
   const [isLogin, setIsLogin] = useState(true);
   const [isResetPassword, setIsResetPassword] = useState(false);
+  const [showMfaChallenge, setShowMfaChallenge] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -25,6 +29,27 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [showLoginUI, setShowLoginUI] = useState(() => localStorage.getItem("sanctuary_show_login") === "true");
 
   useEffect(() => {
+    const handleSessionUpdate = async (newSession: any) => {
+      if (newSession) {
+        try {
+          const mfaStatus = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (mfaStatus.data?.nextLevel === 'aal2' && mfaStatus.data?.currentLevel === 'aal1') {
+            const factors = await supabase.auth.mfa.listFactors();
+            const totpFactor = factors.data?.totp?.[0];
+            if (totpFactor) {
+              setMfaFactorId(totpFactor.id);
+              setShowMfaChallenge(true);
+              setSession(null); // Keep session null in React state to force challenge UI
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("MFA check failed", e);
+        }
+      }
+      setSession(newSession);
+    };
+
     const fetchGameTitle = async () => {
       try {
         const config: any = await invoke("get_global_config");
@@ -46,8 +71,12 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       const isOfflineMode = !navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true";
       try {
         if (!isOfflineMode) {
-          const hwid = await invoke<string>("get_hardware_id");
-          if (hwid && hwid !== "UNKNOWN_HWID") {
+          let rawHwid = "WEB_BROWSER_HWID";
+          if (isDesktop()) {
+             try { rawHwid = await invoke<string>("get_hardware_id"); } catch {}
+          }
+          if (rawHwid && rawHwid !== "UNKNOWN_HWID") {
+            const hwid = await hashString(rawHwid);
             const fetchPromise = supabaseAuth.from('profiles').select("id").eq('hardware_id', hwid).eq('is_banned', true).limit(1);
             const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000));
             const { data } = await Promise.race([fetchPromise, timeoutPromise]) as any;
@@ -79,8 +108,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         if (!isOfflineMode) {
           const sessionPromise = supabase.auth.getSession();
           const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000));
-          const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]) as any;
-          setSession(session);
+          const { data: { session: fetchedSession } } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+          await handleSessionUpdate(fetchedSession);
         }
       } catch (e) {
         console.error("Session fetch failed", e);
@@ -91,12 +120,79 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
     checkBanStatus();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      handleSessionUpdate(newSession).catch(console.error);
     });
 
     return () => subscription.unsubscribe();
   }, [invoke]);
+
+  const finalizeLogin = async (user: any) => {
+    try {
+      let rawHwid = "WEB_BROWSER_HWID";
+      if (isDesktop()) {
+         try { rawHwid = await invoke<string>("get_hardware_id"); } catch {}
+      }
+      const hwid = await hashString(rawHwid);
+      const updatePromise = supabaseAuth.from('profiles').update({ hardware_id: hwid }).eq('id', user.id);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000));
+      await Promise.race([updatePromise, timeoutPromise]);
+    } catch (e) {
+      console.error("Failed to capture HWID on login", e);
+    }
+
+    let profile = null;
+    try {
+      const fetchPromise = supabaseAuth.from('profiles').select('is_banned, role').eq('id', user.id).maybeSingle();
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000));
+      const res = await Promise.race([fetchPromise, timeoutPromise]) as any;
+      profile = res.data;
+    } catch (e) {
+      console.error("Failed to fetch profile on login", e);
+    }
+    if (profile?.is_banned || profile?.role === 'blacklisted') {
+      await supabase.auth.signOut();
+      setIsHwidBanned(true);
+      localStorage.setItem("sanctuary_blacklisted", "true");
+      throw new Error("Account has been permanently blacklisted.");
+    } else {
+      localStorage.removeItem("sanctuary_blacklisted");
+      setIsHwidBanned(false);
+    }
+  };
+
+  const handleMfaAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaFactorId || !mfaCode) return;
+    setIsProcessing(true);
+    setStatus("DEBUG: Starting challenge...");
+    try {
+      const challenge = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
+      if (challenge.error) throw challenge.error;
+      
+      setStatus("DEBUG: Starting verify...");
+      const verify = await supabase.auth.mfa.verify({
+        factorId: mfaFactorId,
+        challengeId: challenge.data.id,
+        code: mfaCode
+      });
+      if (verify.error) throw verify.error;
+      
+      setStatus("DEBUG: Getting user...");
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) {
+      setStatus("DEBUG: Finalizing login...");
+      await finalizeLogin(userData.user);
+      setStatus("DEBUG: Getting session...");
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) setSession(sessionData.session);
+      }
+    } catch (err: any) {
+      setStatus(`${t("err_validation") || "Error: "}${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,23 +230,20 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         if (error) throw error;
 
         if (data?.user) {
-          try {
-            const hwid = await invoke<string>("get_hardware_id");
-            await supabaseAuth.from('profiles').update({ hardware_id: hwid }).eq('id', data.user.id);
-          } catch (e) {
-            console.error("Failed to capture HWID on login", e);
+          const mfaStatus = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (mfaStatus.data?.nextLevel === 'aal2' && mfaStatus.data?.currentLevel === 'aal1') {
+            const factors = await supabase.auth.mfa.listFactors();
+            const totpFactor = factors.data?.totp?.[0];
+            if (totpFactor) {
+              setMfaFactorId(totpFactor.id);
+              setShowMfaChallenge(true);
+              setIsProcessing(false);
+              setStatus("MFA Required");
+              return;
+            }
           }
-
-          const { data: profile } = await supabaseAuth.from('profiles').select('is_banned, role').eq('id', data.user.id).maybeSingle();
-          if (profile?.is_banned || profile?.role === 'blacklisted') {
-            await supabase.auth.signOut();
-            setIsHwidBanned(true);
-            localStorage.setItem("sanctuary_blacklisted", "true");
-            throw new Error("Account has been permanently blacklisted.");
-          } else {
-            localStorage.removeItem("sanctuary_blacklisted");
-            setIsHwidBanned(false);
-          }
+          await finalizeLogin(data.user);
+          if (data.session) setSession(data.session);
         }
       } else {
         const { error } = await supabase.auth.signUp({
@@ -293,6 +386,38 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           </p>
         </div>
 
+        {showMfaChallenge ? (
+          <form onSubmit={handleMfaAuth} className="flex flex-col gap-5 relative z-20" noValidate>
+            <div className="relative group/input">
+              <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 group-focus-within/input:theme-text-accent group-focus-within/input:opacity-100 transition-all !text-[20px]">pin</span>
+              <input
+                type="text"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+                autoComplete="off"
+                spellCheck="false"
+                maxLength={6}
+                placeholder="6-DIGIT AUTHENTICATOR CODE"
+                className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] focus:shadow-md transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 placeholder:capitalize placeholder:tracking-widest placeholder:text-[10px]"
+              />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={isProcessing || mfaCode.length < 6}
+              className="w-full mt-2 py-4 rounded-xl font-black text-[11px] capitalize tracking-[0.2em] transition-all bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+            >
+              VERIFY 2FA
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowMfaChallenge(false); supabase.auth.signOut(); }}
+              className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center gap-2 w-full text-center mt-2"
+            >
+              CANCEL
+            </button>
+          </form>
+        ) : (
         <form onSubmit={handleAuth} className="flex flex-col gap-5 relative z-20" noValidate>
           {!isLogin && !isResetPassword && (
             <div className="relative group/input">
@@ -348,6 +473,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             {isResetPassword ? t("btn_send_reset") : isLogin ? t("btn_login") : t("btn_signup")}
           </button>
         </form>
+        )}
 
         <div className="mt-4 relative z-20">
           <button

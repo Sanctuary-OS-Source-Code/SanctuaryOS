@@ -1,14 +1,16 @@
-use crate::commands::state_ops::*;
-use crate::commands::library::*;
-use crate::commands::deployment::*;
 use crate::commands::backups::*;
+use crate::commands::cache::*;
+use crate::commands::config::*;
+use crate::commands::deployment::*;
+use crate::commands::game_info::*;
+use crate::commands::library::*;
+use crate::commands::overrides::*;
 use crate::commands::radar::*;
 use crate::commands::shelter::*;
-use crate::commands::config::*;
-use crate::commands::overrides::*;
+use crate::commands::state_ops::*;
 use crate::commands::system::*;
-use crate::commands::cache::*;
-use crate::commands::game_info::*;
+use crate::state::*;
+use crate::utils::*;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -20,12 +22,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tauri::{Emitter, Manager};
-use crate::state::*;
-use crate::utils::*;
-
 
 #[tauri::command]
-pub async fn scan_game_logs(docs_path: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
+pub async fn scan_game_logs(
+    docs_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let path = PathBuf::from(docs_path);
@@ -69,7 +71,9 @@ pub async fn scan_game_logs(docs_path: String, state: tauri::State<'_, AppState>
             }
             Err(e) => Err(format!("Failed to read log: {}", e)),
         }
-    }).await.map_err(|e| e.to_string())?
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -88,7 +92,11 @@ pub fn clear_old_logs(docs_path: String, state: tauri::State<'_, AppState>) {
 }
 
 #[tauri::command]
-pub fn write_os_log(app_handle: tauri::AppHandle, message: String, level: String) -> Result<(), String> {
+pub fn write_os_log(
+    app_handle: tauri::AppHandle,
+    message: String,
+    level: String,
+) -> Result<(), String> {
     use std::fs::OpenOptions;
     use std::io::Write;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -107,4 +115,3 @@ pub fn write_os_log(app_handle: tauri::AppHandle, message: String, level: String
     }
     Ok(())
 }
-

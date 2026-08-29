@@ -10,6 +10,7 @@ import { compareVersions } from './shared';
 export function NexusUpdatesChecker() {
   const setNexusUpdatesCount = useStore(state => state.setNexusUpdatesCount);
   const setNexusUpdateTabs = useStore(state => state.setNexusUpdateTabs);
+  const setNexusAvailableUpdates = useStore(state => state.setNexusAvailableUpdates);
   const { registry } = useLexicon();
   const { CORE_THEMES, customThemes } = useTheme();
 
@@ -18,7 +19,7 @@ export function NexusUpdatesChecker() {
       try {
         const { data: assets, error } = await supabase
           .from('nexus_assets')
-          .select('name, asset_type, version, json_data')
+          .select('id, name, asset_type, version, json_data')
           .or('is_public.eq.true,is_public.is.null');
         if (error || !assets) return;
 
@@ -52,6 +53,7 @@ export function NexusUpdatesChecker() {
 
         let updatesCount = 0;
         const updateTabs = new Set<string>();
+        const availableUpdates: any[] = [];
         const allThemes = { ...CORE_THEMES, ...customThemes };
 
         for (const asset of assets) {
@@ -85,12 +87,21 @@ export function NexusUpdatesChecker() {
             if (compareVersions(assetDisplayVersion, localVersion) > 0) {
               updatesCount++;
               updateTabs.add(mappedTab);
+              availableUpdates.push({
+                id: asset.id,
+                name: asset.name,
+                type: asset.asset_type,
+                mappedTab,
+                oldVersion: localVersion,
+                newVersion: assetDisplayVersion
+              });
             }
           }
         }
 
         setNexusUpdatesCount(updatesCount);
         setNexusUpdateTabs(Array.from(updateTabs));
+        setNexusAvailableUpdates(availableUpdates);
       } catch (err) {
         console.error("Failed to check for Nexus updates", err);
       }

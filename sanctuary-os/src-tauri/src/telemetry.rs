@@ -1,4 +1,4 @@
-use sysinfo::{System, Disks};
+use sysinfo::{Disks, System};
 
 #[derive(serde::Serialize)]
 pub struct SystemTelemetry {
@@ -21,19 +21,21 @@ pub async fn fetch_system_telemetry() -> Result<SystemTelemetry, String> {
             Mutex::new(s)
         });
 
-        let mut sys = sys_mutex.lock().map_err(|_| "Failed to lock system mutex")?;
+        let mut sys = sys_mutex
+            .lock()
+            .map_err(|_| "Failed to lock system mutex")?;
         sys.refresh_memory();
         sys.refresh_cpu_usage();
-        
+
         let disks = Disks::new_with_refreshed_list();
         let mut disk_total = 0;
         let mut disk_used = 0;
-        
+
         for disk in disks.list() {
             disk_total += disk.total_space();
             disk_used += disk.total_space() - disk.available_space();
         }
-        
+
         Ok(SystemTelemetry {
             logical_cores: sys.cpus().len(),
             physical_cores: sysinfo::System::physical_core_count().unwrap_or(0),
@@ -43,7 +45,9 @@ pub async fn fetch_system_telemetry() -> Result<SystemTelemetry, String> {
             disk_total,
             disk_used,
         })
-    }).await.map_err(|e| e.to_string())?
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -51,11 +55,11 @@ pub async fn get_directory_size(path: String) -> Result<u64, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut total_size = 0;
         let mut engine_core_seen = false;
-        
+
         let mut walker = walkdir::WalkDir::new(&path).into_iter();
         while let Some(Ok(entry)) = walker.next() {
             let name = entry.file_name().to_string_lossy();
-            
+
             // Cheap hardlink deduplication: only count the first Engine_Core we see
             if entry.file_type().is_dir() && name.starts_with("Engine_Core") {
                 if engine_core_seen {
@@ -64,13 +68,15 @@ pub async fn get_directory_size(path: String) -> Result<u64, String> {
                 }
                 engine_core_seen = true;
             }
-            
+
             if let Ok(metadata) = entry.metadata() {
                 total_size += metadata.len();
             }
         }
         Ok(total_size)
-    }).await.map_err(|e| e.to_string())?
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[derive(serde::Serialize)]
@@ -84,15 +90,15 @@ pub struct AppFootprint {
 
 #[cfg(target_os = "windows")]
 fn get_private_usage() -> u64 {
+    use std::mem::size_of;
     use windows::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS_EX};
     use windows::Win32::System::Threading::GetCurrentProcess;
-    use std::mem::size_of;
-    
+
     unsafe {
         let process = GetCurrentProcess();
         let mut counters = PROCESS_MEMORY_COUNTERS_EX::default();
         let cb = size_of::<PROCESS_MEMORY_COUNTERS_EX>() as u32;
-        
+
         if GetProcessMemoryInfo(process, &mut counters as *mut _ as *mut _, cb).is_ok() {
             counters.PrivateUsage as u64
         } else {
@@ -114,14 +120,14 @@ static SYS: OnceLock<Mutex<sysinfo::System>> = OnceLock::new();
 pub async fn fetch_app_footprint() -> Result<AppFootprint, String> {
     tauri::async_runtime::spawn_blocking(|| {
         let pid = sysinfo::get_current_pid().map_err(|e| e.to_string())?;
-        
-        let sys_mutex = SYS.get_or_init(|| {
-            Mutex::new(sysinfo::System::new())
-        });
 
-        let mut sys = sys_mutex.lock().map_err(|_| "Failed to lock system mutex")?;
+        let sys_mutex = SYS.get_or_init(|| Mutex::new(sysinfo::System::new()));
+
+        let mut sys = sys_mutex
+            .lock()
+            .map_err(|_| "Failed to lock system mutex")?;
         sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
-        
+
         if let Some(process) = sys.process(pid) {
             let disk_usage = process.disk_usage();
             Ok(AppFootprint {
@@ -134,5 +140,7 @@ pub async fn fetch_app_footprint() -> Result<AppFootprint, String> {
         } else {
             Err("Process not found".to_string())
         }
-    }).await.map_err(|e| e.to_string())?
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }

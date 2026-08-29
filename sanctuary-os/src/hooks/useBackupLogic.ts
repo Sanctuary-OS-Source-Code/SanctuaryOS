@@ -2,6 +2,7 @@ import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
+import { isDesktop } from "../utils/envUtils";
 
 export function useBackupLogic(detectGameVersion: () => void) {
   const { setStatus, setBackupList, selectedVersion } = useStore();
@@ -9,6 +10,8 @@ export function useBackupLogic(detectGameVersion: () => void) {
   const { t } = useLexicon();
 
   async function fetchBackups() {
+    console.log("[DEBUG] fetchBackups called. isDesktop():", isDesktop());
+    if (!isDesktop()) return;
     try {
       const config: any = await invoke("get_saved_coordinates");
       const list = await invoke<string[]>("get_backups", {

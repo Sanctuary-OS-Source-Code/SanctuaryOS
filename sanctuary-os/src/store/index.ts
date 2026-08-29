@@ -1,7 +1,9 @@
 import { create } from 'zustand';
+import { isDesktop } from "../utils/envUtils";
 import sims4Schema from '../data/schemas/sims4.json';
 import { supabase } from '../supabase';
 import { invoke } from '@tauri-apps/api/core';
+import { getSubdomain } from '../utils/routingUtils';
 
 const loadActiveGameSchema = () => {
   try {
@@ -112,6 +114,8 @@ interface GlobalState {
   setView: (view: string) => void;
   status: string;
   setStatus: (status: string) => void;
+  isAlertsOpen: boolean;
+  setIsAlertsOpen: (isOpen: boolean) => void;
   statusLog: { id: string, message: string, type: 'success' | 'error' | 'info' | 'warning' | 'loading', timestamp: number }[];
   pushStatus: (message: string, type?: 'success' | 'error' | 'info' | 'warning' | 'loading') => void;
   clearStatusLog: () => void;
@@ -182,6 +186,8 @@ interface GlobalState {
   setMarketTab: (tab: string) => void;
   nexusUpdatesCount: number;
   setNexusUpdatesCount: (count: number) => void;
+  nexusAvailableUpdates: any[];
+  setNexusAvailableUpdates: (updates: any[]) => void;
   nexusUpdateTabs: string[];
   setNexusUpdateTabs: (tabs: string[]) => void;
   showImages: boolean;
@@ -244,8 +250,10 @@ export const useStore = create<GlobalState>((set) => ({
       modList: [],
     });
   },
-  view: 'dashboard',
+  view: isDesktop() ? 'dashboard' : 'dashboard',
   setView: (view) => set({ view }),
+  isAlertsOpen: false,
+  setIsAlertsOpen: (isOpen) => set({ isAlertsOpen: isOpen }),
   status: 'STANDING BY',
   setStatus: (status) => set((state) => {
     if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
@@ -347,6 +355,7 @@ export const useStore = create<GlobalState>((set) => ({
   selectedVersion: '',
   setSelectedVersion: (selectedVersion) => set({ selectedVersion }),
   detectGameVersion: async () => {
+    if (!isDesktop()) return;
     try {
       const config: any = await invoke("get_saved_coordinates");
       if (!config.live_path) return;
@@ -403,6 +412,8 @@ export const useStore = create<GlobalState>((set) => ({
   setMarketTab: (marketTab) => set({ marketTab }),
   nexusUpdatesCount: 0,
   setNexusUpdatesCount: (nexusUpdatesCount) => set({ nexusUpdatesCount }),
+  nexusAvailableUpdates: [],
+  setNexusAvailableUpdates: (nexusAvailableUpdates) => set({ nexusAvailableUpdates }),
   nexusUpdateTabs: [],
   setNexusUpdateTabs: (nexusUpdateTabs) => set({ nexusUpdateTabs }),
   showImages: localStorage.getItem("sanctuary_show_images") !== "false",
@@ -477,8 +488,24 @@ export const useStore = create<GlobalState>((set) => ({
   setKeepersActiveTab: (tab) => set({ keepersActiveTab: tab })
 }));
 
-export const syncMasterSchemas = async (schemaId: string = 'sims4') => {
+export const syncMasterSchemas = async (initialSchemaId: string = 'sims4') => {
   try {
+    let schemaId = initialSchemaId;
+    
+    // Resolve subdomain to schema if on web
+    const subdomain = getSubdomain();
+    if (subdomain && !isDesktop()) {
+      const { data: gameData } = await supabase
+        .from('sanctuary_games')
+        .select('schema_id')
+        .eq('schema_id', subdomain)
+        .maybeSingle();
+        
+      if (gameData && gameData.schema_id) {
+        schemaId = gameData.schema_id;
+      }
+    }
+
     if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") {
       const cached = localStorage.getItem(`sanctuary_master_schema_${schemaId}`);
       if (cached) {

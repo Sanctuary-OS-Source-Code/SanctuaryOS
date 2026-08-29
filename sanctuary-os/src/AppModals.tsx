@@ -21,6 +21,7 @@ import { BackupRestoreModals } from "./app-modals/BackupRestoreModals";
 import { IngestProgressModal } from "./app-modals/IngestProgressModal";
 import { SystemLogModal } from "./app-modals/SystemLogModal";
 import { SystemStatusBar } from "./app-modals/SystemStatusBar";
+import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
 import BlueprintSwapSidePanel from "./side-panels/BlueprintSwapSidePanel";
 import CommandRadarSweepPanel from "./side-panels/CommandRadarSweepPanel";
 import { UpdatesSidePanel } from "./side-panels/CommandCenterSidePanels";
@@ -28,6 +29,7 @@ import CommandConflictsPanel from "./side-panels/CommandConflictsPanel";
 import CommandIncompatiblePanel from "./side-panels/CommandIncompatiblePanel";
 import { getExtensionRegex, handleOpenUrl } from "./shared";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
+import { isDesktop } from "./utils/envUtils";
 
 export const AppModals = React.memo(function AppModals(props: any) {
   const [isLogExpanded, setIsLogExpanded] = React.useState(false);
@@ -61,6 +63,8 @@ export const AppModals = React.memo(function AppModals(props: any) {
   const networkUpdates = useStore((state) => state.networkUpdates);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const modsPath = useStore((state) => state.modsPath);
+  const isAlertsOpen = useStore(state => state.isAlertsOpen);
+  const setIsAlertsOpen = useStore(state => state.setIsAlertsOpen);
   const { applyConflictOverride } = usePlaySetLogic();
 
   const { backupType, restoreType, updatePayload, setIsSideBrowserOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen, showUpdatesModal, setShowUpdatesModal, showConflictsPanel, setShowConflictsPanel, showIncompatiblePanel, setShowIncompatiblePanel } = useModalStore();
@@ -200,7 +204,7 @@ export const AppModals = React.memo(function AppModals(props: any) {
       
       <SystemStatusPanel isOpen={isSystemStatusOpen} onClose={() => setIsSystemStatusOpen(false)} />
       
-      <SidePanelBrowser />
+      {isDesktop() && <SidePanelBrowser />}
       
       {isBlueprintSwapOpen && (
         <BlueprintSwapSidePanel
@@ -259,6 +263,12 @@ export const AppModals = React.memo(function AppModals(props: any) {
           onRefreshMods={runRadarSweep}
         />
       )}
+      
+      <SanctuaryAlertsSidePanel
+        isOpen={isAlertsOpen}
+        onClose={() => setIsAlertsOpen(false)}
+        audience="Citizens"
+      />
     </>
   );
 });

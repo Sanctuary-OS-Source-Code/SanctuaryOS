@@ -1,10 +1,13 @@
+import { isDesktop } from "../utils/envUtils";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "../supabase";
 import { isVersionMatch, getExtensionRegex } from "../shared";
+import { hashString } from "../lib/cryptoUtils";
 import { useState } from "react";
 import { useModalStore } from "../store/modalStore";
+import { notifyOS } from "../utils/notificationHelper";
 
 export function useRadarLogic(checkNetworkUpdates: (currentModList: any[]) => Promise<void>) {
   const { 
@@ -17,14 +20,53 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[]) => Pr
   const { t } = useLexicon();
 
 async function fetchVault() {
+    if (!isDesktop()) return;
     const qList = await invoke<string[]>("get_quarantine_list");
     setQuarantineList(qList);
+    
+    if (qList && qList.length > 0) {
+      setMalwareAlert((prev: any[]) => {
+        const existingNames = (prev || []).map(p => p.name);
+        const newItems = qList.filter(q => !existingNames.includes(q)).map(q => ({
+            hash: q,
+            name: q,
+            displayName: q
+        }));
+
+        if (newItems.length > 0) {
+          if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
+            supabase.from('malware_reports').select('detected_hash').then(({ data: existingReports }) => {
+              const insertPayloads = newItems
+                .filter((m: any) => !existingReports?.some((r: any) => r.detected_hash === m.hash))
+                .map((m: any) => ({
+                  artifact_name: m.displayName || m.name || 'Unknown',
+                  detected_hash: m.hash || 'unknown-hash',
+                  signature: 'Persistent Quarantine Artifact',
+                  status: 'pending',
+                  original_exists: false,
+                  original_shredded: false
+                }));
+              if (insertPayloads.length > 0) {
+                supabase.from('malware_reports').insert(insertPayloads).then(({ error }) => {
+                  if (error) console.error("Malware Report Insert Error (fetchVault):", error);
+                });
+              }
+            }).then(undefined, (e: any) => console.error("Malware Report Insert Exception (fetchVault):", e));
+          }
+          notifyOS("Quarantine Lockdown", `Sanctuary OS has quarantined ${newItems.length} persistent dangerous artifacts on boot.`, 'MALWARE_ALERT');
+          return [...(prev || []), ...newItems];
+        }
+        return prev;
+      });
+    }
+
     const sList = await invoke<string[]>("get_shelter_list");
     setShelterContents(sList);
   }
 
 async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isSilent) {
     if (activeGameSchema?.features?.has_cc === false) return;
+    if (!isDesktop()) return;
     if (useModalStore.getState().isScanning || useModalStore.getState().isSilentScanning) return;
     
     useModalStore.getState().setIsScanning(!isSilent);
@@ -103,7 +145,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const evasionDetected = allLocalMods.some(m => m.status === "☣️ EVASION DETECTED");
       if (evasionDetected) {
         try {
-          const hwid = await invoke<string>("get_hardware_id");
+          const rawHwid = await invoke<string>("get_hardware_id");
+          const hwid = await hashString(rawHwid);
           const { data: sessionData } = await supabase.auth.getSession();
           if (sessionData?.session?.user) {
             await supabase.from('profiles').update({ is_banned: true, hardware_id: hwid, blacklist_reason: "Malware Evasion" }).eq('id', sessionData.session.user.id);
@@ -984,6 +1027,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             console.error("Malware Report Insert Exception (sweep):", e);
           }
         }
+
+        notifyOS("Radar Sweep Alert", `Sanctuary OS has detected ${detectedMalware.length} dangerous artifacts during the radar sweep.`, 'MALWARE_ALERT');
 
         setMalwareAlert((prev: any[]) => {
           if (!prev) return detectedMalware;

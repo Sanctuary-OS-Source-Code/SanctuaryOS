@@ -16,6 +16,7 @@ export default function ClientTab() {
 
   const [localOnly, setLocalOnly] = useState(localStorage.getItem("sanctuary_local_only") === "true");
   const [shareMalwareReports, setShareMalwareReports] = useState(localStorage.getItem("sanctuary_share_malware_reports") === "true");
+  const [osNotifications, setOsNotifications] = useState(localStorage.getItem("sanctuary_os_notifications_enabled") === "true");
 
   const session = useStore((state) => state.session);
   const [isBanned, setIsBanned] = useState(false);
@@ -64,6 +65,18 @@ export default function ClientTab() {
           icon="language"
           onClick={() => setUseInternalBrowser(!useInternalBrowser)}
           actions={<SettingsToggle checked={useInternalBrowser} />}
+        />
+
+        <UniversalCard 
+          title={t("setting_os_notifications_title") || "Desktop Notifications"} 
+          subtitle={t("setting_os_notifications_desc") || "Enable native OS alerts for urgent events."} 
+          icon="notifications_active"
+          onClick={() => {
+            const val = !osNotifications;
+            setOsNotifications(val);
+            localStorage.setItem("sanctuary_os_notifications_enabled", val.toString());
+          }}
+          actions={<SettingsToggle checked={osNotifications} />}
         />
 
         <div className="relative group/malware">
