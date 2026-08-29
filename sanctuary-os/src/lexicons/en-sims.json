@@ -29,5 +29,7 @@
   "landing_news": "Community News",
   "landing_download": "Get the Desktop App",
   "landing_privacy": "Privacy Rules",
-  "landing_terms": "Terms of Service"
+  "landing_terms": "Terms of Service",
+  "landing_system_directives": "Public Documents",
+  "landing_no_documents": "No Documents Found"
 }

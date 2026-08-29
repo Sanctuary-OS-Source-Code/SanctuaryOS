@@ -17,27 +17,18 @@ import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenStats, C
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 
 
-declare global {
-  interface Window {
-    __nexusCache?: {
-      nexusItems: any[] | null;
-      lastNexusFetch: number;
-      assetResultsMap: Record<string, any[]>;
-      lastAssetFetch: number;
-      homeStats: any;
-      recentFeed: any[];
-      lastHomeFetch: number;
-    };
-  }
-}
 
-if (!window.__nexusCache) {
-  window.__nexusCache = {
+if (!window.__sanctuaryCache) {
+  window.__sanctuaryCache = {} as any;
+}
+if (!window.__sanctuaryCache!.nexus) {
+  window.__sanctuaryCache!.nexus = {
     nexusItems: null,
     lastNexusFetch: 0,
     assetResultsMap: {},
     lastAssetFetch: 0,
     homeStats: null,
+
     recentFeed: [],
     lastHomeFetch: 0
   };
@@ -93,7 +84,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const maskedDLC = useStore(state => state.maskedDLC) || [];
   const playSets = useStore(state => state.playSets) || [];
   const { importTheme, CORE_THEMES, customThemes } = useTheme();
-  const [assetResultsMap, setAssetResultsMap] = useState<Record<string, any[]>>(window.__nexusCache?.assetResultsMap || {});
+  const [assetResultsMap, setAssetResultsMap] = useState<Record<string, any[]>>(window.__sanctuaryCache!.nexus?.assetResultsMap || {});
   const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
   const { nexusPreviewAsset: previewAsset, setNexusPreviewAsset: setPreviewAsset } = useModalStore();
   const [results, setResults] = useState<any[]>([]);
@@ -176,12 +167,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       fetchNexusAssets(false, true);
 
       const fetchHomeData = async () => {
-        const isCacheFresh = window.__nexusCache!.homeStats && window.__nexusCache!.lastHomeFetch > 0 && (performance.now() - window.__nexusCache!.lastHomeFetch < CACHE_TTL);
+        const isCacheFresh = window.__sanctuaryCache!.nexus!.homeStats && window.__sanctuaryCache!.nexus!.lastHomeFetch > 0 && (performance.now() - window.__sanctuaryCache!.nexus!.lastHomeFetch < CACHE_TTL);
 
         // Stale-While-Revalidate: Show cache immediately if we have it
-        if (window.__nexusCache!.homeStats) {
-          setStats(window.__nexusCache!.homeStats);
-          setRecentFeed(window.__nexusCache!.recentFeed);
+        if (window.__sanctuaryCache!.nexus!.homeStats) {
+          setStats(window.__sanctuaryCache!.nexus!.homeStats);
+          setRecentFeed(window.__sanctuaryCache!.nexus!.recentFeed);
           setLoadingHome(false);
         }
 
@@ -189,7 +180,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           return;
         }
 
-        if (!window.__nexusCache!.homeStats) setLoadingHome(true);
+        if (!window.__sanctuaryCache!.nexus!.homeStats) setLoadingHome(true);
         try {
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -218,7 +209,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           };
 
           setStats(newStats);
-          window.__nexusCache!.homeStats = newStats;
+          window.__sanctuaryCache!.nexus!.homeStats = newStats;
 
           const selectFields = "*";
           const { data: recentModsRawData } = await supabase
@@ -379,8 +370,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
           const finalFeed = combined.slice(0, 20);
           setRecentFeed(finalFeed);
-          window.__nexusCache!.recentFeed = finalFeed;
-          window.__nexusCache!.lastHomeFetch = performance.now();
+          window.__sanctuaryCache!.nexus!.recentFeed = finalFeed;
+          window.__sanctuaryCache!.nexus!.lastHomeFetch = performance.now();
 
         } catch (err) {
           console.error("NEXUS LOG ERROR: Failed to fetch home data:", err);
@@ -457,7 +448,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   }, [marketTab, gameVersions]);
 
   useEffect(() => {
-    if (marketTab === 'HOME' && gameVersions.length > 0 && !window.__nexusCache!.nexusItems) {
+    if (marketTab === 'HOME' && gameVersions.length > 0 && !window.__sanctuaryCache!.nexus!.nexusItems) {
       fetchNexus(false, true);
     }
   }, [marketTab, gameVersions]);
@@ -478,12 +469,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       return;
     }
 
-    const hasCache = Object.keys(window.__nexusCache!.assetResultsMap).length > 0;
-    const isCacheFresh = !forceRefresh && hasCache && (performance.now() - window.__nexusCache!.lastAssetFetch < CACHE_TTL);
+    const hasCache = Object.keys(window.__sanctuaryCache!.nexus!.assetResultsMap).length > 0;
+    const isCacheFresh = !forceRefresh && hasCache && (performance.now() - window.__sanctuaryCache!.nexus!.lastAssetFetch < CACHE_TTL);
 
     // Stale-While-Revalidate: Show cache immediately if we have it
     if (hasCache && !isSilent) {
-      if (Object.keys(assetResultsMap).length === 0) setAssetResultsMap(window.__nexusCache!.assetResultsMap);
+      if (Object.keys(assetResultsMap).length === 0) setAssetResultsMap(window.__sanctuaryCache!.nexus!.assetResultsMap);
       setLoadingAssets(false);
     }
 
@@ -495,8 +486,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       if (!hasCache && !isSilent) setLoadingAssets(true);
       try { await assetsFetchPromise; } catch (e) { }
       if (!isSilent) {
-        if (Object.keys(window.__nexusCache!.assetResultsMap).length > 0) {
-          setAssetResultsMap(window.__nexusCache!.assetResultsMap);
+        if (Object.keys(window.__sanctuaryCache!.nexus!.assetResultsMap).length > 0) {
+          setAssetResultsMap(window.__sanctuaryCache!.nexus!.assetResultsMap);
         }
         setLoadingAssets(false);
       }
@@ -560,8 +551,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           'MASON_DATA': masonData || []
         };
 
-        window.__nexusCache!.assetResultsMap = newMap;
-        window.__nexusCache!.lastAssetFetch = performance.now();
+        window.__sanctuaryCache!.nexus!.assetResultsMap = newMap;
+        window.__sanctuaryCache!.nexus!.lastAssetFetch = performance.now();
 
         if (!isSilent || marketTab !== 'HOME' && marketTab !== 'MODS') {
           if (Object.keys(assetResultsMap).length === 0 || forceRefresh) {
@@ -577,7 +568,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       } catch (err: any) {
         console.error("NEXUS LOG ERROR: Asset fetch error:", err);
         // Only clear if we don't have cache to fall back on
-        if (Object.keys(window.__nexusCache!.assetResultsMap).length === 0) {
+        if (Object.keys(window.__sanctuaryCache!.nexus!.assetResultsMap).length === 0) {
           setAssetResultsMap({});
         }
         throw err;
@@ -596,6 +587,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   const handleUploadAsset = async () => {
     try {
+      if (!session?.user?.id) {
+        useStore.getState().pushStatus(t("auto_guest_mode_active_45") || "Login required to upload.");
+        return;
+      }
       if (session?.user?.id) {
         const { data: profileData } = await supabase.from('user_profiles').select('allow_upload').eq('id', session.user.id).maybeSingle();
         if (profileData && profileData.allow_upload === false) {
@@ -651,6 +646,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   const submitUpload = async () => {
     try {
+      if (!session?.user?.id) {
+        useStore.getState().pushStatus(t("auto_guest_mode_active_45") || "Login required to upload.");
+        return;
+      }
       const finalLanguage = uploadState.language === 'add_new' ? uploadState.newLanguage : uploadState.language;
       const finalContent = { ...uploadState.fileContent, version: uploadState.version, _meta_version: uploadState.version };
 
@@ -715,6 +714,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!session?.user?.id) {
+      useStore.getState().pushStatus(t("auto_guest_mode_active_45") || "Login required to submit reports.");
+      return;
+    }
     if (!reportState.assetId || !reportState.reason.trim()) return;
     try {
       if (reportState.assetType === 'blueprint') {
@@ -853,11 +856,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       return;
     }
 
-    const isCacheFresh = !forceRefresh && window.__nexusCache!.nexusItems && (performance.now() - window.__nexusCache!.lastNexusFetch < CACHE_TTL);
+    const isCacheFresh = !forceRefresh && window.__sanctuaryCache!.nexus!.nexusItems && (performance.now() - window.__sanctuaryCache!.nexus!.lastNexusFetch < CACHE_TTL);
 
     // Stale-While-Revalidate: Show cache immediately if we have it
-    if (window.__nexusCache!.nexusItems && !isSilent) {
-      setResults(window.__nexusCache!.nexusItems);
+    if (window.__sanctuaryCache!.nexus!.nexusItems && !isSilent) {
+      setResults(window.__sanctuaryCache!.nexus!.nexusItems);
       setCurrentPage(1);
       setLoadingMods(false);
     }
@@ -867,17 +870,17 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     }
 
     if (nexusFetchPromise) {
-      if (!isSilent && !window.__nexusCache!.nexusItems) setLoadingMods(true);
+      if (!isSilent && !window.__sanctuaryCache!.nexus!.nexusItems) setLoadingMods(true);
       try { await nexusFetchPromise; } catch (e) { }
       if (!isSilent) {
-        if (window.__nexusCache!.nexusItems) setResults(window.__nexusCache!.nexusItems);
+        if (window.__sanctuaryCache!.nexus!.nexusItems) setResults(window.__sanctuaryCache!.nexus!.nexusItems);
         setCurrentPage(1);
         setLoadingMods(false);
       }
       return;
     }
 
-    if (!isSilent && !window.__nexusCache!.nexusItems) setLoadingMods(true);
+    if (!isSilent && !window.__sanctuaryCache!.nexus!.nexusItems) setLoadingMods(true);
     const startFetch = performance.now();
 
     nexusFetchPromise = (async () => {
@@ -1116,8 +1119,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         allItems = Array.from(nameMap.values());
         allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-        window.__nexusCache!.nexusItems = allItems;
-        window.__nexusCache!.lastNexusFetch = performance.now();
+        window.__sanctuaryCache!.nexus!.nexusItems = allItems;
+        window.__sanctuaryCache!.nexus!.lastNexusFetch = performance.now();
 
         if (!isSilent || useStore.getState().marketTab === 'MODS') {
           setResults(allItems);
@@ -2258,7 +2261,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 } catch (e) { console.error("Could not increment downloads", e); }
                                 setAssetResultsMap(prev => {
                                   const newMap = { ...prev, [marketTab]: (prev[marketTab] || []).map(a => a.id === asset.id ? { ...a, downloads: (a.downloads || 0) + 1 } : a) };
-                                  if (window.__nexusCache) window.__nexusCache.assetResultsMap = newMap;
+                                  if (window.__sanctuaryCache!.nexus) window.__sanctuaryCache!.nexus.assetResultsMap = newMap;
                                   return newMap;
                                 });
                               }}
@@ -2338,7 +2341,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         syncBlueprintByCode={syncBlueprintByCode}
         onDownloadSuccess={(id: any) => setAssetResultsMap(prev => {
           const newMap = { ...prev, [marketTab]: (prev[marketTab] || []).map(a => a.id === id ? { ...a, downloads: (a.downloads || 0) + 1 } : a) };
-          if (window.__nexusCache) window.__nexusCache.assetResultsMap = newMap;
+          if (window.__sanctuaryCache!.nexus) window.__sanctuaryCache!.nexus.assetResultsMap = newMap;
           return newMap;
         })}
       />

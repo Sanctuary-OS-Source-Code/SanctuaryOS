@@ -124,7 +124,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
 
             <button
               onClick={async () => { await getCurrentWebviewWindow().close(); }}
-              className="w-[28px] h-[24px] rounded-full bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_8%,transparent)] to-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-[0_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-center text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--error)] hover:border-[color-mix(in_srgb,var(--error)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--error)_10%,transparent)] transition-all outline-none group/btn"
+              className="w-[28px] h-[24px] rounded-full bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_8%,transparent)] to-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-[0_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-center text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all outline-none group/btn"
             >
               <span className="material-symbols-outlined !text-[14px] leading-none transition-transform group-active/btn:scale-90">{t("icon_close")}</span>
             </button>

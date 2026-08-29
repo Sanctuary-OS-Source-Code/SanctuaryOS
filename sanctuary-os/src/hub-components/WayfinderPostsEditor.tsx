@@ -414,7 +414,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
               } else if (payload.category === "Community") {
                 actionWord = "a Community Announcement";
               }
-              
+
               return {
                 id: crypto.randomUUID(),
                 user_id: f.id,
@@ -743,7 +743,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                             ] : [
                               { id: "Update", label: "Update" },
                               { id: "Info", label: "Info" },
-                              { id: "Event", label: "Event" }
+                              { id: "Event", label: "Event" },
                             ]
                           )
                         }

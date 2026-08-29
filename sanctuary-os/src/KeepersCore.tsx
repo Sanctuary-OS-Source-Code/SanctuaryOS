@@ -11,6 +11,7 @@ import KeepersSupportTickets from './hub-components/KeepersSupportTickets';
 import { AuditLogViewer } from './side-panels/SAAuditLogViewer';
 import { KeepersDispatchEditor } from './hub-components/KeepersDispatchEditor';
 import KeepersWebNewsEditor from './hub-components/KeepersWebNewsEditor';
+import KeepersWebDirectivesEditor from './hub-components/KeepersWebDirectivesEditor';
 import KeepersWebLegalEditor from './hub-components/KeepersWebLegalEditor';
 import KeeperSupportSettings from './hub-components/KeeperSupportSettings';
 
@@ -34,6 +35,7 @@ export default function KeepersCore() {
       <HoverTabDrawer title="Keepers Navigation" activeTab={activeTab} setTab={setActiveTab}>
         <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="keepers_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="web_directives" icon="folder_special" label="System Directives" activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="web_news" icon="public" label="Website News" activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="web_legal" icon="gavel" label="Legal Documents" activeTab={activeTab} setTab={setActiveTab} />
         <VerticalTabButton id="active_games" icon="dns" label="Active Workspaces" activeTab={activeTab} setTab={setActiveTab} />
@@ -48,6 +50,7 @@ export default function KeepersCore() {
       <div className="w-full flex-1 flex flex-col min-h-0">
         {activeTab === "command_center" && <KeeperCommandScreen setTab={setActiveTab} />}
         {activeTab === "keepers_comms" && <KeepersDispatchEditor authorId="system" authorProfileId="system" />}
+        {activeTab === "web_directives" && <KeepersWebDirectivesEditor />}
         {activeTab === "web_news" && <KeepersWebNewsEditor />}
         {activeTab === "web_legal" && <KeepersWebLegalEditor />}
         {activeTab === "active_games" && <KeepersActiveGames />}

@@ -18,19 +18,22 @@ import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import { logArchitectAction } from "../lib/audit";
 
-export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, isOpen, onClose }: { authorId: string, authorProfileId: string, isSidePanel?: boolean, isOpen?: boolean, onClose?: () => void }) {
-  if (isSidePanel && !isOpen) return null;
+export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen = true, onClose = () => {} }: any = {}) {
+  const session = useStore((state) => state.session);
+  const currentUserId = session?.user?.id;
   const isPostPinned = (p: any) => p?.is_pinned === true || p?.is_pinned === "true";
   const { t } = useLexicon();
   const [posts, setPosts] = useState<any[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [targetAudience, setTargetAudience] = useState<string[]>(["All"]);
-  const targetAudienceOptions = ["All", "Citizens", "Masons", "Architects", "Oversight", "Wayfinders", "Keepers"];
+  const [targetAudience, setTargetAudience] = useState<string[]>(["Public"]);
+  const targetAudienceOptions = ["All", "Public", "Citizens", "Masons", "Architects", "Oversight", "Wayfinders", "Keepers"];
   const [communityOptions, setCommunityOptions] = useState<string[]>([]);
-  const [category, setCategory] = useState("Update");
+  const [category, setCategory] = useState("Citizen Guide");
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState("Standard");
+  const [isUrgent, setIsUrgent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<any>(null);
@@ -50,8 +53,6 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
   const [searchTerm, setSearchTerm] = useState("");
 
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [deliveryMethod, setDeliveryMethod] = useState<"Dispatch" | "Alert">("Dispatch");
-  const [isUrgent, setIsUrgent] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -61,7 +62,6 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
 
   const wayfinderDrafts = useStore(state => state.wayfinderDrafts);
   const setWayfinderDrafts = useStore(state => state.setWayfinderDrafts);
-  const session = useStore(state => state.session);
 
   useEffect(() => {
     if (isEditorOpen) {
@@ -84,8 +84,8 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
           targetAudience.join(',') === (editingPost.target_audience || "All") &&
           category === (editingPost.category || "Update") &&
           codeSnippet === (editingPost.code_snippet || "") &&
-          deliveryMethod === (editingPost.category?.includes("Alert") || isPostPinned(editingPost) ? "Alert" : "Dispatch") &&
-          isUrgent === isPostPinned(editingPost);
+          
+          true;
       } else {
         isUnchanged = title === "" &&
           description === "" &&
@@ -94,8 +94,8 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
           category === "Update" &&
           imageUrl === "" &&
           codeSnippet === "" &&
-          deliveryMethod === "Dispatch" &&
-          isUrgent === false &&
+          
+          
           isActive === true;
       }
 
@@ -109,11 +109,11 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       } else {
         setWayfinderDrafts(prev => ({
           ...prev,
-          [draftId]: { title, description, content, targetAudience, category, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive }
+          [draftId]: { title, description, content, targetAudience, category, imageUrl, codeSnippet, isActive }
         }));
       }
     }
-  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive]);
+  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, imageUrl, codeSnippet, isActive]);
 
   const updateTimeoutRef = useRef<any>(null);
 
@@ -141,8 +141,12 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
   });
 
   const fetchPostsAndAssets = async () => {
-    const targetTable = 'keeper_system_broadcasts';
-    const { data } = await supabase.from(targetTable).select('*').in('category', ['Update', 'Info', 'Alert', 'Game Version Alert', 'Malware Alert', 'Artifact Alert', 'Game Issue', 'Mod Issue', 'Announcement', 'System Alert', 'Security Alert']).order('created_at', { ascending: false });
+    const targetTable = 'system_broadcasts';
+    const { data } = await supabaseAuth.from(targetTable)
+      .select('*')
+      .in('category', ["Citizen Guide", "Master Architecture", "Master Protocol List", "Phase Roadmap"])
+      .ilike('target_audience', '%Public%')
+      .order('created_at', { ascending: false });
     if (data) {
       const activeSchema = useStore.getState().activeGameSchema;
       const gameName = activeSchema ? (activeSchema.name || "Sanctuary") : "Sanctuary";
@@ -161,11 +165,11 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       setPosts(hydratedData);
     }
 
-    if (authorId) {
-      if (authorId === 'system') {
+    if (currentUserId) {
+      if (currentUserId === 'system') {
         setWayfinderName("SYSTEM");
       } else {
-        const { data: profileData } = await supabase.from('profiles').select('username').eq('id', authorId).maybeSingle();
+        const { data: profileData } = await supabase.from('profiles').select('username').eq('id', currentUserId).maybeSingle();
         if (profileData?.username) setWayfinderName(profileData.username);
       }
     }
@@ -183,7 +187,6 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
     if (true) {
       const { data: gamesData } = await supabase.from('sanctuary_games').select('name').not('is_active', 'eq', false);
       if (gamesData) {
-        setCommunityOptions(gamesData.map(g => `${g.name} Wayfinders`));
       }
     }
   };
@@ -245,11 +248,11 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       setTitle(draft?.title ?? post.title);
       setDescription(draft?.description ?? (post.description || ""));
       setTargetAudience(draft?.targetAudience ?? (post.target_audience ? post.target_audience.split(',') : ["All"]));
-      setCategory(draft?.category ?? (post.category || "Update"));
+      setCategory(draft?.category ?? (post.category || "Citizen Guide"));
       setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
       setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
-      setDeliveryMethod(draft?.deliveryMethod ?? (post?.category?.includes("Alert") || isPostPinned(post) ? "Alert" : "Dispatch"));
-      setIsUrgent(draft?.isUrgent ?? isPostPinned(post));
+      
+      
       setIsActive(draft?.isActive ?? (post.is_active !== false));
 
       const contentToSet = draft?.content ?? rawContent;
@@ -263,7 +266,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       setTitle(draft?.title ?? "");
       setDescription(draft?.description ?? "");
       setTargetAudience(draft?.targetAudience ?? []);
-      setCategory(draft?.category ?? "Update");
+      setCategory(draft?.category ?? "Citizen Guide");
 
       const contentToSet = draft?.content ?? "";
       setContent(contentToSet);
@@ -273,8 +276,8 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       setImageUrl(draft?.imageUrl ?? "");
       setCodeSnippet(draft?.codeSnippet ?? "");
       setShowCodeInput(!!draft?.codeSnippet);
-      setDeliveryMethod(draft?.deliveryMethod ?? "Dispatch");
-      setIsUrgent(draft?.isUrgent ?? false);
+      
+      
       setIsActive(draft?.isActive ?? true);
     }
     setIsEditorOpen(true);
@@ -290,7 +293,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
         setContent(post.content);
         if (editor) editor.commands.setContent(post.content);
         setTargetAudience(post.target_audience ? post.target_audience.split(',') : ['All']);
-        setCategory(post.category || 'Update');
+        setCategory(post.category || 'Announcement');
       }
     } else {
       setTitle("");
@@ -298,7 +301,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       setContent("");
       if (editor) editor.commands.setContent("");
       setTargetAudience([]);
-      setCategory("Update");
+      setCategory("Citizen Guide");
     }
     setTimeout(() => {
       setEditingPostId(null);
@@ -310,8 +313,8 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
     setShowCodeInput(false);
     setShowImageInput(false);
     setShowIconPicker(false);
-    setDeliveryMethod("Dispatch");
-    setIsUrgent(false);
+    
+    
     setIsActive(true);
   };
 
@@ -344,14 +347,13 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
 
     setIsSubmitting(true);
     let finalCategory = category;
-    if (deliveryMethod === "Alert" && !false) finalCategory = "Alert"; // Override category if it's an Alert and not Oversight (since oversight has specific alert types)
-    let isPinned = deliveryMethod === "Alert" && isUrgent;
-    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: finalCategory, target_audience: targetAudience.join(','), code_snippet: codeSnippet.trim() || null, is_pinned: isPinned, is_active: isActive };
+    let isPinned = false;
+    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: finalCategory, target_audience: "Public", code_snippet: codeSnippet.trim() || null, is_pinned: false, is_active: isActive };
     if (imageUrl.trim()) payload.message = `[IMG:${imageUrl.trim()}]\n\n` + payload.message;
 
     let error = null;
     let newPostId: string | null = null;
-    const targetTable = 'keeper_system_broadcasts';
+    const targetTable = 'system_broadcasts';
     const performSave = async (data: any) => {
       const payloadWithId = editingPostId ? { id: editingPostId, ...data } : data;
       let res = await supabaseAuth.from(targetTable).upsert(payloadWithId).select();
@@ -398,7 +400,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
               } else if (payload.category === "Community") {
                 actionWord = "a Community Announcement";
               }
-              
+
               return {
                 id: crypto.randomUUID(),
                 user_id: f.id,
@@ -410,11 +412,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
             });
             try {
               await Promise.all(notifications.map(notif =>
-                supabase.rpc('secure_upsert_cloud_file', {
-                  p_target: 'notifications',
-                  p_payload: notif,
-                  p_token: useStore.getState().session?.access_token || ''
-                }).then(res => {
+                supabase.from('notifications').upsert(notif).then(res => {
                   if (res.error) console.error("Notification insert error:", res.error);
                 })
               ));
@@ -442,7 +440,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
   };
 
   const handleDelete = async (id: string) => {
-    const targetTable = 'keeper_system_broadcasts';
+    const targetTable = 'system_broadcasts';
     const postToDelete = posts.find(p => p.id === id);
 
     const res = await supabaseAuth.from(targetTable).delete().eq('id', id);
@@ -517,21 +515,10 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
             onChange={(v: string[]) => setFilterCategory(v[0])}
             options={[
               { id: "All", label: t("all_classes") },
-              ...(false ? [
-                { id: "Game Issue", label: t("category_game_issue") },
-                { id: "Mod Issue", label: t("category_mod_issue") },
-                { id: "Game Version Alert", label: t("category_game_version_alert") },
-                { id: "Malware Alert", label: t("category_malware_alert") },
-                { id: "Artifact Alert", label: t("category_artifact_alert") }
-              ] : [
-                { id: "Update", label: t("comms_btn_update") },
-                { id: "Info", label: t("category_info") },
-                { id: "Event", label: t("category_event") },
-                { id: "Alert", label: t("category_alert") },
-                { id: "Game Version Alert", label: t("category_game_version_alert") },
-                { id: "Malware Alert", label: t("category_malware_alert") },
-                { id: "Artifact Alert", label: t("category_artifact_alert") }
-              ])
+              { id: "Citizen Guide", label: "Citizen Guide" },
+              { id: "Master Architecture", label: "Master Architecture" },
+              { id: "Master Protocol List", label: "Master Protocol List" },
+              { id: "Phase Roadmap", label: "Phase Roadmap" }
             ]}
             placeholder={t("filter_category")}
           />
@@ -566,11 +553,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
     </div>
   );
 
-  const wrappedContent = isSidePanel ? (
-    <SidePanel isOpen={isOpen!} onClose={onClose!} title={t("wf_tab_dispatch")} subtitle={t("system_broadcasts")} icon="satellite_alt" iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" widthClass="w-[90vw] max-w-[1200px]">
-      {contentBlock}
-    </SidePanel>
-  ) : contentBlock;
+  const wrappedContent = contentBlock;
 
   return (
     <>
@@ -626,32 +609,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
             <div className="flex flex-col gap-6">
 
               <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="flex flex-col gap-3 w-full mb-4">
-                  <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-70 ml-2">{t("trans_type")}</span>
-                  <RadioCardGroup>
-                    <RadioCard
-                      id="Dispatch"
-                      activeValue={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
-                      onChange={() => { setDeliveryMethod("Dispatch"); setIsUrgent(false); if (["System Alert", "Security Alert"].includes(category)) setCategory("Announcement"); }}
-                      icon="feed"
-                      label="Dispatch"
-                    />
-                    <RadioCard
-                      id="Alert"
-                      activeValue={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
-                      onChange={() => { setDeliveryMethod("Alert"); setIsUrgent(false); if (["Announcement", "Blog", "Press", "Update", "Maintenance"].includes(category)) setCategory("System Alert"); }}
-                      icon="notifications"
-                      label="Standard Alert"
-                    />
-                    <RadioCard
-                      id="UrgentAlert"
-                      activeValue={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
-                      onChange={() => { setDeliveryMethod("Alert"); setIsUrgent(true); if (["Announcement", "Blog", "Press", "Update", "Maintenance"].includes(category)) setCategory("System Alert"); }}
-                      icon="notification_important"
-                      label="Urgent Alert"
-                    />
-                  </RadioCardGroup>
-                </div>
+                {/* RadioCardGroup removed */}
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("post_title")}</label>
                   <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
@@ -667,30 +625,6 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
 
                 <div className="flex gap-4 w-full">
                   <div className="flex flex-col gap-2 flex-1">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("wf_target_audience")}</label>
-                    <div className="h-14">
-                      <CustomDropdown disableTint={true}
-                        multiSelect={true}
-                        searchable={true}
-                        selectedValues={targetAudience}
-                        onChange={setTargetAudience}
-                        options={
-                          true
-                            ? communityOptions.map(name => ({ id: name, label: name }))
-                            : [
-                              { id: "Citizens", label: "Citizens" },
-                              { id: "Masons", label: "Masons" },
-                              { id: "Architects", label: "Architects" },
-                              { id: "Oversight", label: "Oversight" },
-                              ...(!false ? [{ id: "Wayfinders", label: "Wayfinders" }] : [])
-                            ]
-                        }
-                        placeholder={t("auto_select_audience")}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 flex-1">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category")}</label>
                     <div className="h-14">
                       <CustomDropdown disableTint={true}
@@ -698,29 +632,12 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                         allowCustom={true}
                         value={category}
                         onChange={(v: string[]) => setCategory(v[0])}
-                        options={
-                          false ? (
-                            deliveryMethod === "Alert" ? [
-                              { id: "Game Version Alert", label: t("category_game_version_alert") },
-                              { id: "Malware Alert", label: t("category_malware_alert") },
-                              { id: "Artifact Alert", label: t("category_artifact_alert") }
-                            ] : [
-                              { id: "Game Issue", label: t("category_game_issue") },
-                              { id: "Mod Issue", label: t("category_mod_issue") }
-                            ]
-                          ) : (
-                            deliveryMethod === "Alert" ? [
-                              { id: "Alert", label: "Alert" },
-                              { id: "Game Version Alert", label: t("category_game_version_alert") },
-                              { id: "Malware Alert", label: t("category_malware_alert") },
-                              { id: "Artifact Alert", label: t("category_artifact_alert") }
-                            ] : [
-                              { id: "Update", label: "Update" },
-                              { id: "Info", label: "Info" },
-                              { id: "Event", label: "Event" }
-                            ]
-                          )
-                        }
+                          options={[
+                            { id: "Citizen Guide", label: "Citizen Guide" },
+                            { id: "Master Architecture", label: "Master Architecture" },
+                            { id: "Master Protocol List", label: "Master Protocol List" },
+                            { id: "Phase Roadmap", label: "Phase Roadmap" }
+                          ].map(c => ({ id: c.id, label: c.label }))}
                         placeholder={t("auto_select_category")}
                       />
                     </div>
@@ -885,6 +802,17 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

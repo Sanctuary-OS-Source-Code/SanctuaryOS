@@ -40,7 +40,7 @@ export default function CommandCenter({
   const [hasSymlinkPerms, setHasSymlinkPerms] = useState<boolean | null>(null);
 
   const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
-  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+  const setIsAlertsOpen = useStore((state) => state.setIsAlertsOpen);
   const [alertsPanelMode, setAlertsPanelMode] = useState<"critical" | "alert" | null>(null);
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [urgentBroadcast, setUrgentBroadcast] = useState<any>(null);

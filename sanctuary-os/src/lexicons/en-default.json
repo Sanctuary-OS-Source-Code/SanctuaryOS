@@ -2305,6 +2305,7 @@
   "alert_error_mason_profile_missing": "Error: Creator Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
   "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "icon_crop_square": "crop_square",
   "engine_core": "Game Files",
   "tab_overrides": "Overrides",
   "editor_tt_bold": "Bold",
@@ -2952,7 +2953,8 @@
   "landing_subtitle": "Your centralized hub for community-driven game modifications, blueprints, and assets. Select a workspace below to enter.",
   "landing_workspaces": "Active Workspaces",
   "landing_features": "Features",
-  "landing_download": "Download Desktop Client",
+  "landing_download": "Download the Desktop Client",
+  "landing_download_sidebar": "Download Sanctuary OS",
   "landing_tos": "Terms of Service",
   "landing_privacy": "Privacy Protocol",
   "landing_no_workspaces": "No Active Workspaces",
@@ -2985,5 +2987,7 @@
   "landing_api_calls": "Routing Ping",
   "landing_auth_status": "Public Clearance",
   "landing_system_status": "System Status",
-  "landing_terms": "Terms of Service"
+  "landing_terms": "Terms of Service",
+  "landing_system_directives": "Public Documents",
+  "landing_no_documents": "No Documents Found"
 }

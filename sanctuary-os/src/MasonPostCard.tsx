@@ -9,16 +9,17 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
 
   const parsePostContent = (p: any) => {
     let content = p.content || '';
+    let description = p.description || '';
     let imageUrl = p.image_url || '';
     const imgMatch = content.match(/\[IMG:(.*?)\]/);
     if (imgMatch && imgMatch[1]) {
       imageUrl = imgMatch[1];
       content = content.replace(/\[IMG:.*?\]\s*/, '').trim();
     }
-    return { content, imageUrl };
+    return { content, description, imageUrl };
   };
 
-  const { content, imageUrl } = parsePostContent(post);
+  const { content, description, imageUrl } = parsePostContent(post);
   const isNew = new Date(post.created_at).getTime() > Date.now() - 86400000;
   const hashtags = (content.match(/#[a-zA-Z0-9_]+/g) || []).slice(0, 3);
   
@@ -163,7 +164,7 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
       style={{ animationFillMode: "both", animationDelay: `${(index % 10) * 100}ms` }}
     >
       <div className={`text-[var(--subtext)] leading-relaxed font-medium mt-1 ${isCompact ? 'text-[10px] line-clamp-2' : 'text-xs line-clamp-3'}`}>
-        {renderTextWithIcons(stripMarkdown(content))}
+        {renderTextWithIcons(stripMarkdown(description || content))}
       </div>
     </UniversalCard>
   );

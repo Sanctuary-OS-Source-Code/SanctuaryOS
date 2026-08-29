@@ -29,7 +29,19 @@ export default function WayfinderKeeperTickets({ userId, onSelectTicket, onOpenN
 
   useEffect(() => {
     const fetchTickets = async () => {
-      setIsLoading(true);
+      const CACHE_TTL = 5 * 60 * 1000;
+      const cache = window.__sanctuaryCache?.support;
+      
+      if (cache?.tickets && cache.tickets.length > 0) {
+        if (performance.now() - cache.lastFetch < CACHE_TTL) {
+          setTickets(cache.tickets);
+          setIsLoading(false);
+          return;
+        }
+        setTickets(cache.tickets);
+      }
+
+      if (!cache?.tickets || cache.tickets.length === 0) setIsLoading(true);
       const { data, error } = await supabaseAuth
         .from('keeper_tickets')
         .select('*')
@@ -38,6 +50,10 @@ export default function WayfinderKeeperTickets({ userId, onSelectTicket, onOpenN
 
       if (data && !error) {
         setTickets(data as Ticket[]);
+        if (window.__sanctuaryCache) {
+          window.__sanctuaryCache.support.tickets = data;
+          window.__sanctuaryCache.support.lastFetch = performance.now();
+        }
       }
       setIsLoading(false);
     };

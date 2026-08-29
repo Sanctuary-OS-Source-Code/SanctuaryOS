@@ -262,7 +262,7 @@ export const ThemeProvider = ({ children }: any) => {
         if (key === 'glassOpacity' && typeof finalVal === 'string' && finalVal.endsWith('%')) {
           finalVal = (parseFloat(finalVal) / 100).toString();
         }
-        if (key === 'bgGradient' && (val === 'none' || !val)) {
+        if (key === 'bgGradient' && (val === 'none' || val === 'transparent' || !val)) {
           root.style.setProperty(`--bgGradient`, currentTheme.bg);
         } else {
           if (key === 'glassOpacity') {

@@ -61,6 +61,7 @@ import Oversight from "./Oversight";
 import WayfinderHub from "./WayfinderHub";
 import KeepersCore from "./KeepersCore";
 import { UpdateSidePanel } from './side-panels/UpdateSidePanel';
+import { NexusUpdatesSidePanel } from './side-panels/NexusUpdatesSidePanel';
 import CitizensWorkbench from "./CitizensWorkbench";
 import { ContextMenu } from "./ContextMenu";
 import { GlobalTooltip } from "./GlobalTooltip";
@@ -76,6 +77,29 @@ const setupBtnStyle: React.CSSProperties = {
 };
 
 function App() {
+  if (!window.__sanctuaryCache) {
+    window.__sanctuaryCache = {
+      nexus: {
+        homeStats: null,
+        recentFeed: [],
+        lastHomeFetch: 0,
+        nexusItems: null,
+        lastNexusFetch: 0,
+        assetResultsMap: {},
+        lastAssetFetch: 0,
+      },
+      globalFeed: {
+        posts: [],
+        overviewStats: null,
+        lastFetch: 0,
+      },
+      support: {
+        tickets: [],
+        lastFetch: 0,
+      }
+    };
+  }
+
   const { currentTheme } = useTheme();
   const insertingHashes = useRef<Set<string>>(new Set());
   const { t } = useLexicon();
@@ -84,6 +108,40 @@ function App() {
   const [subtitleIndex, setSubtitleIndex] = useState(Math.floor(Math.random() * 12) + 1);
 
   useEffect(() => {
+    // PREFETCH ELEVATED HUBS DATA
+    const prefetchHubs = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const CACHE_TTL = 5 * 60 * 1000;
+      const now = performance.now();
+      const cache = window.__sanctuaryCache!;
+      
+      // 1. Prefetch Global Feed
+      if (now - cache.globalFeed.lastFetch > CACHE_TTL) {
+        try {
+          const { data } = await supabase.from('mason_posts').select('*, masons(*), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)').order('created_at', { ascending: false }).limit(100);
+          if (data) {
+            cache.globalFeed.posts = data;
+            cache.globalFeed.lastFetch = now;
+          }
+        } catch (e) {}
+      }
+
+      // 2. Prefetch Support Tickets
+      if (now - cache.support.lastFetch > CACHE_TTL) {
+        try {
+          const { data } = await supabase.from('keeper_tickets').select('*').eq('author_id', session.user.id).order('created_at', { ascending: false });
+          if (data) {
+            cache.support.tickets = data;
+            cache.support.lastFetch = now;
+          }
+        } catch (e) {}
+      }
+    };
+    prefetchHubs();
+    syncMasterSchemas();
+
     const interval = setInterval(() => {
       setSubtitleIndex(Math.floor(Math.random() * 12) + 1);
     }, 15000);
@@ -815,6 +873,10 @@ function App() {
     const bootDLCProtocol = async () => {
       try {
         await loadDLCMap();
+        if (!isDesktop()) {
+          syncMasterSchemas('sims4').catch(console.warn);
+          return;
+        }
         const config: any = await invoke("get_saved_coordinates");
         const globalConfig: any = await invoke("get_global_config");
         const activeWorkspace = (globalConfig.workspaces || []).find((w: any) => w.id === globalConfig.active_workspace_id);
@@ -2613,6 +2675,7 @@ function App() {
 
           <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
           <UpdateSidePanel />
+          <NexusUpdatesSidePanel />
           <SupportHub />
           <ContextMenu />
           <GlobalTooltip />

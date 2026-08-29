@@ -9,6 +9,31 @@ import { useTooltipStore } from "./store/tooltipStore";
 import { supabase } from "./supabase";
 import { UniversalCard } from './components/universal/UniversalCard';
 
+declare global {
+  interface Window {
+    __sanctuaryCache?: {
+      nexus: {
+        homeStats: any | null;
+        recentFeed: any[];
+        lastHomeFetch: number;
+        nexusItems: any[] | null;
+        lastNexusFetch: number;
+        assetResultsMap: Record<string, any[]>;
+        lastAssetFetch: number;
+      };
+      globalFeed: {
+        posts: any[];
+        overviewStats: any | null;
+        lastFetch: number;
+      };
+      support: {
+        tickets: any[];
+        lastFetch: number;
+      };
+    }
+  }
+}
+
 export const DeferredRender = ({ children }: { children: React.ReactNode }) => {
   const [ready, setReady] = React.useState(false);
   React.useEffect(() => {

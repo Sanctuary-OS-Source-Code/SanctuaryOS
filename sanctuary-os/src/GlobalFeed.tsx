@@ -45,9 +45,19 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
 
   useEffect(() => {
     if (isOffline) return;
-    if (activeTab === "OVERVIEW" && userId) {
-      const fetchStats = async () => {
-        const { data: masonData } = await supabase.from('masons').select('id').eq('profile_id', userId).maybeSingle();
+      if (activeTab === "OVERVIEW" && userId) {
+        const fetchStats = async () => {
+          const CACHE_TTL = 5 * 60 * 1000;
+          const cache = window.__sanctuaryCache?.globalFeed;
+          if (cache?.overviewStats && (performance.now() - cache.lastFetch < CACHE_TTL)) {
+            setOverviewStats(cache.overviewStats);
+            return;
+          }
+          if (cache?.overviewStats) {
+            setOverviewStats(cache.overviewStats);
+          }
+
+          const { data: masonData } = await supabase.from('masons').select('id').eq('profile_id', userId).maybeSingle();
         if (masonData) setMasonProfileId(masonData.id);
 
         const [masonsRes, postsRes] = await Promise.all([
@@ -85,14 +95,19 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           }
         }
 
-        setOverviewStats({
-          nodes: masonsRes.count || 0,
-          posts: postsRes.count || 0,
-          likes: myLikesCount,
-          replies: myRepliesCount,
-          followingPosts: followingPostsCount
-        });
-      };
+          const newStats = {
+            nodes: masonsRes.count || 0,
+            posts: postsRes.count || 0,
+            likes: myLikesCount,
+            replies: myRepliesCount,
+            followingPosts: followingPostsCount
+          };
+          setOverviewStats(newStats);
+          if (window.__sanctuaryCache) {
+            window.__sanctuaryCache.globalFeed.overviewStats = newStats;
+            window.__sanctuaryCache.globalFeed.lastFetch = performance.now();
+          }
+        };
       fetchStats();
     }
   }, [activeTab, userId, isOffline]);
@@ -100,7 +115,19 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   useEffect(() => {
     if (isOffline) return;
     const fetchPosts = async () => {
-      setLoading(true);
+      const CACHE_TTL = 5 * 60 * 1000;
+      const cache = window.__sanctuaryCache?.globalFeed;
+      
+      if (activeTab === "DISCOVER" && cache?.posts && cache.posts.length > 0) {
+        if (performance.now() - cache.lastFetch < CACHE_TTL) {
+          setPosts(cache.posts);
+          setLoading(false);
+          return;
+        }
+        setPosts(cache.posts);
+      }
+
+      if (!cache?.posts || cache.posts.length === 0) setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       const currentUserId = session?.user?.id || null;
       setUserId(currentUserId);
@@ -128,7 +155,13 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           console.error("GlobalFeed Error:", error);
           useStore.getState().pushStatus("GlobalFeed Error: " + error.message);
         }
-        if (data) setPosts(data);
+        if (data) {
+          setPosts(data);
+          if (window.__sanctuaryCache) {
+            window.__sanctuaryCache.globalFeed.posts = data;
+            window.__sanctuaryCache.globalFeed.lastFetch = performance.now();
+          }
+        }
       }
       setLoading(false);
     };

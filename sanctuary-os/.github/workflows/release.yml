@@ -42,3 +42,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
+
+      - name: Sync Main Branch for Web Deployment
+        if: startsWith(github.ref, 'refs/tags/')
+        run: git push origin HEAD:refs/heads/main

@@ -135,7 +135,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
       headerActions={
         data ? (
           <PanelHeaderGroup>
-            {session?.user?.user_metadata?.username !== data.author && onFlag && (
+            {session?.user && session?.user?.user_metadata?.username !== data.author && onFlag && (
               <PanelHeaderButton
                 icon="flag"
                 tooltip={t("feed_btn_flag")}

@@ -176,11 +176,23 @@ export function Sidebar({
               <NavButton
                 active={false}
                 onClick={() => {
+                  if (isRootDomain()) document.getElementById('system_directives')?.scrollIntoView({ behavior: 'smooth' });
+                  else window.location.href = `${window.location.protocol}//${window.location.host.substring(window.location.host.indexOf('.') + 1)}#system_directives`;
+                }}
+                icon="folder_special"
+                label={t("landing_system_directives") || "System Directives"}
+                isCollapsed={isSidebarCollapsed}
+                isAccent={true}
+                setHoveredTooltip={setHoveredTooltip}
+              />
+              <NavButton
+                active={false}
+                onClick={() => {
                   if (isRootDomain()) document.getElementById('download')?.scrollIntoView({ behavior: 'smooth' });
                   else window.location.href = `${window.location.protocol}//${window.location.host.substring(window.location.host.indexOf('.') + 1)}#download`;
                 }}
                 icon="download"
-                label={t("landing_download")}
+                label={t("landing_download_sidebar")}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
                 setHoveredTooltip={setHoveredTooltip}
