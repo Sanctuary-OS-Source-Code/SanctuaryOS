@@ -25,14 +25,7 @@ export default function WebLandingPage() {
   const navigateToGame = (gameId: string) => {
     const host = window.location.host;
     const protocol = window.location.protocol;
-    const currentSubdomain = getSubdomain();
-    let newHost = host;
-    if (currentSubdomain) {
-      newHost = host.replace(`${currentSubdomain}.`, `${gameId}.`);
-    } else {
-      newHost = `${gameId}.${host}`;
-    }
-    window.location.href = `${protocol}//${newHost}`;
+    window.location.href = `${protocol}//${host}/${gameId}`;
   };
 
   return (
