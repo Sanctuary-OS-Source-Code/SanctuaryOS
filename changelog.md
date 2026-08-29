@@ -111,3 +111,4 @@
 - **Web Compatibility Fixes:**
   - Resolved a severe Firefox rendering glitch on Windows where repainting children inside a backdrop-filter caused the compositor to dump a massive solid shadow artifact across the screen. Deployed a `-moz-document` fallback to gracefully degrade the glass material on Firefox while keeping the premium blur intact for Chrome/Safari.
   - Fixed Sidebar navigation logic for Web Users to ensure they see the correct app navigation routes (Hub, Market, etc.) rather than the Landing Page routes when browsing a game's subdomain.
+- **Web Landing Page Architecture:** Rewrote the routing infrastructure to use URL paths (\sanctuaryos.net/thesims4\) rather than wild-card subdomains (\	hesims4.sanctuaryos.net\). This completely bypasses Vercel's strict DNS nameserver requirements for external providers and works natively out-of-the-box for all current and future games.
