@@ -1,0 +1,670 @@
+import { ScreenUtilityBar, FilterTabs, FilterTabButton } from "./shared";
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, ActionButton } from "./shared";
+import { supabase } from "./supabase";
+import { useLexicon } from "./LexiconContext";
+import { useStore } from "./store";
+import {
+  ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+  CustomComplianceDropdown, CustomDatePicker, DashboardStatTile,
+  HubTabButton, ModSearchDropdown, EmptyState,
+  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
+  standardDangerButtonClass, standardAccentGlassButtonClass,
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
+} from "./shared";
+import { ArtifactCard, VaultCard } from "./Cards";
+import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
+import { MasonStatusDropdown } from "./MasonHub";
+import { logArchitectAction } from "./lib/audit";
+import MasonPostViewer from "./side-panels/MasonPostViewer";
+import MarkdownRenderer from "./MarkdownRenderer";
+
+
+export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], setStatus?: any }) {
+  const activeGameSchema = useStore((state: any) => state.activeGameSchema);
+
+  const { t } = useLexicon();
+  const [labReports, setLabReports] = useState<any[]>([]);
+  const [allMods, setAllMods] = useState<any[]>([]);
+  const [allMasons, setAllMasons] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [activeReport, setActiveReport] = useState<any | null>(null);
+  const [dependencies, setDependencies] = useState<any[]>([]);
+  const [conflictTarget, setConflictTarget] = useState<any | null>(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMissingArtifactPanelOpen, setIsMissingArtifactPanelOpen] = useState(false);
+  const [testRun, setTestRun] = useState(false);
+  const [testPassed, setTestPassed] = useState(true);
+  const [testLog, setTestLog] = useState("");
+  const [logWatcher, setLogWatcher] = useState<any>(null);
+
+  const [severity, setSeverity] = useState(4);
+  const [resolution, setResolution] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [filterTab, setFilterTab] = useState<'pending' | 'completed'>('pending');
+  const [visibleCount, setVisibleCount] = useState(100);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: logsData } = await supabase
+        .from('homestead_lab_logs')
+        .select('*, mods(*), mod_versions(dna_hash)')
+        .order('created_at', { ascending: false });
+
+      if (logsData) {
+        const uniqueModsMap = new Map();
+        logsData.forEach((log: any) => {
+          let mod = log.mods;
+          if (Array.isArray(mod)) mod = mod[0];
+          if (!mod) return;
+          if (!['under_review', 'verified', 'broken'].includes(mod.status)) return;
+
+          let hash = mod.id;
+          if (log.mod_versions) {
+            hash = Array.isArray(log.mod_versions) ? log.mod_versions[0]?.dna_hash : log.mod_versions.dna_hash;
+          }
+          hash = hash || mod.id;
+
+          if (!uniqueModsMap.has(hash)) {
+            uniqueModsMap.set(hash, mod);
+          }
+        });
+        const reports = Array.from(uniqueModsMap.values()).sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+        setLabReports(reports);
+      }
+
+      const { data: mData } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, master_author, latest_version, url').order('name'));
+      if (mData) setAllMods(mData);
+
+      const { data: masonData } = await supabase.from('masons').select('id, name').order('name');
+      if (masonData) setAllMasons(masonData);
+    };
+    fetchData();
+    return () => { if (logWatcher) clearInterval(logWatcher); };
+  }, [logWatcher]);
+
+  useEffect(() => {
+    if (activeReport && allMods.length > 0) {
+      supabase.from("homestead_lab_logs")
+        .select("tester_note")
+        .eq("mod_id", activeReport.id)
+        .limit(1)
+        .then(({ data, error }) => {
+          if (error) {
+            console.warn("Could not fetch homestead_lab_logs:", error);
+            return;
+          }
+          if (data && data.length > 0 && data[0].tester_note) {
+            try {
+              const ctx = JSON.parse(data[0].tester_note);
+              if (ctx.conflictTarget) {
+                const t = allMods.find(m => m.name === ctx.conflictTarget);
+                if (t) setConflictTarget(t);
+              }
+              if (ctx.dependencies) {
+                const deps = ctx.dependencies.map((name: string) => allMods.find(m => m.name === name)).filter(Boolean);
+                if (deps.length > 0) setDependencies(deps);
+              }
+            } catch (e) {
+            }
+          }
+        });
+    }
+  }, [activeReport, allMods]);
+
+  useEffect(() => { setVisibleCount(100); }, [searchTerm, filterTab]);
+
+  const closePanel = () => {
+    if (isLoading) return;
+    setActiveReport(null);
+    setDependencies([]);
+    setConflictTarget(null);
+    setTestRun(false);
+    setTestPassed(true);
+    setTestLog("");
+  };
+
+  const handleSelectDependency = (mod: any) => {
+    if (!dependencies.find(d => d.id === mod.id)) {
+      setDependencies([...dependencies, mod]);
+    }
+  };
+
+  const handleRemoveDependency = (id: string) => {
+    setDependencies(dependencies.filter(d => d.id !== id));
+  };
+
+  const isModMissingLocally = (modName: string) => {
+    return !modList.find(m =>
+      m.name === modName ||
+      m.displayName === modName ||
+      (m.name || '').split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase() === (modName || '').toLowerCase()
+    );
+  };
+
+  const downloadMissing = () => {
+    if (activeReport && isModMissingLocally(activeReport.name)) {
+      setIsMissingArtifactPanelOpen(true);
+    }
+  };
+
+  const runSimulation = async () => {
+    if (!activeReport) return;
+    if (isModMissingLocally(activeReport.name)) return;
+    setIsLoading(true);
+    setTestRun(false);
+    setTestLog("");
+
+    try {
+      let depPaths: string[] = [];
+      const ids = [activeReport.id, ...dependencies.map(d => d.id), conflictTarget?.id].filter(Boolean);
+
+      if (ids.length > 0) {
+        const orQuery = ids.map(id => `child_id.eq.${id}`).join(',');
+        const orParentQuery = ids.map(id => `parent_id.eq.${id}`).join(',');
+
+        const { data: depLinks } = await supabase.from('mod_dependencies').select('parent_id, child_id').or(orQuery);
+        const { data: twinLinks } = await supabase.from('mod_relationships').select("child_id").or(orParentQuery).eq('relationship_type', 'twin');
+        const { data: addonLinks } = await supabase.from('mod_relationships').select("parent_id").or(orQuery).eq('relationship_type', 'addon');
+
+        let allIds = new Set<string>();
+        if (depLinks) depLinks.forEach((l: any) => allIds.add(l.parent_id));
+        if (twinLinks) twinLinks.forEach((l: any) => allIds.add(l.child_id));
+        if (addonLinks) addonLinks.forEach((l: any) => allIds.add(l.parent_id));
+
+        if (allIds.size > 0) {
+          const { data: depMods } = await supabase.from('mods').select("name").in('id', Array.from(allIds));
+          if (depMods) depPaths = depMods.map((m: any) => m.name);
+        }
+      }
+
+      const config: any = await invoke("get_saved_coordinates");
+      await invoke("evacuate_to_shelter");
+
+      const rawDeploySet = new Set([
+        activeReport.physical_path || activeReport.name,
+        ...dependencies.map(d => d.physical_path || d.name),
+        ...(conflictTarget ? [conflictTarget.physical_path || conflictTarget.name] : []),
+        ...depPaths
+      ]);
+
+      const deployMods = Array.from(rawDeploySet).map((modName: string) => {
+        const modObj = (modList || []).find((m: any) => {
+          if (m.isVirtual) return false;
+          if (m.name === modName || m.displayName === modName) return true;
+          const mBase = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
+          const targetBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
+          return mBase && targetBase && mBase === targetBase;
+        });
+        return { path: modObj ? modObj.name : modName, allow_write: true };
+      });
+
+      await invoke("deploy_playset_bulk", {
+        mods: deployMods,
+        modsPath: config.mods_path,
+        vaultPath: config.vault_path
+      });
+
+      const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      await invoke("airgap_saves", { docsPath: dPath, enable: true });
+      await invoke("clear_old_logs", { docsPath: dPath });
+      await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
+
+      const interval = setInterval(async () => {
+        const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
+        if (res !== "Clean") {
+          setTestPassed(false);
+          setTestLog(res);
+          setTestRun(true);
+          setIsLoading(false);
+          clearInterval(interval);
+          setLogWatcher(null);
+          await invoke("airgap_saves", { docsPath: dPath, enable: false });
+        }
+      }, 5000);
+      setLogWatcher(interval);
+    } catch (err) {
+      console.error(err);
+      setIsLoading(false);
+    }
+  };
+
+  const concludeTest = async (passed: boolean) => {
+    if (logWatcher) clearInterval(logWatcher);
+    try {
+      const config: any = await invoke("get_saved_coordinates");
+      const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      await invoke("airgap_saves", { docsPath: dPath, enable: false });
+    } catch (e) { }
+
+    setTestPassed(passed);
+    setTestRun(true);
+    setIsLoading(false);
+
+    const finalStatus = passed ? "verified" : "broken";
+    await supabase.from('mods').update({ status: finalStatus }).eq('id', activeReport.id);
+
+    setLabReports(prev => prev.map(r => r.id === activeReport.id ? { ...r, status: finalStatus } : r));
+    closePanel();
+
+    const lastSet = localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`);
+    if (lastSet) {
+      const config: any = await invoke("get_saved_coordinates");
+      const playsets = useStore.getState().playSets;
+      if (playsets) {
+        const activeSet = playsets.find((s: any) => s.name === lastSet);
+        if (activeSet) {
+          let deployMods: any[] = [];
+          activeSet.mods.forEach((modName: string) => {
+            let modObj = modList.find((m: any) => m.name === modName || m.displayName === modName);
+
+            let tPath = null;
+            let virtualParent = modObj?.isVirtual ? modObj : null;
+            let parsedStructure = virtualParent?.folder_structure;
+            if (typeof parsedStructure === 'string') {
+              try { parsedStructure = JSON.parse(parsedStructure); } catch (e) { }
+            }
+
+            if (!virtualParent) {
+              const normalize = (s: string) => s.replace(/[^a-z0-9]/gi, "").toLowerCase();
+              const cleanModName = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "") || "";
+
+              for (const m of (modList || [])) {
+                if (m.isVirtual && m.folder_structure) {
+                  let struct = m.folder_structure;
+                  if (typeof struct === 'string') {
+                    try { struct = JSON.parse(struct); } catch (e) { continue; }
+                  }
+                  if (Array.isArray(struct)) {
+                    const getPath = (structure: any[], targetName: string, currentPath = ""): string | null => {
+                      for (const node of structure) {
+                        const nodePath = currentPath ? `${currentPath}/${node.name}` : node.name;
+                        if (node.type === "file") {
+                          if (node.assignedModId === targetName) return nodePath;
+                          if (node.assignedModName && normalize(node.assignedModName) === normalize(targetName)) return nodePath;
+                          if (normalize(node.name) === normalize(targetName)) return nodePath;
+                          if (normalize(node.name.replace(/\.(package|ts4script|cfg|ini)$/i, "")) === normalize(targetName)) return nodePath;
+                        }
+                        if (node.children) {
+                          const result = getPath(node.children, targetName, nodePath);
+                          if (result) return result;
+                        }
+                      }
+                      return null;
+                    };
+
+                    let foundPath = getPath(struct, cleanModName) || getPath(struct, modName);
+                    if (!foundPath && modObj?.dbId) foundPath = getPath(struct, String(modObj.dbId));
+
+                    if (foundPath) {
+                      virtualParent = m;
+                      parsedStructure = struct;
+                      const ext = modName.includes('.') ? modName.split('.').pop() : '';
+                      if (ext && !foundPath.toLowerCase().endsWith(`.${ext.toLowerCase()}`)) {
+                        tPath = `${foundPath}.${ext}`;
+                      } else {
+                        tPath = foundPath;
+                      }
+                      break;
+                    }
+                  }
+                }
+              }
+
+              if (!virtualParent) {
+                virtualParent = (modList || []).find((m: any) => {
+                  if (!m.isVirtual || !m.flavors) return false;
+                  const targetBaseName = normalize(modName.split(/[\\/]/).pop()?.replace(/\.(package|ts4script|cfg|ini)$/i, "") || "");
+                  return m.flavors.some((f: any) => {
+                    const cleanF = normalize(f.name.split(/[\\/]/).pop()?.replace(/\.(package|ts4script|cfg|ini)$/i, "") || "");
+                    return cleanF === targetBaseName;
+                  });
+                });
+                if (virtualParent) {
+                  parsedStructure = virtualParent.folder_structure;
+                  if (typeof parsedStructure === 'string') {
+                    try { parsedStructure = JSON.parse(parsedStructure); } catch (e) { }
+                  }
+                }
+              }
+            }
+
+            if (modObj && modObj.isVirtual) {
+              deployMods.push({ path: modObj.name, allow_write: true, folder_structure: parsedStructure || null, target_path: null });
+            } else {
+              deployMods.push({ path: virtualParent ? `${virtualParent.name}/${modName}` : modName, allow_write: true, target_path: tPath || modName });
+            }
+          });
+          await invoke("deploy_playset_bulk", {
+            mods: deployMods,
+            modsPath: config.mods_path,
+            vaultPath: config.vault_path,
+          });
+          return;
+        }
+      }
+    }
+    await invoke("evacuate_to_shelter");
+  };
+
+  const submitToNexus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeReport || !conflictTarget) return;
+    setIsSubmitting(true);
+    await supabase.from('logical_conflicts').insert([{
+      mod_a_id: activeReport.id,
+      mod_b_id: conflictTarget.id,
+      severity_rank: severity,
+      resolution_note: resolution
+    }]);
+    setIsSubmitting(false);
+    setTestRun(false);
+    setTestLog("");
+    setResolution("");
+  };
+
+  let filteredReports = labReports.filter(mod =>
+    (mod.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (mod.master_author || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const seenLabNames = new Set();
+  filteredReports = filteredReports.filter(mod => {
+    if (!mod.name) return true;
+    const lowerName = mod.name.toLowerCase();
+    if (seenLabNames.has(lowerName)) return false;
+    seenLabNames.add(lowerName);
+    return true;
+  });
+
+  const pendingReports = filteredReports.filter((mod: any) => mod.status === 'under_review');
+  const completedReports = filteredReports.filter((mod: any) => mod.status !== 'under_review');
+
+  return (
+    <div className="flex flex-col w-full relative">
+      <ScreenUtilityBar
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("search_ph") as string}
+        className="px-6 !mb-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+      >
+        <FilterTabs className="hidden md:flex">
+          <FilterTabButton id="pending" activeTab={filterTab} setTab={setFilterTab} label={t("pending")} />
+          <FilterTabButton id="completed" activeTab={filterTab} setTab={setFilterTab} label={t("status_completed")} />
+        </FilterTabs>
+      </ScreenUtilityBar>
+
+      <div className="p-6 flex flex-col gap-10 pb-32">
+        {filterTab === 'pending' && (
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+              {pendingReports.length === 0 ? (
+                <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart")} title={searchTerm ? t("no_matches") : t("no_diagnostics")} className="col-span-full py-16" />
+              ) : pendingReports.slice(0, visibleCount).map((mod: any) => (
+                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view")} />
+              ))}
+            </div>
+            {pendingReports.length > visibleCount && (
+              <button
+                onClick={() => setVisibleCount(v => v + 100)}
+                className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
+              >
+                {t("ui_btn_load_more")} ({visibleCount} / {pendingReports.length})
+              </button>
+            )}
+          </div>
+        )}
+
+
+        {filterTab === 'completed' && completedReports.length > 0 && (
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+              {completedReports.length === 0 ? (
+                <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart")} title={searchTerm ? t("no_matches") : t("no_diagnostics")} className="col-span-full py-16" />
+              ) : completedReports.slice(0, visibleCount).map((mod: any) => (
+                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view")} />
+              ))}
+            </div>
+            {completedReports.length > visibleCount && (
+              <button
+                onClick={() => setVisibleCount(v => v + 100)}
+                className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
+              >
+                {t("ui_btn_load_more")} ({visibleCount} / {completedReports.length})
+              </button>
+            )}
+          </div>
+        )}
+
+        {filterTab === 'completed' && completedReports.length === 0 && (
+          <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart")} title={searchTerm ? t("no_matches") : t("no_completed_reports")} className="py-16 mt-10" />
+        )}
+      </div>
+
+      {activeReport && (
+        <SidePanel
+          isOpen={!!activeReport}
+          onClose={closePanel}
+          title={t("diagnostic_panel_title")}
+          icon="monitor_heart"
+          footer={
+            (!testRun || isLoading) ? (
+              <div className="flex flex-col w-full gap-4">
+                {isLoading && (
+                  <div className="flex gap-4">
+                    <button onClick={() => concludeTest(true)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:theme-text-success transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]">
+                      {t("auto_conclude_pass")}
+                    </button>
+                    <button onClick={() => concludeTest(false)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:theme-text-danger transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)]">
+                      {t("auto_conclude_fail")}
+                    </button>
+                  </div>
+                )}
+
+                {!testRun && (
+                  <div className="w-full">
+                    {isLoading ? (
+                      <div className="flex flex-col items-center justify-center p-6 glass-surface rounded-xl gap-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">
+                        <div className="w-8 h-8 border-4 border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
+                        <span className="text-[10px] font-black capitalize tracking-widest animate-pulse mt-1 theme-text-accent">{t("diagnostic_running")}</span>
+                      </div>
+                    ) : isModMissingLocally(activeReport.name) ? (
+                      <button
+                        onClick={() => setIsMissingArtifactPanelOpen(true)}
+                        className="w-full h-14 glass-panel border border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] font-black text-xs capitalize tracking-widest rounded-2xl hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">{t("icon_download")}</span>
+                        {t("missing_artifacts")}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={runSimulation}
+                        className="w-full h-14 glass-panel border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] font-black text-xs capitalize tracking-widest rounded-2xl hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">{t("icon_play_arrow")}</span>
+                        {t("btn_run_diagnostic")}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : undefined
+          }
+        >
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
+
+              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
+                <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+                  <span className="material-symbols-outlined !text-[14px]">{t("icon_my_location")}</span>
+                  {t("target_artifact")}
+                </h4>
+                <div className="flex flex-col gap-2 relative z-10">
+                  <span className="glass-surface rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{activeReport?.name}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
+                <div className="flex flex-col gap-1 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+                  <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2">
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_account_tree")}</span>
+                    {t("section_deps_title")}
+                  </h4>
+                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 capitalize tracking-widest">{t("diagnostic_dependencies_desc")}</p>
+                </div>
+
+                <div className="flex flex-col gap-4 relative z-10">
+                  <ModSearchDropdown
+                    selectedItem={null}
+                    onSelect={handleSelectDependency}
+                    onClear={() => { }}
+                    placeholder={t("search_dep_ph")}
+                    modList={allMods.filter(m => m.id !== activeReport.id && !dependencies.some(d => d.id === m.id))}
+                  />
+                  {dependencies.length > 0 && (
+                    <div className="flex flex-col gap-2 mt-2">
+                      {dependencies.map(d => (
+                        <div key={d.id} className="flex justify-start items-center px-5 h-12 glass-surface rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-sm font-bold">
+                          <span className="truncate pr-4">{d.name}</span>
+                          <button onClick={() => handleRemoveDependency(d.id)} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors">
+                            <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none " />
+                <div className="flex flex-col gap-1 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+                  <h4 className="text-[10px] font-black text-[var(--warning)] capitalize tracking-widest flex items-center gap-2">
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_warning")}</span>
+                    {t("diagnostic_conflict_target")}
+                  </h4>
+                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 capitalize tracking-widest">{t("diagnostic_conflict_target_desc")}</p>
+                </div>
+
+                <div className="flex flex-col gap-4 relative z-10">
+                  {conflictTarget ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex justify-start items-center px-5 h-16 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--text)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)]">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[9px] font-black capitalize tracking-widest text-[var(--warning)] mb-0.5">{t("auto_testing_conflict_with")}</span>
+                          <span className="text-sm font-bold truncate">{conflictTarget.name}</span>
+                        </div>
+                        <button onClick={() => setConflictTarget(null)} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0 transition-colors">
+                          <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <ModSearchDropdown
+                      selectedItem={null}
+                      onSelect={(m: any) => setConflictTarget(m)}
+                      onClear={() => { }}
+                      placeholder={t("search_conflict_ph")}
+                      modList={allMods.filter(m => m.id !== activeReport.id && !dependencies.some(d => d.id === m.id))}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {testRun && (
+                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative animate-in slide-in-from-bottom-4">
+                  <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${testPassed ? 'from-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'from-[color-mix(in_srgb,var(--danger)_10%,transparent)]'} to-transparent pointer-events-none `} />
+                  <h4 className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2 ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_science")}</span>
+                    {t("diagnostic_results")}
+                  </h4>
+
+                  <div className="flex flex-col relative z-10">
+                    <div className={`p-5 glass-surface rounded-xl flex items-center gap-4 border ${testPassed ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_0_20px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] shadow-[0_0_20px_rgba(var(--danger-rgb),0.1)]'}`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${testPassed ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)] bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)]' : 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)]'}`}>
+                        <span className="material-symbols-outlined !text-[24px]">{testPassed ? 'check_circle' : 'error'}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className={`text-lg font-black capitalize tracking-widest ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                          {testPassed ? t("test_passed") : t("test_failed")}
+                        </span>
+                        <span className="text-[10px] font-bold capitalize tracking-widest text-[var(--text)] opacity-60">
+                          {t("injection_sim")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 w-full glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono text-[10px] text-[var(--subtext)] max-h-48 overflow-y-auto custom-scrollbar whitespace-pre-wrap leading-relaxed">
+                      {testLog || "No logs generated."}
+                    </div>
+
+                    {!testPassed && conflictTarget && (
+                      <div className="mt-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] pt-6">
+                        <h3 className="text-sm font-black theme-text-accent capitalize tracking-widest">{t("btn_add_to_nexus")}</h3>
+                        <form onSubmit={submitToNexus} className="flex flex-col gap-4">
+                          <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("resolution_suggestion")}</label>
+                            <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder={t("auto_e_g_load_31")} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("severity")}</label>
+                            <CustomTierDropdown value={severity} onChange={(val) => setSeverity(val)} />
+                          </div>
+                          <button type="submit" disabled={isSubmitting} className="w-full py-4 theme-bg-success text-[var(--bg)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg disabled:opacity-50 mt-2">
+                            {isSubmitting ? "Saving..." : "Save Conflict Rule"}
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </SidePanel>
+      )}
+
+      <SidePanel
+        isOpen={isMissingArtifactPanelOpen}
+        onClose={() => setIsMissingArtifactPanelOpen(false)}
+        title={t("missing_artifacts")}
+        icon="download"
+        widthClass="w-[450px]"
+        footer={
+          <div className="flex flex-col gap-4 mt-4 w-full">
+            {activeReport?.download_url ? (
+              <ActionButton onClick={() => window.open(activeReport.download_url, "_blank")} label={t("download_source")} icon={t("btn_download")}>
+
+              </ActionButton>
+            ) : null}
+            <ActionButton onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((useStore.getState().activeGameSchema?.display_name || "Mod") + ' ' + cleanSearchName(activeReport?.name || '', useStore.getState().activeGameSchema))}`, "_blank")} label={t("search_web")} icon={t("icon_search")}>
+
+            </ActionButton>
+          </div>
+        }
+      >
+        <div className="flex flex-col p-8 gap-6">
+          <div className="p-6 glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col items-center justify-center gap-4 text-center mt-8">
+            <span className="material-symbols-outlined !text-[48px] text-[var(--warning)] opacity-80">{t("icon_extension_off")}</span>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-black text-[var(--text)] capitalize tracking-widest">{activeReport?.name}</span>
+              <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("missing_dependency_desc")}</span>
+            </div>
+          </div>
+        </div>
+      </SidePanel>
+    </div>
+  );
+}
+
+
+
+
+
+

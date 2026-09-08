@@ -1,0 +1,129 @@
+import { useState, useEffect } from 'react';
+import { useLexicon } from '../LexiconContext';
+import { useStore } from '../store';
+import { useModalStore } from '../store/modalStore';
+import { supabase } from '../supabase';
+import { HoverTooltip } from '../shared';
+import { TabContainer, SettingsGrid, SettingsToggle } from './shared';
+import { UniversalCard } from '../components/universal/UniversalCard';
+
+export default function ClientTab() {
+  const { t } = useLexicon();
+  const showImages = useStore((state) => state.showImages);
+  const setShowImages = useStore((state) => state.setShowImages);
+  const useInternalBrowser = useModalStore((state) => state.useInternalBrowser);
+  const setUseInternalBrowser = useModalStore((state) => state.setUseInternalBrowser);
+
+  const [localOnly, setLocalOnly] = useState(localStorage.getItem("sanctuary_local_only") === "true");
+  const [shareMalwareReports, setShareMalwareReports] = useState(localStorage.getItem("sanctuary_share_malware_reports") === "true");
+  const [osNotifications, setOsNotifications] = useState(localStorage.getItem("sanctuary_os_notifications_enabled") === "true");
+
+  const session = useStore((state) => state.session);
+  const [isBanned, setIsBanned] = useState(false);
+  const [banReason, setBanReason] = useState("");
+
+  useEffect(() => {
+    if (session?.user?.id) {
+       supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', session.user.id).single()
+         .then(({ data }) => {
+            if (data?.is_comm_banned) {
+               setIsBanned(true);
+               setBanReason(data.comm_blacklist_reason || "Communications Ban");
+            }
+         });
+    }
+  }, [session]);
+
+  const toggleLocalOnly = () => {
+    const newVal = !localOnly;
+    setLocalOnly(newVal);
+    localStorage.setItem("sanctuary_local_only", newVal.toString());
+  };
+
+  return (
+    <TabContainer title={t("tab_preferences")} icon="tune">
+      <SettingsGrid>
+        <UniversalCard 
+          title={t("local_only")} 
+          subtitle={t("local_only_desc")} 
+          icon="wifi_off"
+          onClick={toggleLocalOnly}
+          actions={<SettingsToggle checked={localOnly} />}
+        />
+        
+        <UniversalCard 
+          title={t("show_images")} 
+          subtitle={t("show_images_desc")} 
+          icon="image"
+          onClick={() => setShowImages(!showImages)}
+          actions={<SettingsToggle checked={showImages} />}
+        />
+        
+        <UniversalCard 
+          title={t("settings_use_internal_browser")} 
+          subtitle={`${t("use_internal_browser_desc")} ${t("use_internal_browser_desc2")}`} 
+          icon="language"
+          onClick={() => setUseInternalBrowser(!useInternalBrowser)}
+          actions={<SettingsToggle checked={useInternalBrowser} />}
+        />
+
+        <UniversalCard 
+          title={t("setting_os_notifications_title") || "Desktop Notifications"} 
+          subtitle={t("setting_os_notifications_desc") || "Enable native OS alerts for urgent events."} 
+          icon="notifications_active"
+          onClick={() => {
+            const val = !osNotifications;
+            setOsNotifications(val);
+            localStorage.setItem("sanctuary_os_notifications_enabled", val.toString());
+          }}
+          actions={<SettingsToggle checked={osNotifications} />}
+        />
+
+        <div className="relative group/malware">
+          <UniversalCard 
+            title={t("malware_share_title")} 
+            subtitle={`${t("malware_share_desc")} ${t("malware_share_desc2")}`} 
+            icon="security"
+            onClick={() => {
+              if (!session || isBanned) return;
+              const val = !shareMalwareReports;
+              setShareMalwareReports(val);
+              localStorage.setItem("sanctuary_share_malware_reports", val.toString());
+            }}
+            actions={
+              <div className={`${!session || isBanned ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}>
+                <SettingsToggle checked={shareMalwareReports} />
+              </div>
+            }
+          />
+          {(!session || isBanned) && (
+            <HoverTooltip
+              title={t("access_denied")}
+              subtitle={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45")}
+              variant="danger"
+              className="group-hover/malware:flex group-hover/malware:opacity-100"
+            />
+          )}
+        </div>
+
+        <UniversalCard 
+          title={t("btn_reset_all_local")} 
+          subtitle={t("reset_all_local_desc")} 
+          icon="delete_forever"
+          statusColor="border-red-500"
+          onClick={() => {
+            localStorage.removeItem('sanctuary_local_overrides');
+            useStore.getState().pushStatus(t("local_overrides_cleared"));
+          }}
+          actions={
+            <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">
+              <span className="material-symbols-outlined !text-[20px]">warning</span>
+            </div>
+          }
+        />
+      </SettingsGrid>
+    </TabContainer>
+  );
+}
+
+

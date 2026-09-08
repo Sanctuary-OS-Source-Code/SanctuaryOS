@@ -1,0 +1,99 @@
+## Sanctuary OS
+## Forking & Architecture Guide
+#### Version: 5 (V0.5.0)
+#### Last Updated: August 19, 2026
+
+Welcome to the architecture and forking guide for Sanctuary OS. 
+Sanctuary OS is a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy.  
+This application utilizes a React 18/TypeScript frontend, a Tauri V2 (Rust) backend for native file-system operations (airgapping, symlinking, and ZSTD compression), and Supabase for cloud synchronization and global DNA registry oversight.
+
+---
+### Quick Start
+1. **Node.js:** Install Node.js (v18+ recommended).
+2. **Rust & Cargo:** Install from [rustup.rs](https://rustup.rs/).
+3. **Tauri Prerequisites:** Depending on your OS, install the necessary C++ build tools and WebKit dependencies. Refer to the [Tauri V2 Setup Guide](https://v2.tauri.app/start/prerequisites/).
+4. **Supabase Account:** You will need a free [Supabase](https://supabase.com/) account for database hosting and authentication.
+5. **Database Setup:** We rely on a Hub-and-Spoke Supabase PostgreSQL architecture. Execute [schema_os.sql] in your primary OS database, and [schema.sql] in your game-specific databases.
+6. **Environment Variables:** Create a `.env` file in the root of your frontend directory:
+   - `VITE_SUPABASE_URL=https://your-project-id.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY=your-anon-key-here`
+7. **Running Locally:** 
+   - `npm install`
+   - `npm run tauri dev`
+
+---
+### Forking Philosophy
+Sanctuary OS is built entirely as a local-first desktop middleware platform. 
+- **No Asset Hosting**: We do not host mod files. The system operates entirely on metadata and DNA hashes.
+- **Offline-First**: All core file operations, symlinking, active network toggles, and blueprints work completely offline. Network integration merely provides global oversight and sync.
+- **Desktop Middleware**: Sanctuary OS is not just a mod manager. It's a localized operating layer that safely orchestrates game engines, dependencies, telemetry, and updates.
+
+---
+### Architecture Overview
+The application follows a highly decoupled Hub-and-Spoke design, completely isolating global OS infrastructure from game-specific data.
+
+#### 1. Tech Stack
+- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS v3.
+- **State Management:** Zustand (`useStore` for Global State & `useModalStore` for UI Overlays).
+- **Context Providers:** ThemeContext (Dynamic CSS Variables) & LexiconContext (Dynamic localization).
+- **Desktop Framework:** Tauri V2 (with fs, dialog, process, and opener plugins).
+- **Backend/Database:** Supabase (PostgreSQL, GoTrue Auth, Realtime WebSockets) configured in a multi-database architecture.
+- **Cross-Database Routing:** Deno Edge Functions (`game-gateway`) on the OS Hub, paired with a client-side Magic Proxy Interceptor in `supabase.ts` for secure, server-to-server workspace communication.
+- **Rust Dependencies:** serde, sha2, zstd/tar, filetime, notify.
+
+#### 2. The Shared File System Refactor
+Bloated files (like `AppModals.tsx` and `App.tsx`) have been purged. Everything now utilizes:
+- **Command Screens Modularization**: All role-specific command screens (e.g., the massive 1,100+ line `CommandScreens.tsx`) have been refactored into individual, lightweight components for each role (Mason, Architect, Oversight, Wayfinder, Keeper) for improved maintainability.
+- **Split Modal & Router Components**: Modals are independently rendered and isolated from main routing loops.
+- **Side-Panel Extraction**: Side panels manage all context-heavy tasks (Ticket Dossiers, DNA Match, Radar Logic) without disrupting the main view and securely utilize the shared `<SidePanel>` architecture instead of fragile `createPortal` logic.
+
+#### 3. V0.5.0 Shell & Universal Component Refactor
+- **Global Navigation Overhaul**: The OS shell has been completely re-architected. The `TitleBar` serves as an edge-to-edge native drag region featuring a central Workspace Switcher and tactile chiclet window controls. The bottom of the OS is anchored by a unified glassmorphic `SystemStatusBar` for critical telemetry and alerts.
+- **Universal Component System**: To enforce strict UI/UX consistency, raw HTML elements have been stripped out. The entire OS now relies on a standardized suite of `UniversalCard`, `UniversalGroup`, `UniversalToggle`, `UniversalSearch`, and `ActionButton` components.
+- **Material Physics**: The aesthetic leans heavily into premium glassmorphism, utilizing layered `backdrop-blur`, complex vignette linear gradients, noise textures (`mix-blend-overlay`), and inner highlights to simulate physical frosted acrylic across all panels.
+
+#### 3. New Application Pillars
+- **Internal Browser & Download Interception**: A fully embedded browser running inside Tauri. Downloads are automatically intercepted and routed directly into your Vault.
+- **Structure Matrix**: Visually define the exact folder structure a mod must maintain when deployed to ensure maximum engine performance.
+- **The Mason IDE**: Powered by `@monaco-editor/react`, this provides an in-app sandbox code editor directly inside the client.
+- **Shared Editor/Update Flow**: Shared state between publishing new mods and updating existing blueprints.
+- **Shared Command Screens**: The Mason Workshop, Architect Console, and Wayfinder Hubs share identical `CommandScreenLayout.tsx` components to eliminate JSX duplication.
+
+#### 4. The Rust Backend (`/src-tauri/src/`)
+Because JavaScript cannot safely handle heavy file operations, all physical logistics are offloaded to Rust:
+- **Core Engine:** Handles `backup_universe`, `backup_engine_full`, `deploy_playset_bulk`, and `scan_bunker`.
+- **Schema Validation:** Deserializes the dynamic, DB-driven expansion JSON schemas at runtime to adjust its I/O logic, eradicating the need for flakey, hardcoded local parsers (like the legacy DBPF rust parser).
+
+---
+### Database Schema & Edge Gateway Architecture
+Instead of hardcoding SQL, refer to [schema.sql] and [schema_os.sql] for the exact builds. Conceptually, our Postgres tables and cross-database flows are split into these operational blocks:
+- **Central OS Hub**: Manages `sanctuary_games` (Workspace definitions), `profiles` (Core identities), `audit_logs` (Global Oversight), and Master Configurations. The OS Hub also exclusively hosts the `game-gateway` Deno Edge Function.
+- **Secure Cross-DB Routing**: We have explicitly sunset fragile HTTP extensions (`http_request`) and legacy `secure_` RPC hacks within the Game databases. Instead, the frontend utilizes a Magic Proxy that intercepts legacy RPC calls, routing them directly through the `game-gateway` Edge Function on the OS Hub. The gateway verifies the user's OS JWT token and securely dispatches the action to the target Game DB via a Service Role key.
+- **Game Databases (Spokes)**: Contain game-specific data including:
+  - **Profiles & Masons**: Defines Creator profiles (Masons) and hierarchical followings, linked via UUID to the OS Hub.
+  - **Global Registry & Versions**: The true source of metadata. It tracks mods, versions, and DLC registries.
+  - **Network Protocols**: Tracks recursive dependencies (addons, betas, rivals) and flavor groups.
+  - **Conflicts & Labs**: Maps logical conflict arrays and Homestead Lab results.
+  - **Blueprints**: Saves tactical loadout schemas. Support is included for "Offline Metadata Persistence", allowing custom Mod Dossier data (authors, URLs) to be dynamically injected and persisted natively within the `.json` blueprint exports without requiring cloud synchronization.
+  - **Administration & Moderation**: Tracks system telemetry, Nexus reports, asset flags, and active DEFCON status.
+
+---
+### Game Schema / Porting Guide
+Sanctuary OS has been refactored to support dynamic JSON schemas (e.g., `src/data/schemas/sims4.json`). You **no longer need to rewrite hardcoded Rust backend logic** to port to a new game. 
+By duplicating and modifying a game schema file, you define:
+- **Paths**: `executable_names` and `paths` for auto-detecting bin and mod directories.
+- **Extensions**: Supported files, parsers mapped to `dbpf_parser`, `zip_parser`, etc.
+- **Conflict Radar**: Taxonomy rules (harmless vs critical TGIs).
+- **Time Capsule**: World State vs Engine Core targets.
+- **Exception Logs**: Matching heuristics.
+The Rust backend automatically deserializes the active schema at runtime to adjust its I/O logic.
+
+---
+### Security & Governance Model
+Security is handled through a tiered global compliance system managed by Oversight, Wayfinders, and Keepers.
+- **Hardware Ban Decoupling:** Hardware IDs are no longer persistently tracked on standard user profiles. The system utilizes a dedicated `hardware_bans` ledger in the Core OS database, writing HWID hashes exclusively when a ban is explicitly triggered (e.g., via Nuclear Override or Malware Evasion).
+- **Public/Oversight Alert Flows**: Global DEFCON alerts are pushed over WebSockets. Wayfinders can initiate scheduled/operational DEFCON events.
+- **System Status Telemetry**: The Registry Health Status provides a real-time telemetry tile showing current Database Latency (ms), CPU usage, memory allocation, and server connectivity status.
+- **Audit Log Behavior**: Every database mutation, role change, and security flag executed by the administration is tracked in a permanent, undeletable ledger (Audit Logs). We implemented strict append-only security triggers at the database level so audit records can no longer be modified or deleted once written. Redundancy synchronously writes to both the localized workspace database and the overarching Core OS database. Keepers and Wayfinders use this for accountability and system forensics, supported by workspace-specific filtering in the Audit Log Viewer.
+- **Keeper Support System**: A dedicated support ticketing pipeline facilitates direct communication between workspace operators (Wayfinders) and Core OS developers (Keepers).
+- **Tiered Roles**: From Citizens (users) to Masons (creators), Architects (moderators), Oversight (administrators), Wayfinders (game admins), and Keepers (OS infrastructure), every profile operates under strict logic gates that share 1:1 workflow consistency.

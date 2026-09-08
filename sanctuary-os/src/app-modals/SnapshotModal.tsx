@@ -1,0 +1,43 @@
+import React from 'react';
+import { useLexicon } from "../LexiconContext";
+import { useStore } from "../store";
+import { ActionButton } from "../shared";
+
+export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot }: any) {
+  const { t } = useLexicon();
+  const { playSets, activePlaySetIndex } = useStore();
+
+  if (!snapshotModal) return null;
+
+  return (
+    <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-2xl p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
+        <div>
+          <h2 className="text-2xl font-black capitalize theme-text-accent tracking-tighter mb-1">{t("snapshot_title")}</h2>
+          <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
+            {t("snapshot_desc1")} <span className="text-[var(--text)]">{playSets[activePlaySetIndex]?.mods?.length || 0}</span> {t("snapshot_desc2")}
+          </p>
+        </div>
+        <div className="flex flex-col gap-4">
+          <input 
+            autoFocus 
+            type="text" 
+            value={snapshotName} 
+            onChange={(e) => setSnapshotName(e.target.value)} 
+            onKeyDown={(e) => e.key === "Enter" && executeSnapshot()} 
+            placeholder={t("snapshot_placeholder")}
+            className="w-full glass-surface px-5 py-4 rounded-xl text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all" 
+          />
+          <div className="flex gap-3 mt-2">
+            <button onClick={() => setSnapshotModal(false)} className="flex-1 py-3 theme-btn-standard font-black text-[10px] capitalize tracking-widest rounded-xl transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+              {t("nav_cancel")}
+            </button>
+            <ActionButton onClick={executeSnapshot} className="flex-1 py-3 shrink-0 h-12" label={t("auto_save")} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+

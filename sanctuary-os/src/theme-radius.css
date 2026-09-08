@@ -1,0 +1,62 @@
+.rounded-sm { border-radius: max(0px, calc(var(--radius) - 12px)) !important; }
+.rounded-md { border-radius: max(0px, calc(var(--radius) - 10px)) !important; }
+.rounded-lg { border-radius: max(0px, calc(var(--radius) - 8px)) !important; }
+.rounded-xl { border-radius: max(0px, calc(var(--radius) - 4px)) !important; }
+.rounded-2xl { border-radius: max(0px, var(--radius)) !important; }
+.rounded-3xl { border-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+
+.rounded-t-sm { border-top-left-radius: max(0px, calc(var(--radius) - 12px)) !important; border-top-right-radius: max(0px, calc(var(--radius) - 12px)) !important; }
+.rounded-t-md { border-top-left-radius: max(0px, calc(var(--radius) - 10px)) !important; border-top-right-radius: max(0px, calc(var(--radius) - 10px)) !important; }
+.rounded-t-lg { border-top-left-radius: max(0px, calc(var(--radius) - 8px)) !important; border-top-right-radius: max(0px, calc(var(--radius) - 8px)) !important; }
+.rounded-t-xl { border-top-left-radius: max(0px, calc(var(--radius) - 4px)) !important; border-top-right-radius: max(0px, calc(var(--radius) - 4px)) !important; }
+.rounded-t-2xl { border-top-left-radius: max(0px, var(--radius)) !important; border-top-right-radius: max(0px, var(--radius)) !important; }
+.rounded-t-3xl { border-top-left-radius: max(0px, calc(var(--radius) + 8px)) !important; border-top-right-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+
+.rounded-b-sm { border-bottom-left-radius: max(0px, calc(var(--radius) - 12px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 12px)) !important; }
+.rounded-b-md { border-bottom-left-radius: max(0px, calc(var(--radius) - 10px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 10px)) !important; }
+.rounded-b-lg { border-bottom-left-radius: max(0px, calc(var(--radius) - 8px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 8px)) !important; }
+.rounded-b-xl { border-bottom-left-radius: max(0px, calc(var(--radius) - 4px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 4px)) !important; }
+.rounded-b-2xl { border-bottom-left-radius: max(0px, var(--radius)) !important; border-bottom-right-radius: max(0px, var(--radius)) !important; }
+.rounded-b-3xl { border-bottom-left-radius: max(0px, calc(var(--radius) + 8px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+
+.rounded-l-sm { border-top-left-radius: max(0px, calc(var(--radius) - 12px)) !important; border-bottom-left-radius: max(0px, calc(var(--radius) - 12px)) !important; }
+.rounded-l-md { border-top-left-radius: max(0px, calc(var(--radius) - 10px)) !important; border-bottom-left-radius: max(0px, calc(var(--radius) - 10px)) !important; }
+.rounded-l-lg { border-top-left-radius: max(0px, calc(var(--radius) - 8px)) !important; border-bottom-left-radius: max(0px, calc(var(--radius) - 8px)) !important; }
+.rounded-l-xl { border-top-left-radius: max(0px, calc(var(--radius) - 4px)) !important; border-bottom-left-radius: max(0px, calc(var(--radius) - 4px)) !important; }
+.rounded-l-2xl { border-top-left-radius: max(0px, var(--radius)) !important; border-bottom-left-radius: max(0px, var(--radius)) !important; }
+.rounded-l-3xl { border-top-left-radius: max(0px, calc(var(--radius) + 8px)) !important; border-bottom-left-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+
+.rounded-r-sm { border-top-right-radius: max(0px, calc(var(--radius) - 12px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 12px)) !important; }
+.rounded-r-md { border-top-right-radius: max(0px, calc(var(--radius) - 10px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 10px)) !important; }
+.rounded-r-lg { border-top-right-radius: max(0px, calc(var(--radius) - 8px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 8px)) !important; }
+.rounded-r-xl { border-top-right-radius: max(0px, calc(var(--radius) - 4px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) - 4px)) !important; }
+.rounded-r-2xl { border-top-right-radius: max(0px, var(--radius)) !important; border-bottom-right-radius: max(0px, var(--radius)) !important; }
+.rounded-r-3xl { border-top-right-radius: max(0px, calc(var(--radius) + 8px)) !important; border-bottom-right-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+
+.rounded-tl-sm { border-top-left-radius: max(0px, calc(var(--radius) - 12px)) !important; }
+.rounded-tl-md { border-top-left-radius: max(0px, calc(var(--radius) - 10px)) !important; }
+.rounded-tl-lg { border-top-left-radius: max(0px, calc(var(--radius) - 8px)) !important; }
+.rounded-tl-xl { border-top-left-radius: max(0px, calc(var(--radius) - 4px)) !important; }
+.rounded-tl-2xl { border-top-left-radius: max(0px, var(--radius)) !important; }
+.rounded-tl-3xl { border-top-left-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+
+.rounded-tr-sm { border-top-right-radius: max(0px, calc(var(--radius) - 12px)) !important; }
+.rounded-tr-md { border-top-right-radius: max(0px, calc(var(--radius) - 10px)) !important; }
+.rounded-tr-lg { border-top-right-radius: max(0px, calc(var(--radius) - 8px)) !important; }
+.rounded-tr-xl { border-top-right-radius: max(0px, calc(var(--radius) - 4px)) !important; }
+.rounded-tr-2xl { border-top-right-radius: max(0px, var(--radius)) !important; }
+.rounded-tr-3xl { border-top-right-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+
+.rounded-bl-sm { border-bottom-left-radius: max(0px, calc(var(--radius) - 12px)) !important; }
+.rounded-bl-md { border-bottom-left-radius: max(0px, calc(var(--radius) - 10px)) !important; }
+.rounded-bl-lg { border-bottom-left-radius: max(0px, calc(var(--radius) - 8px)) !important; }
+.rounded-bl-xl { border-bottom-left-radius: max(0px, calc(var(--radius) - 4px)) !important; }
+.rounded-bl-2xl { border-bottom-left-radius: max(0px, var(--radius)) !important; }
+.rounded-bl-3xl { border-bottom-left-radius: max(0px, calc(var(--radius) + 8px)) !important; }
+
+.rounded-br-sm { border-bottom-right-radius: max(0px, calc(var(--radius) - 12px)) !important; }
+.rounded-br-md { border-bottom-right-radius: max(0px, calc(var(--radius) - 10px)) !important; }
+.rounded-br-lg { border-bottom-right-radius: max(0px, calc(var(--radius) - 8px)) !important; }
+.rounded-br-xl { border-bottom-right-radius: max(0px, calc(var(--radius) - 4px)) !important; }
+.rounded-br-2xl { border-bottom-right-radius: max(0px, var(--radius)) !important; }
+.rounded-br-3xl { border-bottom-right-radius: max(0px, calc(var(--radius) + 8px)) !important; }

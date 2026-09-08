@@ -1,0 +1,224 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { supabase } from '../supabase';
+import { useLexicon } from '../LexiconContext';
+import { SidePanel, CustomDropdown, extractPostImage, stripMarkdown, EmptyState, FilterPopover } from '../shared';
+import { UniversalCard } from '../components/universal/UniversalCard';
+import MasonPostViewer from "./MasonPostViewer";
+import { useStore } from '../store';
+
+export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', tableName = 'system_broadcasts' }: { isOpen: boolean, onClose: () => void, audience?: string, tableName?: string }) {
+  const { t } = useLexicon();
+  const session = useStore(state => state.session);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState("Active");
+  const [filterCategory, setFilterCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewingPost, setViewingPost] = useState<any>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchPosts = async () => {
+      setLoading(true);
+      let query = supabase.from(tableName)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (audience && audience !== 'All') {
+        query = query.or(`target_audience.ilike.%All%,target_audience.ilike.%${audience.replace(/ /g, '_')}%`);
+      }
+
+      if (filterStatus === "Active") {
+        query = query.eq('is_active', true);
+      } else if (filterStatus === "Inactive") {
+        query = query.eq('is_active', false);
+      }
+
+      if (filterCategory !== "All") {
+        query = query.eq('category', filterCategory);
+      } else {
+        query = query.in('category', ['Alert', 'Game Version Alert', 'Malware Alert', 'Artifact Alert']);
+      }
+
+      const { data } = await query;
+
+      if (data) {
+        const activeSchema = useStore.getState().activeGameSchema;
+        const teamName = tableName === 'keeper_system_broadcasts' ? t("author_sanctuary_team") : `${activeSchema?.display_name || activeSchema?.name || "Wayfinders"} Team`;
+
+        setPosts(data.map((p: any) => ({
+          ...p,
+          masons: { name: teamName }
+        })));
+      }
+      setLoading(false);
+    };
+    fetchPosts();
+  }, [isOpen, filterStatus, filterCategory]);
+
+  const filteredPosts = useMemo(() => {
+    return [...posts].filter(p => !searchQuery || (p.title?.toLowerCase().includes(searchQuery.toLowerCase()) || p.message?.toLowerCase().includes(searchQuery.toLowerCase()))).sort((a, b) => {
+      const aPinned = a.is_pinned === true || a.is_pinned === "true";
+      const bPinned = b.is_pinned === true || b.is_pinned === "true";
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [posts, searchQuery]);
+
+  const isPostPinned = (p: any) => p?.is_pinned === true || p?.is_pinned === "true";
+  const hasActiveAlert = posts.some(isPostPinned);
+
+  return (
+    <>
+      <SidePanel
+        isOpen={isOpen}
+        onClose={onClose}
+        icon={hasActiveAlert ? "priority_high" : "warning_off"}
+        widthClass="w-[1000px]"
+        panelClass={hasActiveAlert ? "danger-accent-override" : undefined}
+        title={t("title_sanctuary_alerts")}
+        subtitle={t("subtitle_sanctuary_alerts")}
+      >
+        <div className="flex flex-col h-full relative z-10">
+          <div className="p-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-between z-10 relative">
+            <h2 className="text-[12px] font-black text-[var(--text)] capitalize tracking-widest px-2">
+              {t("title_sanctuary_alerts")}
+            </h2>
+            <FilterPopover label={t("ui_btn_filter")}>
+              <div className="flex flex-col gap-4 p-2 w-[300px]">
+                <div className="w-full relative">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] !text-[18px]">search</span>
+                  <input
+                    type="text"
+                    placeholder={t("ui_placeholder_search")}
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full h-10 bg-black/40 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl pl-12 pr-4 text-xs font-bold text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder-[var(--subtext)]"
+                  />
+                </div>
+                <div className="w-full z-20">
+                  <CustomDropdown disableTint={true}
+                    value={filterCategory}
+                    onChange={(v: string[]) => setFilterCategory(v[0])}
+                    options={[
+                      { id: "All", label: t("all_classes") },
+                      { id: "Alert", label: t("category_alert") },
+                      { id: "Game Version Alert", label: t("category_game_version_alert") },
+                      { id: "Malware Alert", label: t("category_malware_alert") },
+                      { id: "Artifact Alert", label: t("category_artifact_alert") }
+                    ]}
+                  />
+                </div>
+                <div className="flex items-stretch glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-10 shrink-0 divide-x divide-white/5 overflow-hidden">
+                  <button onClick={() => setFilterStatus('Active')} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterStatus === 'Active' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_active")}</button>
+                  <button onClick={() => setFilterStatus('Inactive')} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterStatus === 'Inactive' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_inactive")}</button>
+                </div>
+              </div>
+            </FilterPopover>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar bg-transparent">
+            <div className="p-6 h-full flex flex-col">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center h-48 opacity-50">
+                  <span className="material-symbols-outlined animate-spin-slow text-[var(--accent)] mb-4">sync</span>
+                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)]">{t("ui_loading")}</span>
+                </div>
+              ) : filteredPosts.length === 0 ? (
+                <EmptyState icon="satellite_alt" title={t("system_no_broadcasts")} />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {filteredPosts.map(post => {
+                    const isPinned = isPostPinned(post);
+                    const isInactive = !post.is_active;
+                    return (
+                      <UniversalCard
+                        key={post.id}
+                        onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })}
+                        layout="vertical"
+                        statusColor={isPinned ? "var(--danger)" : undefined}
+                        className={`${isPinned ? 'shadow-[0_10px_30px_rgba(239,68,68,0.15)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'shadow-[0_10px_30px_rgba(0,0,0,0.1)]'} ${isInactive ? 'opacity-60 hover:opacity-100 grayscale-[50%]' : ''}`}
+                        title={
+                          <span className={`transition-colors ${isPinned ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
+                            {post.title}
+                          </span>
+                        }
+                        subtitle={
+                          <span className="flex items-center gap-1.5">
+                            <span className="material-symbols-outlined !text-[14px]">calendar_today</span>
+                            {new Date(post.created_at).toLocaleDateString()}
+                          </span>
+                        }
+                        badges={
+                          <>
+                            {isPinned && (
+                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest capitalize bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-inner flex items-center gap-1">
+                                {t("urgent_alert")}
+                              </span>
+                            )}
+                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest capitalize border shadow-inner ${isPinned ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}>
+                              {post.category || t("comms_btn_update")}
+                            </span>
+                            {isInactive && (
+                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest capitalize border shadow-inner bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                                {t("status_inactive")}
+                              </span>
+                            )}
+                          </>
+                        }
+                        footer={
+                          <div className="flex justify-start items-center gap-4">
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                              <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                                <span className="material-symbols-outlined !text-[14px]">groups</span>
+                                {(post.target_audience || "All Elevated").split(',').map((a: string) => a.trim() === 'Senior Architects' ? 'Oversight' : a.trim()).join(', ')}
+                              </span>
+                            </div>
+                            <span className={`text-[9px] font-black capitalize tracking-widest transition-all flex items-center gap-1 shrink-0 ${isPinned ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
+                              {t("wayfinder_read_more")} <span className="text-sm leading-none">&rarr;</span>
+                            </span>
+                          </div>
+                        }
+                      >
+                        <div className="flex flex-col gap-3">
+                          {extractPostImage(post) ? (
+                            <div className="w-full h-32 rounded-xl overflow-hidden relative border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner bg-[var(--bg)] shrink-0">
+                              <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] z-0" />
+                              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_20%,transparent)] to-transparent z-10 pointer-events-none" />
+                              <img src={extractPostImage(post)} className="w-full h-full object-cover relative z-0 opacity-60 mix-blend-luminosity group-hover:scale-105 group-hover:mix-blend-normal group-hover:opacity-100 transition-all duration-700" />
+                              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-t from-[var(--bg)] via-transparent to-transparent opacity-80 z-10 pointer-events-none" />
+                            </div>
+                          ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center py-4 min-h-[128px]">
+                              {/* Floating Organic Icon */}
+                              <div className={`relative z-10 flex items-center justify-center transition-all duration-500 group-hover:scale-110 ${isPinned ? 'text-[var(--danger)] drop-shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_80%,transparent)]' : 'text-[var(--subtext)] group-hover:text-[var(--accent)] drop-shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_80%,transparent)]'}`}>
+                                <span className="material-symbols-outlined !text-[56px] opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+                                  {isPinned ? 'warning' : 'podcasts'}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-80 group-hover:opacity-100 transition-opacity">
+                            {post.description ? post.description : stripMarkdown(post.message)}
+                          </p>
+                        </div>
+                      </UniversalCard>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </SidePanel>
+      {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId={session?.user?.id || null} />}
+    </>
+  );
+}
+
+
+
+

@@ -1,0 +1,249 @@
+import React, { useState, useEffect } from 'react';
+import { useStore, syncMasterSchemas } from '../store';
+import { invoke } from "@tauri-apps/api/core";
+import { useLexicon } from "../LexiconContext";
+import { supabase } from '../supabase';
+import { SidePanel, EmptyState, ScreenUtilityBar } from "../shared";
+import { isDesktop } from "../utils/envUtils";
+
+export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useLexicon();
+  const workspaces = useStore((state) => state.workspaces);
+  const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
+  const setIsConfigured = useStore((state) => state.setIsConfigured);
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+
+  const [globalGames, setGlobalGames] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const storedPins = localStorage.getItem('sanctuary_pinned_workspaces');
+      if (storedPins) {
+        setPinnedIds(JSON.parse(storedPins));
+      }
+    } catch (e) { }
+  }, []);
+
+  const togglePin = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    let newPins = [...pinnedIds];
+    if (newPins.includes(id)) {
+      newPins = newPins.filter(p => p !== id);
+    } else {
+      newPins.push(id);
+    }
+    setPinnedIds(newPins);
+    localStorage.setItem('sanctuary_pinned_workspaces', JSON.stringify(newPins));
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchGames = async () => {
+      setIsLoading(true);
+      const { data } = await supabase.from('sanctuary_games').select('*').order('name');
+      if (data) setGlobalGames(data);
+      setIsLoading(false);
+    };
+    fetchGames();
+  }, [isOpen]);
+
+  const selectWorkspace = async (workspace: any) => {
+    if (workspace.id === activeWorkspaceId) return;
+    
+    let globalConfig: any = null;
+    // Attempt Tauri desktop specific config updates
+    try {
+      if (isDesktop()) {
+        globalConfig = await invoke("get_global_config");
+        globalConfig.active_workspace_id = workspace.id;
+        
+        if (globalConfig.workspaces) {
+          const defaultWs = globalConfig.workspaces.find((w: any) => w.id === 'default_workspace');
+          if (defaultWs && defaultWs.schema_id) {
+             defaultWs.id = defaultWs.schema_id;
+             if (globalConfig.active_workspace_id === 'default_workspace') {
+               globalConfig.active_workspace_id = defaultWs.schema_id;
+             }
+          }
+          if (!globalConfig.workspaces.find((w: any) => w.id === globalConfig.active_workspace_id)) {
+            const cloned = { ...globalConfig.workspaces[0], id: globalConfig.active_workspace_id, schema_id: workspace.schema_id || globalConfig.active_workspace_id };
+            globalConfig.workspaces.push(cloned);
+          }
+        }
+        await invoke("save_coordinates", { config: globalConfig });
+      }
+    } catch (err) {
+      console.error("Desktop config save failed:", err);
+    }
+
+    const safeActiveId = globalConfig?.active_workspace_id || (workspace.id === 'default_workspace' && workspace.schema_id ? workspace.schema_id : workspace.id);
+
+    // Always apply these state updates and resets
+    localStorage.setItem('sanctuary_last_active_workspace', safeActiveId);
+    useStore.getState().hydrateWorkspaceState(safeActiveId);
+    if (workspace.schema_id) {
+        syncMasterSchemas(workspace.schema_id).catch(console.warn);
+    }
+    setActiveWorkspaceId(safeActiveId);
+    setIsConfigured(true);
+    onClose();
+    
+    // Reload if desktop, otherwise just let the store hydration handle it
+    if (isDesktop()) {
+      setTimeout(() => window.location.reload(), 300);
+    } else {
+      setTimeout(() => window.location.href = '/' + safeActiveId, 300);
+    }
+  };
+
+  const activeGames = globalGames.filter((g: any) => g.is_active !== false);
+
+  let cards: any[] = [];
+  activeGames.forEach((game: any) => {
+    const gameWorkspaces = workspaces.filter((ws: any) => ws.schema_id === game.schema_id);
+    gameWorkspaces.forEach((ws: any) => {
+      cards.push({ type: 'workspace', workspace: ws, game });
+    });
+  });
+
+  // Fallback for local workspaces that don't have a matching active game from Supabase
+  workspaces.forEach((ws: any) => {
+    if (!cards.find(c => c.workspace.id === ws.id)) {
+      cards.push({
+        type: 'workspace',
+        workspace: ws,
+        game: { name: ws.name || ws.id, schema_id: ws.schema_id }
+      });
+    }
+  });
+
+  const filteredCards = cards.filter((c: any) => {
+    const search = searchQuery.toLowerCase();
+    return (c.workspace.name || c.workspace.id).toLowerCase().includes(search) ||
+      (c.game.name || '').toLowerCase().includes(search) ||
+      (c.workspace.schema_id || '').toLowerCase().includes(search);
+  });
+
+  // Sort: pinned first, then active, then alphabetical
+  filteredCards.sort((a, b) => {
+    const aPinned = pinnedIds.includes(a.workspace.id);
+    const bPinned = pinnedIds.includes(b.workspace.id);
+    if (aPinned && !bPinned) return -1;
+    if (!aPinned && bPinned) return 1;
+
+    const aActive = a.workspace.id === activeWorkspaceId;
+    const bActive = b.workspace.id === activeWorkspaceId;
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+
+    const aName = a.workspace.name || a.workspace.id;
+    const bName = b.workspace.name || b.workspace.id;
+    return aName.localeCompare(bName);
+  });
+
+  return (
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("workspace_sidebar")}
+      subtitle={t("workspace_select_subtitle")}
+      icon={t("icon_view_quilt")}
+      widthClass="w-[700px]"
+      backdropZ="z-[100000]"
+      panelZ="z-[100001]"
+    >
+      <div className="flex flex-col h-full relative">
+        <div className="flex flex-col md:flex-row items-center gap-4 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-6">
+          <div className="relative w-full flex-1 min-w-[200px]">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
+            <input
+              type="text"
+              placeholder={t("workspace_search")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40 font-inter"
+            />
+          </div>
+          <button
+            onClick={() => {
+              if (isDesktop()) {
+                setIsConfigured(false);
+              } else {
+                window.location.href = "/";
+              }
+              onClose();
+            }}
+            className="w-full md:w-auto h-12 px-6 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl text-[11px] font-black capitalize tracking-widest hover:border-[var(--accent)] hover:theme-text-accent transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-md shrink-0"
+          >
+            <span className="material-symbols-outlined !text-[18px]">view_quilt</span>
+            {t("workspace_all")}
+          </button>
+        </div>
+
+        <div className="w-full flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 pb-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+            {filteredCards.map((card: any, idx: number) => {
+              const ws = card.workspace;
+              const game = card.game;
+              const isActive = ws.id === activeWorkspaceId;
+              const isPinned = pinnedIds.includes(ws.id);
+
+              return (
+                <button
+                  key={`ws-${ws.id}-${idx}`}
+                  onClick={() => selectWorkspace(ws)}
+         className={`flex flex-col justify-start p-6 rounded-2xl glass-panel border group transition-all duration-500 relative min-h-[160px] text-left ${isActive ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-md'}`}
+                >
+                  <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-transparent transition-opacity duration-700 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+
+                  <div className="flex justify-start items-start w-full relative z-10 mb-4">
+                    <div className="flex items-start gap-4 w-full pr-8">
+                      <div className={`w-12 h-12 rounded-2xl glass-surface border shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 ${isActive ? 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
+                        {game.icon ? <img src={game.icon} alt="" className="w-8 h-8 object-contain drop-shadow-md" /> : <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">sports_esports</span>}
+                      </div>
+                      <div className="flex flex-col pt-1 min-w-0 flex-1">
+                        <span className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1 truncate">{isActive ? t("workspace_manage") : t("workspace_available")}</span>
+                        <span className="text-[13px] font-black capitalize tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors line-clamp-2 drop-shadow-sm leading-tight">{game.name || ws.name || ws.id}</span>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={(e) => togglePin(ws.id, e)}
+                      className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
+                    >
+                      <span className="material-symbols-outlined !text-[16px]" style={{ fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0' }}>keep</span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                    <div className="flex flex-col min-w-0 flex-1 pr-2">
+                      <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
+                      <span className="text-[10px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-1 truncate">
+                        <span className="material-symbols-outlined !text-[12px] shrink-0">check_circle</span>
+                        <span className="truncate">{t("workspace_configured")}</span>
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+
+            {isLoading && (
+              <EmptyState icon={t("icon_sync")} title={t("workspace_loading")} className="col-span-full py-16 animate-pulse" />
+            )}
+
+            {!isLoading && filteredCards.length === 0 && (
+              <EmptyState icon={t("icon_search")} title={t("no_matches")} className="col-span-full py-16" />
+            )}
+          </div>
+        </div>
+      </div>
+    </SidePanel>
+  );
+}
+
+
+

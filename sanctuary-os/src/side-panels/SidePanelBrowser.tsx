@@ -1,0 +1,825 @@
+import React, { useEffect, useState, useRef } from 'react';
+import { Webview, getAllWebviews } from '@tauri-apps/api/webview';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { LogicalPosition, LogicalSize } from '@tauri-apps/api/dpi';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { isDesktop } from '../utils/envUtils';
+import { SidePanel } from '../shared';
+import { useModalStore } from '../store/modalStore';
+import { useLexicon } from '../LexiconContext';
+import { useStore } from '../store';
+import { useTheme } from '../ThemeContext';
+import { INJECTED_BROWSER_SCRIPT } from './browserInjection';
+import { SidePanelBrowserDownloads } from './SidePanelBrowserDownloads';
+
+export default function SidePanelBrowser() {
+  const { t } = useLexicon();
+  const { currentTheme } = useTheme();
+  const { activeGameSchema } = useStore();
+  const {
+    isSideBrowserOpen, setIsSideBrowserOpen,
+    sideBrowserUrl, setSideBrowserUrl, sideBrowserTrigger,
+    browserTabs, setBrowserTabs,
+    activeBrowserTabId, setActiveBrowserTabId,
+    browserBookmarks, setBrowserBookmarks,
+    browserHistory, setBrowserHistory,
+    maxActiveWebviews,
+    downloadsQueue, setDownloadsQueue,
+    dnaMatchQueue, confirmDialog, showQuarantineModal, showBrokenModal, isUpdatePanelOpen,
+    snapshotModal, bulkModal, renameModal, localFolderModal, yeetConfirmPending, scoutQueue,
+    isBackingUp, isRestoring, showDefconAlert
+  } = useModalStore();
+
+  const isBlockingModalOpen = dnaMatchQueue.length > 0 || !!confirmDialog || showQuarantineModal || showBrokenModal ||
+    snapshotModal || bulkModal || !!renameModal || localFolderModal || !!yeetConfirmPending || false /* scoutQueue removed */ ||
+    isBackingUp || isRestoring || showDefconAlert;
+
+  const blockingModalRef = useRef(isBlockingModalOpen);
+
+  useEffect(() => {
+    blockingModalRef.current = isBlockingModalOpen;
+    window.dispatchEvent(new Event('resize'));
+    if (isBlockingModalOpen && isSideBrowserOpen) {
+      setIsSideBrowserOpen(false);
+    }
+
+    if (!isSideBrowserOpen || isBlockingModalOpen) {
+      setBrowserTabs((prev: any[]) => {
+        if (prev.some(t => !t.sleeping)) {
+          return prev.map(t => ({ ...t, sleeping: true }));
+        }
+        return prev;
+      });
+    } else if (isSideBrowserOpen && !isBlockingModalOpen && activeBrowserTabId) {
+      setBrowserTabs((prev: any[]) => {
+        if (prev.some(t => t.id === activeBrowserTabId && t.sleeping)) {
+          return prev.map(t => t.id === activeBrowserTabId ? { ...t, sleeping: false } : t);
+        }
+        return prev;
+      });
+    }
+  }, [isBlockingModalOpen, isSideBrowserOpen, activeBrowserTabId, setIsSideBrowserOpen, setBrowserTabs]);
+
+  const [localUrlInput, setLocalUrlInput] = useState('');
+
+  const webviewsRef = useRef<Map<string, Webview>>(new Map());
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  const actualUrlRef = useRef(localUrlInput);
+  const [actualCurrentUrl, setActualCurrentUrl] = useState(localUrlInput);
+  const [isBookmarksDropdownOpen, setIsBookmarksDropdownOpen] = useState(false);
+  const [isBrowserFullscreen, setIsBrowserFullscreen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<'bookmarks' | 'history'>('bookmarks');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const [editingBookmarkUrl, setEditingBookmarkUrl] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editUrl, setEditUrl] = useState('');
+  const [expandedHistoryDays, setExpandedHistoryDays] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!isSideBrowserOpen || !activeBrowserTabId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const activeLabel = `side-browser-tab-${activeBrowserTabId}`;
+        const activeWv = webviewsRef.current.get(activeLabel);
+
+        if (activeWv) {
+          invoke('webview_url', { label: activeLabel }).then((url: any) => {
+            if (!url) return;
+
+            const hasFsFlag = url.includes('sanc_fs=true');
+            if (hasFsFlag !== (window as any).__last_sanc_fs_flag) {
+              (window as any).__last_sanc_fs_flag = hasFsFlag;
+              setIsBrowserFullscreen(hasFsFlag);
+            }
+
+            if (url.includes('#sanctuary-new-tab=')) {
+              const parts = url.split('#sanctuary-new-tab=');
+              if (parts.length > 1) {
+                const targetUrl = decodeURIComponent(parts[1]);
+                let validUrl = targetUrl.trim();
+                if (!validUrl) validUrl = 'https://google.com';
+                else if (!/^https?:\/\//i.test(validUrl)) validUrl = 'https://' + validUrl.replace(/^\/+/, '');
+                const newId = crypto.randomUUID();
+                setBrowserTabs((prev: any) => [...prev, { id: newId, url: validUrl, sleeping: false }]);
+                setActiveBrowserTabId(newId);
+                invoke('webview_eval', { label: activeLabel, script: "window.history.replaceState(null, '', window.location.pathname + window.location.search);" }).catch(console.error);
+                return;
+              }
+            }
+
+            if (url.includes('#sanctuary-action=')) {
+              const parts = url.split('#sanctuary-action=');
+              if (parts.length > 1) {
+                const action = parts[1];
+                if (action === 'paste') {
+                  import("@tauri-apps/plugin-clipboard-manager").then(({ readText }) => {
+                    readText().then((clipText) => {
+                      if (clipText) {
+                        const escaped = clipText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\\n/g, '\\\\n').replace(/\\r/g, '');
+                        invoke('webview_eval', { label: activeLabel, script: `document.execCommand('insertText', false, '${escaped}')` }).catch(console.error);
+                      }
+                    });
+                  });
+                } else if (action.startsWith('copyText=')) {
+                  const textToCopy = decodeURIComponent(action.substring(9));
+                  import("@tauri-apps/plugin-clipboard-manager").then(({ writeText }) => {
+                    writeText(textToCopy).catch(console.error);
+                  });
+                }
+                invoke('webview_eval', { label: activeLabel, script: "window.history.replaceState(null, '', window.location.pathname + window.location.search);" }).catch(console.error);
+                return;
+              }
+            }
+
+            const displayUrl = url.replace(/([?&])sanc_fs=(true|false)&?/, '$1').replace(/[?&]$/, '');
+            if (displayUrl !== actualUrlRef.current) {
+              actualUrlRef.current = displayUrl;
+              setActualCurrentUrl(displayUrl);
+
+              setBrowserTabs((prevTabs: any[]) => {
+                const idx = prevTabs.findIndex(t => t.id === activeBrowserTabId);
+                if (idx !== -1 && prevTabs[idx].url !== displayUrl) {
+                  const newTabs = [...prevTabs];
+                  newTabs[idx] = { ...newTabs[idx], url: displayUrl };
+                  return newTabs;
+                }
+                return prevTabs;
+              });
+
+              useModalStore.getState().setBrowserHistory((prev: any) => {
+                if (prev.length > 0 && prev[0].url === displayUrl) return prev;
+                return [{ url: displayUrl, title: displayUrl, timestamp: Date.now() }, ...prev].slice(0, 100);
+              });
+            }
+
+            if (displayUrl !== 'about:blank') {
+              const osBgColor = currentTheme.bg || '#000000';
+              const script = INJECTED_BROWSER_SCRIPT.replace(/__OS_BG_COLOR__/g, osBgColor);
+              invoke('webview_eval', { label: activeLabel, script }).catch(console.error);
+            }
+          }).catch(() => { });
+        }
+      } catch (e) {
+        // ignore
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isSideBrowserOpen, activeBrowserTabId]);
+
+  useEffect(() => {
+    setIsBookmarksDropdownOpen(false);
+  }, [isSideBrowserOpen, sideBrowserUrl]);
+
+
+
+  useEffect(() => {
+    if (isSideBrowserOpen && !hasInitialized) {
+      setHasInitialized(true);
+      if (browserTabs.length === 0) {
+        const id = Date.now().toString();
+        setBrowserTabs([{ id, url: sideBrowserUrl || 'https://google.com', sleeping: false }]);
+        setActiveBrowserTabId(id);
+      }
+    }
+  }, [isSideBrowserOpen, hasInitialized, browserTabs.length, sideBrowserUrl, setBrowserTabs, setActiveBrowserTabId]);
+
+  useEffect(() => {
+    if (activeBrowserTabId) {
+      const activeTab = browserTabs.find(t => t.id === activeBrowserTabId);
+      if (activeTab) {
+        setLocalUrlInput(activeTab.url);
+      }
+    }
+  }, [activeBrowserTabId, browserTabs]);
+
+  useEffect(() => {
+    if (!isDesktop()) return;
+    const unlistenPromise = listen('webview-video-fullscreen', (event: any) => {
+      setIsBrowserFullscreen(event.payload === "true" || event.payload === true);
+    });
+
+    return () => {
+      unlistenPromise.then(unlisten => unlisten());
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasInitialized) return;
+
+    const appWindow = getCurrentWindow();
+    let isUnmounted = false;
+    let pendingUpdate = false;
+    let isUpdating = false;
+    let lastShownTab = '';
+
+    getAllWebviews().then(webviews => {
+      for (const w of webviews) {
+        if (w.label.startsWith('side-browser-tab-') && !webviewsRef.current.has(w.label)) {
+          w.close().catch(e => { if (!String(e).includes("not found")) console.error(e) });
+        }
+      }
+    }).catch(console.error);
+
+    const updateBounds = async () => {
+      if (isUnmounted || !containerRef.current) return;
+      if (!isSideBrowserOpen) return;
+
+      if (isUpdating) {
+        pendingUpdate = true;
+        return;
+      }
+      isUpdating = true;
+      try {
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          const activeLabel = `side-browser-tab-${activeBrowserTabId}`;
+          const activeWv = webviewsRef.current.get(activeLabel);
+          if (activeWv) {
+            if (blockingModalRef.current) {
+              await activeWv.setSize(new LogicalSize(1, 1)).catch(console.error);
+              await activeWv.setPosition(new LogicalPosition(0, window.innerHeight)).catch(console.error);
+              lastShownTab = '';
+            } else {
+              await Promise.all([
+                activeWv.setPosition(new LogicalPosition(rect.x, rect.y)),
+                activeWv.setSize(new LogicalSize(rect.width, rect.height))
+              ]);
+              lastShownTab = activeLabel;
+            }
+          }
+        }
+      } catch (e) {
+        if (!String(e).includes("webview not found")) {
+          console.error("Failed to update webview bounds:", e);
+        }
+      } finally {
+        isUpdating = false;
+        if (pendingUpdate && !isUnmounted) {
+          pendingUpdate = false;
+          requestAnimationFrame(updateBounds);
+        }
+      }
+    };
+
+    const syncWebviews = async () => {
+      if (isUnmounted) return;
+
+      const activeWebviewsCount = browserTabs.filter(t => !t.sleeping).length;
+      if (activeWebviewsCount > maxActiveWebviews) {
+        const oldestNonActive = browserTabs.find(t => !t.sleeping && t.id !== activeBrowserTabId);
+        if (oldestNonActive) {
+          const newTabs = browserTabs.map(t => t.id === oldestNonActive.id ? { ...t, sleeping: true } : t);
+          setBrowserTabs(newTabs);
+          return;
+        }
+      }
+
+      const container = document.getElementById('side-panel-browser-container');
+      const containerRect = container ? container.getBoundingClientRect() : { x: window.innerWidth, y: window.innerHeight, width: 1, height: 1 };
+
+      for (const tab of browserTabs) {
+        const label = `side-browser-tab-${tab.id}`;
+
+        if (tab.sleeping) {
+          if (webviewsRef.current.has(label)) {
+            webviewsRef.current.get(label)?.close().catch(console.error);
+            webviewsRef.current.delete(label);
+          }
+          continue;
+        }
+
+        let wv = webviewsRef.current.get(label);
+
+        const isTabActive = isSideBrowserOpen && !blockingModalRef.current && tab.id === activeBrowserTabId;
+        const targetX = isTabActive ? containerRect.x : 0;
+        const targetY = isTabActive ? containerRect.y : window.innerHeight;
+
+        if (!wv) {
+          wv = new Webview(appWindow, label, {
+            url: tab.url,
+            x: targetX,
+            y: targetY,
+            width: containerRect.width,
+            height: containerRect.height,
+            transparent: false,
+            backgroundColor: [15, 15, 15, 255]
+          });
+          webviewsRef.current.set(label, wv);
+          wv.once('tauri://created', () => {
+            setTimeout(() => {
+              invoke('webview_eval', { label, script: `window.location.href = "${tab.url}";` }).catch(() => { });
+            }, 100);
+          });
+        } else {
+          wv.setPosition(new LogicalPosition(targetX, targetY)).catch(console.error);
+          if (isTabActive) {
+            wv.setSize(new LogicalSize(containerRect.width, containerRect.height)).catch(console.error);
+          } else {
+            wv.setSize(new LogicalSize(1, 1)).catch(console.error);
+          }
+        }
+
+        if (isTabActive) {
+          // Visibility and focus is handled by updateBounds after the bounds have been verified.
+        } else {
+          wv.hide().catch(e => { if (!String(e).includes("not found")) console.error(e) });
+        }
+      }
+
+      const tabLabels = new Set(browserTabs.map(t => `side-browser-tab-${t.id}`));
+      for (const [label, wv] of Array.from(webviewsRef.current.entries())) {
+        if (!tabLabels.has(label)) {
+          wv.close().catch(console.error);
+          webviewsRef.current.delete(label);
+        }
+      }
+
+      setTimeout(updateBounds, 100);
+    };
+
+    syncWebviews();
+
+    setTimeout(updateBounds, 100);
+
+    const observer = new ResizeObserver(() => {
+      updateBounds();
+    });
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    const handleWindowResize = () => updateBounds();
+    window.addEventListener('resize', handleWindowResize);
+
+    return () => {
+      isUnmounted = true;
+      observer.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, [hasInitialized, browserTabs, maxActiveWebviews, setBrowserTabs, activeBrowserTabId, isSideBrowserOpen]);
+
+  useEffect(() => {
+    return () => {
+      for (const wv of Array.from(webviewsRef.current.values())) {
+        wv.close().catch(console.error);
+      }
+      webviewsRef.current.clear();
+    };
+  }, []);
+
+  const handleNavigate = async (urlToNavigate: string) => {
+    let finalUrl = urlToNavigate.trim();
+    if (!finalUrl) return;
+
+    if (!/^https?:\/\//i.test(finalUrl)) {
+      if (finalUrl.includes('.') && !finalUrl.includes(' ')) {
+        finalUrl = 'https://' + finalUrl;
+      } else {
+        finalUrl = 'https://www.google.com/search?q=' + encodeURIComponent(finalUrl);
+      }
+    }
+
+    setSideBrowserUrl(finalUrl);
+
+    const label = `side-browser-tab-${activeBrowserTabId}`;
+    const navigateWebview = (retries = 3) => {
+      if (webviewsRef.current.has(label)) {
+        invoke('webview_eval', { label, script: `window.location.href = "${finalUrl}";` })
+          .catch(e => {
+            if (retries > 0) setTimeout(() => navigateWebview(retries - 1), 200);
+            else console.error(e);
+          });
+      } else {
+        if (retries > 0) setTimeout(() => navigateWebview(retries - 1), 200);
+      }
+    };
+    navigateWebview();
+
+    setBrowserTabs((prevTabs: any[]) => {
+      const newTabs = prevTabs.map(t => t.id === activeBrowserTabId ? { ...t, url: finalUrl, sleeping: false } : t);
+      return [...newTabs];
+    });
+
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+  };
+
+  const lastProcessedTriggerRef = useRef(sideBrowserTrigger);
+
+  useEffect(() => {
+    if (isSideBrowserOpen && hasInitialized && sideBrowserUrl && activeBrowserTabId) {
+      if (sideBrowserTrigger !== lastProcessedTriggerRef.current) {
+        lastProcessedTriggerRef.current = sideBrowserTrigger;
+        const activeTab = browserTabs.find(t => t.id === activeBrowserTabId);
+
+        let finalUrl = sideBrowserUrl.trim();
+        if (!/^https?:\/\//i.test(finalUrl) && finalUrl !== 'about:blank') {
+          if (finalUrl.includes('.') && !finalUrl.includes(' ')) {
+            finalUrl = 'https://' + finalUrl;
+          } else {
+            finalUrl = 'https://www.google.com/search?q=' + encodeURIComponent(finalUrl);
+          }
+        }
+
+        if (activeTab && activeTab.url === finalUrl) {
+          // Already on this URL but webview might have navigated away. Force a navigation.
+          const label = `side-browser-tab-${activeBrowserTabId}`;
+          invoke('webview_eval', { label, script: `window.location.href = "${finalUrl}";` }).catch(() => { });
+        } else {
+          // New URL, create a new tab.
+          const newId = crypto.randomUUID();
+          setBrowserTabs((prev: any) => [...prev, { id: newId, url: finalUrl, sleeping: false }]);
+          setActiveBrowserTabId(newId);
+        }
+      }
+    }
+  }, [sideBrowserTrigger, sideBrowserUrl, hasInitialized, isSideBrowserOpen, activeBrowserTabId, browserTabs]);
+
+
+  const createNewTab = () => {
+    const id = crypto.randomUUID();
+    setBrowserTabs(prev => [...prev, { id, url: 'https://google.com', sleeping: false }]);
+    setSideBrowserUrl('https://google.com');
+    setActiveBrowserTabId(id);
+  };
+
+  const closeTab = (e: React.MouseEvent, idToClose: string) => {
+    e.stopPropagation();
+    const newTabs = browserTabs.filter(t => t.id !== idToClose);
+    if (newTabs.length === 0) {
+      setIsSideBrowserOpen(false);
+      setBrowserTabs([]);
+      setActiveBrowserTabId(null);
+    } else if (activeBrowserTabId === idToClose) {
+      const idx = browserTabs.findIndex(t => t.id === idToClose);
+      const prevTab = newTabs[Math.max(0, idx - 1)];
+      setActiveBrowserTabId(prevTab.id);
+      const wokenTabs = newTabs.map(t => t.id === prevTab.id ? { ...t, sleeping: false } : t);
+      setBrowserTabs(wokenTabs);
+    } else {
+      setBrowserTabs(newTabs);
+    }
+  };
+
+  const toggleBookmark = () => {
+    if (!activeBrowserTabId) return;
+    const activeTab = browserTabs.find(t => t.id === activeBrowserTabId);
+    if (!activeTab) return;
+
+    const urlToBookmark = actualCurrentUrl || localUrlInput || activeTab.url;
+
+    const isBookmarked = browserBookmarks.some(b => b.url === urlToBookmark);
+    if (isBookmarked) {
+      setBrowserBookmarks(browserBookmarks.filter(b => b.url !== urlToBookmark));
+    } else {
+      setBrowserBookmarks([...browserBookmarks, { url: urlToBookmark, title: urlToBookmark }]);
+    }
+  };
+
+  if (!hasInitialized) return null;
+
+  return (
+    <div style={{ display: isSideBrowserOpen ? 'block' : 'none' }} className={isBlockingModalOpen ? "opacity-0 pointer-events-none transition-opacity duration-300" : "opacity-100 transition-opacity duration-300"}>
+      <SidePanel
+        isOpen={isSideBrowserOpen}
+        keepMounted={true}
+        onClose={() => setIsSideBrowserOpen(false)}
+        backdropZ="z-[100004]"
+        panelZ="z-[1000000]"
+        hideHeader={true}
+        noPadding={true}
+        noScroll={true}
+        isResizable={!isBrowserFullscreen}
+        defaultWidth={window.innerWidth / 2}
+        panelClass={isBrowserFullscreen ? "!top-[0px] !inset-x-0 !bottom-0 !border-0 !rounded-none" : "!top-[0px] !bottom-0 !border-y-0 !border-r-0"}
+        panelStyle={isBrowserFullscreen ? { width: '100vw', right: 0 } : { right: 0 }}
+      >
+        <div className="pt-6 px-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex flex-col gap-3 rounded-tl-[3rem] !rounded-tr-none">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
+          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_3%,transparent)] to-transparent pointer-events-none" />
+
+          <div className="flex items-center gap-4 pl-4 pr-4">
+            <button
+              onClick={() => setIsSideBrowserOpen(false)}
+              className="z-50 w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center text-[var(--subtext)] transition-all bg-black/10 backdrop-blur-[2px] hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] shadow-xl group/closebtn"
+            >
+              <span className="material-symbols-outlined !text-[20px] group-hover/closebtn:rotate-90 transition-transform duration-300">close</span>
+            </button>
+
+            <div className="flex-1 flex items-center gap-2 bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[1.25rem] px-4 h-11 shadow-inner relative z-10 focus-within:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-colors">
+
+              {/* Back / Forward / Refresh */}
+              <div className="flex items-center gap-1 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] pr-2 mr-1">
+                <button
+                  onClick={() => {
+                    const label = `side-browser-tab-${activeBrowserTabId}`;
+                    invoke('webview_eval', { label, script: 'window.history.back()' }).catch(console.error);
+                  }}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors"
+                >
+                  <span className="material-symbols-outlined !text-[18px]">arrow_back</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const label = `side-browser-tab-${activeBrowserTabId}`;
+                    invoke('webview_eval', { label, script: 'window.history.forward()' }).catch(console.error);
+                  }}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors"
+                >
+                  <span className="material-symbols-outlined !text-[18px]">arrow_forward</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const label = `side-browser-tab-${activeBrowserTabId}`;
+                    invoke('webview_eval', { label, script: 'window.location.reload()' }).catch(console.error);
+                  }}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors"
+                >
+                  <span className="material-symbols-outlined !text-[18px]">refresh</span>
+                </button>
+              </div>
+
+              <span className="material-symbols-outlined !text-[18px] theme-text-accent ml-1">public</span>
+              <input
+                value={localUrlInput}
+                onChange={(e) => setLocalUrlInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleNavigate(localUrlInput); }}
+                className="flex-1 bg-transparent border-none outline-none text-[14px] text-[var(--text)] font-medium placeholder-[var(--subtext)]"
+                placeholder="Search or enter URL..."
+              />
+              <button onClick={() => {
+                invoke('webview_url', { label: `side-browser-tab-${activeBrowserTabId}` })
+                  .then((url) => {
+                    import('@tauri-apps/plugin-opener').then(m => m.openUrl(url as string));
+                  })
+                  .catch((err) => {
+                    console.error("Failed to get current url", err);
+                    import('@tauri-apps/plugin-opener').then(m => m.openUrl(localUrlInput));
+                  });
+              }} className="shrink-0 flex items-center gap-1 transition-all hover:scale-105 active:scale-95 text-[var(--subtext)] hover:text-[var(--accent)] focus:outline-none ml-1 mr-2 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1.5 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-inner">
+                <span className="text-[9px] font-black tracking-widest capitalize mt-0.5">{t("browser_open_external")}</span>
+                <span className="material-symbols-outlined !text-[16px]">open_in_new</span>
+              </button>
+              <button onClick={toggleBookmark} className="shrink-0 transition-all hover:scale-110 active:scale-95 text-[var(--subtext)] hover:text-yellow-400 focus:outline-none">
+                <span className={`material-symbols-outlined !text-[20px] ${browserBookmarks.some(b => b.url === (actualCurrentUrl || localUrlInput)) ? 'fill-current text-yellow-400' : ''}`}>star</span>
+              </button>
+              <button onClick={() => setIsBookmarksDropdownOpen(!isBookmarksDropdownOpen)} className={`shrink-0 transition-all hover:scale-110 active:scale-95 focus:outline-none ml-2 ${isBookmarksDropdownOpen ? 'text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}>
+                <span className="material-symbols-outlined !text-[20px]">{isBookmarksDropdownOpen ? 'menu_open' : 'menu'}</span>
+              </button>
+              <button onClick={() => setIsBrowserFullscreen(!isBrowserFullscreen)} className={`shrink-0 transition-all hover:scale-110 active:scale-95 focus:outline-none ml-2 mr-1 ${isBrowserFullscreen ? 'text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}>
+                <span className="material-symbols-outlined !text-[20px]">{isBrowserFullscreen ? 'fullscreen_exit' : 'fullscreen'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 px-4 pt-1 overflow-x-auto custom-scrollbar relative z-10 pb-2">
+            <div className="flex items-center overflow-x-auto custom-scrollbar glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner shrink-0 relative z-10">
+              {browserTabs.map(tab => {
+                const isActive = tab.id === activeBrowserTabId;
+                return (
+                  <div
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveBrowserTabId(tab.id);
+                      if (tab.sleeping) {
+                        const newTabs = browserTabs.map(t => t.id === tab.id ? { ...t, sleeping: false } : t);
+                        setBrowserTabs(newTabs);
+                      }
+                    }}
+                    onAuxClick={(e) => {
+                      if (e.button === 1) closeTab(e as any, tab.id);
+                    }}
+                    className={`group h-10 px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap cursor-pointer ${isActive
+                      ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-md'
+                      : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100'
+                      } ${tab.sleeping ? 'opacity-50' : 'opacity-100'}`}
+                  >
+                    <div className="max-w-[120px] truncate">{tab.url.replace(/^https?:\/\/(www\.)?/, '')}</div>
+                    <button onClick={(e) => closeTab(e, tab.id)} className={`shrink-0 flex items-center justify-center rounded-full hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] w-4 h-4 text-inherit transition-all ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                      <span className="material-symbols-outlined !text-[12px]">close</span>
+                    </button>
+                  </div>
+                );
+              })}
+              <button onClick={createNewTab} className="w-10 h-10 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all">
+                <span className="material-symbols-outlined !text-[18px]">add</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <div className="flex-1 w-full flex flex-row relative min-h-0">
+
+          <div className="flex-1 h-full pb-6 flex overflow-hidden relative min-h-0 pl-4 pr-2">
+            <div className={`flex-1 h-full bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-xl flex pointer-events-none rounded-2xl overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-[10px] relative ${isBookmarksDropdownOpen ? 'gap-[10px]' : ''}`}>
+              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent pointer-events-none" />
+
+              <div id="side-panel-browser-container" ref={containerRef} className="flex-1 rounded-[0.5rem] overflow-hidden relative  shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] bg-black/50">
+                {browserTabs.length === 0 && (
+                  <div className="absolute inset-0 rounded-[inherit] flex flex-col items-center justify-center pointer-events-none z-50 animate-in fade-in duration-500">
+                    <span className="material-symbols-outlined !text-[64px] text-[var(--subtext)] opacity-30 mb-4 drop-shadow-md">public</span>
+                    <h2 className="text-[18px] font-black tracking-widest text-[var(--text)] opacity-50 capitalize drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{t("browser_ready_to_browse")}</h2>
+                    <p className="text-[12px] text-[var(--subtext)] opacity-50 mt-2 max-w-xs text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">{t("browser_ready_to_browse_desc")}</p>
+                    <button onClick={createNewTab} className="mt-8  px-8 py-3 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_4px_12px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:shadow-[0_4px_20px_rgba(var(--accent-rgb),0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-95 transition-all font-black text-[11px] tracking-widest capitalize flex items-center gap-2">
+                      <span className="material-symbols-outlined !text-[16px]">add</span>
+                      {t("browser_new_tab")}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isBookmarksDropdownOpen && (
+                <div className="w-72 shrink-0 h-full flex flex-col animate-in slide-in-from-right-4 z-50 min-h-0 relative  bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-[0.5rem] overflow-hidden border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(0,0,0,0.3)]">
+                  <div className="px-5 py-4 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex justify-start items-center gap-3 relative">
+                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
+          <div className="flex-1 flex items-center glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner relative z-10 shrink-0">
+                      <button onClick={() => setDrawerTab('bookmarks')} className={`h-full py-2 flex-1 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap ${drawerTab === 'bookmarks' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-md' : 'text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)] opacity-60 hover:opacity-100'}`}>
+                        <span className="material-symbols-outlined !text-[16px]">bookmarks</span>
+                        {t("browser_bookmarks")}
+                      </button>
+                      <button onClick={() => setDrawerTab('history')} className={`h-full py-2 flex-1 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap ${drawerTab === 'history' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-md' : 'text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)] opacity-60 hover:opacity-100'}`}>
+                        <span className="material-symbols-outlined !text-[16px]">history</span>
+                        {t("browser_history")}
+                      </button>
+                    </div>
+                    <button onClick={drawerTab === 'bookmarks' ? toggleBookmark : () => setBrowserHistory([])} className="hover:text-[var(--accent)] transition-colors flex items-center w-8 h-8 rounded-full hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] justify-center relative z-10">
+                      <span className="material-symbols-outlined !text-[18px]">{drawerTab === 'bookmarks' ? (browserBookmarks.some(b => b.url === (actualCurrentUrl || localUrlInput)) ? 'bookmark_remove' : 'bookmark_add') : 'delete_sweep'}</span>
+                    </button>
+                  </div>
+
+                  <div className="p-5 pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl py-2 pl-9 pr-3 text-[12px] text-[var(--text)] placeholder-[var(--subtext)] outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors shadow-inner"
+                        placeholder={drawerTab === 'bookmarks' ? t("browser_search_bookmarks") : t("browser_search_history")}
+                      />
+                      <span className="material-symbols-outlined absolute left-3 top-[8px] !text-[16px] text-[var(--subtext)] pointer-events-none">search</span>
+                    </div>
+                  </div>
+
+                  <div className="overflow-y-auto custom-scrollbar flex-1 min-h-0 p-3 flex flex-col gap-2 relative z-10">
+                    {drawerTab === 'bookmarks' ? (
+                      browserBookmarks.filter(b => b.title.toLowerCase().includes(searchQuery.toLowerCase()) || b.url.toLowerCase().includes(searchQuery.toLowerCase())).map((b, index) => (
+                        <div
+                          key={`${b.url}-${index}`}
+                          onClick={() => {
+                            if (editingBookmarkUrl !== b.url) {
+                              setSideBrowserUrl(b.url);
+                              setIsBookmarksDropdownOpen(false);
+                            }
+                          }}
+                          onAuxClick={(e) => {
+                            if (e.button === 1 && editingBookmarkUrl !== b.url) {
+                              const newId = crypto.randomUUID();
+                              setBrowserTabs((prev: any) => [...prev, { id: newId, url: b.url, sleeping: false }]);
+                              setActiveBrowserTabId(newId);
+                              setIsBookmarksDropdownOpen(false);
+                            }
+                          }}
+                          className="px-4 py-3 text-left rounded-2xl glass-panel border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] transition-all flex flex-col gap-1 group bg-[color-mix(in_srgb,var(--text)_3%,transparent)] cursor-pointer"
+                        >
+                          {editingBookmarkUrl === b.url ? (
+                            <div className="flex flex-col gap-2 mb-2 p-3 bg-black/10 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]" onClick={e => e.stopPropagation()}>
+                              <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[12px] font-bold text-[var(--text)] px-2 py-1.5 rounded-lg outline-none border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]" placeholder={t("browser_bookmark_title")} />
+                              <input type="text" value={editUrl} onChange={e => setEditUrl(e.target.value)} className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-mono text-[var(--subtext)] px-2 py-1.5 rounded-lg outline-none border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]" placeholder={t("browser_url")} />
+                              <div className="flex justify-end gap-2 mt-1">
+                                <button onClick={() => setEditingBookmarkUrl(null)} className="text-[10px] capitalize font-bold text-[var(--subtext)] hover:text-[var(--text)] px-3 py-1.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">{t("browser_cancel")}</button>
+                                <button onClick={() => {
+                                  setBrowserBookmarks(browserBookmarks.map(bm => bm.url === b.url ? { ...bm, title: editTitle, url: editUrl } : bm));
+                                  setEditingBookmarkUrl(null);
+                                }} className="text-[10px] capitalize font-bold text-[var(--accent)] hover:text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors px-3 py-1.5 rounded-lg">{t("browser_save")}</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-start gap-3 w-full overflow-hidden">
+                                <span className="text-[12px] font-bold truncate text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">{b.title.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <span
+                                    className="material-symbols-outlined !text-[14px] hover:text-[var(--accent)] shrink-0 p-1 rounded-full hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingBookmarkUrl(b.url);
+                                      setEditTitle(b.title);
+                                      setEditUrl(b.url);
+                                    }}
+                                  >edit</span>
+                                  <span
+                                    className="material-symbols-outlined !text-[16px] hover:text-red-400 shrink-0 p-1 rounded-full hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setBrowserBookmarks(browserBookmarks.filter(bm => bm.url !== b.url));
+                                    }}
+                                  >delete</span>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-mono truncate opacity-40 group-hover:opacity-60 transition-opacity text-[var(--subtext)] group-hover:text-[var(--text)]">{b.url}</span>
+                            </>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      (() => {
+                        const filteredHistory = browserHistory.filter(h => h.title.toLowerCase().includes(searchQuery.toLowerCase()) || h.url.toLowerCase().includes(searchQuery.toLowerCase()));
+
+                        const groupedHistory: Record<string, typeof browserHistory> = {};
+                        filteredHistory.forEach(h => {
+                          const date = new Date(h.timestamp).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                          if (!groupedHistory[date]) groupedHistory[date] = [];
+                          groupedHistory[date].push(h);
+                        });
+
+                        return Object.entries(groupedHistory).map(([date, items]) => {
+                          const isExpanded = expandedHistoryDays[date];
+                          return (
+                            <div key={date} className="flex flex-col gap-2">
+                              <div
+                                className="flex items-center justify-start px-2 py-1 cursor-pointer group"
+                                onClick={() => setExpandedHistoryDays(prev => ({ ...prev, [date]: !prev[date] }))}
+                              >
+                                <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] group-hover:text-[var(--text)] transition-colors">{date}</span>
+                                <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] group-hover:text-[var(--text)] transition-transform" style={{ transform: !isExpanded ? 'rotate(-90deg)' : 'none' }}>expand_more</span>
+                              </div>
+                              {isExpanded && (
+                                <div className="flex flex-col gap-2 pl-2 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                                  {items.map((h, index) => {
+                                    const domain = h.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] || h.title;
+                                    const path = h.url.replace(/^https?:\/\/(www\.)?([^/]+)/, '') || '/';
+                                    return (
+                                      <button
+                                        key={`${h.timestamp}-${index}`}
+                                        onClick={() => {
+                                          setSideBrowserUrl(h.url);
+                                          setIsBookmarksDropdownOpen(false);
+                                        }}
+                                        onAuxClick={(e) => {
+                                          if (e.button === 1) {
+                                            const newId = crypto.randomUUID();
+                                            setBrowserTabs((prev: any) => [...prev, { id: newId, url: h.url, sleeping: false }]);
+                                            setActiveBrowserTabId(newId);
+                                            setIsBookmarksDropdownOpen(false);
+                                          }
+                                        }}
+                                        className="px-4 py-3 text-left rounded-2xl glass-panel border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] text-[var(--subtext)] hover:text-[var(--text)] transition-all flex flex-col gap-1 group bg-[color-mix(in_srgb,var(--text)_3%,transparent)]"
+                                      >
+                                        <div className="flex items-center justify-start gap-3 w-full overflow-hidden">
+                                          <span className="text-[12px] font-bold truncate text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">{domain}</span>
+                                          <span
+                                            className="material-symbols-outlined !text-[16px] opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400 shrink-0 p-1 rounded-full hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setBrowserHistory(browserHistory.filter(bm => bm.timestamp !== h.timestamp));
+                                            }}
+                                          >delete</span>
+                                        </div>
+                                        <span className="text-[10px] font-mono truncate opacity-40 group-hover:opacity-60 transition-opacity">{path}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()
+                    )}
+
+                    {drawerTab === 'bookmarks' && browserBookmarks.filter(b => b.title.toLowerCase().includes(searchQuery.toLowerCase()) || b.url.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                      <div className="px-4 py-12 flex flex-col items-center justify-center text-[var(--subtext)] gap-3 opacity-60">
+                        <span className="material-symbols-outlined opacity-40">bookmark</span>
+                        <span className="text-[11px] font-black capitalize tracking-widest text-center">{t("browser_no_bookmarks")}</span>
+                      </div>
+                    )}
+
+                    {drawerTab === 'history' && browserHistory.filter(h => h.title.toLowerCase().includes(searchQuery.toLowerCase()) || h.url.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                      <div className="px-4 py-12 flex flex-col items-center justify-center text-[var(--subtext)] gap-3 opacity-60">
+                        <span className="material-symbols-outlined opacity-40">history</span>
+                        <span className="text-[11px] font-black capitalize tracking-widest text-center">{t("browser_no_history")}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <SidePanelBrowserDownloads downloadsQueue={downloadsQueue} setDownloadsQueue={setDownloadsQueue} />
+      </SidePanel>
+    </div>
+  );
+}
+
+
+

@@ -1,0 +1,465 @@
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { supabase, getActiveGameClient } from "./supabase";
+import { useStore } from './store';
+import { useLexicon } from "./LexiconContext";
+import { ModSearchDropdown, SidePanel, formatOverviewMetric, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton, ScreenUtilityBar, FilterPopover, FilterTabs, FilterTabButton } from "./shared";
+import { logArchitectAction } from "./lib/audit";
+import { UniversalCard } from "./components/universal/UniversalCard";
+import { ElevatedHubLayout } from './components/layouts/ElevatedHubLayout';
+
+const fetchAllPaginated = async (queryFn: () => any) => {
+  let allData: any[] = [];
+  let from = 0;
+  const step = 999;
+  while (true) {
+    const { data, error } = await queryFn().range(from, from + step);
+    if (error || !data || data.length === 0) break;
+    allData = [...allData, ...data];
+    if (data.length <= step) break;
+    from += step + 1;
+  }
+  return { data: allData, error: null };
+};
+
+export default function MasonConflictsManager({ masonId }: { masonId: string }) {
+  const { t } = useLexicon();
+  const [ghosts, setGhosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("LANDING");
+
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
+  const [activeMaster, setActiveMaster] = useState<any | null>(null);
+  const [conflictEnemy, setConflictEnemy] = useState<any | null>(null);
+  const [conflictSeverity, setConflictSeverity] = useState(4);
+  const [conflictResolution, setConflictResolution] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editConflictId, setEditConflictId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+
+  const [cloudMods, setCloudMods] = useState<any[]>([]);
+  const [myMods, setMyMods] = useState<any[]>([]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    const { data: modsData } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, mason_id').order('name'));
+    if (modsData) {
+      setCloudMods(modsData);
+      setMyMods(modsData.filter(m => m.mason_id === masonId));
+    }
+
+    const { data: conflictsData, error } = await supabase.from('logical_conflicts').select(`
+      *,
+      mod_a:mods!logical_conflicts_mod_a_id_fkey(id, name, mason_id),
+      mod_b:mods!logical_conflicts_mod_b_id_fkey(id, name, mason_id)
+    `).order('status', { ascending: false }).order('created_at', { ascending: false });
+
+    if (!error && conflictsData) {
+      const myConflicts = conflictsData.filter(c =>
+        (c.mod_a && c.mod_a.mason_id === masonId) ||
+        (c.mod_b && c.mod_b.mason_id === masonId)
+      );
+      setGhosts(myConflicts);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (masonId) fetchData();
+  }, [masonId]);
+
+  const handleAddConflict = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeMaster || !conflictEnemy) return;
+    setIsSubmitting(true);
+    try {
+      if (editConflictId) {
+        const { error } = await supabase.from('logical_conflicts').update({
+          mod_a_id: activeMaster.id,
+          mod_b_id: conflictEnemy.id,
+          severity_rank: conflictSeverity,
+          resolution_note: conflictResolution,
+          status: 'pending'
+        }).eq('id', editConflictId);
+        if (error) useStore.getState().pushStatus("Failed to update conflict: " + error.message, "error");
+        else useStore.getState().pushStatus(t("auto_conflict_updated_successfully_34"), "success");
+      } else {
+        const { error } = await supabase.from('logical_conflicts').insert([{
+          mod_a_id: activeMaster.id,
+          mod_b_id: conflictEnemy.id,
+          severity_rank: conflictSeverity,
+          resolution_note: conflictResolution,
+          status: 'pending'
+        }]);
+        if (error) useStore.getState().pushStatus("Failed to create conflict: " + error.message, "error");
+        else useStore.getState().pushStatus(t("auto_conflict_created_successfully_34"), "success");
+      }
+
+      setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setActiveMaster(myMods[0] || null); setEditConflictId(null);
+      setIsSidePanelOpen(false);
+      await fetchData();
+      setIsSubmitting(false);
+    } catch (err: any) {
+      useStore.getState().pushStatus("An error occurred: " + err.message, "error");
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditConflict = (c: any) => {
+    let myMod = c.mod_a;
+    let enemyMod = c.mod_b;
+
+    if (c.mod_b && c.mod_b.mason_id === masonId) {
+      myMod = c.mod_b;
+      enemyMod = c.mod_a;
+    }
+
+    setActiveMaster(myMod || null);
+    setConflictEnemy(enemyMod || null);
+    setConflictSeverity(c.severity_rank || 4);
+    setConflictResolution(c.resolution_note || "");
+    setEditConflictId(c.id);
+    setDeleteConfirmId(null);
+    setIsSidePanelOpen(true);
+  };
+
+  const handleDeleteConflict = async (id: string) => {
+    const { error } = await supabase.from('logical_conflicts').delete().eq('id', id);
+    if (!error) {
+      if (deleteReason.trim()) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await logArchitectAction(`Deleted Conflict Rule - Reason: ${deleteReason}`, 'logical_conflicts', id, "Automated from Mason Hub", "Mason Conflicts");
+        }
+      }
+      useStore.getState().pushStatus(t("auto_conflict_rule_deleted"), "success");
+      setDeleteConfirmId(null);
+      setDeleteReason("");
+      setIsSidePanelOpen(false);
+      fetchData();
+    } else {
+      useStore.getState().pushStatus("Failed to delete conflict rule: " + error.message, "error");
+    }
+  };
+
+  const filteredGhosts = ghosts.filter(c => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    const nameA = c.mod_a?.name || c.mod_a || "";
+    const nameB = c.mod_b?.name || c.mod_b || "";
+    return nameA.toLowerCase().includes(search) || nameB.toLowerCase().includes(search) || (c.resolution_note || "").toLowerCase().includes(search);
+  });
+
+  const s4Conflicts = filteredGhosts.filter(c => c.severity_rank === 4);
+  const s3Conflicts = filteredGhosts.filter(c => c.severity_rank === 3);
+
+  const recentS4 = s4Conflicts.slice(0, 5);
+  const recentS3 = s3Conflicts.slice(0, 5);
+
+  const renderConflictCard = (c: any) => {
+    const nameA = c.mod_a?.name || c.mod_a || "UNKNOWN";
+    const nameB = c.mod_b?.name || c.mod_b || "UNKNOWN";
+    const isPending = c.status === 'pending';
+
+    const tierColor = c.severity_rank == 4 ? 'text-[var(--danger)]' : c.severity_rank == 3 ? 'text-[var(--warning)]' : c.severity_rank == 2 ? 'text-[var(--accent)]' : 'text-[var(--text)]';
+    const borderColor = c.severity_rank == 4 ? 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' : c.severity_rank == 3 ? 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]' : 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)]';
+
+    return (
+      <UniversalCard
+        key={c.id}
+        layout="vertical"
+        icon="security"
+        title={`${nameA} vs ${nameB}`}
+        statusColor={borderColor}
+        onClick={() => {
+          if (activeTab === "LANDING") {
+             setActiveTab(c.severity_rank === 4 ? "4" : "3");
+          }
+          handleEditConflict(c);
+        }}
+        badges={
+          <div className="w-full flex justify-center mt-2">
+            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest backdrop-blur-md shadow-sm border ${c.severity_rank == 4 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]'}`}>
+              {t("ui_icon_logo")} {c.severity_rank}
+            </span>
+          </div>
+        }
+      >
+        <div className="flex flex-col items-center justify-center gap-1 mt-1">
+          <div className="flex items-center gap-2">
+            <span className={`text-[9px] font-black ${tierColor} capitalize tracking-widest`}>{isPending ? t("pending") : t("active_network_directives")}</span>
+            <span className="text-[var(--subtext)] opacity-50">&bull;</span>
+            <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-80">
+              <span className="material-symbols-outlined !text-[12px] normal-case">{t("icon_calendar_today")}</span>
+              {new Date(c.created_at).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+      </UniversalCard>
+    );
+  };
+
+  const renderLanding = () => (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined !text-[24px] text-[var(--danger)] opacity-90 drop-shadow-lg">warning</span>
+              </div>
+              {t("tier4") || "S4 Conflicts"}
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {recentS4.length > 0 ? recentS4.map(renderConflictCard) : (
+              <EmptyState icon="check_circle" title={t("masonhub_no_conflicts") || "No Conflicts"} className="py-8" />
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined !text-[24px] text-[var(--warning)] opacity-90 drop-shadow-lg">error</span>
+              </div>
+              {t("tier3") || "S3 Conflicts"}
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {recentS3.length > 0 ? recentS3.map(renderConflictCard) : (
+              <EmptyState icon="check_circle" title={t("masonhub_no_conflicts") || "No Conflicts"} className="py-8" />
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderList = (listConflicts: any[]) => (
+    <>
+        {loading ? (
+          <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("hub_loading") || "Loading..."}</div>
+        ) : listConflicts.length > 0 ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
+            {listConflicts.map(renderConflictCard)}
+          </div>
+      ) : (
+        <EmptyState icon="history" title={t("masonhub_no_conflicts") || "No Conflicts"} className="py-16" />
+      )}
+    </>
+  );
+
+  return (
+    <ElevatedHubLayout
+      headerTitle={t("forge_title") || "Conflicts"}
+      headerIcon="security"
+      search={searchTerm}
+      onSearchChange={setSearchTerm}
+      searchPlaceholder={t("ui_placeholder_search") as string}
+      headerActions={
+        <div className="flex items-center gap-2">
+          <ActionButton
+            onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }}
+            iconOnly={true}
+            icon={t("icon_add") || "add"}
+            label={t("auto_create")}
+            className="shrink-0 h-10 w-10 px-0 font-black capitalize tracking-widest text-[10px] !text-[var(--accent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)]"
+          />
+        </div>
+      }
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      tabs={[
+        { id: 'LANDING', label: t("overview_tab") || "Overview", icon: 'dashboard', number: formatOverviewMetric(ghosts, 'created_at'), colorClass: 'text-[var(--accent)]' },
+        { id: '4', label: "S4", icon: 'warning', number: s4Conflicts.length.toString(), colorClass: 'text-[var(--danger)]' },
+        { id: '3', label: "S3", icon: 'error', number: s3Conflicts.length.toString(), colorClass: 'text-[var(--warning)]' }
+      ]}
+    >
+      {activeTab === "LANDING" && renderLanding()}
+      {activeTab === "4" && renderList(s4Conflicts)}
+      {activeTab === "3" && renderList(s3Conflicts)}
+
+      {(() => {
+        const editingGhost = ghosts.find(g => g.id === editConflictId);
+
+        return (
+          <SidePanel
+            isOpen={isSidePanelOpen}
+            onClose={() => setIsSidePanelOpen(false)}
+            title={editConflictId ? t("edit_side_panel") : t("forge_title")}
+            icon="security"
+            footer={
+              <div className="flex flex-col gap-4 w-full">
+                {deleteConfirmId === editConflictId && editConflictId ? (
+                  <div className="flex flex-col gap-4 p-5 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
+                    <span className="text-sm font-black text-[var(--danger)] capitalize tracking-widest text-center">{t("ui_confirm_delete")}</span>
+                    <input
+                      type="text"
+                      value={deleteReason}
+                      onChange={e => setDeleteReason(e.target.value)}
+                      placeholder={t("matrix_delete_reason_ph")}
+                      className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] placeholder:opacity-40"
+                    />
+                    <div className="flex gap-3">
+                      <ActionButton type="button" disabled={!deleteReason.trim()} onClick={() => handleDeleteConflict(editConflictId)} label={t("purge")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"></ActionButton>
+                      <ActionButton type="button" onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }} label={t("nav_cancel")}></ActionButton>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-center items-center gap-4 w-full">
+                    {!editConflictId && (
+                      <ActionButton type="button" onClick={() => setIsSidePanelOpen(false)} label={t("nav_cancel")}>
+
+                      </ActionButton>
+                    )}
+                    {editConflictId && (
+                      <ActionButton type="button" onClick={() => setDeleteConfirmId(editConflictId)} label={t("purge")}>
+
+                      </ActionButton>
+                    )}
+                    <ActionButton type="button" onClick={(e) => handleAddConflict(e)} disabled={isSubmitting || !activeMaster || !conflictEnemy} label={isSubmitting ? "..." : (editConflictId ? t("masonhub_update_conflict") : t("add_conflict"))}>
+
+                    </ActionButton>
+                  </div>
+                )}
+              </div>
+            }
+            noPadding={true}
+            noScroll={true}
+          >
+            <div className="flex flex-col h-full overflow-hidden relative">
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-32 relative z-10">
+
+                <form onSubmit={handleAddConflict} className="flex flex-col gap-8 relative z-10">
+                  <div className="flex flex-col gap-6">
+                    {editingGhost && (
+                      <div className="flex flex-col gap-2 relative z-10 w-full text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] mb-4">
+                        <div className="flex justify-start items-center">
+                          <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">calendar_today</span>{t("date_created")}</span>
+                          <span className="text-[var(--text)] drop-shadow-md">{new Date(editingGhost.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-start items-center mt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3 relative z-10">
+                          <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">fingerprint</span>{t("source")}</span>
+                          <span className="text-[var(--accent)] drop-shadow-md">{editingGhost.author_id ? (t("tab_architect")) : (t("source_system"))}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-2 w-full">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
+                        {t("items")}
+                      </label>
+                      <ModSearchDropdown placeholder={t("registry_select_master")} modList={myMods} selectedItem={activeMaster} onSelect={(m: any) => setActiveMaster(m)} onClear={() => setActiveMaster(null)} />
+                    </div>
+
+                    <div className="relative h-6 w-full flex items-center justify-center z-20 my-2">
+                      <div className="absolute left-6 right-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] z-10 pointer-events-none" />
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm relative z-20 text-[var(--subtext)]">
+                        <span className="text-[8px] font-black italic capitalize drop-shadow-md">{t("vs")}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 w-full">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
+                        {t("conflicting_mod")}
+                      </label>
+                      <ModSearchDropdown placeholder={t("enemy_placeholder")} modList={cloudMods} selectedItem={conflictEnemy} onSelect={(m: any) => setConflictEnemy(m)} onClear={() => setConflictEnemy(null)} />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 w-full mt-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
+                      {t("label_severity")}
+                    </label>
+                    <div className="relative z-50">
+                      <CustomTierDropdown value={conflictSeverity} onChange={(val: number) => setConflictSeverity(val)} />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 w-full mt-2 mb-8">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
+                      {t("label_notes")}
+                    </label>
+                    <textarea value={conflictResolution} onChange={(e) => setConflictResolution(e.target.value)} placeholder={t("resolution_placeholder")} className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-border-accent resize-none custom-scrollbar shadow-inner relative z-10 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]" />
+                  </div>
+
+                </form>
+              </div>
+            </div>
+          </SidePanel>
+        );
+      })()}
+    </ElevatedHubLayout>
+  );
+}
+
+function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val: number) => void }) {
+  const { t } = useLexicon();
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const options = [
+    { id: 4, label: t("tier4"), color: 'theme-text-danger', glow: 'theme-bg-danger', activeBg: 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' },
+    { id: 3, label: t("tier3"), color: 'theme-text-warning', glow: 'theme-bg-warning', activeBg: 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]' },
+  ];
+
+  const selected = options.find(o => o.id === value) || options[0];
+
+  return (
+    <div className={`relative w-full shrink-0 ${isOpen ? 'z-[6000]' : ''}`} ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full h-12 glass-surface rounded-xl px-5 text-[11px] font-black capitalize tracking-widest focus:outline-none flex justify-start items-center transition-all ${selected.color}`}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full ${selected.glow}`} />
+          {selected.label}
+        </div>
+        <span className="transition-colors shrink-0 flex items-center justify-center text-[var(--subtext)] opacity-60"><span className="material-symbols-outlined !text-[20px]">{isOpen ? 'expand_less' : 'expand_more'}</span></span>
+      </button>
+
+      {isOpen && createPortal(
+        (() => {
+          const rect = containerRef.current?.getBoundingClientRect();
+          if (!rect) return null;
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const shouldDropUp = spaceBelow < 200;
+
+          return (
+            <>
+              <div className="fixed inset-0 z-[50000]" onClick={() => setIsOpen(false)} />
+              <div className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-md z-[50001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col animate-in fade-in slide-in-from-top-2" style={{
+                top: shouldDropUp ? undefined : rect.bottom + 8,
+                bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
+                left: rect.left,
+                width: rect.width,
+              }}>
+                {options.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => { onChange(opt.id); setIsOpen(false); }}
+                    className={`w-full text-left px-5 py-4 transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center gap-3 ${value === opt.id ? opt.activeBg + ' ' + opt.color : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-70 hover:opacity-100'}`}
+                  >
+                    <div className={`w-2 h-2 rounded-full ${opt.glow} ${value === opt.id ? 'animate-pulse' : ''}`} />
+                    <span className="text-[11px] font-black capitalize tracking-widest">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          );
+        })(), document.body
+      )}
+    </div>
+  );
+}
+
+
+
+

@@ -1,0 +1,472 @@
+import { useState, useEffect, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { useLexicon } from "./LexiconContext";
+import { ViewHeader, HubTabButton, SearchBar, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton, HoverTabDrawer, VerticalTabButton, FilterPopover, ScreenUtilityBar } from "./shared";
+import { TimeCapsuleSidePanel } from "./side-panels/TimeCapsuleSidePanels";
+import { useModalStore } from "./store/modalStore";
+
+export default function TimeCapsule({
+  selectedVersion, isBackingUp, triggerPrePatchSnapshot, triggerFullEngineBackup,
+  restoreGameBackup, renameGameBackup, deleteBackup, backupList, getBackupSignature
+}: any) {
+
+  const { t } = useLexicon();
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
+  const [confirmRestoreBackup, setConfirmRestoreBackup] = useState<string | null>(null);
+  const [confirmDeleteBackup, setConfirmDeleteBackup] = useState<string | null>(null);
+  const [confirmSealWorld, setConfirmSealWorld] = useState<boolean>(false);
+  const [confirmSealEngine, setConfirmSealEngine] = useState<boolean>(false);
+  const [config, setConfig] = useState<any>(null);
+  const [selectedBackupForInspection, setSelectedBackupForInspection] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState("LANDING");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [versionFilter, setVersionFilter] = useState("ALL");
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchConfig() {
+      try {
+        const data = await invoke<any>("get_saved_coordinates");
+        setConfig(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    fetchConfig();
+  }, []);
+
+  const totalWorldSize = backupList?.reduce((acc: number, b: any) => acc + (b.name?.toLowerCase().includes('world') ? (b.size_mb || 0) : 0), 0) || 0;
+  const totalEngineSize = backupList?.reduce((acc: number, b: any) => acc + (b.name?.toLowerCase().includes('engine') ? (b.size_mb || 0) : 0), 0) || 0;
+  const totalSpace = totalWorldSize + totalEngineSize;
+  const vaultCapacityGb = config?.vault_capacity_gb || 0;
+  const vaultCapacityMb = vaultCapacityGb * 1024;
+
+  const usagePercentage = vaultCapacityMb > 0 ? Math.min(100, (totalSpace / vaultCapacityMb) * 100) : 0;
+  const worldPercentage = vaultCapacityMb > 0 ? Math.min(100, (totalWorldSize / vaultCapacityMb) * 100) : 0;
+  const enginePercentage = vaultCapacityMb > 0 ? Math.min(100, (totalEngineSize / vaultCapacityMb) * 100) : 0;
+
+  const uniqueVersions = useMemo(() => {
+    const versions = new Set<string>();
+    (backupList || []).forEach((backup: any) => {
+      const backupName = typeof backup === 'string' ? backup : backup.name;
+      const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+      if (sig?.version) versions.add(sig.version);
+    });
+    return Array.from(versions);
+  }, [backupList, getBackupSignature]);
+
+  const passesFilters = (backup: any) => {
+    const backupName = typeof backup === 'string' ? backup : backup.name;
+    const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+    const title = sig?.alias || (sig?.isEngine ? t("engine_full") : t("world_state"));
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!title.toLowerCase().includes(q) && !backupName.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+
+    if (versionFilter !== "ALL") {
+      if (sig?.version !== versionFilter) return false;
+    }
+
+    if (startDate || endDate) {
+      if (!sig?.timestamp || sig.timestamp === "0") return false;
+      const backupDate = new Date(Number(sig.timestamp) * 1000);
+      backupDate.setHours(0, 0, 0, 0);
+
+      if (startDate) {
+        const sd = new Date(startDate);
+        sd.setHours(0, 0, 0, 0);
+        if (backupDate < sd) return false;
+      }
+      if (endDate) {
+        const ed = new Date(endDate);
+        ed.setHours(0, 0, 0, 0);
+        if (backupDate > ed) return false;
+      }
+    }
+
+    return true;
+  };
+
+  const worldBackups = (backupList || []).filter((backup: any) => {
+    const backupName = typeof backup === 'string' ? backup : backup.name;
+    const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+    const isWorld = sig ? !sig.isEngine : !backupName.toLowerCase().includes("engine");
+    return isWorld && passesFilters(backup);
+  });
+
+  const engineBackups = (backupList || []).filter((backup: any) => {
+    const backupName = typeof backup === 'string' ? backup : backup.name;
+    const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+    const isEngine = sig ? sig.isEngine : backupName.toLowerCase().includes("engine");
+    return isEngine && passesFilters(backup);
+  });
+
+  const renderBackupCard = (backup: any) => {
+    const backupName = typeof backup === 'string' ? backup : backup.name;
+    const sizeMb = typeof backup === 'string' ? 0 : backup.size_mb;
+    const logicalSizeMb = typeof backup === 'string' ? 0 : (backup.logical_size_mb ?? backup.size_mb);
+    const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+    const isEngine = sig ? sig.isEngine : backupName.toLowerCase().includes("engine");
+    const title = sig?.alias || (isEngine ? t("engine_full") : t("world_state"));
+    const icon = isEngine ? t("icon_settings") : t("icon_public");
+
+    const themeColor = isEngine ? 'text-rose-500' : 'text-indigo-500';
+    const themeBg = isEngine ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]';
+    const themeBorder = isEngine ? 'border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
+    const themeHoverBorder = isEngine ? 'hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' : 'hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]';
+    const themeGradient = isEngine ? 'from-rose-500/5' : 'from-indigo-500/5';
+    const themeLed = isEngine ? 'bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.8)]' : 'bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.8)]';
+
+    return (
+      <div key={backupName} className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-4 shadow-xl min-h-[13rem] overflow-hidden group ${themeHoverBorder} transition-colors duration-300`}>
+        <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${themeGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
+
+        <div className="flex justify-between items-start relative z-10">
+          <div className={`w-12 h-12 rounded-xl theme-glass-panel border ${themeBorder} shadow-[inset_0_0_20px_rgba(255,255,255,0.1),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
+            <span className={`material-symbols-outlined !text-[24px] ${themeColor} drop-shadow-lg`}>{icon}</span>
+          </div>
+
+          <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 px-2.5 py-1 rounded-lg">
+            {sizeMb < 1 ? (sizeMb * 1024).toFixed(2) + " MB" : (sizeMb / 1024).toFixed(2) + " " + t("unit_gb")}
+          </span>
+        </div>
+
+        <div className="flex flex-col relative z-10 mt-1">
+          <h3 className="text-lg font-black text-[var(--text)] tracking-tighter capitalize leading-none mb-2.5 truncate">{title}</h3>
+          <div className="flex items-center gap-2">
+            <span className={`text-[9px] font-black ${themeColor} capitalize tracking-widest`}>{sig ? sig.version : backupName.replace(".tar.zst", "")}</span>
+            {sig?.timestamp && sig.timestamp !== "0" && (
+              <>
+                <span className="text-[var(--subtext)] opacity-50">&bull;</span>
+                <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest">{new Date(Number(sig.timestamp) * 1000).toLocaleDateString()}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-auto relative z-20 h-10">
+
+          <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName || confirmDeleteBackup === backupName ? 'opacity-0 translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
+            <button
+              onClick={() => setConfirmRestoreBackup(backupName)}
+              className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${themeColor} glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors duration-300 rounded-xl shadow-sm group/rest`}
+            >
+              <span className={`material-symbols-outlined !text-sm group-hover/rest:scale-110 transition-transform`}>{t("icon_restore")}</span>
+              {t("btn_restore")}
+            </button>
+            <button
+              onClick={() => { setSelectedBackupForInspection(backupName); setIsSidePanelOpen(true); }}
+              className="flex-[1] h-full flex items-center justify-center text-[color-mix(in_srgb,var(--text)_80%,transparent)] hover:text-[var(--text)] glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors duration-300 rounded-xl shadow-sm group/ins"
+            >
+              <span className="material-symbols-outlined !text-sm group-hover/ins:scale-110 transition-transform">search</span>
+            </button>
+            <button
+              onClick={() => setConfirmDeleteBackup(backupName)}
+              className="flex-[1] h-full flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_80%,transparent)] hover:text-red-500 glass-surface hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-colors duration-300 rounded-xl shadow-sm group/del"
+            >
+              <span className="material-symbols-outlined !text-sm group-hover/del:scale-110 transition-transform">{t("icon_delete")}</span>
+            </button>
+          </div>
+
+          <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+            <button
+              onClick={() => { setConfirmRestoreBackup(null); useModalStore.getState().setRestoreType(isEngine ? 'engine' : 'world'); if (restoreGameBackup) restoreGameBackup(backupName); }}
+              className={`flex-[2] h-full ${themeColor} ${themeBg} hover:brightness-110 border ${themeBorder} transition-colors duration-300 text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm`}
+            >
+              {isEngine ? t("confirm_restore_engine_card") : t("confirm_restore_state")}
+            </button>
+            <button onClick={() => setConfirmRestoreBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors duration-300 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm">
+              {t("btn_cancel")}
+            </button>
+          </div>
+
+          <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmDeleteBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+            <button
+              onClick={() => { setConfirmDeleteBackup(null); if (deleteBackup) deleteBackup(backupName); }}
+              className="flex-[2] h-full text-red-500 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors duration-300 text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm"
+            >
+              {isEngine ? t("confirm_delete_engine_card") : t("confirm_delete_state")}
+            </button>
+            <button onClick={() => setConfirmDeleteBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors duration-300 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm">
+              {t("btn_cancel")}
+            </button>
+          </div>
+
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-0 animate-in fade-in duration-700 pb-32 w-full">
+      <ViewHeader
+        title={t("backups_title")}
+        subtitle={t("backups_subtitle")}
+        icon={t("icon_history")}
+        iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+        breadcrumb={activeTab !== "LANDING" ? (activeTab === "WORLD" ? t("world_state") : t("engine_core")) : undefined}
+        onTitleClick={() => setActiveTab("LANDING")}
+      >
+        {activeTab !== "LANDING" && (
+           <ScreenUtilityBar
+              search={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder={t("timecapsule_search") as string || "Search Chronograms..."}
+              className="!mb-0 !pb-0 !border-0 flex-1 xl:w-auto w-full"
+            >
+              {/* Desktop View: Popover */}
+              <div className="hidden md:block">
+                <FilterPopover 
+                  icon="tune" 
+                  className="h-full shrink-0" 
+                  activeTab={(versionFilter !== "ALL" || startDate || endDate) ? "active" : undefined}
+                >
+                  <div className="flex flex-col gap-4 p-4 min-w-[220px]">
+                   <div className="flex flex-col gap-2">
+                     <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Game Version</div>
+                     <CustomDropdown disableTint={true}
+                       value={versionFilter}
+                       onChange={(val: string[]) => setVersionFilter(val[0])}
+                       options={[
+                         { id: "ALL", label: t("ql_all") },
+                         ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
+                       ]}
+                     />
+                   </div>
+                   <div className="flex flex-col gap-2 mt-2">
+                     <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Date Range</div>
+                     <CustomDatePicker
+                       value={startDate}
+                       onChange={setStartDate}
+                       placeholder={t("filter_start_date")}
+                     />
+                     <CustomDatePicker
+                       value={endDate}
+                       onChange={setEndDate}
+                       placeholder={t("filter_end_date")}
+                     />
+                   </div>
+                </div>
+                </FilterPopover>
+              </div>
+              {/* Mobile View: Render directly for the bottom sheet */}
+              <div className="md:hidden contents">
+                <div className="flex flex-col gap-4 p-4 min-w-[220px]">
+                   <div className="flex flex-col gap-2">
+                     <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Game Version</div>
+                     <CustomDropdown disableTint={true}
+                       value={versionFilter}
+                       onChange={(val: string[]) => setVersionFilter(val[0])}
+                       options={[
+                         { id: "ALL", label: t("ql_all") },
+                         ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
+                       ]}
+                     />
+                   </div>
+                   <div className="flex flex-col gap-2 mt-2">
+                     <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Date Range</div>
+                     <CustomDatePicker
+                       value={startDate}
+                       onChange={setStartDate}
+                       placeholder={t("filter_start_date")}
+                     />
+                     <CustomDatePicker
+                       value={endDate}
+                       onChange={setEndDate}
+                       placeholder={t("filter_end_date")}
+                     />
+                   </div>
+                </div>
+              </div>
+           </ScreenUtilityBar>
+        )}
+        </ViewHeader>
+
+      <HoverTabDrawer title="Time Capsule" activeTab={activeTab} setTab={setActiveTab}>
+        <VerticalTabButton id="LANDING" icon="dashboard" label={t("tab_landing")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="WORLD" icon="public" label={t("world_state")} activeTab={activeTab} setTab={setActiveTab} />
+        <VerticalTabButton id="ENGINE" icon="settings" label={t("engine_full")} activeTab={activeTab} setTab={setActiveTab} />
+      </HoverTabDrawer>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-6">
+        <DashboardStatTile
+          icon={<span className="material-symbols-outlined ">{t("icon_verified_user")}</span>}
+          number={selectedVersion || t("status_unknown")}
+          label={t("target_patch")}
+          colorClass="text-emerald-500"
+        />
+        <DashboardStatTile
+          icon={<span className="material-symbols-outlined ">{t("icon_public")}</span>}
+          number={(totalWorldSize / 1024).toFixed(2)}
+          label={`${t("unit_gb")} / ${t("world_space")}`}
+          colorClass="text-indigo-500 cursor-pointer"
+          onClick={() => setActiveTab("WORLD")}
+        />
+        <DashboardStatTile
+          icon={<span className="material-symbols-outlined ">{t("icon_settings")}</span>}
+          number={(totalEngineSize / 1024).toFixed(2)}
+          label={`${t("unit_gb")} / ${t("engine_space")}`}
+          colorClass="text-rose-500 cursor-pointer"
+          onClick={() => setActiveTab("ENGINE")}
+        />
+        <DashboardStatTile
+          icon={<span className="material-symbols-outlined ">{t("icon_storage")}</span>}
+          number={(totalSpace / 1024).toFixed(2)}
+          label={`${t("unit_gb")} / ${t("total_space")}`}
+          colorClass="text-cyan-500"
+        />
+      </div>
+      <div className="flex flex-col gap-10 pt-4">
+        {backupList?.length > 0 ? (
+          <>
+            {activeTab === "LANDING" && (
+              <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {worldBackups.length > 0 && (
+                  <div className="flex flex-col gap-6">
+                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+                      <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.1),0_0_15px_rgba(var(--accent-rgb),0.2)] flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined !text-[24px] text-[var(--accent)] drop-shadow-md">{t("icon_public")}</span>
+                        </div>
+                        {t("recent_world_states")}
+                      </h3>
+                      {!confirmSealWorld ? (
+                        <ActionButton
+                          icon="public"
+                          className="h-10 px-6 py-0 shrink-0"
+                          label={t("btn_seal_state")}
+                          onClick={() => setConfirmSealWorld(true)}
+                          variant="world"
+                        />
+                      ) : (
+                        <div className="flex gap-2 shrink-0">
+                          <ActionButton
+                            icon="check_circle"
+                            label={t("btn_confirm")}
+                            onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }}
+                            className="h-10 px-6 py-0"
+                            variant="success"
+                          />
+                          <ActionButton
+                            icon="close"
+                            onClick={() => setConfirmSealWorld(false)}
+                            className="h-10 w-10 px-0 py-0 flex items-center justify-center"
+                            variant="danger"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
+                      {worldBackups.slice(0, 6).map(renderBackupCard)}
+                    </div>
+                  </div>
+                )}
+
+                {engineBackups.length > 0 && (
+                  <div className="flex flex-col gap-6">
+                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+                      <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.1),0_0_15px_rgba(var(--danger-rgb),0.2)] flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined !text-[24px] text-[var(--danger)] drop-shadow-md">{t("icon_settings")}</span>
+                        </div>
+                        {t("recent_engine_cores")}
+                      </h3>
+                      {!confirmSealEngine ? (
+                        <ActionButton
+                          icon="settings"
+                          className="h-10 px-6 py-0 shrink-0"
+                          label={t("btn_seal_engine")}
+                          onClick={() => setConfirmSealEngine(true)}
+                          variant="engine"
+                        />
+                      ) : (
+                        <div className="flex gap-2 shrink-0">
+                          <ActionButton
+                            icon="warning_amber"
+                            label={t("btn_confirm")}
+                            onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }}
+                            className="h-10 px-6 py-0"
+                            variant="warning"
+                          />
+                          <ActionButton
+                            icon="close"
+                            onClick={() => setConfirmSealEngine(false)}
+                            className="h-10 w-10 px-0 py-0 flex items-center justify-center"
+                            variant="danger"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
+                      {engineBackups.slice(0, 6).map(renderBackupCard)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "WORLD" && worldBackups.length > 0 && (
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+                  {worldBackups.map(renderBackupCard)}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "ENGINE" && engineBackups.length > 0 && (
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+                  {engineBackups.map(renderBackupCard)}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "LANDING" && worldBackups.length === 0 && engineBackups.length === 0 && (
+              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl w-full">
+                <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
+                  <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
+                  {t("timecapsule_no_backups")}
+                </span>
+              </div>
+            )}
+
+            {activeTab === "WORLD" && worldBackups.length === 0 && (
+              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl w-full">
+                <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
+                  <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
+                  {t("timecapsule_no_backups")}
+                </span>
+              </div>
+            )}
+
+            {activeTab === "ENGINE" && engineBackups.length === 0 && (
+              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl w-full">
+                <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
+                  <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
+                  {t("timecapsule_no_backups")}
+                </span>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl">
+            <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
+              <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
+              {t("timecapsule_no_backups")}
+            </span>
+          </div>
+        )}
+      </div>
+      <TimeCapsuleSidePanel isOpen={isSidePanelOpen} onClose={() => setIsSidePanelOpen(false)} selectedBackup={selectedBackupForInspection} config={config} />
+    </div>
+  );
+}
+
+
+

@@ -1,0 +1,508 @@
+import { useState, useEffect } from "react";
+import { useStore } from "../store";
+import { readDir, readTextFile, writeTextFile, exists, remove } from '@tauri-apps/plugin-fs';
+import { open } from "@tauri-apps/plugin-dialog";
+import enDefault from '../lexicons/en-default.json';
+import { useLexicon } from "../LexiconContext";
+
+export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas", isKeepers = false }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons" | "sanctuary_games", isKeepers?: boolean }) {
+   const { t } = useLexicon();
+   const session = useStore(state => state.session);
+   const pushStatus = useStore(state => state.pushStatus);
+   const localOpenFiles = useStore(state => state.ideOpenFiles);
+   const setLocalOpenFiles = useStore(state => state.setIdeOpenFiles);
+   const localActiveFileIndex = useStore(state => state.ideActiveFileIndex);
+   const setLocalActiveFileIndex = useStore(state => state.setIdeActiveFileIndex);
+   const cloudOpenFiles = useStore(state => state.cloudIdeOpenFiles);
+   const setCloudOpenFiles = useStore(state => state.setCloudIdeOpenFiles);
+   const cloudActiveFileIndex = useStore(state => state.cloudIdeActiveFileIndex);
+   const setCloudActiveFileIndex = useStore(state => state.setCloudIdeActiveFileIndex);
+
+   const openFiles = isCloudMode ? cloudOpenFiles : localOpenFiles;
+   const setOpenFiles = isCloudMode ? setCloudOpenFiles : setLocalOpenFiles;
+   const activeFileIndex = isCloudMode ? cloudActiveFileIndex : localActiveFileIndex;
+   const setActiveFileIndex = isCloudMode ? setCloudActiveFileIndex : setLocalActiveFileIndex;
+
+   const [files, setFiles] = useState<{ name: string, path: string }[]>([]);
+   const [isScanning, setIsScanning] = useState(false);
+   const [showTimeline, setShowTimeline] = useState(false);
+   const [searchQuery, setSearchQuery] = useState("");
+   const [fileTypeFilter, setFileTypeFilter] = useState(isCloudMode ? "all" : "overview");
+   const [problemsList, setProblemsList] = useState<any[]>([]);
+   const [activeVersionTimestamp, setActiveVersionTimestamp] = useState<number | null>(null);
+   const [editorRef, setEditorRef] = useState<any>(null);
+
+   const [renamingFile, setRenamingFile] = useState<string | null>(null);
+   const [renameInput, setRenameInput] = useState("");
+   const [renameExt, setRenameExt] = useState("");
+   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
+   const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
+   const [createMode, setCreateMode] = useState<"standard" | "lexicon">("standard");
+   const [lexiconLang, setLexiconLang] = useState("es");
+   const [createFileName, setCreateFileName] = useState("");
+   const [createFileExt, setCreateFileExt] = useState(".json");
+   const [showReference, setShowReference] = useState(false);
+   const [referenceData, setReferenceData] = useState<any>({});
+   const [referenceLabel, setReferenceLabel] = useState<string>("en-default.json Reference");
+   const [internalCloudTarget, setInternalCloudTarget] = useState<"sanctuary_schemas" | "sanctuary_lexicons" | "sanctuary_games">(cloudTarget || "sanctuary_lexicons");
+   const [splitRatio, setSplitRatio] = useState(50);
+   const [isFullscreen, setIsFullscreen] = useState(false);
+   const [uploadState, setUploadState] = useState({
+      isOpen: false,
+      editId: null as string | null,
+      assetType: 'lexicon',
+      isHidden: false,
+      fileContent: null as any,
+      fileName: '',
+      name: '',
+      version: '1.0.0',
+      description: '',
+      releaseNotes: '',
+      language: 'English',
+      newLanguage: '',
+      lexiconType: 'Theme',
+      themeMode: 'Dark'
+   });
+   const [fetchError, setFetchError] = useState<string | null>(null);
+
+   const fetchFiles = async () => {
+      if (isCloudMode) {
+         try {
+            setIsScanning(true);
+            const client = (await import('../supabase')).supabase;
+            const { data, error } = await client.from(internalCloudTarget).select('id');
+            if (error) {
+               console.error("Cloud fetch error:", error);
+               setFetchError(error.message || JSON.stringify(error));
+               return;
+            }
+            setFetchError(null);
+            let mapped = (data || []).map((row: any) => ({ name: `${row.id}.json`, path: `cloud://${row.id}` }));
+            
+            if (!isKeepers) {
+                mapped = mapped.filter((f: any) => {
+                    const n = f.name.toLowerCase();
+                    return n !== 'en-default.json' && n !== 'en-sanctuary.json';
+                });
+            }
+
+            mapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
+            setFiles(mapped);
+         } catch (e) {
+            console.error("Failed to load cloud files", e);
+         } finally {
+            setIsScanning(false);
+         }
+         return;
+      }
+
+      if (!vaultPath) return;
+      setIsScanning(true);
+      try {
+         const normalizedVault = vaultPath.replace(/\\/g, '/');
+         let baseDir = normalizedVault;
+         if (baseDir.toLowerCase().endsWith('/mods')) {
+            baseDir = baseDir.substring(0, baseDir.length - 5);
+         } else if (baseDir.toLowerCase().endsWith('mods')) {
+            baseDir = baseDir.substring(0, baseDir.length - 4);
+         }
+         const sandboxDir = `${baseDir}/Dev/Sandbox`;
+
+         const dirExists = await exists(sandboxDir);
+         if (!dirExists) {
+            setFiles([]);
+            return;
+         }
+
+         const entries = await readDir(sandboxDir);
+         const foundFiles: { name: string, path: string }[] = [];
+         for (const entry of entries) {
+            if (!entry.isDirectory && entry.name) {
+               const n = entry.name.toLowerCase();
+               if (n.endsWith('.json') || n.endsWith('.cfg') || n.endsWith('.ini') || n.endsWith('.js') || n.endsWith('.ts') || n.endsWith('.xml') || n.endsWith('.txt') || n.endsWith('.md')) {
+                  foundFiles.push({ name: entry.name, path: `${sandboxDir}/${entry.name}` });
+               }
+            }
+         }
+
+         foundFiles.sort((a, b) => a.name.localeCompare(b.name));
+         setFiles(foundFiles);
+      } catch (e) {
+         console.error("Error reading sandbox:", e);
+      } finally {
+         setIsScanning(false);
+      }
+   };
+
+   useEffect(() => {
+      fetchFiles();
+   }, [vaultPath, internalCloudTarget]);
+
+   useEffect(() => {
+      const fetchRef = async () => {
+         const currentFile = (isCloudMode ? cloudOpenFiles : localOpenFiles)[isCloudMode ? cloudActiveFileIndex : localActiveFileIndex];
+         if (!currentFile) return;
+
+         const isLexicon = isCloudMode 
+            ? internalCloudTarget === 'sanctuary_lexicons'
+            : (currentFile.content?.includes('_meta_lang') || currentFile.content?.includes('"a_citizen"') || currentFile.name.startsWith('en-') || currentFile.name.startsWith('de-') || currentFile.name.startsWith('es-') || currentFile.name.startsWith('fr-'));
+
+         const { supabaseAuth } = await import('../supabase');
+         const client = supabaseAuth;
+         
+         if (isLexicon) {
+            const { data } = await client.from('sanctuary_lexicons').select('lexicon_data').eq('id', 'en-default').maybeSingle();
+            if (data && Object.keys((data as any).lexicon_data || {}).length > 0) {
+               setReferenceData((data as any).lexicon_data);
+               setReferenceLabel("en-default.json Reference");
+            }
+         } else {
+            const { data } = await client.from('sanctuary_schemas').select('schema_data').eq('id', 'default').maybeSingle();
+            if (data && Object.keys((data as any).schema_data || {}).length > 0) {
+               setReferenceData((data as any).schema_data);
+               setReferenceLabel("Default Master Schema");
+            }
+         }
+      };
+      fetchRef();
+   }, [isCloudMode ? cloudActiveFileIndex : localActiveFileIndex, isCloudMode, internalCloudTarget]);
+
+   useEffect(() => {
+      if (!editorRef || !(window as any).monaco) return;
+      const monaco = (window as any).monaco;
+      const model = editorRef.getModel();
+      if (!model) return;
+
+      const updateMarkers = () => {
+         const markers = monaco.editor.getModelMarkers({});
+         setProblemsList(markers.map((m: any) => ({
+            line: m.startLineNumber,
+            column: m.startColumn,
+            message: m.message
+         })));
+      };
+      
+      const disposable = monaco.editor.onDidChangeMarkers(updateMarkers);
+      updateMarkers();
+      
+      return () => disposable.dispose();
+   }, [editorRef, activeFileIndex]);
+
+   const validateContent = (text: string, monaco: any, model: any) => {
+      if (model && monaco) {
+         monaco.editor.setModelMarkers(model, 'owner', []);
+      }
+   };
+
+   const openFile = async (file: { name: string, path: string }) => {
+      const idx = openFiles.findIndex((f: any) => f.path === file.path);
+      if (idx >= 0) {
+         if ((openFiles[idx] as any).isHidden) {
+            const newFiles = [...openFiles];
+            (newFiles[idx] as any).isHidden = false;
+            setOpenFiles(newFiles);
+         }
+         setActiveFileIndex(idx);
+         setActiveVersionTimestamp(null);
+      } else {
+         try {
+            let content = "";
+            if (isCloudMode) {
+               const client = (await import('../supabase')).supabase;
+               const { data, error } = await client.from(internalCloudTarget).select(internalCloudTarget === 'sanctuary_lexicons' ? 'lexicon_data' : 'schema_data').eq('id', file.name.replace('.json', '')).maybeSingle();
+               if (!error && data) {
+                  content = internalCloudTarget === 'sanctuary_lexicons' ? JSON.stringify((data as any).lexicon_data, null, 2) : JSON.stringify((data as any).schema_data, null, 2);
+               } else {
+                  content = "{\n  \"schema_version\": 1\n}";
+               }
+            } else {
+               content = await readTextFile(file.path);
+            }
+            setOpenFiles([...openFiles, { ...file, content, originalContent: content }]);
+            setActiveFileIndex(openFiles.length);
+            setActiveVersionTimestamp(null);
+         } catch (e) {
+            pushStatus(t("err_open"), "error");
+         }
+      }
+   };
+
+   const closeFile = (index: number, e: React.MouseEvent) => {
+      e.stopPropagation();
+      const newFiles = [...openFiles];
+      const wasActive = activeFileIndex === index;
+      let isRemoving = false;
+
+      if (newFiles[index].content !== newFiles[index].originalContent) {
+         (newFiles[index] as any).isHidden = true;
+      } else {
+         newFiles.splice(index, 1);
+         isRemoving = true;
+      }
+
+      setOpenFiles(newFiles);
+
+      if (wasActive) {
+         let newActive = -1;
+         for (let i = newFiles.length - 1; i >= 0; i--) {
+            if (!(newFiles[i] as any).isHidden) {
+               newActive = i;
+               break;
+            }
+         }
+         setActiveFileIndex(newActive);
+         setActiveVersionTimestamp(null);
+      } else {
+         if (isRemoving && activeFileIndex > index) {
+            setActiveFileIndex(activeFileIndex - 1);
+         }
+      }
+   };
+
+   const handleEditorChange = (value: string | undefined) => {
+      if (value === undefined || activeFileIndex < 0) return;
+      const newFiles = [...openFiles];
+      newFiles[activeFileIndex].content = value;
+      setOpenFiles(newFiles);
+      if (editorRef && (window as any).monaco) {
+         validateContent(value, (window as any).monaco, editorRef.getModel());
+      }
+   };
+
+   const handleDeleteFile = async (path: string) => {
+      try {
+         if (isCloudMode) {
+            const fileId = path.replace('cloud://', '');
+            const client = isKeepers ? (await import('../supabase')).supabaseAuth : (await import('../supabase')).supabase;
+            const token = session?.access_token;
+            if (!isKeepers && token) {
+                const { error } = await client.rpc('secure_delete_cloud_file', {
+                    p_token: token,
+                    p_target: internalCloudTarget,
+                    p_id: fileId
+                });
+                if (error) throw error;
+            } else {
+                const { error } = await client.from(internalCloudTarget).delete().eq('id', fileId);
+                if (error) throw error;
+            }
+         } else {
+            await remove(path);
+         }
+         const openIdx = openFiles.findIndex((f: any) => f.path === path);
+         if (openIdx >= 0) {
+            closeFile(openIdx, { stopPropagation: () => { } } as any);
+         }
+         fetchFiles();
+         pushStatus(t("msg_template_deleted"), "success");
+      } catch (e) {
+         console.error("Error deleting file", e);
+         pushStatus(t("msg_template_delete_failed"), "error");
+      }
+   };
+
+   const handleRenameSubmit = async (oldPath: string, oldName: string) => {
+      const lastDot = oldName.lastIndexOf('.');
+      const oldExt = lastDot > 0 ? oldName.substring(lastDot) : '';
+      const baseOldName = lastDot > 0 ? oldName.substring(0, lastDot) : oldName;
+      const currentExt = renameExt.startsWith('.') ? renameExt : (renameExt ? '.' + renameExt : '');
+      if (!renameInput.trim() || (renameInput === baseOldName && currentExt === oldExt)) {
+         setRenamingFile(null);
+         return;
+      }
+      try {
+         if (isCloudMode) {
+            const oldId = baseOldName;
+            const newId = renameInput.trim();
+            const client = (await import('../supabase')).supabase;
+            
+            const { data: oldData, error: fetchErr } = await client.from(internalCloudTarget).select('*').eq('id', oldId).maybeSingle();
+            if (fetchErr) throw fetchErr;
+            
+            const newData = { ...oldData, id: newId, name: newId };
+            const token = session?.access_token;
+            
+            if (!isKeepers && token) {
+                const { error: insertErr } = await client.rpc('secure_upsert_cloud_file', { p_token: token, p_target: internalCloudTarget, p_payload: newData });
+                if (insertErr) throw insertErr;
+                await client.rpc('secure_delete_cloud_file', { p_token: token, p_target: internalCloudTarget, p_id: oldId });
+            } else {
+                const { error: insertErr } = await client.from(internalCloudTarget).insert(newData);
+                if (insertErr) throw insertErr;
+                await client.from(internalCloudTarget).delete().eq('id', oldId);
+            }
+            
+            const newName = newId + currentExt;
+            const newPath = "cloud://" + newId;
+
+            setRenamingFile(null);
+            const openIdx = openFiles.findIndex((f: any) => f.path === oldPath);
+            if (openIdx >= 0) {
+               const newFiles = [...openFiles];
+               newFiles[openIdx] = { ...newFiles[openIdx], name: newName, path: newPath };
+               setOpenFiles(newFiles);
+            }
+            fetchFiles();
+            pushStatus(t("auto_saved"), "success");
+            return;
+         }
+
+         const newName = renameInput.trim() + currentExt;
+         const lastSlash = Math.max(oldPath.lastIndexOf('/'), oldPath.lastIndexOf('\\'));
+         const newPath = oldPath.substring(0, lastSlash) + '/' + newName;
+
+         const content = await readTextFile(oldPath);
+         await writeTextFile(newPath, content);
+         await remove(oldPath);
+
+         setRenamingFile(null);
+         const openIdx = openFiles.findIndex((f: any) => f.path === oldPath);
+         if (openIdx >= 0) {
+            const newFiles = [...openFiles];
+            newFiles[openIdx] = { ...newFiles[openIdx], name: newName, path: newPath };
+            setOpenFiles(newFiles);
+         }
+         fetchFiles();
+         pushStatus(t("auto_saved"), "success");
+      } catch (e) {
+         console.error("Error renaming file", e);
+         pushStatus(t("alert_error"), "error");
+      }
+   };
+
+   const handleCreateSubmit = async () => {
+      if (!createFileName.trim()) return;
+      if (createMode === 'lexicon' && !lexiconLang.trim()) return;
+      try {
+         if (isCloudMode) {
+            const fileId = createFileName.trim();
+            const client = (await import('../supabase')).supabase;
+            const contentToSave = (isCloudMode && internalCloudTarget === 'sanctuary_lexicons') || (!isCloudMode && createMode === 'lexicon')
+               ? { _meta_lang: lexiconLang.toLowerCase(), _meta_name: fileId } 
+               : { schema_version: 1, metadata: {} };
+            const payload = internalCloudTarget === 'sanctuary_lexicons' 
+               ? { id: fileId, name: fileId, badge: 'Sanctuary', version: 1, lexicon_data: contentToSave }
+               : { id: fileId, name: fileId, schema_data: contentToSave, version: 1, updated_at: new Date().toISOString() };
+            
+            let error = null;
+            const token = session?.access_token;
+            if (!isKeepers && token) {
+                const res = await client.rpc('secure_upsert_cloud_file', { p_token: token, p_target: internalCloudTarget, p_payload: payload });
+                error = res.error;
+            } else {
+                const res = await client.from(internalCloudTarget).insert(payload);
+                error = res.error;
+            }
+
+            if (error) {
+               pushStatus(t("alert_error"), "error");
+               return;
+            }
+            setIsCreatePanelOpen(false);
+            setCreateFileName("");
+            fetchFiles();
+            openFile({ name: fileId + ".json", path: "cloud://" + fileId });
+            return;
+         }
+         if (!vaultPath) return;
+         const normalizedVault = vaultPath.replace(/\\/g, '/');
+         let baseDir = normalizedVault;
+         if (baseDir.toLowerCase().endsWith('/mods')) baseDir = baseDir.substring(0, baseDir.length - 5);
+         else if (baseDir.toLowerCase().endsWith('mods')) baseDir = baseDir.substring(0, baseDir.length - 4);
+         const sandboxDir = `${baseDir}/Dev/Sandbox`;
+         const baseName = createMode === 'lexicon' ? `${lexiconLang.toLowerCase()}-${createFileName.trim()}` : createFileName.trim();
+         const ext = createMode === 'lexicon' ? '.json' : (createFileExt.startsWith('.') ? createFileExt : '.' + createFileExt);
+         const newName = baseName + ext;
+         const newPath = `${sandboxDir}/${newName}`;
+         if (await exists(newPath)) {
+            pushStatus(t("alert_error"), "error");
+            return;
+         }
+
+         let initialContent = "";
+         if (createMode === 'lexicon') {
+            const emptyLexicon: any = {
+               _meta_lang: lexiconLang.toLowerCase(),
+               _meta_name: createFileName.trim(),
+               _meta_author: session?.user?.user_metadata?.username || "Unknown"
+            };
+            for (const key of Object.keys(enDefault)) {
+               emptyLexicon[key] = "";
+            }
+            initialContent = JSON.stringify(emptyLexicon, null, 2);
+         }
+
+         await writeTextFile(newPath, initialContent);
+         setIsCreatePanelOpen(false);
+         setCreateFileName("");
+         fetchFiles();
+
+         openFile({ name: newName, path: newPath });
+      } catch (e) {
+         console.error("Error creating file", e);
+         pushStatus(t("alert_error"), "error");
+      }
+   };
+
+   const handleImport = async () => {
+      try {
+         const selected = await open({
+            multiple: true,
+            filters: [{ name: 'Config Files', extensions: ['json', 'cfg', 'ini'] }]
+         });
+         if (selected && selected.length > 0) {
+            if (!vaultPath) return;
+            const normalizedVault = vaultPath.replace(/\\/g, '/');
+            let baseDir = normalizedVault;
+            if (baseDir.toLowerCase().endsWith('/mods')) baseDir = baseDir.substring(0, baseDir.length - 5);
+            else if (baseDir.toLowerCase().endsWith('mods')) baseDir = baseDir.substring(0, baseDir.length - 4);
+            const sandboxDir = `${baseDir}/Dev/Sandbox`;
+            const dirExists = await exists(sandboxDir);
+            if (!dirExists) return;
+
+            for (const path of selected) {
+               const name = path.split('\\').pop()?.split('/').pop() || 'imported_file.json';
+               const content = await readTextFile(path);
+               await writeTextFile(`${sandboxDir}/${name}`, content);
+            }
+            fetchFiles();
+            pushStatus(t("auto_imported"), "success");
+         }
+      } catch (e) {
+         console.error(e);
+      }
+   };
+
+   return {
+      t, session, pushStatus,
+      files, setFiles, isScanning,
+      showTimeline, setShowTimeline,
+      searchQuery, setSearchQuery,
+      fileTypeFilter, setFileTypeFilter,
+      problemsList, setProblemsList,
+      activeVersionTimestamp, setActiveVersionTimestamp,
+      editorRef, setEditorRef,
+      renamingFile, setRenamingFile,
+      renameInput, setRenameInput,
+      renameExt, setRenameExt,
+      deleteConfirmPath, setDeleteConfirmPath,
+      isCreatePanelOpen, setIsCreatePanelOpen,
+      createMode, setCreateMode,
+      lexiconLang, setLexiconLang,
+      createFileName, setCreateFileName,
+      createFileExt, setCreateFileExt,
+      showReference, setShowReference,
+      referenceData, setReferenceData,
+      referenceLabel, setReferenceLabel,
+      internalCloudTarget, setInternalCloudTarget,
+      splitRatio, setSplitRatio,
+      isFullscreen, setIsFullscreen,
+      uploadState, setUploadState,
+      fetchError, setFetchError,
+      openFiles, setOpenFiles,
+      activeFileIndex, setActiveFileIndex,
+      fetchFiles, validateContent, openFile, closeFile,
+      handleEditorChange, handleDeleteFile, handleRenameSubmit,
+      handleCreateSubmit, handleImport
+   };
+}

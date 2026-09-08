@@ -1,0 +1,200 @@
+import { useState, useEffect } from 'react';
+// Force Vite HMR reload
+import { invoke } from '@tauri-apps/api/core';
+import { getVersion } from '@tauri-apps/api/app';
+import { open } from "@tauri-apps/plugin-dialog";
+import { useTheme } from "./ThemeContext";
+import { useLexicon } from "./LexiconContext";
+import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, SidebarFooterButton } from './shared';
+import { useStore } from "./store";
+import { supabase } from "./supabase";
+
+import CoreTab from './settings-tabs/CoreTab';
+import EngineTab from './settings-tabs/EngineTab';
+import ClientTab from './settings-tabs/ClientTab';
+import NotificationsTab from './settings-tabs/NotificationsTab';
+import AestheticsTab from './settings-tabs/AestheticsTab';
+import LogicTab from './settings-tabs/LogicTab';
+import MalwareTab from './settings-tabs/MalwareTab';
+import { isDesktop } from './utils/envUtils';
+
+export default function Settings({ anarchyRules, setAnarchyRules }: any) {
+  const { t } = useLexicon();
+  const { currentTheme } = useTheme();
+
+  const [activeTab, setActiveTab] = useState(() => {
+    const override = localStorage.getItem("sanctuary_settings_tab");
+    if (override) {
+      localStorage.removeItem("sanctuary_settings_tab");
+      return override;
+    }
+    return isDesktop() ? 'CORE' : 'CLIENT';
+  });
+  const [appVersion, setAppVersion] = useState("v1.0.1");
+
+  useEffect(() => {
+    if (isDesktop()) {
+      getVersion().then(v => setAppVersion(`v${v}`)).catch(console.error);
+    }
+  }, []);
+
+  const [hackerClicks, setHackerClicks] = useState(0);
+  const showMalwareTab = hackerClicks >= 5;
+
+  useEffect(() => {
+    const handleNav = (e: any) => {
+      if (e.detail && e.detail.tab) setActiveTab(e.detail.tab);
+    };
+    window.addEventListener('navigateSettings', handleNav);
+    return () => window.removeEventListener('navigateSettings', handleNav);
+  }, []);
+
+  const [config, setConfig] = useState<any>(null);
+  const [globalConfig, setGlobalConfig] = useState<any>(null);
+
+  const refreshConfig = async () => {
+    try {
+      if (!isDesktop()) {
+        const dummyConfig = { id: 'web', vault_path: 'web', mods_path: 'web', live_path: 'web' };
+        setConfig(dummyConfig);
+        setGlobalConfig({ workspaces: [dummyConfig], active_workspace_id: 'web' });
+        return;
+      }
+      const gConf: any = await invoke('get_global_config');
+      setGlobalConfig(gConf);
+      const activeId = gConf.active_workspace_id;
+      let activeW = gConf.workspaces?.find((w: any) => w.id === activeId);
+      if (!activeW && gConf.workspaces?.length > 0) activeW = gConf.workspaces[0];
+      setConfig(activeW || { isGuest: true });
+    } catch (err) { console.error(err); }
+  };
+
+  useEffect(() => { refreshConfig(); }, []);
+
+  useEffect(() => {
+    if (config?.isGuest && activeTab === 'CORE') {
+      setActiveTab('CLIENT');
+    }
+  }, [config, activeTab]);
+
+  const updateConfig = async (key: string, val: any) => {
+    if (!config || !globalConfig) return;
+    const parsedVal = (key === 'engine_agency_level' || key === 'backup_preference' || key === 'defcon_backup_target' || key === 'engine_retention_cycles' || key === 'world_retention_cycles' || key === 'timeline_retention_copies' || key === 'timeline_retention_size_mb') ? parseInt(val) : val;
+    
+    const newConfig = { ...config, [key]: parsedVal };
+    setConfig(newConfig);
+    
+    const newGlobal = { ...globalConfig };
+    newGlobal.workspaces = newGlobal.workspaces.map((w: any) => w.id === newConfig.id ? newConfig : w);
+    setGlobalConfig(newGlobal);
+
+    try {
+      if (isDesktop()) {
+        await invoke("save_coordinates", { config: newGlobal });
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const pickPath = async (rustKey: string, label: string) => {
+    if (!config || !globalConfig) return;
+    try {
+      const selected = await open({ directory: true, multiple: false, title: `${t("select_path")} ${label}` });
+      if (selected) {
+        const newConfig = { ...config, [rustKey]: selected };
+        setConfig(newConfig);
+        
+        const newGlobal = { ...globalConfig };
+        newGlobal.workspaces = newGlobal.workspaces.map((w: any) => w.id === newConfig.id ? newConfig : w);
+        if (rustKey === 'vault_path') {
+          newGlobal.vault_path = selected;
+        }
+        setGlobalConfig(newGlobal);
+        
+        if (isDesktop()) {
+          await invoke("save_coordinates", { config: newGlobal });
+        }
+      }
+    } catch (err) { useStore.getState().pushStatus(String(err), 'error'); }
+  };
+
+  if (config === null) return <div className="p-12 font-black animate-pulse capitalize tracking-widest" style={{ color: currentTheme.accent }}>{t("booting")}</div>;
+
+  const pathMap = [
+    { rustKey: 'vault_path', label: t("vault_path"), value: config.vault_path, icon: t("icon_account_balance") },
+    { rustKey: 'mods_path', label: t("library_path"), value: config.mods_path, icon: t("icon_folder") },
+    { rustKey: 'live_path', label: t("setup_btn_bin"), value: config.live_path, icon: t("icon_push_pin") }
+  ];
+
+  let TABS = [
+    { id: 'CORE', icon: t("icon_account_circle"), label: t("tab_core") },
+    { id: 'ENGINE', icon: t("icon_history"), label: t("tab_engine") },
+    { id: 'CLIENT', icon: t("icon_tune"), label: t("tab_preferences") },
+    { id: 'NOTIFICATIONS', icon: t("icon_notifications"), label: t("tab_notifs") },
+    { id: 'AESTHETICS', icon: t("icon_format_paint"), label: t("tab_aesthetics") },
+    { id: 'LOGIC', icon: t("icon_flag"), label: t("tab_logic") }
+  ];
+  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull"), label: t("malware_btn") });
+
+  if (!isDesktop()) {
+    TABS = TABS.filter(t => ['CLIENT', 'AESTHETICS', 'NOTIFICATIONS', 'CORE'].includes(t.id));
+  } else if (config?.isGuest) {
+    TABS = TABS.filter(t => ['CLIENT', 'AESTHETICS', 'NOTIFICATIONS'].includes(t.id));
+  }
+
+  return (
+    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
+      <ViewHeader
+        title={t("settings_title")}
+        icon="settings"
+        subtitle={t("settings_subtitle")}
+        onSubtitleClick={() => setHackerClicks(prev => prev + 1)}
+      />
+
+      <HoverTabDrawer 
+        title={t("settings_title")} 
+        activeTab={activeTab} 
+        setTab={setActiveTab}
+        footer={
+          <>
+            <SidebarFooterButton
+              icon={t("icon_logout")}
+              label={t("btn_logout")}
+              variant="danger"
+              className="w-full"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.reload();
+              }}
+            />
+            <div className="text-center text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50 mt-1">
+              {appVersion}
+            </div>
+          </>
+        }
+      >
+        {TABS.map(tab => (
+          <VerticalTabButton
+            key={tab.id}
+            id={tab.id}
+            icon={tab.icon}
+            label={tab.label}
+            activeTab={activeTab}
+            setTab={setActiveTab}
+          />
+        ))}
+      </HoverTabDrawer>
+
+      <div className="flex flex-col gap-4 relative">
+        <div className="w-full relative">
+          {activeTab === 'CORE' && <CoreTab config={config} updateConfig={updateConfig} pickPath={pickPath} pathMap={pathMap} />}
+          {activeTab === 'ENGINE' && <EngineTab config={config} updateConfig={updateConfig} />}
+          {activeTab === 'CLIENT' && <ClientTab />}
+          { activeTab === 'NOTIFICATIONS' && <NotificationsTab /> }
+          { activeTab === 'AESTHETICS' && <AestheticsTab config={config} /> }
+          {activeTab === 'LOGIC' && <LogicTab anarchyRules={anarchyRules} setAnarchyRules={setAnarchyRules} />}
+          {activeTab === 'MALWARE' && <MalwareTab />}
+        </div>
+      </div>
+    </div>
+  );
+}

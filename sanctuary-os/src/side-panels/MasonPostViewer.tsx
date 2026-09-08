@@ -1,0 +1,824 @@
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { supabase } from "../supabase";
+import { useLexicon } from "../LexiconContext";
+import MarkdownRenderer from "../MarkdownRenderer";
+import CodeSnippetSidebar from "./CodeSnippetSidebar";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, extractPostImage, renderTextWithIcons, EmptyState, HoverTooltip, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import FlagContentSidePanel from './FlagContentSidePanel';
+import { handleOpenUrl } from "../shared";
+import { useStore } from '../store';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Markdown } from 'tiptap-markdown';
+import { IconPlugin } from '../IconPlugin';
+
+function RichReplyEditor({ value, onChange, placeholder, className, id }: { value: string, onChange: (val: string) => void, placeholder?: string, className?: string, id?: string }) {
+  const updateTimeoutRef = React.useRef<any>(null);
+  const [isEmpty, setIsEmpty] = useState(!value);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: false, horizontalRule: false, codeBlock: false, blockquote: false, bold: false, italic: false, strike: false, bulletList: false, orderedList: false, listItem: false }),
+      Markdown,
+      IconPlugin
+    ],
+    content: value,
+    onUpdate: ({ editor }) => {
+      setIsEmpty(editor.isEmpty);
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      updateTimeoutRef.current = setTimeout(() => {
+        onChange((editor.storage as any).markdown.getMarkdown());
+      }, 500);
+    },
+    editorProps: {
+      attributes: {
+        id: id || '',
+        class: className || ''
+      }
+    }
+  });
+
+  useEffect(() => {
+    if (editor && value !== undefined) {
+      const currentContent = (editor.storage as any).markdown.getMarkdown();
+      if (value !== currentContent) {
+        if (!editor.isFocused || value === "") {
+          editor.commands.setContent(value);
+          setIsEmpty(editor.isEmpty);
+        }
+      }
+    }
+  }, [value, editor]);
+
+  return (
+    <div className="relative w-full">
+      {isEmpty && placeholder && (
+        <div className="absolute top-0 left-0 text-[var(--subtext)] pointer-events-none text-sm">{placeholder}</div>
+      )}
+      <EditorContent editor={editor} className="w-full" />
+    </div>
+  );
+}
+
+export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onAssetClick, userId, initialFocusCommentId, hideActions }: { post: any, onClose: () => void, onOpenMasonProfile?: (id: string) => void, onAssetClick?: (type: string, id: string) => void, userId: string | null, initialFocusCommentId?: string | null, hideActions?: boolean }) {
+  const { t } = useLexicon();
+  const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
+  const [replyTargetAuthorId, setReplyTargetAuthorId] = useState<string | null>(null);
+  const [replyTargetUsername, setReplyTargetUsername] = useState<string>("");
+  const [replyTargetSnippet, setReplyTargetSnippet] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
+  const [codeSnippet, setCodeSnippet] = useState("");
+  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [activeCodeSnippet, setActiveCodeSnippet] = useState<string | null>(null);
+  const [flagTarget, setFlagTarget] = useState<{ id: string, type: 'post' | 'comment' | 'broadcast' } | null>(null);
+
+  const [assets, setAssets] = useState<any[]>([]);
+  const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
+  const [assetSearchQuery, setAssetSearchQuery] = useState("");
+
+  const masonCommentDrafts = useStore(state => state.masonCommentDrafts);
+  const setMasonCommentDrafts = useStore(state => state.setMasonCommentDrafts);
+  const gameName = useStore(state => state.activeGameSchema?.display_name || state.activeGameSchema?.name || "Sanctuary");
+
+  const [userCollapsed, setUserCollapsed] = useState<Set<string>>(new Set());
+  const [userExpanded, setUserExpanded] = useState<Set<string>>(new Set());
+  const [repliesExpanded, setRepliesExpanded] = useState<Set<string>>(new Set());
+
+  const fetchComments = async () => {
+    setLoading(true);
+    const { data: commentsData, error } = await supabase
+      .from('mason_post_comments')
+      .select('*')
+      .eq('post_id', post.id)
+      .order('created_at', { ascending: true });
+
+    if (!error && commentsData) {
+      const authorIds = Array.from(new Set(commentsData.map(c => c.author_id)));
+      if (authorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, username')
+          .in('id', authorIds);
+
+        const profileMap: any = {};
+        profiles?.forEach((p: any) => profileMap[p.id] = p);
+
+        const merged = commentsData.map(c => ({
+          ...c,
+          author: profileMap[c.author_id] || { id: c.author_id, username: 'Citizen' }
+        }));
+        setComments(merged);
+      } else {
+        setComments(commentsData);
+      }
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (post?.id) {
+      const draft = useStore.getState().masonCommentDrafts[post.id];
+      if (draft) {
+        setNewComment(draft.newComment || "");
+        setCodeSnippet(draft.codeSnippet || "");
+        setShowCodeInput(!!draft.codeSnippet);
+      }
+      fetchComments();
+    }
+  }, [post?.id]);
+
+  useEffect(() => {
+    if (initialFocusCommentId && comments.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`comment-${initialFocusCommentId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-[var(--accent)]', 'ring-offset-2', 'ring-offset-[var(--bg)]', 'transition-all', 'duration-1000');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-[var(--accent)]', 'ring-offset-2', 'ring-offset-[var(--bg)]');
+          }, 2000);
+        }
+      }, 100);
+    }
+  }, [initialFocusCommentId, comments]);
+
+  useEffect(() => {
+    if (post?.id && (newComment || codeSnippet)) {
+      setMasonCommentDrafts(prev => ({
+        ...prev,
+        [post.id]: { newComment, codeSnippet }
+      }));
+    } else if (post?.id && !newComment && !codeSnippet) {
+      setMasonCommentDrafts(prev => {
+        const next = { ...prev };
+        delete next[post.id];
+        return next;
+      });
+    }
+  }, [newComment, codeSnippet, post?.id]);
+
+  useEffect(() => {
+    if (editingCommentId && editCommentContent) {
+      setMasonCommentDrafts(prev => ({
+        ...prev,
+        ['edit-' + editingCommentId]: { editCommentContent }
+      }));
+    }
+  }, [editCommentContent, editingCommentId]);
+
+  useEffect(() => {
+    const fetchAssets = async () => {
+      const { data: modsData } = await supabase.from('mods').select('id, name');
+      const { data: marketAssetsData } = await supabase.from('nexus_assets').select('id, name, asset_type');
+      const { data: blueprintsData } = await supabase.from('blueprints').select('id, name');
+
+      let combinedAssets: any[] = [];
+      if (modsData) combinedAssets.push(...modsData.map(m => ({ id: m.id, name: m.name, type: 'mod' })));
+      if (blueprintsData) combinedAssets.push(...blueprintsData.map(b => ({ id: b.id, name: b.name, type: 'blueprint' })));
+      if (marketAssetsData) combinedAssets.push(...marketAssetsData.map(a => ({ id: a.id, name: a.name, type: a.asset_type })));
+      setAssets(combinedAssets.sort((a, b) => a.name.localeCompare(b.name)));
+    };
+    fetchAssets();
+  }, []);
+
+  const handleLinkAsset = (asset: any) => {
+    const linkStr = `asset://${asset.type}/${asset.id}`;
+    const typeKey = `masonhub_asset_type_${asset.type}`;
+    const translatedType = t(typeKey) !== typeKey ? t(typeKey) : (asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : 'Lexicon');
+
+    const textToInsert = `[${translatedType}: ${asset.name}](${linkStr})`;
+    setNewComment(prev => prev + (prev.length > 0 && !prev.endsWith(' ') ? ' ' : '') + textToInsert + ' ');
+
+    setIsAssetPanelOpen(false);
+    setAssetSearchQuery("");
+  };
+
+  const filteredAssets = assets.filter(a => a.name.toLowerCase().includes(assetSearchQuery.toLowerCase()));
+
+  useEffect(() => {
+    if (post?.scrollToCommentId && comments.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`comment-${post.scrollToCommentId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-2", "ring-[var(--accent)]", "ring-offset-4", "ring-offset-[var(--bg)]", "rounded-2xl");
+          setTimeout(() => el.classList.remove("ring-2", "ring-[var(--accent)]", "ring-offset-4", "ring-offset-[var(--bg)]", "rounded-2xl"), 2000);
+        }
+      }, 300);
+    }
+  }, [comments, post?.scrollToCommentId]);
+
+  const handlePostComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim() && !codeSnippet.trim()) return;
+    if (!userId) return;
+
+    const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', userId).single();
+    if (profile?.is_comm_banned) {
+      useStore.getState().pushStatus(`Communications Ban: ${profile.comm_blacklist_reason || 'You are banned from replying.'}`, "error");
+      return;
+    }
+
+    let finalContent = newComment.trim();
+
+    const { error } = await supabase.from('mason_post_comments').insert({
+      post_id: post.id,
+      author_id: userId,
+      content: finalContent,
+      parent_comment_id: replyTargetId,
+      code_snippet: codeSnippet.trim() || null
+    });
+
+    if (!error) {
+      if (replyTargetAuthorId && replyTargetAuthorId !== userId) {
+        const { data: notificationProfile } = await supabase.from('profiles').select('username').eq('id', userId).maybeSingle();
+        const senderName = notificationProfile?.username || "A Citizen";
+        await supabase.from('notifications').insert({
+          user_id: replyTargetAuthorId,
+          actor_id: userId,
+          type: 'reply',
+          reference_id: post.id,
+          message: `${senderName} replied to your comment.`
+        });
+      }
+
+      useStore.getState().setMasonCommentDrafts(prev => {
+        const next = { ...prev };
+        delete next[post.id];
+        return next;
+      });
+      setNewComment("");
+      setCodeSnippet("");
+      setShowCodeInput(false);
+      setReplyTargetId(null);
+      setReplyTargetAuthorId(null);
+      fetchComments();
+    } else {
+      useStore.getState().pushStatus("Error posting comment: " + error.message);
+    }
+  };
+
+  const handleHideComment = async (commentId: string) => {
+    const { error: rpcError } = await supabase.rpc('hide_mason_comment', { p_comment_id: commentId });
+    if (!rpcError) {
+      fetchComments();
+      return;
+    }
+
+    const { data, error } = await supabase.from('mason_post_comments').update({ is_hidden: true }).eq('id', commentId).select();
+    if (error) {
+      useStore.getState().pushStatus("Error hiding comment: " + error.message);
+    } else if (data && data.length === 0) {
+      useStore.getState().pushStatus(t("auto_error_database_blocked_45"));
+    } else {
+      fetchComments();
+    }
+  };
+
+  const handleReplyTo = (c: any) => {
+    const snippet = c.content.length > 50 ? c.content.slice(0, 50) + "..." : c.content;
+    const cleanSnippet = snippet.replace(/^>\s*/gm, '').trim();
+    setReplyTargetSnippet(cleanSnippet);
+    setReplyTargetUsername(c.author?.username || "Citizen");
+    setReplyTargetId(c.id);
+    setReplyTargetAuthorId(c.author_id);
+    const textElement = document.getElementById("reply-textarea");
+    textElement?.focus();
+  };
+
+  const handleSaveEdit = async (commentId: string) => {
+    if (!editCommentContent.trim()) return;
+    const { error } = await supabase.from('mason_post_comments').update({ content: editCommentContent.trim() }).eq('id', commentId);
+    if (!error) {
+      useStore.getState().setMasonCommentDrafts(prev => {
+        const next = { ...prev };
+        delete next['edit-' + commentId];
+        return next;
+      });
+      setEditingCommentId(null);
+      fetchComments();
+    } else {
+      useStore.getState().pushStatus("Error updating comment: " + error.message);
+    }
+  };
+
+  if (!post) return null;
+
+  const parsePostContent = (p: any) => {
+    let content = p.content || '';
+    let imageUrl = p.image_url || '';
+    if (content.startsWith('[IMG:')) {
+      const endIdx = content.indexOf(']');
+      if (endIdx !== -1) {
+        imageUrl = content.substring(5, endIdx);
+        content = content.substring(endIdx + 1).trim();
+      }
+    }
+    return { content, imageUrl };
+  };
+
+  const { content, imageUrl } = parsePostContent(post);
+  const isPostAuthor = userId && post.mason_id && userId === post.masons?.profile_id;
+
+  const buildCommentTree = (commentsList: any[]) => {
+    const map = new Map();
+    const roots: any[] = [];
+    commentsList.forEach(c => map.set(c.id, { ...c, replies: [] }));
+    commentsList.forEach(c => {
+      if (c.parent_comment_id) {
+        const parent = map.get(c.parent_comment_id);
+        if (parent) {
+          parent.replies.push(map.get(c.id));
+        } else {
+          roots.push(map.get(c.id));
+        }
+      } else {
+        roots.push(map.get(c.id));
+      }
+    });
+    return roots;
+  };
+
+  const renderCommentNode = (c: any, depth: number = 0) => {
+    if (c.is_hidden && !isPostAuthor && depth === 0 && c.replies.length === 0) return null;
+    const isMyComment = userId === c.author_id;
+
+    const defaultCollapsed = depth > 1;
+    const isCollapsed = defaultCollapsed ? !userExpanded.has(c.id) : userCollapsed.has(c.id);
+    const isRepliesExpanded = repliesExpanded.has(c.id);
+
+    const toggleCollapse = () => {
+      if (defaultCollapsed) {
+        setUserExpanded(prev => {
+          const next = new Set(prev);
+          if (next.has(c.id)) next.delete(c.id);
+          else next.add(c.id);
+          return next;
+        });
+      } else {
+        setUserCollapsed(prev => {
+          const next = new Set(prev);
+          if (next.has(c.id)) next.delete(c.id);
+          else next.add(c.id);
+          return next;
+        });
+      }
+    };
+
+    const toggleRepliesExpand = () => {
+      setRepliesExpanded(prev => {
+        const next = new Set(prev);
+        if (next.has(c.id)) next.delete(c.id);
+        else next.add(c.id);
+        return next;
+      });
+    };
+
+    const allowedReplies = depth >= 4 ? [] : c.replies;
+    const visibleReplies = isRepliesExpanded ? allowedReplies : allowedReplies.slice(0, 1);
+    const hiddenRepliesCount = allowedReplies.length - visibleReplies.length;
+
+    return (
+      <div key={c.id} className="flex flex-col gap-2 relative transition-all duration-500" style={{ marginLeft: depth > 0 ? '1.5rem' : '0' }}>
+        {depth > 0 && (
+          <div className="absolute top-0 bottom-0 left-[-1.5rem] w-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+        )}
+        <div id={`comment-${c.id}`} className={`p-4 rounded-2xl border ${c.is_hidden ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all shadow-md'} flex flex-col gap-2 relative`}>
+          {depth > 0 && (
+            <div className="absolute top-6 left-[-1.5rem] w-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+          )}
+          {isCollapsed ? (
+            <div className="flex items-center gap-2">
+              <button onClick={toggleCollapse} className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-colors mr-1 flex items-center justify-center">
+                <span className="material-symbols-outlined !text-[16px]">add</span>
+              </button>
+              <div className="w-6 h-6 rounded-lg theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-inner border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                {c.author?.username?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+              <span className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{c.author?.username || "Citizen"}</span>
+              <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 ml-2">{allowedReplies.length} {t("auto_replies_hidden")}</span>
+            </div>
+          ) : editingCommentId === c.id ? (
+            <div className="flex flex-col gap-2">
+              <textarea
+                value={editCommentContent}
+                onChange={(e) => setEditCommentContent(e.target.value)}
+                className="w-full bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-3 text-xs text-[var(--text)] outline-none focus:theme-border-accent transition-all resize-none h-20 custom-scrollbar"
+              />
+              <div className="flex gap-2 justify-end mt-2">
+                <button onClick={() => setEditingCommentId(null)} className="text-[8px] font-black capitalize tracking-widest text-[var(--subtext)] hover:text-[var(--text)]">{t("nav_cancel")}</button>
+                <button onClick={() => handleSaveEdit(c.id)} className="text-[8px] font-black capitalize tracking-widest theme-text-accent hover:underline">{t("auto_save")}</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <button onClick={toggleCollapse} className="w-6 h-6 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-colors shrink-0 flex items-center justify-center">
+                    <span className="material-symbols-outlined !text-[14px]">remove</span>
+                  </button>
+                  <div className="w-6 h-6 rounded-full theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-[inset_0_0_8px_rgba(var(--accent-rgb),0.3)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shrink-0">
+                    {c.author?.username?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                  <span className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{c.author?.username || "Citizen"}</span>
+                  <span className="text-[9px] font-mono text-[var(--subtext)] opacity-50 ml-2">{new Date(c.created_at).toLocaleString()}</span>
+                  {c.is_hidden && <span className="text-[10px] font-black capitalize tracking-widest theme-text-danger ml-2">{t("reply_hidden")}</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  {isMyComment && !c.is_hidden && (
+                    <button onClick={() => {
+                      setEditingCommentId(c.id);
+                      const draft = useStore.getState().masonCommentDrafts['edit-' + c.id];
+                      setEditCommentContent(draft?.editCommentContent ?? c.content);
+                    }} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] hover:text-[var(--text)] transition-colors group">
+                      <span className="material-symbols-outlined !text-[14px] opacity-70 group-hover:opacity-100">{t("icon_edit")}</span>
+                      {t("emote_edit")}
+                    </button>
+                  )}
+                  {isPostAuthor && (
+                    <button onClick={() => handleHideComment(c.id)} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] hover:text-[var(--text)] transition-colors group">
+                      <span className="material-symbols-outlined !text-[14px] opacity-70 group-hover:opacity-100">{c.is_hidden ? 'visibility' : 'visibility_off'}</span>
+                      {c.is_hidden ? (t("btn_show")) : (t("btn_hide_reply"))}
+                    </button>
+                  )}
+                  {!c.is_hidden && userId && depth < 4 && !hideActions && (
+                    <button onClick={() => handleReplyTo(c)} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest capitalize theme-text-accent hover:scale-105 transition-all group px-3 py-1.5 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:theme-border-accent shadow-sm">
+                      <span className="material-symbols-outlined !text-[14px]">{t("icon_reply")}</span>
+                      {t("ui_btn_reply")}
+                    </button>
+                  )}
+                  {userId && userId !== c.author_id && !isBanned && !hideActions && (
+                    <button onClick={() => setFlagTarget({ id: c.id, type: 'comment' })} className="flex items-center gap-1.5 text-[10px] font-black tracking-widest capitalize theme-text-danger hover:scale-105 transition-all group px-3 py-1.5 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[var(--danger)] shadow-sm ml-2">
+                      <span className="material-symbols-outlined !text-[14px]">{t("icon_flag")}</span>
+                      {t("feed_btn_flag")}
+                    </button>
+                  )}
+                  {(!userId || isBanned) && !hideActions && (
+                    <div className="relative group/flagbtn">
+                      <HoverTooltip
+                        variant="danger"
+                        title={isBanned ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
+                        subtitle={isBanned ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
+                        className="group-hover/flagbtn:flex z-[1000]"
+                      />
+                      <button disabled className="flex items-center gap-1.5 text-[10px] font-black tracking-widest capitalize theme-text-danger opacity-30 grayscale cursor-not-allowed group px-3 py-1.5 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm ml-2">
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_flag")}</span>
+                        {t("feed_btn_flag")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="mt-3">
+                {c.is_hidden && !isPostAuthor ? (
+                  <p className="text-[var(--subtext)] opacity-50 italic text-sm">{t("reply_hidden")}</p>
+                ) : (
+                  <div className={`text-[var(--text)] text-sm leading-relaxed whitespace-pre-wrap ${c.is_hidden ? 'opacity-50' : 'opacity-90'} markdown-body`}>
+                    <MarkdownRenderer content={c.content} onAssetClick={(type: string, id: string) => { onAssetClick?.(type, id); }} />
+                  </div>
+                )}
+              </div>
+              {c.code_snippet && !c.is_hidden && (
+                <div className="mt-4 flex">
+                  <ActionButton onClick={() => setActiveCodeSnippet(c.code_snippet)} variant="accent" icon="data_object" label={t("show_code")} />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        {!isCollapsed && allowedReplies.length > 0 && (
+          <div className="flex flex-col gap-2 mt-2">
+            {visibleReplies.map((r: any) => renderCommentNode(r, depth + 1))}
+            {hiddenRepliesCount > 0 && (
+              <button onClick={toggleRepliesExpand} className="text-[9px] font-black capitalize tracking-widest theme-text-accent self-start ml-6 mt-1 hover:underline flex items-center gap-2">
+                <span className="text-[12px]">↳</span> {t("feed_show_more_replies", { count: hiddenRepliesCount }) || `SHOW ${hiddenRepliesCount} MORE REPLIES`}
+              </button>
+            )}
+            {isRepliesExpanded && allowedReplies.length > 1 && (
+              <button onClick={toggleRepliesExpand} className="text-[9px] font-black capitalize tracking-widest theme-text-accent self-start ml-6 mt-1 hover:underline flex items-center gap-2">
+                <span className="text-[12px]">↳</span> {t("show_less_replies")}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <SidePanel
+        isOpen={true}
+        onClose={onClose}
+        title={
+          post.mason_id === 'system' && post.category?.toLowerCase().includes('alert')
+            ? (t("defcon_alert_title"))
+            : (post.category ? "DISPATCH" : "COMM-LINK")
+        }
+        icon={post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? "priority_high" : "forum"}
+        iconColorClass={post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? "text-[var(--danger)] drop-shadow-[0_0_10px_rgba(var(--danger-rgb),0.8)]" : undefined}
+        widthClass="w-[55vw] max-w-5xl"
+        panelZ="z-[50001]"
+        backdropZ="z-[50000]"
+        noPadding={true}
+        noScroll={true}
+        panelClass={`!border-l-[color-mix(in_srgb,var(--text)_15%,transparent)] ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'danger-accent-override' : ''}`}
+        subtitle={
+          post.mason_id === 'system' && post.category?.toLowerCase().includes('alert')
+            ? (t("alert_subtitle"))
+            : (post.category ? (t("dispatch_subtitle")) : (t("transmission_subtitle")))
+        }
+        headerActions={!hideActions ? (
+          <>
+            {(!userId || isBanned) ? (
+              <div className="relative group/flagbtn h-full flex items-center">
+                <HoverTooltip
+                  variant="danger"
+                  title={isBanned ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
+                  subtitle={isBanned ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
+                  className="group-hover/flagbtn:flex z-[1000]"
+                />
+                <PanelHeaderGroup>
+                  <PanelHeaderButton
+                    icon="flag"
+                    tooltip={t("feed_btn_flag")}
+                    disabled={true}
+                    variant="danger"
+                  />
+                </PanelHeaderGroup>
+              </div>
+            ) : (!isPostAuthor && (
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon="flag"
+                  tooltip={t("feed_btn_flag")}
+                  onClick={() => setFlagTarget({ id: post.id, type: 'post' })}
+                  variant="danger"
+                />
+              </PanelHeaderGroup>
+            ))}
+            {post.mason_id !== 'system' && (
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon="person"
+                  tooltip={t("btn_view_profile")}
+                  onClick={() => { onClose(); onOpenMasonProfile?.(post.mason_id); }}
+                />
+                {post.masons?.patreon_url && (
+                  <PanelHeaderButton
+                    icon="favorite"
+                    tooltip={t("btn_patreon")}
+                    onClick={() => handleOpenUrl(post.masons.patreon_url)}
+                    variant="danger"
+                  />
+                )}
+                {post.masons?.discord_url && (
+                  <PanelHeaderButton
+                    icon="forum"
+                    tooltip={t("btn_discord")}
+                    onClick={() => handleOpenUrl(post.masons.discord_url)}
+                  />
+                )}
+              </PanelHeaderGroup>
+            )}
+          </>
+        ) : undefined}
+      >
+        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
+          {imageUrl && (() => {
+            const isSystem = post.mason_id === 'system';
+            const isAlert = isSystem && post.category?.toLowerCase().includes('alert');
+            return (
+              <div className={`w-full h-64 sm:h-72 relative shrink-0 border-b border-[color-mix(in_srgb,var(--text)_15%,transparent)]`}>
+                {isSystem && (
+                  <>
+                    {isAlert && <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] z-0" />}
+                    <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${isAlert ? 'from-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)]'} to-transparent z-10 pointer-events-none`} />
+                  </>
+                )}
+                <img src={imageUrl} className={`w-full h-full object-cover object-center relative z-0 ${isSystem ? 'opacity-60 mix-blend-luminosity' : ''}`} alt={t("auto_post_cover")} />
+              </div>
+            );
+          })()}
+          <div className="px-4 sm:px-8 md:px-12 pb-12 pt-8 gap-0 flex flex-col flex-1 relative z-20">
+            <div className="flex flex-col gap-4 mb-2">
+              <h1 className={`text-4xl font-black capitalize tracking-tighter drop-shadow-sm leading-tight ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)] drop-shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]' : 'text-[var(--text)]'}`}>
+                {renderTextWithIcons(post.title)}
+              </h1>
+
+              <div className="flex items-center gap-4 mt-2 mb-0 relative z-20">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg cursor-pointer z-20 hover:scale-110 transition-transform shrink-0 overflow-hidden ${post.mason_id === 'system' || !post.masons?.avatar_url
+                    ? 'glass-surface border border-[color-mix(in_srgb,var(--text)_20%,transparent)] backdrop-blur-md'
+                    : 'border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent'
+                    }`}
+                  onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}
+                >
+                  {post.mason_id === 'system' ? (
+                    <span className={`material-symbols-outlined !text-[24px] ${post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)]' : 'text-[var(--text)]'} drop-shadow-md`}>memory</span>
+                  ) : post.masons?.avatar_url ? (
+                    <img src={post.masons.avatar_url} alt={post.masons.name || "Avatar"} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-black text-[var(--text)]">
+                      {post.masons?.name?.charAt(0) || '?'}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col z-20">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-[13px] font-black capitalize tracking-widest text-[var(--text)] hover:theme-text-accent cursor-pointer transition-colors"
+                      onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}
+                    >
+                      {post.mason_id === 'system' ? (post.masons?.name || t("author_sanctuary_team")) : (post.masons?.name || t("unknown_architect"))}
+                    </span>
+                    {post.mason_id === 'system' && (
+                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]" title="Verified System Transmission">verified</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                    <span className="text-[11px] font-bold text-[var(--subtext)] font-mono tracking-widest opacity-80 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[12px] opacity-60">schedule</span>
+                      {new Date(post.created_at).toLocaleString()}
+                    </span>
+                    {post.category && (
+                      <>
+                        <span className="w-1 h-1 rounded-full bg-[var(--text)] opacity-30"></span>
+                        <span className={`text-[10px] font-black capitalize tracking-widest ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)]' : 'theme-text-accent'}`}>
+                          {post.category}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col mt-2">
+                <div className="markdown-body text-[var(--text)] opacity-90 leading-relaxed text-lg flex-1">
+                  <MarkdownRenderer
+                    content={content}
+                    isAlert={post.mason_id === 'system' && post.category?.toLowerCase().includes('alert')}
+                    onAssetClick={(type: string, id: string) => {
+                      onAssetClick?.(type, id);
+                    }}
+                  />
+                </div>
+
+                {post.code_snippet && (
+                  <div className="mt-8 p-4 px-5 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative overflow-hidden group">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-[20px] theme-text-accent">{t("icon_data_object")}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <h4 className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{t("code_snippet")}</h4>
+                          <p className="text-[9px] font-bold capitalize tracking-widest text-[var(--subtext)] leading-snug hidden sm:block">{t("code_desc")}</p>
+                        </div>
+                      </div>
+                      <ActionButton onClick={() => setActiveCodeSnippet(post.code_snippet)} variant="accent" icon="visibility" label={t("show_code")} className="!rounded-full !px-4 !py-1.5 !text-[10px]" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {!hideActions && (
+              <div className="mt-8 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-10 flex flex-col gap-8">
+                <h3 className="text-2xl font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-4">
+                  <span className="material-symbols-outlined theme-text-accent text-[32px]">{t("icon_forum")}</span>
+                  {t("ui.replies")}
+                </h3>
+
+                {userId && localStorage.getItem("sanctuary_blacklisted") !== "true" ? (
+                  <form onSubmit={handlePostComment} className="flex flex-col gap-2 relative glass-surface p-4 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl mt-2 mb-6">
+                    {replyTargetId && (
+                      <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl p-3 mb-1 shadow-inner">
+                        <div className="flex flex-col gap-1 overflow-hidden">
+                          <span className="text-[9px] font-black tracking-widest capitalize theme-text-accent flex items-center gap-2">
+                            <span className="material-symbols-outlined !text-[12px]">{t("icon_reply")}</span>
+                            {t("replying_to")} @{replyTargetUsername}
+                          </span>
+                          <span className="text-[11px] font-medium text-[var(--text)] opacity-80 italic truncate flex items-center gap-1">
+                            "{renderTextWithIcons(replyTargetSnippet)}"
+                          </span>
+                        </div>
+                        <button type="button" onClick={() => setReplyTargetId(null)} className="theme-text-accent hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] w-6 h-6 rounded-full flex items-center justify-center transition-colors">
+                          <span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span>
+                        </button>
+                      </div>
+                    )}
+                    <RichReplyEditor
+                      id="reply-textarea"
+                      value={newComment}
+                      onChange={setNewComment}
+                      placeholder={t("write_reply")}
+                      className="w-full bg-transparent border-none text-[13px] text-[var(--text)] outline-none resize-none min-h-[60px] custom-scrollbar [&_p.is-editor-empty:first-child::before]:text-[var(--subtext)] [&_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_p.is-editor-empty:first-child::before]:float-left [&_p.is-editor-empty:first-child::before]:pointer-events-none"
+                    />
+                    {showCodeInput && (
+                      <div className="mt-2 relative group">
+                        <textarea
+                          value={codeSnippet}
+                          onChange={(e) => setCodeSnippet(e.target.value)}
+                          placeholder={t("ph_code_logs")}
+                          className="w-full bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl py-4 pl-6 pr-4 text-[13px] font-mono text-[var(--text)] placeholder-[var(--subtext)] outline-none focus:theme-border-accent transition-all resize-none h-32 custom-scrollbar shadow-inner"
+                          spellCheck={false}
+                        />
+                        <div className="absolute top-4 right-4 text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-30 pointer-events-none">{t("code_snippet")}</div>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center justify-center sm:justify-start gap-1.5 w-9 h-9 sm:w-auto sm:h-8 sm:px-3 sm:py-0 rounded-full font-bold capitalize tracking-widest text-[9px] transition-all border ${showCodeInput ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                          <span className="material-symbols-outlined !text-[14px]">{showCodeInput ? 'close' : 'data_object'}</span> <span className="hidden sm:inline">{showCodeInput ? "HIDE CODE" : (t("add_code"))}</span>
+                        </button>
+                        <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="flex items-center justify-center sm:justify-start gap-1.5 w-9 h-9 sm:w-auto sm:h-8 sm:px-3 sm:py-0 rounded-full font-bold capitalize tracking-widest text-[9px] transition-all border bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                          <span className="material-symbols-outlined !text-[14px]">link</span> <span className="hidden sm:inline">{t("link_asset")}</span>
+                        </button>
+                      </div>
+                      <ActionButton type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} variant="accent" icon={t("icon_send")} label={t("btn_send")} className="!rounded-full !px-4 sm:!px-5 !h-8 !py-0 !text-[10px] !shadow-none shrink-0" />
+                    </div>
+                  </form>
+                ) : (
+                  <div className="text-center text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] p-6 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-6">
+                    {localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("login_required")}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-6 mt-4">
+                  {loading ? (
+                    <div className="text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] opacity-50 text-center py-10 animate-pulse">{t("loading_replies")}</div>
+                  ) : comments.filter(c => !c.is_hidden || isPostAuthor).length === 0 ? (
+                    <EmptyState icon={t("icon_forum")} title={t("no_replies")} className="col-span-full py-16" />
+                  ) : (
+                    buildCommentTree(comments).map(c => renderCommentNode(c))
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      </SidePanel>
+
+      {flagTarget && userId && (
+        <FlagContentSidePanel
+          isOpen={!!flagTarget}
+          onClose={() => setFlagTarget(null)}
+          targetId={flagTarget.id}
+          targetType={flagTarget.type}
+          userId={userId}
+        />
+      )}
+
+      <SidePanel
+        isOpen={isAssetPanelOpen}
+        onClose={() => setIsAssetPanelOpen(false)}
+        title={t("link_asset")}
+        icon="link"
+        backdropZ="z-[60000]"
+        panelZ="z-[60001]"
+      >
+        <div className="flex flex-col gap-6">
+          <div className="animate-in slide-in-from-top-2">
+            <div className="relative w-full">
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
+              <input
+                value={assetSearchQuery}
+                onChange={(e) => setAssetSearchQuery(e.target.value)}
+                placeholder={t("search_assets")}
+                className="w-full glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40 shadow-inner"
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported")} title={t("no_assets")} className="col-span-full py-16" />}
+            {filteredAssets.map(asset => (
+              <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl glass-surface hover:theme-border-accent transition-all flex items-center gap-4 group">
+                <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
+                <span className="text-sm font-black text-[var(--text)] capitalize tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </SidePanel>
+
+      {activeCodeSnippet && (
+        <CodeSnippetSidebar code={activeCodeSnippet} onClose={() => setActiveCodeSnippet(null)} />
+      )}
+    </>
+  );
+}
+
+
+
+
+
