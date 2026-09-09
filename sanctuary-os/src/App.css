@@ -539,18 +539,19 @@ body,
 .glass-panel::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -24px;
   border-radius: inherit;
   z-index: -2;
   pointer-events: none;
 
-  background-image: linear-gradient(rgba(var(--text-rgb, 255, 255, 255), 0.04), rgba(var(--text-rgb, 255, 255, 255), 0.04)), var(--glassBgImage);
-  background-attachment: fixed, fixed;
-  background-size: cover, cover;
-  background-position: center, center;
-  background-repeat: no-repeat, no-repeat;
-  filter: none !important;
+  background-image: var(--glassBgImage);
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: var(--glassFilter, blur(var(--glassBlur, 24px)) saturate(140%));
   opacity: 1;
+  transform: scale(1.01);
 }
 
 /* Layer 2: FROSTED NOISE TEXTURE (Kills the plastic wrap look) */
@@ -589,18 +590,37 @@ body,
 .glass-surface::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -24px;
   border-radius: inherit;
   z-index: -2;
   pointer-events: none;
 
-  background-image: linear-gradient(rgba(var(--text-rgb, 255, 255, 255), 0.02), rgba(var(--text-rgb, 255, 255, 255), 0.02)), var(--glassBgImage);
-  background-attachment: fixed, fixed;
-  background-size: cover, cover;
-  background-position: center, center;
-  background-repeat: no-repeat, no-repeat;
-  filter: none !important;
+  background-image: var(--glassBgImage);
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: var(--glassFilterSurface, blur(calc(var(--glassBlur, 24px) * 0.7)) saturate(120%));
   opacity: 1;
+  transform: scale(1.01);
+}
+
+/* 
+  CRITICAL GLITCH FIX: 
+  Chromium shrinks `background-attachment: fixed` to fit the parent container if that container 
+  creates a stacking context (via transform, opacity, animate-in, etc.).
+  Side panels and Modals slide in, so they create stacking contexts.
+  Therefore, any card inside a Side Panel or Modal CANNOT use Fake Blur.
+  We disable the Fake Blur layer for all nested cards. Since the outer modal/panel is already 
+  blurring the background, the inner cards just need to be transparent to look frosted!
+*/
+#sa-portals .glass-panel::before,
+#sa-portals .glass-surface::before,
+.glass-panel .glass-panel::before,
+.glass-panel .glass-surface::before,
+.glass-surface .glass-panel::before,
+.glass-surface .glass-surface::before {
+  display: none !important;
 }
 
 .glass-surface::after {

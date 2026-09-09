@@ -301,18 +301,22 @@ export const ThemeProvider = ({ children }: any) => {
 
     if (currentTheme.bgImage) {
       root.style.setProperty(`--bgGradient`, `url("${currentTheme.bgImage}")`);
-      
-      // SVG Pre-Blur: Bypasses the Chromium filter+fixed bug!
-      const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="32" /></filter><image href="${currentTheme.bgImage}" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" filter="url(#b)" /></svg>`;
-      const svgDataUri = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}")`;
-      
-      root.style.setProperty(`--glassBgImage`, svgDataUri);
+      root.style.setProperty(`--glassBgImage`, `url("${currentTheme.bgImage}")`);
+      root.style.setProperty(`--glassFilter`, `blur(var(--glassBlur, 24px)) saturate(140%)`);
+      root.style.setProperty(`--glassFilterSurface`, `blur(calc(var(--glassBlur, 24px) * 0.7)) saturate(120%)`);
     } else if (currentTheme.bgGradient && currentTheme.bgGradient !== 'transparent' && currentTheme.bgGradient !== 'none' && currentTheme.bgGradient !== currentTheme.bg) {
       root.style.setProperty(`--bgGradient`, currentTheme.bgGradient);
-      root.style.setProperty(`--glassBgImage`, currentTheme.bgGradient);
+      // For CSS gradients, Chromium breaks background-attachment: fixed. 
+      // But gradients are already smooth, so we don't need to blur them!
+      // We just use 'none' and let the native gradient shine through.
+      root.style.setProperty(`--glassBgImage`, `none`);
+      root.style.setProperty(`--glassFilter`, `none`);
+      root.style.setProperty(`--glassFilterSurface`, `none`);
     } else {
       root.style.setProperty(`--bgGradient`, `none`);
       root.style.setProperty(`--glassBgImage`, `none`);
+      root.style.setProperty(`--glassFilter`, `none`);
+      root.style.setProperty(`--glassFilterSurface`, `none`);
     }
 
     const bgHex = (currentTheme.bg || '#000000').replace('#', '');
