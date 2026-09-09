@@ -616,12 +616,24 @@ body,
 
 /* Mobile Performance Optimizations */
 @media (max-width: 1024px), (pointer: coarse) {
-  /* NATIVE BACKDROP-FILTER IS DEAD ON ANDROID CHROME
-     Chromium's layer isolation prevents `backdrop-filter` from reading the pixels of the `SystemBackground` 
-     because it sits outside the `overflow-x-hidden` scrolling container.
-     Instead of fighting the GPU, we allow mobile to inherit the Desktop's `::before` fake-blur 
-     and its brighter `linear-gradient` background.
+  /* THE ULTIMATE MOBILE GLASS COMPROMISE:
+     1. Native `backdrop-filter` fails completely on Android Chrome due to `overflow` layer isolation from the fixed background.
+     2. Desktop's fake blur (`::before` with `background-attachment: fixed`) causes massive scrolling/animation lag on mobile GPUs.
+     SOLUTION: 
+     We KILL the fake blur entirely to restore 60fps performance. 
+     Mobile will gracefully degrade to inheriting the Desktop's bright `linear-gradient` background, providing a beautiful semi-transparent overlay without the expensive blur shader.
   */
+
+  .glass-panel::before, .glass-surface::before {
+    display: none !important;
+  }
+  
+  .glass-panel::after, .glass-surface::after {
+    display: block !important;
+    mix-blend-mode: normal !important;
+    opacity: 0.05 !important; 
+    z-index: -1 !important;
+  }
 
   /* CRITICAL TEARING FIX:
      Concurrent transform animations causes severe tearing on Android.
