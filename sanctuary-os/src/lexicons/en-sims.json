@@ -86,5 +86,9 @@
   "landing_download_enterprise_footer": "BACKGROUND INSTALL",
   "landing_download_enterprise_desc": "Great for setting up lots of computers at once! Installs quietly in the background without any popups.",
   "legal_not_found": "Oops! We couldn't find the {doc} document.",
-  "legal_subtitle": "Sanctuary Foundry OS"
+  "legal_subtitle": "Sanctuary Foundry OS",
+  "tier_1_universal": "T1 - Everywhere",
+  "tier_2_overrides": "T2 - Bossy",
+  "tier_3_structural": "T3 - Building",
+  "tier_4_core": "T4 - Center"
 }

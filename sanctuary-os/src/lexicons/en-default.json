@@ -3064,5 +3064,9 @@
   "landing_download_enterprise_footer": "SILENT DEPLOY",
   "landing_download_enterprise_desc": "Designed for automated environments and mass deployment. Includes silent installation flags and registry provisioning.",
   "legal_not_found": "No {doc} document found.",
-  "legal_subtitle": "Sanctuary Foundry OS"
+  "legal_subtitle": "Sanctuary Foundry OS",
+  "tier_1_universal": "T1 - Universal",
+  "tier_2_overrides": "T2 - Overrides",
+  "tier_3_structural": "T3 - Structural",
+  "tier_4_core": "T4 - Core"
 }

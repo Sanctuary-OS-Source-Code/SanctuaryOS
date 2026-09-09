@@ -3079,5 +3079,9 @@
   "landing_download_enterprise_footer": "COVERT INJECTION",
   "landing_download_enterprise_desc": "Engineered for autonomous network-wide propagation. Equipped with silent execution parameters and automated registry assimilation.",
   "legal_not_found": "System records for {doc} are unavailable or corrupted.",
-  "legal_subtitle": "Sanctuary Foundry OS (Core System)"
+  "legal_subtitle": "Sanctuary Foundry OS (Core System)",
+  "tier_1_universal": "T1 - Global",
+  "tier_2_overrides": "T2 - Directives",
+  "tier_3_structural": "T3 - Architecture",
+  "tier_4_core": "T4 - Kernel"
 }

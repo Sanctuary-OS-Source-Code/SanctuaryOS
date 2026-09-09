@@ -2166,13 +2166,14 @@ export function EmptyState({ icon, title, subtitle, action, minHeightClass = "mi
 export const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
 
 export function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val: number) => void }) {
+  const { t } = useLexicon();
   return (
     <div className="w-full glass-panel rounded-[var(--radius)] relative">
       <select value={value} onChange={e => onChange(Number(e.target.value))} className="w-full px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] appearance-none bg-transparent cursor-pointer relative z-10">
-        <option value={1} className="bg-[var(--bg)] text-[var(--text)]">T1 - Universal</option>
-        <option value={2} className="bg-[var(--bg)] text-[var(--text)]">T2 - Overrides</option>
-        <option value={3} className="bg-[var(--bg)] text-[var(--text)]">T3 - Structural</option>
-        <option value={4} className="bg-[var(--bg)] text-[var(--text)]">T4 - Core</option>
+        <option value={1} className="bg-[var(--bg)] text-[var(--text)]">{t("tier_1_universal", "T1 - Universal")}</option>
+        <option value={2} className="bg-[var(--bg)] text-[var(--text)]">{t("tier_2_overrides", "T2 - Overrides")}</option>
+        <option value={3} className="bg-[var(--bg)] text-[var(--text)]">{t("tier_3_structural", "T3 - Structural")}</option>
+        <option value={4} className="bg-[var(--bg)] text-[var(--text)]">{t("tier_4_core", "T4 - Core")}</option>
       </select>
       <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 z-10">expand_more</span>
     </div>
