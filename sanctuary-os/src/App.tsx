@@ -1250,17 +1250,27 @@ function App() {
         let newRole = "citizen";
         try {
           const gameClient = getActiveGameClient();
-          const { data: gameData, error: gameError } = await gameClient
-            .from("profiles")
-            .select("role")
-            .eq("id", session.user.id)
-            .maybeSingle();
+          if (!gameClient) {
+            useStore.getState().pushStatus("getActiveGameClient returned null", "error");
+          } else {
+            const { data: gameData, error: gameError } = await gameClient
+              .from("profiles")
+              .select("role")
+              .eq("id", session.user.id)
+              .maybeSingle();
 
-          if (!gameError && gameData && gameData.role) {
-            newRole = gameData.role.toLowerCase();
+            if (gameError) {
+              useStore.getState().pushStatus("Game profile fetch error: " + gameError.message, "error");
+            } else if (gameData && gameData.role) {
+              newRole = gameData.role.toLowerCase();
+              useStore.getState().pushStatus("Fetched game role: " + newRole, "success");
+            } else {
+              useStore.getState().pushStatus("No profile or role found", "warning");
+            }
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error("Game profile fetch failed", e);
+          useStore.getState().pushStatus("Game profile fetch exception: " + e.message, "error");
         }
         setUserRole(newRole);
 

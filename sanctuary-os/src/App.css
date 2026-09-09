@@ -617,8 +617,11 @@ body,
 /* Mobile Performance Optimizations */
 @media (max-width: 1024px), (pointer: coarse) {
   /* THE BULLETPROOF MOBILE GLASS ARCHITECTURE
-     Android Chromium SILENTLY DROPS `backdrop-filter` if the element (or its parent) has `overflow: hidden` combined with `border-radius`.
-     We fix this by forcing `overflow: visible`, applying the blur directly, and using minifier-safe color variables.
+     1. Android Chromium SILENTLY DROPS `backdrop-filter` if the element is forced into a separate 3D composite layer.
+        We MUST REMOVE all `transform: translateZ(0)` and `backface-visibility: hidden`!
+     2. Android drops `backdrop-filter` if the element has `overflow: hidden` + `border-radius`.
+        We MUST force `overflow: visible`.
+     3. Vercel CSS Minifiers mangle complex functions, so we use minifier-safe variables.
   */
 
   .glass-panel {
@@ -630,12 +633,10 @@ body,
     -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
     
     /* 100% Minifier-Safe Fallbacks */
-    background-color: var(--glass-panel-bg, rgba(10, 15, 25, 0.25)) !important;
+    background-color: var(--glass-panel-bg, rgba(255, 255, 255, 0.08)) !important;
     background-image: none !important;
     
-    /* Force GPU composite boundary */
-    transform: translateZ(0);
-    backface-visibility: hidden;
+    /* DO NOT USE transform: translateZ(0) here! It breaks the blur on Android! */
   }
   
   .glass-surface {
@@ -644,11 +645,8 @@ body,
     backdrop-filter: blur(8px) saturate(140%) !important;
     -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
     
-    background-color: var(--glass-surface-bg, rgba(10, 15, 25, 0.15)) !important;
+    background-color: var(--glass-surface-bg, rgba(255, 255, 255, 0.04)) !important;
     background-image: none !important;
-    
-    transform: translateZ(0);
-    backface-visibility: hidden;
   }
 
   /* Kill the fake desktop blur entirely on mobile */
@@ -660,15 +658,16 @@ body,
   .glass-panel::after, .glass-surface::after {
     display: block !important;
     mix-blend-mode: normal !important;
-    opacity: 0.08 !important; 
+    opacity: 0.05 !important; 
     z-index: -1 !important;
   }
 
   /* CRITICAL TEARING FIX:
-     Gracefully degrade the entrance animations by forcing `transform: translateZ(0)`.
-     This kills the sliding/zooming, but perfectly preserves the `opacity` fade-in, eliminating all tearing! */
+     Concurrent transform animations + backdrop-filter causes severe tearing on Android.
+     We KILL the sliding/zooming by forcing `transform: none`, preserving only the `opacity` fade-in.
+     We DO NOT use `translateZ(0)` because it promotes to a 3D layer and breaks the blur shader! */
   .animate-in {
-    transform: translateZ(0) !important;
+    transform: none !important;
   }
 }
 
