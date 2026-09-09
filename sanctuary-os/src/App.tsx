@@ -1222,11 +1222,7 @@ function App() {
       console.error("Failed to fetch cloud lab queue", err);
     }
   }
-  const didInitBoot = useRef(false);
   useEffect(() => {
-    if (didInitBoot.current) return;
-    didInitBoot.current = true;
-
     async function fetchUserRole() {
       if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
       const {
@@ -1247,6 +1243,7 @@ function App() {
           }
         } catch (e) { console.error(e); }
 
+        let newRole = "citizen";
         if (!isGlobalDev) {
           try {
             const gameClient = getActiveGameClient();
@@ -1257,17 +1254,36 @@ function App() {
               .maybeSingle();
 
             if (!gameError && gameData && gameData.role) {
-              setUserRole(gameData.role.toLowerCase());
-            } else {
-              setUserRole("citizen");
+              newRole = gameData.role.toLowerCase();
             }
           } catch (e) {
             console.error("Game profile fetch failed", e);
-            setUserRole("citizen");
           }
+          setUserRole(newRole);
+        } else {
+          newRole = "admin";
+        }
+
+        const currentView = useStore.getState().view;
+        const elevatedHubs = ["MasonHub", "ArchitectHub", "Oversight", "WayfinderHub", "KeepersCore", "SADefcon"];
+        if (elevatedHubs.includes(currentView)) {
+          if (currentView === "MasonHub" && !["mason", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
+          else if (currentView === "ArchitectHub" && !["architect", "oversight", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
+          else if (currentView === "Oversight" && !["oversight", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
+          else if (currentView === "WayfinderHub" && !["wayfinder", "admin"].includes(newRole)) setView("dashboard");
+          else if (currentView === "KeepersCore" && !["core_dev", "admin", "keeper"].includes(newRole)) setView("dashboard");
+          else if (currentView === "SADefcon" && !["admin"].includes(newRole)) setView("dashboard");
         }
       }
     }
+    fetchUserRole();
+  }, [activeWorkspaceId, session]);
+
+  const didInitBoot = useRef(false);
+  useEffect(() => {
+    if (didInitBoot.current) return;
+    didInitBoot.current = true;
+
     const handleOnlineRoleFetch = () => {
       if (localStorage.getItem("sanctuary_local_only") !== "true") {
         window.location.reload();
@@ -1315,7 +1331,7 @@ function App() {
         setStatus(t("status_boot_failure"));
       }
     }
-    fetchUserRole();
+    
     boot();
     return () => { window.removeEventListener('online', handleOnlineRoleFetch); };
   }, []);

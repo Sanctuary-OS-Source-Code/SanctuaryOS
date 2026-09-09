@@ -616,62 +616,61 @@ body,
 
 /* Mobile Performance Optimizations */
 @media (max-width: 1024px), (pointer: coarse) {
-  /* Restore animate-in for mobile since we are abandoning backdrop-filter entirely */
-  
+  /* THE FINAL MOBILE GLASS FIX
+     1. We abandon the 'fake blur' (::before) layer on mobile because 'background-attachment: fixed' 
+        causes massive lag, and 'scroll' causes the wallpaper to squish.
+     2. We restore true native 'backdrop-filter' to the panels.
+     3. We fix the invisible fallback bug by using modern `rgb(R G B / A)` syntax, as the variables are space-separated.
+     4. We fix the Android tearing bug by gracefully degrading the entrance animations (removing transform).
+  */
+
   .glass-panel {
-    /* BULLETPROOF MOBILE FALLBACK (Premium Acrylic)
-       We completely abandon backdrop-filter and fixed backgrounds because Android/iOS WebKit 
-       frequently drop the shaders during animations or throttle them in battery saver mode.
-       Instead, we simulate volumetric frosted glass using complex gradients, bevels, and noise. */
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    /* True native glass refraction, scaled slightly for mobile GPU performance */
+    backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.6)) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.6)) saturate(140%) !important;
     
-    /* 1. Base Tint: 60% of theme background. Guarantees perfect text contrast while remaining translucent. */
-    background-color: rgba(var(--bg-rgb, 10, 15, 25), 0.6) !important;
+    /* Fallback background if battery saver drops the shader. 
+       Using modern CSS syntax because var(--bg-rgb) is space-separated (e.g. 10 15 25).
+       40% opacity ensures the card is still legible but allows wallpaper to show through. */
+    background-color: rgb(var(--bg-rgb, 10 15 25) / 0.4) !important;
     
-    /* 2. Volumetric Lighting: Top-left specular highlight + Bottom-right ambient accent glow */
-    background-image: 
-      linear-gradient(135deg, rgba(var(--panelTint-rgb, 255, 255, 255), 0.25) 0%, transparent 50%),
-      radial-gradient(circle at 100% 100%, rgba(var(--accent-rgb, 100, 100, 255), 0.15) 0%, transparent 60%) !important;
-    
-    /* 3. Physical 3D Bevel: Strong drop shadow + bright top/left inner shimmer */
-    box-shadow: 
-      0 12px 32px -12px rgba(0, 0, 0, 0.4), 
-      inset 0 1px 2px rgba(var(--panelTint-rgb, 255, 255, 255), 0.4),
-      inset 1px 0 1px rgba(var(--panelTint-rgb, 255, 255, 255), 0.15) !important;
-      
-    border: 1px solid rgba(var(--text-rgb, 255, 255, 255), 0.12) !important;
-    transform: translateZ(0) !important; /* Hardware accelerate */
+    /* Force GPU composite boundary */
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
   
   .glass-surface {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.4)) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.4)) saturate(140%) !important;
     
-    /* Surface is more transparent (40%) and has softer lighting */
-    background-color: rgba(var(--bg-rgb, 10, 15, 25), 0.4) !important;
-    background-image: 
-      linear-gradient(135deg, rgba(var(--panelTint-rgb, 255, 255, 255), 0.15) 0%, transparent 40%) !important;
-      
-    box-shadow: 
-      0 4px 16px -4px rgba(0, 0, 0, 0.2), 
-      inset 0 1px 1px rgba(var(--panelTint-rgb, 255, 255, 255), 0.2) !important;
-      
-    border: 1px solid rgba(var(--text-rgb, 255, 255, 255), 0.08) !important;
-    transform: translateZ(0) !important;
+    background-color: rgb(var(--bg-rgb, 10 15 25) / 0.2) !important;
+    
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
-  
-  /* CRITICAL: Kill the fake desktop blur. It causes catastrophic scrolling lag on mobile. */
+
+  /* Kill the fake desktop blur entirely on mobile */
   .glass-panel::before, .glass-surface::before {
     display: none !important;
   }
   
-  /* CRITICAL: Boost the noise texture. Without blur, heavy noise is what tricks the brain into seeing physical frosted material. */
+  /* Render the noise texture */
   .glass-panel::after, .glass-surface::after {
     display: block !important;
-    opacity: 0.25 !important; 
-    mix-blend-mode: overlay;
+    /* CRITICAL FIX: Disable mix-blend-mode on mobile! 
+       Blending over a blur shader forces the Android GPU to read pixels back from VRAM, causing stalls. */
+    mix-blend-mode: normal !important;
+    opacity: 0.08 !important; 
     z-index: -1 !important;
+  }
+
+  /* CRITICAL TEARING FIX:
+     Android Chromium physically tears/glitches when you animate `transform` (sliding/zooming) 
+     on a container that has `backdrop-filter` children.
+     By forcing `transform: translateZ(0)`, we kill the sliding/zooming, but preserve the `opacity` fade-in!
+     This graceful degradation gives you a beautiful fade-in entrance with ZERO tearing. */
+  .animate-in {
+    transform: translateZ(0) !important;
   }
 }
 
