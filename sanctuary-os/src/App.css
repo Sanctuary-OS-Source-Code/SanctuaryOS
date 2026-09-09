@@ -616,61 +616,22 @@ body,
 
 /* Mobile Performance Optimizations */
 @media (max-width: 1024px), (pointer: coarse) {
-  /* THE BULLETPROOF MOBILE GLASS ARCHITECTURE
-     1. Android Chromium SILENTLY DROPS `backdrop-filter` if the element is forced into a separate 3D composite layer.
-        We MUST REMOVE all `transform: translateZ(0)` and `backface-visibility: hidden`!
-     2. Android drops `backdrop-filter` if the element has `overflow: hidden` + `border-radius`.
-        We MUST force `overflow: visible`.
-     3. Vercel CSS Minifiers mangle complex functions, so we use minifier-safe variables.
+  /* NATIVE BACKDROP-FILTER IS DEAD ON ANDROID CHROME
+     Chromium's layer isolation prevents `backdrop-filter` from reading the pixels of the `SystemBackground` 
+     because it sits outside the `overflow-x-hidden` scrolling container.
+     Instead of fighting the GPU, we allow mobile to inherit the Desktop's `::before` fake-blur 
+     and its brighter `linear-gradient` background.
   */
 
-  .glass-panel {
-    /* Force overflow visible to prevent Android GPU shader cull */
-    overflow: visible !important;
-    
-    /* Apply native blur directly to the element */
-    backdrop-filter: blur(12px) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
-    
-    /* 100% Minifier-Safe Fallbacks */
-    background-color: var(--glass-panel-bg, rgba(255, 255, 255, 0.08)) !important;
-    background-image: none !important;
-    
-    /* DEBUG TEST: If you don't see this, your phone is caching the CSS! */
-    border: 5px solid red !important;
-  }
-  
-  .glass-surface {
-    overflow: visible !important;
-    
-    backdrop-filter: blur(8px) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
-    
-    background-color: var(--glass-surface-bg, rgba(255, 255, 255, 0.04)) !important;
-    background-image: none !important;
-  }
-
-  /* Kill the fake desktop blur entirely on mobile */
-  .glass-panel::before, .glass-surface::before {
-    display: none !important;
-  }
-  
-  /* Render the noise texture with standard blending to prevent GPU stalls */
-  .glass-panel::after, .glass-surface::after {
-    display: block !important;
-    mix-blend-mode: normal !important;
-    opacity: 0.05 !important; 
-    z-index: -1 !important;
-  }
-
   /* CRITICAL TEARING FIX:
-     Concurrent transform animations + backdrop-filter causes severe tearing on Android.
-     We KILL the sliding/zooming by forcing `transform: none`, preserving only the `opacity` fade-in.
-     We DO NOT use `translateZ(0)` because it promotes to a 3D layer and breaks the blur shader! */
+     Concurrent transform animations causes severe tearing on Android.
+     We KILL the sliding/zooming by forcing `transform: none`, preserving only the `opacity` fade-in. */
   .animate-in {
     transform: none !important;
   }
 }
+
+
 
 .glass-panel.sanctuary-glass-intense::before {
   filter: blur(calc(var(--glassBlur, 24px) * 2)) saturate(180%);
