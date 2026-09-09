@@ -372,11 +372,16 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex h-[100dvh] w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" style={{ background: 'var(--bgGradient)', color: 'var(--text)' }}>
-      <div className="absolute inset-0 rounded-[inherit] z-0 bg-[url('/bg_workspace.png')] bg-cover bg-center bg-no-repeat opacity-40 mix-blend-screen animate-in fade-in transition-opacity duration-1000" />
-      <div className="absolute inset-0 rounded-[inherit] z-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--bg)_80%,transparent)] to-[var(--bg)] pointer-events-none" />
-
-      <div className={`relative z-10 w-[90%] ${(!isLogin && !isResetPassword) ? 'max-w-5xl' : 'max-w-lg'} glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col backdrop-blur-3xl group transition-all duration-500 overflow-hidden max-h-[95dvh]`}>
+    <div className="flex h-[100dvh] w-screen items-center justify-center font-sans relative overflow-hidden transition-colors duration-1000" 
+         style={{ 
+           backgroundImage: 'var(--bgGradient)', 
+           backgroundSize: 'cover',
+           backgroundPosition: 'center',
+           backgroundRepeat: 'no-repeat',
+           backgroundAttachment: 'fixed',
+           color: 'var(--text)' 
+         }}>
+      <div className={`relative z-10 w-[90%] ${(!isLogin && !isResetPassword) ? 'max-w-5xl' : 'max-w-lg'} glass-panel [&::after]:hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col group transition-all duration-500 overflow-hidden max-h-[95dvh]`}>
         <div className={`flex w-full h-full ${(!isLogin && !isResetPassword) ? 'flex-col md:flex-row' : 'flex-col'} overflow-y-auto overflow-x-hidden custom-scrollbar`}>
           <div className={`flex flex-col w-full ${(!isLogin && !isResetPassword) ? 'md:w-1/2 p-8 md:p-14 border-b md:border-b-0 md:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]' : 'p-8 md:p-14'} shrink-0 relative z-20`}>
             <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent opacity-50" />

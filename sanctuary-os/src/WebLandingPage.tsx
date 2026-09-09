@@ -162,7 +162,27 @@ export default function WebLandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
 
-              <a href={`https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${packageJson.version}/Sanctuary.OS_${packageJson.version}_x64-setup.exe`} className="block group">
+              <div className="col-span-full md:hidden flex flex-col">
+                <UniversalCard
+                  layout="vertical"
+                  icon="desktop_windows"
+                  title={<span className="text-[var(--text)]">{t("landing_desktop_only_title") || "Desktop Application"}</span>}
+                  subtitle={<span className="text-[10px] font-mono tracking-widest text-[var(--text)]">{t("landing_desktop_only_footer") || "UNSUPPORTED DEVICE"}</span>}
+                  className="h-full bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
+                  footer={
+                    <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--text)] opacity-80 uppercase tracking-widest">
+                      <span></span>
+                      <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">warning</span> {t("landing_desktop_only_footer") || "UNSUPPORTED DEVICE"}</span>
+                    </div>
+                  }
+                >
+                  <p className="text-[11px] text-[var(--text)] leading-relaxed mt-2 opacity-80">
+                    {t("landing_desktop_only_desc") || "Sanctuary OS is a native desktop client. Please visit this page on a PC or Mac to install the application."}
+                  </p>
+                </UniversalCard>
+              </div>
+
+              <a href={`https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${packageJson.version}/Sanctuary.OS_${packageJson.version}_x64-setup.exe`} className="hidden md:block group">
                 <UniversalCard
                   layout="vertical"
                   icon="rocket_launch"
@@ -182,7 +202,7 @@ export default function WebLandingPage() {
                 </UniversalCard>
               </a>
 
-              <a href={`https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${packageJson.version}/Sanctuary.OS_${packageJson.version}_x64_en-US.msi`} className="block group">
+              <a href={`https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${packageJson.version}/Sanctuary.OS_${packageJson.version}_x64_en-US.msi`} className="hidden md:block group">
                 <UniversalCard
                   layout="vertical"
                   icon="api"

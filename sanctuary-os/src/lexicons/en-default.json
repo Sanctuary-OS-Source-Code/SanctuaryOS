@@ -3068,5 +3068,8 @@
   "tier_1_universal": "T1 - Universal",
   "tier_2_overrides": "T2 - Overrides",
   "tier_3_structural": "T3 - Structural",
-  "tier_4_core": "T4 - Core"
+  "tier_4_core": "T4 - Core",
+  "landing_desktop_only_title": "Desktop Application",
+  "landing_desktop_only_desc": "Sanctuary OS is a native desktop client. Please visit this page on a PC or Mac to install the application.",
+  "landing_desktop_only_footer": "UNSUPPORTED DEVICE"
 }
