@@ -627,9 +627,10 @@ body,
   }
 
   .glass-panel {
-    /* Use REAL native backdrop-filter! No lag, no squished images, no flat colors. */
-    backdrop-filter: blur(var(--glassBlur, 24px)) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(var(--glassBlur, 24px)) saturate(140%) !important;
+    /* Use REAL native backdrop-filter! No squished images, no flat colors.
+       CRITICAL: Scale down the desktop blur by 65% (x0.35) to prevent massive GPU scrolling lag on mobile. */
+    backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.35)) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.35)) saturate(140%) !important;
     
     background-color: transparent !important;
     background-image: linear-gradient(135deg, 
@@ -642,8 +643,8 @@ body,
   }
   
   .glass-surface {
-    backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.7)) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.7)) saturate(140%) !important;
+    backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.25)) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.25)) saturate(140%) !important;
     
     background-color: transparent !important;
     background-image: linear-gradient(135deg, 
