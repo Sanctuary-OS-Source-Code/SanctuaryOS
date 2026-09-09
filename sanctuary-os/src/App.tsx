@@ -110,7 +110,7 @@ function App() {
   const insertingHashes = useRef<Set<string>>(new Set());
   const { t } = useLexicon();
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
-  const workspacesLength = useStore((state) => state.workspaces?.length || 0);
+  const isGameDatabasesSynced = useStore((state) => state.isGameDatabasesSynced);
   const detectGameVersion = useStore((state) => state.detectGameVersion);
   const { fetchBackups, restoreGameBackup, deleteBackup, triggerFullEngineBackup, triggerPrePatchSnapshot } = useBackupLogic(() => detectGameVersion());
   const [subtitleIndex, setSubtitleIndex] = useState(Math.floor(Math.random() * 12) + 1);
@@ -1227,10 +1227,13 @@ function App() {
   }
   useEffect(() => {
     async function fetchUserRole() {
+      useStore.getState().pushStatus("fetchUserRole triggered", "info");
+      if (!isGameDatabasesSynced) {
+        useStore.getState().pushStatus("Waiting for DB sync...", "warning");
+        return;
+      }
       if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (session?.user) {
         let currentOsRole = "citizen";
         try {
@@ -1244,7 +1247,7 @@ function App() {
             currentOsRole = osData.role.toLowerCase();
           }
         } catch (e) { console.error(e); }
-        
+
         setOsRole(currentOsRole);
 
         let newRole = "citizen";
@@ -1287,7 +1290,7 @@ function App() {
       }
     }
     fetchUserRole();
-  }, [activeWorkspaceId, session, workspacesLength]);
+  }, [activeWorkspaceId, session, isGameDatabasesSynced]);
 
   const didInitBoot = useRef(false);
   useEffect(() => {
@@ -1341,7 +1344,7 @@ function App() {
         setStatus(t("status_boot_failure"));
       }
     }
-    
+
     boot();
     return () => { window.removeEventListener('online', handleOnlineRoleFetch); };
   }, []);
@@ -2098,7 +2101,7 @@ function App() {
         }
       }
       if (!modId) {
-        const cleanMod = (mod.name || "").replace(/_/g, " ").replace(/(\.| |-)*(\(|\[)?(package|ts4scripts?|scripts?|zip)(\)|\])?/gi, "").trim();
+        const cleanMod = (mod.name || "").split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
         const { data: modsInDb } = await supabase
           .from("mods")
           .select("id, file_extension")

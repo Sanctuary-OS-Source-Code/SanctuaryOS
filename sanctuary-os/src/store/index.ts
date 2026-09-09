@@ -241,6 +241,7 @@ interface GlobalState {
   hydrateWorkspaceState: (wsId: string) => void;
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (isOpen: boolean) => void;
+  isGameDatabasesSynced: boolean;
 }
 
 export const useStore = create<GlobalState>((set) => ({
@@ -248,6 +249,7 @@ export const useStore = create<GlobalState>((set) => ({
   setActiveGameSchema: (activeGameSchema) => set({ activeGameSchema }),
   isMobileMenuOpen: false,
   setIsMobileMenuOpen: (isMobileMenuOpen) => set({ isMobileMenuOpen }),
+  isGameDatabasesSynced: false,
   hydrateWorkspaceState: (wsId) => {
     set({
       ideOpenFiles: loadIdeOpenFiles(wsId),
@@ -587,6 +589,7 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default_schem
 export const syncGameDatabases = async () => {
   try {
     if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") {
+       useStore.setState({ isGameDatabasesSynced: true });
        return; // Rely on existing local workspaces/fallback config
     }
     const { supabaseAuth } = await import('../supabase');
@@ -623,9 +626,12 @@ export const syncGameDatabases = async () => {
           vault_path: existing?.vault_path
         };
       });
-      useStore.setState({ workspaces: liveWorkspaces });
+      useStore.setState({ workspaces: liveWorkspaces, isGameDatabasesSynced: true });
+    } else {
+        useStore.setState({ isGameDatabasesSynced: true });
     }
   } catch (err) {
     console.error("Failed to sync core game databases", err);
+    useStore.setState({ isGameDatabasesSynced: true });
   }
 };

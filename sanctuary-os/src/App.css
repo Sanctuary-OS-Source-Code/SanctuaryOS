@@ -636,7 +636,8 @@ body,
     background-color: var(--glass-panel-bg, rgba(255, 255, 255, 0.08)) !important;
     background-image: none !important;
     
-    /* DO NOT USE transform: translateZ(0) here! It breaks the blur on Android! */
+    /* DEBUG TEST: If you don't see this, your phone is caching the CSS! */
+    border: 5px solid red !important;
   }
   
   .glass-surface {
