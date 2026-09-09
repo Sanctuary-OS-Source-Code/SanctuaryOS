@@ -619,10 +619,27 @@ body,
   /* THE ULTIMATE MOBILE GLASS COMPROMISE:
      1. Native `backdrop-filter` fails completely on Android Chrome due to `overflow` layer isolation from the fixed background.
      2. Desktop's fake blur (`::before` with `background-attachment: fixed`) causes massive scrolling/animation lag on mobile GPUs.
+     3. The theme's native `var(--glass-panel-bg)` is often completely transparent (e.g. 35% black) on dark backgrounds without blur.
+     
      SOLUTION: 
      We KILL the fake blur entirely to restore 60fps performance. 
-     Mobile will gracefully degrade to inheriting the Desktop's bright `linear-gradient` background, providing a beautiful semi-transparent overlay without the expensive blur shader.
+     We force a guaranteed-visible translucent background and border based on `--text-rgb`, 
+     providing a beautiful glass-like overlay without the expensive blur shader.
   */
+
+  .glass-panel {
+    background: rgba(var(--text-rgb, 255, 255, 255), 0.05) !important;
+    border: 1px solid rgba(var(--text-rgb, 255, 255, 255), 0.1) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .glass-surface {
+    background: rgba(var(--text-rgb, 255, 255, 255), 0.03) !important;
+    border: 1px solid rgba(var(--text-rgb, 255, 255, 255), 0.05) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 
   .glass-panel::before, .glass-surface::before {
     display: none !important;

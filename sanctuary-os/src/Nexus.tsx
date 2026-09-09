@@ -682,11 +682,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         }
       }
 
-      const payload = {
+      const payload: any = {
         asset_type: marketTab === 'CHAMELEONS' ? 'chameleon' : marketTab === 'TEMPLATES' ? 'workbench_template' : 'lexicon',
         name: uploadState.name,
         version: uploadState.version,
         author: session?.user?.user_metadata?.username || 'Citizen',
+        author_id: session?.user?.id,
         description: uploadState.description,
         release_notes: uploadState.releaseNotes,
         json_data: finalContent,
@@ -724,6 +725,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         const { error } = await supabase.from('blueprint_reports').insert([{
           blueprint_id: reportState.assetId,
           reporter_name: session?.user?.user_metadata?.username || 'Anonymous',
+          reporter_id: session?.user?.id,
           reason: reportState.reason.trim(),
           status: 'pending'
         }]);
@@ -732,6 +734,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         const { error } = await supabase.from('nexus_reports').insert([{
           asset_id: reportState.assetId,
           reporter_name: session?.user?.user_metadata?.username || 'Anonymous',
+          reporter_id: session?.user?.id,
           reason: reportState.reason.trim(),
           status: 'pending'
         }]);

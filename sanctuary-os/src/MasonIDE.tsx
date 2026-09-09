@@ -227,7 +227,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             .from('nexus_assets')
             .select('id')
             .eq('name', uploadState.name)
-            .eq('author', authorName)
+            .or(`author_id.eq.${session?.user?.id},author.ilike.${authorName}`)
             .eq('asset_type', uploadState.assetType)
             .maybeSingle();
 
@@ -235,7 +235,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             const { error } = await supabase.from('nexus_assets').update({ ...payload }).eq('id', existing.id);
             if (error) throw error;
          } else {
-            const { error } = await supabase.from('nexus_assets').insert([{ ...payload, author: authorName, downloads: 0 }]);
+            const { error } = await supabase.from('nexus_assets').insert([{ ...payload, author: authorName, author_id: session?.user?.id, downloads: 0 }]);
             if (error) throw error;
          }
 

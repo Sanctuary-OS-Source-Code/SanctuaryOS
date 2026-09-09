@@ -21,6 +21,7 @@ import { logArchitectAction } from "./lib/audit";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 export function MasonNexus({ masonProfile }: { masonProfile: any }) {
   const { t } = useLexicon();
+  const session = useStore((state) => state.session);
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
@@ -51,7 +52,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
 
   const fetchAssets = async () => {
     setLoading(true);
-    const { data } = await supabase.from('nexus_assets').select('*').ilike('author', masonProfile.name).order('created_at', { ascending: false });
+    const { data } = await supabase.from('nexus_assets').select('*').or(`author_id.eq.${masonProfile.id},author.ilike.${masonProfile.name}`).order('created_at', { ascending: false });
     if (data) {
       setAssets(data);
       const dbLangs = data?.map(d => d.language).filter(Boolean) || [];
@@ -117,7 +118,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
         setUploadState(s => ({ ...s, isOpen: false }));
         fetchAssets();
       } else {
-        const { error } = await supabase.from('nexus_assets').insert([{ ...payload, author: masonProfile.name, downloads: 0 }]);
+        const { error } = await supabase.from('nexus_assets').insert([{ ...payload, author: masonProfile.name, author_id: session?.user?.id || masonProfile.id, downloads: 0 }]);
         if (error) throw error;
         useStore.getState().pushStatus(`Asset published successfully.`, "success");
         setUploadState(s => ({ ...s, isOpen: false }));
