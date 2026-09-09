@@ -616,59 +616,66 @@ body,
 
 /* Mobile Performance Optimizations */
 @media (max-width: 1024px), (pointer: coarse) {
-  /* THE FINAL MOBILE GLASS FIX
-     1. We abandon the 'fake blur' (::before) layer on mobile because 'background-attachment: fixed' 
-        causes massive lag, and 'scroll' causes the wallpaper to squish.
-     2. We restore true native 'backdrop-filter' to the panels.
-     3. We fix the invisible fallback bug by using modern `rgb(R G B / A)` syntax, as the variables are space-separated.
-     4. We fix the Android tearing bug by gracefully degrading the entrance animations (removing transform).
+  /* THE ULTIMATE MOBILE GLASS ARCHITECTURE
+     1. Chromium Android drops `backdrop-filter` entirely if applied directly to an element with `border-radius` and `overflow: hidden`.
+        We MUST isolate the shader to the `::before` pseudo-element to guarantee it renders.
+     2. CSS variables for colors (e.g. var(--bg-rgb)) are comma-separated. We MUST use `rgba(var(), opacity)`.
+     3. Tearing is prevented by disabling `mix-blend-mode` on the noise layer and forcing `.animate-in` to only animate opacity.
   */
 
-  .glass-panel {
-    /* True native glass refraction, scaled slightly for mobile GPU performance */
-    backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.6)) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.6)) saturate(140%) !important;
+  .glass-panel, .glass-surface {
+    /* Do NOT apply blur to the main element, it will drop/tear on Android! */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     
-    /* Fallback background if battery saver drops the shader. 
-       Using modern CSS syntax because var(--bg-rgb) is space-separated (e.g. 10 15 25).
-       40% opacity ensures the card is still legible but allows wallpaper to show through. */
-    background-color: rgb(var(--bg-rgb, 10 15 25) / 0.4) !important;
+    /* Subtle base tint using VALID comma-separated syntax */
+    background-color: rgba(var(--bg-rgb, 10, 15, 25), 0.2) !important;
+    background-image: none !important;
     
     /* Force GPU composite boundary */
     transform: translateZ(0);
     backface-visibility: hidden;
   }
-  
-  .glass-surface {
-    backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.4)) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.4)) saturate(140%) !important;
+
+  /* Isolate the true native blur to the ::before pseudo-element */
+  .glass-panel::before {
+    display: block !important;
+    background-image: linear-gradient(135deg, rgba(var(--panelTint-rgb, 255, 255, 255), 0.15) 0%, rgba(var(--panelTint-rgb, 255, 255, 255), 0.05) 100%) !important;
+    background-attachment: scroll !important;
     
-    background-color: rgb(var(--bg-rgb, 10 15 25) / 0.2) !important;
+    /* Scaled blur radius for smooth mobile scrolling */
+    backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.5)) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.5)) saturate(140%) !important;
     
     transform: translateZ(0);
-    backface-visibility: hidden;
-  }
-
-  /* Kill the fake desktop blur entirely on mobile */
-  .glass-panel::before, .glass-surface::before {
-    display: none !important;
+    will-change: transform;
+    background-size: auto !important;
   }
   
-  /* Render the noise texture */
+  .glass-surface::before {
+    display: block !important;
+    background-image: linear-gradient(135deg, rgba(var(--panelTint-rgb, 255, 255, 255), 0.08) 0%, rgba(var(--panelTint-rgb, 255, 255, 255), 0.02) 100%) !important;
+    background-attachment: scroll !important;
+    
+    backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.3)) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(calc(var(--glassBlur, 24px) * 0.3)) saturate(140%) !important;
+    
+    transform: translateZ(0);
+    will-change: transform;
+    background-size: auto !important;
+  }
+  
+  /* Render the noise texture with standard blending to prevent GPU stalls */
   .glass-panel::after, .glass-surface::after {
     display: block !important;
-    /* CRITICAL FIX: Disable mix-blend-mode on mobile! 
-       Blending over a blur shader forces the Android GPU to read pixels back from VRAM, causing stalls. */
     mix-blend-mode: normal !important;
     opacity: 0.08 !important; 
     z-index: -1 !important;
   }
 
   /* CRITICAL TEARING FIX:
-     Android Chromium physically tears/glitches when you animate `transform` (sliding/zooming) 
-     on a container that has `backdrop-filter` children.
-     By forcing `transform: translateZ(0)`, we kill the sliding/zooming, but preserve the `opacity` fade-in!
-     This graceful degradation gives you a beautiful fade-in entrance with ZERO tearing. */
+     Gracefully degrade the entrance animations by forcing `transform: translateZ(0)`.
+     This kills the sliding/zooming, but perfectly preserves the `opacity` fade-in, eliminating all tearing! */
   .animate-in {
     transform: translateZ(0) !important;
   }
