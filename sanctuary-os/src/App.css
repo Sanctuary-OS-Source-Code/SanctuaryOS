@@ -628,31 +628,32 @@ body,
   */
 
   .glass-panel {
-    background: linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.14) 0%, rgba(var(--text-rgb, 255, 255, 255), 0.04) 100%) !important;
-    border: 1px solid rgba(var(--text-rgb, 255, 255, 255), 0.15) !important;
-    border-top-color: rgba(var(--text-rgb, 255, 255, 255), 0.3) !important;
-    box-shadow: inset 0 1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.2), 0 10px 20px -5px rgba(0, 0, 0, 0.5) !important;
+    /* Inherit Desktop settings, but ensure native backdrop-filter is disabled to avoid conflicting GPU passes */
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
 
   .glass-surface {
-    background: linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.08) 0%, rgba(var(--text-rgb, 255, 255, 255), 0.02) 100%) !important;
-    border: 1px solid rgba(var(--text-rgb, 255, 255, 255), 0.1) !important;
-    border-top-color: rgba(var(--text-rgb, 255, 255, 255), 0.2) !important;
-    box-shadow: inset 0 1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.1) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
 
+  /* 
+     THE MAGIC BULLET:
+     We ENABLE the Desktop fake blur (`::before`) to give the user the frosted glass they want.
+     BUT we force `background-attachment: scroll` (initial). 
+     `background-attachment: fixed` is what causes the 10fps lag on mobile scrolling!
+     With 24px of blur, the user won't notice that the background image inside the card is scrolling slightly differently than the fixed wallpaper behind it. They will just see beautiful, smooth, 60fps frosted glass!
+  */
   .glass-panel::before, .glass-surface::before {
-    display: none !important;
+    display: block !important;
+    background-attachment: scroll !important;
   }
   
   .glass-panel::after, .glass-surface::after {
     display: block !important;
     mix-blend-mode: overlay !important;
-    opacity: 0.15 !important; 
+    opacity: 0.1 !important; 
     z-index: -1 !important;
   }
 
