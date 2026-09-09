@@ -110,6 +110,7 @@ function App() {
   const insertingHashes = useRef<Set<string>>(new Set());
   const { t } = useLexicon();
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const workspacesLength = useStore((state) => state.workspaces?.length || 0);
   const detectGameVersion = useStore((state) => state.detectGameVersion);
   const { fetchBackups, restoreGameBackup, deleteBackup, triggerFullEngineBackup, triggerPrePatchSnapshot } = useBackupLogic(() => detectGameVersion());
   const [subtitleIndex, setSubtitleIndex] = useState(Math.floor(Math.random() * 12) + 1);
@@ -1276,7 +1277,7 @@ function App() {
       }
     }
     fetchUserRole();
-  }, [activeWorkspaceId, session]);
+  }, [activeWorkspaceId, session, workspacesLength]);
 
   const didInitBoot = useRef(false);
   useEffect(() => {

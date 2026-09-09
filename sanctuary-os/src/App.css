@@ -617,19 +617,20 @@ body,
 /* Mobile Performance Optimizations */
 @media (max-width: 1024px), (pointer: coarse) {
   /* THE BULLETPROOF MOBILE GLASS ARCHITECTURE
-     1. Vercel CSS Minifiers mangle complex functions like `rgba(var(--x, 1, 2), 0.2)` and `blur(calc(...))`.
-        We MUST use pre-computed variables (`--glass-panel-bg`) and hardcoded values to survive the build pipeline!
-     2. Chromium Android drops `backdrop-filter` if applied to rounded overflow containers.
-        We isolate the shader to `::before`.
+     Android Chromium SILENTLY DROPS `backdrop-filter` if the element (or its parent) has `overflow: hidden` combined with `border-radius`.
+     We fix this by forcing `overflow: visible`, applying the blur directly, and using minifier-safe color variables.
   */
 
-  .glass-panel, .glass-surface {
-    /* Do NOT apply blur to the main element, it will drop/tear on Android! */
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+  .glass-panel {
+    /* Force overflow visible to prevent Android GPU shader cull */
+    overflow: visible !important;
+    
+    /* Apply native blur directly to the element */
+    backdrop-filter: blur(12px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
     
     /* 100% Minifier-Safe Fallbacks */
-    background-color: var(--glass-panel-bg, rgba(10, 15, 25, 0.2)) !important;
+    background-color: var(--glass-panel-bg, rgba(10, 15, 25, 0.25)) !important;
     background-image: none !important;
     
     /* Force GPU composite boundary */
@@ -638,35 +639,21 @@ body,
   }
   
   .glass-surface {
-    background-color: var(--glass-surface-bg, rgba(10, 15, 25, 0.1)) !important;
-  }
-
-  /* Isolate the true native blur to the ::before pseudo-element */
-  .glass-panel::before {
-    display: block !important;
-    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
-    background-attachment: scroll !important;
-    
-    /* Hardcoded blur value prevents CSS minifier `calc()` bugs on production */
-    backdrop-filter: blur(12px) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
-    
-    transform: translateZ(0);
-    will-change: transform;
-    background-size: auto !important;
-  }
-  
-  .glass-surface::before {
-    display: block !important;
-    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
-    background-attachment: scroll !important;
+    overflow: visible !important;
     
     backdrop-filter: blur(8px) saturate(140%) !important;
     -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
     
+    background-color: var(--glass-surface-bg, rgba(10, 15, 25, 0.15)) !important;
+    background-image: none !important;
+    
     transform: translateZ(0);
-    will-change: transform;
-    background-size: auto !important;
+    backface-visibility: hidden;
+  }
+
+  /* Kill the fake desktop blur entirely on mobile */
+  .glass-panel::before, .glass-surface::before {
+    display: none !important;
   }
   
   /* Render the noise texture with standard blending to prevent GPU stalls */
