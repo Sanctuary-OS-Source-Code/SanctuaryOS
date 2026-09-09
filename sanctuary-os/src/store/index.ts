@@ -131,6 +131,8 @@ interface GlobalState {
   clearStatusLog: () => void;
   userRole: string;
   setUserRole: (role: string) => void;
+  osRole: string;
+  setOsRole: (role: string) => void;
   session: any | null;
   setSession: (session: any | null) => void;
   isConfigured: boolean;
@@ -335,6 +337,8 @@ export const useStore = create<GlobalState>((set) => ({
   clearStatusLog: () => set({ statusLog: [] }),
   userRole: 'citizen',
   setUserRole: (userRole) => set({ userRole }),
+  osRole: 'citizen',
+  setOsRole: (osRole) => set({ osRole }),
   session: null,
   setSession: (session) => set({ session }),
   isConfigured: false,
