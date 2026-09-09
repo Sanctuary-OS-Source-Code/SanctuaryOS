@@ -116,13 +116,15 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                   <div className="relative">
                     <div className="flex items-center gap-4">
                       <div
-                        onClick={(e) => {
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           if (activeColorPicker === key) {
                             setActiveColorPicker(null);
                           } else {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setPickerCoords({
-                              top: rect.bottom + 16,
+                              top: Math.min(rect.bottom + 16, window.innerHeight - 400),
                               left: rect.left < window.innerWidth / 2 ? rect.left : undefined,
                               right: rect.left >= window.innerWidth / 2 ? window.innerWidth - rect.right : undefined
                             });
@@ -147,11 +149,11 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                       </div>
                     </div>
 
-                    {activeColorPicker === key && createPortal(
+                    {activeColorPicker === key && (
                       <>
                         {/* Invisible backdrop to catch clicks outside */}
-                        <div className="fixed inset-0 z-[50000]" onClick={(e) => { e.stopPropagation(); setActiveColorPicker(null); }} />
-                        <div className="fixed z-[50001] p-8 glass-panel backdrop-blur-3xl rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200" style={pickerCoords || {}}>
+                        <div className="fixed inset-0" style={{ zIndex: 999998 }} onPointerDown={(e) => { e.stopPropagation(); setActiveColorPicker(null); }} />
+                        <div className="absolute top-[calc(100%+16px)] left-0 p-8 glass-panel backdrop-blur-3xl rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: 999999 }}>
                           <div className="flex gap-4 mb-8">
                           {!(key === 'success' || key === 'warning' || key === 'danger') ? (
                             <input
@@ -161,7 +163,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                               className="flex-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-black text-[var(--text)] capitalize tracking-widest outline-none focus:theme-border-accent transition-colors shadow-inner"
                             />
                           ) : (
-              <div className="flex-1 glass-panel border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] rounded-2xl shadow-lg shadow-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex items-center justify-center text-center relative ">
+                            <div className="flex-1 glass-panel border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] rounded-2xl shadow-lg shadow-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex items-center justify-center text-center relative ">
                               <div className="absolute inset-0 rounded-[inherit] bg-[var(--warning)] opacity-10 pointer-events-none" />
                               <span className="relative z-10 text-[var(--warning)] px-5 py-4 text-[10px] font-black capitalize tracking-[0.2em] drop-shadow-sm">
                                 {t("color_restricted")}
@@ -223,7 +225,7 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                           </div>
                         )}
                       </div>
-                      </>, document.body
+                      </>
                     )}
                   </div>
                 </div>

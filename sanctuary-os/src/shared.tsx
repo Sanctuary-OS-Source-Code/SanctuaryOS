@@ -1927,10 +1927,15 @@ export function SidePanel({
     };
   }, [isResizing, defaultWidth]);
 
+  const [isAnimatingIn, setIsAnimatingIn] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
       setIsAnimatingOut(false);
+      setIsAnimatingIn(true);
+      const timer = setTimeout(() => setIsAnimatingIn(false), 500); // Remove animation class after sliding in
+      return () => clearTimeout(timer);
     } else if (shouldRender && !keepMounted) {
       setIsAnimatingOut(true);
       const timer = setTimeout(() => {
@@ -1961,7 +1966,7 @@ export function SidePanel({
         />
         <div
           ref={panelRef}
-          className={`sa-side-panel-window ${position === 'left' ? 'sa-panel-left' : 'sa-panel-right'} fixed top-[0px] bottom-[0px] ${position === 'left' ? 'left-0 md:left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} max-md:!w-full max-md:!max-w-[100vw] ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} flex flex-col ${depth > 0 ? '' : panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''} ${keepMounted ? '' : (isAnimatingOut ? (position === 'left' ? 'sa-panel-slide-out-left' : 'sa-panel-slide-out-right') : (position === 'left' ? 'sa-panel-slide-left' : 'sa-panel-slide-right'))} ${noPanelBlur ? '' : 'backdrop-blur-[var(--glassBlur)]'}`}
+          className={`sa-side-panel-window ${position === 'left' ? 'sa-panel-left' : 'sa-panel-right'} fixed top-[0px] bottom-[0px] ${position === 'left' ? 'left-0 md:left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} max-md:!w-full max-md:!max-w-[100vw] ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} flex flex-col ${depth > 0 ? '' : panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''} ${keepMounted ? '' : (isAnimatingOut ? (position === 'left' ? 'sa-panel-slide-out-left' : 'sa-panel-slide-out-right') : (isAnimatingIn ? (position === 'left' ? 'sa-panel-slide-left' : 'sa-panel-slide-right') : ''))} ${noPanelBlur ? '' : 'backdrop-blur-[var(--glassBlur)]'}`}
           style={{ zIndex: finalPanelZ, background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal) * 100%), transparent)`, ...(isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined } : {}), ...panelStyle }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -2665,89 +2670,6 @@ export const enrichBlueprintsWithPremiumStatus = async (supabase: any, blueprint
   }
   return premiumMap;
 };
-
-export function SidePanelActionFooter({
-  onCancel,
-  cancelLabel,
-  cancelIcon,
-  hideCancel = false,
-
-  onAction,
-  actionLabel,
-  actionIcon,
-  actionDisabled = false,
-  actionVariant = "accent",
-  actionTooltip,
-
-  isProcessing = false,
-  processingLabel,
-
-  onDanger,
-  dangerLabel,
-  dangerIcon,
-  dangerDisabled = false,
-  centerDanger = false,
-
-  className = "flex flex-row items-center justify-center gap-4 w-full"
-}: {
-  onCancel?: () => void;
-  cancelLabel?: string;
-  cancelIcon?: string;
-  hideCancel?: boolean;
-  onAction?: () => void;
-  actionLabel?: string;
-  actionIcon?: string;
-  actionDisabled?: boolean;
-  actionVariant?: "accent" | "success" | "danger" | "primary" | "glass";
-  actionTooltip?: string;
-  isProcessing?: boolean;
-  processingLabel?: string;
-  onDanger?: () => void;
-  dangerLabel?: string;
-  dangerIcon?: string;
-  dangerDisabled?: boolean;
-  centerDanger?: boolean;
-  className?: string;
-}) {
-  const { t } = useLexicon();
-
-  return (
-    <div className={className}>
-      {onDanger && (
-        <ActionButton
-          onClick={onDanger}
-          disabled={dangerDisabled || isProcessing}
-          variant="danger"
-          icon={dangerIcon}
-          label={dangerLabel || t("ui_btn_delete")}
-        />
-      )}
-
-      {!hideCancel && (
-        <ActionButton
-          onClick={onCancel}
-          disabled={isProcessing}
-          icon={cancelIcon}
-          variant="glass"
-          label={cancelLabel || t("nav_cancel")}
-        />
-      )}
-
-      {onAction && (
-        <div className={actionTooltip ? (actionDisabled || isProcessing ? "cursor-not-allowed" : "") : ""}>
-          {actionTooltip && <HoverTooltip title={actionTooltip} variant="warning" />}
-          <ActionButton
-            onClick={onAction}
-            disabled={actionDisabled || isProcessing}
-            variant={actionVariant}
-            icon={isProcessing ? "sync" : actionIcon}
-            label={isProcessing ? (processingLabel || t("ui_btn_processing")) : actionLabel}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
 
 
 export function ScreenUtilityBar({

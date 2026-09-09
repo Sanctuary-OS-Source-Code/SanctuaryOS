@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
 import { supabase } from './supabase';
+import { createClient } from '@supabase/supabase-js';
 import { isDesktop } from './utils/envUtils';
 
 import { useStore } from './store';
@@ -15,19 +16,6 @@ const DEFAULT_CORE_THEMES: any = {
     glassOpacity: "5%", glassBlur: "24px", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.3)",
     bgGradient: "transparent",
     bgImage: "/themes/architect.png",
-    animated: true, ambientOrb: false, ambientNoise: true,
-    volumetricOrbs: [],
-    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
-    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  },
-  // The Sims 4 Pilot Theme
-  sims_4: {
-    name: "The Sims 4", bg: "#f8fafc", sidebar: "#f8fafc", sidebartext: "#0f172a", accent: "#5ac126",
-    text: "#020617", subtext: "#475569", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
-    panelTint: "#ffffff", headerText: "#0f172a", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "40%", glassBlur: "48px", radius: "1rem", shadowColor: "rgba(0,0,0,0.06)",
-    bgGradient: "transparent",
-    bgImage: "/themes/sims4.png",
     animated: true, ambientOrb: false, ambientNoise: true,
     volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
@@ -116,10 +104,12 @@ const ThemeContext = createContext<any>(null);
 
 export const ThemeProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const workspaces = useStore((state) => state.workspaces) || [];
   const wsId = activeWorkspaceId || localStorage.getItem('sanctuary_last_active_workspace') || 'default';
 
   const [useGlobalThemeState, setUseGlobalThemeState] = useState(() => localStorage.getItem('sanctuary_use_global_theme') === 'true');
   const [CORE_THEMES, setCoreThemes] = useState<any>(DEFAULT_CORE_THEMES);
+  const [gameThemes, setGameThemes] = useState<any>({});
   const [customThemes, setCustomThemes] = useState(() => JSON.parse(localStorage.getItem(`sanctuary_${wsId}_custom_themes`) || "{}"));
   const [devThemes, setDevThemes] = useState(() => JSON.parse(localStorage.getItem(`sanctuary_${wsId}_dev_themes`) || "{}"));
   const [activeThemeIdState, setActiveThemeIdState] = useState(() => {
@@ -179,7 +169,38 @@ export const ThemeProvider = ({ children }: any) => {
     fetchCoreThemes();
   }, []);
 
-  const allThemes = { ...customThemes, ...devThemes, ...CORE_THEMES };
+  useEffect(() => {
+    const fetchGameThemes = async () => {
+      try {
+        const fetchedGameThemes: Record<string, any> = {};
+
+        for (const ws of workspaces) {
+          if (ws.id === 'default_workspace' || !ws.supabase_url || !ws.supabase_anon_key) continue;
+          
+          try {
+            const client = createClient(ws.supabase_url, ws.supabase_anon_key, { auth: { persistSession: false } });
+            const { data, error } = await client.from('sanctuary_themes').select('*');
+            
+            if (!error && data && data.length > 0) {
+              data.forEach((row: any) => {
+                fetchedGameThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name, badge: ws.name || ws.display_name || "Community" };
+              });
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch themes from workspace ${ws.id}`, err);
+          }
+        }
+        
+        setGameThemes(fetchedGameThemes);
+      } catch (err) {
+        console.error("Failed to fetch game themes", err);
+        setGameThemes({});
+      }
+    };
+    fetchGameThemes();
+  }, [wsId, workspaces]);
+
+  const allThemes = { ...customThemes, ...devThemes, ...gameThemes, ...CORE_THEMES };
   const currentThemeRaw = allThemes[activeThemeIdState] || CORE_THEMES.architect || DEFAULT_CORE_THEMES.architect;
   const currentTheme = { ...currentThemeRaw };
 
@@ -262,15 +283,7 @@ export const ThemeProvider = ({ children }: any) => {
         if (key === 'glassOpacity' && typeof finalVal === 'string' && finalVal.endsWith('%')) {
           finalVal = (parseFloat(finalVal) / 100).toString();
         }
-        if (key === 'bgGradient') {
-          if (currentTheme.bgImage) {
-            root.style.setProperty(`--bgGradient`, `url("${currentTheme.bgImage}")`);
-          } else if (val && val !== 'transparent' && val !== 'none' && val !== currentTheme.bg) {
-            root.style.setProperty(`--bgGradient`, finalVal);
-          } else {
-            root.style.setProperty(`--bgGradient`, `none`);
-          }
-        } else {
+        if (key !== 'bgGradient') {
           if (key === 'glassOpacity') {
             let parsedVal = parseFloat(finalVal);
             // Legacy support: if value is a decimal like 0.04, convert it to 4% so color-mix doesn't break
@@ -285,6 +298,22 @@ export const ThemeProvider = ({ children }: any) => {
         }
       }
     });
+
+    if (currentTheme.bgImage) {
+      root.style.setProperty(`--bgGradient`, `url("${currentTheme.bgImage}")`);
+      
+      // SVG Pre-Blur: Bypasses the Chromium filter+fixed bug!
+      const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="32" /></filter><image href="${currentTheme.bgImage}" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" filter="url(#b)" /></svg>`;
+      const svgDataUri = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}")`;
+      
+      root.style.setProperty(`--glassBgImage`, svgDataUri);
+    } else if (currentTheme.bgGradient && currentTheme.bgGradient !== 'transparent' && currentTheme.bgGradient !== 'none' && currentTheme.bgGradient !== currentTheme.bg) {
+      root.style.setProperty(`--bgGradient`, currentTheme.bgGradient);
+      root.style.setProperty(`--glassBgImage`, currentTheme.bgGradient);
+    } else {
+      root.style.setProperty(`--bgGradient`, `none`);
+      root.style.setProperty(`--glassBgImage`, `none`);
+    }
 
     const bgHex = (currentTheme.bg || '#000000').replace('#', '');
     if (bgHex.length === 6) {
@@ -301,14 +330,14 @@ export const ThemeProvider = ({ children }: any) => {
       const tb = parseInt(tintHex.substring(4, 6), 16);
       root.style.setProperty('--panelTint-rgb', `${tr}, ${tg}, ${tb}`);
       root.style.setProperty('--panelTint-rgb-spaces', `${tr} ${tg} ${tb}`);
-      
+
       // Calculate opacity
       let finalOpacityStr = String(currentTheme.glassOpacity || "0.35");
       if (finalOpacityStr.endsWith('%')) {
         finalOpacityStr = (parseFloat(finalOpacityStr) / 100).toString();
       }
       let rawOpacity = parseFloat(finalOpacityStr);
-      
+
       // Pre-compute the exact CSS strings to bypass ALL CSS minifier and browser parsing bugs
       root.style.setProperty('--glass-panel-bg', `rgba(${tr}, ${tg}, ${tb}, ${rawOpacity})`);
       root.style.setProperty('--glass-surface-bg', `rgba(${tr}, ${tg}, ${tb}, ${rawOpacity * 0.7})`);
@@ -328,7 +357,7 @@ export const ThemeProvider = ({ children }: any) => {
       finalOpacityStr = (parseFloat(finalOpacityStr) / 100).toString();
     }
     let rawOpacity = parseFloat(finalOpacityStr);
-    
+
     root.style.setProperty('--glassOpacityDecimal', rawOpacity.toString());
     root.style.setProperty('--glassOpacitySurfaceDecimal', (rawOpacity * 0.7).toString());
     root.style.setProperty('--glassOpacitySurfacePercent', `${rawOpacity * 0.7 * 100}%`);
@@ -497,7 +526,7 @@ export const ThemeProvider = ({ children }: any) => {
 
   return (
     <ThemeContext.Provider value={{
-      activeThemeId: activeThemeIdState, setActiveThemeId, currentTheme, CORE_THEMES, setCoreThemes, customThemes, devThemes,
+      activeThemeId: activeThemeIdState, setActiveThemeId, currentTheme, CORE_THEMES, setCoreThemes, customThemes, devThemes, gameThemes,
       updateActiveTheme, updateTheme, renameTheme, createNewTheme, createNewDevTheme, exportDevThemeToCustom, deleteTheme,
       useGlobalTheme: useGlobalThemeState, setUseGlobalTheme,
       importTheme: (json: any) => {

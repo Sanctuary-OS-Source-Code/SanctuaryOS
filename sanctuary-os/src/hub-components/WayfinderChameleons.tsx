@@ -1,6 +1,6 @@
-﻿import { SearchBar } from "../shared";
+import { SearchBar } from "../shared";
 import { useState, useEffect } from 'react';
-import { SidePanel, EmptyState, ActionButton } from '../shared';
+import { SidePanel, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
@@ -79,9 +79,20 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
         updated_at: new Date().toISOString()
       };
 
-      const client = isKeepers ? (await import('../supabase')).supabase : (await import('../supabase')).getActiveGameClient();
-      const { error } = await client.from('sanctuary_themes').upsert(payload);
-      if (error) throw error;
+      const { supabase } = await import('../supabase');
+      const token = useStore.getState().session?.access_token;
+
+      if (!isKeepers && token) {
+        const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+          p_token: token,
+          p_target: 'sanctuary_themes',
+          p_payload: payload
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('sanctuary_themes').upsert(payload);
+        if (error) throw error;
+      }
 
       pushStatus("Master Theme saved to cloud.", "success");
       setHasChanges(false);
@@ -193,58 +204,54 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
         isResizable={true}
         defaultWidth={1400}
         headerActions={
-          <div className="flex items-center gap-2">
-      <div className="flex items-center glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
-              <div className="relative group flex">
-                <button onClick={() => {
-                  if (livePreview) {
-                    if (originalThemeId) setActiveThemeId(originalThemeId);
-                  } else {
-                    if (editingThemeId) {
-                      if (activeEditingTheme) {
-                        setCoreThemes((prev: any) => ({ ...prev, [editingThemeId]: activeEditingTheme }));
-                      }
-                      setActiveThemeId(editingThemeId);
-                    }
-                  }
-                  setLivePreview(!livePreview);
-                }} className={`h-12 px-4 flex items-center justify-center gap-2 transition-all shrink-0 ${livePreview ? 'text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                  <span className="material-symbols-outlined !text-[18px]">{livePreview ? 'visibility' : 'visibility_off'}</span>
-                  <span className="text-[10px] font-black capitalize tracking-widest">{livePreview ? (t("ui_os_preview_on")) : (t("ui_os_preview_off"))}</span>
-                </button>
-              </div>
-              <div className="relative group flex">
-                <button onClick={() => {
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={livePreview ? 'visibility' : 'visibility_off'}
+              tooltip={livePreview ? (t("ui_os_preview_on")) : (t("ui_os_preview_off"))}
+              variant={livePreview ? "success" : "default"}
+              onClick={() => {
+                if (livePreview) {
                   if (originalThemeId) setActiveThemeId(originalThemeId);
-                  pushStatus(t("ui_theme_reset"), "success");
-                }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shrink-0">
-                  <span className="material-symbols-outlined !text-[18px]">refresh</span>
-                  <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_reset")}</span>
-                </button>
-              </div>
-              <div className="relative group flex">
-                <button onClick={() => {
+                } else {
                   if (editingThemeId) {
+                    if (activeEditingTheme) {
+                      setCoreThemes((prev: any) => ({ ...prev, [editingThemeId]: activeEditingTheme }));
+                    }
                     setActiveThemeId(editingThemeId);
-                    setOriginalThemeId(editingThemeId);
-                    setEditingThemeId(null);
-                    pushStatus(t("ui_theme_applied"), "success");
                   }
-                }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] transition-all shrink-0">
-                  <span className="material-symbols-outlined !text-[18px]">check_circle</span>
-                  <span className="text-[10px] font-black capitalize tracking-widest">{t("ui_btn_apply")}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        }
-        footer={
-          <>
-            <ActionButton onClick={saveToCloud} disabled={isSaving || !hasChanges} label={t("btn_publish")}>
-              
-              
-            </ActionButton>
-          </>
+                }
+                setLivePreview(!livePreview);
+              }}
+            />
+            <PanelHeaderButton
+              icon="refresh"
+              tooltip={t("btn_reset")}
+              onClick={() => {
+                if (originalThemeId) setActiveThemeId(originalThemeId);
+                pushStatus(t("ui_theme_reset"), "success");
+              }}
+            />
+            <PanelHeaderButton
+              icon="check_circle"
+              tooltip={t("ui_btn_apply")}
+              variant="success"
+              onClick={() => {
+                if (editingThemeId) {
+                  setActiveThemeId(editingThemeId);
+                  setOriginalThemeId(editingThemeId);
+                  setEditingThemeId(null);
+                  pushStatus(t("ui_theme_applied"), "success");
+                }
+              }}
+            />
+            <PanelHeaderButton
+              icon="cloud_upload"
+              tooltip={t("btn_publish")}
+              onClick={saveToCloud}
+              disabled={isSaving || !hasChanges}
+              variant="accent"
+            />
+          </PanelHeaderGroup>
         }
       >
         {activeEditingTheme && (

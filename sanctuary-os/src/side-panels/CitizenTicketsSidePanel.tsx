@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SidePanel, SidePanelActionFooter, standardAccentGlassButtonClass, standardButtonClass, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { SidePanel, standardAccentGlassButtonClass, standardButtonClass, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import CitizenTickets from "../CitizenTickets";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import { useLexicon } from "../LexiconContext";

@@ -1,7 +1,7 @@
 import { useState, Fragment } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { formatDisplayName, SidePanel, getFileLabel, isSupportedExtension, SidePanelActionFooter, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { formatDisplayName, SidePanel, getFileLabel, isSupportedExtension, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 
 const extractType = (name: string) => {
   const upper = String(name).toUpperCase();

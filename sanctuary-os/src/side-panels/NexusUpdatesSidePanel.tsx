@@ -49,7 +49,9 @@ export function NexusUpdatesSidePanel() {
             <div
               key={`${update.id}-${idx}`}
               onClick={() => {
+                useStore.getState().setView('nexus');
                 setNexusPreviewAsset({ id: update.id, type: update.type });
+                setIsNexusUpdatesPanelOpen(false);
               }}
               className={`cursor-pointer animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out relative z-10 glass-panel rounded-2xl overflow-hidden group border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_15%,transparent)] transition-all`}
               style={{ animationDelay: `${idx * 150}ms` }}

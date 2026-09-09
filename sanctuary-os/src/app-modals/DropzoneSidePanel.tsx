@@ -1,4 +1,4 @@
-import { SidePanel, ActionButton } from "../shared";
+import { SidePanel, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 export function DropzoneSidePanel({
@@ -32,31 +32,16 @@ export function DropzoneSidePanel({
       icon={t("icon_cloud")}
       iconColorClass={dropzoneState === "received" ? "text-emerald-400 drop-shadow-md" : "theme-text-accent"}
       widthClass="w-[550px]"
-      footer={
-        dropzoneState !== "awaiting" ? (
-          <div className="w-full">
-            {dropzoneState === "ingesting" ? (
-              <div className="w-full py-4 theme-bg-accent/20 text-[var(--text)] rounded-xl border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-lg flex flex-col items-center justify-center gap-1 backdrop-blur-md">
-                <span className="text-sm font-black capitalize tracking-widest animate-pulse">{t("btn_importing")}</span>
-                <span className="text-[9px] font-bold opacity-70 capitalize tracking-widest">{ingestProgress?.current || 0} / {ingestProgress?.total || 0} {t("modal_files")}</span>
-              </div>
-            ) : (
-              <div className="flex justify-center items-center gap-4 w-full">
-                <ActionButton 
-                  onClick={() => { handleDroppedFiles(droppedFiles); }} 
-                  variant="accent" 
-                  icon={t("icon_flight_takeoff")} 
-                  label={t("btn_import")} 
-                />
-                <ActionButton 
-                  onClick={() => { useStore.getState().pushStatus(t("alert_quarantine")); setIsDropzoneOpen(false); setDropzoneState("awaiting"); setDroppedFiles([]); runRadarSweep(true); }} 
-                  variant="danger" 
-                  icon={t("icon_warning_amber")} 
-                  label={t("cancel")} 
-                />
-              </div>
-            )}
-          </div>
+      headerActions={
+        dropzoneState === "received" ? (
+          <PanelHeaderGroup>
+            <PanelHeaderButton 
+              onClick={() => { handleDroppedFiles(droppedFiles); }} 
+              variant="accent" 
+              icon="flight_takeoff" 
+              tooltip={t("btn_import")} 
+            />
+          </PanelHeaderGroup>
         ) : null
       }
     >
@@ -76,6 +61,12 @@ export function DropzoneSidePanel({
                     {f}
                   </div>
                 ))}
+              </div>
+            )}
+            {dropzoneState === "ingesting" && (
+              <div className="w-full py-4 theme-bg-accent/20 text-[var(--text)] rounded-xl border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-lg flex flex-col items-center justify-center gap-1 backdrop-blur-md mt-4">
+                <span className="text-sm font-black capitalize tracking-widest animate-pulse">{t("btn_importing")}</span>
+                <span className="text-[9px] font-bold opacity-70 capitalize tracking-widest">{ingestProgress?.current || 0} / {ingestProgress?.total || 0} {t("modal_files")}</span>
               </div>
             )}
           </div>

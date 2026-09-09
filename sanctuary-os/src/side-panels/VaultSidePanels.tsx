@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, SidePanelActionFooter, SidebarActionButton, CustomDropdown, getFileLabel, isSupportedExtension, formatDisplayName, HoverTooltip, HubTabs, ActionButton, getModIcon, SearchBar, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { SidePanel, SidebarActionButton, CustomDropdown, getFileLabel, isSupportedExtension, formatDisplayName, HoverTooltip, HubTabs, ActionButton, getModIcon, SearchBar, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useStore } from "../store";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalGroup } from "../components/universal/UniversalLayout";

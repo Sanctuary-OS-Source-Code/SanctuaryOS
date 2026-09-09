@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, SidePanelActionFooter, HubTabs } from "../shared";
+import { SidePanel, HubTabs, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 
 export function LocalFolderModal({ localFolderModal, setLocalFolderModal, localFolderType, setLocalFolderType, localFolderName, setLocalFolderName, createLocalFolder, selectedMods = [], resolveDisplayName }: any) {
   const { t } = useLexicon();
@@ -24,15 +24,15 @@ export function LocalFolderModal({ localFolderModal, setLocalFolderModal, localF
           <div className="absolute bottom-1/3 -left-32 w-96 h-96 bg-[var(--text)] opacity-10 blur-[100px] rounded-full pointer-events-none" />
         </>
       }
-      footer={
-        <SidePanelActionFooter
-          actionLabel={t("btn_create_folder")}
-          actionIcon="folder_open"
-          onAction={createLocalFolder}
-          actionVariant="success"
-          cancelLabel={t("nav_cancel")}
-          onCancel={() => setLocalFolderModal(false)}
-        />
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="folder_open"
+            tooltip={t("btn_create_folder")}
+            onClick={createLocalFolder}
+            variant="success"
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-6 p-8 h-full min-h-[400px]">

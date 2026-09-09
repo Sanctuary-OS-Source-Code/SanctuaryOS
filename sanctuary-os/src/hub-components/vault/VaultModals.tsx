@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
-import { SidePanel, SidePanelActionFooter } from '../../shared';
+import { SidePanel, PanelHeaderGroup, PanelHeaderButton } from '../../shared';
 import { VaultLocalFolderEditorSidePanel } from '../../side-panels/VaultSidePanels';
 import ConflictResolutionSidebar from '../../side-panels/ConflictResolutionSidebar';
 
@@ -23,31 +23,31 @@ export function VaultModals(props: any) {
           ambientGlows={
             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[var(--danger)] opacity-10 blur-[120px] rounded-full pointer-events-none" />
           }
-          footer={
-            <SidePanelActionFooter
-              actionLabel={t("btn_purge_folder")}
-              actionIcon="delete_forever"
-              actionVariant="danger"
-              onAction={async () => {
-                setStatus(t("status_purging_artifacts"));
-                try {
-                  const config: any = await invoke("get_saved_coordinates");
-                  const msg = await invoke("purge_vault_artifacts", {
-                    vaultPath: config.vault_path,
-                    filenames: purgeTargetFiles.map((f: any) => f.file),
-                  });
-                  setStatus(`${t("icon_check_circle")} ${msg}`);
-                  setIsBulkMode(false);
-                  setSelectedMods([]);
-                  setPurgeTargetFiles(null);
-                  runRadarSweep(false);
-                } catch (err) {
-                  setStatus(`${t("status_error")}${err}`);
-                }
-              }}
-              cancelLabel={t("nav_cancel")}
-              onCancel={() => setPurgeTargetFiles(null)}
-            />
+          headerActions={
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon="delete_forever"
+                tooltip={t("btn_purge_folder")}
+                variant="danger"
+                onClick={async () => {
+                  setStatus(t("status_purging_artifacts"));
+                  try {
+                    const config: any = await invoke("get_saved_coordinates");
+                    const msg = await invoke("purge_vault_artifacts", {
+                      vaultPath: config.vault_path,
+                      filenames: purgeTargetFiles.map((f: any) => f.file),
+                    });
+                    setStatus(`${t("icon_check_circle")} ${msg}`);
+                    setIsBulkMode(false);
+                    setSelectedMods([]);
+                    setPurgeTargetFiles(null);
+                    runRadarSweep(false);
+                  } catch (err) {
+                    setStatus(`${t("status_error")}${err}`);
+                  }
+                }}
+              />
+            </PanelHeaderGroup>
           }
         >
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-4 min-h-[300px]">

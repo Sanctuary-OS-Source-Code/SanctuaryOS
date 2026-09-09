@@ -331,57 +331,52 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         defaultWidth={1400}
         headerActions={
           typeof editingThemeId === 'string' && editingThemeId.startsWith('dev_') ? (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center glass-panel rounded-2xl divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner backdrop-blur-md">
-                <div className="relative group flex">
-                  <button onClick={() => {
-                    if (livePreview) setActiveThemeId(originalThemeId);
-                    else setActiveThemeId(editingThemeId);
-                    setLivePreview(!livePreview);
-                  }} className={`h-12 px-4 flex items-center justify-center gap-2 transition-all shrink-0 ${livePreview ? 'text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                    <span className="material-symbols-outlined !text-[18px]">{livePreview ? 'visibility' : 'visibility_off'}</span>
-                    <span className="text-[10px] font-black capitalize tracking-widest">{livePreview ? (t("ui_os_preview_on")) : (t("ui_os_preview_off"))}</span>
-                  </button>
-                </div>
-                <div className="relative group flex">
-                  <button onClick={() => {
-                    setActiveThemeId(originalThemeId);
-                    useStore.getState().pushStatus(t("ui_theme_reset"), "success");
-                  }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shrink-0">
-                    <span className="material-symbols-outlined !text-[18px]">refresh</span>
-                    <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_reset")}</span>
-                  </button>
-                </div>
-                <div className="relative group flex">
-                  <button onClick={() => {
-                    setActiveThemeId(editingThemeId);
-                    setOriginalThemeId(editingThemeId);
-                    setEditingThemeId(null);
-                    useStore.getState().pushStatus(t("ui_theme_applied"), "success");
-                  }} className="h-12 px-4 flex items-center justify-center gap-2 text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] transition-all shrink-0">
-                    <span className="material-symbols-outlined !text-[18px]">check_circle</span>
-                    <span className="text-[10px] font-black capitalize tracking-widest">{t("ui_btn_apply")}</span>
-                  </button>
-                </div>
-              </div>
-              <PanelHeaderGroup>
-                <PanelHeaderButton
-                  icon="cloud_upload"
-                  tooltip={t("btn_publish")}
-                  onClick={publishThemeToNexus}
-                  variant="primary"
-                />
-                <PanelHeaderButton
-                  icon="save"
-                  tooltip={t("ui_export_theme")}
-                  onClick={() => {
-                    exportDevThemeToCustom(editingThemeId);
-                    useStore.getState().pushStatus(t("ui_saved_personal"), "success");
-                  }}
-                  variant="primary"
-                />
-              </PanelHeaderGroup>
-            </div>
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={livePreview ? 'visibility' : 'visibility_off'}
+                tooltip={livePreview ? (t("ui_os_preview_on")) : (t("ui_os_preview_off"))}
+                variant={livePreview ? "success" : "default"}
+                onClick={() => {
+                  if (livePreview) setActiveThemeId(originalThemeId);
+                  else setActiveThemeId(editingThemeId);
+                  setLivePreview(!livePreview);
+                }}
+              />
+              <PanelHeaderButton
+                icon="refresh"
+                tooltip={t("btn_reset")}
+                onClick={() => {
+                  setActiveThemeId(originalThemeId);
+                  useStore.getState().pushStatus(t("ui_theme_reset"), "success");
+                }}
+              />
+              <PanelHeaderButton
+                icon="check_circle"
+                tooltip={t("ui_btn_apply")}
+                variant="success"
+                onClick={() => {
+                  setActiveThemeId(editingThemeId);
+                  setOriginalThemeId(editingThemeId);
+                  setEditingThemeId(null);
+                  useStore.getState().pushStatus(t("ui_theme_applied"), "success");
+                }}
+              />
+              <PanelHeaderButton
+                icon="cloud_upload"
+                tooltip={t("btn_publish")}
+                onClick={publishThemeToNexus}
+                variant="primary"
+              />
+              <PanelHeaderButton
+                icon="save"
+                tooltip={t("ui_export_theme")}
+                onClick={() => {
+                  exportDevThemeToCustom(editingThemeId);
+                  useStore.getState().pushStatus(t("ui_saved_personal"), "success");
+                }}
+                variant="primary"
+              />
+            </PanelHeaderGroup>
           ) : undefined
         }
       >

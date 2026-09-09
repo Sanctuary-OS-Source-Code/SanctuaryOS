@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, SidePanelActionFooter } from "../shared";
+import { SidePanel, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 
 export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods, resolveDisplayName }: any) {
   const { t } = useLexicon();
@@ -24,15 +24,15 @@ export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, exec
           <div className="absolute bottom-1/3 -left-32 w-96 h-96 bg-[var(--text)] opacity-10 blur-[100px] rounded-full pointer-events-none" />
         </>
       }
-      footer={
-        <SidePanelActionFooter
-          actionLabel={t("btn_draft")}
-          actionIcon="add_box"
-          onAction={executeBulkDraft}
-          actionVariant="accent"
-          cancelLabel={t("nav_cancel")}
-          onCancel={() => setBulkModal(false)}
-        />
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="add_box"
+            tooltip={t("btn_draft")}
+            onClick={executeBulkDraft}
+            variant="accent"
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-6 p-8 h-full min-h-[400px]">

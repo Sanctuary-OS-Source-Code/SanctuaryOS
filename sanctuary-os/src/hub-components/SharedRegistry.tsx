@@ -1,9 +1,9 @@
-﻿import { SearchBar, ScreenUtilityBar } from "../shared";
+import { SearchBar, ScreenUtilityBar } from "../shared";
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, SidePanelActionFooter, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton, FilterPopover } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton, FilterPopover, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { ArtifactCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -242,19 +242,16 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         backdropZ="z-[50000]"
         widthClass="w-[600px]"
         panelZ="z-[50001]"
-        footer={
-          <SidePanelActionFooter
-            onCancel={() => setActiveMod(null)}
-            cancelLabel={t("nav_cancel")}
-            cancelIcon="close"
-            onAction={handleCommitChanges}
-            actionLabel={t("save_meta")}
-            actionIcon="save"
-            actionDisabled={isCommitting}
-            isProcessing={isCommitting}
-            processingLabel={t("btn_saving")}
-            className="flex justify-center items-center gap-4 w-full px-8"
-          />
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="save"
+              tooltip={t("save_meta")}
+              onClick={handleCommitChanges}
+              disabled={isCommitting}
+              variant="accent"
+            />
+          </PanelHeaderGroup>
         }
       >
         {activeMod && (
@@ -633,23 +630,16 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         title={t("ui_edit_metadata")}
         subtitle={`UUID: ${activeMod?.id}`}
         icon={t("icon_inventory_2")}
-        footer={
-          <div className="flex justify-center items-center gap-4 w-full px-8">
-            <ActionButton
-              onClick={() => setActiveMod(null)}
-              disabled={isCommitting}
-              label={t("nav_cancel")}
-              icon="close"
-              className="flex-1"
-            />
-            <ActionButton
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="save"
+              tooltip={isCommitting ? (t("dossier_btn_saving")) : (t("ui_btn_commit"))}
               onClick={handleCommitChanges}
               disabled={isCommitting}
-              label={isCommitting ? (t("dossier_btn_saving")) : (t("ui_btn_commit"))}
-              icon="save"
-              className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+              variant="accent"
             />
-          </div>
+          </PanelHeaderGroup>
         }
       >
         {activeMod && (
@@ -783,21 +773,15 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
         title={t("create_title")}
         icon="person_add"
         widthClass="w-[450px]"
-        footer={
-          <div className="flex justify-center items-center gap-4 w-full px-8">
-            <ActionButton
-              onClick={() => setIsMasonPanelOpen(false)}
-              label={t("nav_cancel")}
-              icon="close"
-              className="flex-1"
-            />
-            <ActionButton
-              onClick={handleCreateMason}
-              label={t("create_btn_create")}
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
               icon="person_add"
-              className="flex-1 !theme-bg-accent/20 !theme-text-accent !border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+              tooltip={t("create_btn_create")}
+              onClick={handleCreateMason}
+              variant="accent"
             />
-          </div>
+          </PanelHeaderGroup>
         }
       >
         <div className="p-6">

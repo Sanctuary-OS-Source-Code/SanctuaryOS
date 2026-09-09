@@ -126,13 +126,15 @@ export function ChameleonControlDashboard({
                 <div className="relative">
                   <div
                     className="flex items-center justify-between p-2 pr-4 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] active:scale-95 transition-all group/swatch"
-                    onClick={(e) => {
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       if (activeColorPicker === key) {
                         setActiveColorPicker(null);
                       } else {
                         const rect = e.currentTarget.getBoundingClientRect();
                         setPickerCoords({
-                          top: Math.min(rect.bottom + 12, window.innerHeight - 350),
+                          top: Math.min(rect.bottom + 12, window.innerHeight - 450),
                           left: Math.min(rect.left, window.innerWidth - 450)
                         });
                         setActiveColorPicker(key);
@@ -156,9 +158,9 @@ export function ChameleonControlDashboard({
 
                   {activeColorPicker === key && createPortal(
                     <>
-                      <div className="fixed inset-0 z-[150000]" onClick={() => setActiveColorPicker(null)} />
-                      <div className="fixed z-[150001] p-8 glass-panel backdrop-blur-3xl rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200"
-                        style={pickerCoords || {}}>
+                      <div className="fixed inset-0" style={{ zIndex: 999998 }} onPointerDown={(e) => { e.stopPropagation(); setActiveColorPicker(null); }} />
+                      <div className="fixed p-8 glass-panel backdrop-blur-3xl rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200"
+                        style={{ zIndex: 999999, ...pickerCoords }}>
                         <div className="flex gap-4 mb-8">
                           {!(key === 'success' || key === 'warning' || key === 'danger') ? (
                             <input
@@ -238,7 +240,7 @@ export function ChameleonControlDashboard({
                           </div>
                         )}
                       </div>
-                    </>, document.body
+                    </>, document.getElementById('sa-portals') || document.body
                   )}
                 </div>
               </div>

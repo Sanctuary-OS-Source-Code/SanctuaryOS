@@ -544,14 +544,13 @@ body,
   z-index: -2;
   pointer-events: none;
 
-  background-image: var(--bgGradient);
-  background-attachment: fixed;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: blur(var(--glassBlur, 24px)) saturate(140%);
+  background-image: linear-gradient(rgba(var(--text-rgb, 255, 255, 255), 0.04), rgba(var(--text-rgb, 255, 255, 255), 0.04)), var(--glassBgImage);
+  background-attachment: fixed, fixed;
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  filter: none !important;
   opacity: 1;
-  transform: scale(1.01);
 }
 
 /* Layer 2: FROSTED NOISE TEXTURE (Kills the plastic wrap look) */
@@ -582,8 +581,9 @@ body,
   border-left-color: rgba(var(--text-rgb, 255, 255, 255), calc(var(--glassBorderOpacitySurfaceDecimal, 0.05) * 1.5));
   box-shadow:
     var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000),
-    0 8px 16px -4px var(--shadowColor, rgba(0, 0, 0, 0.3)),
-    inset 0 1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.15);
+    0 16px 32px -8px var(--shadowColor, rgba(0, 0, 0, 0.3)),
+    inset 0 1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.06),
+    inset 0 -1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.01);
 }
 
 .glass-surface::before {
@@ -594,14 +594,13 @@ body,
   z-index: -2;
   pointer-events: none;
 
-  background-image: var(--bgGradient);
-  background-attachment: fixed;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: blur(calc(var(--glassBlur, 24px) * 0.7)) saturate(120%);
+  background-image: linear-gradient(rgba(var(--text-rgb, 255, 255, 255), 0.02), rgba(var(--text-rgb, 255, 255, 255), 0.02)), var(--glassBgImage);
+  background-attachment: fixed, fixed;
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  filter: none !important;
   opacity: 1;
-  transform: scale(1.01);
 }
 
 .glass-surface::after {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { SidePanel, SidePanelActionFooter, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { SidePanel, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";

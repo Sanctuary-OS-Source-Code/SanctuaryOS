@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, ModSearchDropdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, SidePanelActionFooter, getExtensionRegex, SearchBar, ScreenUtilityBar } from "./shared";
+import { ViewHeader, ModSearchDropdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, getExtensionRegex, SearchBar, ScreenUtilityBar, PanelHeaderGroup, PanelHeaderButton } from "./shared";
 import { CommandScreenLayout, DashboardStatTile, CommandScreenStats, CommandScreenQuickLink, CommandScreenSectionHeading, CommandScreenBody, CommandScreenMain, CommandScreenSidebar } from "./hub-components/SharedCommandScreenLayout";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { useStore } from "./store";
@@ -747,15 +747,15 @@ export default function Lab({
           subtitle={t("test_underway_desc")}
           icon="science"
           iconColorClass="text-[var(--accent)]"
-          footer={
-            <SidePanelActionFooter
-              onCancel={() => { abortLab(); setShowTestPanel(false); }}
-              cancelLabel={t("lab_btn_abort")}
-              onAction={() => { handleConcludeTest(); setShowTestPanel(false); }}
-              actionLabel={t("btn_conclude_experiment")}
-              actionVariant="success"
-              actionIcon="science"
-            />
+          headerActions={
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon="science"
+                tooltip={t("btn_conclude_experiment")}
+                onClick={() => { handleConcludeTest(); setShowTestPanel(false); }}
+                variant="success"
+              />
+            </PanelHeaderGroup>
           }
         >
           <div className="flex flex-col items-center justify-center min-h-[400px] gap-8 opacity-90 p-8">

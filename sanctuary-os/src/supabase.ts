@@ -168,6 +168,9 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     const view = state.view;
                     
                     if (view === 'KeepersCore') {
+                        if (fnName.includes('notifications')) {
+                            return { data: [], error: null };
+                        }
                         return supabaseAuth.rpc(fnName, args);
                     }
                     

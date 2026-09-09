@@ -1,9 +1,9 @@
-﻿import { SearchBar, ScreenUtilityBar } from "../shared";
+import { SearchBar, ScreenUtilityBar } from "../shared";
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton, FilterPopover } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton, FilterPopover, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction } from "../lib/audit";
@@ -226,11 +226,16 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         title={t("forge_new_set")}
         subtitle={t("create_subtitle")}
         icon="add_circle"
-        footer={
-          <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton type="button" onClick={() => setIsForgePanelOpen(false)} label={t("nav_cancel")} variant="glass" />
-            <ActionButton type="button" onClick={handleCreateSet} disabled={!newSetName.trim()} label={t("forge_init_set")} />
-          </div>
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="add"
+              tooltip={t("forge_init_set")}
+              onClick={handleCreateSet}
+              disabled={!newSetName.trim()}
+              variant="accent"
+            />
+          </PanelHeaderGroup>
         }
       >
         <div className="flex flex-col h-full gap-8">
@@ -252,12 +257,23 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         title={t("manage_collection")}
         subtitle={`UUID: ${activeSet?.id}`}
         icon="library_books"
-        footer={
-          <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton type="button" onClick={() => setActiveSet(null)} label={t("nav_cancel")} variant="glass" />
-            <ActionButton type="button" onDoubleClick={handleDeleteSet} disabled={isSaving} label={t("btn_delete")} icon="delete" variant="danger" />
-            <ActionButton type="button" onClick={handleSaveSetMeta} disabled={isSaving} label={isSaving ? (t("btn_saving")) : (t("cc_save_set"))} />
-          </div>
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="delete"
+              tooltip={t("btn_delete")}
+              onClick={handleDeleteSet}
+              disabled={isSaving}
+              variant="danger"
+            />
+            <PanelHeaderButton
+              icon="save"
+              tooltip={isSaving ? (t("btn_saving")) : (t("cc_save_set"))}
+              onClick={handleSaveSetMeta}
+              disabled={isSaving}
+              variant="accent"
+            />
+          </PanelHeaderGroup>
         }
       >
         {activeSet && (
@@ -535,11 +551,16 @@ export function CollectionForge({ setStatus }: any) {
         title={t("forge_new_set")}
         subtitle={t("create_subtitle")}
         icon="add_circle"
-        footer={
-          <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton type="button" onClick={() => setIsForgePanelOpen(false)} label={t("nav_cancel")} variant="glass" />
-            <ActionButton type="button" onClick={createSet} disabled={!setName.trim()} label={t("forge_init_set")} />
-          </div>
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="add"
+              tooltip={t("forge_init_set")}
+              onClick={createSet}
+              disabled={!setName.trim()}
+              variant="accent"
+            />
+          </PanelHeaderGroup>
         }
       >
         <div className="flex flex-col h-full gap-8">
@@ -578,12 +599,23 @@ export function CollectionForge({ setStatus }: any) {
         title={t("manage_collection")}
         subtitle={`UUID: ${activeSet?.id}`}
         icon="library_books"
-        footer={
-          <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton type="button" onClick={() => setActiveSet(null)} label={t("nav_cancel")} variant="glass" />
-            <ActionButton type="button" onDoubleClick={handleDeleteSet} disabled={isSaving} label={t("btn_delete")} icon="delete" variant="danger" />
-            <ActionButton type="button" onClick={saveSetMeta} disabled={isSaving} label={isSaving ? (t("ui_loading")) : (t("cc_save_set"))} />
-          </div>
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="delete"
+              tooltip={t("btn_delete")}
+              onClick={handleDeleteSet}
+              disabled={isSaving}
+              variant="danger"
+            />
+            <PanelHeaderButton
+              icon="save"
+              tooltip={isSaving ? (t("ui_loading")) : (t("cc_save_set"))}
+              onClick={saveSetMeta}
+              disabled={isSaving}
+              variant="accent"
+            />
+          </PanelHeaderGroup>
         }
       >
         {activeSet && (
@@ -685,11 +717,15 @@ export function CollectionForge({ setStatus }: any) {
         title={t("create_title")}
         icon="person_add"
         widthClass="w-[450px]"
-        footer={
-          <div className="flex justify-end gap-4 w-full">
-            <ActionButton onClick={() => setIsMasonPanelOpen(false)} label={t("nav_cancel")} variant="glass" />
-            <ActionButton onClick={handleCreateMason} label={t("create_btn_create")} />
-          </div>
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="person_add"
+              tooltip={t("create_btn_create")}
+              onClick={handleCreateMason}
+              variant="accent"
+            />
+          </PanelHeaderGroup>
         }
       >
         <div className="p-6">

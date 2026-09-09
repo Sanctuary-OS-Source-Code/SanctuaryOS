@@ -18,7 +18,7 @@ const getLuminance = (hex: string) => {
 
 export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
   const { t } = useLexicon();
-  const { currentTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, renameTheme, createNewTheme, importTheme, deleteTheme, useGlobalTheme, setUseGlobalTheme } = useTheme();
+  const { currentTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, gameThemes, renameTheme, createNewTheme, importTheme, deleteTheme, useGlobalTheme, setUseGlobalTheme } = useTheme();
   const setView = useStore(state => state.setView);
   const setMarketTab = useStore(state => state.setMarketTab);
 
@@ -84,7 +84,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
     setIsEditorOpen(true);
   };
 
-  const allThemes = { ...CORE_THEMES, ...customThemes };
+  const allThemes = { ...CORE_THEMES, ...(gameThemes || {}), ...customThemes };
   const allThemeIds = Object.keys(allThemes);
 
   const uniqueCommunities = Array.from(new Set(allThemeIds.map(id => getThemeBadge(id, allThemes[id]))));
