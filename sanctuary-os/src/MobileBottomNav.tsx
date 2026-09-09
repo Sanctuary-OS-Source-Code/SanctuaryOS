@@ -8,6 +8,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
   const userRole = useStore((state) => state.userRole);
+  const osRole = useStore((state) => state.osRole);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -144,7 +145,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             </button>
           )}
 
-          {["core_dev", "admin", "keeper"].includes(userRole) && (
+          {["core_dev", "admin", "keeper"].includes(osRole) && (
             <button onClick={() => handleTabClick('KeepersCore')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
               <span className="material-symbols-outlined text-green-400 text-[20px]">{t("icon_terminal") || "terminal"}</span>
               <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("sidebar_keepers_core") || "Keepers Core"}</span>

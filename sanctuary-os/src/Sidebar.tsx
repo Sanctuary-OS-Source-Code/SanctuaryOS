@@ -65,6 +65,7 @@ export function Sidebar({
   const setView = useStore((state) => state.setView);
   const setKeepersActiveTab = useStore((state) => state.setKeepersActiveTab);
   const userRole = useStore((state) => state.userRole);
+  const osRole = useStore((state) => state.osRole);
   const isPatchDetected = useStore((state) => state.isPatchDetected);
   const isConfigured = useStore((state) => state.isConfigured);
   const { showDefconAlert } = useModalStore();
@@ -424,7 +425,7 @@ export function Sidebar({
                   />
                 </div>
               )}
-              {session && !(!isDesktop() && isRootDomain()) && (userRole === "core_dev" || userRole === "admin" || userRole === "keeper") && (
+              {session && !(!isDesktop() && isRootDomain()) && (osRole === "core_dev" || osRole === "admin" || osRole === "keeper") && (
                 <div className={`mt-3 mb-1 pt-3 relative ${isSidebarCollapsed ? 'px-0' : ''}`}>
                   <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_30%,transparent)] to-transparent" />
                   {!isSidebarCollapsed && (

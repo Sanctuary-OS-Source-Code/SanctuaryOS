@@ -212,6 +212,8 @@ function App() {
   const defconLevel = useStore((state) => state.defconLevel);
   const userRole = useStore((state) => state.userRole);
   const setUserRole = useStore((state) => state.setUserRole);
+  const osRole = useStore((state) => state.osRole);
+  const setOsRole = useStore((state) => state.setOsRole);
   const [metaAllowWriteInput, setMetaAllowWriteInput] = useState(false);
   const playSets = useStore((state) => state.playSets);
   const setPlaySets = useStore((state) => state.setPlaySets);
@@ -1229,7 +1231,7 @@ function App() {
         data: { session },
       } = await supabase.auth.getSession();
       if (session?.user) {
-        let isGlobalDev = false;
+        let currentOsRole = "citizen";
         try {
           const { data: osData, error: osError } = await supabaseAuth
             .from("profiles")
@@ -1237,32 +1239,29 @@ function App() {
             .eq("id", session.user.id)
             .maybeSingle();
 
-          if (!osError && osData && (osData.role?.toLowerCase() === "dev" || osData.role?.toLowerCase() === "admin")) {
-            isGlobalDev = true;
-            setUserRole("admin");
+          if (!osError && osData && osData.role) {
+            currentOsRole = osData.role.toLowerCase();
           }
         } catch (e) { console.error(e); }
+        
+        setOsRole(currentOsRole);
 
         let newRole = "citizen";
-        if (!isGlobalDev) {
-          try {
-            const gameClient = getActiveGameClient();
-            const { data: gameData, error: gameError } = await gameClient
-              .from("profiles")
-              .select("role")
-              .eq("id", session.user.id)
-              .maybeSingle();
+        try {
+          const gameClient = getActiveGameClient();
+          const { data: gameData, error: gameError } = await gameClient
+            .from("profiles")
+            .select("role")
+            .eq("id", session.user.id)
+            .maybeSingle();
 
-            if (!gameError && gameData && gameData.role) {
-              newRole = gameData.role.toLowerCase();
-            }
-          } catch (e) {
-            console.error("Game profile fetch failed", e);
+          if (!gameError && gameData && gameData.role) {
+            newRole = gameData.role.toLowerCase();
           }
-          setUserRole(newRole);
-        } else {
-          newRole = "admin";
+        } catch (e) {
+          console.error("Game profile fetch failed", e);
         }
+        setUserRole(newRole);
 
         const currentView = useStore.getState().view;
         const elevatedHubs = ["MasonHub", "ArchitectHub", "Oversight", "WayfinderHub", "KeepersCore", "SADefcon"];
@@ -1271,8 +1270,8 @@ function App() {
           else if (currentView === "ArchitectHub" && !["architect", "oversight", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
           else if (currentView === "Oversight" && !["oversight", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
           else if (currentView === "WayfinderHub" && !["wayfinder", "admin"].includes(newRole)) setView("dashboard");
-          else if (currentView === "KeepersCore" && !["core_dev", "admin", "keeper"].includes(newRole)) setView("dashboard");
-          else if (currentView === "SADefcon" && !["admin"].includes(newRole)) setView("dashboard");
+          else if (currentView === "KeepersCore" && !["core_dev", "admin", "keeper"].includes(currentOsRole)) setView("dashboard");
+          else if (currentView === "SADefcon" && !["admin"].includes(currentOsRole)) setView("dashboard");
         }
       }
     }
@@ -2543,9 +2542,9 @@ function App() {
                           </ErrorBoundary>
                         )}
                       {view === "KeepersCore" &&
-                        ["core_dev", "admin", "keeper"].includes(userRole) && (
+                        ["core_dev", "admin", "keeper"].includes(osRole) && (
                           <ErrorBoundary moduleName="Keepers Core">
-                            <KeepersCore key={activeWorkspaceId || 'no-workspace'} />
+                            <KeepersCore />
                           </ErrorBoundary>
                         )}
                       {view === "DbpfScout" && <DbpfScout key={activeWorkspaceId || 'no-workspace'} />}
