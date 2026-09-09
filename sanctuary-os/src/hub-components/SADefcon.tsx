@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -98,7 +99,7 @@ export function DefconPanel() {
                   }`}
               >
                 {defconLevel === 1 ? t("defcon_stand_down") : t("defcon_initiate")}
-              </button>      {showDefconConfirmModal && (
+              </button>      {showDefconConfirmModal && createPortal(
                 <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] backdrop-blur-md animate-in fade-in duration-300 p-8">
              <div className="relative w-full max-w-4xl glass-panel border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl p-12 shadow-2xl flex flex-col gap-8 ">
                     {defconLevel === 5 && (
@@ -145,7 +146,8 @@ export function DefconPanel() {
                       </button>
                     </div>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
         </div>
