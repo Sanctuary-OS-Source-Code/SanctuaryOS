@@ -77,8 +77,9 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
   );
 }
 export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
-  const { currentTheme: osTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, devThemes, updateTheme, renameTheme, createNewDevTheme, exportDevThemeToCustom, importTheme, deleteTheme } = useTheme();
   const { t } = useLexicon();
+  const session = useStore((state) => state.session);
+  const { currentTheme: osTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, devThemes, updateTheme, renameTheme, createNewDevTheme, exportDevThemeToCustom, importTheme, deleteTheme } = useTheme();
 
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
   const [livePreview, setLivePreview] = useState(false);
@@ -169,9 +170,9 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         }
       }
 
-      const payload = {
+      let payload = {
         name: uploadState.name, version: uploadState.version, description: uploadState.description, release_notes: uploadState.releaseNotes,
-        json_data: finalContent, asset_type: 'chameleon', is_public: true, theme_mode: uploadState.themeMode, author: masonProfile.name, mason_id: masonProfile.id, downloads: 0
+        json_data: finalContent, asset_type: 'chameleon', is_public: true, theme_mode: uploadState.themeMode, author: masonProfile.name, mason_id: masonProfile.id, author_id: session?.user?.id || masonProfile.id, downloads: 0
       };
 
       const { error } = await supabase.from('nexus_assets').insert([payload]);

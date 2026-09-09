@@ -318,13 +318,13 @@ export function MarketBlueprintPanel({
   const displayArtifacts = useMemo(() => {
     const artifacts = enrichedBlueprint?.json_data?.artifacts || [];
     let filtered = artifacts;
-    
+
     const seenNames = new Set<string>();
     filtered = filtered.filter((a: any) => {
-        const norm = getNormalizedArtifactName(a.name || a.id);
-        if (seenNames.has(norm)) return false;
-        seenNames.add(norm);
-        return true;
+      const norm = getNormalizedArtifactName(a.name || a.id);
+      if (seenNames.has(norm)) return false;
+      seenNames.add(norm);
+      return true;
     });
 
     if (filterTab === 'MISSING') {

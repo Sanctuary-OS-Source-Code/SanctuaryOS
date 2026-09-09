@@ -146,6 +146,7 @@ export function PushTemplateSidePanel({
         asset_type: 'workbench_template',
         name: name.trim(),
         author: authorName,
+        author_id: session?.user?.id,
         description: description.trim() || "A custom workbench template.",
         release_notes: releaseNotes.trim(),
         json_data: finalJson,
@@ -156,7 +157,7 @@ export function PushTemplateSidePanel({
         .from('nexus_assets')
         .select('id')
         .eq('name', payload.name)
-        .eq('author', payload.author)
+        .or(`author_id.eq.${session?.user?.id},author.eq.${payload.author}`)
         .eq('asset_type', payload.asset_type);
 
       if (checkError) throw checkError;
