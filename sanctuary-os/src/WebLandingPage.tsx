@@ -77,7 +77,7 @@ export default function WebLandingPage() {
             </div>
 
             <div className="w-full">
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
                 {loading ? (
                   <div className="col-span-full py-12 flex justify-center">
                     <span className="material-symbols-outlined animate-spin text-4xl text-[var(--accent)] drop-shadow-[0_0_15px_var(--accent)]">autorenew</span>
@@ -89,30 +89,24 @@ export default function WebLandingPage() {
                 ) : (
                   <>
                     {games.map(game => (
-                      <div key={game.id} onClick={() => navigateToGame(game.schema_id)} className="cursor-pointer grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] items-center justify-items-center sm:justify-items-start gap-4 sm:gap-6 p-4 md:p-6 rounded-3xl glass-panel bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_10px_40px_rgba(var(--accent-rgb),0.15)] hover:-translate-y-1 transition-all duration-500 group overflow-hidden relative backdrop-blur-2xl">
-                        <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-                        <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-2xl glass-panel flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-500 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] overflow-hidden relative z-10 group-hover:scale-105 group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]">
-                          <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
-                          {game.icon ? (
-                            <img src={game.icon} alt="" className="w-10 h-10 md:w-12 md:h-12 object-contain drop-shadow-lg opacity-80 group-hover:opacity-100 transition-all duration-500 relative z-10" />
-                          ) : (
-                            <span className="material-symbols-outlined !text-[36px] md:!text-[44px] text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors duration-500 relative z-10">{game.name?.toLowerCase().includes('sims') ? 'home' : 'sports_esports'}</span>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5 min-w-0 z-10 text-center sm:text-left w-full">
-                          <h3 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors duration-500 drop-shadow-sm break-words">{game.name}</h3>
-                          <span className="text-xs font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60 break-words">{t("landing_id_prefix") || "ID: "}{game.schema_id}</span>
-                        </div>
-
-                        <div className="shrink-0 z-10 w-full sm:w-auto">
-                          <div className="w-full sm:w-auto px-6 py-3 md:py-4 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs md:text-sm font-black uppercase tracking-widest text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] group-hover:text-[var(--accent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center gap-3">
-                            {t("launch") || "Launch Workspace"}
-                            <span className="material-symbols-outlined !text-[20px] group-hover:translate-x-1 transition-transform duration-300">arrow_forward</span>
+                      <UniversalCard
+                        key={game.id}
+                        layout="horizontal"
+                        onClick={() => navigateToGame(game.schema_id)}
+                        className="w-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_10px_40px_rgba(var(--accent-rgb),0.15)] group"
+                        title={<span className="group-hover:text-[var(--accent)] transition-colors">{game.name}</span>}
+                        subtitle={<span className="text-[10px] font-mono tracking-widest text-[var(--subtext)] opacity-60 break-words">{t("landing_id_prefix") || "ID: "}{game.schema_id}</span>}
+                        icon={!game.icon ? (game.name?.toLowerCase().includes('sims') ? 'home' : 'sports_esports') : undefined}
+                        customIcon={game.icon ? (
+                          <img src={game.icon} alt="" className="w-12 h-12 object-contain drop-shadow-lg opacity-80 group-hover:opacity-100 transition-all duration-500 relative z-10" />
+                        ) : undefined}
+                        actions={
+                          <div className="px-4 py-2 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-black uppercase tracking-widest text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] group-hover:text-[var(--accent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all flex items-center gap-2">
+                            {t("launch") || "Launch"}
+                            <span className="material-symbols-outlined !text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
                           </div>
-                        </div>
-                      </div>
+                        }
+                      />
                     ))}
                   </>
                 )}

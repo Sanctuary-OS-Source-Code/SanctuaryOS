@@ -38,7 +38,7 @@ export default function WebDocumentFeed() {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(400px,1fr))] gap-6 w-full">
       {loading ? (
         <div className="col-span-full text-center py-12 opacity-50 font-black uppercase tracking-widest">{t("loading")}</div>
       ) : posts.length === 0 ? (

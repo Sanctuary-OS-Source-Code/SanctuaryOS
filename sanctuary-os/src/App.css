@@ -637,15 +637,12 @@ body,
 
 /* Mobile Performance Optimizations */
 @media (max-width: 1024px), (pointer: coarse) {
-  /* THE ULTIMATE MOBILE GLASS COMPROMISE:
+  /* THE MOBILE GLASS STRATEGY:
      1. Native `backdrop-filter` fails completely on Android Chrome due to `overflow` layer isolation from the fixed background.
      2. Desktop's fake blur (`::before` with `background-attachment: fixed`) causes massive scrolling/animation lag on mobile GPUs.
-     3. The theme's native `var(--glass-panel-bg)` is often completely transparent (e.g. 35% black) on dark backgrounds without blur.
      
      SOLUTION: 
-     We KILL the fake blur entirely to restore 60fps performance. 
-     We force a guaranteed-visible translucent background and border based on `--text-rgb`, 
-     providing a beautiful glass-like overlay without the expensive blur shader.
+     We keep the high-fidelity Desktop fake blur (`::before`) to give the user the frosted glass they want, but we forcefully override it to `background-attachment: scroll` on mobile viewports. The heavy 24px blur hides the fact that the inner background scrolls slightly out of sync with the main wallpaper, resulting in visually identical, buttery smooth 60fps frosted glass!
   */
 
   .glass-panel {
@@ -659,13 +656,7 @@ body,
     -webkit-backdrop-filter: none !important;
   }
 
-  /* 
-     THE MAGIC BULLET:
-     We ENABLE the Desktop fake blur (`::before`) to give the user the frosted glass they want.
-     BUT we force `background-attachment: scroll` (initial). 
-     `background-attachment: fixed` is what causes the 10fps lag on mobile scrolling!
-     With 24px of blur, the user won't notice that the background image inside the card is scrolling slightly differently than the fixed wallpaper behind it. They will just see beautiful, smooth, 60fps frosted glass!
-  */
+
   .glass-panel::before, .glass-surface::before {
     display: block !important;
     background-attachment: scroll !important;
