@@ -1,8 +1,8 @@
 **Sanctuary OS**
 # Master Architecture & Feature Document
 
-**Document Version:** V5 (V0.5.0)
-**Last Updated:** August 8, 2026
+**Document Version:** V5.5
+**Last Updated:** September 9, 2026
 
 Welcome to Sanctuary OS,
 
@@ -16,10 +16,12 @@ Sanctuary OS is built on a highly modular, decoupled architecture:
 - State Management: Zustand (Global State & UI Overlays).
 - **Desktop Framework:** Tauri V2 (Handles native file-system operations, avoiding JavaScript limitations).
 - **Backend / Database:** Supabase (PostgreSQL, GoTrue Auth, Realtime WebSockets) for cloud synchronization and global DNA registry oversight. Secures cross-database requests via a Deno Edge Function (`game-gateway`) intercepting legacy RPCs via a client-side Magic Proxy.
-- **Rust Core Capabilities:** ultra-fast compression pipelines for backups, serde, and sha2 (hashing). The system utilizes a dynamic, DB-driven expansion schema model rather than hardcoded Rust parsers.
+- **Rust Core Capabilities:** ultra-fast compression pipelines for backups, serde, and sha2 (hashing). The system utilizes a dynamic, DB-driven expansion schema model rather than hardcoded Rust parsers. (The legacy local DBPF parser has been fully deprecated to ensure seamless multi-game scaling).
 
 ## **Governance & Workspace Roles**
-The ecosystem is sustained through distinct roles managed via the Identity Matrix, ensuring consistent workflows across all administrative tiers.
+The ecosystem is sustained through distinct roles managed via the Identity Matrix, ensuring consistent workflows across all administrative tiers. Sanctuary OS enforces a strict architectural split between Global OS Permissions (`osRole`) and Game Workspace Permissions (`userRole`):
+- **osRole:** Grants global permissions across the entire OS (Keepers Core, SADefcon, Global Audit Logs).
+- **userRole:** Grants game-specific permissions dynamically evaluated based on the active workspace (Wayfinder, Architect).
 - **Sanctuary Foundry:** The core organization maintaining the Sanctuary OS platform. The Foundry is responsible for ensuring the success of both the core Sanctuary OS platform & all Sanctuary Partners.
 - **Keepers:** The core developers/maintainers working within the Foundry. This is the team responsible for the maintenance and evolution of the Sanctuary OS Platform.
 - **Wayfinders:** Community Managers responsible for Community maintenance, managing the Registry Health Status, and broadcasting via The Dispatch. Wayfinders can initiate scheduled/operational DEFCON events.
@@ -90,5 +92,6 @@ A tiered compliance system maintains a balance between user sovereignty and netw
 ## **Interface & Lexicon Framework**
 - **Chameleon Protocol:** A CSS theme injection engine allowing instant hot-swaps between themes (Dracula, Radiant, The Void) using Glassmorphism V2 (backdrop blurs and dynamic shadows).
 - **Lexicon Protocol (Word-as-a-Service):** All UI strings are extracted to dynamic .json dictionaries. This enables Persona Packs (e.g., standard English vs. Lore-Friendly immersive terminology) and modular internationalization.
-- **The Side Panel Ecosystem: **Across the entire operating system, complex tasks are handled via non-intrusive Side Panels, so you never lose your context.
-- **Elevated Hub Layout:** All core command hubs utilize the standardized `ElevatedHubLayout` and `UniversalCard` system, integrating `ScreenUtilityBar` and `FilterPopover` components for robust, responsive desktop and mobile UX.
+- **The Side Panel Ecosystem:** Across the entire operating system, complex tasks are handled via non-intrusive Side Panels, so you never lose your context. Side panels now exclusively use `headerActions` (top-right controls) as the `SidePanelActionFooter` has been fully deprecated.
+- **Elevated Hub Layout:** All core command hubs (Keepers, Wayfinders, Defcon) utilize the standardized `ElevatedHubLayout` and `UniversalCard` system. This eradicates custom layout hacks and guarantees consistent responsive behavior.
+- **Mobile Filter Architecture:** Complex filters and secondary actions collapse into the `MobileFilterGroup` bottom-sheet on mobile devices, vastly improving vertical real estate and legibility on narrow viewports.

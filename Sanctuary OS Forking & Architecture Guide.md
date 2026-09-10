@@ -1,7 +1,7 @@
 ## Sanctuary OS
 ## Forking & Architecture Guide
-#### Version: 5 (V0.5.0)
-#### Last Updated: August 19, 2026
+#### Version: V5.5 
+#### Last Updated: September 9, 2026
 
 Welcome to the architecture and forking guide for Sanctuary OS. 
 Sanctuary OS is a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy.  
@@ -75,6 +75,7 @@ Instead of hardcoding SQL, refer to [schema.sql] and [schema_os.sql] for the exa
   - **Network Protocols**: Tracks recursive dependencies (addons, betas, rivals) and flavor groups.
   - **Conflicts & Labs**: Maps logical conflict arrays and Homestead Lab results.
   - **Blueprints**: Saves tactical loadout schemas. Support is included for "Offline Metadata Persistence", allowing custom Mod Dossier data (authors, URLs) to be dynamically injected and persisted natively within the `.json` blueprint exports without requiring cloud synchronization.
+  - **Spoke Data Standards**: All telemetry, user records, and assets across Spoke databases (e.g., `nexus_assets`, `nexus_reports`) MUST strictly bind to user UUIDs (`author_id`, `reporter_id`) to ensure cross-database identity mapping remains secure even if usernames change on the OS Hub.
   - **Administration & Moderation**: Tracks system telemetry, Nexus reports, asset flags, and active DEFCON status.
 
 ---

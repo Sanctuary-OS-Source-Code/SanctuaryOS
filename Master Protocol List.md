@@ -1,8 +1,8 @@
 # Sanctuary OS
 ## Master Protocol List
 
-**Document Version:** V5
-**Last Updated:** August 8, 2026
+**Document Version:** V5.5
+**Last Updated:** September 9, 2026
 
 ### System Foundation & Setup
 * **The Cartographer:** An automated reconnaissance system that scans for the Game Bin and Mods directory on first boot.
@@ -32,6 +32,7 @@
 * **1v1 Stability Protocol:** Users can pit two conflicting mods against each other while the OS monitors engine logs in real-time.
 
 ### Security & Compliance
+* **Authorization Protocols:** Elevated Hubs must check either `osRole` (Global OS Permissions for Keepers/Defcon) or `userRole` (Game Workspace Permissions for Wayfinders/Architects) depending on the context. Accessing a hub without the correct role initiates an instant fallback to the dashboard.
 * **Citizen’s Signature:** High-stakes confirmation gate for all permanent file operations.
 * **The Quarantine Zone:** A dedicated bio-hazard sector for Malicious artifacts.
 * **Florida Compliance Layer:** Compliance Tiers 1-4 (Explicit, Illicit, Extreme Violence, Taboo) content is permitted for local use and Vault storage. However, these artifacts are scrubbed from the Global Nexus Feed and stripped from public Cloud Blueprints to maintain legal compliance. Severe artifacts (Tiers 3-5) additionally trigger a Vault Lock restricting support operations.
@@ -46,6 +47,7 @@
 * **The Nuclear Override:** Located in System Preferences, this one-time toggle allows a user to bypass security lockouts. Engaging this tags the user as Blacklisted on the Identity Matrix, instantly and permanently severing all communication with the Sanctuary Cloud.
 
 ### User Interface & Experience
+* **Mobile Viewport Optimization:** All complex view filters and secondary hub actions MUST collapse into the `MobileFilterGroup` bottom-sheet on mobile devices to preserve vertical real estate and legibility.
 * **Local Override Layer:** The Mod Dossier is completely decoupled from the Cloud for local customization. Users can natively edit Mod Names, Authors, URLs, Cover Images, and Custom Tags.
 * **The Scout Dossier:** During a Radar Sweep, any mod that lacks a global DNA match and isn't explicitly flagged as local is grouped into an "Unidentified Artifacts" queue. Citizens can quickly map them to the network via the Scout Dossier or permanently click "FLAG AS LOCAL" to opt them out of future global syncs.
 * **The Copilot Philosophy:** The system identifies cascades, but halts for a Citizens signature. The OS suggests fixes, but the citizen maintains 100% control over the vault’s final state.

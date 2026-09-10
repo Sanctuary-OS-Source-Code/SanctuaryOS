@@ -2,12 +2,33 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ==========================================
--- 1. IDENTITIES & ROLES
+-- DROP EXISTING SCHEMA (DEPENDENCY ORDER)
+-- ==========================================
+DROP TRIGGER IF EXISTS trg_prevent_audit_update ON audit_logs CASCADE;
+DROP TRIGGER IF EXISTS trg_prevent_audit_delete ON audit_logs CASCADE;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+DROP FUNCTION IF EXISTS prevent_audit_modifications() CASCADE;
+
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS keeper_tickets CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+DROP TABLE IF EXISTS sanctuary_games CASCADE;
+DROP TABLE IF EXISTS sanctuary_theme_images CASCADE;
+DROP TABLE IF EXISTS sanctuary_themes CASCADE;
+DROP TABLE IF EXISTS sanctuary_lexicons CASCADE;
+DROP TABLE IF EXISTS sanctuary_schemas CASCADE;
+DROP TABLE IF EXISTS hardware_bans CASCADE;
+DROP TABLE IF EXISTS keeper_system_broadcasts CASCADE;
+DROP TABLE IF EXISTS keeper_support_categories CASCADE;
+
+-- ==========================================
+-- 1. IDENTITIES & GLOBAL ROLES (osRole)
 -- ==========================================
 CREATE TABLE profiles (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY, 
     username TEXT, 
-    role TEXT DEFAULT 'citizen'
+    role TEXT DEFAULT 'citizen' -- osRole (Global OS permissions: citizen, keeper, admin, core_dev)
 );
 
 -- Auto-create profile trigger on Supabase Auth Signup
@@ -71,7 +92,7 @@ CREATE TABLE sanctuary_schemas (
 );
 
 -- ==========================================
--- 4. OVERSIGHT & LOGGING
+-- 4. OVERSIGHT, COMPLIANCE & LOGGING
 -- ==========================================
 CREATE TABLE hardware_bans (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -79,6 +100,7 @@ CREATE TABLE hardware_bans (
     reason TEXT,
     banned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
 CREATE TABLE audit_logs (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     action TEXT NOT NULL,
@@ -107,6 +129,9 @@ CREATE TRIGGER trg_prevent_audit_delete
 BEFORE DELETE ON audit_logs
 FOR EACH ROW EXECUTE FUNCTION prevent_audit_modifications();
 
+-- ==========================================
+-- 5. KEEPERS INFRASTRUCTURE
+-- ==========================================
 CREATE TABLE keeper_system_broadcasts (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     title TEXT NOT NULL,
@@ -133,9 +158,6 @@ CREATE TABLE keeper_tickets (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- ==========================================
--- 5. KEEPERS INFRASTRUCTURE
--- ==========================================
 CREATE TABLE keeper_support_categories (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     category_code TEXT NOT NULL,

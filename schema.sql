@@ -2,6 +2,55 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ==========================================
+-- DROP EXISTING SCHEMA (DEPENDENCY ORDER)
+-- ==========================================
+DROP TRIGGER IF EXISTS trg_purge_flagged_hash_from_blueprints ON public.mods CASCADE;
+DROP TRIGGER IF EXISTS trg_prevent_audit_update ON audit_logs CASCADE;
+DROP TRIGGER IF EXISTS trg_prevent_audit_delete ON audit_logs CASCADE;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
+DROP FUNCTION IF EXISTS public.purge_flagged_hash_from_blueprints() CASCADE;
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+DROP FUNCTION IF EXISTS prevent_audit_modifications() CASCADE;
+
+DROP TABLE IF EXISTS homestead_workbench_templates CASCADE;
+DROP TABLE IF EXISTS homestead_lab_logs CASCADE;
+DROP TABLE IF EXISTS collection_members CASCADE;
+DROP TABLE IF EXISTS collections CASCADE;
+DROP TABLE IF EXISTS nexus_reports CASCADE;
+DROP TABLE IF EXISTS nexus_assets CASCADE;
+DROP TABLE IF EXISTS mason_post_comments CASCADE;
+DROP TABLE IF EXISTS heuristic_signatures CASCADE;
+DROP TABLE IF EXISTS content_flags CASCADE;
+DROP TABLE IF EXISTS blueprint_reports CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS system_broadcasts CASCADE;
+DROP TABLE IF EXISTS sanctuary_telemetry_sources CASCADE;
+DROP TABLE IF EXISTS sanctuary_support_categories CASCADE;
+DROP TABLE IF EXISTS sanctuary_tickets CASCADE;
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS dlc_registry CASCADE;
+DROP TABLE IF EXISTS global_security CASCADE;
+DROP TABLE IF EXISTS global_network_status CASCADE;
+DROP TABLE IF EXISTS blueprints CASCADE;
+DROP TABLE IF EXISTS scout_suggestions CASCADE;
+DROP TABLE IF EXISTS logical_conflicts CASCADE;
+DROP TABLE IF EXISTS flavor_group_members CASCADE;
+DROP TABLE IF EXISTS flavor_groups CASCADE;
+DROP TABLE IF EXISTS mod_dependencies CASCADE;
+DROP TABLE IF EXISTS mod_relationships CASCADE;
+DROP TABLE IF EXISTS mod_versions CASCADE;
+DROP TABLE IF EXISTS mods CASCADE;
+DROP TABLE IF EXISTS game_versions CASCADE;
+DROP TABLE IF EXISTS mason_posts CASCADE;
+DROP TABLE IF EXISTS mason_followers CASCADE;
+DROP TABLE IF EXISTS masons CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+DROP TABLE IF EXISTS sanctuary_theme_images CASCADE;
+DROP TABLE IF EXISTS sanctuary_themes CASCADE;
+DROP TABLE IF EXISTS sanctuary_lexicons CASCADE;
+DROP TABLE IF EXISTS sanctuary_schemas CASCADE;
+
+-- ==========================================
 -- 1. PROFILES & MASONS (CREATORS)
 -- ==========================================
 CREATE TABLE profiles (
@@ -12,7 +61,7 @@ CREATE TABLE profiles (
   
 CREATE TABLE masons (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, 
-    profile_id UUID, 
+    profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE, 
     name TEXT NOT NULL, 
     bio TEXT, 
     avatar_url TEXT, 
@@ -21,7 +70,7 @@ CREATE TABLE masons (
     discord_url TEXT,
     compliance_tier INTEGER DEFAULT 0,
     is_verified BOOLEAN DEFAULT false,
-    pinned_mod_id UUID REFERENCES mods(id) ON DELETE SET NULL,
+    pinned_mod_id UUID, -- Foreign key added later to avoid circular dependency
     pinned_asset_id UUID,
     pinned_blueprint_id INTEGER,
     pinned_ccset_id TEXT
@@ -93,6 +142,9 @@ CREATE TABLE mod_versions (
     version_label TEXT, 
     game_version TEXT
 );
+
+-- Now we can add the foreign key to masons
+ALTER TABLE masons ADD CONSTRAINT fk_pinned_mod FOREIGN KEY (pinned_mod_id) REFERENCES mods(id) ON DELETE SET NULL;
   
 -- ==========================================
 -- 3. NETWORK PROTOCOLS & RELATIONSHIPS
@@ -153,12 +205,9 @@ CREATE TABLE scout_suggestions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
   
-
 -- ==========================================
 -- 5. CC SETS & BLUEPRINTS
 -- ==========================================
-  
-  
 CREATE TABLE blueprints (
     id SERIAL PRIMARY KEY,
     code TEXT UNIQUE NOT NULL, 
@@ -166,6 +215,8 @@ CREATE TABLE blueprints (
     artifacts JSONB, 
     mod_meta JSONB,
     mason_id UUID REFERENCES masons(id) ON DELETE SET NULL,
+    game_id TEXT,
+    game_name TEXT,
     is_public BOOLEAN DEFAULT false,
     is_market_listed BOOLEAN DEFAULT false,
     is_locked BOOLEAN DEFAULT false,
@@ -307,11 +358,10 @@ CREATE TABLE notifications (
 -- ==========================================
 -- 8. MARKETPLACE & CONTENT MODERATION
 -- ==========================================
-
-
 CREATE TABLE blueprint_reports (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     blueprint_id INTEGER REFERENCES blueprints(id) ON DELETE CASCADE,
+    reporter_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     reporter_name TEXT,
     reason TEXT,
     status TEXT DEFAULT 'pending',
@@ -391,7 +441,7 @@ FOR EACH ROW
 EXECUTE FUNCTION public.purge_flagged_hash_from_blueprints();
 
 -- ==========================================
--- 9. MASTER SCHEMAS
+-- 9. MASTER SCHEMAS (Synched from Core)
 -- ==========================================
 CREATE TABLE sanctuary_schemas (
     id TEXT PRIMARY KEY,
@@ -431,8 +481,6 @@ CREATE POLICY "Allow insert access theme images" ON public.sanctuary_theme_image
 CREATE POLICY "Allow update access theme images" ON public.sanctuary_theme_images FOR UPDATE USING (true);
 CREATE POLICY "Allow delete access theme images" ON public.sanctuary_theme_images FOR DELETE USING (true);
 
-
-
 -- ==========================================
 -- 10. NEXUS & HOMESTEAD (FORMERLY MARKETPLACE & SOLDER LAB)
 -- ==========================================
@@ -441,6 +489,7 @@ CREATE TABLE nexus_assets (
     name TEXT,
     asset_type TEXT,
     author TEXT,
+    author_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     language TEXT,
     json_data JSONB,
     image_url TEXT,
@@ -514,4 +563,3 @@ CREATE TABLE homestead_workbench_templates (
     schema_data JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-

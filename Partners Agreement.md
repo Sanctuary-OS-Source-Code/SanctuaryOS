@@ -105,12 +105,15 @@ This perk is managed by Sanctuary Foundry as a platform-wide incentive, but Sanc
 ## 5. DATA OWNERSHIP & SEVERANCE
 
 ### 5.1. Shared Identity Matrix
-User authentication is managed via a shared Sanctuary User Database to allow single-account access across multiple Partner databases via FDW/API connections, identity-linking services, or other routing mechanisms.
+User authentication is managed via a shared Sanctuary User Database to allow single-account access across multiple Partner databases via Magic Proxy interception, Deno Edge Functions (`game-gateway`), or other routing mechanisms.
 
-### 5.2. Data Retention
-Upon severance, Sanctuary may disable FDW/API connections, identity-linking services, or other routing mechanisms.
+### 5.2. Data Persistence & Identity Telemetry
+To preserve user privacy and prevent orphaned data, all telemetry, user-generated records, and asset ownership mapping across Partner Spoke databases MUST bind strictly to global User UUIDs (`author_id`, `reporter_id`) rather than static usernames. This ensures cross-database identity mapping remains accurate even if a user alters their identity on the OS Hub.
 
-Partner databases shall remain independently hosted and shall retain their local workspace records, including any locally stored Citizen references, role assignments, and activity records existing before severance.
+### 5.3. Data Retention
+Upon severance, Sanctuary may disable Magic Proxy routing or Edge Function access.
+
+Partner databases shall remain independently hosted and shall retain their local workspace records, including any locally stored Citizen UUID references, role assignments, and activity records existing before severance.
 
 ***
 

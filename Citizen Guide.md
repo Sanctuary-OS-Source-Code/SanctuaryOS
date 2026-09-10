@@ -1,7 +1,7 @@
 # Sanctuary OS 
 
 ![Version](https://img.shields.io/badge/version-0.5.5-blue)
-![Last Updated](https://img.shields.io/badge/last_updated-August_28th,_2026-brightgreen)
+![Last Updated](https://img.shields.io/badge/last_updated-September-9,_2026-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Alpha](https://img.shields.io/badge/Alpha-Early_Access-red)
 
@@ -259,6 +259,7 @@ Keepers are the actual developers of Sanctuary OS. They operate entirely separat
 - **Global Audit Logs:** A permanent, undeletable ledger of every global database mutation and security flag executed across the entire OS. Features strict append-only security triggers and dual-redundancy (writes to both local and Core OS DBs), with workspace-specific filtering in the Audit Log Viewer.
 
 ## Role Protocols:
-1. **Workflow Consistency:** The Support Queue and Artifact Dossiers are 1:1 copies across all elevated roles. This ensures a moderator (Architect) and a community manager (Wayfinder) see the exact same data when troubleshooting a ticket.
-2. **The "Sever Access" Rule:** Only Wayfinders and Oversight can engage the Nuclear Override for an account, which permanently severs a profile from the global network.
-3. **Local vs. Global:** Architects and Oversight are reminded that edits to the Global Registry affect all users, while edits in the Local Override Layer affect only the user's personal installation.
+1. **Dual-Role Architecture:** To maintain strict separation of concerns, Sanctuary OS evaluates your permissions using two decoupled roles. Your `osRole` defines your global OS clearances (Keepers, Defcon) while your `userRole` defines your game-specific clearances (Wayfinders, Architects) for the active Workspace.
+2. **Workflow Consistency:** The Support Queue and Artifact Dossiers are 1:1 copies across all elevated roles. This ensures a moderator (Architect) and a community manager (Wayfinder) see the exact same data when troubleshooting a ticket.
+3. **The "Sever Access" Rule:** Only Wayfinders and Oversight can engage the Nuclear Override for an account, which permanently severs a profile from the global network.
+4. **Local vs. Global:** Architects and Oversight are reminded that edits to the Global Registry affect all users, while edits in the Local Override Layer affect only the user's personal installation.

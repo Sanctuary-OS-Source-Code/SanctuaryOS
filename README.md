@@ -1,7 +1,7 @@
 # Sanctuary OS 
 
 ![Version](https://img.shields.io/badge/version-0.5.5-blue)
-![Last Updated](https://img.shields.io/badge/last_updated-August_28th,_2026-brightgreen)
+![Last Updated](https://img.shields.io/badge/last_updated-September-9,_2026-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Alpha](https://img.shields.io/badge/Alpha-Early_Access-red)
 
@@ -112,7 +112,7 @@ Sanctuary OS replaces manual file moving with Blueprints (tactical loadouts).
 
 - **Drafting:** Create profiles to swap between different sets of mods instantly.
 - **Blueprint Alerts:** A dynamic Button/Side Panel that shows current known issues with the blueprints loadout.
-- **Import/Export:** A JSON-based system. Blueprints can be imported/exported and shared without the cloud or internet connection.
+- **Import/Export:** A JSON-based system. Blueprints can be imported/exported and shared without the cloud or internet connection. Blueprint exports now securely carry your custom Local Dossier metadata (such as custom author URLs for missing mods) to guarantee perfect identity persistence offline.
 - **Blueprint Uplink:** A cloud-based coordinate system. Blueprints can be shared via 6-digit alphanumeric hashes (`SNCXXX`).
 - **Snapshot Active Blueprint:** Clone the deployed Blueprint into an editable local copy.
 
@@ -165,7 +165,7 @@ Security is handled through a tiered global compliance system managed by Oversig
   - This prompt will only occur during the ingest process (Drag & Drop)
   - The Original File’s path is stored in volatile memory during the install process
   - This process does not occur for retroactive alerts
-- **Nuclear Override:** A hidden toggle exists in System Preferences. To reveal it, click the subtitle “Local configuration, identity, libraries, and security protocols” 5 times. This allows you to bypass quarantine, but doing so permanently blacklists your hardware ID from the Sanctuary Cloud, revoking all network privileges.
+- **Nuclear Override:** A hidden toggle exists in System Preferences. To reveal it, click the subtitle “Local configuration, identity, libraries, and security protocols” 5 times. This allows you to bypass quarantine, but doing so permanently records your hardware signature in a decoupled ban ledger on the Sanctuary Cloud, revoking all network privileges without requiring persistent hardware tracking.
 
 ## System Preferences
 Your System. Your Sovereignty. Your Preferences.
@@ -259,6 +259,7 @@ Keepers are the actual developers of Sanctuary OS. They operate entirely separat
 - **Global Audit Logs:** A permanent, undeletable ledger of every global database mutation and security flag executed across the entire OS. Features strict append-only security triggers and dual-redundancy (writes to both local and Core OS DBs), with workspace-specific filtering in the Audit Log Viewer.
 
 ## Role Protocols:
-1. **Workflow Consistency:** The Support Queue and Artifact Dossiers are 1:1 copies across all elevated roles. This ensures a moderator (Architect) and a community manager (Wayfinder) see the exact same data when troubleshooting a ticket.
-2. **The "Sever Access" Rule:** Only Wayfinders and Oversight can engage the Nuclear Override for an account, which permanently severs a profile from the global network.
-3. **Local vs. Global:** Architects and Oversight are reminded that edits to the Global Registry affect all users, while edits in the Local Override Layer affect only the user's personal installation.
+1. **Dual-Role Architecture:** To maintain strict separation of concerns, Sanctuary OS evaluates your permissions using two decoupled roles. Your `osRole` defines your global OS clearances (Keepers, Defcon) while your `userRole` defines your game-specific clearances (Wayfinders, Architects) for the active Workspace.
+2. **Workflow Consistency:** The Support Queue and Artifact Dossiers are 1:1 copies across all elevated roles. This ensures a moderator (Architect) and a community manager (Wayfinder) see the exact same data when troubleshooting a ticket.
+3. **The "Sever Access" Rule:** Only Wayfinders and Oversight can engage the Nuclear Override for an account, which permanently severs a profile from the global network.
+4. **Local vs. Global:** Architects and Oversight are reminded that edits to the Global Registry affect all users, while edits in the Local Override Layer affect only the user's personal installation.
