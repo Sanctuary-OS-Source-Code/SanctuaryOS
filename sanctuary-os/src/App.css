@@ -520,9 +520,10 @@ body,
   color: var(--text);
   border-radius: var(--radius, 1.5rem);
   z-index: 1;
-  background: linear-gradient(135deg,
+  background-image: linear-gradient(135deg,
       rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(var(--glassOpacityDecimal, 0.12) * 1.2)) 0%,
       rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(var(--glassOpacityDecimal, 0.12) * 0.7)) 100%);
+  background-color: transparent;
   transition-property: color, background-color, border-color, box-shadow;
   transition-duration: 300ms;
   border: 1px solid rgba(var(--text-rgb, 255, 255, 255), var(--glassBorderOpacityDecimal, 0.08));
@@ -572,9 +573,10 @@ body,
   color: var(--text);
   border-radius: max(0px, calc(var(--radius) - 6px));
   z-index: 1;
-  background: linear-gradient(135deg,
+  background-image: linear-gradient(135deg,
       rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(var(--glassOpacitySurfaceDecimal, 0.08) * 1.5)) 0%,
       rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(var(--glassOpacitySurfaceDecimal, 0.08) * 0.3)) 100%);
+  background-color: transparent;
   transition-property: color, background-color, border-color, box-shadow, opacity;
   transition-duration: 300ms;
   border: 1px solid rgba(var(--text-rgb, 255, 255, 255), var(--glassBorderOpacitySurfaceDecimal, 0.05));

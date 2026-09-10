@@ -2208,7 +2208,10 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
 
   const strVal = String(displayValue);
   let sizeClass = "text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
-    const activeStyles = isActive ? "border border-[currentColor] shadow-[0_0_30px_-5px_currentColor,inset_0_0_20px_-5px_currentColor] scale-[1.02] z-10 bg-[color-mix(in_srgb,currentColor_10%,transparent)]" : "border border-[color-mix(in_srgb,currentColor_10%,transparent)] bg-[color-mix(in_srgb,currentColor_2%,transparent)]";
+  const activeStyles = isActive 
+    ? "border border-[currentColor] shadow-[0_0_30px_-5px_currentColor,inset_0_0_20px_-5px_currentColor] scale-[1.02] z-10" 
+    : "border border-[color-mix(in_srgb,currentColor_30%,transparent)] hover:brightness-125";
+  
   if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
   else if (strVal.length > 10) sizeClass = "text-lg xl:text-xl";
   else if (strVal.length > 5) sizeClass = "text-xl lg:text-2xl xl:text-3xl";
@@ -2221,6 +2224,7 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
       style={style}
       className={`flex-1 min-w-0 h-auto flex flex-col md:flex-row items-center justify-center md:justify-start text-center md:text-left py-2 px-2 md:p-5 gap-0 md:gap-4 rounded-3xl glass-panel ${cleanColorClass} ${textColor} relative group transition duration-500 shadow-xl ${disabled ? 'opacity-50 cursor-not-allowed' : onClick ? 'cursor-pointer hover:shadow-[0_10px_40px_rgba(0,0,0,0.3)] hover:-translate-y-1' : ''} ${activeStyles} ${className}`}
     >
+      <div className="absolute inset-0 rounded-[inherit] pointer-events-none" style={{ backgroundColor: isActive ? 'color-mix(in srgb, currentColor 20%, transparent)' : 'color-mix(in srgb, currentColor 10%, transparent)' }} />
       <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[inherit]" />
 
       {icon && (<div className="w-8 h-8 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shrink-0 relative transition-all duration-500 group-hover:scale-110">

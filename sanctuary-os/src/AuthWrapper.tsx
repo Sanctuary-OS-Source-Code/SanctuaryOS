@@ -381,9 +381,10 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
            backgroundAttachment: 'fixed',
            color: 'var(--text)' 
          }}>
-      <div className={`relative z-10 w-[90%] ${(!isLogin && !isResetPassword) ? 'max-w-5xl' : 'max-w-lg'} glass-panel [&::after]:hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col group transition-all duration-500 overflow-hidden max-h-[95dvh]`}>
+      <div className={`relative z-10 w-[90%] ${(!isLogin && !isResetPassword) ? 'max-w-5xl' : 'max-w-xl'} bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[60px] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[2rem] shadow-[0_0_50px_rgba(0,0,0,0.5),inset_0_0_20px_color-mix(in_srgb,var(--accent)_5%,transparent)] flex flex-col group transition-all duration-500 overflow-hidden max-h-[95dvh]`}>
+        <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-[color-mix(in_srgb,var(--bg)_20%,transparent)] pointer-events-none" />
         <div className={`flex w-full h-full ${(!isLogin && !isResetPassword) ? 'flex-col md:flex-row' : 'flex-col'} overflow-y-auto overflow-x-hidden custom-scrollbar`}>
-          <div className={`flex flex-col w-full ${(!isLogin && !isResetPassword) ? 'md:w-1/2 p-8 md:p-14 border-b md:border-b-0 md:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]' : 'p-8 md:p-14'} shrink-0 relative z-20`}>
+          <div className={`flex flex-col w-full ${(!isLogin && !isResetPassword) ? 'md:w-1/2 p-8 md:p-14 border-b md:border-b-0 md:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]' : 'p-10 md:p-16'} shrink-0 relative z-20`}>
             <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent opacity-50" />
 
             <div className="flex flex-col items-center justify-center text-center mb-10 relative z-20">
@@ -392,7 +393,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                 <img
                   src={gameIcon || "/icon.png"}
                   alt="Logo"
-                  className="w-full h-full object-contain opacity-[0.25] hover:opacity-[0.8] hover:scale-110 hover:rotate-12 transition-all duration-700 cursor-pointer"
+                  className="w-full h-full object-contain hover:scale-110 hover:rotate-12 transition-all duration-700 cursor-pointer drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
                 />
               </div>
               <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-[var(--headerText)] drop-shadow-md mb-2 transition-colors duration-500">
@@ -497,7 +498,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             <div className="mt-4 relative z-20">
               <button
                 onClick={() => { localStorage.removeItem("sanctuary_show_login"); setShowLoginUI(false); }}
-                className="w-full py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] active:scale-[0.98]"
+                className="w-full py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] active:scale-[0.98]"
               >
                 {t("btn_skip")}
               </button>
@@ -541,7 +542,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           </div>
 
           {!isLogin && !isResetPassword && (
-            <div className="flex flex-col w-full md:w-1/2 p-8 md:p-14 justify-center gap-10 shrink-0 relative z-10">
+            <div className="flex flex-col w-full md:w-1/2 p-8 md:p-14 justify-center gap-10 shrink-0 relative z-10 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
               <div className="flex flex-col items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6">
                 <div className="relative mb-4 w-16 h-16 flex items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg">
                   <span className="material-symbols-outlined !text-[32px] theme-text-accent opacity-80">admin_panel_settings</span>
