@@ -4,6 +4,7 @@ import { supabase, supabaseAuth } from "./supabase";
 import { stripMarkdown } from "./shared";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import MasonPostCard from "./MasonPostCard";
+import { UniversalCard } from "./components/universal/UniversalCard";
 
 export default function WebDocumentFeed() {
   const { t } = useLexicon();
@@ -38,21 +39,28 @@ export default function WebDocumentFeed() {
   }, []);
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(400px,1fr))] gap-6 w-full">
+    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4 w-full">
       {loading ? (
         <div className="col-span-full text-center py-12 opacity-50 font-black uppercase tracking-widest">{t("loading")}</div>
       ) : posts.length === 0 ? (
         <div className="col-span-full text-center py-12 opacity-50 font-black uppercase tracking-widest">{t("system_no_broadcasts") || "No documents found."}</div>
       ) : (
         posts.map((p, index) => (
-          <MasonPostCard
+          <UniversalCard
             key={p.id}
-            post={p}
-            index={index}
-            onPostClick={() => setSelectedPost(p)}
-            isCompact={true}
             layout="horizontal"
-          />
+            onClick={() => setSelectedPost(p)}
+            className="w-full group cursor-pointer"
+            isActive={selectedPost?.id === p.id}
+            title={<span className="group-hover:text-[var(--accent)] transition-colors line-clamp-1 leading-snug">{p.title}</span>}
+            subtitle={<span className="text-[10px] font-mono tracking-widest text-[var(--subtext)] opacity-60 uppercase mt-0.5 inline-block">{p.category}</span>}
+            icon={p.category?.toLowerCase().includes('alert') ? 'warning' : 'data_object'}
+            style={{ animationFillMode: "both", animationDelay: `${(index % 10) * 50}ms` }}
+          >
+            <p className="text-xs text-[var(--subtext)] line-clamp-2 leading-relaxed opacity-70 font-medium">
+              {stripMarkdown(p.description || p.content)}
+            </p>
+          </UniversalCard>
         ))
       )}
 

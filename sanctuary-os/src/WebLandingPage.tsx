@@ -89,10 +89,10 @@ export default function WebLandingPage() {
                 ) : (
                   <>
                     {games.map(game => (
-                      <div key={game.id} onClick={() => navigateToGame(game.schema_id)} className="cursor-pointer grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] items-center justify-items-center sm:justify-items-start gap-4 sm:gap-6 p-4 md:p-6 rounded-3xl glass-panel bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_10px_40px_rgba(var(--accent-rgb),0.15)] hover:-translate-y-1 transition-all duration-500 group overflow-hidden relative backdrop-blur-2xl">
-                        <div className="absolute inset-0 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                      <div key={game.id} onClick={() => navigateToGame(game.schema_id)} className="cursor-pointer grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] items-center justify-items-center sm:justify-items-start gap-4 sm:gap-6 p-4 md:p-6 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_10px_40px_color-mix(in srgb, var(--accent) 15%, transparent)] hover:-translate-y-1 transition-all duration-500 group relative">
+                        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-                        <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-2xl glass-panel flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-500 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] overflow-hidden relative z-10 group-hover:scale-105 group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]">
+                        <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-2xl glass-panel flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-500 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] overflow-hidden relative z-10 group-hover:scale-105 group-hover:shadow-[0_0_20px_color-mix(in srgb, var(--accent) 20%, transparent)]">
                           <div className="absolute inset-0 bg-gradient-to-tr from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
                           {game.icon ? (
                             <img src={game.icon} alt="" className="w-10 h-10 md:w-12 md:h-12 object-contain drop-shadow-lg opacity-80 group-hover:opacity-100 transition-all duration-500 relative z-10" />
@@ -103,11 +103,10 @@ export default function WebLandingPage() {
 
                         <div className="flex flex-col gap-1.5 min-w-0 z-10 text-center sm:text-left w-full">
                           <h3 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] transition-colors duration-500 drop-shadow-sm break-words">{game.name}</h3>
-                          <span className="text-xs font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60 break-words">{t("landing_id_prefix") || "ID: "}{game.schema_id}</span>
                         </div>
 
                         <div className="shrink-0 z-10 w-full sm:w-auto">
-                          <div className="w-full sm:w-auto px-6 py-3 md:py-4 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs md:text-sm font-black uppercase tracking-widest text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] group-hover:text-[var(--accent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)] transition-all flex items-center justify-center gap-3">
+                          <div className="w-full sm:w-auto px-6 py-3 md:py-4 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs md:text-sm font-black uppercase tracking-widest text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] group-hover:text-[var(--accent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:shadow-[0_0_20px_color-mix(in srgb, var(--accent) 20%, transparent)] transition-all flex items-center justify-center gap-3">
                             {t("launch") || "Launch Workspace"}
                             <span className="material-symbols-outlined !text-[20px] group-hover:translate-x-1 transition-transform duration-300">arrow_forward</span>
                           </div>
@@ -123,7 +122,7 @@ export default function WebLandingPage() {
           <section id="sanctuary_foundry_news" className="flex flex-col gap-6 scroll-mt-24 mt-8">
             <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
               <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
-                <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]">
+                <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in srgb, var(--accent) 20%, transparent)]">
                   <span className="material-symbols-outlined text-[var(--accent)]">campaign</span>
                 </div>
                 {t("landing_news") || "Sanctuary Foundry News"}
@@ -139,7 +138,7 @@ export default function WebLandingPage() {
         <section id="system_directives" className="w-full flex flex-col gap-6 mt-16 mb-8 scroll-mt-24">
           <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
             <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
-              <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]">
+              <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in srgb, var(--accent) 20%, transparent)]">
                 <span className="material-symbols-outlined text-[var(--accent)]">folder_special</span>
               </div>
               {t("landing_system_directives")}
@@ -188,7 +187,7 @@ export default function WebLandingPage() {
                   icon="rocket_launch"
                   title={<span className="group-hover:text-[var(--accent)] transition-colors">{t("landing_download_native_title") || "Sanctuary OS Native"}</span>}
                   subtitle={<span className="text-[10px] font-mono tracking-widest">{t("landing_download_native_subtitle") || "Windows (.exe)"}</span>}
-                  className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_20px_40px_rgba(var(--accent-rgb),0.1)] transition-all duration-500 hover:-translate-y-1"
+                  className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_20px_40px_color-mix(in srgb, var(--accent) 10%, transparent)] transition-all duration-500 hover:-translate-y-1"
                   footer={
                     <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest">
                       <span>v{packageJson.version}</span>

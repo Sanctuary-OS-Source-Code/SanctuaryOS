@@ -65,6 +65,9 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
   };
 
   const getThemeBadge = (id: string, data: any) => {
+    if (data.badgeKey) {
+      return t(data.badgeKey);
+    }
     if (CORE_THEMES[id]) {
       return t("badge_sanctuary");
     }

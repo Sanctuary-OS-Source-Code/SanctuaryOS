@@ -6,7 +6,7 @@ import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
-import { SidePanel, CustomDropdown, ModSearchDropdown, EmptyState, HoverTooltip, CustomDatePicker, ActionButton, FilterPopover } from "./shared";
+import { SidePanel, CustomDropdown, ModSearchDropdown, EmptyState, HoverTooltip, CustomDatePicker, ActionButton, FilterPopover, LinkAssetSidePanel } from "./shared";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import {
   DashboardStatTile, ViewHeader, CustomComplianceDropdown,
@@ -47,11 +47,9 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [inlineImageUrl, setInlineImageUrl] = useState("");
 
-  const [assets, setAssets] = useState<any[]>([]);
   const [masonName, setMasonName] = useState<string>("");
   const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [assetSearchQuery, setAssetSearchQuery] = useState("");
   const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -156,15 +154,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     if (masonData?.name) setMasonName(masonData.name);
     const mName = masonData?.name || '';
 
-    const { data: modsData } = await supabase.from('mods').select('id, name').eq('mason_id', masonId);
-    const { data: marketAssetsData } = await supabase.from('nexus_assets').select('id, name, asset_type').ilike('author', mName);
-    const { data: blueprintsData } = await supabase.from('blueprints').select('id, name').eq('mason_id', masonId);
 
-    let combinedAssets: any[] = [];
-    if (modsData) combinedAssets.push(...modsData.map(m => ({ id: m.id, name: m.name, type: 'mod' })));
-    if (blueprintsData) combinedAssets.push(...blueprintsData.map(b => ({ id: b.id, name: b.name, type: 'blueprint' })));
-    if (marketAssetsData) combinedAssets.push(...marketAssetsData.map(a => ({ id: a.id, name: a.name, type: a.asset_type })));
-    setAssets(combinedAssets);
   };
 
   useEffect(() => { fetchPostsAndAssets(); }, []);
@@ -196,12 +186,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     }
 
     setIsAssetPanelOpen(false);
-    setAssetSearchQuery("");
   };
-  const filteredAssets = useMemo(() => {
-    if (!isAssetPanelOpen) return [];
-    return assets.filter(a => a.name.toLowerCase().includes(assetSearchQuery.toLowerCase()));
-  }, [assets, assetSearchQuery, isAssetPanelOpen]);
 
   const openEditor = (post?: any) => {
     const draftId = post ? post.id : 'new';
@@ -689,45 +674,13 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
         </>
       )}
 
-      <SidePanel
+      <LinkAssetSidePanel
         isOpen={isAssetPanelOpen}
         onClose={() => setIsAssetPanelOpen(false)}
-        title={t("link_asset")}
-        icon="link"
+        onAssetSelect={handleLinkAsset}
         backdropZ="z-[50000]"
         panelZ="z-[50001]"
-      >
-        <div className="flex flex-col gap-6">
-          <div className="animate-in slide-in-from-top-2">
-            <div className="relative w-full">
-              <SearchBar
-                value={assetSearchQuery}
-                onChange={setAssetSearchQuery}
-                placeholder={t("search_assets")}
-                className="h-12 w-full rounded-2xl"
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            {isAssetPanelOpen && (
-              <>
-                {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported")} title={t("no_assets")} className="col-span-full py-16" />}
-                {filteredAssets.slice(0, 100).map(asset => (
-                  <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl glass-surface hover:theme-border-accent transition-all flex items-center gap-4 group">
-                    <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
-                    <span className="text-sm font-black text-[var(--text)] capitalize tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
-                  </button>
-                ))}
-                {filteredAssets.length > 100 && (
-                  <div className="text-center text-[var(--subtext)] text-xs py-4 opacity-50 font-black capitalize tracking-widest">
-                    {t("search_to_see_more_results") || `+ ${filteredAssets.length - 100} MORE ASSETS`}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </SidePanel>
+      />
 
       {previewPost && (
         <MasonPostViewer

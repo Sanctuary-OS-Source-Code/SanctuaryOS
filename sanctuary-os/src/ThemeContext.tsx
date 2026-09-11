@@ -157,7 +157,7 @@ export const ThemeProvider = ({ children }: any) => {
             // ONLY load from cloud if it's NOT a built-in core theme.
             // This protects the premium local aesthetic from being ruined by old database strings.
             if (!DEFAULT_CORE_THEMES[row.id]) {
-              fetchedThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name };
+              fetchedThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name, badgeKey: "badge_community_defaults" };
             }
           });
           setCoreThemes(fetchedThemes);
@@ -174,6 +174,30 @@ export const ThemeProvider = ({ children }: any) => {
       try {
         const fetchedGameThemes: Record<string, any> = {};
 
+        // 1. Fetch Community Defaults from public Spoke databases
+        try {
+          const { data: publicGames } = await supabase.from('sanctuary_games').select('*').eq('is_active', true);
+          if (publicGames) {
+            for (const game of publicGames) {
+              if (!game.supabase_url || !game.supabase_anon_key) continue;
+              try {
+                const client = createClient(game.supabase_url, game.supabase_anon_key, { auth: { persistSession: false } });
+                const { data } = await client.from('sanctuary_themes').select('*');
+                if (data && data.length > 0) {
+                  data.forEach((row: any) => {
+                    fetchedGameThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name, badge: game.name || "Community" };
+                  });
+                }
+              } catch (err) {
+                console.warn(`Failed to fetch community themes for ${game.name}`, err);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch public game databases', err);
+        }
+
+        // 2. Fetch from Workspaces (User specific overrides)
         for (const ws of workspaces) {
           if (ws.id === 'default_workspace' || !ws.supabase_url || !ws.supabase_anon_key) continue;
           

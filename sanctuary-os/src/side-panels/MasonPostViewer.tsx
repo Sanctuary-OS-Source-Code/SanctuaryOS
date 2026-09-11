@@ -4,7 +4,7 @@ import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import MarkdownRenderer from "../MarkdownRenderer";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, extractPostImage, renderTextWithIcons, EmptyState, HoverTooltip, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, extractPostImage, renderTextWithIcons, EmptyState, HoverTooltip, ActionButton, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel } from "../shared";
 import FlagContentSidePanel from './FlagContentSidePanel';
 import { handleOpenUrl } from "../shared";
 import { useStore } from '../store';
@@ -78,9 +78,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
   const [activeCodeSnippet, setActiveCodeSnippet] = useState<string | null>(null);
   const [flagTarget, setFlagTarget] = useState<{ id: string, type: 'post' | 'comment' | 'broadcast' } | null>(null);
 
-  const [assets, setAssets] = useState<any[]>([]);
   const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
-  const [assetSearchQuery, setAssetSearchQuery] = useState("");
 
   const masonCommentDrafts = useStore(state => state.masonCommentDrafts);
   const setMasonCommentDrafts = useStore(state => state.setMasonCommentDrafts);
@@ -172,20 +170,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
     }
   }, [editCommentContent, editingCommentId]);
 
-  useEffect(() => {
-    const fetchAssets = async () => {
-      const { data: modsData } = await supabase.from('mods').select('id, name');
-      const { data: marketAssetsData } = await supabase.from('nexus_assets').select('id, name, asset_type');
-      const { data: blueprintsData } = await supabase.from('blueprints').select('id, name');
 
-      let combinedAssets: any[] = [];
-      if (modsData) combinedAssets.push(...modsData.map(m => ({ id: m.id, name: m.name, type: 'mod' })));
-      if (blueprintsData) combinedAssets.push(...blueprintsData.map(b => ({ id: b.id, name: b.name, type: 'blueprint' })));
-      if (marketAssetsData) combinedAssets.push(...marketAssetsData.map(a => ({ id: a.id, name: a.name, type: a.asset_type })));
-      setAssets(combinedAssets.sort((a, b) => a.name.localeCompare(b.name)));
-    };
-    fetchAssets();
-  }, []);
 
   const handleLinkAsset = (asset: any) => {
     const linkStr = `asset://${asset.type}/${asset.id}`;
@@ -196,10 +181,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
     setNewComment(prev => prev + (prev.length > 0 && !prev.endsWith(' ') ? ' ' : '') + textToInsert + ' ');
 
     setIsAssetPanelOpen(false);
-    setAssetSearchQuery("");
   };
-
-  const filteredAssets = assets.filter(a => a.name.toLowerCase().includes(assetSearchQuery.toLowerCase()));
 
   useEffect(() => {
     if (post?.scrollToCommentId && comments.length > 0) {
@@ -778,38 +760,13 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
         />
       )}
 
-      <SidePanel
+      <LinkAssetSidePanel
         isOpen={isAssetPanelOpen}
         onClose={() => setIsAssetPanelOpen(false)}
-        title={t("link_asset")}
-        icon="link"
+        onAssetSelect={handleLinkAsset}
         backdropZ="z-[60000]"
         panelZ="z-[60001]"
-      >
-        <div className="flex flex-col gap-6">
-          <div className="animate-in slide-in-from-top-2">
-            <div className="relative w-full">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-sm">{t("icon_search")}</span>
-              <input
-                value={assetSearchQuery}
-                onChange={(e) => setAssetSearchQuery(e.target.value)}
-                placeholder={t("search_assets")}
-                className="w-full glass-panel rounded-2xl pl-10 pr-5 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40 shadow-inner"
-                autoFocus
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported")} title={t("no_assets")} className="col-span-full py-16" />}
-            {filteredAssets.map(asset => (
-              <button key={`${asset.type}-${asset.id}`} type="button" onClick={() => handleLinkAsset(asset)} className="text-left px-5 py-4 rounded-2xl glass-surface hover:theme-border-accent transition-all flex items-center gap-4 group">
-                <span className="material-symbols-outlined opacity-70 text-xl shrink-0 group-hover:scale-110 transition-transform">{asset.type === 'mod' ? (t("icon_extension")) : asset.type === 'blueprint' ? (t("icon_architecture")) : asset.type === 'lexicon' ? (t("icon_translate")) : (t("icon_palette"))}</span>
-                <span className="text-sm font-black text-[var(--text)] capitalize tracking-tight truncate w-full group-hover:theme-text-accent transition-colors">{asset.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </SidePanel>
+      />
 
       {activeCodeSnippet && (
         <CodeSnippetSidebar code={activeCodeSnippet} onClose={() => setActiveCodeSnippet(null)} />

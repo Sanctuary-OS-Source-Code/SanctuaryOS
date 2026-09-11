@@ -67,19 +67,19 @@ export function UniversalCard({
 
   switch (layout) {
     case "horizontal":
-      layoutClasses = "flex-row items-center min-h-[96px]";
-      imageContainerClasses = "w-28 self-stretch rounded-l-2xl";
-      contentClasses = "flex-col justify-center p-4 pr-5";
+      layoutClasses = "flex-row items-center p-4 gap-4 min-h-[80px]";
+      imageContainerClasses = "w-12 h-12 shrink-0 flex items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] transition-all duration-500 overflow-hidden relative";
+      contentClasses = "flex-col justify-center grow min-w-0";
+      break;
+    case "compact":
+      layoutClasses = "flex-row items-center p-3 gap-4 min-h-[64px] hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] transition-colors rounded-xl";
+      imageContainerClasses = "w-11 h-11 shrink-0 flex items-center justify-center rounded-xl glass-panel bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all duration-300 overflow-hidden relative";
+      contentClasses = "flex-col justify-center grow min-w-0";
       break;
     case "vertical-compact":
       layoutClasses = "flex-col";
-      imageContainerClasses = "w-full h-24 rounded-t-2xl";
-      contentClasses = "flex-col p-4 pt-5";
-      break;
-    case "compact":
-      layoutClasses = "flex-row items-center p-3 min-h-[64px] gap-4 hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] transition-colors";
-      imageContainerClasses = "w-11 h-11 rounded-xl overflow-hidden shrink-0 shadow-sm border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-center";
-      contentClasses = "flex-col justify-center grow min-w-0";
+      imageContainerClasses = "w-full h-24";
+      contentClasses = `flex-col p-4 ${(!image && !customIcon) ? 'justify-center items-center text-center px-6' : ''}`;
       break;
     case "stat":
       layoutClasses = "flex-col items-center justify-center p-4 text-center min-h-[100px]";
@@ -111,8 +111,9 @@ export function UniversalCard({
   const renderMedia = () => {
     if (!image && !icon && !customIcon) return null;
 
-    // For vertical layouts with ONLY an icon, skip rendering the massive empty banner!
-    if ((layout === "vertical" || layout === "vertical-compact") && !image && !customIcon) {
+    // For vertical layouts with NO image, skip rendering the massive empty banner!
+    // The icon/customIcon will be handled by the inline block in the content area instead.
+    if ((layout === "vertical" || layout === "vertical-compact") && !image) {
       return null;
     }
 
@@ -149,10 +150,10 @@ export function UniversalCard({
         }}
       >
         {(image && !imageError) ? (
-          <img 
-            src={image} 
-            onError={() => setImageError(true)} 
-            className={`w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700`} 
+          <img
+            src={image}
+            onError={() => setImageError(true)}
+            className={`w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700`}
             style={{
               ...(layout === 'horizontal' ? { borderTopLeftRadius: 'inherit', borderBottomLeftRadius: 'inherit' } : { borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' })
             }}
@@ -204,17 +205,19 @@ export function UniversalCard({
               </div>
             )}
 
-            <div className={`flex min-w-0 w-full ${layout === 'stat' || (!image && !customIcon && (layout === 'vertical' || layout === 'vertical-compact')) ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
+            <div className={`flex min-w-0 w-full ${layout === 'stat' || (!image && (layout === 'vertical' || layout === 'vertical-compact')) ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
               {/* If no image and it's a vertical layout, show a beautiful large icon! */}
-              {!image && !customIcon && icon && (layout === 'vertical' || layout === 'vertical-compact') && (
-                <div className="hidden md:flex w-16 h-16 rounded-xl bg-[color-mix(in_srgb,currentColor_5%,transparent)] border border-[color-mix(in_srgb,currentColor_20%,transparent)] flex items-center justify-center shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_2%,transparent)] group-hover/card:shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)] group-hover/card:scale-110 group-hover/card:border-[color-mix(in_srgb,currentColor_40%,transparent)] transition-all duration-500">
-                  <span className="material-symbols-outlined opacity-60 group-hover/card:opacity-100 theme-text-accent shrink-0 group-hover/card:drop-shadow-[0_0_15px_currentColor] transition-all duration-500">
-                    {icon}
-                  </span>
+              {!image && (icon || customIcon) && (layout === 'vertical' || layout === 'vertical-compact') && (
+                <div className="w-16 h-16 rounded-xl bg-[color-mix(in_srgb,currentColor_5%,transparent)] border border-[color-mix(in_srgb,currentColor_20%,transparent)] flex items-center justify-center shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_2%,transparent)] group-hover/card:shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)] group-hover/card:scale-110 group-hover/card:border-[color-mix(in_srgb,currentColor_40%,transparent)] transition-all duration-500">
+                  {customIcon ? customIcon : (
+                    <span className="material-symbols-outlined opacity-60 group-hover/card:opacity-100 theme-text-accent shrink-0 group-hover/card:drop-shadow-[0_0_15px_currentColor] transition-all duration-500">
+                      {icon}
+                    </span>
+                  )}
                 </div>
               )}
 
-              {(image || customIcon || (layout !== 'vertical' && layout !== 'vertical-compact')) && icon && (
+              {(image || customIcon || (layout !== 'vertical' && layout !== 'vertical-compact' && layout !== 'horizontal')) && icon && (
                 <span className={`material-symbols-outlined ${layout === 'compact' ? 'text-lg opacity-70' : 'text-xl theme-text-accent opacity-90'} shrink-0`}>
                   {icon}
                 </span>
