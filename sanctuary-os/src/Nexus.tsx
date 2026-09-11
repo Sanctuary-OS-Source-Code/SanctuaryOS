@@ -1441,8 +1441,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           onTitleClick={() => setMarketTab('HOME')}
         >
           {marketTab !== 'HOME' && (
-            <div className="flex flex-col xl:flex-row items-center gap-3 animate-in slide-in-from-top-4 duration-500 relative z-20 w-full xl:w-auto">
-              <div className="relative flex-1 min-w-[200px] w-full xl:w-[480px]">
+            <div className="flex items-center gap-2 md:gap-3 animate-in slide-in-from-top-4 duration-500 relative z-20 w-full xl:w-auto overflow-hidden">
+              <div className="relative flex-1 min-w-0">
                 <SearchBar
                   value={marketTab === 'MODS' ? searchQuery : assetSearchQuery}
                   onChange={(val: string) => {
@@ -1461,8 +1461,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 />
               </div>
 
-              <div className="flex items-center gap-3 w-full xl:w-auto">
-                <FilterPopover icon="tune" label={t("filters")} className="shrink-0 flex-1 xl:flex-none">
+              <div className="shrink-0">
+                <FilterPopover icon="tune" label={t("filters")} className="shrink-0" buttonClassName="!rounded-2xl">
                   <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)]">
                     <FilterSection
                       title={t("sort_by") || "Sort By"}

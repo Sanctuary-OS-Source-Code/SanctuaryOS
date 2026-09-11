@@ -290,13 +290,17 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         onTitleClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }}
       >
         {activeTab !== "OVERVIEW" && (
-          <ScreenUtilityBar
-            search={searchQuery || ""}
-            onSearchChange={setSearchQuery}
-            searchPlaceholder={t("mason_search_placeholder") || "Search..."}
-            className="!mb-0 !pb-0 !border-0 flex-none w-full xl:w-auto"
-          >
-            <FilterPopover icon="tune" label={t("filters")} className="shrink-0" buttonClassName="!rounded-2xl" activeTab={startDate || endDate || activeSort !== "NEWEST" ? "active" : undefined}>
+          <div className="flex items-center gap-2 md:gap-3 animate-in slide-in-from-top-4 duration-500 relative z-20 w-full">
+            <div className="relative flex-1 min-w-0">
+              <SearchBar
+                value={searchQuery || ""}
+                onChange={setSearchQuery}
+                placeholder={t("mason_search_placeholder") || "Search..."}
+                className="h-12 w-full rounded-2xl"
+              />
+            </div>
+            <div className="shrink-0">
+              <FilterPopover icon="tune" label={t("filters")} className="shrink-0" buttonClassName="!rounded-2xl" activeTab={startDate || endDate || activeSort !== "NEWEST" ? "active" : undefined}>
                 <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
                   <div className="flex flex-col gap-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sort_by") || "Sort By"}</span>
@@ -340,7 +344,8 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                   )}
                 </div>
               </FilterPopover>
-          </ScreenUtilityBar>
+            </div>
+          </div>
         )}
         </ViewHeader>
       <HoverTabDrawer title="Comm-Link Navigation" activeTab={activeTab} setTab={setActiveTab}>

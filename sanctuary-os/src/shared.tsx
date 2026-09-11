@@ -443,16 +443,16 @@ export const getModFallbackUrl = (modName: string, modHash: string | undefined, 
   let localOverrides: any = {};
   try {
     localOverrides = JSON.parse(localStorage.getItem('sanctuary_local_overrides') || '{}');
-  } catch(e) {}
-  
+  } catch (e) { }
+
   if (modHash && localOverrides[modHash]?.url) return localOverrides[modHash].url;
   if (blueprintMeta?.url) return blueprintMeta.url;
-  
-  const registryMod = useStore.getState().modList.find((m: any) => 
-      (modHash && m.hash === modHash) || (!modHash && cleanSearchName(m.name || "", activeGameSchema) === cleanSearchName(modName, activeGameSchema))
+
+  const registryMod = useStore.getState().modList.find((m: any) =>
+    (modHash && m.hash === modHash) || (!modHash && cleanSearchName(m.name || "", activeGameSchema) === cleanSearchName(modName, activeGameSchema))
   );
   if (registryMod && registryMod.url) return registryMod.url.startsWith("http") ? registryMod.url : `https://${registryMod.url}`;
-  
+
   return `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanSearchName(modName, activeGameSchema))}`;
 };
 
@@ -460,18 +460,18 @@ export const getModFallbackAuthor = (modHash: string | undefined, blueprintMeta?
   let localOverrides: any = {};
   try {
     localOverrides = JSON.parse(localStorage.getItem('sanctuary_local_overrides') || '{}');
-  } catch(e) {}
-  
+  } catch (e) { }
+
   if (modHash && localOverrides[modHash]?.author) return localOverrides[modHash].author;
   if (blueprintMeta?.author) return blueprintMeta.author;
-  
+
   if (modName && activeGameSchema) {
-    const registryMod = useStore.getState().modList.find((m: any) => 
-        (modHash && m.hash === modHash) || (!modHash && cleanSearchName(m.name || "", activeGameSchema) === cleanSearchName(modName, activeGameSchema))
+    const registryMod = useStore.getState().modList.find((m: any) =>
+      (modHash && m.hash === modHash) || (!modHash && cleanSearchName(m.name || "", activeGameSchema) === cleanSearchName(modName, activeGameSchema))
     );
     if (registryMod && registryMod.author) return registryMod.author;
   }
-  
+
   return null;
 };
 
@@ -970,9 +970,9 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
       <button
         ref={btnRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-center gap-0 h-12 ${label ? 'px-5' : 'w-12'} rounded-[var(--radius)] transition-all duration-300 backdrop-blur-[3px] ${isOpen || hasActiveFilter
-          ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[var(--accent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
-          : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+        className={`flex items-center justify-center gap-0 h-12 ${label ? 'px-5' : 'w-12'} rounded-[var(--radius)] transition-all duration-300 glass-surface ${isOpen || hasActiveFilter
+          ? 'border border-[var(--accent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
+          : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
           } ${buttonClassName}`}
       >
         <span className="material-symbols-outlined !text-[20px]">{icon}</span>
@@ -988,17 +988,23 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
             <>
               <div className="!fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
               <div
-                className="!fixed glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 min-w-[200px] p-2 flex flex-col gap-1 backdrop-blur-2xl bg-[color-mix(in_srgb,var(--bg)_60%,transparent)]"
+                className={`!fixed glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col mobile-dock-override
+                  min-w-[200px] p-2 gap-1 !rounded-xl w-max max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto custom-scrollbar`}
                 style={{
                   zIndex: 200001,
                   top: coords.top,
-                  left: coords.left,
-                  transform: coords.isRight ? 'translateX(-100%)' : 'none',
-                  transition: 'none',
-                  width: 'max-content',
-                  maxWidth: 'calc(100vw - 32px)'
+                  left: coords.isRight ? 'auto' : coords.left,
+                  right: coords.isRight ? window.innerWidth - coords.left : 'auto',
+                  bottom: 'auto'
                 }}
               >
+                <style>{`
+                  #sa-portals .mobile-dock-override::before,
+                  #sa-portals .mobile-dock-override .glass-surface::before,
+                  #sa-portals .mobile-dock-override .glass-panel::before {
+                    display: block !important;
+                  }
+                `}</style>
                 {children ? children : options?.map((opt: any) => {
                   const active = isOptionActive(opt.id);
                   return (
@@ -1020,7 +1026,7 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
                         }`}
                     >
                       {multiSelect && (
-                        <div className={`absolute left-4 w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${active ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]' : 'border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]'}`}>
+                        <div className={`absolute left-4 w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${active ? 'bg-[var(--accent)] border-[var(--accent)] text-[#0a0a0c]' : 'border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]'}`}>
                           {active && <span className="material-symbols-outlined !text-[12px] font-bold">check</span>}
                         </div>
                       )}
@@ -1394,15 +1400,23 @@ export function CustomDropdown({ value, onChange, options, allowCustom, searchab
   const dropdownMenu = isOpen ? createPortal(
     <>
       <div className="!fixed inset-0" style={{ zIndex: 100000000 }} onClick={() => setIsOpen(false)} />
-      <div className="!fixed pointer-events-auto glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+      <div className="!fixed pointer-events-auto glass-panel portal-glass-fix border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
         zIndex: 100000001,
-        top: coords.top,
-        left: coords.left,
-        transform: `${coords.isRight ? 'translateX(-100%) ' : ''}${(coords as any).isDropUp ? 'translateY(-100%)' : ''}`.trim() || 'none',
+        top: (coords as any).isDropUp ? 'auto' : coords.top,
+        bottom: (coords as any).isDropUp ? window.innerHeight - coords.top + 8 : 'auto',
+        left: coords.isRight ? 'auto' : coords.left,
+        right: coords.isRight ? window.innerWidth - coords.left : 'auto',
         transition: 'none',
         width: coords.width || 'max-content',
         minWidth: Math.max(coords.width, 200),
       }}>
+        <style>{`
+          #sa-portals .portal-glass-fix::before,
+          #sa-portals .portal-glass-fix .glass-surface::before,
+          #sa-portals .portal-glass-fix .glass-panel::before {
+            display: block !important;
+          }
+        `}</style>
         {searchable && (
           <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 bg-transparent z-10 shrink-0 flex items-center px-4">
             <span className="material-symbols-outlined !text-[16px] opacity-50 mr-2">search</span>
@@ -1552,7 +1566,7 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
         onBlur={(e) => {
           setTimeout(() => setIsOpen(false), 200);
         }}
-        className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black capitalize tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:opacity-30"
+        className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black capitalize tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:opacity-30"
       />
       {isOpen && (
         createPortal(
@@ -1565,7 +1579,14 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
               right: rect ? (isRightHalf ? window.innerWidth - rect.right : undefined) : undefined,
               width: rect ? rect.width : 'max-content',
             }}>
-              <div className="absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col">
+              <div className="absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel portal-glass-fix border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col">
+                <style>{`
+                  #sa-portals .portal-glass-fix::before,
+                  #sa-portals .portal-glass-fix .glass-surface::before,
+                  #sa-portals .portal-glass-fix .glass-panel::before {
+                    display: block !important;
+                  }
+                `}</style>
                 <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
                   {filtered.map(v => (
                     <button
@@ -2208,10 +2229,10 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
 
   const strVal = String(displayValue);
   let sizeClass = "text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
-  const activeStyles = isActive 
-    ? "border border-[currentColor] shadow-[0_0_30px_-5px_currentColor,inset_0_0_20px_-5px_currentColor] scale-[1.02] z-10" 
+  const activeStyles = isActive
+    ? "border border-[currentColor] shadow-[0_0_30px_-5px_currentColor,inset_0_0_20px_-5px_currentColor] scale-[1.02] z-10"
     : "border border-[color-mix(in_srgb,currentColor_30%,transparent)] hover:brightness-125";
-  
+
   if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
   else if (strVal.length > 10) sizeClass = "text-lg xl:text-xl";
   else if (strVal.length > 5) sizeClass = "text-xl lg:text-2xl xl:text-3xl";
