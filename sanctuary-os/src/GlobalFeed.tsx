@@ -11,6 +11,7 @@ import { useStore } from './store';
 import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 import MasonRecentRepliesSidePanel from "./side-panels/MasonRecentRepliesSidePanel";
 import MasonRecentPostsSidePanel from "./side-panels/MasonRecentPostsSidePanel";
+import MasonFollowingSidePanel from "./side-panels/MasonFollowingSidePanel";
 
 if (!(window as any).__sanctuaryCache) {
   (window as any).__sanctuaryCache = {} as any;
@@ -37,8 +38,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
   const [isRepliesOpen, setIsRepliesOpen] = useState(false);
   const [isPostsOpen, setIsPostsOpen] = useState(false);
+  const [isFollowingPanelOpen, setFollowingPanelOpen] = useState(false);
   const [masonProfileId, setMasonProfileId] = useState<string | null>(null);
-  const [overviewStats, setOverviewStats] = useState({ nodes: 0, posts: 0, likes: 0, replies: 0, followingPosts: 0 });
+  const [overviewStats, setOverviewStats] = useState({ nodes: 0, posts: 0, likes: 0, replies: 0, followingPosts: 0, followingMasons: 0 });
 
   const [isOffline, setIsOffline] = useState(!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true");
 
@@ -76,12 +78,15 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         ]);
 
         let followingPostsCount = 0;
+        let followingMasonsCount = 0;
         let myLikesCount = 0;
         let myRepliesCount = 0;
         
         if (userId) {
           const { data: followData } = await supabase.from('mason_followers').select('mason_id').eq('user_id', userId);
           const followedIds = followData?.map(f => f.mason_id) || [];
+          followingMasonsCount = followedIds.length;
+
           if (followedIds.length > 0) {
             const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
             const { count } = await supabase.from('mason_posts')
@@ -110,7 +115,8 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
             posts: postsRes.count || 0,
             likes: myLikesCount,
             replies: myRepliesCount,
-            followingPosts: followingPostsCount
+            followingPosts: followingPostsCount,
+            followingMasons: followingMasonsCount
           };
           setOverviewStats(newStats);
           if (window.__sanctuaryCache) {
@@ -193,7 +199,12 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
 
   const filteredPosts = posts.filter(p => {
     if (searchQuery) {
-      if (!p.title?.toLowerCase().includes(searchQuery.toLowerCase()) && !p.content?.toLowerCase().includes(searchQuery.toLowerCase())) {
+      const query = searchQuery.toLowerCase();
+      const matchTitle = p.title?.toLowerCase().includes(query);
+      const matchContent = p.content?.toLowerCase().includes(query);
+      const matchMasonName = p.masons?.name?.toLowerCase().includes(query) || p.masons?.username?.toLowerCase().includes(query);
+      
+      if (!matchTitle && !matchContent && !matchMasonName) {
         return false;
       }
     }
@@ -283,100 +294,52 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
             search={searchQuery || ""}
             onSearchChange={setSearchQuery}
             searchPlaceholder={t("mason_search_placeholder") || "Search..."}
-            className="!mb-0 !pb-0 !border-0 flex-1 xl:w-auto w-full"
+            className="!mb-0 !pb-0 !border-0 flex-none w-full xl:w-auto"
           >
-            {/* Desktop View: Popover */}
-            <div className="hidden md:block">
-              <FilterPopover icon="tune" label={t("filters")} className="shrink-0" activeTab={startDate || endDate || activeSort !== "NEWEST" ? "active" : undefined}>
+            <FilterPopover icon="tune" label={t("filters")} className="shrink-0" buttonClassName="!rounded-2xl" activeTab={startDate || endDate || activeSort !== "NEWEST" ? "active" : undefined}>
                 <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sort_by") || "Sort By"}</span>
-                  <CustomDropdown
-                    disableTint={true}
-                    value={activeSort}
-                    options={[
-                      { id: "NEWEST", label: t("sort_newest") || "Newest" },
-                      { id: "TOP", label: t("sort_top") || "Top" }
-                    ]}
-                    onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
-                  />
-                </div>
-                
-                <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
-                
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("date_range") || "Date Range"}</span>
                   <div className="flex flex-col gap-2">
-                    <CustomDatePicker
-                      value={startDate}
-                      onChange={setStartDate}
-                      placeholder={t("filter_start_date") || "Start Date"}
-                    />
-                    <CustomDatePicker
-                      value={endDate}
-                      onChange={setEndDate}
-                      placeholder={t("filter_end_date") || "End Date"}
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sort_by") || "Sort By"}</span>
+                    <CustomDropdown
+                      disableTint={true}
+                      value={activeSort}
+                      options={[
+                        { id: "NEWEST", label: t("sort_newest") || "Newest" },
+                        { id: "TOP", label: t("sort_top") || "Top" }
+                      ]}
+                      onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
                     />
                   </div>
-                </div>
+                  
+                  <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+                  
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("date_range") || "Date Range"}</span>
+                    <div className="flex flex-col gap-2">
+                      <CustomDatePicker
+                        value={startDate}
+                        onChange={setStartDate}
+                        placeholder={t("filter_start_date") || "Start Date"}
+                      />
+                      <CustomDatePicker
+                        value={endDate}
+                        onChange={setEndDate}
+                        placeholder={t("filter_end_date") || "End Date"}
+                      />
+                    </div>
+                  </div>
 
-                {(startDate || endDate || activeSort !== "NEWEST") && (
-                  <ActionButton 
-                    icon="close" 
-                    label={t("btn_clear") || "Clear Filters"} 
-                    onClick={() => { setStartDate(null); setEndDate(null); setActiveSort("NEWEST"); }} 
-                    className="w-full mt-2" 
-                    variant="danger"
-                  />
-                )}
-              </div>
+                  {(startDate || endDate || activeSort !== "NEWEST") && (
+                    <ActionButton 
+                      icon="close" 
+                      label={t("btn_clear") || "Clear Filters"} 
+                      onClick={() => { setStartDate(null); setEndDate(null); setActiveSort("NEWEST"); }} 
+                      className="w-full mt-2" 
+                      variant="danger"
+                    />
+                  )}
+                </div>
               </FilterPopover>
-            </div>
-            {/* Mobile View: Render directly for the bottom sheet */}
-            <div className="md:hidden contents">
-              <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sort_by") || "Sort By"}</span>
-                  <CustomDropdown
-                    disableTint={true}
-                    value={activeSort}
-                    options={[
-                      { id: "NEWEST", label: t("sort_newest") || "Newest" },
-                      { id: "TOP", label: t("sort_top") || "Top" }
-                    ]}
-                    onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
-                  />
-                </div>
-                
-                <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
-                
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("date_range") || "Date Range"}</span>
-                  <div className="flex flex-col gap-2">
-                    <CustomDatePicker
-                      value={startDate}
-                      onChange={setStartDate}
-                      placeholder={t("filter_start_date") || "Start Date"}
-                    />
-                    <CustomDatePicker
-                      value={endDate}
-                      onChange={setEndDate}
-                      placeholder={t("filter_end_date") || "End Date"}
-                    />
-                  </div>
-                </div>
-
-                {(startDate || endDate || activeSort !== "NEWEST") && (
-                  <ActionButton 
-                    icon="close" 
-                    label={t("btn_clear") || "Clear Filters"} 
-                    onClick={() => { setStartDate(null); setEndDate(null); setActiveSort("NEWEST"); }} 
-                    className="w-full mt-2" 
-                    variant="danger"
-                  />
-                )}
-              </div>
-            </div>
           </ScreenUtilityBar>
         )}
         </ViewHeader>
@@ -390,10 +353,10 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         <div className="flex-1 w-full">
           <CommandScreenLayout>
             <CommandScreenStats>
-              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_group")}</span>} number={overviewStats.nodes} label={t("feed_stat_nodes")} colorClass="text-blue-500" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_dynamic_feed")}</span>} number={overviewStats.posts} label={t("feed_stat_replies")} colorClass="text-purple-500" onClick={() => setIsPostsOpen(true)} className="cursor-pointer" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_favorite")}</span>} number={overviewStats.likes + overviewStats.replies} label={t("feed_stat_activity")} colorClass="text-amber-500" onClick={() => setIsRepliesOpen(true)} className="cursor-pointer" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_diversity_1")}</span>} number={overviewStats.followingPosts} label={t("feed_stat_following")} colorClass="text-emerald-500" onClick={() => { setActiveTab("FOLLOWING"); setStartDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); }} className="cursor-pointer" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_diversity_1") || "diversity_1"}</span>} number={overviewStats.followingPosts} label={t("feed_stat_following") || "Recent Following"} colorClass="text-emerald-500" onClick={() => { setActiveTab("FOLLOWING"); setStartDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); }} className="cursor-pointer" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined ">explore</span>} number={overviewStats.posts} label={t("feed_stat_global") || "Recent Global"} colorClass="text-blue-500" onClick={() => { setActiveTab("DISCOVER"); setStartDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); }} className="cursor-pointer" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_favorite") || "favorite"}</span>} number={overviewStats.likes + overviewStats.replies} label={t("feed_stat_activity") || "Interactions"} colorClass="text-amber-500" onClick={() => setIsRepliesOpen(true)} className="cursor-pointer" />
+              <DashboardStatTile icon={<span className="material-symbols-outlined ">group</span>} number={overviewStats.followingMasons} label={t("feed_stat_network") || "Your Network"} colorClass="text-purple-500" onClick={() => setFollowingPanelOpen(true)} className="cursor-pointer" />
             </CommandScreenStats>
 
             <CommandScreenBody>
@@ -508,6 +471,15 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           initialFocusCommentId={selectedReplyId}
         />
       )}
+
+      <MasonFollowingSidePanel
+        isOpen={isFollowingPanelOpen}
+        onClose={() => setFollowingPanelOpen(false)}
+        userId={userId}
+        onOpenMasonProfile={(masonId) => {
+          if (onOpenMasonProfile) onOpenMasonProfile(masonId);
+        }}
+      />
     </div>
   );
 }

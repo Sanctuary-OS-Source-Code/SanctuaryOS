@@ -2223,5 +2223,9 @@
   "upload_template_name_placeholder": "E.G. MY CUSTOM SETTINGS TEMPLATE",
   "alert_error_mason_profile_missing": "Error: CC Creator Profile ID is missing.",
   "oversight_group_sidepanel_subtitle": "Multiple detections for a single malware signature.",
-  "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot..."
+  "status_executing_prepatch_snapshot": "Executing Pre-Patch Snapshot...",
+  "feed_stat_network": "Vadish Network",
+  "feed_stat_global": "Plum Global",
+  "network_subtitle": "Masons You Flabalab",
+  "no_masons_followed": "No Vadish Links Yet."
 }

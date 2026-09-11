@@ -63,6 +63,7 @@ Bloated files (like `AppModals.tsx` and `App.tsx`) have been purged. Everything 
 Because JavaScript cannot safely handle heavy file operations, all physical logistics are offloaded to Rust:
 - **Core Engine:** Handles `backup_universe`, `backup_engine_full`, `deploy_playset_bulk`, and `scan_bunker`.
 - **Schema Validation:** Deserializes the dynamic, DB-driven expansion JSON schemas at runtime to adjust its I/O logic, eradicating the need for flakey, hardcoded local parsers (like the legacy DBPF rust parser).
+- **Dynamic PE Parsing:** Uses the `pelite` crate to natively extract `FileVersion` metadata directly from game executables in-process. This ensures AV compliance by completely avoiding PowerShell subprocesses, and utilizes aggressive heuristic filtering to ignore non-game binaries (e.g., anti-cheat, crash handlers) during fallback scans.
 
 ---
 ### Database Schema & Edge Gateway Architecture

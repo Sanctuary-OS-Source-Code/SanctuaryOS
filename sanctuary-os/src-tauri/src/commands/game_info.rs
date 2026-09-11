@@ -76,6 +76,17 @@ pub fn rip_game_version(
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() && path.extension().and_then(|e| e.to_str()).map(|s| s.to_lowercase()) == Some("exe".to_string()) {
+                    if let Some(file_name) = path.file_stem().and_then(|n| n.to_str()) {
+                        let name_lower = file_name.to_lowercase();
+                        if name_lower.contains("redist") 
+                            || name_lower.contains("crashhandler")
+                            || name_lower.contains("anticheat")
+                            || name_lower.contains("unins")
+                            || name_lower.contains("setup")
+                        {
+                            continue;
+                        }
+                    }
                     if let Ok(metadata) = path.metadata() {
                         if metadata.len() > max_size {
                             max_size = metadata.len();
@@ -88,26 +99,20 @@ pub fn rip_game_version(
         }
     }
 
-    #[cfg(target_os = "windows")]
     if let Some(exe) = &exe_path {
-        use std::os::windows::process::CommandExt;
-        if let Ok(output) = std::process::Command::new("powershell")
-            .args([
-                "-NoProfile",
-                "-Command",
-                &format!("(Get-Item '{}').VersionInfo.FileVersion", exe.display()),
-            ])
-            .creation_flags(0x08000000) // CREATE_NO_WINDOW
-            .output()
-        {
-            let raw_version = String::from_utf8_lossy(&output.stdout);
-            let version: String = raw_version
-                .chars()
-                .filter(|c| c.is_ascii_digit() || *c == '.')
-                .collect();
-
-            if !version.is_empty() && version.contains('.') {
-                return Ok(version);
+        if let Ok(map) = pelite::FileMap::open(exe) {
+            if let Ok(pe) = pelite::PeFile::from_bytes(map.as_ref()) {
+                if let Ok(resources) = pe.resources() {
+                    if let Ok(version_info) = resources.version_info() {
+                        if let Some(fixed) = version_info.fixed() {
+                            let v = fixed.dwFileVersion;
+                            let version_str = format!("{}.{}.{}.{}", v.Major, v.Minor, v.Patch, v.Build);
+                            if version_str != "0.0.0.0" {
+                                return Ok(version_str);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -3087,5 +3087,9 @@
   "tier_4_core": "T4 - Kernel",
   "landing_desktop_only_title": "Desktop Application",
   "landing_desktop_only_desc": "Sanctuary OS is a native desktop client. Please visit this page on a PC or Mac to install the application.",
-  "landing_desktop_only_footer": "UNSUPPORTED DEVICE"
+  "landing_desktop_only_footer": "UNSUPPORTED DEVICE",
+  "feed_stat_network": "Active Nodes",
+  "feed_stat_global": "Global Feed",
+  "network_subtitle": "Active Linked Nodes",
+  "no_masons_followed": "No Active Node Links Established."
 }

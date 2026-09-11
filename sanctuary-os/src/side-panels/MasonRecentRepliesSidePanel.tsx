@@ -112,7 +112,7 @@ export default function MasonRecentRepliesSidePanel({
                 </div>
             ) : interactions.length === 0 ? (
                 <div className="flex flex-col justify-center items-center h-64 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl group">
-                    <span className="text-6xl mb-4 grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:-rotate-12">{t("icon_heart_broken") || "heart_broken"}</span>
+                    <span className="material-symbols-outlined text-6xl mb-4 grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110 group-hover:-rotate-12">{t("icon_heart_broken") || "heart_broken"}</span>
                     <span className="text-sm font-black text-[var(--subtext)] capitalize tracking-widest text-center px-8 leading-relaxed">
                         {t("no_recent_interactions") || "No recent interactions detected."}
                     </span>
