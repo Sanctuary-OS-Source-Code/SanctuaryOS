@@ -53,7 +53,7 @@ Sanctuary OS no longer utilizes a flat folder structure. The Vault acts as a sec
 Sanctuary OS acts as a deeply integrated middleware operating system rather than a simple file manager.
 - **The Cartographer:** An automated reconnaissance system that scans for the Game Bin and Mods directory on first boot.
 - **Symlink Air Gap 2.5:** The OS creates physical folder structures in the game’s live directory but projects the actual artifacts (.package/.ts4script) via high-speed symlinks. This ensures maximum engine performance with zero data bloat in the Documents folder.
-- **Engine Version Recognition:** Sanctuary has deprecated GameVersion.txt. It now parses the Default.ini executable manifest in the Bin Folder to extract the genuine patch version, preventing "Update-Day Disasters."
+- **Engine Version Recognition:** Sanctuary has deprecated `GameVersion.txt`. It now natively extracts genuine patch version metadata directly from the active game executable (e.g. `.exe` file properties). If the native OS metadata is unavailable, it gracefully falls back to parsing a schema-defined `.ini` manifest to guarantee version accuracy and prevent "Update-Day Disasters."
 - **Dynamic Config Watcher:** A non-blocking thread monitors the game path for changes to .cfg, .ini, and .json files (such as MCCC settings), automatically syncing them back to the Vault.
 
 ## **Atomic Logic & Conflict Management**

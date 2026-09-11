@@ -24,37 +24,136 @@ use std::time::SystemTime;
 use tauri::{Emitter, Manager};
 
 #[tauri::command]
-pub fn rip_game_version(live_path: String) -> Result<String, String> {
+pub fn rip_game_version(
+    live_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
     use std::fs;
     use std::path::PathBuf;
 
-    let mut bin_path = PathBuf::from(live_path);
+    let game_schema = state.active_schema.lock().unwrap().clone();
 
-    if bin_path.is_file() {
-        bin_path.pop();
-    } else if !bin_path.ends_with("Bin") && !bin_path.ends_with("bin") {
-        bin_path.push("Game");
-        bin_path.push("Bin");
+    let mut root_path = PathBuf::from(&live_path);
+    if root_path.is_file() {
+        root_path.pop();
     }
 
-    let default_ini = bin_path.join("Default.ini");
-
-    if !default_ini.exists() {
-        return Err("backend_default_ini_missing".into());
+    if root_path.ends_with("Bin") || root_path.ends_with("bin") {
+        root_path.pop();
+        if root_path.ends_with("Game") || root_path.ends_with("game") {
+            root_path.pop();
+        }
     }
 
-    if let Ok(content) = fs::read_to_string(&default_ini) {
-        for line in content.lines() {
-            if line.to_lowercase().starts_with("gameversion") {
-                if let Some(idx) = line.find('=') {
-                    let raw_version = line[idx + 1..].trim();
-                    let version: String = raw_version
-                        .chars()
-                        .filter(|c| c.is_ascii_digit() || *c == '.')
-                        .collect();
+    let mut exe_path = None;
 
-                    if !version.is_empty() {
-                        return Ok(version);
+    if let Some(schema) = &game_schema {
+        for exe_name in &schema.executable_names {
+            let paths_to_check = vec![
+                root_path.join(exe_name),
+                root_path.join("Game").join("Bin").join(exe_name),
+            ];
+
+            for p in paths_to_check {
+                if p.exists() && p.is_file() {
+                    exe_path = Some(p);
+                    break;
+                }
+            }
+            if exe_path.is_some() {
+                break;
+            }
+        }
+    }
+
+    if exe_path.is_none() {
+        let bin_folder = root_path.join("Game").join("Bin");
+        let search_folder = if bin_folder.exists() { bin_folder } else { root_path.clone() };
+
+        if let Ok(entries) = fs::read_dir(&search_folder) {
+            let mut largest_exe = None;
+            let mut max_size = 0;
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().and_then(|e| e.to_str()).map(|s| s.to_lowercase()) == Some("exe".to_string()) {
+                    if let Ok(metadata) = path.metadata() {
+                        if metadata.len() > max_size {
+                            max_size = metadata.len();
+                            largest_exe = Some(path);
+                        }
+                    }
+                }
+            }
+            exe_path = largest_exe;
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    if let Some(exe) = &exe_path {
+        use std::os::windows::process::CommandExt;
+        if let Ok(output) = std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                &format!("(Get-Item '{}').VersionInfo.FileVersion", exe.display()),
+            ])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .output()
+        {
+            let raw_version = String::from_utf8_lossy(&output.stdout);
+            let version: String = raw_version
+                .chars()
+                .filter(|c| c.is_ascii_digit() || *c == '.')
+                .collect();
+
+            if !version.is_empty() && version.contains('.') {
+                return Ok(version);
+            }
+        }
+    }
+
+    if let Some(schema) = &game_schema {
+        if let Some(version_ext) = &schema.version_extraction {
+            let schema_ini = root_path.join(&version_ext.relative_path);
+            
+            if schema_ini.exists() {
+                if let Ok(content) = fs::read_to_string(&schema_ini) {
+                    let prefix = version_ext.line_prefix.to_lowercase();
+                    for line in content.lines() {
+                        if line.to_lowercase().starts_with(&prefix) {
+                            if let Some(idx) = line.find('=') {
+                                let raw_version = line[idx + 1..].trim();
+                                let version: String = raw_version
+                                    .chars()
+                                    .filter(|c| c.is_ascii_digit() || *c == '.')
+                                    .collect();
+
+                                if !version.is_empty() {
+                                    return Ok(version);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let legacy_ini = root_path.join("Game").join("Bin").join("Default.ini");
+    if legacy_ini.exists() {
+        if let Ok(content) = fs::read_to_string(&legacy_ini) {
+            for line in content.lines() {
+                if line.to_lowercase().starts_with("gameversion") {
+                    if let Some(idx) = line.find('=') {
+                        let raw_version = line[idx + 1..].trim();
+                        let version: String = raw_version
+                            .chars()
+                            .filter(|c| c.is_ascii_digit() || *c == '.')
+                            .collect();
+
+                        if !version.is_empty() {
+                            return Ok(version);
+                        }
                     }
                 }
             }

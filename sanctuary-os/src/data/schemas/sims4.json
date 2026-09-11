@@ -35,7 +35,6 @@
     "default_mod_dir_windows": "Documents/Electronic Arts/The Sims 4/Mods"
   },
   "game_id": "the-sims-4",
-
   "extensions": {
     "labels": {
       ".cfg": "CONFIG",
@@ -46,7 +45,6 @@
       ".tmcatalog": "CATALOG",
       ".ts4script": "SCRIPT"
     },
-
     "supported": [
       ".package",
       ".ts4script",
@@ -114,7 +112,6 @@
       }
     ]
   },
-
   "exception_logs": [
     {
       "ends_with": ".txt",

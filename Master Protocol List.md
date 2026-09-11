@@ -8,7 +8,7 @@
 * **The Cartographer:** An automated reconnaissance system that scans for the Game Bin and Mods directory on first boot.
 * **DNA & Delta Caching:** SHA-256 hashing for all artifacts in the Vault, paired with an mtime-first delta cache.
 * **Nested Hierarchy:** The Vault automatically deploys and enforces a strict path hierarchy: Backups/World (Purple State), Backups/Engine (Pink State), Data/Cache, Blueprints/, Quarantine/, Mods/ (The secure storage of artifacts)
-* **System Version Ripper:** A custom parser that parses the Default.ini executable manifest in the Bin Folder to extract the genuine patch version, preventing "Update-Day Disasters."
+* **System Version Ripper:** A custom schema-driven parser that extracts genuine patch version metadata directly from the active game executable (e.g., `.exe` file properties). If the native OS metadata is unavailable, it intelligently falls back to parsing a schema-defined `.ini` manifest to guarantee version accuracy and prevent "Update-Day Disasters."
 * **Agnostic Protocol:** The OS will not be locked down to a single game. No game specific file extensions or paths in the Source Code (External JSON’s) and The Parser and Scanners will be modular.
 
 ### Mod Management & Organization
