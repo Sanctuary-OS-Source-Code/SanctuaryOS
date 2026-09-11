@@ -636,7 +636,8 @@ body,
 }
 
 /* Mobile Performance Optimizations */
-@media (max-width: 1024px), (pointer: coarse) {
+@media (max-width: 1024px),
+(pointer: coarse) {
   /* THE MOBILE GLASS STRATEGY:
      1. Native `backdrop-filter` fails completely on Android Chrome due to `overflow` layer isolation from the fixed background.
      2. Desktop's fake blur (`::before` with `background-attachment: fixed`) causes massive scrolling/animation lag on mobile GPUs.
@@ -657,15 +658,17 @@ body,
   }
 
 
-  .glass-panel::before, .glass-surface::before {
+  .glass-panel::before,
+  .glass-surface::before {
     display: block !important;
     background-attachment: scroll !important;
   }
-  
-  .glass-panel::after, .glass-surface::after {
+
+  .glass-panel::after,
+  .glass-surface::after {
     display: block !important;
     mix-blend-mode: overlay !important;
-    opacity: 0.1 !important; 
+    opacity: 0.1 !important;
     z-index: -1 !important;
   }
 
