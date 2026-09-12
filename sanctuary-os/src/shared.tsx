@@ -614,7 +614,7 @@ export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(
   const shapeClass = shape === "square" ? "rounded-[var(--radius)]" : "rounded-full";
   return (
     <header className="flex flex-col xl:flex-row w-full justify-start items-start mb-4 md:mb-6 shrink-0 gap-4 md:gap-6">
-      <div className="flex items-start gap-3 md:gap-4 flex-1 min-w-0 w-full">
+      <div className="flex items-start gap-3 md:gap-4 shrink-0 min-w-max max-w-[50%]">
         {icon && (
           <div className={`w-8 h-8 md:w-10 md:h-10 ${shapeClass} flex items-center justify-center shrink-0 border glass-panel relative group shadow-md hidden sm:flex`}>
             <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -652,11 +652,40 @@ export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(
           )}
         </div>
       </div>
-      <div id="hub-header-actions" className="flex items-center gap-3 w-full xl:w-auto xl:justify-end xl:ml-auto empty:hidden">
+      <div id="hub-header-actions" className="flex items-center justify-end gap-3 w-full xl:flex-1 max-w-5xl xl:ml-auto empty:hidden">
         {children}
       </div>
     </header>
   );
+}
+
+export function HeaderActionPortal({ children }: { children: React.ReactNode }) {
+  const [portalRoot, setPortalRoot] = React.useState<HTMLElement | null | undefined>(undefined);
+
+  React.useEffect(() => {
+    let animationFrameId: number;
+    let attempts = 0;
+    const findRoot = () => {
+      const root = document.getElementById('hub-header-actions');
+      if (root) {
+        setPortalRoot(root);
+      } else {
+        attempts++;
+        if (attempts > 10) {
+          setPortalRoot(null); // Fallback to inline
+        } else {
+          animationFrameId = requestAnimationFrame(findRoot);
+        }
+      }
+    };
+    findRoot();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
+
+  if (portalRoot === undefined) return null; // Still searching
+  if (portalRoot === null) return <>{children}</>; // Fallback to inline
+
+  return createPortal(children, portalRoot);
 }
 
 export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem, onClear, dropUp, className }: any) {
@@ -881,13 +910,13 @@ export function FilterTabButton({ id, icon, label, activeTab, setTab, className 
   return <></>;
 }
 
-export function PillTabs({ children, className = "", buttonClassName = "" }: any) {
+export function PillTabs({ children, className = "", buttonClassName = "", variant = "default" }: any) {
   const childrenArray = React.Children.toArray(children).filter(React.isValidElement);
   if (childrenArray.length === 0) return null;
 
   const [highlightStyle, setHighlightStyle] = React.useState({ left: 4, width: 0, opacity: 0 });
   const containerRef = React.useRef<HTMLDivElement>(null);
-  
+
   React.useEffect(() => {
     // Need a small timeout to allow layout to settle before calculating widths
     const timer = setTimeout(() => {
@@ -909,11 +938,11 @@ export function PillTabs({ children, className = "", buttonClassName = "" }: any
   }, [childrenArray.map((c: any) => c.props.activeTab).join(',')]);
 
   return (
-    <div ref={containerRef} className={`relative flex items-center gap-1 p-1 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner rounded-full w-fit shrink-0 ${className}`}>
-      
+    <div ref={containerRef} className={`relative flex items-center gap-1 ${variant === 'flat' ? '' : 'p-1 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner rounded-full'} w-fit shrink-0 ${className}`}>
+
       {/* Sliding Highlight */}
-      <div 
-        className="absolute top-1 bottom-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none"
+      <div
+        className={`absolute ${variant === 'flat' ? 'top-0 bottom-0' : 'top-1 bottom-1'} rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none`}
         style={{ left: highlightStyle.left, width: highlightStyle.width, opacity: highlightStyle.opacity }}
       />
 
@@ -1022,7 +1051,7 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
         let leftPos = rect.left;
-        
+
         if (popoverRef.current) {
           const popWidth = popoverRef.current.offsetWidth;
           leftPos = rect.left >= window.innerWidth / 2 ? rect.right - popWidth : rect.left;
@@ -1031,10 +1060,10 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
           // Fallback before render
           leftPos = rect.left >= window.innerWidth / 2 ? rect.right - 200 : rect.left;
           leftPos = Math.max(8, Math.min(leftPos, window.innerWidth - 200 - 8));
-          
+
           // Re-trigger layout effect after popup paints
           requestAnimationFrame(() => {
-             setCoords(prev => ({ ...prev }));
+            setCoords(prev => ({ ...prev }));
           });
         }
 
@@ -1622,7 +1651,7 @@ export function CustomDropdown({ value, onChange, options, allowCustom, searchab
   );
 }
 
-export function GameVersionMultiSelect({ selectedVersions, onChange }: { selectedVersions: string[], onChange: (v: string[]) => void }) {
+export function GameVersionMultiSelect({ selectedVersions, onChange, variant = "default" }: { selectedVersions: string[], onChange: (v: string[]) => void, variant?: "default" | "pill" }) {
   selectedVersions = Array.isArray(selectedVersions) ? selectedVersions : (typeof selectedVersions === 'string' ? [selectedVersions] : []);
   const { t } = useLexicon();
   const [query, setQuery] = useState("");
@@ -1666,21 +1695,26 @@ export function GameVersionMultiSelect({ selectedVersions, onChange }: { selecte
   const isRightHalf = rect ? rect.left >= window.innerWidth / 2 : false;
 
   return (
-    <div className="relative w-full" ref={containerRef}>
-      <div className="flex flex-wrap gap-1 mb-2">
-        {selectedVersions.map(v => (
-          <span key={v} className="px-2.5 py-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-md text-[9px] font-black capitalize flex items-center gap-2">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300 flex items-center justify-center"><span className="material-symbols-outlined !text-[12px]">{t("icon_close")}</span></button></span>
-        ))}
-      </div>
+    <div className={`relative ${variant === 'pill' ? 'h-full flex items-center' : 'w-full'}`} ref={containerRef}>
+      {variant !== 'pill' && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {selectedVersions.map(v => (
+            <span key={v} className="px-2.5 py-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-md text-[9px] font-black capitalize flex items-center gap-2">{v} <button type="button" onClick={() => toggleVersion(v)} className="text-red-400 hover:text-red-300 flex items-center justify-center"><span className="material-symbols-outlined !text-[12px]">{t("icon_close")}</span></button></span>
+          ))}
+        </div>
+      )}
       <input
-        placeholder={t("shared_search_versions")}
+        placeholder={variant === 'pill' && selectedVersions.length > 0 ? `VERSIONS (${selectedVersions.length})` : t("shared_search_versions")}
         value={query}
         onChange={e => { setQuery(e.target.value); setIsOpen(true); }}
         onFocus={() => setIsOpen(true)}
         onBlur={(e) => {
           setTimeout(() => setIsOpen(false), 200);
         }}
-        className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black capitalize tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:opacity-30"
+        className={variant === 'pill'
+          ? "bg-transparent text-[11px] font-bold text-[var(--text)] tracking-wider outline-none w-[160px] px-2 h-full placeholder:opacity-50"
+          : "w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black capitalize tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:opacity-30"
+        }
       />
       {isOpen && (
         createPortal(
@@ -2104,124 +2138,124 @@ export function SidePanel({
   const panelContent = (
     <PanelDepthContext.Provider value={depth + 1}>
       <SidePanelContext.Provider value={true}>
-      <div className={`sa-side-panel-wrapper ${isOpen && !isAnimatingOut ? 'sa-panel-open' : ''}`} data-depth={depth} style={keepMounted && (!isOpen || isAnimatingOut) ? { opacity: 0, pointerEvents: 'none', transition: 'opacity 0.2s ease-in-out' } : { opacity: 1, pointerEvents: 'auto', transition: 'opacity 0.2s ease-in-out' }}>
-        {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
-        <div
-          className={`sa-side-panel-backdrop fixed inset-0 z-0 ${depth > 0 || noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[3px]'} ${isAnimatingOut ? 'animate-out fade-out opacity-0 duration-500' : 'animate-in fade-in duration-500'}`}
-          style={{ zIndex: finalBackdropZ }}
-          onClick={onClose}
-        />
-        <div
-          ref={panelRef}
-          className={`sa-side-panel-window ${position === 'left' ? 'sa-panel-left' : 'sa-panel-right'} fixed top-[0px] bottom-[0px] ${position === 'left' ? 'left-0 md:left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} max-md:!w-full max-md:!max-w-[100vw] ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} flex flex-col ${depth > 0 ? '' : panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''} ${keepMounted ? '' : (isAnimatingOut ? (position === 'left' ? 'sa-panel-slide-out-left' : 'sa-panel-slide-out-right') : (isAnimatingIn ? (position === 'left' ? 'sa-panel-slide-left' : 'sa-panel-slide-right') : ''))} ${noPanelBlur ? '' : 'backdrop-blur-[var(--glassBlur)]'}`}
-          style={{ zIndex: finalPanelZ, background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal) * 100%), transparent)`, ...(isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined } : {}), ...panelStyle }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {theme.ambientNoise && (
-            <div className="absolute inset-0 z-[-1] opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
-          )}
+        <div className={`sa-side-panel-wrapper ${isOpen && !isAnimatingOut ? 'sa-panel-open' : ''}`} data-depth={depth} style={keepMounted && (!isOpen || isAnimatingOut) ? { opacity: 0, pointerEvents: 'none', transition: 'opacity 0.2s ease-in-out' } : { opacity: 1, pointerEvents: 'auto', transition: 'opacity 0.2s ease-in-out' }}>
+          {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
+          <div
+            className={`sa-side-panel-backdrop fixed inset-0 z-0 ${depth > 0 || noBackdropDim ? 'bg-transparent' : 'bg-black/10 backdrop-blur-[3px]'} ${isAnimatingOut ? 'animate-out fade-out opacity-0 duration-500' : 'animate-in fade-in duration-500'}`}
+            style={{ zIndex: finalBackdropZ }}
+            onClick={onClose}
+          />
+          <div
+            ref={panelRef}
+            className={`sa-side-panel-window ${position === 'left' ? 'sa-panel-left' : 'sa-panel-right'} fixed top-[0px] bottom-[0px] ${position === 'left' ? 'left-0 md:left-[var(--sidebarWidth,288px)]' : 'right-0'} overflow-hidden ${isResizable ? '' : widthClass} max-md:!w-full max-md:!max-w-[100vw] ${position === 'left' ? '!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl' : '!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]'} flex flex-col ${depth > 0 ? '' : panelZ} ${isResizing ? '!transition-none !duration-0 select-none' : ''} ${panelClass || ''} ${keepMounted ? '' : (isAnimatingOut ? (position === 'left' ? 'sa-panel-slide-out-left' : 'sa-panel-slide-out-right') : (isAnimatingIn ? (position === 'left' ? 'sa-panel-slide-left' : 'sa-panel-slide-right') : ''))} ${noPanelBlur ? '' : 'backdrop-blur-[var(--glassBlur)]'}`}
+            style={{ zIndex: finalPanelZ, background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal) * 100%), transparent)`, ...(isResizable ? { width: `${isResizing ? dragWidthRef.current : panelWidth}px`, pointerEvents: isResizing ? 'none' : undefined } : {}), ...panelStyle }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {theme.ambientNoise && (
+              <div className="absolute inset-0 z-[-1] opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
+            )}
 
-          {isResizable && (
-            <div
-              className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
-              onMouseDown={() => setIsResizing(true)}
-            >
-              <div className="w-1 h-12 rounded-full bg-[var(--accent)]" />
-            </div>
-          )}
+            {isResizable && (
+              <div
+                className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
+                onMouseDown={() => setIsResizing(true)}
+              >
+                <div className="w-1 h-12 rounded-full bg-[var(--accent)]" />
+              </div>
+            )}
 
 
 
-          {ambientGlows && (
-            <div className={`absolute inset-0 overflow-hidden pointer-events-none z-[-1] ${position === 'left' ? 'rounded-r-[var(--radius)]' : 'rounded-l-[var(--radius)]'}`}>
-              {ambientGlows}
-            </div>
-          )}
+            {ambientGlows && (
+              <div className={`absolute inset-0 overflow-hidden pointer-events-none z-[-1] ${position === 'left' ? 'rounded-r-[var(--radius)]' : 'rounded-l-[var(--radius)]'}`}>
+                {ambientGlows}
+              </div>
+            )}
 
-          {hideHeader && forceShowCloseBtn && (
-            <div className="absolute top-8 right-8 z-[10000]">
-              <PanelHeaderGroup>
-                <PanelHeaderButton
-                  icon="close"
-                  tooltip={t("btn_close") || "Close"}
-                  variant="danger"
-                  onClick={onClose}
-                />
-              </PanelHeaderGroup>
-            </div>
-          )}
-
-          {!hideHeader && (
-            <div className={`pt-6 px-6 pb-4 md:pt-8 md:px-10 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${coverImage ? 'pt-48' : ''} flex flex-row items-start justify-between gap-4 md:gap-6 w-full`}>
-
-              {coverImage && (
-                <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[var(--radius)] rounded-tr-[var(--radius)]">
-                  <div
-                    className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-100 opacity-60"
-                    style={{ backgroundImage: `url('${coverImage}')` }}
+            {hideHeader && forceShowCloseBtn && (
+              <div className="absolute top-8 right-8 z-[10000]">
+                <PanelHeaderGroup>
+                  <PanelHeaderButton
+                    icon="close"
+                    tooltip={t("btn_close") || "Close"}
+                    variant="danger"
+                    onClick={onClose}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--bg)_60%,transparent)] to-[color-mix(in_srgb,var(--bg)_65%,transparent)] pointer-events-none" />
-                </div>
-              )}
+                </PanelHeaderGroup>
+              </div>
+            )}
 
-              <div className="flex flex-col justify-center gap-4 md:gap-6 relative z-10 flex-1 min-w-0">
-                <h2 className="text-lg md:text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-4 md:gap-6 min-w-0 w-full">
-                  {icon && (
-                    <div className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative group/iconbox ${iconColorClass || ''}`}>
-                      <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
-                      <span className={`material-symbols-outlined !text-[20px] md:!text-[24px] opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
-                        {icon}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex flex-col min-w-0 w-full justify-center">
-                    {badgeText && (
-                      <div className="flex items-center gap-2 mb-1 md:mb-2">
-                        <span className={`text-[9px] md:text-[10px] font-black capitalize tracking-widest flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-current/10 border border-current/20 ${iconColorClass || 'theme-text-accent'}`}>
-                          <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]"></span>
-                          {badgeText}
+            {!hideHeader && (
+              <div className={`pt-6 px-6 pb-4 md:pt-8 md:px-10 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${coverImage ? 'pt-48' : ''} flex flex-row items-start justify-between gap-4 md:gap-6 w-full`}>
+
+                {coverImage && (
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[var(--radius)] rounded-tr-[var(--radius)]">
+                    <div
+                      className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-100 opacity-60"
+                      style={{ backgroundImage: `url('${coverImage}')` }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[color-mix(in_srgb,var(--bg)_60%,transparent)] to-[color-mix(in_srgb,var(--bg)_65%,transparent)] pointer-events-none" />
+                  </div>
+                )}
+
+                <div className="flex flex-col justify-center gap-4 md:gap-6 relative z-10 flex-1 min-w-0">
+                  <h2 className="text-lg md:text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-4 md:gap-6 min-w-0 w-full">
+                    {icon && (
+                      <div className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative group/iconbox ${iconColorClass || ''}`}>
+                        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
+                        <span className={`material-symbols-outlined !text-[20px] md:!text-[24px] opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ''}`}>
+                          {icon}
                         </span>
                       </div>
                     )}
-                    <span className="leading-tight text-xl md:text-3xl tracking-tight truncate w-full drop-shadow-md">{title}</span>
-                    {subtitle && <span className="text-[9px] md:text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 capitalize tracking-[0.25em] line-clamp-2 break-words">{subtitle}</span>}
-                  </div>
-                </h2>
-              </div>
-
-              {(headerActions || !hideCloseButton) && (
-                <div className="flex items-center z-50 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1 gap-1 shrink-0 self-end md:self-auto">
-                  {headerActions}
-                  {headerActions && !hideCloseButton && (
-                    <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
-                  )}
-                  {!hideCloseButton && (
-                    <PanelHeaderGroup className={headerActions ? "ml-1" : ""}>
-                      <PanelHeaderButton
-                        icon="close"
-                        tooltip={t("btn_close") || "Close"}
-                        variant="danger"
-                        onClick={onClose}
-                      />
-                    </PanelHeaderGroup>
-                  )}
+                    <div className="flex flex-col min-w-0 w-full justify-center">
+                      {badgeText && (
+                        <div className="flex items-center gap-2 mb-1 md:mb-2">
+                          <span className={`text-[9px] md:text-[10px] font-black capitalize tracking-widest flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-current/10 border border-current/20 ${iconColorClass || 'theme-text-accent'}`}>
+                            <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]"></span>
+                            {badgeText}
+                          </span>
+                        </div>
+                      )}
+                      <span className="leading-tight text-xl md:text-3xl tracking-tight truncate w-full drop-shadow-md">{title}</span>
+                      {subtitle && <span className="text-[9px] md:text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 capitalize tracking-[0.25em] line-clamp-2 break-words">{subtitle}</span>}
+                    </div>
+                  </h2>
                 </div>
-              )}
-            </div>
-          )}
 
-          <div className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-x-hidden ${noScroll ? '' : 'overflow-y-auto custom-scrollbar'} ${noPadding ? '' : 'p-8'} ${isResizing ? 'pointer-events-none select-none overflow-hidden' : ''}`}>
-            {children}
+                {(headerActions || !hideCloseButton) && (
+                  <div className="flex items-center z-50 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1 gap-1 shrink-0 self-end md:self-auto">
+                    {headerActions}
+                    {headerActions && !hideCloseButton && (
+                      <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
+                    )}
+                    {!hideCloseButton && (
+                      <PanelHeaderGroup className={headerActions ? "ml-1" : ""}>
+                        <PanelHeaderButton
+                          icon="close"
+                          tooltip={t("btn_close") || "Close"}
+                          variant="danger"
+                          onClick={onClose}
+                        />
+                      </PanelHeaderGroup>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-x-hidden ${noScroll ? '' : 'overflow-y-auto custom-scrollbar'} ${noPadding ? '' : 'p-8'} ${isResizing ? 'pointer-events-none select-none overflow-hidden' : ''}`}>
+              {children}
+            </div>
+
+            {(footer || actions) && (
+              <div className={`px-8 pb-8 pt-10 flex justify-center items-center gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${footerClass || ''}`}>
+                {footer}
+                {actions}
+              </div>
+            )}
           </div>
-
-          {(footer || actions) && (
-            <div className={`px-8 pb-8 pt-10 flex justify-center items-center gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${footerClass || ''}`}>
-              {footer}
-              {actions}
-            </div>
-          )}
         </div>
-      </div>
       </SidePanelContext.Provider>
     </PanelDepthContext.Provider>
   );
@@ -2271,6 +2305,8 @@ export const getLowestVersion = (versions: string[]): string => {
     return a;
   });
 };
+
+
 
 export function EmptyState({ icon, title, subtitle, action, minHeightClass = "min-h-[200px]", className = "" }: { icon: string, title?: string, subtitle?: string, action?: React.ReactNode, minHeightClass?: string, className?: string }) {
   return (
@@ -2463,7 +2499,7 @@ export function ActionPill({ searchQuery, setSearchQuery, searchPlaceholder, pri
 
   return (
     <div className={`flex items-center h-13 glass-panel rounded-full shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className}`}>
-      
+
       {/* Integrated Search or Left Content */}
       {leftContent ? (
         <div className="relative flex items-center flex-1 transition-all duration-300 h-full px-4">
@@ -2487,12 +2523,12 @@ export function ActionPill({ searchQuery, setSearchQuery, searchPlaceholder, pri
 
       {/* Action Buttons Container (Collapses on search focus for mobile) */}
       <div className={`flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] shrink-0 transition-all duration-500 ease-in-out overflow-hidden sm:!max-w-[1000px] sm:!opacity-100 ${isSearchFocused ? 'max-w-0 opacity-0 border-transparent' : 'max-w-[500px] opacity-100'}`}>
-        
+
         {/* Primary Popover (e.g., Filters) */}
         {primaryPopover && (
-          <FilterPopover 
-            icon={primaryPopover.icon} 
-            label={primaryPopover.label} 
+          <FilterPopover
+            icon={primaryPopover.icon}
+            label={primaryPopover.label}
             className="shrink-0 h-full"
             buttonClassName="!h-13 px-4 sm:px-5 !rounded-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !border-none !shadow-none transition-colors text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center gap-2 font-semibold shrink-0 !w-auto"
           >
@@ -2504,13 +2540,13 @@ export function ActionPill({ searchQuery, setSearchQuery, searchPlaceholder, pri
         {actions && actions.length > 0 && (
           <div className="hidden sm:flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] shrink-0">
             {actions.map(action => (
-              <button 
+              <button
                 key={action.id}
                 onClick={action.onClick}
-                title={action.label}
                 className={`h-13 px-4 flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] group relative ${action.activeClassName || ""}`}
               >
                 <span className="material-symbols-outlined !text-[20px]">{action.icon}</span>
+                <HoverTooltip title={action.label} />
               </button>
             ))}
           </div>
@@ -2526,8 +2562,8 @@ export function ActionPill({ searchQuery, setSearchQuery, searchPlaceholder, pri
         {/* MOBILE "More" Menu */}
         {actions && actions.length > 0 && (
           <div className="flex sm:hidden h-full shrink-0 items-center justify-center border-l border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
-            <FilterPopover 
-              icon="more_vert" 
+            <FilterPopover
+              icon="more_vert"
               className="shrink-0 h-full"
               buttonClassName="!h-13 w-12 !rounded-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !border-none !shadow-none transition-colors text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center shrink-0"
             >

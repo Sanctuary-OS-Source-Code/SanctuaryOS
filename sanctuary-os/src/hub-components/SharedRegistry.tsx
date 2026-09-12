@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill, HeaderActionPortal } from "../shared";
 import { ArtifactCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -517,7 +517,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
     <>
       <div className={`flex flex-col gap-6 pb-20 w-full h-full relative ${isActiveTab ? '' : 'hidden'}`}>
         {isActiveTab && (
-          <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+          <HeaderActionPortal>
             <ActionPill
               searchQuery={searchTerm}
               setSearchQuery={setSearchTerm}
@@ -571,7 +571,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                 </div>
               }
             />
-          </div>
+          </HeaderActionPortal>
         )}
 
         <div className="p-6 w-full">

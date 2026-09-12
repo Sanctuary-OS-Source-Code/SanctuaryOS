@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ActionPill, FilterTabs, FilterTabButton, PillTabs, PillTabButton, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton } from "./shared";
+import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ActionPill, FilterTabs, FilterTabButton, PillTabs, PillTabButton, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton, HeaderActionPortal, HoverTooltip } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { logArchitectAction } from "./lib/audit";
 
@@ -155,7 +155,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
   return (
     <div className="flex flex-col h-full w-full relative overflow-hidden text-[var(--text)]">
 
-      <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-4">
+      <HeaderActionPortal>
         <ActionPill
           searchQuery={searchTerm}
           setSearchQuery={setSearchTerm}
@@ -173,16 +173,16 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
                 ))}
               </PillTabs>
               <button
-                onClick={() => { setEditConflictId(null); setModA(null); setModB(null); setNote(""); setSeverity(4); setIsSidePanelOpen(true); }}
-                title={t("auto_create") as string}
-                className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)]"
-              >
-                <span className="material-symbols-outlined !text-[18px]">{t("icon_add")}</span>
-              </button>
+              onClick={() => { setEditConflictId(null); setModA(null); setModB(null); setNote(""); setSeverity(4); setIsSidePanelOpen(true); }}
+              className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] relative group"
+            >
+              <span className="material-symbols-outlined !text-[18px]">add</span>
+              <HoverTooltip title={t("auto_create") as string} />
+            </button>
             </div>
           }
         />
-      </div>
+      </HeaderActionPortal>
 
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
         {filterTab === 'pending' && (

@@ -9,7 +9,7 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown, ActionButton
+  fetchAllPaginated, CustomTierDropdown, ActionButton,
 } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
@@ -36,6 +36,7 @@ export function MassUpdateOversight() {
 
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [filterGameVersions, setFilterGameVersions] = useState<string[]>([]);
+  const [filterVersionSearch, setFilterVersionSearch] = useState<string>("");
 
   const [massStatus, setMassStatus] = useState<string>("");
   const [massGameVersions, setMassGameVersions] = useState<string[]>([]);
@@ -168,91 +169,105 @@ export function MassUpdateOversight() {
       onSearchChange={setSearchQuery}
       searchPlaceholder={t("search_ph") as string}
       headerActions={
-        <div className="flex items-center gap-2">
-          <CustomDropdown disableTint={true}
-            flat={true} variant="pill"
-            value={filterCategory}
-            onChange={(v: string[]) => setFilterCategory(v[0])}
-            options={[
-              { id: "", label: "ALL CATEGORIES" },
-              ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
-                id: cat.id,
-                label: (t(cat.lexicon_key) || cat.id).toUpperCase()
-              })) || [])
-            ]}
-          />
-          <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} />
-          <ActionButton
-            onClick={() => setShowOnlySelected(!showOnlySelected)}
-            icon="checklist"
-            label={showOnlySelected ? "SHOWING SELECTED" : "SELECTED ONLY"}
-            variant={showOnlySelected ? "primary" : "default"}
-          />
-          <ActionButton
-            onClick={handleSelectAllFiltered}
-            icon="done_all"
-            label={t("auto_toggle_all_visible")}
-          />
+        <div className="flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)]">
+          <div className="px-2">
+            <CustomDropdown disableTint={true}
+              flat={true} variant="pill"
+              value={filterCategory}
+              onChange={(v: string[]) => setFilterCategory(v[0])}
+              options={[
+                { id: "", label: "ALL CATEGORIES" },
+                ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                  id: cat.id,
+                  label: (t(cat.lexicon_key) || cat.id).toUpperCase()
+                })) || [])
+              ]}
+            />
+          </div>
+          <div className="px-2">
+            <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} variant="pill" />
+          </div>
+          <div className="h-full flex items-center px-2">
+            <ActionButton
+              onClick={() => setShowOnlySelected(!showOnlySelected)}
+              icon="checklist"
+              label={showOnlySelected ? "SHOWING SELECTED" : "SELECTED ONLY"}
+              variant={showOnlySelected ? "primary" : "glass"}
+              className="!border-none !shadow-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+            />
+          </div>
+          <div className="h-full flex items-center px-2">
+            <ActionButton
+              onClick={handleSelectAllFiltered}
+              icon="done_all"
+              label={t("auto_toggle_all_visible")}
+              variant="glass"
+              className="!border-none !shadow-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+            />
+          </div>
 
           {selectedIds.size > 0 && (
-            <ActionButton
-              onClick={() => setIsActionPanelOpen(true)}
-              variant="accent"
-              icon="tune"
-              label={`${t("mass_update_apply")} (${selectedIds.size})`}
-            />
+            <div className="h-full flex items-center pl-2">
+              <ActionButton
+                onClick={() => setIsActionPanelOpen(true)}
+                variant="accent"
+                icon="tune"
+                label={`${t("mass_update_apply")} (${selectedIds.size})`}
+                className="rounded-r-full !rounded-l-none !h-full"
+              />
+            </div>
           )}
         </div>
       }
     >
       <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
-          {loading ? (
-            <div className="py-20 text-center font-black opacity-50 capitalize tracking-widest animate-pulse">{t("loading_registry")}</div>
-          ) : (
-            <>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
-                {filteredMods.slice(0, visibleCount).map(m => (
-                  <UniversalCard
-                    key={m.id}
-                    onClick={() => handleToggle(m.id)}
-                    layout="vertical-compact"
-                    isActive={selectedIds.has(m.id)}
-                    icon={selectedIds.has(m.id) ? "check" : "extension"}
-                    title={m.name}
-                    badges={
-                      <div className="flex justify-between items-center w-full mt-2">
-                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest leading-none border ${selectedIds.has(m.id)
-                          ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
-                          : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
-                          }`}>
-                          {m.master_author || 'UNKNOWN'}
-                        </span>
-                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize">
-                          {t("auto_status")} {(m.status || "UNVERIFIED").replace(/_/g, ' ')} | {t("auto_tier")} {m.compliance_tier}
-                        </span>
-                      </div>
-                    }
-                  />
-                ))}
+        {loading ? (
+          <div className="py-20 text-center font-black opacity-50 capitalize tracking-widest animate-pulse">{t("loading_registry")}</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
+              {filteredMods.slice(0, visibleCount).map(m => (
+                <UniversalCard
+                  key={m.id}
+                  onClick={() => handleToggle(m.id)}
+                  layout="vertical-compact"
+                  isActive={selectedIds.has(m.id)}
+                  icon={selectedIds.has(m.id) ? "check" : "extension"}
+                  title={m.name}
+                  badges={
+                    <div className="flex justify-between items-center w-full mt-2">
+                      <span className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest leading-none border ${selectedIds.has(m.id)
+                        ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
+                        : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
+                        }`}>
+                        {m.master_author || 'UNKNOWN'}
+                      </span>
+                      <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize">
+                        {t("auto_status")} {(m.status || "UNVERIFIED").replace(/_/g, ' ')} | {t("auto_tier")} {m.compliance_tier}
+                      </span>
+                    </div>
+                  }
+                />
+              ))}
+            </div>
+
+            {filteredMods.length > visibleCount && (
+              <div className="flex justify-center w-full py-8">
+                <button
+                  onClick={() => setVisibleCount(v => v + 100)}
+                  className="group px-12 py-4 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black capitalize tracking-widest hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all shadow-xl flex items-center gap-3"
+                >
+                  <span className="material-symbols-outlined !text-[20px] group-hover:animate-bounce">expand_more</span>
+                  {t("ui_btn_load_more")} ({visibleCount} / {filteredMods.length})
+                </button>
               </div>
+            )}
 
-              {filteredMods.length > visibleCount && (
-                <div className="flex justify-center w-full py-8">
-                  <button
-                    onClick={() => setVisibleCount(v => v + 100)}
-                    className="group px-12 py-4 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black capitalize tracking-widest hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all shadow-xl flex items-center gap-3"
-                  >
-                    <span className="material-symbols-outlined !text-[20px] group-hover:animate-bounce">expand_more</span>
-                    {t("ui_btn_load_more")} ({visibleCount} / {filteredMods.length})
-                  </button>
-                </div>
-              )}
-
-              {!loading && filteredMods.length === 0 && (
-                <EmptyState icon={t("icon_extension_off")} title={t("sa_no_artifacts")} className="py-16" />
-              )}
-            </>
-          )}
+            {!loading && filteredMods.length === 0 && (
+              <EmptyState icon={t("icon_extension_off")} title={t("sa_no_artifacts")} className="py-16" />
+            )}
+          </>
+        )}
       </div>
 
       <SidePanel

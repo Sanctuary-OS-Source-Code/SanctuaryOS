@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { EmptyState, InlineFilterGroup, CustomDropdown, ActionPill } from "./shared";
+import { EmptyState, InlineFilterGroup, CustomDropdown, ActionPill, HeaderActionPortal } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { supabase, supabaseAuth } from "./supabase";
 
@@ -82,7 +82,7 @@ export default function WayfinderKeeperTickets({ userId, onSelectTicket, isSideP
 
   return (
     <div className="flex flex-col w-full text-[var(--text)] h-full">
-      <div className="w-full px-6 md:px-8 pt-4 md:pt-6 shrink-0">
+      <HeaderActionPortal>
         <ActionPill
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -109,7 +109,7 @@ export default function WayfinderKeeperTickets({ userId, onSelectTicket, isSideP
             )
           }}
         />
-      </div>
+      </HeaderActionPortal>
 
       <div className="w-full flex flex-col sm:grid sm:grid-cols-2 gap-3 px-6 md:px-8 overflow-y-auto custom-scrollbar flex-1 pb-20 content-start sm:items-start sm:auto-rows-max">
         {isLoading ? (

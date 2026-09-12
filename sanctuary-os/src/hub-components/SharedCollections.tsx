@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill, HeaderActionPortal } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction } from "../lib/audit";
@@ -497,25 +497,33 @@ export function CollectionForge({ setStatus }: any) {
     <div className="flex flex-col h-full overflow-hidden animate-in fade-in pb-20">
 
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_collections_bookmark")}</span>
-          </div>
-          <span className="truncate">{t("tab_cc")}</span>
-        </h2>
-        <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <ActionPill
-              searchQuery={searchTerm}
-              setSearchQuery={setSearchTerm}
-              searchPlaceholder={t("search_queue")}
-              rightContent={
-                <CustomDropdown disableTint={true} variant="pill" flat={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
-              }
-            />
-          </div>
-          <ActionButton onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 shrink-0 font-black capitalize tracking-widest text-[10px]" icon={t("icon_add")} label={t("auto_create")} />
+        <div className="flex flex-col gap-0">
+          <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_collections_bookmark")}</span>
+            </div>
+            <span className="truncate">{t("tab_cc")}</span>
+          </h2>
         </div>
+
+        <HeaderActionPortal>
+          <ActionPill
+            searchQuery={searchTerm}
+            setSearchQuery={setSearchTerm}
+            searchPlaceholder={t("search_queue")}
+            rightContent={
+              <CustomDropdown disableTint={true} variant="pill" flat={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
+            }
+            actions={[
+              {
+                id: "create",
+                icon: t("icon_add"),
+                label: t("auto_create") || "Create",
+                onClick: () => setIsForgePanelOpen(true)
+              }
+            ]}
+          />
+        </HeaderActionPortal>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">

@@ -1,4 +1,4 @@
-import { ActionPill, FilterTabs, FilterTabButton, PillTabs, PillTabButton } from "./shared";
+import { ActionPill, FilterTabs, FilterTabButton, PillTabs, PillTabButton, HeaderActionPortal } from "./shared";
 import React, { useState, useEffect } from "react";
 import { fetchAllPaginated } from "./shared";
 import { CustomClassificationDropdown } from "./hub-components/SharedRegistry";
@@ -130,7 +130,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-4">
+      <HeaderActionPortal>
         <ActionPill
           searchQuery={searchTerm}
           setSearchQuery={setSearchTerm}
@@ -144,7 +144,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
             </div>
           }
         />
-      </div>
+      </HeaderActionPortal>
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
         {loading ? (

@@ -204,6 +204,40 @@ export default function TimeCapsule({
     );
   };
 
+  const FilterContent = () => (
+    <div className="flex flex-col gap-4 min-w-[280px]">
+      <div className="flex flex-col gap-2">
+        <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] uppercase">{t("game_version")}</label>
+        <CustomDropdown 
+          disableTint={true} 
+          variant="panel"
+          value={versionFilter}
+          onChange={(val: string[]) => setVersionFilter(val[0])}
+          options={[
+            { id: "ALL", label: t("ql_all") },
+            ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
+          ]}
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] uppercase">{t("date_range")}</label>
+        <div className="flex items-center gap-2">
+          <CustomDatePicker
+            value={startDate}
+            onChange={setStartDate}
+            placeholder={t("filter_start_date")}
+          />
+          <span className="text-[var(--subtext)] text-[10px] uppercase font-bold opacity-50 px-1">to</span>
+          <CustomDatePicker
+            value={endDate}
+            onChange={setEndDate}
+            placeholder={t("filter_end_date")}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-0 animate-in fade-in duration-700 pb-32 w-full">
       <ViewHeader
@@ -220,32 +254,11 @@ export default function TimeCapsule({
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               searchPlaceholder={t("timecapsule_search") as string || "Search Chronograms..."}
-              rightContent={
-                <div className="flex items-center gap-2 px-2 h-full py-2">
-                  <CustomDropdown disableTint={true} variant="pill" flat={true}
-                    value={versionFilter}
-                    onChange={(val: string[]) => setVersionFilter(val[0])}
-                    options={[
-                      { id: "ALL", label: t("ql_all") },
-                      ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
-                    ]}
-                  />
-                  <div className="w-px h-4 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
-                  <CustomDatePicker
-                    value={startDate}
-                    onChange={setStartDate}
-                    placeholder={t("filter_start_date")}
-                    flat={true}
-                  />
-                  <span className="text-[var(--subtext)] text-[10px] uppercase font-bold opacity-50 px-1">to</span>
-                  <CustomDatePicker
-                    value={endDate}
-                    onChange={setEndDate}
-                    placeholder={t("filter_end_date")}
-                    flat={true}
-                  />
-                </div>
-              }
+              primaryPopover={{
+                icon: "tune",
+                label: t("filters") || "Filters",
+                content: <FilterContent />
+              }}
             />
           </div>
         )}

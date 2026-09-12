@@ -107,19 +107,12 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                      setSearchQuery={setMainSearchQuery}
                      searchPlaceholder={t("search_files") as string}
                      rightContent={
-                        <div className="flex items-center h-full px-4 py-2">
-                           <CustomDropdown
-                              flat={true}
-                              variant="pill"
-                              disableTint={true}
-                              value={gridFilter}
-                              onChange={(v: string[]) => setGridFilter(v[0] as "ALL" | "UNSAVED")}
-                              options={[
-                                 { id: "ALL", label: "ALL" },
-                                 { id: "UNSAVED", label: t("unsaved_changes") }
-                              ]}
-                           />
-                        </div>
+                          <div className="flex items-center gap-1 shrink-0 px-2 h-full">
+                             <PillTabs className="hidden md:flex">
+                                <PillTabButton id="ALL" icon={null} label="ALL" activeTab={gridFilter} setTab={setGridFilter} />
+                                <PillTabButton id="UNSAVED" icon={null} label={t("unsaved_changes")} activeTab={gridFilter} setTab={setGridFilter} />
+                             </PillTabs>
+                          </div>
                      }
                   />
                </div>

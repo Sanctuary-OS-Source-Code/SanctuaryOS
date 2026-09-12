@@ -14,7 +14,7 @@ import {
   standardDangerButtonClass, standardAccentGlassButtonClass,
   FilterTabs, FilterTabButton, PillTabs, PillTabButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  PanelHeaderGroup, PanelHeaderButton, ActionPill
+  PanelHeaderGroup, PanelHeaderButton, ActionPill, HeaderActionPortal
 } from "../shared";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { ArtifactCard, VaultCard } from "../Cards";
@@ -189,7 +189,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full shrink-0">
+      <HeaderActionPortal>
         <ActionPill
           searchQuery={searchTerm}
           setSearchQuery={setSearchTerm}
@@ -228,9 +228,9 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
             </div>
           }
         />
-      </div>
+      </HeaderActionPortal>
 
-      <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
+      <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
         {loading ? (
           <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading")}</div>
         ) : filteredReports.length === 0 ? (

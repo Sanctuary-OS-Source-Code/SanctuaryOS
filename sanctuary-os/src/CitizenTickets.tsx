@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { EmptyState, InlineFilterGroup, ActionButton, ActionPill } from "./shared";
+import { EmptyState, InlineFilterGroup, ActionButton, ActionPill, HoverTooltip } from "./shared";
 import { supabase } from "./supabase";
 import { UniversalCard } from "./components/universal/UniversalCard";
 
@@ -114,11 +114,11 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
               <div className="flex items-center px-2 h-full">
                 <button
                   onClick={onOpenNewTicket}
-                  title={t("ticket_new") || "New Ticket"}
-                  className="h-9 px-4 rounded-md flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] font-black uppercase tracking-widest text-[10px]"
+                  className="h-9 px-4 rounded-md flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] font-black uppercase tracking-widest text-[10px] relative group"
                 >
                   <span className="material-symbols-outlined !text-[18px]">add</span>
                   <span className="hidden md:inline">{t("ticket_new") || "New Ticket"}</span>
+                  <HoverTooltip title={t("ticket_new") || "New Ticket"} />
                 </button>
               </div>
             )

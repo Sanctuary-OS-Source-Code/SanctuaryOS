@@ -1,4 +1,4 @@
-import { SidePanel, FilterTabs, FilterTabButton, ActionButton, CustomDropdown, ModSearchDropdown, EmptyState, ActionPill, PanelHeaderGroup, PanelHeaderButton } from "./shared";
+import { SidePanel, FilterTabs, FilterTabButton, ActionButton, CustomDropdown, ModSearchDropdown, EmptyState, ActionPill, PanelHeaderGroup, PanelHeaderButton, HeaderActionPortal } from "./shared";
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, } from "./shared";
@@ -383,8 +383,8 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
   const completedReports = filteredReports.filter((mod: any) => mod.status !== 'under_review');
 
   return (
-    <div className="flex flex-col w-full relative">
-      <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-4">
+    <div className="flex flex-col w-full relative h-full">
+      <HeaderActionPortal>
         <ActionPill
           searchQuery={searchTerm}
           setSearchQuery={setSearchTerm}
@@ -405,9 +405,9 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
             )
           }}
         />
-      </div>
+      </HeaderActionPortal>
 
-      <div className="p-6 flex flex-col gap-10 pb-32">
+      <div className="flex-1 w-full flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
         {filterTab === 'pending' && (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">

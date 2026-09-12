@@ -229,9 +229,13 @@ export default function SAOversightReports() {
           { id: 'archive', label: t("oversight_tab_archive") as string || "Archive", icon: 'archive', number: archiveReportsCount.toString(), colorClass: 'text-[var(--accent)]' }
         ]}
         headerActions={
-          <div className="flex items-center gap-2">
-            <CustomDatePicker flat={true} value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
-            <CustomDatePicker flat={true} value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
+          <div className="flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)]">
+            <div className="px-2 h-full flex items-center">
+              <CustomDatePicker flat={true} value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
+            </div>
+            <div className="px-2 h-full flex items-center">
+              <CustomDatePicker flat={true} value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
+            </div>
           </div>
         }
       >

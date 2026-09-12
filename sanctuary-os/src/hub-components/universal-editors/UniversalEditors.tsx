@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLexicon } from '../../LexiconContext';
-import { formatDisplayName, ActionPill, CustomDropdown } from '../../shared';
+import { formatDisplayName, ActionPill, CustomDropdown, HoverTooltip, HeaderActionPortal } from '../../shared';
 
 export const UniversalInjectableSearch = ({
   dataset,
@@ -23,21 +23,23 @@ export const UniversalInjectableSearch = ({
     : [];
 
   return (
-    <div className="flex flex-col gap-2 relative w-full z-[115005]">
-      <ActionPill
-        searchQuery={search}
-        setSearchQuery={setSearch}
-        searchPlaceholder={searchPlaceholder || t("btn_search")}
-        rightContent={targets.length > 1 && (
-          <CustomDropdown
-            flat={true} variant="pill"
-            value={activeTarget}
-            onChange={(v: any) => setActiveTarget(v[0])}
-            options={targets.map((t: any) => ({ id: t.id, label: t.label, icon: 'api' }))}
-            disableSearch={true}
+      <div className="flex flex-col gap-2 relative w-full z-[115005]">
+        <HeaderActionPortal>
+          <ActionPill
+            searchQuery={search}
+            setSearchQuery={setSearch}
+            searchPlaceholder={searchPlaceholder || t("btn_search")}
+            rightContent={targets.length > 1 && (
+              <CustomDropdown
+                flat={true} variant="pill"
+                value={activeTarget}
+                onChange={(v: any) => setActiveTarget(v[0])}
+                options={targets.map((t: any) => ({ id: t.id, label: t.label, icon: 'api' }))}
+                disableSearch={true}
+              />
+            )}
           />
-        )}
-      />
+        </HeaderActionPortal>
 
       {filtered.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-2 glass-panel rounded-full shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col w-full bg-black/20 max-h-64 overflow-y-auto custom-scrollbar">
@@ -252,9 +254,10 @@ export const UniversalListPicker = ({
             {item.metaTags && item.metaTags.length > 0 && (
               <div className="flex items-center gap-3 mt-1">
                 {item.metaTags.map((tag: any, i: number) => (
-                  <div key={i} className="flex items-center gap-1 text-[var(--subtext)] opacity-80" title={tag.label}>
+                  <div key={i} className="flex items-center gap-1 text-[var(--subtext)] opacity-80 relative group">
                     <span className="material-symbols-outlined !text-[12px]">{tag.icon}</span>
                     <span className="text-[9px] font-bold capitalize truncate max-w-[100px]">{tag.value}</span>
+                    <HoverTooltip title={tag.label} />
                   </div>
                 ))}
               </div>

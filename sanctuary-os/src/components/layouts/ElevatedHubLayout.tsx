@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActionPill, DashboardStatTile, useIsMobile } from '../../shared';
+import { ActionPill, DashboardStatTile, useIsMobile, HeaderActionPortal } from '../../shared';
 
 export interface HubTab {
   id: string;
@@ -66,7 +66,7 @@ export function ElevatedHubLayout({
   return (
     <div className={`flex flex-col gap-0 animate-in fade-in duration-700 w-full h-full relative overflow-hidden ${className} ${isHiddenTab ? 'hidden' : ''}`}>
       {!isHiddenTab && !hideHeader && (
-        <div className="mb-8">
+        <HeaderActionPortal>
           <ActionPill
             searchQuery={search || ""}
             setSearchQuery={onSearchChange || (() => {})}
@@ -75,7 +75,7 @@ export function ElevatedHubLayout({
             leftContent={leftContent}
             rightContent={headerActions}
           />
-        </div>
+        </HeaderActionPortal>
       )}
 
       <div className="flex-1 flex flex-col h-full overflow-hidden px-6 pt-4">

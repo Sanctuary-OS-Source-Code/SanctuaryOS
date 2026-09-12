@@ -1,5 +1,5 @@
 import { ActionPill } from "../shared";
-import { CustomDropdown, FilterTabs, FilterTabButton, ActionButton } from "../shared";
+import { CustomDropdown, FilterTabs, FilterTabButton, ActionButton, HoverTooltip } from "../shared";
 
 export default function MasonHeader({
    t,
@@ -57,17 +57,17 @@ export default function MasonHeader({
                      <>
                         <button
                            onClick={() => setIsCreatePanelOpen(true)}
-                           title={t("auto_create_file") as string}
-                           className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)]"
+                           className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] relative group"
                         >
                            <span className="material-symbols-outlined !text-[18px]">{t("icon_add")}</span>
+                           <HoverTooltip title={t("auto_create_file") as string} />
                         </button>
                         <button
                            onClick={handleImport}
-                           title={t("import_file") as string}
-                           className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)]"
+                           className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] relative group"
                         >
                            <span className="material-symbols-outlined !text-[18px]">{t("icon_upload")}</span>
+                           <HoverTooltip title={t("import_file") as string} />
                         </button>
                      </>
                   )}
