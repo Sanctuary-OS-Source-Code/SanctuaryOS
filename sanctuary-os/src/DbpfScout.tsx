@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionPill } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionPill, PillTabs, PillTabButton } from "./shared";
 import { getExtensionRegex, formatDisplayName, getFileLabel } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { useLexicon } from "./LexiconContext";
@@ -424,12 +424,12 @@ export const DbpfScout = () => {
                                     </div>
                                 }
                                 rightContent={
-                                    <div className="flex items-center glass-panel rounded-xl overflow-hidden divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-10 shrink-0 hidden md:flex">
-                                        <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 4 ? null : 4)} className={`h-full px-3 flex items-center justify-center gap-1 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 4 ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)]' : 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S4</button>
-                                        <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 3 ? null : 3)} className={`h-full px-3 flex items-center justify-center gap-1 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 3 ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)]' : 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S3</button>
-                                        <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 2 ? null : 2)} className={`h-full px-3 flex items-center justify-center gap-1 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 2 ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S2</button>
-                                        <button onClick={() => setActiveConflictSeverity(activeConflictSeverity === 1 ? null : 1)} className={`h-full px-3 flex items-center justify-center gap-1 font-black text-[10px] capitalize tracking-widest transition-all ${activeConflictSeverity === 1 ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-blue-400' : 'text-blue-400 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>S1</button>
-                                    </div>
+                                    <PillTabs className="mr-2 my-auto">
+                                        <PillTabButton id={4} label="S4" activeTab={activeConflictSeverity} setTab={(v: number) => setActiveConflictSeverity(activeConflictSeverity === v ? null : v)} className="text-[var(--danger)] hover:text-[var(--danger)]" />
+                                        <PillTabButton id={3} label="S3" activeTab={activeConflictSeverity} setTab={(v: number) => setActiveConflictSeverity(activeConflictSeverity === v ? null : v)} className="text-[var(--warning)] hover:text-[var(--warning)]" />
+                                        <PillTabButton id={2} label="S2" activeTab={activeConflictSeverity} setTab={(v: number) => setActiveConflictSeverity(activeConflictSeverity === v ? null : v)} className="text-[var(--accent)] hover:text-[var(--accent)]" />
+                                        <PillTabButton id={1} label="S1" activeTab={activeConflictSeverity} setTab={(v: number) => setActiveConflictSeverity(activeConflictSeverity === v ? null : v)} className="text-blue-400 hover:text-blue-400" />
+                                    </PillTabs>
                                 }
                             />
                         </div>

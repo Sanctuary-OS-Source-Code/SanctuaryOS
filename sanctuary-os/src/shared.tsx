@@ -1614,7 +1614,7 @@ export function CustomDropdown({ value, onChange, options, allowCustom, searchab
   return (
     <div className={`relative ${className?.includes('w-') ? '' : 'w-full'} ${className || ''}`}>
       <button type="button" ref={btnRef} data-1p-ignore="true" onClick={() => setIsOpen(!isOpen)} className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? 'bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90' : isPill ? `h-10 px-5 rounded-full text-[10px] font-black uppercase tracking-widest ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]' : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}` : `${className ? 'h-full px-4 rounded-full' : 'h-12 px-5 rounded-[12px]'} text-sm font-bold ${isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-[var(--radius)] text-[var(--accent)] shadow-md' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] focus:border-[var(--accent)] transform-gpu'}`} ${buttonClassName || ''}`}>
-        <span className="pr-4 flex-1 text-left flex items-center h-full capitalize overflow-hidden">{getSelectedLabel()}</span>
+        <span className="pr-4 flex-1 text-left flex items-center h-full capitalize overflow-hidden whitespace-nowrap text-ellipsis min-w-0">{getSelectedLabel()}</span>
         <span className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-60 hover:text-[var(--text)]'}`}><span className={`material-symbols-outlined ${flat ? '!text-[16px]' : '!text-[20px]'}`}>{isOpen ? 'expand_less' : 'expand_more'}</span></span>
       </button>
       {dropdownMenu}
@@ -2478,7 +2478,7 @@ export function ActionPill({ searchQuery, setSearchQuery, searchPlaceholder, pri
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setIsSearchFocused(false)}
             placeholder={searchPlaceholder || "Search..."}
-            className="bg-transparent border-none outline-none text-[13px] font-medium text-[var(--text)] w-full sm:w-[160px] xl:w-[220px] focus:sm:w-[260px] focus:xl:w-[320px] transition-all duration-300 px-3 placeholder:text-[var(--subtext)]/50 h-13 min-w-0"
+            className="bg-transparent border-none outline-none text-[13px] font-medium text-[var(--text)] w-full transition-all duration-300 px-3 placeholder:text-[var(--subtext)]/50 h-13 min-w-0"
           />
         </div>
       ) : (

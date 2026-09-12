@@ -239,52 +239,54 @@ export function WorkbenchSidePanel({
                            <div className="flex flex-col gap-2 shrink-0 mb-4">
                               <div className="flex flex-row items-center gap-2 w-full">
                                  <ActionPill
+                                    className="w-full"
                                     searchQuery={searchQuery}
                                     setSearchQuery={setSearchQuery}
                                     searchPlaceholder={t("workbench_search_placeholder")}
                                     rightContent={
-                                       !isTemplateMode && availableTemplates.length > 0 ? (
-                                          <CustomDropdown
-                                             flat={true}
-                                             variant="pill"
-                                             value={selectedTemplatePath}
-                                             options={availableTemplates}
-                                             onChange={(val: string[]) => {
-                                                const newPath = val[0];
-                                                setSelectedTemplatePath(newPath);
-                                                const tmpl = availableTemplates.find((t: any) => t.id === newPath);
-                                                if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
-                                                   setActiveTemplate(tmpl.data);
-                                                   setCustomAppliedTemplate(null);
-                                                } else if (tmpl) {
-                                                   setCustomAppliedTemplate(tmpl.data);
-                                                   setActiveTemplate(null);
-                                                }
-                                             }}
-                                             disableTint={true}
-                                          />
-                                       ) : undefined
+                                       <div className="flex items-center gap-2 px-4 h-full py-2">
+                                          {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (
+                                             <CustomDropdown
+                                                flat={true}
+                                                variant="pill"
+                                                disableTint={true}
+                                                value={selectedCategory}
+                                                options={[
+                                                   { id: "ALL", label: t("cat_all") },
+                                                   ...currentVisualTemplate.categories.map((cat: any) => ({
+                                                      id: cat.id,
+                                                      label: resolveText(cat.name_key, cat.name || cat.id) as string,
+                                                      icon: resolveText(cat.icon_key, cat.icon || "folder") as string
+                                                   }))
+                                                ]}
+                                                onChange={(val: string[]) => setSelectedCategory(val[0])}
+                                             />
+                                          )}
+                                          {!isTemplateMode && availableTemplates.length > 0 && (
+                                             <CustomDropdown
+                                                flat={true}
+                                                variant="pill"
+                                                disableTint={true}
+                                                value={selectedTemplatePath}
+                                                options={availableTemplates}
+                                                onChange={(val: string[]) => {
+                                                   const newPath = val[0];
+                                                   setSelectedTemplatePath(newPath);
+                                                   const tmpl = availableTemplates.find((t: any) => t.id === newPath);
+                                                   if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
+                                                      setActiveTemplate(tmpl.data);
+                                                      setCustomAppliedTemplate(null);
+                                                   } else if (tmpl) {
+                                                      setCustomAppliedTemplate(tmpl.data);
+                                                      setActiveTemplate(null);
+                                                   }
+                                                }}
+                                             />
+                                          )}
+                                       </div>
                                     }
                                  />
                               </div>
-
-                                 {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (
-                                    <div className="w-max shrink-0 relative z-[40]">
-                                       <CustomDropdown
-                                          value={selectedCategory}
-                                          options={[
-                                             { id: "ALL", label: t("cat_all") },
-                                             ...currentVisualTemplate.categories.map((cat: any) => ({
-                                                id: cat.id,
-                                                label: resolveText(cat.name_key, cat.name || cat.id) as string,
-                                                icon: resolveText(cat.icon_key, cat.icon || "folder") as string
-                                             }))
-                                          ]}
-                                          onChange={(val: string[]) => setSelectedCategory(val[0])}
-                                          disableTint={true}
-                                       />
-                                    </div>
-                                 )}
                               </div>
 
                            <div className="flex-1 relative min-h-0 min-w-0">

@@ -2227,5 +2227,8 @@
   "feed_stat_network": "Vadish Network",
   "feed_stat_global": "Plum Global",
   "network_subtitle": "Masons You Flabalab",
-  "no_masons_followed": "No Vadish Links Yet."
+  "no_masons_followed": "No Vadish Links Yet.",
+  "create_snapshot": "Create New Snapshot",
+  "confirm_seal": "Confirm Snapshot?",
+  "confirm_seal_long": "Finalize New Snapshot?"
 }

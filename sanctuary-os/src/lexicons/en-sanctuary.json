@@ -3091,5 +3091,8 @@
   "feed_stat_network": "Active Nodes",
   "feed_stat_global": "Global Feed",
   "network_subtitle": "Active Linked Nodes",
-  "no_masons_followed": "No Active Node Links Established."
+  "no_masons_followed": "No Active Node Links Established.",
+  "create_snapshot": "Create New Snapshot",
+  "confirm_seal": "Confirm Snapshot?",
+  "confirm_seal_long": "Finalize New Snapshot?"
 }

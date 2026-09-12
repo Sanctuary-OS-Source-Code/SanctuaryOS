@@ -118,26 +118,33 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
         </div>
       ) : (
         <div className="flex flex-col gap-6 h-full pb-4">
-          <PillTabs className="shrink-0">
-            <PillTabButton
-              id="INSPECTOR"
-              label={t("tab_inspector")}
-              activeTab={activeSubTab}
-              setTab={setActiveSubTab}
-            />
-            <PillTabButton
-              id="EXTRACT"
-              label={t("tab_extract")}
-              activeTab={activeSubTab}
-              setTab={setActiveSubTab}
-            />
-            <PillTabButton
-              id="DIFF"
-              label={t("tab_diff")}
-              activeTab={activeSubTab}
-              setTab={setActiveSubTab}
-            />
-          </PillTabs>
+          <div className="grid grid-cols-3 gap-3 shrink-0">
+            {[
+              { id: "INSPECTOR", label: t("tab_inspector"), icon: "search" },
+              { id: "EXTRACT", label: t("tab_extract"), icon: "unarchive" },
+              { id: "DIFF", label: t("tab_diff"), icon: "difference" }
+            ].map((tab) => {
+              const isActive = activeSubTab === tab.id;
+              const activeBorder = isEngine ? 'border-rose-500/30' : 'border-indigo-500/30';
+              const activeShadow = isEngine ? 'shadow-[0_0_20px_rgba(244,63,94,0.15)]' : 'shadow-[0_0_20px_rgba(99,102,241,0.15)]';
+              const activeBg = isEngine ? 'bg-rose-500/10' : 'bg-indigo-500/10';
+              const hoverBorder = isEngine ? 'hover:border-rose-500/20' : 'hover:border-indigo-500/20';
+              const hoverBg = isEngine ? 'hover:bg-rose-500/5' : 'hover:bg-indigo-500/5';
+              const textColor = isEngine ? 'text-rose-400' : 'text-indigo-400';
+              const hoverText = isEngine ? 'group-hover:text-rose-400/70' : 'group-hover:text-indigo-400/70';
+
+              return (
+                <div
+                  key={tab.id}
+                  onClick={() => setActiveSubTab(tab.id)}
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border transition-all duration-300 cursor-pointer group ${isActive ? `glass-panel ${activeBorder} ${activeShadow} ${activeBg}` : `bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${hoverBorder} ${hoverBg}`}`}
+                >
+                  <span className={`material-symbols-outlined !text-[24px] transition-colors ${isActive ? textColor : `text-[var(--subtext)] ${hoverText}`}`}>{tab.icon}</span>
+                  <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${isActive ? textColor : `text-[var(--subtext)] ${hoverText}`}`}>{tab.label}</span>
+                </div>
+              );
+            })}
+          </div>
 
           {activeSubTab === "INSPECTOR" && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-4 flex-1 min-h-0 relative">

@@ -3076,5 +3076,8 @@
   "feed_stat_network": "Your Network",
   "feed_stat_global": "Recent Global",
   "network_subtitle": "Masons you are following",
-  "no_masons_followed": "You aren't following anyone yet."
+  "no_masons_followed": "You aren't following anyone yet.",
+  "create_snapshot": "Create New Snapshot",
+  "confirm_seal": "Confirm Snapshot?",
+  "confirm_seal_long": "Finalize New Snapshot?"
 }

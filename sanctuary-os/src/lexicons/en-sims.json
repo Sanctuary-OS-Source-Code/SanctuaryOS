@@ -91,5 +91,8 @@
   "tier_1_universal": "T1 - Everywhere",
   "tier_2_overrides": "T2 - Bossy",
   "tier_3_structural": "T3 - Building",
-  "tier_4_core": "T4 - Center"
+  "tier_4_core": "T4 - Center",
+  "create_snapshot": "Create New Snapshot",
+  "confirm_seal": "Confirm Snapshot?",
+  "confirm_seal_long": "Finalize New Snapshot?"
 }
