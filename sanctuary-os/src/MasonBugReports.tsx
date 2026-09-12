@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ViewHeader, EmptyState, ScreenUtilityBar, FilterTabs, FilterTabButton, FilterPopover, ActionButton, formatOverviewMetric } from "./shared";
+import { ViewHeader, EmptyState, FilterTabs, FilterTabButton, FilterPopover, ActionButton, formatOverviewMetric } from "./shared";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";

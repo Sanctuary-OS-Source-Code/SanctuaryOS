@@ -1,4 +1,4 @@
-import { ScreenUtilityBar, FilterTabs, FilterTabButton } from "./shared";
+import { ActionPill, FilterTabs, FilterTabButton, PillTabs, PillTabButton } from "./shared";
 import React, { useState, useEffect } from "react";
 import { fetchAllPaginated } from "./shared";
 import { CustomClassificationDropdown } from "./hub-components/SharedRegistry";
@@ -130,16 +130,21 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <ScreenUtilityBar
-        search={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder={t("search_queue") as string}
-      >
-          <FilterTabs className="hidden md:flex mr-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full h-10">
-            <FilterTabButton id="pending" activeTab={filterTab} setTab={setFilterTab} label={t("pending")} />
-            <FilterTabButton id="completed" activeTab={filterTab} setTab={setFilterTab} label={t("status_completed")} />
-          </FilterTabs>
-      </ScreenUtilityBar>
+      <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-4">
+        <ActionPill
+          searchQuery={searchTerm}
+          setSearchQuery={setSearchTerm}
+          searchPlaceholder={t("search_queue") as string}
+          rightContent={
+            <div className="flex items-center gap-4 shrink-0 px-2 h-full">
+              <PillTabs className="hidden md:flex bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full h-10">
+                <PillTabButton id="pending" activeTab={filterTab} setTab={setFilterTab} label={t("pending")} />
+                <PillTabButton id="completed" activeTab={filterTab} setTab={setFilterTab} label={t("status_completed")} />
+              </PillTabs>
+            </div>
+          }
+        />
+      </div>
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
         {loading ? (

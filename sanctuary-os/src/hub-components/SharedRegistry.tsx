@@ -1,9 +1,9 @@
-import { SearchBar, ScreenUtilityBar } from "../shared";
+import { SearchBar } from "../shared";
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton, FilterPopover, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton, FilterPopover, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "../shared";
 import { ArtifactCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -536,59 +536,61 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
     <>
       <div className={`flex flex-col gap-6 pb-20 w-full h-full relative ${isActiveTab ? '' : 'hidden'}`}>
         {isActiveTab && (
-          <ScreenUtilityBar
-            search={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder={t("search_queue") as string}
-            className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-          >
-            <>
-              <div className="w-max min-w-[160px] max-w-xs relative z-50 h-10">
-                <CustomDropdown variant="pill"
-                  value={activeCategory}
-                  onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
-                  options={[
-                    { id: "ALL", label: t("ql_all") },
-                    ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({ id: c.id, label: t(c.lexicon_key) || c.id }))
-                  ]}
-                />
-              </div>
-
-              {(() => {
-                const activeSchemaCategory = useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
-                const subcats = activeSchemaCategory?.subcategories || [];
-                if (subcats.length === 0) return null;
-
-                return (
-                  <div className="w-max min-w-[160px] max-w-xs relative z-50 h-10 animate-in fade-in slide-in-from-right-4">
+          <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <ActionPill
+              searchQuery={searchTerm}
+              setSearchQuery={setSearchTerm}
+              searchPlaceholder={t("search_queue") as string}
+              rightContent={
+                <div className="flex items-center gap-3">
+                  <div className="w-max min-w-[160px] max-w-xs relative z-50 h-10">
                     <CustomDropdown variant="pill"
-                      value={activeSubType}
-                      onChange={(val: string[]) => setActiveSubType(val[0])}
+                      value={activeCategory}
+                      onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
                       options={[
                         { id: "ALL", label: t("ql_all") },
-                        ...subcats.map((sub: any) => ({
-                          id: sub.id,
-                          label: t(sub.lexicon_key) || sub.id
-                        }))
+                        ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({ id: c.id, label: t(c.lexicon_key) || c.id }))
                       ]}
                     />
                   </div>
-                );
-              })()}
 
-              <div className="w-max min-w-[192px] max-w-xs relative z-50 h-10">
-                <CustomDropdown variant="pill" value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
-                  { id: "ALL", label: t("status_dd_all") },
-                  { id: "stable", label: t("status_dd_stable") },
-                  { id: "unstable", label: t("label_unstable") },
-                  { id: "corrupted", label: t("status_corrupted") },
-                  { id: "under_review", label: t("status_dd_review") },
-                  { id: "pending", label: t("pending") },
-                  { id: "unverified", label: t("unverified") },
-                ]} />
-              </div>
-            </>
-          </ScreenUtilityBar>
+                  {(() => {
+                    const activeSchemaCategory = useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
+                    const subcats = activeSchemaCategory?.subcategories || [];
+                    if (subcats.length === 0) return null;
+
+                    return (
+                      <div className="w-max min-w-[160px] max-w-xs relative z-50 h-10 animate-in fade-in slide-in-from-right-4">
+                        <CustomDropdown variant="pill"
+                          value={activeSubType}
+                          onChange={(val: string[]) => setActiveSubType(val[0])}
+                          options={[
+                            { id: "ALL", label: t("ql_all") },
+                            ...subcats.map((sub: any) => ({
+                              id: sub.id,
+                              label: t(sub.lexicon_key) || sub.id
+                            }))
+                          ]}
+                        />
+                      </div>
+                    );
+                  })()}
+
+                  <div className="w-max min-w-[192px] max-w-xs relative z-50 h-10">
+                    <CustomDropdown variant="pill" value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
+                      { id: "ALL", label: t("status_dd_all") },
+                      { id: "stable", label: t("status_dd_stable") },
+                      { id: "unstable", label: t("label_unstable") },
+                      { id: "corrupted", label: t("status_corrupted") },
+                      { id: "under_review", label: t("status_dd_review") },
+                      { id: "pending", label: t("pending") },
+                      { id: "unverified", label: t("unverified") },
+                    ]} />
+                  </div>
+                </div>
+              }
+            />
+          </div>
         )}
 
         <div className="p-6 w-full">

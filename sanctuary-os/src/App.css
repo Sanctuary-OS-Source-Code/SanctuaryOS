@@ -526,9 +526,7 @@ body,
   background-color: transparent;
   transition-property: color, background-color, border-color, box-shadow;
   transition-duration: 300ms;
-  border: 1px solid rgba(var(--text-rgb, 255, 255, 255), var(--glassBorderOpacityDecimal, 0.08));
-  border-top-color: rgba(var(--text-rgb, 255, 255, 255), calc(var(--glassBorderOpacityDecimal, 0.08) * 1.8));
-  border-left-color: rgba(var(--text-rgb, 255, 255, 255), calc(var(--glassBorderOpacityDecimal, 0.08) * 1.2));
+  border: 1px solid transparent;
   box-shadow:
     var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000),
     0 24px 48px -12px var(--shadowColor, rgba(0, 0, 0, 0.4)),
@@ -579,9 +577,7 @@ body,
   background-color: transparent;
   transition-property: color, background-color, border-color, box-shadow, opacity;
   transition-duration: 300ms;
-  border: 1px solid rgba(var(--text-rgb, 255, 255, 255), var(--glassBorderOpacitySurfaceDecimal, 0.05));
-  border-top-color: rgba(var(--text-rgb, 255, 255, 255), calc(var(--glassBorderOpacitySurfaceDecimal, 0.05) * 2.5));
-  border-left-color: rgba(var(--text-rgb, 255, 255, 255), calc(var(--glassBorderOpacitySurfaceDecimal, 0.05) * 1.5));
+  border: 1px solid transparent;
   box-shadow:
     var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000),
     0 16px 32px -8px var(--shadowColor, rgba(0, 0, 0, 0.3)),

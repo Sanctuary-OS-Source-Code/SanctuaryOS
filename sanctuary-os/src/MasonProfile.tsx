@@ -8,7 +8,7 @@ import { useStore } from "./store";
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, CustomDropdown, HoverTooltip, SidebarActionButton, DashboardStatTile, EmptyState, extractPostImage, SearchBar, LoadingScreen, SidePanel, standardPrimaryButtonClass, standardButtonClass, standardAccentGlassButtonClass, compareVersions, cleanSearchName, FilterPopover } from "./shared";
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, CustomDropdown, HoverTooltip, SidebarActionButton, DashboardStatTile, EmptyState, extractPostImage, ActionPill, LoadingScreen, SidePanel, standardPrimaryButtonClass, standardButtonClass, standardAccentGlassButtonClass, compareVersions, cleanSearchName } from "./shared";
 import MasonPostCard from "./MasonPostCard";
 import { readDir, readTextFile, exists } from '@tauri-apps/plugin-fs';
 import * as importFs from '@tauri-apps/plugin-fs';
@@ -397,126 +397,125 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
       <MasonProfileHeader mason={mason} masonId={masonId} followerCount={followerCount} isFollowing={isFollowing} masonAlerts={masonAlerts} toggleFollow={toggleFollow} toggleMasonAlert={toggleMasonAlert} activeView={activeView} setActiveView={setActiveView} t={t}>
         {activeView !== 'OVERVIEW' && (
           <div className="flex flex-row items-center justify-end gap-3 flex-1 w-full ml-auto">
-            <div className="w-full max-w-[300px]">
-              <SearchBar
-                value={modSearch}
-                onChange={setModSearch}
-                placeholder={(activeView === 'COMM-LINK' ? t("mason_search_placeholder") : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates")) : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))) as string}
-                className="w-full !h-10 !rounded-xl"
-              />
-            </div>
-            
-            {activeView !== 'COMM-LINK' && (
-              <FilterPopover icon="tune" label={t("filters") || "Filters"} className="shrink-0">
-                <div className="flex flex-col w-[320px] p-4 max-w-[calc(100vw-40px)] gap-6">
-                  
-                  <div className="flex flex-col gap-2 w-full">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">{t("filter_category") || "Category"}</span>
-                    <CustomDropdown disableTint={true}
-                      value={modCategory}
-                      onChange={(v: any) => setModCategory(v[0])}
-                      options={(() => {
-                        let rawOpts: any[] = [];
-                        if (activeView === 'MODS') {
-                          rawOpts = [
-                            { id: "ALL", label: t("all_classes"), icon: t("icon_folder") },
-                            ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
-                              id: cat.id,
-                              label: t(cat.lexicon_key) || cat.id,
-                              icon: t(cat.icon_key) || t("icon_folder")
-                            })) || [])
-                          ];
-                        } else if (activeView === 'LEXICONS') {
-                          const langs = Array.from(new Set(
-                            marketAssets.filter(a => a.asset_type === 'lexicon').map(a => {
-                              let lang = a.language;
-                              if (!lang && a.json_data) {
-                                try {
-                                  const parsed = typeof a.json_data === 'string' ? JSON.parse(a.json_data) : a.json_data;
-                                  lang = parsed.language;
-                                } catch (e) { }
-                              }
-                              return lang || "Custom";
-                            })
-                          ));
-                          rawOpts = [
-                            { id: "ALL", label: t("all_languages"), icon: t("icon_folder") },
-                            ...langs.map(l => ({ id: String(l), label: String(l), icon: t("icon_translate") }))
-                          ];
-                        } else if (activeView === 'BLUEPRINTS') {
-                          rawOpts = [{ id: "ALL", label: t("filter_all_versions"), icon: t("icon_folder") }];
-                          if (gameVersions && gameVersions.length > 0) {
-                            rawOpts = [...rawOpts, ...gameVersions.map((v: string) => ({ id: v, label: v, icon: t("icon_map") }))];
+            <ActionPill
+              searchQuery={modSearch}
+              setSearchQuery={setModSearch}
+              searchPlaceholder={(activeView === 'COMM-LINK' ? t("mason_search_placeholder") : activeView === 'LEXICONS' ? (t("ui_search_lexicons")) : activeView === 'CHAMELEONS' ? (t("ui_search_chameleons")) : activeView === 'TEMPLATES' ? (t("ui_search_templates")) : activeView === 'BLUEPRINTS' ? (t("search_blueprints")) : (t("search_ph"))) as string}
+              primaryPopover={activeView !== 'COMM-LINK' ? {
+                icon: "tune",
+                label: t("filters") || "Filters",
+                content: (
+                  <div className="flex flex-col w-[320px] p-4 max-w-[calc(100vw-40px)] gap-6">
+                    <div className="flex flex-col gap-2 w-full">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">{t("filter_category") || "Category"}</span>
+                      <CustomDropdown disableTint={true}
+                        flat={true}
+                        variant="pill"
+                        value={modCategory}
+                        onChange={(v: any) => setModCategory(v[0])}
+                        options={(() => {
+                          let rawOpts: any[] = [];
+                          if (activeView === 'MODS') {
+                            rawOpts = [
+                              { id: "ALL", label: t("all_classes"), icon: t("icon_folder") },
+                              ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                                id: cat.id,
+                                label: t(cat.lexicon_key) || cat.id,
+                                icon: t(cat.icon_key) || t("icon_folder")
+                              })) || [])
+                            ];
+                          } else if (activeView === 'LEXICONS') {
+                            const langs = Array.from(new Set(
+                              marketAssets.filter(a => a.asset_type === 'lexicon').map(a => {
+                                let lang = a.language;
+                                if (!lang && a.json_data) {
+                                  try {
+                                    const parsed = typeof a.json_data === 'string' ? JSON.parse(a.json_data) : a.json_data;
+                                    lang = parsed.language;
+                                  } catch (e) { }
+                                }
+                                return lang || "Custom";
+                              })
+                            ));
+                            rawOpts = [
+                              { id: "ALL", label: t("all_languages"), icon: t("icon_folder") },
+                              ...langs.map(l => ({ id: String(l), label: String(l), icon: t("icon_translate") }))
+                            ];
+                          } else if (activeView === 'BLUEPRINTS') {
+                            rawOpts = [{ id: "ALL", label: t("filter_all_versions"), icon: t("icon_folder") }];
+                            if (gameVersions && gameVersions.length > 0) {
+                              rawOpts = [...rawOpts, ...gameVersions.map((v: string) => ({ id: v, label: v, icon: t("icon_map") }))];
+                            }
+                          } else if (activeView === 'CHAMELEONS') {
+                            rawOpts = [
+                              { id: "ALL", label: t("filter_mode"), icon: t("icon_folder") },
+                              { id: "Dark", label: t("mode_dark"), icon: "dark_mode" },
+                              { id: "Light", label: t("mode_light"), icon: "light_mode" }
+                            ];
+                          } else if (activeView === 'TEMPLATES') {
+                            rawOpts = [
+                              { id: "ALL", label: t("filter_type"), icon: t("icon_folder") }
+                            ];
                           }
-                        } else if (activeView === 'CHAMELEONS') {
-                          rawOpts = [
-                            { id: "ALL", label: t("filter_mode"), icon: t("icon_folder") },
-                            { id: "Dark", label: t("mode_dark"), icon: "dark_mode" },
-                            { id: "Light", label: t("mode_light"), icon: "light_mode" }
-                          ];
-                        } else if (activeView === 'TEMPLATES') {
-                          rawOpts = [
-                            { id: "ALL", label: t("filter_type"), icon: t("icon_folder") }
-                          ];
-                        }
 
-                        return rawOpts.map(opt => ({
-                          id: opt.id,
-                          label: (
-                            <div className="flex items-center gap-3 text-xs">
-                              <span className="material-symbols-outlined !text-[16px] opacity-70">{opt.icon}</span>
-                              <span className="truncate">{opt.label}</span>
-                            </div>
-                          )
-                        }));
-                      })()}
-                    />
-                  </div>
-
-                  {(activeView === 'MODS' || activeView === 'BLUEPRINTS') && (
-                    <div className="flex flex-col gap-3 w-full">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">{t("filters") || "Filters"}</span>
-                      <div className="flex flex-col gap-2">
-                        <button
-                          onClick={() => {
-                            const newVal = !hidePaid;
-                            setHidePaid(newVal);
-                            localStorage.setItem('sanctuary_hide_paid', String(newVal));
-                            setModPage(1);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group ${hidePaid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] backdrop-blur-md border border-transparent' : 'text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent'}`}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-                          <span className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${hidePaid ? 'scale-110' : 'group-hover:scale-110'}`}>
-                            {hidePaid ? 'visibility_off' : 'monetization_on'}
-                          </span>
-                          <span className="text-[10px] font-black uppercase tracking-widest relative z-10 whitespace-nowrap overflow-hidden text-ellipsis pt-0.5">
-                            {t("filter_hide_paid")}
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            const newVal = !hideEarlyAccess;
-                            setHideEarlyAccess(newVal);
-                            localStorage.setItem('sanctuary_hide_ea', String(newVal));
-                            setModPage(1);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group ${hideEarlyAccess ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] backdrop-blur-md border border-transparent' : 'text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent'}`}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-                          <span className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${hideEarlyAccess ? 'scale-110' : 'group-hover:scale-110'}`}>
-                            {hideEarlyAccess ? 'visibility_off' : 'science'}
-                          </span>
-                          <span className="text-[10px] font-black uppercase tracking-widest relative z-10 whitespace-nowrap overflow-hidden text-ellipsis pt-0.5">
-                            {t("filter_hide_early_access")}
-                          </span>
-                        </button>
-                      </div>
+                          return rawOpts.map(opt => ({
+                            id: opt.id,
+                            label: (
+                              <div className="flex items-center gap-3 text-xs">
+                                <span className="material-symbols-outlined !text-[16px] opacity-70">{opt.icon}</span>
+                                <span className="truncate">{opt.label}</span>
+                              </div>
+                            )
+                          }));
+                        })()}
+                      />
                     </div>
-                  )}
-                </div>
-              </FilterPopover>
-            )}
+
+                    {(activeView === 'MODS' || activeView === 'BLUEPRINTS') && (
+                      <div className="flex flex-col gap-3 w-full">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">{t("filters") || "Filters"}</span>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => {
+                              const newVal = !hidePaid;
+                              setHidePaid(newVal);
+                              localStorage.setItem('sanctuary_hide_paid', String(newVal));
+                              setModPage(1);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group ${hidePaid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] backdrop-blur-md border border-transparent' : 'text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent'}`}
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                            <span className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${hidePaid ? 'scale-110' : 'group-hover:scale-110'}`}>
+                              {hidePaid ? 'visibility_off' : 'monetization_on'}
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-widest relative z-10 whitespace-nowrap overflow-hidden text-ellipsis pt-0.5">
+                              {t("filter_hide_paid")}
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              const newVal = !hideEarlyAccess;
+                              setHideEarlyAccess(newVal);
+                              localStorage.setItem('sanctuary_hide_ea', String(newVal));
+                              setModPage(1);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group ${hideEarlyAccess ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] backdrop-blur-md border border-transparent' : 'text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent'}`}
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                            <span className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${hideEarlyAccess ? 'scale-110' : 'group-hover:scale-110'}`}>
+                              {hideEarlyAccess ? 'visibility_off' : 'science'}
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-widest relative z-10 whitespace-nowrap overflow-hidden text-ellipsis pt-0.5">
+                              {t("filter_hide_early_access")}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              } : undefined}
+            />
           </div>
         )}
       </MasonProfileHeader>

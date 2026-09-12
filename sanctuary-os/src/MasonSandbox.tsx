@@ -11,7 +11,7 @@ import {
   CustomComplianceDropdown, CustomDatePicker, HubTabButton, ModSearchDropdown, EmptyState, FilterTabs, FilterTabButton, ActionButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, ScreenUtilityBar, InlineFilterGroup, FilterPopover
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, InlineFilterGroup, FilterPopover
 } from "./shared";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "./components/universal/UniversalCard";

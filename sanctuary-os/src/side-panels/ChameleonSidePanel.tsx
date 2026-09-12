@@ -4,7 +4,7 @@ import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
 import { useStore } from '../store';
-import { ActionButton, SidePanel, CustomDropdown, HoverTooltip, SearchBar, HubTabs, FilterTabs, FilterTabButton, ScreenUtilityBar, PanelHeaderGroup, PanelHeaderButton, FilterPopover } from '../shared';
+import { ActionButton, SidePanel, CustomDropdown, HoverTooltip, SearchBar, HubTabs, FilterTabs, FilterTabButton, PanelHeaderGroup, PanelHeaderButton, FilterPopover, ActionPill } from '../shared';
 import { CommandScreenQuickLink } from '../hub-components/SharedCommandScreenLayout';
 import { ChameleonEditorPanel } from '../side-panels/ChameleonEditorPanel';
 
@@ -122,54 +122,57 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
       noPadding
     >
       <div className="flex flex-col gap-6 p-10 pt-2 h-full min-h-[600px]">
-        <ScreenUtilityBar
-          isSidePanel={true}
-          search={themeSearch}
-          onSearchChange={setThemeSearch}
-          searchPlaceholder={t("ui_search_chameleons") || "Search Themes..."}
-          className="!mb-6 !pb-0 !px-0 !border-0 flex-none w-full [&>div:last-child>div:first-child]:!max-w-none"
-        >
-          <FilterPopover icon="tune" label={t("filters") || "Filters"} className="shrink-0" buttonClassName="!rounded-2xl">
-            <div className="flex flex-col gap-4 w-[280px] p-2">
-              <div 
-                onClick={() => setUseGlobalTheme(!useGlobalTheme)}
-                className="flex items-center justify-between px-4 glass-surface h-12 rounded-xl border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-inner cursor-pointer transition-all w-full group"
-              >
-                <div className="flex flex-col gap-1 pr-2">
-                  <span className="text-[10px] font-black tracking-widest uppercase text-[var(--text)]">
-                    {useGlobalTheme ? (t("scope_global") || "Global Network") : (t("scope_workspace") || "Local Workspace")}
-                  </span>
-                  <span className="text-[8px] text-[var(--subtext)] opacity-70 leading-tight">
-                    {useGlobalTheme ? "Search all connected communities" : "Search installed local files"}
-                  </span>
+        <div className="mb-6 flex-none w-full">
+          <ActionPill
+            searchQuery={themeSearch}
+            setSearchQuery={setThemeSearch}
+            searchPlaceholder={t("ui_search_chameleons") || "Search Themes..."}
+            primaryPopover={{
+              icon: "tune",
+              label: t("filters") || "Filters",
+              content: (
+                <div className="flex flex-col gap-4 w-[280px] p-2">
+                  <div 
+                    onClick={() => setUseGlobalTheme(!useGlobalTheme)}
+                    className="flex items-center justify-between px-4 glass-surface h-12 rounded-xl border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-inner cursor-pointer transition-all w-full group"
+                  >
+                    <div className="flex flex-col gap-1 pr-2">
+                      <span className="text-[10px] font-black tracking-widest uppercase text-[var(--text)]">
+                        {useGlobalTheme ? (t("scope_global") || "Global Network") : (t("scope_workspace") || "Local Workspace")}
+                      </span>
+                      <span className="text-[8px] text-[var(--subtext)] opacity-70 leading-tight">
+                        {useGlobalTheme ? "Search all connected communities" : "Search installed local files"}
+                      </span>
+                    </div>
+                    <div className={`w-10 h-5 shrink-0 rounded-full p-0.5 flex items-center border transition-all duration-300 ${useGlobalTheme ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner'}`}>
+                      <div className={`w-3.5 h-3.5 rounded-full shadow-md transition-all duration-300 ${useGlobalTheme ? 'bg-[var(--accent)] translate-x-[18px] shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_60%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_40%,transparent)] translate-x-0'}`} />
+                    </div>
+                  </div>
+                  
+                  <div className="w-full h-10">
+                    <CustomDropdown
+                      className="h-full w-full text-xs"
+                      value={selectedCommunity}
+                      options={[{ id: null, label: "ALL COMMUNITIES" }, ...uniqueCommunities.map(community => ({ id: community, label: typeof community === 'string' ? community.toUpperCase() : community }))]}
+                      onChange={(val: any) => setSelectedCommunity(val?.[0] ?? null)}
+                      placeholder="ALL COMMUNITIES"
+                    />
+                  </div>
+                  
+                  <div className="w-full h-10">
+                    <CustomDropdown
+                      className="h-full w-full text-xs"
+                      value={selectedMode}
+                      options={[{ id: null, label: "ALL MODES" }, ...uniqueModes.map(mode => ({ id: mode, label: typeof mode === 'string' ? mode.toUpperCase() : mode }))]}
+                      onChange={(val: any) => setSelectedMode(val?.[0] ?? null)}
+                      placeholder="ALL MODES"
+                    />
+                  </div>
                 </div>
-                <div className={`w-10 h-5 shrink-0 rounded-full p-0.5 flex items-center border transition-all duration-300 ${useGlobalTheme ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner'}`}>
-                  <div className={`w-3.5 h-3.5 rounded-full shadow-md transition-all duration-300 ${useGlobalTheme ? 'bg-[var(--accent)] translate-x-[18px] shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_60%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_40%,transparent)] translate-x-0'}`} />
-                </div>
-              </div>
-              
-              <div className="w-full h-10">
-                <CustomDropdown
-                  className="h-full w-full text-xs"
-                  value={selectedCommunity}
-                  options={[{ id: null, label: "ALL COMMUNITIES" }, ...uniqueCommunities.map(community => ({ id: community, label: typeof community === 'string' ? community.toUpperCase() : community }))]}
-                  onChange={(val: any) => setSelectedCommunity(val?.[0] ?? null)}
-                  placeholder="ALL COMMUNITIES"
-                />
-              </div>
-              
-              <div className="w-full h-10">
-                <CustomDropdown
-                  className="h-full w-full text-xs"
-                  value={selectedMode}
-                  options={[{ id: null, label: "ALL MODES" }, ...uniqueModes.map(mode => ({ id: mode, label: typeof mode === 'string' ? mode.toUpperCase() : mode }))]}
-                  onChange={(val: any) => setSelectedMode(val?.[0] ?? null)}
-                  placeholder="ALL MODES"
-                />
-              </div>
-            </div>
-          </FilterPopover>
-        </ScreenUtilityBar>
+              )
+            }}
+          />
+        </div>
 
         {favoriteThemes.length > 0 && (
           <div className="flex flex-col gap-4 w-full mb-6 z-10">

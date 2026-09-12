@@ -6,7 +6,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import Link from '@tiptap/extension-link';
-import { SidePanel, ScreenUtilityBar, ActionButton, PanelHeaderGroup, PanelHeaderButton, HoverTooltip } from "../shared";
+import { SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton, HoverTooltip } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { logArchitectAction } from "../lib/audit";

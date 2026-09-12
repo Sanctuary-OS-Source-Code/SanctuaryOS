@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { supabase, supabaseAuth } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { SidePanel, CustomDropdown, standardAccentGlassButtonClass, EmptyState, ScreenUtilityBar, FilterTabs, FilterTabButton, FilterPopover } from "../shared";
+import { SidePanel, CustomDropdown, standardAccentGlassButtonClass, EmptyState, FilterTabs, FilterTabButton, FilterPopover } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 

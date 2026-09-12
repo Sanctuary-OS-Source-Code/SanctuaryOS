@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, SidebarFooterButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, SearchBar, ScreenUtilityBar, FilterPopover } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, SidebarFooterButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, ActionPill } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
@@ -1441,131 +1441,131 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           onTitleClick={() => setMarketTab('HOME')}
         >
           {marketTab !== 'HOME' && (
-            <div className="flex items-center gap-2 md:gap-3 animate-in slide-in-from-top-4 duration-500 relative z-20 w-full xl:w-auto overflow-hidden">
-              <div className="relative flex-1 min-w-0">
-                <SearchBar
-                  value={marketTab === 'MODS' ? searchQuery : assetSearchQuery}
-                  onChange={(val: string) => {
-                    if (marketTab === 'MODS') setSearchQuery(val);
-                    else setAssetSearchQuery(val);
-                    setCurrentPage(1);
-                  }}
-                  placeholder={
-                    marketTab === 'MODS' ? (t("search_placeholder") as string) :
-                      marketTab === 'LEXICONS' ? (t("search_lexicons") as string) :
-                        marketTab === 'TEMPLATES' ? (t("search_tmpl") as string) :
-                          marketTab === 'BLUEPRINTS' ? (t("search_blueprints") as string) :
-                            (t("search_chameleons") as string)
-                  }
-                  className="h-12 w-full rounded-2xl"
-                />
-              </div>
-
-              <div className="shrink-0">
-                <FilterPopover icon="tune" label={t("filters")} className="shrink-0" buttonClassName="!rounded-2xl">
-                  <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)]">
-                    <FilterSection
-                      title={t("sort_by") || "Sort By"}
-                      value={marketTab === 'MODS' ? sortBy : assetSortBy}
-                      onChange={(val: string) => {
-                        if (marketTab === 'MODS') setSortBy(val);
-                        else setAssetSortBy(val);
-                        setCurrentPage(1);
-                      }}
-                      options={[
-                        { id: "newest", label: t("sort_newest") },
-                        { id: "oldest", label: t("sort_oldest") },
-                        { id: "name", label: t("sort_name") },
-                        { id: "author", label: t("sort_author") }
-                      ]}
-                    />
-
-                    {marketTab === 'MODS' && (
+            <div className="animate-in slide-in-from-top-4 duration-500 relative z-20 w-full xl:w-auto overflow-hidden">
+              <ActionPill
+                searchQuery={marketTab === 'MODS' ? searchQuery : assetSearchQuery}
+                setSearchQuery={(val: string) => {
+                  if (marketTab === 'MODS') setSearchQuery(val);
+                  else setAssetSearchQuery(val);
+                  setCurrentPage(1);
+                }}
+                searchPlaceholder={
+                  marketTab === 'MODS' ? (t("search_placeholder") as string) :
+                    marketTab === 'LEXICONS' ? (t("search_lexicons") as string) :
+                      marketTab === 'TEMPLATES' ? (t("search_tmpl") as string) :
+                        marketTab === 'BLUEPRINTS' ? (t("search_blueprints") as string) :
+                          (t("search_chameleons") as string)
+                }
+                primaryPopover={{
+                  icon: "tune",
+                  label: t("filters") || "Filters",
+                  content: (
+                    <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)]">
                       <FilterSection
-                        title={t("filter_category") || "Category"}
-                        value={categoryFilter}
+                        title={t("sort_by") || "Sort By"}
+                        value={marketTab === 'MODS' ? sortBy : assetSortBy}
                         onChange={(val: string) => {
-                          setCategoryFilter(val);
+                          if (marketTab === 'MODS') setSortBy(val);
+                          else setAssetSortBy(val);
                           setCurrentPage(1);
                         }}
                         options={[
-                          { id: "ALL", label: "ALL CATEGORIES" },
-                          ...categories.filter(c => c !== "ALL").map(cat => ({ id: cat, label: cat }))
+                          { id: "newest", label: t("sort_newest") },
+                          { id: "oldest", label: t("sort_oldest") },
+                          { id: "name", label: t("sort_name") },
+                          { id: "author", label: t("sort_author") }
                         ]}
                       />
-                    )}
 
-                    {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
+                      {marketTab === 'MODS' && (
+                        <FilterSection
+                          title={t("filter_category") || "Category"}
+                          value={categoryFilter}
+                          onChange={(val: string) => {
+                            setCategoryFilter(val);
+                            setCurrentPage(1);
+                          }}
+                          options={[
+                            { id: "ALL", label: "ALL CATEGORIES" },
+                            ...categories.filter(c => c !== "ALL").map(cat => ({ id: cat, label: cat }))
+                          ]}
+                        />
+                      )}
+
+                      {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
+                        <FilterSection
+                          title={marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates"))}
+                          value={languageFilter}
+                          onChange={(val: string) => { setLanguageFilter(val); setCurrentPage(1); }}
+                          options={[
+                            { id: "all", label: "All Languages" },
+                            ...availableLanguages.map(l => ({ id: l, label: l }))
+                          ]}
+                        />
+                      )}
+
+                      {marketTab === 'LEXICONS' && (
+                        <FilterSection
+                          title={t("filter_type") || "Type"}
+                          value={lexiconTypeFilter}
+                          onChange={(val: string) => { setLexiconTypeFilter(val); setCurrentPage(1); }}
+                          options={[
+                            { id: "all", label: "All Types" },
+                            { id: "Default", label: t("type_default") },
+                            { id: "Theme", label: t("type_theme") }
+                          ]}
+                        />
+                      )}
+
+                      {marketTab === 'CHAMELEONS' && (
+                        <FilterSection
+                          title={t("filter_mode") || "Theme Mode"}
+                          value={themeModeFilter}
+                          onChange={(val: string) => { setThemeModeFilter(val); setCurrentPage(1); }}
+                          options={[
+                            { id: "all", label: "All Modes" },
+                            { id: "Dark", label: t("mode_dark") },
+                            { id: "Light", label: t("mode_light") }
+                          ]}
+                        />
+                      )}
+
                       <FilterSection
-                        title={marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates"))}
-                        value={languageFilter}
-                        onChange={(val: string) => { setLanguageFilter(val); setCurrentPage(1); }}
-                        options={[
-                          { id: "all", label: "All Languages" },
-                          ...availableLanguages.map(l => ({ id: l, label: l }))
-                        ]}
+                        title={t("filter_view_options") || "View Options"}
+                        multiSelect={true}
+                        value={activeViewFilters}
+                        onChange={handleViewFiltersChange}
+                        options={viewFilterOptions.filter(o => o.id !== 'hide_installed')}
                       />
-                    )}
 
-                    {marketTab === 'LEXICONS' && (
-                      <FilterSection
-                        title={t("filter_type") || "Type"}
-                        value={lexiconTypeFilter}
-                        onChange={(val: string) => { setLexiconTypeFilter(val); setCurrentPage(1); }}
-                        options={[
-                          { id: "all", label: "All Types" },
-                          { id: "Default", label: t("type_default") },
-                          { id: "Theme", label: t("type_theme") }
-                        ]}
-                      />
-                    )}
-
-                    {marketTab === 'CHAMELEONS' && (
-                      <FilterSection
-                        title={t("filter_mode") || "Theme Mode"}
-                        value={themeModeFilter}
-                        onChange={(val: string) => { setThemeModeFilter(val); setCurrentPage(1); }}
-                        options={[
-                          { id: "all", label: "All Modes" },
-                          { id: "Dark", label: t("mode_dark") },
-                          { id: "Light", label: t("mode_light") }
-                        ]}
-                      />
-                    )}
-
-                    <FilterSection
-                      title={t("filter_view_options") || "View Options"}
-                      multiSelect={true}
-                      value={activeViewFilters}
-                      onChange={handleViewFiltersChange}
-                      options={viewFilterOptions.filter(o => o.id !== 'hide_installed')}
-                    />
-
-                    {(marketTab === 'MODS' || (marketTab === 'BLUEPRINTS' && gameVersions.length > 0)) && (
-                      <div className="flex flex-col mb-5 w-full last:mb-0">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                          {t("label_game_version") || "Game Version"}
-                          <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+                      {(marketTab === 'MODS' || (marketTab === 'BLUEPRINTS' && gameVersions.length > 0)) && (
+                        <div className="flex flex-col mb-5 w-full last:mb-0">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                            {t("label_game_version") || "Game Version"}
+                            <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+                          </div>
+                          <div className="h-10 w-full relative z-[60]">
+                            <CustomDropdown disableTint={true}
+                              flat={true}
+                              variant="pill"
+                              value={selectedGameVersion}
+                              onChange={(val: string[]) => {
+                                setSelectedGameVersion(val[0]);
+                                setCurrentPage(1);
+                              }}
+                              options={[
+                                { id: "all", label: t("filter_all_versions") || "ALL VERSIONS" },
+                                ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
+                                ...gameVersions.map(v => ({ id: v, label: v }))
+                              ]}
+                            />
+                          </div>
                         </div>
-                        <div className="h-10 w-full relative z-[60]">
-                          <CustomDropdown disableTint={true}
-                            value={selectedGameVersion}
-                            onChange={(val: string[]) => {
-                              setSelectedGameVersion(val[0]);
-                              setCurrentPage(1);
-                            }}
-                            options={[
-                              { id: "all", label: t("filter_all_versions") || "ALL VERSIONS" },
-                              ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
-                              ...gameVersions.map(v => ({ id: v, label: v }))
-                            ]}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </FilterPopover>
-              </div>
+                      )}
+                    </div>
+                  )
+                }}
+              />
             </div>
           )}
         </ViewHeader>
@@ -1722,10 +1722,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 </div>
                                 <div className="flex items-center gap-4 w-full md:w-auto">
                                   <div className="relative flex-1 md:w-72">
-                                    <SearchBar
-                                      value={drawerSearchQuery}
-                                      onChange={(v: string) => setDrawerSearchQuery(v)}
-                                      placeholder={t("search_ph")}
+                                    <ActionPill
+                                      searchQuery={drawerSearchQuery}
+                                      setSearchQuery={(v: string) => setDrawerSearchQuery(v)}
+                                      searchPlaceholder={t("search_ph")}
                                     />
                                   </div>
                                   <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
@@ -1862,7 +1862,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
         <div className={marketTab === 'MODS' ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <>
-            {/* ScreenUtilityBar removed in favor of ViewHeader filters */}
+            {/*  removed in favor of ViewHeader filters */}
 
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingMods ? (
@@ -2008,10 +2008,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               </div>
                               <div className="flex items-center gap-4 w-full md:w-auto">
                                 <div className="relative flex-1 md:w-72">
-                                  <SearchBar
-                                    value={drawerSearchQuery}
-                                    onChange={(v: string) => setDrawerSearchQuery(v)}
-                                    placeholder={t("search_ph")}
+                                  <ActionPill
+                                    searchQuery={drawerSearchQuery}
+                                    setSearchQuery={(v: string) => setDrawerSearchQuery(v)}
+                                    searchPlaceholder={t("search_ph")}
                                   />
                                 </div>
                                 <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
@@ -2117,7 +2117,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
         <div className={['BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].includes(marketTab) ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <div className="flex flex-col">
-            {/* ScreenUtilityBar removed in favor of ViewHeader filters */}
+            {/*  removed in favor of ViewHeader filters */}
 
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingAssets ? (

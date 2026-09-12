@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabaseServices } from "../lib/supabase-services";
 import { useLexicon } from "../LexiconContext";
-import { standardPrimaryButtonClass, standardButtonClass, standardSuccessButtonClass, SidePanel, CustomDropdown, EmptyState, ActionButton, ScreenUtilityBar, FilterPopover } from "../shared";
+import { standardPrimaryButtonClass, standardButtonClass, standardSuccessButtonClass, SidePanel, CustomDropdown, EmptyState, ActionButton, FilterPopover } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import TemplatePreviewer from "../TemplatePreviewer";

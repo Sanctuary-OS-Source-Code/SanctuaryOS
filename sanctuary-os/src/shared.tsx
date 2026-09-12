@@ -873,6 +873,49 @@ export function FilterTabButton({ id, icon, label, activeTab, setTab, className 
   return <></>;
 }
 
+export function PillTabs({ children, className = "", buttonClassName = "" }: any) {
+  const childrenArray = React.Children.toArray(children);
+  if (childrenArray.length === 0) return null;
+
+  return (
+    <div className={`flex items-center gap-1 p-1 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner rounded-full w-fit shrink-0 ${className}`}>
+      {childrenArray.map((child: any) => {
+        const isActive = child.props.activeTab === child.props.id;
+        let cIcon = child.props.icon;
+
+        if (!cIcon) {
+          const cId = String(child.props.id).toLowerCase();
+          if (cId.includes('pending') || cId.includes('review')) cIcon = 'schedule';
+          else if (cId.includes('live') || cId.includes('active') || cId.includes('published')) cIcon = 'public';
+          else if (cId.includes('archive')) cIcon = 'archive';
+          else if (cId.includes('reject') || cId.includes('corrupt') || cId.includes('error')) cIcon = 'block';
+          else if (cId.includes('all')) cIcon = 'all_inclusive';
+          else if (cId.includes('draft')) cIcon = 'edit_document';
+          else cIcon = 'filter_list';
+        }
+
+        return (
+          <button
+            key={child.props.id}
+            onClick={() => child.props.setTab && child.props.setTab(child.props.id)}
+            className={`h-8 px-4 flex items-center justify-center gap-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${isActive
+              ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]'
+              : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+              } ${buttonClassName}`}
+          >
+            {cIcon && <span className="material-symbols-outlined !text-[14px]">{cIcon}</span>}
+            <span className="leading-none pt-0.5">{child.props.label || child.props.children || child.props.id}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function PillTabButton({ id, icon, label, activeTab, setTab, className = "", children }: any) {
+  return <></>;
+}
+
 export function ViewToggle({ options, activeTab, setTab, className = "" }: any) {
   return (
     <div className={`flex items-center gap-1 p-1 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner rounded-full w-fit ${className}`}>
@@ -926,20 +969,41 @@ export function CycleSwitcher({ options, activeId, onChange, className = "" }: a
   );
 }
 
-export function FilterPopover({ className = "", buttonClassName = "", icon = "tune", label, options, multiSelect, children, activeTab, setTab, defaultTab }: any) {
+export function FilterPopover({ className = "", buttonClassName = "", icon = "tune", label, options, multiSelect, children, activeTab, setTab, defaultTab, variant = "default" }: any) {
+  const isInsideSidePanel = React.useContext(SidePanelContext);
+  const effectiveVariant = variant === 'panel' ? 'panel' : (isInsideSidePanel ? 'panel' : variant);
+
   const [isOpen, setIsOpen] = useState(false);
   const btnRef = React.useRef<HTMLButtonElement>(null);
-  const [coords, setCoords] = useState({ top: 0, left: 0, isRight: false });
+  const popoverRef = React.useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const isMobile = useIsMobile();
 
   React.useLayoutEffect(() => {
     if (!isOpen) return;
     const updatePosition = () => {
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
+        let leftPos = rect.left;
+        
+        if (popoverRef.current) {
+          const popWidth = popoverRef.current.offsetWidth;
+          leftPos = rect.left >= window.innerWidth / 2 ? rect.right - popWidth : rect.left;
+          leftPos = Math.max(8, Math.min(leftPos, window.innerWidth - popWidth - 8));
+        } else {
+          // Fallback before render
+          leftPos = rect.left >= window.innerWidth / 2 ? rect.right - 200 : rect.left;
+          leftPos = Math.max(8, Math.min(leftPos, window.innerWidth - 200 - 8));
+          
+          // Re-trigger layout effect after popup paints
+          requestAnimationFrame(() => {
+             setCoords(prev => ({ ...prev }));
+          });
+        }
+
         setCoords({
           top: rect.bottom + 8,
-          left: rect.left >= window.innerWidth / 2 ? rect.right : rect.left,
-          isRight: rect.left >= window.innerWidth / 2
+          left: leftPos
         });
       }
     };
@@ -965,14 +1029,20 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
     ? (Array.isArray(activeTab) && activeTab.length > 0)
     : (activeTab !== undefined && activeTab !== null && String(activeTab).toLowerCase() !== "all" && String(activeTab).toLowerCase() !== "any" && activeTab !== effectiveDefaultTab));
 
+  const baseBg = effectiveVariant === "panel" ? "bg-[color-mix(in_srgb,var(--text)_4%,transparent)]" : "glass-surface";
+  const hoverBg = effectiveVariant === "panel" ? "hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]" : "";
+  const borderClass = effectiveVariant === "panel"
+    ? "border border-transparent text-[var(--text)] opacity-70 hover:opacity-100"
+    : "border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]";
+
   return (
     <div className={`relative ${className}`}>
       <button
         ref={btnRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-center gap-0 h-12 ${label ? 'px-5' : 'w-12'} rounded-[var(--radius)] transition-all duration-300 glass-surface ${isOpen || hasActiveFilter
-          ? 'border border-[var(--accent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
-          : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+        className={`flex items-center justify-center gap-0 h-12 ${label ? 'px-5' : 'w-12'} rounded-[var(--radius)] transition-all duration-300 ${baseBg} ${hoverBg} ${isOpen || hasActiveFilter
+          ? 'border !border-[var(--accent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
+          : borderClass
           } ${buttonClassName}`}
       >
         <span className="material-symbols-outlined !text-[20px]">{icon}</span>
@@ -988,23 +1058,27 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
             <>
               <div className="!fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
               <div
-                className={`!fixed glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col mobile-dock-override
+                ref={popoverRef}
+                className={`!fixed glass-panel ${effectiveVariant === 'panel' ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-2xl' : 'border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'} shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col mobile-dock-override
                   min-w-[200px] p-2 gap-1 !rounded-xl w-max max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto custom-scrollbar`}
                 style={{
                   zIndex: 200001,
                   top: coords.top,
-                  left: coords.isRight ? 'auto' : coords.left,
-                  right: coords.isRight ? window.innerWidth - coords.left : 'auto',
-                  bottom: 'auto'
+                  left: coords.left,
+                  margin: 0,
+                  bottom: 'auto',
+                  transition: 'none'
                 }}
               >
-                <style>{`
-                  #sa-portals .mobile-dock-override::before,
-                  #sa-portals .mobile-dock-override .glass-surface::before,
-                  #sa-portals .mobile-dock-override .glass-panel::before {
-                    display: block !important;
-                  }
-                `}</style>
+                {effectiveVariant !== 'panel' && (
+                  <style>{`
+                    #sa-portals .mobile-dock-override::before,
+                    #sa-portals .mobile-dock-override .glass-surface::before,
+                    #sa-portals .mobile-dock-override .glass-panel::before {
+                      display: block !important;
+                    }
+                  `}</style>
+                )}
                 {children ? children : options?.map((opt: any) => {
                   const active = isOptionActive(opt.id);
                   return (
@@ -1021,7 +1095,7 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
                         }
                       }}
                       className={`flex items-center justify-center gap-3 w-full px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden ${active
-                        ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)]'
+                        ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] shadow-[inset_0_0_15px_rgba(0,0,0,0.1)]'
                         : 'text-[var(--text)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
                         }`}
                     >
@@ -1073,7 +1147,7 @@ export function RadioCard({ id, icon, label, description, activeValue, onChange,
   );
 };
 
-export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any) {
+export function HubTabDropdown({ icon, label, options, activeTab, setTab, variant = 'default' }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -1115,7 +1189,7 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
           <div
             ref={menuRef}
-            className="absolute mt-2 min-w-[200px] glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[var(--radius)] shadow-xl pointer-events-auto flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md"
+            className={`absolute mt-2 min-w-[200px] glass-panel border ${variant === 'panel' ? '!border-transparent' : 'border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'} rounded-[var(--radius)] shadow-xl pointer-events-auto flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md`}
             style={{
               zIndex: 200001,
               top: 'calc(100% + 4px)',
@@ -1129,9 +1203,9 @@ export function HubTabDropdown({ icon, label, options, activeTab, setTab }: any)
               <button
                 key={opt.id}
                 onClick={() => { setTab(opt.id); setIsOpen(false); }}
-                className={`px-4 py-3 w-full flex items-center gap-3 rounded-lg text-[12px] font-black capitalize tracking-widest transition-all text-left ${activeTab === opt.id
-                  ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]'
-                  : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+                className={`px-4 py-3 w-full flex items-center gap-3 rounded-lg text-[12px] font-black capitalize tracking-widest transition-all text-left group relative overflow-hidden ${activeTab === opt.id
+                  ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] shadow-[inset_0_0_15px_rgba(0,0,0,0.1)] border-l-[3px] border-[var(--accent)] pl-3'
+                  : 'text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)] border-l-[3px] border-transparent'
                   }`}
               >
                 {opt.icon && <span className="material-symbols-outlined !text-md opacity-80">{opt.icon}</span>}
@@ -1393,6 +1467,9 @@ export function CustomDropdown({ value, onChange, options, allowCustom, searchab
     }
   };
 
+  const isInsideSidePanel = React.useContext(SidePanelContext);
+  const effectiveVariant = variant === 'panel' ? 'panel' : (isInsideSidePanel ? 'panel' : variant);
+
   const isActive = !disableTint && (multiSelect
     ? selectedValues.length > 0
     : value !== undefined && value !== null && String(value).trim() !== "" && String(value).toLowerCase() !== "all" && String(value).toLowerCase() !== "any" && String(value).toLowerCase() !== "vlocal");
@@ -1400,7 +1477,7 @@ export function CustomDropdown({ value, onChange, options, allowCustom, searchab
   const dropdownMenu = isOpen ? createPortal(
     <>
       <div className="!fixed inset-0" style={{ zIndex: 100000000 }} onClick={() => setIsOpen(false)} />
-      <div className="!fixed pointer-events-auto glass-panel portal-glass-fix border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-xl animate-in fade-in max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+      <div className={`!fixed pointer-events-auto glass-panel portal-glass-fix ${effectiveVariant === 'panel' ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-2xl' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} rounded-[var(--radius)] shadow-xl animate-in fade-in zoom-in-95 max-h-60 overflow-y-auto custom-scrollbar flex flex-col`} style={{
         zIndex: 100000001,
         top: (coords as any).isDropUp ? 'auto' : coords.top,
         bottom: (coords as any).isDropUp ? window.innerHeight - coords.top + 8 : 'auto',
@@ -1410,13 +1487,15 @@ export function CustomDropdown({ value, onChange, options, allowCustom, searchab
         width: coords.width || 'max-content',
         minWidth: Math.max(coords.width, 200),
       }}>
-        <style>{`
-          #sa-portals .portal-glass-fix::before,
-          #sa-portals .portal-glass-fix .glass-surface::before,
-          #sa-portals .portal-glass-fix .glass-panel::before {
-            display: block !important;
-          }
-        `}</style>
+        {effectiveVariant !== 'panel' && (
+          <style>{`
+            #sa-portals .portal-glass-fix::before,
+            #sa-portals .portal-glass-fix .glass-surface::before,
+            #sa-portals .portal-glass-fix .glass-panel::before {
+              display: block !important;
+            }
+          `}</style>
+        )}
         {searchable && (
           <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 bg-transparent z-10 shrink-0 flex items-center px-4">
             <span className="material-symbols-outlined !text-[16px] opacity-50 mr-2">search</span>
@@ -1668,6 +1747,8 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "",
     setIsOpen(false);
   };
 
+  const isInsideSidePanel = React.useContext(SidePanelContext);
+
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   return (
@@ -1695,7 +1776,16 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "",
             right: coords.isRight ? window.innerWidth - coords.left : undefined,
             transition: 'none'
           }}>
-            <div className={`!absolute top-0 ${coords.isRight ? 'right-0' : 'left-0'} mt-2 pointer-events-auto glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl animate-in fade-in slide-in-from-top-2 p-4 w-64`}>
+            <div className={`!absolute top-0 ${coords.isRight ? 'right-0' : 'left-0'} mt-2 pointer-events-auto glass-panel portal-glass-fix ${isInsideSidePanel ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-2xl' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} rounded-[var(--radius)] shadow-2xl animate-in fade-in slide-in-from-top-2 p-4 w-64`}>
+              {!isInsideSidePanel && (
+                <style>{`
+                  #sa-portals .portal-glass-fix::before,
+                  #sa-portals .portal-glass-fix .glass-surface::before,
+                  #sa-portals .portal-glass-fix .glass-panel::before {
+                    display: block !important;
+                  }
+                `}</style>
+              )}
               <div className="flex justify-start items-center mb-4">
                 <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1">{'<'}</button>
                 <div className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{monthNames[month]} {year}</div>
@@ -1851,6 +1941,8 @@ export const stripMarkdown = (text: string) => {
 
 export const PanelDepthContext = React.createContext(0);
 
+export const SidePanelContext = React.createContext(false);
+
 export function SidePanel({
   isOpen,
   onClose,
@@ -1978,6 +2070,7 @@ export function SidePanel({
 
   const panelContent = (
     <PanelDepthContext.Provider value={depth + 1}>
+      <SidePanelContext.Provider value={true}>
       <div className={`sa-side-panel-wrapper ${isOpen && !isAnimatingOut ? 'sa-panel-open' : ''}`} data-depth={depth} style={keepMounted && (!isOpen || isAnimatingOut) ? { opacity: 0, pointerEvents: 'none', transition: 'opacity 0.2s ease-in-out' } : { opacity: 1, pointerEvents: 'auto', transition: 'opacity 0.2s ease-in-out' }}>
         {isResizing && <div className="fixed inset-0 z-[100010] cursor-col-resize" />}
         <div
@@ -2096,6 +2189,7 @@ export function SidePanel({
           )}
         </div>
       </div>
+      </SidePanelContext.Provider>
     </PanelDepthContext.Provider>
   );
 
@@ -2103,9 +2197,10 @@ export function SidePanel({
   return createPortal(panelContent, portalRoot);
 }
 
-export function SearchBar({ value, onChange, placeholder = "Search...", className = "", isLoading }: { value: string; onChange: (v: string) => void; placeholder?: string, className?: string, isLoading?: boolean }) {
+export function SearchBar({ value, onChange, placeholder = "Search...", className = "", isLoading, variant = "default" }: { value: string; onChange: (v: string) => void; placeholder?: string, className?: string, isLoading?: boolean, variant?: "default" | "panel" }) {
+  const bgClass = variant === "panel" ? "bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]" : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner";
   return (
-    <div className={`relative flex items-center glass-surface h-12 rounded-xl border border-transparent focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all shadow-inner group w-full ${className.replace(/h-\S+|!h-\S+|rounded-\S+|!rounded-\S+|w-full|h-full/g, '').trim()}`}>
+    <div className={`relative flex items-center ${bgClass} h-12 rounded-xl border focus-within:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all group w-full ${className.replace(/h-\S+|!h-\S+|rounded-\S+|!rounded-\S+|w-full|h-full/g, '').trim()}`}>
       <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
         {isLoading ? (
           <span className="material-symbols-outlined !text-[16px] theme-text-accent animate-spin">refresh</span>
@@ -2231,7 +2326,7 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
   let sizeClass = "text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
   const activeStyles = isActive
     ? "border border-[currentColor] shadow-[0_0_30px_-5px_currentColor,inset_0_0_20px_-5px_currentColor] scale-[1.02] z-10"
-    : "border border-[color-mix(in_srgb,currentColor_30%,transparent)] hover:brightness-125";
+    : "border border-transparent hover:brightness-125";
 
   if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
   else if (strVal.length > 10) sizeClass = "text-lg xl:text-xl";
@@ -2259,6 +2354,126 @@ export function DashboardStatTile({ icon, number, value, label, colorClass, styl
     </div>
   );
 };
+
+export interface ActionPillProps {
+  searchQuery: string;
+  setSearchQuery: (val: string) => void;
+  searchPlaceholder?: string;
+  primaryPopover?: {
+    icon: string;
+    label: string;
+    content: React.ReactNode;
+  };
+  actions?: {
+    id: string;
+    icon: React.ReactNode;
+    label: string;
+    onClick: () => void;
+    activeClassName?: string;
+  }[];
+  hideSearch?: boolean;
+  leftContent?: React.ReactNode;
+  rightContent?: React.ReactNode;
+  className?: string;
+}
+
+export function ActionPill({ searchQuery, setSearchQuery, searchPlaceholder, primaryPopover, actions, hideSearch = false, leftContent, rightContent, className = "" }: ActionPillProps) {
+  const [isSearchFocused, setIsSearchFocused] = React.useState(false);
+
+  return (
+    <div className={`flex items-center h-13 glass-panel rounded-full shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className}`}>
+      
+      {/* Integrated Search or Left Content */}
+      {leftContent ? (
+        <div className="relative flex items-center flex-1 transition-all duration-300 h-full px-4">
+          {leftContent}
+        </div>
+      ) : !hideSearch && setSearchQuery ? (
+        <div className="relative flex items-center group flex-1 min-w-[60px] transition-all duration-300">
+          <span className={`material-symbols-outlined !text-[20px] transition-colors shrink-0 ml-4 ${isSearchFocused ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>search</span>
+          <input
+            value={searchQuery || ""}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
+            placeholder={searchPlaceholder || "Search..."}
+            className="bg-transparent border-none outline-none text-[13px] font-medium text-[var(--text)] w-full sm:w-[160px] xl:w-[220px] focus:sm:w-[260px] focus:xl:w-[320px] transition-all duration-300 px-3 placeholder:text-[var(--subtext)]/50 h-13 min-w-0"
+          />
+        </div>
+      ) : (
+        <div className="flex-1" />
+      )}
+
+      {/* Action Buttons Container (Collapses on search focus for mobile) */}
+      <div className={`flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] shrink-0 transition-all duration-500 ease-in-out overflow-hidden sm:!max-w-[1000px] sm:!opacity-100 ${isSearchFocused ? 'max-w-0 opacity-0 border-transparent' : 'max-w-[500px] opacity-100'}`}>
+        
+        {/* Primary Popover (e.g., Filters) */}
+        {primaryPopover && (
+          <FilterPopover 
+            icon={primaryPopover.icon} 
+            label={primaryPopover.label} 
+            className="shrink-0 h-full"
+            buttonClassName="!h-13 px-4 sm:px-5 !rounded-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !border-none !shadow-none transition-colors text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center gap-2 font-semibold shrink-0 !w-auto"
+          >
+            {primaryPopover.content}
+          </FilterPopover>
+        )}
+
+        {/* DESKTOP Action Icons */}
+        {actions && actions.length > 0 && (
+          <div className="hidden sm:flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] shrink-0">
+            {actions.map(action => (
+              <button 
+                key={action.id}
+                onClick={action.onClick}
+                title={action.label}
+                className={`h-13 px-4 flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] group relative ${action.activeClassName || ""}`}
+              >
+                <span className="material-symbols-outlined !text-[20px]">{action.icon}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Custom Right Content */}
+        {rightContent && (
+          <div className="hidden sm:flex items-center h-full shrink-0">
+            {rightContent}
+          </div>
+        )}
+
+        {/* MOBILE "More" Menu */}
+        {actions && actions.length > 0 && (
+          <div className="flex sm:hidden h-full shrink-0 items-center justify-center border-l border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
+            <FilterPopover 
+              icon="more_vert" 
+              className="shrink-0 h-full"
+              buttonClassName="!h-13 w-12 !rounded-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !border-none !shadow-none transition-colors text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center shrink-0"
+            >
+              <div className="flex flex-col p-2 min-w-[200px] gap-1">
+                {actions.map(action => (
+                  <button
+                    key={action.id}
+                    onClick={action.onClick}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-left transition-colors group ${action.activeClassName?.includes('bg-') ? action.activeClassName : ''}`}
+                  >
+                    <span className="shrink-0 group-hover:text-[var(--text)] transition-colors">
+                      {action.icon}
+                    </span>
+                    <span className={`text-[12px] font-bold ${action.activeClassName?.includes('text-[var(--success)]') ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>
+                      {action.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </FilterPopover>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
 
 export function HoverTooltip({ title, subtitle, variant = 'default', className = '', noIcon = false, icon, normalFont = false, align: explicitAlign, vAlign: explicitVAlign, content, delay = 300 }: any) {
   const { setTooltip, clearTooltip } = useTooltipStore();
@@ -2696,70 +2911,6 @@ export const enrichBlueprintsWithPremiumStatus = async (supabase: any, blueprint
   return premiumMap;
 };
 
-
-export function ScreenUtilityBar({
-  search,
-  onSearchChange,
-  searchPlaceholder,
-  hideSearch = false,
-  leftContent,
-  filterContent,
-  children,
-  className = "",
-  innerClassName = "justify-end",
-  isSidePanel = false
-}: any) {
-  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1280);
-  const [mounted, setMounted] = useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-    const handleResize = () => setIsDesktop(window.innerWidth >= 1280);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const content = (
-    <div className={`flex items-center gap-4 shrink-0 w-full flex-wrap ${isSidePanel ? 'pb-4' : ''} ${className}`}>
-      {leftContent && (
-        <div className="flex items-center gap-3 shrink-0">
-          {leftContent}
-        </div>
-      )}
-      <div className={`flex gap-3 relative flex-1 w-full items-center ${innerClassName}`}>
-        {!hideSearch && (
-          <div className={`relative flex-1 min-w-[150px] md:min-w-[200px] md:max-w-[300px]`}>
-            <SearchBar
-              value={search || ""}
-              onChange={onSearchChange}
-              placeholder={searchPlaceholder || "Search..."}
-              className="h-10 w-full rounded-2xl"
-            />
-          </div>
-        )}
-        {filterContent && (
-          <div className={`flex items-center shrink-0 overflow-hidden w-full md:w-auto order-last md:order-none mt-2 md:mt-0`}>
-            {filterContent}
-          </div>
-        )}
-        {children && (
-          <div className={`flex items-center gap-3 shrink-0 flex-wrap w-auto`}>
-            {children}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  if (isSidePanel || !mounted || !isDesktop) return content;
-
-  const portalRoot = document.getElementById('hub-header-actions');
-  if (portalRoot) {
-    return createPortal(content, portalRoot);
-  }
-
-  return content;
-}
 
 export function SystemAlertBanner({ type = 'info', title, message, icon, action, onClose, className = "" }: any) {
   const themeType = type === 'info' ? 'accent' : type;

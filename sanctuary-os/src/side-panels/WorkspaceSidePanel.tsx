@@ -3,7 +3,7 @@ import { useStore, syncMasterSchemas } from '../store';
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from '../supabase';
-import { SidePanel, EmptyState, ScreenUtilityBar } from "../shared";
+import { SidePanel, EmptyState, ActionPill } from "../shared";
 import { isDesktop } from "../utils/envUtils";
 
 export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -156,31 +156,27 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
       panelZ="z-[100001]"
     >
       <div className="flex flex-col h-full relative">
-        <div className="flex flex-col md:flex-row items-center gap-4 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-6">
-          <div className="relative w-full flex-1 min-w-[200px]">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm opacity-50">{t("icon_search")}</span>
-            <input
-              type="text"
-              placeholder={t("workspace_search")}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full glass-panel rounded-2xl pl-10 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40 font-inter"
-            />
-          </div>
-          <button
-            onClick={() => {
-              if (isDesktop()) {
-                setIsConfigured(false);
-              } else {
-                window.location.href = "/";
+        <div className="flex flex-col gap-4 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-6">
+          <ActionPill
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            searchPlaceholder={t("workspace_search")}
+            actions={[
+              {
+                id: "workspace_all",
+                icon: <span className="material-symbols-outlined !text-[20px]">view_quilt</span>,
+                label: t("workspace_all"),
+                onClick: () => {
+                  if (isDesktop()) {
+                    setIsConfigured(false);
+                  } else {
+                    window.location.href = "/";
+                  }
+                  onClose();
+                }
               }
-              onClose();
-            }}
-            className="w-full md:w-auto h-12 px-6 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl text-[11px] font-black capitalize tracking-widest hover:border-[var(--accent)] hover:theme-text-accent transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-md shrink-0"
-          >
-            <span className="material-symbols-outlined !text-[18px]">view_quilt</span>
-            {t("workspace_all")}
-          </button>
+            ]}
+          />
         </div>
 
         <div className="w-full flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 pb-16">

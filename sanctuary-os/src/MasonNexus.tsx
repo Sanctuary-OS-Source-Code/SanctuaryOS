@@ -10,7 +10,7 @@ import {
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton, SearchBar, ScreenUtilityBar, FilterPopover, formatOverviewMetric
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton, SearchBar, FilterPopover, formatOverviewMetric
 } from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
 import { UniversalCard } from "./components/universal/UniversalCard";

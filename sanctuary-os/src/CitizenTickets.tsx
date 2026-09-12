@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { EmptyState, InlineFilterGroup, ScreenUtilityBar, CustomDropdown, FilterPopover } from "./shared";
+import { EmptyState, InlineFilterGroup, ActionButton, ActionPill } from "./shared";
 import { supabase } from "./supabase";
 import { UniversalCard } from "./components/universal/UniversalCard";
 
@@ -83,32 +83,47 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
 
   return (
     <div className="flex flex-col w-full text-[var(--text)] min-h-full">
-      <div className="w-full px-6 md:px-8 pt-4 md:pt-6 shrink-0">
-        <ScreenUtilityBar
-          isSidePanel={isSidePanel}
-          search={searchQuery}
-          onSearchChange={setSearchQuery}
+      <div className="w-full px-6 md:px-8 pt-4 md:pt-6 shrink-0 mb-6">
+        <ActionPill
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
           searchPlaceholder={t("ph_search_tickets") || "Search Tickets..."}
-          className="!mb-6 !pb-0 !px-0 !border-0 flex-none w-full"
-        >
-          <FilterPopover icon="tune" label={t("filters") || "Filters"} className="shrink-0" buttonClassName="!rounded-2xl">
-            <div className="flex flex-col gap-4 w-[280px] p-2">
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("ticket_status") || "Ticket Status"}</span>
-                <InlineFilterGroup 
-                  value={activeFilter}
-                  onChange={(v) => setActiveFilter(v as any)}
-                  options={[
-                    { id: 'all', label: 'ALL TICKETS' },
-                    { id: 'open', label: 'OPEN' },
-                    { id: 'pending', label: 'PENDING' },
-                    { id: 'closed', label: 'CLOSED' }
-                  ]}
-                />
+          primaryPopover={{
+            icon: "tune",
+            label: t("filters") || "Filters",
+            content: (
+              <div className="flex flex-col gap-4 w-[280px] p-2">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("ticket_status") || "Ticket Status"}</span>
+                  <InlineFilterGroup 
+                    value={activeFilter}
+                    onChange={(v) => setActiveFilter(v as any)}
+                    options={[
+                      { id: 'all', label: 'ALL TICKETS' },
+                      { id: 'open', label: 'OPEN' },
+                      { id: 'pending', label: 'PENDING' },
+                      { id: 'closed', label: 'CLOSED' }
+                    ]}
+                  />
+                </div>
               </div>
-            </div>
-          </FilterPopover>
-        </ScreenUtilityBar>
+            )
+          }}
+          rightContent={
+            isSidePanel ? undefined : (
+              <div className="flex items-center px-2 h-full">
+                <button
+                  onClick={onOpenNewTicket}
+                  title={t("ticket_new") || "New Ticket"}
+                  className="h-9 px-4 rounded-md flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] font-black uppercase tracking-widest text-[10px]"
+                >
+                  <span className="material-symbols-outlined !text-[18px]">add</span>
+                  <span className="hidden md:inline">{t("ticket_new") || "New Ticket"}</span>
+                </button>
+              </div>
+            )
+          }
+        />
       </div>
 
       <div className="w-full flex flex-col sm:grid sm:grid-cols-2 gap-3 px-6 md:px-8 pb-20 content-start sm:items-start sm:auto-rows-max">

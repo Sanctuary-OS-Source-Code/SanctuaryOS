@@ -5,7 +5,7 @@ import { useLexicon } from "./LexiconContext";
 import { useTheme } from "./ThemeContext";
 import { CartographerSetup } from './CartographerSetup';
 import { supabase } from './supabase';
-import { EmptyState, SearchBar, HoverTabDrawer, VerticalTabButton } from './shared';
+import { EmptyState, ActionPill, HoverTabDrawer, VerticalTabButton } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSectionHeading, CommandScreenStatusbar } from "./hub-components/SharedCommandScreenLayout";
 
@@ -146,11 +146,10 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
                 shape="circle"
                 rightContent={
                   <div className="w-[300px]">
-                    <SearchBar
-                      value={searchQuery}
-                      onChange={setSearchQuery}
-                      placeholder={t("workspace_search")}
-                      className="h-12 rounded-2xl w-full"
+                    <ActionPill
+                      searchQuery={searchQuery}
+                      setSearchQuery={setSearchQuery}
+                      searchPlaceholder={t("workspace_search")}
                     />
                   </div>
                 }

@@ -1,9 +1,8 @@
 import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from './components/universal/UniversalLayout';
-import { SearchBar } from "./shared";
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
-import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton } from './shared';
+import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ActionPill } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
 import { useStore } from './store';
 import { logArchitectAction } from './lib/audit';
@@ -303,32 +302,33 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
   return (
     <div className="flex flex-col w-full relative h-full">
       <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder={t("identities_search")}
-              className="h-12 w-full rounded-2xl"
+          <div className="w-full">
+            <ActionPill
+              searchQuery={search}
+              setSearchQuery={setSearch}
+              searchPlaceholder={t("identities_search")}
+              rightContent={
+                <div className="w-48 ml-2">
+                  <CustomDropdown
+                    flat={true}
+                    variant="pill"
+                    disableTint={true}
+                    value={filterRole}
+                    onChange={(v: string[]) => setFilterRole(v[0])}
+                    options={[
+                      { id: "all", label: "ALL ROLES" },
+                      ...ROLES.filter(r => {
+                        if (isKeepers) return r === 'citizen';
+                        return isWayfinder || r !== 'wayfinder';
+                      }).map(r => ({ id: r, label: r.replace(/_/g, ' ').toUpperCase() })),
+                      ...(isKeepers ? [{ id: 'admin', label: 'DEV' }] : [])
+                    ]}
+                    placeholder={t("auto_filter_role")}
+                  />
+                </div>
+              }
             />
           </div>
-
-          <div className="w-max min-w-[192px] max-w-xs z-40">
-            <CustomDropdown disableTint={true}
-              value={filterRole}
-              onChange={(v: string[]) => setFilterRole(v[0])}
-              options={[
-                { id: "all", label: "ALL ROLES" },
-                ...ROLES.filter(r => {
-                  if (isKeepers) return r === 'citizen';
-                  return isWayfinder || r !== 'wayfinder';
-                }).map(r => ({ id: r, label: r.replace(/_/g, ' ').toUpperCase() })),
-                ...(isKeepers ? [{ id: 'admin', label: 'DEV' }] : [])
-              ]}
-              placeholder={t("auto_filter_role")}
-            />
-          </div>
-        </div>
       </div>
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-8">

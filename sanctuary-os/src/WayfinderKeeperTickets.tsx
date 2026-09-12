@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { EmptyState, InlineFilterGroup, CustomDropdown, ScreenUtilityBar, FilterPopover } from "./shared";
+import { EmptyState, InlineFilterGroup, CustomDropdown, ActionPill, FilterPopover } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { supabase, supabaseAuth } from "./supabase";
 
@@ -83,31 +83,32 @@ export default function WayfinderKeeperTickets({ userId, onSelectTicket, isSideP
   return (
     <div className="flex flex-col w-full text-[var(--text)] h-full">
       <div className="w-full px-6 md:px-8 pt-4 md:pt-6 shrink-0">
-        <ScreenUtilityBar
-          isSidePanel={isSidePanel}
-          search={searchQuery}
-          onSearchChange={setSearchQuery}
+        <ActionPill
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
           searchPlaceholder={t("ph_search_tickets") || "Search Tickets..."}
-          className="!mb-6 !pb-0 !px-0 !border-0 flex-none w-full"
-        >
-          <FilterPopover icon="tune" label={t("filters") || "Filters"} className="shrink-0" buttonClassName="!rounded-2xl">
-            <div className="flex flex-col gap-4 w-[280px] p-2">
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("ticket_status") || "Ticket Status"}</span>
-                <InlineFilterGroup 
-                  value={activeFilter}
-                  onChange={(v) => setActiveFilter(v as any)}
-                  options={[
-                    { id: 'all', label: 'ALL TICKETS' },
-                    { id: 'open', label: 'OPEN' },
-                    { id: 'pending', label: 'PENDING' },
-                    { id: 'closed', label: 'CLOSED' }
-                  ]}
-                />
+          primaryPopover={{
+            icon: "tune",
+            label: t("filters") || "Filters",
+            content: (
+              <div className="flex flex-col gap-4 w-[280px] p-2">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("ticket_status") || "Ticket Status"}</span>
+                  <InlineFilterGroup 
+                    value={activeFilter}
+                    onChange={(v) => setActiveFilter(v as any)}
+                    options={[
+                      { id: 'all', label: 'ALL TICKETS' },
+                      { id: 'open', label: 'OPEN' },
+                      { id: 'pending', label: 'PENDING' },
+                      { id: 'closed', label: 'CLOSED' }
+                    ]}
+                  />
+                </div>
               </div>
-            </div>
-          </FilterPopover>
-        </ScreenUtilityBar>
+            )
+          }}
+        />
       </div>
 
       <div className="w-full flex flex-col sm:grid sm:grid-cols-2 gap-3 px-6 md:px-8 overflow-y-auto custom-scrollbar flex-1 pb-20 content-start sm:items-start sm:auto-rows-max">

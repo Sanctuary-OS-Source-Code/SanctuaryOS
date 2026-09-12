@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
-import { ViewHeader, stripMarkdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, CustomDatePicker, ActionButton, ScreenUtilityBar, FilterPopover, SearchBar } from "./shared";
+import { ViewHeader, stripMarkdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, CustomDatePicker, ActionButton, FilterPopover, SearchBar, ActionPill } from "./shared";
 import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
@@ -290,61 +290,64 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         onTitleClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }}
       >
         {activeTab !== "OVERVIEW" && (
-          <div className="flex items-center gap-2 md:gap-3 animate-in slide-in-from-top-4 duration-500 relative z-20 w-full">
-            <div className="relative flex-1 min-w-0">
-              <SearchBar
-                value={searchQuery || ""}
-                onChange={setSearchQuery}
-                placeholder={t("mason_search_placeholder") || "Search..."}
-                className="h-12 w-full rounded-2xl"
-              />
-            </div>
-            <div className="shrink-0">
-              <FilterPopover icon="tune" label={t("filters")} className="shrink-0" buttonClassName="!rounded-2xl" activeTab={startDate || endDate || activeSort !== "NEWEST" ? "active" : undefined}>
-                <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sort_by") || "Sort By"}</span>
-                    <CustomDropdown
-                      disableTint={true}
-                      value={activeSort}
-                      options={[
-                        { id: "NEWEST", label: t("sort_newest") || "Newest" },
-                        { id: "TOP", label: t("sort_top") || "Top" }
-                      ]}
-                      onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
-                    />
-                  </div>
-                  
-                  <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
-                  
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("date_range") || "Date Range"}</span>
+          <div className="animate-in slide-in-from-top-4 duration-500 relative z-20 w-full mb-4">
+            <ActionPill
+              searchQuery={searchQuery || ""}
+              setSearchQuery={setSearchQuery}
+              searchPlaceholder={t("mason_search_placeholder") || "Search..."}
+              primaryPopover={{
+                icon: "tune",
+                label: t("filters") || "Filters",
+                content: (
+                  <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
                     <div className="flex flex-col gap-2">
-                      <CustomDatePicker
-                        value={startDate}
-                        onChange={setStartDate}
-                        placeholder={t("filter_start_date") || "Start Date"}
-                      />
-                      <CustomDatePicker
-                        value={endDate}
-                        onChange={setEndDate}
-                        placeholder={t("filter_end_date") || "End Date"}
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sort_by") || "Sort By"}</span>
+                      <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        disableTint={true}
+                        value={activeSort}
+                        options={[
+                          { id: "NEWEST", label: t("sort_newest") || "Newest" },
+                          { id: "TOP", label: t("sort_top") || "Top" }
+                        ]}
+                        onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
                       />
                     </div>
-                  </div>
+                    
+                    <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+                    
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("date_range") || "Date Range"}</span>
+                      <div className="flex flex-col gap-2">
+                        <CustomDatePicker
+                          flat={true}
+                          value={startDate}
+                          onChange={setStartDate}
+                          placeholder={t("filter_start_date") || "Start Date"}
+                        />
+                        <CustomDatePicker
+                          flat={true}
+                          value={endDate}
+                          onChange={setEndDate}
+                          placeholder={t("filter_end_date") || "End Date"}
+                        />
+                      </div>
+                    </div>
 
-                  {(startDate || endDate || activeSort !== "NEWEST") && (
-                    <ActionButton 
-                      icon="close" 
-                      label={t("btn_clear") || "Clear Filters"} 
-                      onClick={() => { setStartDate(null); setEndDate(null); setActiveSort("NEWEST"); }} 
-                      className="w-full mt-2" 
-                      variant="danger"
-                    />
-                  )}
-                </div>
-              </FilterPopover>
-            </div>
+                    {(startDate || endDate || activeSort !== "NEWEST") && (
+                      <ActionButton 
+                        icon="close" 
+                        label={t("btn_clear") || "Clear Filters"} 
+                        onClick={() => { setStartDate(null); setEndDate(null); setActiveSort("NEWEST"); }} 
+                        className="w-full mt-2" 
+                        variant="danger"
+                      />
+                    )}
+                  </div>
+                )
+              }}
+            />
           </div>
         )}
         </ViewHeader>

@@ -1,15 +1,14 @@
-import { ScreenUtilityBar, FilterTabs, FilterTabButton } from "./shared";
+import { SidePanel, FilterTabs, FilterTabButton, ActionButton, CustomDropdown, ModSearchDropdown, EmptyState, ActionPill } from "./shared";
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, ActionButton } from "./shared";
+import { fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, } from "./shared";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import {
-  ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
+  ViewHeader, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, DashboardStatTile,
-  HubTabButton, ModSearchDropdown, EmptyState,
-  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
+  HubTabButton, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
 } from "./shared";
@@ -385,17 +384,28 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
 
   return (
     <div className="flex flex-col w-full relative">
-      <ScreenUtilityBar
-        search={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder={t("search_ph") as string}
-        className="px-6 !mb-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-      >
-        <FilterTabs className="hidden md:flex">
-          <FilterTabButton id="pending" activeTab={filterTab} setTab={setFilterTab} label={t("pending")} />
-          <FilterTabButton id="completed" activeTab={filterTab} setTab={setFilterTab} label={t("status_completed")} />
-        </FilterTabs>
-      </ScreenUtilityBar>
+      <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-4">
+        <ActionPill
+          searchQuery={searchTerm}
+          setSearchQuery={setSearchTerm}
+          searchPlaceholder={t("search_ph") as string}
+          primaryPopover={{
+            icon: "tune",
+            label: t("filters"),
+            content: (
+              <div className="flex flex-col gap-4 p-4 w-[280px]">
+                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                  STATUS
+                </div>
+                <div className="flex items-stretch glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-10 shrink-0 divide-x divide-white/5 overflow-hidden">
+                  <button onClick={() => setFilterTab('pending')} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
+                  <button onClick={() => setFilterTab('completed')} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_completed")}</button>
+                </div>
+              </div>
+            )
+          }}
+        />
+      </div>
 
       <div className="p-6 flex flex-col gap-10 pb-32">
         {filterTab === 'pending' && (

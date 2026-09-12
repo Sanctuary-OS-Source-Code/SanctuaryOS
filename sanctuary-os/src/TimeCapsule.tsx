@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, HubTabButton, SearchBar, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton, HoverTabDrawer, VerticalTabButton, FilterPopover, ScreenUtilityBar } from "./shared";
+import { ViewHeader, HubTabButton, SearchBar, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton, HoverTabDrawer, VerticalTabButton, FilterPopover, ActionPill } from "./shared";
 import { TimeCapsuleSidePanel } from "./side-panels/TimeCapsuleSidePanels";
 import { useModalStore } from "./store/modalStore";
 
@@ -214,77 +214,47 @@ export default function TimeCapsule({
         onTitleClick={() => setActiveTab("LANDING")}
       >
         {activeTab !== "LANDING" && (
-           <ScreenUtilityBar
-              search={searchQuery}
-              onSearchChange={setSearchQuery}
-              searchPlaceholder={t("timecapsule_search") as string || "Search Chronograms..."}
-              className="!mb-0 !pb-0 !border-0 flex-1 xl:w-auto w-full"
-            >
-              {/* Desktop View: Popover */}
-              <div className="hidden md:block">
-                <FilterPopover 
-                  icon="tune" 
-                  className="h-full shrink-0" 
-                  activeTab={(versionFilter !== "ALL" || startDate || endDate) ? "active" : undefined}
-                >
-                  <div className="flex flex-col gap-4 p-4 min-w-[220px]">
-                   <div className="flex flex-col gap-2">
-                     <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Game Version</div>
-                     <CustomDropdown disableTint={true}
-                       value={versionFilter}
-                       onChange={(val: string[]) => setVersionFilter(val[0])}
-                       options={[
-                         { id: "ALL", label: t("ql_all") },
-                         ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
-                       ]}
-                     />
-                   </div>
-                   <div className="flex flex-col gap-2 mt-2">
-                     <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Date Range</div>
-                     <CustomDatePicker
-                       value={startDate}
-                       onChange={setStartDate}
-                       placeholder={t("filter_start_date")}
-                     />
-                     <CustomDatePicker
-                       value={endDate}
-                       onChange={setEndDate}
-                       placeholder={t("filter_end_date")}
-                     />
-                   </div>
-                </div>
-                </FilterPopover>
-              </div>
-              {/* Mobile View: Render directly for the bottom sheet */}
-              <div className="md:hidden contents">
-                <div className="flex flex-col gap-4 p-4 min-w-[220px]">
-                   <div className="flex flex-col gap-2">
-                     <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Game Version</div>
-                     <CustomDropdown disableTint={true}
-                       value={versionFilter}
-                       onChange={(val: string[]) => setVersionFilter(val[0])}
-                       options={[
-                         { id: "ALL", label: t("ql_all") },
-                         ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
-                       ]}
-                     />
-                   </div>
-                   <div className="flex flex-col gap-2 mt-2">
-                     <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Date Range</div>
-                     <CustomDatePicker
-                       value={startDate}
-                       onChange={setStartDate}
-                       placeholder={t("filter_start_date")}
-                     />
-                     <CustomDatePicker
-                       value={endDate}
-                       onChange={setEndDate}
-                       placeholder={t("filter_end_date")}
-                     />
-                   </div>
-                </div>
-              </div>
-           </ScreenUtilityBar>
+           <div className="flex-1 xl:w-auto w-full mb-4 md:mb-0 max-w-sm">
+             <ActionPill
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                searchPlaceholder={t("timecapsule_search") as string || "Search Chronograms..."}
+                primaryPopover={{
+                  icon: "tune",
+                  label: "Filters",
+                  content: (
+                    <div className="flex flex-col gap-4 p-4 min-w-[220px]">
+                     <div className="flex flex-col gap-2">
+                       <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Game Version</div>
+                       <CustomDropdown disableTint={true} variant="pill"
+                         value={versionFilter}
+                         onChange={(val: string[]) => setVersionFilter(val[0])}
+                         options={[
+                           { id: "ALL", label: t("ql_all") },
+                           ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
+                         ]}
+                       />
+                     </div>
+                     <div className="flex flex-col gap-2 mt-2">
+                       <div className="text-[10px] font-black uppercase text-[var(--subtext)] tracking-widest pl-1">Date Range</div>
+                       <CustomDatePicker
+                         value={startDate}
+                         onChange={setStartDate}
+                         placeholder={t("filter_start_date")}
+                         flat={true}
+                       />
+                       <CustomDatePicker
+                         value={endDate}
+                         onChange={setEndDate}
+                         placeholder={t("filter_end_date")}
+                         flat={true}
+                       />
+                     </div>
+                    </div>
+                  )
+                }}
+              />
+           </div>
         )}
         </ViewHeader>
 

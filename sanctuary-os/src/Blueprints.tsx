@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ActionButton, CustomDropdown, ModSearchDropdown, ViewHeader, FilterTabs, FilterTabButton, standardButtonClass, standardAccentGlassButtonClass, getExtensionRegex, formatDisplayName, SearchBar, ScreenUtilityBar, SidePanel, isVersionMatch, SidebarActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, HoverTooltip } from "./shared";
+import { ActionButton, CustomDropdown, ModSearchDropdown, ViewHeader, FilterTabs, FilterTabButton, standardButtonClass, standardAccentGlassButtonClass, getExtensionRegex, formatDisplayName, SearchBar, SidePanel, isVersionMatch, SidebarActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, HoverTooltip, ActionPill, PillTabs, PillTabButton } from "./shared";
 import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";
@@ -258,7 +258,7 @@ export default function Blueprints({
     const isPinned = pinnedBlueprints.includes(set.name);
     const hasAlerts = alertStatus && alertStatus.total > 0;
     return (
-   <div key={set.name} className={`glass-panel p-6 rounded-3xl flex flex-col transition-all min-h-[14rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative group/card ${activeSetName === set.name ? 'border-[var(--success)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)]'}`} style={activeSetName === set.name ? { backgroundColor: 'color-mix(in srgb, var(--success) 10%, transparent)' } : {}}>
+      <div key={set.name} className={`glass-panel p-6 rounded-3xl flex flex-col transition-all min-h-[14rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative group/card ${activeSetName === set.name ? 'border-[var(--success)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)]'}`} style={activeSetName === set.name ? { backgroundColor: 'color-mix(in srgb, var(--success) 10%, transparent)' } : {}}>
         <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br pointer-events-none transition-opacity duration-500 opacity-0 group-hover/card:opacity-100 ${activeSetName === set.name ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent'}`} />
 
         <button onClick={() => togglePin(set.name)} className={`absolute top-6 right-6 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${isPinned ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] opacity-100 shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)]' : 'text-[var(--subtext)] opacity-0 group-hover/card:opacity-50 hover:!opacity-100 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
@@ -403,34 +403,36 @@ export default function Blueprints({
         onTitleClick={() => setActiveTab("LANDING")}
       >
         {activeTab === "VAULT" && (
-          <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
-            <SearchBar
-              value={vaultSearchQuery}
-              onChange={(val: string) => setVaultSearchQuery(val)}
-              placeholder={(t("nav_search")) as string}
-              className="h-10 rounded-xl min-w-[200px]"
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            <ActionPill
+              searchQuery={vaultSearchQuery}
+              setSearchQuery={setVaultSearchQuery}
+              searchPlaceholder={(t("nav_search")) as string}
+              rightContent={
+                <button
+                  onClick={() => setIsDraftingSet && setIsDraftingSet(true)}
+                  className="h-10 w-10 shrink-0 rounded-full glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:scale-[1.05] active:scale-95 transition-all shadow-sm relative group/hdrbtn ml-2"
+                >
+                  <span className="material-symbols-outlined !text-[18px]">add</span>
+                  <HoverTooltip title={t("draft_new")} />
+                </button>
+              }
             />
-            <button
-              onClick={() => setIsDraftingSet && setIsDraftingSet(true)}
-              className="h-10 w-10 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:scale-[1.05] active:scale-95 transition-all shadow-sm relative group/hdrbtn"
-            >
-              <span className="material-symbols-outlined !text-[18px]">add</span>
-              <HoverTooltip title={t("draft_new")} />
-            </button>
           </div>
         )}
         {activeTab === "NETWORK" && (
-          <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
-            <SearchBar
-              value={cloudSearchQuery}
-              onChange={(val: string) => setCloudSearchQuery(val)}
-              placeholder={(t("nav_search")) as string}
-              className="h-10 rounded-xl min-w-[200px]"
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            <ActionPill
+              searchQuery={cloudSearchQuery}
+              setSearchQuery={setCloudSearchQuery}
+              searchPlaceholder={(t("nav_search")) as string}
+              rightContent={
+                <PillTabs className="mr-1">
+                  <PillTabButton id="all" label={t("blueprint_tab_all")} activeTab={cloudFilterTab} setTab={setCloudFilterTab} />
+                  <PillTabButton id="not_in_vault" label={t("blueprint_tab_missing")} activeTab={cloudFilterTab} setTab={setCloudFilterTab} />
+                </PillTabs>
+              }
             />
-            <FilterTabs className="h-10 text-xs" buttonClassName="!h-10 !w-10">
-              <FilterTabButton id="all" label={t("blueprint_tab_all")} activeTab={cloudFilterTab} setTab={setCloudFilterTab} className="flex-1" />
-              <FilterTabButton id="not_in_vault" label={t("blueprint_tab_missing")} activeTab={cloudFilterTab} setTab={setCloudFilterTab} className="flex-1" />
-            </FilterTabs>
           </div>
         )}
       </ViewHeader>
@@ -519,7 +521,7 @@ export default function Blueprints({
                   iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                 />
                 {syncInputVisible ? (
-         <div className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] rounded-2xl shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] relative h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
+                  <div className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] rounded-2xl shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] relative h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
                     <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_10%,transparent)] via-transparent to-transparent opacity-100" />
                     <div className="flex items-center gap-5 h-full relative z-10 w-full">
                       <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
@@ -604,7 +606,7 @@ export default function Blueprints({
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-12 pt-2">
             {isDraftingSet && (
-       <div className="glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-6 rounded-2xl flex flex-col gap-4 animate-in zoom-in-95 shadow-[0_0_30px_rgba(var(--accent-rgb),0.1)] relative bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] min-h-[14rem] justify-center">
+              <div className="glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-6 rounded-2xl flex flex-col gap-4 animate-in zoom-in-95 shadow-[0_0_30px_rgba(var(--accent-rgb),0.1)] relative bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] min-h-[14rem] justify-center">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />
                 <input
                   autoFocus
@@ -658,7 +660,7 @@ export default function Blueprints({
                   return (
                     <div
                       key={bp.code}
-           className={`flex flex-col items-start gap-4 p-6 rounded-3xl glass-panel border transition-all text-left group/btn animate-in slide-in-from-bottom-2 duration-500 fill-mode-both shadow-[0_20px_50px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)] min-h-[14rem] relative ${inVault ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
+                      className={`flex flex-col items-start gap-4 p-6 rounded-3xl glass-panel border transition-all text-left group/btn animate-in slide-in-from-bottom-2 duration-500 fill-mode-both shadow-[0_20px_50px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)] min-h-[14rem] relative ${inVault ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
                       style={{ animationDelay: `${i * 50}ms` }}
                     >
                       <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br transition-opacity duration-500 opacity-0 group-hover/btn:opacity-100 pointer-events-none ${inVault ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent'}`} />
@@ -822,11 +824,10 @@ export default function Blueprints({
               <div className="flex items-center justify-start mb-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-3">
                 <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-widest">{t("artifacts_linked")} ({selectedUplinkBlueprint?.artifacts?.length})</h3>
               </div>
-              <SearchBar
-                value={uplinkArtifactSearch}
-                onChange={setUplinkArtifactSearch}
-                placeholder={t("playsets_search_ph")}
-                className="!h-12 !rounded-2xl"
+              <ActionPill
+                searchQuery={uplinkArtifactSearch}
+                setSearchQuery={setUplinkArtifactSearch}
+                searchPlaceholder={t("playsets_search_ph")}
               />
               <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
                 {filteredArtifacts.slice(0, uplinkArtifactsLimit).map((m: any, idx: number) => {
@@ -849,8 +850,8 @@ export default function Blueprints({
 
               {filteredArtifacts.length > uplinkArtifactsLimit && (
                 <div className="w-full flex justify-center mt-6">
-                  <button 
-                    onClick={() => setUplinkArtifactsLimit(prev => prev + 100)} 
+                  <button
+                    onClick={() => setUplinkArtifactsLimit(prev => prev + 100)}
                     className="px-8 py-4 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--text)] hover:text-[var(--accent)] text-[10px] font-black capitalize tracking-[0.2em] transition-all shadow-md hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] flex items-center gap-2 group"
                   >
                     <span className="material-symbols-outlined !text-[16px] group-hover:translate-y-0.5 transition-transform">expand_more</span>

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ScreenUtilityBar, FilterTabs, FilterTabButton } from "./shared";
+import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ActionPill, FilterTabs, FilterTabButton, PillTabs, PillTabButton } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { logArchitectAction } from "./lib/audit";
 
@@ -215,29 +215,34 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
   return (
     <div className="flex flex-col h-full w-full relative overflow-hidden text-[var(--text)]">
 
-      <ScreenUtilityBar
-        search={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder={t("ui_placeholder_search") as string}
-        className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full"
-      >
-          <FilterTabs className="hidden md:flex mr-4">
-            <FilterTabButton id="pending" activeTab={filterTab} setTab={setFilterTab} label={t("pending")} />
-            <FilterTabButton id="completed" activeTab={filterTab} setTab={setFilterTab} label={t("status_active")} />
-          </FilterTabs>
-          <FilterTabs className="hidden md:flex">
-            <FilterTabButton id={null} activeTab={tierFilter} setTab={setTierFilter} label={t("ql_all")} />
-            {[4, 3].map(tLevel => (
-              <FilterTabButton key={tLevel} id={tLevel} activeTab={tierFilter} setTab={setTierFilter} label={`${t("ui_icon_logo")}${tLevel}`} />
-            ))}
-          </FilterTabs>
-          <ActionButton
-            onClick={() => { setEditConflictId(null); setModA(null); setModB(null); setNote(""); setSeverity(4); setIsSidePanelOpen(true); }}
-            className="h-12 px-6 shrink-0 font-black capitalize tracking-widest text-[10px]"
-            icon={t("icon_add")}
-            label={t("auto_create")}
-          />
-      </ScreenUtilityBar>
+      <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full mb-4">
+        <ActionPill
+          searchQuery={searchTerm}
+          setSearchQuery={setSearchTerm}
+          searchPlaceholder={t("ui_placeholder_search") as string}
+          rightContent={
+            <div className="flex items-center gap-4 shrink-0 px-2 h-full">
+              <PillTabs className="hidden md:flex">
+                <PillTabButton id="pending" activeTab={filterTab} setTab={setFilterTab} label={t("pending")} />
+                <PillTabButton id="completed" activeTab={filterTab} setTab={setFilterTab} label={t("status_active")} />
+              </PillTabs>
+              <PillTabs className="hidden md:flex">
+                <PillTabButton id={null} activeTab={tierFilter} setTab={setTierFilter} label={t("ql_all")} />
+                {[4, 3].map(tLevel => (
+                  <PillTabButton key={tLevel} id={tLevel} activeTab={tierFilter} setTab={setTierFilter} label={`${t("ui_icon_logo")}${tLevel}`} />
+                ))}
+              </PillTabs>
+              <button
+                 onClick={() => { setEditConflictId(null); setModA(null); setModB(null); setNote(""); setSeverity(4); setIsSidePanelOpen(true); }}
+                 title={t("auto_create") as string}
+                 className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)]"
+              >
+                 <span className="material-symbols-outlined !text-[18px]">{t("icon_add")}</span>
+              </button>
+            </div>
+          }
+        />
+      </div>
 
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
         {filterTab === 'pending' && (

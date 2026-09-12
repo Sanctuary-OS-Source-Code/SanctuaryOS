@@ -12,9 +12,9 @@ import {
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  FilterTabs, FilterTabButton,
+  FilterTabs, FilterTabButton, PillTabs, PillTabButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  PanelHeaderGroup, PanelHeaderButton
+  PanelHeaderGroup, PanelHeaderButton, ActionPill
 } from "../shared";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { ArtifactCard, VaultCard } from "../Cards";
@@ -189,46 +189,45 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
 
   return (
     <div className="flex flex-col w-full relative h-full">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex items-center gap-3 relative flex-1 w-full justify-end">
-          <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("search_queue")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
-
-          <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12">
-            <CustomDropdown disableTint={true}
-              value={activeType}
-              options={[
-                { id: 'ALL', label: t("ui_tab_all_types") },
-                { id: 'nexus', label: t("tab_nexus") },
-                { id: 'blueprint', label: t("playsets_title") },
-                { id: 'comm-link', label: t("feed_title") }
-              ]}
-              onChange={(v: string[]) => setActiveType(v[0])}
-              placeholder={t("auto_select_type")}
-            />
-          </div>
-
-          <FilterTabs className="h-12 shrink-0 z-40">
-            <FilterTabButton
-              id="pending"
-              label={t("pending")}
-              activeTab={activeStatus}
-              setTab={setActiveStatus}
-            />
-            <FilterTabButton
-              id="resolved"
-              label={t("dossier_action_resolved")}
-              activeTab={activeStatus}
-              setTab={setActiveStatus}
-            />
-          </FilterTabs>
-        </div>
+      <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full shrink-0">
+        <ActionPill
+          searchQuery={searchTerm}
+          setSearchQuery={setSearchTerm}
+          searchPlaceholder={t("search_queue")}
+          primaryPopover={{
+            icon: "tune",
+            label: t("filters"),
+            content: (
+              <div className="flex flex-col gap-4 p-4 w-[280px]">
+                <div className="flex flex-col gap-2">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                    {t("auto_select_type")}
+                  </div>
+                  <CustomDropdown disableTint={true} variant="panel"
+                    value={activeType}
+                    options={[
+                      { id: 'ALL', label: t("ui_tab_all_types") },
+                      { id: 'nexus', label: t("tab_nexus") },
+                      { id: 'blueprint', label: t("playsets_title") },
+                      { id: 'comm-link', label: t("feed_title") }
+                    ]}
+                    onChange={(v: string[]) => setActiveType(v[0])}
+                    placeholder={t("auto_select_type")}
+                  />
+                </div>
+              </div>
+            )
+          }}
+          rightContent={
+            <div className="flex items-center gap-4 shrink-0 px-2 h-full">
+              <PillTabs className="hidden md:flex">
+                <PillTabButton id="pending" activeTab={activeStatus} setTab={setActiveStatus} label={t("pending")} />
+                <PillTabButton id="resolved" activeTab={activeStatus} setTab={setActiveStatus} label={t("resolved")} />
+                <PillTabButton id="dismissed" activeTab={activeStatus} setTab={setActiveStatus} label={t("dismissed")} />
+              </PillTabs>
+            </div>
+          }
+        />
       </div>
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">

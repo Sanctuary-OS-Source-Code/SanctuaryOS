@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
-import { SidePanel, ScreenUtilityBar, FilterPopover, InlineFilterGroup, EmptyState } from '../shared';
+import { SidePanel, FilterPopover, InlineFilterGroup, EmptyState, ActionPill } from '../shared';
 
 interface Asset {
   id: string;
@@ -77,32 +77,33 @@ export function LinkAssetSidePanel({ isOpen, onClose, onAssetSelect, backdropZ =
     >
       <div className="flex flex-col gap-6">
         <div className="animate-in slide-in-from-top-2">
-          <ScreenUtilityBar
-            isSidePanel={true}
-            search={assetSearchQuery}
-            onSearchChange={setAssetSearchQuery}
+          <ActionPill
+            searchQuery={assetSearchQuery}
+            setSearchQuery={setAssetSearchQuery}
             searchPlaceholder={t("search_assets") || "Search assets..."}
-            className="!mb-0 !pb-0 !px-0 !border-0 flex-none w-full"
-          >
-            <FilterPopover icon="tune" label={t("filters") || "Filters"} className="shrink-0" buttonClassName="!rounded-2xl">
-              <div className="flex flex-col gap-4 w-[280px] p-2">
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("asset_type") || "Asset Type"}</span>
-                  <InlineFilterGroup 
-                    value={activeAssetFilter}
-                    onChange={(v: string) => setActiveAssetFilter(v)}
-                    options={[
-                      { id: 'all', label: 'ALL ASSETS' },
-                      { id: 'mod', label: 'ARTIFACTS' },
-                      { id: 'blueprint', label: 'BLUEPRINTS' },
-                      { id: 'chameleon', label: 'THEMES' },
-                      { id: 'lexicon', label: 'LEXICONS' }
-                    ]}
-                  />
+            primaryPopover={{
+              icon: "tune",
+              label: t("filters") || "Filters",
+              content: (
+                <div className="flex flex-col gap-4 w-[280px] p-2">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("asset_type") || "Asset Type"}</span>
+                    <InlineFilterGroup 
+                      value={activeAssetFilter}
+                      onChange={(v: string) => setActiveAssetFilter(v)}
+                      options={[
+                        { id: 'all', label: 'ALL ASSETS' },
+                        { id: 'mod', label: 'ARTIFACTS' },
+                        { id: 'blueprint', label: 'BLUEPRINTS' },
+                        { id: 'chameleon', label: 'THEMES' },
+                        { id: 'lexicon', label: 'LEXICONS' }
+                      ]}
+                    />
+                  </div>
                 </div>
-              </div>
-            </FilterPopover>
-          </ScreenUtilityBar>
+              )
+            }}
+          />
         </div>
         <div className="flex flex-col gap-2">
           {filteredAssets.length === 0 && <EmptyState icon={t("ui_icon_image_not_supported")} title={t("no_assets")} className="col-span-full py-16" />}

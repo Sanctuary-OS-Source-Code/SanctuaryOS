@@ -9,7 +9,7 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown, ScreenUtilityBar, FilterPopover
+  fetchAllPaginated, CustomTierDropdown, ActionPill
 } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
@@ -190,64 +190,67 @@ export function AuditLogViewer({
   const content = (
     <div className="flex flex-col w-full relative min-h-full">
       <div className="w-full px-6 md:px-8 pt-4 md:pt-6 shrink-0">
-        <ScreenUtilityBar
-          isSidePanel={true}
-          search={search}
-          onSearchChange={setSearch}
-          searchPlaceholder={t("audit_search")}
-          className="!mb-6 !pb-0 !px-0 !border-0 flex-none w-full"
-        >
-        <FilterPopover icon="tune" label={t("filters")} className="shrink-0">
-          <div className="flex flex-col w-[320px] p-4 max-w-[calc(100vw-40px)] gap-4">
-            {isKeepers && (
-              <div className="flex flex-col gap-2">
-                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
-                  WORKSPACES
+        <div className="mb-6 flex-none w-full">
+          <ActionPill
+            searchQuery={search}
+            setSearchQuery={setSearch}
+            searchPlaceholder={t("audit_search")}
+            primaryPopover={{
+              icon: "tune",
+              label: t("filters"),
+              content: (
+                <div className="flex flex-col w-[320px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                  {isKeepers && (
+                    <div className="flex flex-col gap-2">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                        WORKSPACES
+                      </div>
+                      <CustomDropdown disableTint={true} variant="panel"
+                        value={filterGame}
+                        onChange={(v: string[]) => setFilterGame(v[0])}
+                        options={filterGameOptions}
+                        placeholder="WORKSPACES"
+                        searchable={true}
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                      {t("auto_filter_logs") || "FILTER LOGS"}
+                    </div>
+                    <CustomDropdown disableTint={true} variant="panel"
+                      value={filterAction}
+                      onChange={(v: string[]) => setFilterAction(v[0])}
+                      options={filterOptions}
+                      placeholder={t("auto_filter_logs")}
+                      searchable={true}
+                    />
+                  </div>
+                  
+                  <div className="flex flex-col gap-2">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                      DATE RANGE
+                    </div>
+                    <div className={`flex flex-col gap-2 text-[var(--subtext)] z-30 shrink-0 w-full`}>
+                      <CustomDatePicker
+                        className="w-full"
+                        value={dateRange.start || null}
+                        onChange={(date) => setDateRange(prev => ({ ...prev, start: date }))}
+                        placeholder="Start Date"
+                      />
+                      <CustomDatePicker
+                        className="w-full"
+                        value={dateRange.end || null}
+                        onChange={(date) => setDateRange(prev => ({ ...prev, end: date }))}
+                        placeholder="End Date"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <CustomDropdown disableTint={true}
-                  value={filterGame}
-                  onChange={(v: string[]) => setFilterGame(v[0])}
-                  options={filterGameOptions}
-                  placeholder="WORKSPACES"
-                  searchable={true}
-                />
-              </div>
-            )}
-            <div className="flex flex-col gap-2">
-              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
-                {t("auto_filter_logs") || "FILTER LOGS"}
-              </div>
-              <CustomDropdown disableTint={true}
-                value={filterAction}
-                onChange={(v: string[]) => setFilterAction(v[0])}
-                options={filterOptions}
-                placeholder={t("auto_filter_logs")}
-                searchable={true}
-              />
-            </div>
-            
-            <div className="flex flex-col gap-2">
-              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
-                DATE RANGE
-              </div>
-              <div className={`flex flex-col gap-2 text-[var(--subtext)] z-30 shrink-0 w-full`}>
-                <CustomDatePicker
-                  className="w-full"
-                  value={dateRange.start || null}
-                  onChange={(date) => setDateRange(prev => ({ ...prev, start: date }))}
-                  placeholder="Start Date"
-                />
-                <CustomDatePicker
-                  className="w-full"
-                  value={dateRange.end || null}
-                  onChange={(date) => setDateRange(prev => ({ ...prev, end: date }))}
-                  placeholder="End Date"
-                />
-              </div>
-            </div>
-          </div>
-        </FilterPopover>
-        </ScreenUtilityBar>
+              )
+            }}
+          />
+        </div>
       </div>
 
       <div className={`px-6 md:px-8 pb-20 w-full flex flex-col gap-6 animate-in fade-in`}>

@@ -17,7 +17,7 @@ import { UpdatesSidePanel } from './side-panels/CommandCenterSidePanels';
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { CommandScreenStats, CommandScreenSectionHeading, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 import { SanctuaryAlertsSidePanel } from "./side-panels/SanctuaryAlertsSidePanel";
-
+import { VaultFilters } from "./hub-components/vault/VaultFilters";
 export default function CommandCenter({
   isScanning, modsPath, isConfigured, toggleInActiveSet,
   modList, quarantineList, shelterContents, shelterActive, runRadarSweep, runSanitization, massIngestToCloud, triggerShelter, setView, setFilterStatus, setShowBrokenModal, setShowQuarantineModal, handleOpenMasonProfile, networkUpdates, setIsSupportDeskOpen, setIsCitizenTicketsOpen, equipPlaySet
@@ -332,6 +332,8 @@ export default function CommandCenter({
   return (
     <div className="flex flex-col pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <ViewHeader title={t("center_title")} subtitle={t("center_subtitle")} icon={t("icon_desktop_windows")} iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+      
+
 
       {(() => {
         const currentCritical = String(radarTier4Count + radarBrokenCount);

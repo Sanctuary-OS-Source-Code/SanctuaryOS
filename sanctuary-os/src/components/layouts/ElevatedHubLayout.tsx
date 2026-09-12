@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScreenUtilityBar, DashboardStatTile, useIsMobile } from '../../shared';
+import { ActionPill, DashboardStatTile, useIsMobile } from '../../shared';
 
 export interface HubTab {
   id: string;
@@ -66,16 +66,16 @@ export function ElevatedHubLayout({
   return (
     <div className={`flex flex-col gap-0 animate-in fade-in duration-700 w-full h-full relative overflow-hidden ${className} ${isHiddenTab ? 'hidden' : ''}`}>
       {!isHiddenTab && !hideHeader && (
-        <ScreenUtilityBar
-          search={search}
-          onSearchChange={onSearchChange!}
-          searchPlaceholder={searchPlaceholder || "Search..."}
-          hideSearch={hideSearch}
-          className="mb-8"
-        >
-          {leftContent}
-          {headerActions}
-        </ScreenUtilityBar>
+        <div className="mb-8">
+          <ActionPill
+            searchQuery={search || ""}
+            setSearchQuery={onSearchChange || (() => {})}
+            searchPlaceholder={searchPlaceholder || "Search..."}
+            hideSearch={hideSearch}
+            leftContent={leftContent}
+            rightContent={headerActions}
+          />
+        </div>
       )}
 
       <div className="flex-1 flex flex-col h-full overflow-hidden px-6 pt-4">

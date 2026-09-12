@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, ModSearchDropdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, getExtensionRegex, SearchBar, ScreenUtilityBar, PanelHeaderGroup, PanelHeaderButton } from "./shared";
+import { ViewHeader, ModSearchDropdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, getExtensionRegex, SearchBar, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "./shared";
 import { CommandScreenLayout, DashboardStatTile, CommandScreenStats, CommandScreenQuickLink, CommandScreenSectionHeading, CommandScreenBody, CommandScreenMain, CommandScreenSidebar } from "./hub-components/SharedCommandScreenLayout";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { useStore } from "./store";
@@ -287,18 +287,26 @@ export default function Lab({
         )}
         
         {activeTab === "REPORTS" && (
-          <div className="flex items-center gap-3 h-12 animate-in fade-in slide-in-from-right-4 duration-500">
-            <SearchBar
-              value={searchLogs}
-              onChange={setSearchLogs}
-              placeholder={t("search_logs") as string}
-              className="h-full rounded-xl min-w-[200px]"
+          <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
+            <ActionPill
+              searchQuery={searchLogs}
+              setSearchQuery={setSearchLogs}
+              searchPlaceholder={t("search_logs") as string}
+              primaryPopover={{
+                icon: "tune",
+                label: t("filters") || "Filters",
+                content: (
+                  <div className="flex flex-col gap-2 p-2 w-[240px]">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("filters") || "Filters"}</span>
+                    <div className="flex flex-col gap-1 w-full">
+                      <FilterTabButton id="all" label={t("all_logs")} activeTab={logFilter} setTab={setLogFilter} />
+                      <FilterTabButton id="verified" label={t("verified")} activeTab={logFilter} setTab={setLogFilter} />
+                      <FilterTabButton id="fatal" label={t("fatal")} activeTab={logFilter} setTab={setLogFilter} />
+                    </div>
+                  </div>
+                )
+              }}
             />
-            <FilterTabs className="h-full shrink-0">
-              <FilterTabButton id="all" label={t("all_logs")} activeTab={logFilter} setTab={setLogFilter} />
-              <FilterTabButton id="verified" label={t("verified")} activeTab={logFilter} setTab={setLogFilter} />
-              <FilterTabButton id="fatal" label={t("fatal")} activeTab={logFilter} setTab={setLogFilter} />
-            </FilterTabs>
           </div>
         )}
       </ViewHeader>

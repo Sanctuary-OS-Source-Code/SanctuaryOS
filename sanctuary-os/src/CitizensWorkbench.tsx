@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, SearchBar, ScreenUtilityBar, FilterTabs, FilterTabButton } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, SearchBar, FilterTabs, FilterTabButton, ActionPill } from './shared';
 import { WorkbenchFileGrid } from './workbench/WorkbenchFileGrid';
 import { WorkbenchSidePanel } from './workbench/WorkbenchSidePanel';
 import { PushTemplateSidePanel } from './side-panels/PushTemplateSidePanel';
@@ -19,29 +19,29 @@ import { useWorkbenchLayout } from './workbench/hooks/useWorkbenchLayout';
 
 export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
    const { t } = useLexicon();
-   
+
    const mainTab = useStore(state => state.cwMainTab);
    const setMainTab = useStore(state => state.setCwMainTab);
    const setView = useStore(state => state.setView);
    const unsavedEdits = useStore(state => state.cwUnsavedEdits);
-   
+
    const [mainSearchQuery, setMainSearchQuery] = useState("");
    const [feedFilter, setFeedFilter] = useState<"ALL" | "CONFIGS" | "TEMPLATES">("ALL");
    const [gridFilter, setGridFilter] = useState<"ALL" | "UNSAVED">("ALL");
-   
+
    const vaultPath = useStore(state => state.vaultPath);
    const selectedFile = useStore(state => state.cwSelectedFile);
 
    const [isPushModalOpen, setIsPushModalOpen] = useState(false);
    const [showTimeline, setShowTimeline] = useState(false);
-   
+
    const [isFlagPanelOpen, setIsFlagPanelOpen] = useState(false);
    const [flagReason, setFlagReason] = useState("");
    const [isFlagging, setIsFlagging] = useState(false);
    const [flagSuccess, setFlagSuccess] = useState(false);
 
    const fileState = useWorkbenchFiles({ mainTab, mainSearchQuery });
-   
+
    const editorState = useWorkbenchEditor();
 
    const layoutState = useWorkbenchLayout({
@@ -60,13 +60,13 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
    useEffect(() => {
       if (selectedFile && fileState.availableTemplates.length > 0 && lastInitializedFile !== selectedFile.path) {
          setLastInitializedFile(selectedFile.path);
-         
+
          const commTmpl = fileState.availableTemplates.find((t: any) => t.isCommunity);
          const builtIn = fileState.availableTemplates.find((t: any) => t.id === "built_in");
-         
+
          const defaultId = commTmpl ? commTmpl.id : (builtIn ? "built_in" : fileState.availableTemplates[0].id);
          setSelectedTemplatePath(defaultId);
-         
+
          const tmpl = fileState.availableTemplates.find((t: any) => t.id === defaultId);
          if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
             setActiveTemplate(tmpl.data);
@@ -93,25 +93,26 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
    return (
       <div className="flex flex-col w-full relative animate-in fade-in slide-in-from-bottom-4 duration-700">
-         <ViewHeader 
-            title={t("workbench_title")} 
-            subtitle={t("workbench_subtitle")} 
-            icon="tune" 
+         <ViewHeader
+            title={t("workbench_title")}
+            subtitle={t("workbench_subtitle")}
+            icon="tune"
             breadcrumb={mainTab !== "COMMAND" ? (t(`tab_${mainTab.toLowerCase()}`) || mainTab) : undefined}
             onTitleClick={() => setMainTab("COMMAND" as any)}
          >
             {mainTab !== "COMMAND" && (
-               <div className="flex items-center gap-3 h-12 animate-in fade-in slide-in-from-right-4 duration-500">
-                  <SearchBar
-                     value={mainSearchQuery}
-                     onChange={setMainSearchQuery}
-                     placeholder={t("search_files") as string}
-                     className="h-full rounded-xl min-w-[200px]"
+               <div className="w-full animate-in fade-in slide-in-from-right-4 duration-500">
+                  <ActionPill
+                     searchQuery={mainSearchQuery}
+                     setSearchQuery={setMainSearchQuery}
+                     searchPlaceholder={t("search_files") as string}
+                     rightContent={
+                        <div className="flex items-center glass-panel rounded-xl overflow-hidden divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-10 shrink-0 hidden md:flex">
+                           <button onClick={() => setGridFilter("ALL")} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${gridFilter === "ALL" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>ALL</button>
+                           <button onClick={() => setGridFilter("UNSAVED")} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${gridFilter === "UNSAVED" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("unsaved_changes")}</button>
+                        </div>
+                     }
                   />
-                  <FilterTabs className="h-full shrink-0">
-                     <FilterTabButton id="ALL" label="ALL" activeTab={gridFilter} setTab={setGridFilter} />
-                     <FilterTabButton id="UNSAVED" label={t("unsaved_changes")} activeTab={gridFilter} setTab={setGridFilter} />
-                  </FilterTabs>
                </div>
             )}
          </ViewHeader>
@@ -135,18 +136,18 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                   <CommandScreenBody>
                      <CommandScreenMain>
                         <div className="flex flex-col gap-6">
-                              <CommandScreenSectionHeading 
-                                 title={t("recent_activity")} 
-                                 icon="history"
-                                 rightContent={
-                                    <FilterTabs>
-                                       <FilterTabButton id="ALL" label="ALL" activeTab={feedFilter} setTab={setFeedFilter} />
-                                       <FilterTabButton id="CONFIGS" label={t("configs")} activeTab={feedFilter} setTab={setFeedFilter} />
-                                       <FilterTabButton id="TEMPLATES" label={t("ql_templates")} activeTab={feedFilter} setTab={setFeedFilter} />
-                                    </FilterTabs>
-                                 }
-                              />
-                           
+                           <CommandScreenSectionHeading
+                              title={t("recent_activity")}
+                              icon="history"
+                              rightContent={
+                                 <FilterTabs>
+                                    <FilterTabButton id="ALL" label="ALL" activeTab={feedFilter} setTab={setFeedFilter} />
+                                    <FilterTabButton id="CONFIGS" label={t("configs")} activeTab={feedFilter} setTab={setFeedFilter} />
+                                    <FilterTabButton id="TEMPLATES" label={t("ql_templates")} activeTab={feedFilter} setTab={setFeedFilter} />
+                                 </FilterTabs>
+                              }
+                           />
+
                            {(() => {
                               const recentActivityFiles = fileState.files.filter((f: any) => {
                                  const isTmpl = f.name.toLowerCase().endsWith('.json');
@@ -373,7 +374,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                   } catch (e) {
                      editorState.setParsedData(null);
                   }
-                  
+
                   useStore.getState().setCwUnsavedEdits(prev => {
                      const next = { ...prev };
                      delete next[selectedFile.path];

@@ -1,4 +1,4 @@
-﻿import { SearchBar, ScreenUtilityBar, FilterTabs, FilterTabButton } from "../shared";
+﻿import { SearchBar, FilterTabs, FilterTabButton } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import React, { useState, useEffect } from "react";
 import { fetchAllPaginated, isSupportedExtension } from "../shared";

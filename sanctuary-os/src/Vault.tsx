@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ViewHeader, CustomDropdown, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, mapDlcCode, HubTabButton, standardButtonClass, standardDangerButtonClass, standardSuccessButtonClass, SidePanel, SidebarActionButton, getFileLabel, isSupportedExtension, getExtensionRegex, HoverTooltip, EmptyState, cleanSearchName, ActionButton, getModIcon, SearchBar, DashboardStatTile } from "./shared";
+import { ViewHeader, CustomDropdown, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, mapDlcCode, HubTabButton, standardButtonClass, standardDangerButtonClass, standardSuccessButtonClass, SidePanel, SidebarActionButton, getFileLabel, isSupportedExtension, getExtensionRegex, HoverTooltip, EmptyState, cleanSearchName, ActionButton, getModIcon, DashboardStatTile } from "./shared";
 import { useLexicon } from './LexiconContext';
 import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSectionHeading, CommandScreenSidebar, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 
@@ -19,32 +19,7 @@ import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { supabase } from "./supabase";
 
-function DebouncedSearchInput({ value, onChange, placeholder }: { value: string, onChange: (val: string) => void, placeholder: string }) {
-  const [localValue, setLocalValue] = React.useState(value);
-  const { t } = useLexicon();
 
-  React.useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
-
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      if (localValue !== value) onChange(localValue);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [localValue, onChange, value]);
-
-  return (
-    <div className="relative flex-1 min-w-[200px] w-full xl:max-w-[300px]">
-      <SearchBar
-        value={localValue}
-        onChange={(v) => { setLocalValue(v); if (v === "") onChange(""); }}
-        placeholder={placeholder}
-        className="h-10 rounded-[calc(var(--radius)-4px)] w-full"
-      />
-    </div>
-  );
-}
 const Vault = React.memo(function Vault(props: any) {
   const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(false);
   const [activeTier3Conflict, setActiveTier3Conflict] = React.useState<any>(null);

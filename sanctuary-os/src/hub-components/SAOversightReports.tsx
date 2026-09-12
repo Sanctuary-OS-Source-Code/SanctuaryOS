@@ -2,7 +2,7 @@ import { SearchBar } from "../shared";
 import React, { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton, FilterPopover } from "../shared";
+import { CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton, FilterPopover } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 
@@ -233,9 +233,9 @@ export default function SAOversightReports() {
             <div className="p-4 w-64 flex flex-col gap-2 text-[10px] font-black uppercase text-[var(--subtext)]">
               <div className="text-center mb-2">{t("vault_tools_subtitle") || "Actions & Filters"}</div>
               <div className="pt-4 flex flex-col gap-2 border-t border-white/10 mt-2">
-                <CustomDatePicker value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
+                <CustomDatePicker flat={true} value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
                 <span className="opacity-50 text-center">-</span>
-                <CustomDatePicker value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
+                <CustomDatePicker flat={true} value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
               </div>
             </div>
           </FilterPopover>
@@ -276,26 +276,26 @@ export default function SAOversightReports() {
             />
           </div>
                
-               <FilterTabs className="h-10">
-                 <FilterTabButton
+               <PillTabs className="h-10">
+                 <PillTabButton
                    id="all"
                    label={t("ql_all")}
                    activeTab={groupFilterTab}
                    setTab={setGroupFilterTab}
                  />
-                 <FilterTabButton
+                 <PillTabButton
                    id="new"
                    label={t("badge_new")}
                    activeTab={groupFilterTab}
                    setTab={setGroupFilterTab}
                  />
-                 <FilterTabButton
+                 <PillTabButton
                    id="archive"
                    label={t("auto_archive")}
                    activeTab={groupFilterTab}
                    setTab={setGroupFilterTab}
                  />
-               </FilterTabs>
+               </PillTabs>
 
                <div className="w-max min-w-[144px] max-w-xs z-30 shrink-0">
                  <CustomDropdown 

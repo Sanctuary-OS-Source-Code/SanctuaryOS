@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, SidePanel, PanelHeaderGroup, PanelHeaderButton, ViewHeader, SearchBar, HoverTooltip, FilterPopover, getNormalizedArtifactName } from "../shared";
+import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, PillTabs, PillTabButton, SidePanel, PanelHeaderGroup, PanelHeaderButton, ViewHeader, SearchBar, HoverTooltip, FilterPopover, getNormalizedArtifactName, ActionPill } from "../shared";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
@@ -537,23 +537,19 @@ export function MarketBlueprintPanel({
                 </span>
                 {t("blueprint_included") || "Included Artifacts"}
               </h3>
-              <div className="flex items-center gap-3 flex-1 justify-end">
-                <SearchBar
-                  value={searchQuery}
-                  onChange={(v: string) => setSearchQuery(v)}
-                  placeholder={t("search_artifacts") || "Query Artifacts..."}
-                  className="w-full max-w-xs h-10"
-                />
-                <FilterPopover
-                  icon="tune"
-                  options={[
-                    { id: 'ALL', label: t("filter_all") || "Show All", icon: "select_all" },
-                    { id: 'MISSING', label: t("filter_missing") || "Missing Only", icon: "warning" }
-                  ]}
-                  activeTab={filterTab}
-                  setTab={setFilterTab}
-                  className="shrink-0"
-                  buttonClassName="!w-10 !h-10 !rounded-xl"
+              <div className="w-full">
+                <ActionPill
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  searchPlaceholder={t("search_artifacts") || "Query Artifacts..."}
+                  rightContent={
+                    <div className="flex items-center gap-4 shrink-0 px-2 h-full">
+                      <PillTabs className="hidden md:flex">
+                        <PillTabButton id="ALL" activeTab={filterTab} setTab={setFilterTab} label={t("filter_all") || "Show All"} />
+                        <PillTabButton id="MISSING" activeTab={filterTab} setTab={setFilterTab} label={t("filter_missing") || "Missing Only"} />
+                      </PillTabs>
+                    </div>
+                  }
                 />
               </div>
             </div>

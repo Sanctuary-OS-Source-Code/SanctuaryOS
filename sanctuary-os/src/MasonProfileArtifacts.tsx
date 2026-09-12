@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getModIcon, AccordionDrawer, DeferredRender, formatDisplayName, SearchBar } from './shared';
+import { getModIcon, AccordionDrawer, DeferredRender, formatDisplayName, ActionPill } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
 
 export default function MasonProfileArtifacts({ filteredMods, onModClick, mason, activeGameSchema, isOwner, handlePin, t }: any) {
@@ -146,10 +146,10 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                     </div>
                     <div className="flex items-center gap-4 w-full md:w-auto">
                       <div className="relative flex-1 md:w-72">
-                        <SearchBar
-                          value={drawerSearchQuery}
-                          onChange={(v: string) => setDrawerSearchQuery(v)}
-                          placeholder={t("search_ph")}
+                        <ActionPill
+                          searchQuery={drawerSearchQuery}
+                          setSearchQuery={(v: string) => setDrawerSearchQuery(v)}
+                          searchPlaceholder={t("search_ph")}
                         />
                       </div>
                       <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">

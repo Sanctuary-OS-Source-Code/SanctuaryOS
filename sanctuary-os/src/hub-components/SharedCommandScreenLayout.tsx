@@ -239,7 +239,7 @@ export function CommandScreenMetricTile({ icon, value, label, valueColorClass = 
 
 export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "", isAlert = false }: any) {
     return (
-        <button onClick={onClick} className={`w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 shadow-md ${isAlert ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
+        <button onClick={onClick} className={`w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 shadow-md ${isAlert ? 'border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border border-transparent hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
             <div className={`absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none  overflow-hidden ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-radial-[at_0%_0%] from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent'}`} />
 
             <div className="flex items-center gap-4 h-full relative z-10">

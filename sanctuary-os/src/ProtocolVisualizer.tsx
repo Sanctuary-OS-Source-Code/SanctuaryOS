@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { logArchitectAction } from "./lib/audit";
 import { useLexicon } from "./LexiconContext";
-import { SidePanel, CustomDropdown, FilterTabs, FilterTabButton, ModSearchDropdown, EmptyState, ActionButton, cleanSearchName, SearchBar, HoverTooltip, ScreenUtilityBar } from "./shared";
+import { SidePanel, CustomDropdown, FilterTabs, FilterTabButton, PillTabs, PillTabButton, ModSearchDropdown, EmptyState, ActionButton, cleanSearchName, HoverTooltip, ActionPill } from "./shared";
 import ModLineageTree from "./ModLineageTree";
 import { useStore } from './store';
 
@@ -542,7 +542,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
 
             {/* Filter Tabs for Left Pane */}
             {(type === 'twins' || type === 'flavors') && (
-              <FilterTabs className="w-full mb-4">
+              <PillTabs className="w-full mb-4">
                 {[
                   { id: 'All', label: 'All' },
                   ...(type === 'twins' ? [
@@ -554,9 +554,9 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                     { id: 'beta', label: t('link_beta') }
                   ] : [])
                 ].map(tab => (
-                  <FilterTabButton key={tab.id} id={tab.id} label={tab.label} activeTab={leftTab} setTab={setLeftTab} />
+                  <PillTabButton key={tab.id} id={tab.id} label={tab.label} activeTab={leftTab} setTab={setLeftTab} />
                 ))}
-              </FilterTabs>
+              </PillTabs>
             )}
 
             {type === 'flavors' && (
@@ -745,34 +745,32 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full blur-[80px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
 
           {/* Header for Right Pane */}
-          <div className="shrink-0 flex items-center justify-start pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">
-            <h3 className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
+          <div className="shrink-0 flex items-center justify-start pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14 gap-4">
+            <h3 className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-2 shrink-0">
               <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">apps</span>
               {t("available_lists")}
             </h3>
 
-            <div className="w-full md:w-[280px]">
-              <SearchBar
-                value={type === 'dlc' ? dlcSearch : availableSearch}
-                onChange={(v) => type === 'dlc' ? setDlcSearch(v) : setAvailableSearch(v)}
-                placeholder={t("search_ph")}
-                className="w-full text-[11px]"
+            <div className="flex-1 ml-auto flex justify-end">
+              <ActionPill
+                searchQuery={type === 'dlc' ? dlcSearch : availableSearch}
+                setSearchQuery={(v) => type === 'dlc' ? setDlcSearch(v) : setAvailableSearch(v)}
+                searchPlaceholder={t("search_ph")}
+                rightContent={type === 'dlc' ? (
+                  <PillTabs>
+                    {[
+                      { id: 'Expansion Pack', label: t("tab_expansion") },
+                      { id: 'Game Pack', label: t("tab_game_pack") },
+                      { id: 'Stuff Pack', label: t("tab_stuff_pack") },
+                      { id: 'Kit', label: t("tab_kit") }
+                    ].map(tab => (
+                      <PillTabButton key={tab.id} id={tab.id} label={tab.label} activeTab={dlcTab} setTab={setDlcTab} />
+                    ))}
+                  </PillTabs>
+                ) : undefined}
               />
             </div>
           </div>
-
-          {type === 'dlc' && (
-            <FilterTabs className="w-full mb-6">
-              {[
-                { id: 'Expansion Pack', label: t("tab_expansion") },
-                { id: 'Game Pack', label: t("tab_game_pack") },
-                { id: 'Stuff Pack', label: t("tab_stuff_pack") },
-                { id: 'Kit', label: t("tab_kit") }
-              ].map(tab => (
-                <FilterTabButton key={tab.id} id={tab.id} label={tab.label} activeTab={dlcTab} setTab={setDlcTab} />
-              ))}
-            </FilterTabs>
-          )}
 
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 transform-gpu" onScroll={(e) => {
             const el = e.currentTarget;
@@ -862,22 +860,24 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
 
       {/* 1. The Seamless Header */}
       {/* 1. The Seamless Header */}
-      <ScreenUtilityBar
-        className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20"
-        hideSearch={true}
-        leftContent={
-          <div className="w-full md:w-[400px] z-50">
-            <ModSearchDropdown
-              placeholder={t("search_ph")}
-              selectedItem={targetMod}
-              onSelect={(mod: any) => setTargetMod(mod)}
-              onClear={() => { setTargetMod(null); setActivePanel(null); }}
-              modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)}
-            />
-          </div>
-        }
-      >
-      </ScreenUtilityBar>
+      <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20">
+        <ActionPill
+          searchQuery=""
+          setSearchQuery={() => {}}
+          hideSearch={true}
+          leftContent={
+            <div className="w-full md:w-[400px] z-50">
+              <ModSearchDropdown
+                placeholder={t("search_ph")}
+                selectedItem={targetMod}
+                onSelect={(mod: any) => setTargetMod(mod)}
+                onClear={() => { setTargetMod(null); setActivePanel(null); }}
+                modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)}
+              />
+            </div>
+          }
+        />
+      </div>
 
       {/* 2. The Main Body (The Trigger Grid) */}
       <div className="flex-1 overflow-y-auto accent-scrollbar w-full p-6">

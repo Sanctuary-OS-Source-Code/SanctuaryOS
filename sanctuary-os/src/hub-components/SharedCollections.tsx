@@ -1,4 +1,4 @@
-import { SearchBar, ScreenUtilityBar } from "../shared";
+import { SearchBar } from "../shared";
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";

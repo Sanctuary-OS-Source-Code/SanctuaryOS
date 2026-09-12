@@ -1,4 +1,4 @@
-import { SearchBar, ScreenUtilityBar } from "./shared";
+import { SearchBar } from "./shared";
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { SidePanel } from './shared';

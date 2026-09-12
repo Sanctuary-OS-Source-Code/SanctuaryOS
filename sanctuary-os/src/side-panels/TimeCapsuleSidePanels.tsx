@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, FilterTabs, FilterTabButton, SearchBar } from "../shared";
+import { SidePanel, FilterTabs, FilterTabButton, SearchBar, PillTabs, PillTabButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 
@@ -118,26 +118,26 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
         </div>
       ) : (
         <div className="flex flex-col gap-6 h-full pb-4">
-          <FilterTabs className="shrink-0">
-            <FilterTabButton
+          <PillTabs className="shrink-0">
+            <PillTabButton
               id="INSPECTOR"
               label={t("tab_inspector")}
               activeTab={activeSubTab}
               setTab={setActiveSubTab}
             />
-            <FilterTabButton
+            <PillTabButton
               id="EXTRACT"
               label={t("tab_extract")}
               activeTab={activeSubTab}
               setTab={setActiveSubTab}
             />
-            <FilterTabButton
+            <PillTabButton
               id="DIFF"
               label={t("tab_diff")}
               activeTab={activeSubTab}
               setTab={setActiveSubTab}
             />
-          </FilterTabs>
+          </PillTabs>
 
           {activeSubTab === "INSPECTOR" && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-4 flex-1 min-h-0 relative">

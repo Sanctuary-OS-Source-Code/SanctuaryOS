@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { SidePanel, getExtensionRegex, ActionButton, PanelHeaderGroup, PanelHeaderButton, SearchBar } from "../shared";
+import { SidePanel, getExtensionRegex, ActionButton, PanelHeaderGroup, PanelHeaderButton, SearchBar, ActionPill } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 
 interface LogSection {
@@ -16,7 +16,7 @@ export default function TicketLogViewer({
   const store = useStore();
   const [activeSectionIndex, setActiveSectionIndex] = useState<number | null>(null);
   const [blueprintJson, setBlueprintJson] = useState<any>(null);
-  const [viewingCodeSnippet, setViewingCodeSnippet] = useState<{title: string, content: string} | null>(null);
+  const [viewingCodeSnippet, setViewingCodeSnippet] = useState<{ title: string, content: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleImportBlueprint = () => {
@@ -207,7 +207,7 @@ export default function TicketLogViewer({
 
   const handleCardClick = (idx: number) => {
     const sec = sections[idx];
-    
+
     const lines = sec.content.split('\n').filter(l => l.trim() !== '' && !l.trim().startsWith('---'));
     const isKeyValue = sec.title !== 'System Log History' && lines.length > 0 && lines.every(line => {
       const idx = line.indexOf(':');
@@ -300,11 +300,11 @@ export default function TicketLogViewer({
               <span className="material-symbols-outlined !text-[14px]">format_list_bulleted</span>
               {t("support_mods_list")} ({(blueprintJson.mods?.length || 0)})
             </div>
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder={t("playsets_search_ph")}
-              className="!h-12 !rounded-2xl"
+            <ActionPill
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              searchPlaceholder={t("playsets_search_ph")}
+              hideSearch={false}
             />
             <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
               {blueprintJson.mods?.filter((m: string) => m.toLowerCase().includes(searchQuery.toLowerCase())).map((m: string, i: number) => {
@@ -324,10 +324,10 @@ export default function TicketLogViewer({
       )}
 
       {viewingCodeSnippet && (
-        <CodeSnippetSidebar 
-          title={viewingCodeSnippet.title} 
-          code={viewingCodeSnippet.content} 
-          onClose={() => setViewingCodeSnippet(null)} 
+        <CodeSnippetSidebar
+          title={viewingCodeSnippet.title}
+          code={viewingCodeSnippet.content}
+          onClose={() => setViewingCodeSnippet(null)}
         />
       )}
     </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLexicon } from './LexiconContext';
-import { SidePanel, standardPrimaryButtonClass, SearchBar } from './shared';
+import { SidePanel, standardPrimaryButtonClass, ActionPill } from './shared';
 import { useTheme } from './ThemeContext';
 
 export default function VersionTimeline({ 
@@ -97,7 +97,7 @@ export default function VersionTimeline({
     >
       <div className="flex flex-col gap-6 w-full h-full relative z-10" style={{ color: currentTheme.text }}>
         <div className="px-1 mt-1">
-          <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder={t("timeline_search")} />
+          <ActionPill searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchPlaceholder={t("timeline_search")} />
         </div>
 
         {loading && (

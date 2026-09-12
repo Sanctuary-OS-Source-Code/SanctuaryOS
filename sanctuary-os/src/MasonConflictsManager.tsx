@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase, getActiveGameClient } from "./supabase";
 import { useStore } from './store';
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, formatOverviewMetric, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton, ScreenUtilityBar, FilterPopover, FilterTabs, FilterTabButton } from "./shared";
+import { ModSearchDropdown, SidePanel, formatOverviewMetric, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton, FilterPopover, FilterTabs, FilterTabButton } from "./shared";
 import { logArchitectAction } from "./lib/audit";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { ElevatedHubLayout } from './components/layouts/ElevatedHubLayout';

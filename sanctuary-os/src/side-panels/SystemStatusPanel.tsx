@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { SidePanel, FilterTabs, FilterTabButton } from '../shared';
+import { SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton } from '../shared';
 import { UniversalGroup } from '../components/universal/UniversalLayout';
 import { useModalStore } from '../store/modalStore';
 import { useStore } from '../store';
@@ -235,22 +235,22 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
             title={t("sys_info_app_footprint")}
             icon={t("icon_monitoring")}
             headerAction={
-              <FilterTabs className="shrink-0 scale-90 origin-right !h-auto">
-                <FilterTabButton
+              <PillTabs className="shrink-0 scale-90 origin-right !h-auto">
+                <PillTabButton
                   id={false}
                   activeTab={usePrivateMemory}
                   setTab={setUsePrivateMemory}
                   label={t("sys_stat_working_set")}
                   className="py-1.5 px-3 text-[9px] whitespace-nowrap"
                 />
-                <FilterTabButton
+                <PillTabButton
                   id={true}
                   activeTab={usePrivateMemory}
                   setTab={setUsePrivateMemory}
                   label={t("sys_stat_private_set")}
                   className="py-1.5 px-3 text-[9px] whitespace-nowrap"
                 />
-              </FilterTabs>
+              </PillTabs>
             }
             innerClassName="flex flex-col gap-4"
           >
