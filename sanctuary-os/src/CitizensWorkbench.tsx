@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, FilterTabs, FilterTabButton, ActionPill } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, FilterTabs, FilterTabButton, ActionPill, PillTabs, PillTabButton, CustomDropdown } from './shared';
 import { WorkbenchFileGrid } from './workbench/WorkbenchFileGrid';
 import { WorkbenchSidePanel } from './workbench/WorkbenchSidePanel';
 import { PushTemplateSidePanel } from './side-panels/PushTemplateSidePanel';
@@ -107,10 +107,17 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                      setSearchQuery={setMainSearchQuery}
                      searchPlaceholder={t("search_files") as string}
                      rightContent={
-                        <div className="flex items-center glass-panel rounded-xl overflow-hidden divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-10 shrink-0 hidden md:flex">
-                           <button onClick={() => setGridFilter("ALL")} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${gridFilter === "ALL" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>ALL</button>
-                           <button onClick={() => setGridFilter("UNSAVED")} className={`h-full px-4 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${gridFilter === "UNSAVED" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("unsaved_changes")}</button>
-                        </div>
+                        <CustomDropdown
+                           flat={true}
+                           variant="pill"
+                           disableTint={true}
+                           value={gridFilter}
+                           onChange={(v: string[]) => setGridFilter(v[0] as "ALL" | "UNSAVED")}
+                           options={[
+                              { id: "ALL", label: "ALL" },
+                              { id: "UNSAVED", label: t("unsaved_changes") }
+                           ]}
+                        />
                      }
                   />
                </div>
@@ -140,11 +147,18 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                               title={t("recent_activity")}
                               icon="history"
                               rightContent={
-                                 <FilterTabs>
-                                    <FilterTabButton id="ALL" label="ALL" activeTab={feedFilter} setTab={setFeedFilter} />
-                                    <FilterTabButton id="CONFIGS" label={t("configs")} activeTab={feedFilter} setTab={setFeedFilter} />
-                                    <FilterTabButton id="TEMPLATES" label={t("ql_templates")} activeTab={feedFilter} setTab={setFeedFilter} />
-                                 </FilterTabs>
+                                 <CustomDropdown
+                                    flat={true}
+                                    variant="pill"
+                                    disableTint={true}
+                                    value={feedFilter}
+                                    onChange={(v: string[]) => setFeedFilter(v[0] as any)}
+                                    options={[
+                                       { id: "ALL", label: "ALL" },
+                                       { id: "CONFIGS", label: t("configs") },
+                                       { id: "TEMPLATES", label: t("ql_templates") }
+                                    ]}
+                                 />
                               }
                            />
 

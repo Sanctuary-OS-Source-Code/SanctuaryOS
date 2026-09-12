@@ -4,6 +4,7 @@ import { useLexicon } from "./LexiconContext";
 import { ViewHeader, HubTabButton, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton, HoverTabDrawer, VerticalTabButton, ActionPill } from "./shared";
 import { TimeCapsuleSidePanel } from "./side-panels/TimeCapsuleSidePanels";
 import { useModalStore } from "./store/modalStore";
+import { CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 
 export default function TimeCapsule({
   selectedVersion, isBackingUp, triggerPrePatchSnapshot, triggerFullEngineBackup,
@@ -152,25 +153,25 @@ export default function TimeCapsule({
 
         <div className="mt-auto relative z-20 h-10">
 
-          <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName || confirmDeleteBackup === backupName ? 'opacity-0 translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
+          <div className={`grid grid-cols-[2fr_1fr_1fr] gap-2 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] p-1.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner rounded-xl transition-all duration-300 ${confirmRestoreBackup === backupName || confirmDeleteBackup === backupName ? 'opacity-0 translate-y-4 pointer-events-none absolute inset-x-0' : 'opacity-100 translate-y-0 relative'}`}>
             <button
               onClick={() => setConfirmRestoreBackup(backupName)}
-              className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${themeColor} glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors duration-300 rounded-xl shadow-sm group/rest`}
+              className={`h-[32px] flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${themeColor} bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 rounded-lg group/rest hover:scale-[1.03] active:scale-95 shadow-sm hover:shadow-md`}
             >
-              <span className={`material-symbols-outlined !text-sm group-hover/rest:scale-110 transition-transform`}>{t("icon_restore")}</span>
+              <span className={`material-symbols-outlined !text-[16px]`}>{t("icon_restore")}</span>
               {t("btn_restore")}
             </button>
             <button
               onClick={() => { setSelectedBackupForInspection(backupName); setIsSidePanelOpen(true); }}
-              className="flex-[1] h-full flex items-center justify-center text-[color-mix(in_srgb,var(--text)_80%,transparent)] hover:text-[var(--text)] glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors duration-300 rounded-xl shadow-sm group/ins"
+              className="h-[32px] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 rounded-lg group/ins hover:scale-[1.03] active:scale-95 shadow-sm hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.15)]"
             >
-              <span className="material-symbols-outlined !text-sm group-hover/ins:scale-110 transition-transform">search</span>
+              <span className="material-symbols-outlined !text-[16px]">search</span>
             </button>
             <button
               onClick={() => setConfirmDeleteBackup(backupName)}
-              className="flex-[1] h-full flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_80%,transparent)] hover:text-red-500 glass-surface hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-colors duration-300 rounded-xl shadow-sm group/del"
+              className="h-[32px] flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_60%,transparent)] hover:text-[var(--danger)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] transition-all duration-300 rounded-lg group/del hover:scale-[1.03] active:scale-95 shadow-sm hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.15)]"
             >
-              <span className="material-symbols-outlined !text-sm group-hover/del:scale-110 transition-transform">{t("icon_delete")}</span>
+              <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
             </button>
           </div>
 
@@ -299,39 +300,40 @@ export default function TimeCapsule({
               <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {worldBackups.length > 0 && (
                   <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-                      <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.1),0_0_15px_rgba(var(--accent-rgb),0.2)] flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined !text-[24px] text-[var(--accent)] drop-shadow-md">{t("icon_public")}</span>
+                    <CommandScreenSectionHeading
+                      title={
+                        <div className="flex items-center gap-4">
+                          {t("recent_world_states")}
+                          {!confirmSealWorld ? (
+                            <button
+                              onClick={() => setConfirmSealWorld(true)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all shadow-[0_0_10px_rgba(99,102,241,0.1)] hover:shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:scale-[1.02] active:scale-95 ml-2"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">public</span>
+                              {t("btn_seal_state")}
+                            </button>
+                          ) : (
+                            <div className="flex gap-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-200 ml-2">
+                              <button
+                                onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] font-black text-[9px] uppercase tracking-widest rounded-lg transition-all shadow-[0_0_10px_rgba(var(--success-rgb),0.1)] hover:shadow-[0_0_15px_rgba(var(--success-rgb),0.2)] hover:scale-[1.02] active:scale-95"
+                              >
+                                <span className="material-symbols-outlined !text-[14px]">check_circle</span>
+                                {t("btn_confirm")}
+                              </button>
+                              <button
+                                onClick={() => setConfirmSealWorld(false)}
+                                className="w-7 h-7 flex items-center justify-center bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] rounded-lg transition-all hover:scale-[1.02] active:scale-95"
+                              >
+                                <span className="material-symbols-outlined !text-[14px]">close</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        {t("recent_world_states")}
-                      </h3>
-                      {!confirmSealWorld ? (
-                        <ActionButton
-                          icon="public"
-                          className="h-10 px-6 py-0 shrink-0"
-                          label={t("btn_seal_state")}
-                          onClick={() => setConfirmSealWorld(true)}
-                          variant="world"
-                        />
-                      ) : (
-                        <div className="flex gap-2 shrink-0">
-                          <ActionButton
-                            icon="check_circle"
-                            label={t("btn_confirm")}
-                            onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }}
-                            className="h-10 px-6 py-0"
-                            variant="success"
-                          />
-                          <ActionButton
-                            icon="close"
-                            onClick={() => setConfirmSealWorld(false)}
-                            className="h-10 w-10 px-0 py-0 flex items-center justify-center"
-                            variant="danger"
-                          />
-                        </div>
-                      )}
-                    </div>
+                      }
+                      icon="public"
+                      iconColorClass="text-indigo-400"
+                    />
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
                       {worldBackups.slice(0, 6).map(renderBackupCard)}
                     </div>
@@ -340,39 +342,40 @@ export default function TimeCapsule({
 
                 {engineBackups.length > 0 && (
                   <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-                      <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.1),0_0_15px_rgba(var(--danger-rgb),0.2)] flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined !text-[24px] text-[var(--danger)] drop-shadow-md">{t("icon_settings")}</span>
+                    <CommandScreenSectionHeading
+                      title={
+                        <div className="flex items-center gap-4">
+                          {t("recent_engine_cores")}
+                          {!confirmSealEngine ? (
+                            <button
+                              onClick={() => setConfirmSealEngine(true)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all shadow-[0_0_10px_rgba(244,63,94,0.1)] hover:shadow-[0_0_15px_rgba(244,63,94,0.2)] hover:scale-[1.02] active:scale-95 ml-2"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">settings</span>
+                              {t("btn_seal_engine")}
+                            </button>
+                          ) : (
+                            <div className="flex gap-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-200 ml-2">
+                              <button
+                                onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] font-black text-[9px] uppercase tracking-widest rounded-lg transition-all shadow-[0_0_10px_rgba(var(--warning-rgb),0.1)] hover:shadow-[0_0_15px_rgba(var(--warning-rgb),0.2)] hover:scale-[1.02] active:scale-95"
+                              >
+                                <span className="material-symbols-outlined !text-[14px]">warning_amber</span>
+                                {t("btn_confirm")}
+                              </button>
+                              <button
+                                onClick={() => setConfirmSealEngine(false)}
+                                className="w-7 h-7 flex items-center justify-center bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] rounded-lg transition-all hover:scale-[1.02] active:scale-95"
+                              >
+                                <span className="material-symbols-outlined !text-[14px]">close</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        {t("recent_engine_cores")}
-                      </h3>
-                      {!confirmSealEngine ? (
-                        <ActionButton
-                          icon="settings"
-                          className="h-10 px-6 py-0 shrink-0"
-                          label={t("btn_seal_engine")}
-                          onClick={() => setConfirmSealEngine(true)}
-                          variant="engine"
-                        />
-                      ) : (
-                        <div className="flex gap-2 shrink-0">
-                          <ActionButton
-                            icon="warning_amber"
-                            label={t("btn_confirm")}
-                            onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }}
-                            className="h-10 px-6 py-0"
-                            variant="warning"
-                          />
-                          <ActionButton
-                            icon="close"
-                            onClick={() => setConfirmSealEngine(false)}
-                            className="h-10 w-10 px-0 py-0 flex items-center justify-center"
-                            variant="danger"
-                          />
-                        </div>
-                      )}
-                    </div>
+                      }
+                      icon="settings"
+                      iconColorClass="text-rose-400"
+                    />
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
                       {engineBackups.slice(0, 6).map(renderBackupCard)}
                     </div>

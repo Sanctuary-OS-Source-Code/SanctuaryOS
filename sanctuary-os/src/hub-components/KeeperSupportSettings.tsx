@@ -447,71 +447,53 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${draft.requires_target_mod ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                      <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 truncate ${draft.requires_target_mod ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                        <span className="material-symbols-outlined !text-[14px]">extension</span>
-                        <span className="truncate">{t("support_req_target_mod")}</span>
-                      </span>
-                      <div className={`w-8 h-5 rounded-full transition-colors relative shadow-inner shrink-0 ${draft.requires_target_mod ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full bg-[var(--bg)] absolute top-[3px] transition-transform shadow-md ${draft.requires_target_mod ? 'translate-x-4' : 'translate-x-[3px]'}`} />
-                      </div>
-                      <input type="checkbox" checked={draft.requires_target_mod || false} onChange={e => setDraft({...draft, requires_target_mod: e.target.checked})} className="hidden" />
-                    </label>
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.requires_target_mod ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">extension</span>
+                            {t("support_req_target_mod")}
+                        </span>
+                        <UniversalToggle checked={draft.requires_target_mod || false} onChange={val => setDraft({...draft, requires_target_mod: val})} />
+                    </div>
 
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${draft.requires_target_user ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                      <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 truncate ${draft.requires_target_user ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                        <span className="material-symbols-outlined !text-[14px]">person</span>
-                        <span className="truncate">{t("support_req_target_user")}</span>
-                      </span>
-                      <div className={`w-8 h-5 rounded-full transition-colors relative shadow-inner shrink-0 ${draft.requires_target_user ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full bg-[var(--bg)] absolute top-[3px] transition-transform shadow-md ${draft.requires_target_user ? 'translate-x-4' : 'translate-x-[3px]'}`} />
-                      </div>
-                      <input type="checkbox" checked={draft.requires_target_user || false} onChange={e => setDraft({...draft, requires_target_user: e.target.checked})} className="hidden" />
-                    </label>
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.requires_target_user ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">person</span>
+                            {t("support_req_target_user")}
+                        </span>
+                        <UniversalToggle checked={draft.requires_target_user || false} onChange={val => setDraft({...draft, requires_target_user: val})} />
+                    </div>
 
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${draft.show_title_box ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                      <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 truncate ${draft.show_title_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                        <span className="material-symbols-outlined !text-[14px]">title</span>
-                        <span className="truncate">{t("support_show_title")}</span>
-                      </span>
-                      <div className={`w-8 h-5 rounded-full transition-colors relative shadow-inner shrink-0 ${draft.show_title_box ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full bg-[var(--bg)] absolute top-[3px] transition-transform shadow-md ${draft.show_title_box ? 'translate-x-4' : 'translate-x-[3px]'}`} />
-                      </div>
-                      <input type="checkbox" checked={draft.show_title_box || false} onChange={e => setDraft({...draft, show_title_box: e.target.checked})} className="hidden" />
-                    </label>
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_title_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">title</span>
+                            {t("support_show_title")}
+                        </span>
+                        <UniversalToggle checked={draft.show_title_box || false} onChange={val => setDraft({...draft, show_title_box: val})} />
+                    </div>
 
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${draft.show_description_box ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                      <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 truncate ${draft.show_description_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                        <span className="material-symbols-outlined !text-[14px]">description</span>
-                        <span className="truncate">{t("support_show_desc")}</span>
-                      </span>
-                      <div className={`w-8 h-5 rounded-full transition-colors relative shadow-inner shrink-0 ${draft.show_description_box ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full bg-[var(--bg)] absolute top-[3px] transition-transform shadow-md ${draft.show_description_box ? 'translate-x-4' : 'translate-x-[3px]'}`} />
-                      </div>
-                      <input type="checkbox" checked={draft.show_description_box || false} onChange={e => setDraft({...draft, show_description_box: e.target.checked})} className="hidden" />
-                    </label>
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_description_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">description</span>
+                            {t("support_show_desc")}
+                        </span>
+                        <UniversalToggle checked={draft.show_description_box || false} onChange={val => setDraft({...draft, show_description_box: val})} />
+                    </div>
 
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${draft.show_logs_box ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                      <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 truncate ${draft.show_logs_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                        <span className="material-symbols-outlined !text-[14px]">history</span>
-                        <span className="truncate">{t("support_show_logs")}</span>
-                      </span>
-                      <div className={`w-8 h-5 rounded-full transition-colors relative shadow-inner shrink-0 ${draft.show_logs_box ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full bg-[var(--bg)] absolute top-[3px] transition-transform shadow-md ${draft.show_logs_box ? 'translate-x-4' : 'translate-x-[3px]'}`} />
-                      </div>
-                      <input type="checkbox" checked={draft.show_logs_box || false} onChange={e => setDraft({...draft, show_logs_box: e.target.checked})} className="hidden" />
-                    </label>
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_logs_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">history</span>
+                            {t("support_show_logs")}
+                        </span>
+                        <UniversalToggle checked={draft.show_logs_box || false} onChange={val => setDraft({...draft, show_logs_box: val})} />
+                    </div>
 
-                    <label className={`w-full glass-panel rounded-2xl px-4 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${draft.attach_blueprints ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                      <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 truncate ${draft.attach_blueprints ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                        <span className="material-symbols-outlined !text-[14px]">architecture</span>
-                        <span className="truncate">{t("support_attach_blueprints")}</span>
-                      </span>
-                      <div className={`w-8 h-5 rounded-full transition-colors relative shadow-inner shrink-0 ${draft.attach_blueprints ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full bg-[var(--bg)] absolute top-[3px] transition-transform shadow-md ${draft.attach_blueprints ? 'translate-x-4' : 'translate-x-[3px]'}`} />
-                      </div>
-                      <input type="checkbox" checked={draft.attach_blueprints || false} onChange={e => setDraft({...draft, attach_blueprints: e.target.checked})} className="hidden" />
-                    </label>
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.attach_blueprints ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">architecture</span>
+                            {t("support_attach_blueprints")}
+                        </span>
+                        <UniversalToggle checked={draft.attach_blueprints || false} onChange={val => setDraft({...draft, attach_blueprints: val})} />
+                    </div>
                 </div>
             </div>
         </SidePanel>

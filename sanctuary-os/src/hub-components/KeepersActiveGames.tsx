@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { SidePanel, standardButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass, ActionButton } from '../shared';
+import { SidePanel, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, DashboardStatTile, standardPrimaryButtonClass, standardDangerButtonClass, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { useLexicon } from '../LexiconContext';
 import { logArchitectAction } from '../lib/audit';
 import { UniversalCard } from '../components/universal/UniversalCard';
@@ -213,16 +213,11 @@ export default function KeepersActiveGames() {
         title={sidePanelMode === 'edit' ? "EDIT DATABASE NODE" : (t("ui_register_game_db"))}
         subtitle={sidePanelMode === 'edit' ? "UPDATE CONFIGURATION" : (t("ui_add_network_node"))}
         icon="dns"
-        footer={
-          <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton type="button" onClick={() => setSidePanelMode(null)} label={t("nav_cancel")}>
-              
-            </ActionButton>
-            <ActionButton onClick={handleSaveGame} label={t("btn_save")} icon="save">
-              
-              
-            </ActionButton>
-          </div>
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={() => setSidePanelMode(null)} />
+            <PanelHeaderButton icon="save" variant="success" tooltip={t("btn_save")} onClick={handleSaveGame} />
+          </PanelHeaderGroup>
         }
       >
         <div className="flex flex-col gap-6 w-full">

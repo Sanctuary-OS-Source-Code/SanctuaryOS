@@ -2230,36 +2230,6 @@ export function SidePanel({
   return createPortal(panelContent, portalRoot);
 }
 
-export function SearchBar({ value, onChange, placeholder = "Search...", className = "", isLoading, variant = "default" }: { value: string; onChange: (v: string) => void; placeholder?: string, className?: string, isLoading?: boolean, variant?: "default" | "panel" }) {
-  const bgClass = variant === "panel" ? "bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]" : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner";
-  return (
-    <div className={`relative flex items-center ${bgClass} h-12 rounded-xl border focus-within:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all group w-full ${className.replace(/h-\S+|!h-\S+|rounded-\S+|!rounded-\S+|w-full|h-full/g, '').trim()}`}>
-      <div className="pl-4 pr-2 py-2 flex items-center justify-center shrink-0">
-        {isLoading ? (
-          <span className="material-symbols-outlined !text-[16px] theme-text-accent animate-spin">refresh</span>
-        ) : (
-          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-focus-within:text-[var(--accent)] transition-colors">search</span>
-        )}
-      </div>
-      <input
-        type="text"
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-transparent border-none px-2 py-2 text-[11px] font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-50 tracking-wider min-w-0"
-      />
-      {value.trim() !== "" && (
-        <button
-          onClick={() => onChange("")}
-          className="pr-4 pl-2 flex items-center justify-center shrink-0 text-[var(--subtext)] opacity-50 hover:opacity-100 hover:text-[var(--danger)] transition-all focus:outline-none"
-        >
-          <span className="material-symbols-outlined !text-[16px]">close</span>
-        </button>
-      )}
-    </div>
-  );
-}
-
 export const extractPostImage = (markdown: any): string | undefined => {
   if (!markdown) return undefined;
 

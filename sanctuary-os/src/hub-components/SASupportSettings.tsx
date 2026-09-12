@@ -7,7 +7,6 @@ import { supabase } from "../supabase";
 import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
-
 import { logArchitectAction } from "../lib/audit";
 
 interface CustomField {
@@ -530,41 +529,45 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <div className="flex items-center justify-start">
-                        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_req_target_mod")}</span>
-                        <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                            <input type="checkbox" className="sr-only peer" checked={draft.requires_target_mod} onChange={e => setDraft({ ...draft, requires_target_mod: e.target.checked })} />
-                            <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-                        </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.requires_target_mod ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">extension</span>
+                            {t("support_req_target_mod")}
+                        </span>
+                        <UniversalToggle checked={draft.requires_target_mod || false} onChange={val => setDraft({...draft, requires_target_mod: val})} />
                     </div>
-                    <div className="flex items-center justify-start">
-                        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_req_target_user")}</span>
-                        <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                            <input type="checkbox" className="sr-only peer" checked={draft.requires_target_user} onChange={e => setDraft({ ...draft, requires_target_user: e.target.checked })} />
-                            <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-                        </label>
+
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.requires_target_user ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">person</span>
+                            {t("support_req_target_user")}
+                        </span>
+                        <UniversalToggle checked={draft.requires_target_user || false} onChange={val => setDraft({...draft, requires_target_user: val})} />
                     </div>
-                    <div className="flex items-center justify-start">
-                        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_show_title")}</span>
-                        <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                            <input type="checkbox" className="sr-only peer" checked={draft.show_title_box} onChange={e => setDraft({ ...draft, show_title_box: e.target.checked })} />
-                            <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-                        </label>
+
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_title_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">title</span>
+                            {t("support_show_title")}
+                        </span>
+                        <UniversalToggle checked={draft.show_title_box || false} onChange={val => setDraft({...draft, show_title_box: val})} />
                     </div>
-                    <div className="flex items-center justify-start">
-                        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_show_desc")}</span>
-                        <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                            <input type="checkbox" className="sr-only peer" checked={draft.show_description_box} onChange={e => setDraft({ ...draft, show_description_box: e.target.checked })} />
-                            <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-                        </label>
+
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_description_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">description</span>
+                            {t("support_show_desc")}
+                        </span>
+                        <UniversalToggle checked={draft.show_description_box || false} onChange={val => setDraft({...draft, show_description_box: val})} />
                     </div>
-                    <div className="flex items-center justify-start">
-                        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_40%,transparent)]" /> {t("support_show_logs")}</span>
-                        <label className="relative inline-flex items-center cursor-pointer scale-75 origin-right">
-                            <input type="checkbox" className="sr-only peer" checked={draft.show_logs_box} onChange={e => setDraft({ ...draft, show_logs_box: e.target.checked })} />
-                            <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-                        </label>
+
+                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
+                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_logs_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                            <span className="material-symbols-outlined !text-[14px]">history</span>
+                            {t("support_show_logs")}
+                        </span>
+                        <UniversalToggle checked={draft.show_logs_box || false} onChange={val => setDraft({...draft, show_logs_box: val})} />
                     </div>
                 </div>
 
@@ -578,19 +581,19 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                         <div className="flex flex-col gap-3 p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                             <span className="text-[9px] font-black capitalize tracking-widest theme-text-accent flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_bug_report")}</span> {t("support_mod_reports")}</span>
                             {telemetrySources.filter(s => s.type === 'MOD' && s.is_active).map(source => (
-                                <div key={source.id} className="flex items-center justify-start group">
+                                <div key={source.id} className="flex items-center justify-between group py-1">
                                     <div className="flex flex-col">
                                         <span className="text-[9px] font-bold capitalize tracking-widest text-[var(--subtext)]">{source.label}</span>
                                         <span className="text-[8px] font-bold capitalize tracking-widest opacity-40">{source.description || source.file_pattern}</span>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer scale-[0.6] origin-right">
-                                        <input type="checkbox" className="sr-only peer" checked={draft.telemetry_config?.sources?.includes(source.id) || false} onChange={e => {
+                                    <UniversalToggle 
+                                        checked={draft.telemetry_config?.sources?.includes(source.id) || false} 
+                                        onChange={val => {
                                             const currentSources = draft.telemetry_config?.sources || [];
-                                            const newSources = e.target.checked ? [...currentSources, source.id] : currentSources.filter(id => id !== source.id);
+                                            const newSources = val ? [...currentSources, source.id] : currentSources.filter((id: string) => id !== source.id);
                                             setDraft({ ...draft, telemetry_config: { sources: newSources } });
-                                        }} />
-                                        <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-                                    </label>
+                                        }} 
+                                    />
                                 </div>
                             ))}
                         </div>
@@ -598,19 +601,19 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                         <div className="flex flex-col gap-3 p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                             <span className="text-[9px] font-black capitalize tracking-widest opacity-60 flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_memory")}</span> {t("support_os_reports")}</span>
                             {telemetrySources.filter(s => s.type === 'OS' && s.is_active).map(source => (
-                                <div key={source.id} className="flex items-center justify-start group">
+                                <div key={source.id} className="flex items-center justify-between group py-1">
                                     <div className="flex flex-col">
                                         <span className="text-[9px] font-bold capitalize tracking-widest text-[var(--subtext)]">{source.label}</span>
                                         <span className="text-[8px] font-bold capitalize tracking-widest opacity-40">{source.description || source.file_pattern}</span>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer scale-[0.6] origin-right">
-                                        <input type="checkbox" className="sr-only peer" checked={draft.telemetry_config?.sources?.includes(source.id) || false} onChange={e => {
+                                    <UniversalToggle 
+                                        checked={draft.telemetry_config?.sources?.includes(source.id) || false} 
+                                        onChange={val => {
                                             const currentSources = draft.telemetry_config?.sources || [];
-                                            const newSources = e.target.checked ? [...currentSources, source.id] : currentSources.filter(id => id !== source.id);
+                                            const newSources = val ? [...currentSources, source.id] : currentSources.filter((id: string) => id !== source.id);
                                             setDraft({ ...draft, telemetry_config: { sources: newSources } });
-                                        }} />
-                                        <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-                                    </label>
+                                        }} 
+                                    />
                                 </div>
                             ))}
                         </div>
