@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, ModSearchDropdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, getExtensionRegex, SearchBar, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "./shared";
+import { ViewHeader, ModSearchDropdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, ActionButton, FilterTabs, FilterTabButton, SidePanel, getExtensionRegex, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "./shared";
 import { CommandScreenLayout, DashboardStatTile, CommandScreenStats, CommandScreenQuickLink, CommandScreenSectionHeading, CommandScreenBody, CommandScreenMain, CommandScreenSidebar } from "./hub-components/SharedCommandScreenLayout";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { useStore } from "./store";

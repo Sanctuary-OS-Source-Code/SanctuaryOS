@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { supabase, getActiveGameClient } from "./supabase";
 import { useStore } from './store';
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, formatOverviewMetric, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton, FilterPopover, FilterTabs, FilterTabButton } from "./shared";
+import { ModSearchDropdown, SidePanel, formatOverviewMetric, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton, FilterTabs, FilterTabButton, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton } from "./shared";
 import { logArchitectAction } from "./lib/audit";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { ElevatedHubLayout } from './components/layouts/ElevatedHubLayout';
@@ -175,7 +175,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
         statusColor={borderColor}
         onClick={() => {
           if (activeTab === "LANDING") {
-             setActiveTab(c.severity_rank === 4 ? "4" : "3");
+            setActiveTab(c.severity_rank === 4 ? "4" : "3");
           }
           handleEditConflict(c);
         }}
@@ -241,12 +241,12 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
 
   const renderList = (listConflicts: any[]) => (
     <>
-        {loading ? (
-          <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("hub_loading") || "Loading..."}</div>
-        ) : listConflicts.length > 0 ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
-            {listConflicts.map(renderConflictCard)}
-          </div>
+      {loading ? (
+        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("hub_loading") || "Loading..."}</div>
+      ) : listConflicts.length > 0 ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
+          {listConflicts.map(renderConflictCard)}
+        </div>
       ) : (
         <EmptyState icon="history" title={t("masonhub_no_conflicts") || "No Conflicts"} className="py-16" />
       )}
@@ -291,49 +291,25 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
             isOpen={isSidePanelOpen}
             onClose={() => setIsSidePanelOpen(false)}
             title={editConflictId ? t("edit_side_panel") : t("forge_title")}
-            icon="security"
-            footer={
-              <div className="flex flex-col gap-4 w-full">
-                {deleteConfirmId === editConflictId && editConflictId ? (
-                  <div className="flex flex-col gap-4 p-5 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
-                    <span className="text-sm font-black text-[var(--danger)] capitalize tracking-widest text-center">{t("ui_confirm_delete")}</span>
-                    <input
-                      type="text"
-                      value={deleteReason}
-                      onChange={e => setDeleteReason(e.target.value)}
-                      placeholder={t("matrix_delete_reason_ph")}
-                      className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] placeholder:opacity-40"
-                    />
-                    <div className="flex gap-3">
-                      <ActionButton type="button" disabled={!deleteReason.trim()} onClick={() => handleDeleteConflict(editConflictId)} label={t("purge")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"></ActionButton>
-                      <ActionButton type="button" onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }} label={t("nav_cancel")}></ActionButton>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex justify-center items-center gap-4 w-full">
-                    {!editConflictId && (
-                      <ActionButton type="button" onClick={() => setIsSidePanelOpen(false)} label={t("nav_cancel")}>
-
-                      </ActionButton>
-                    )}
-                    {editConflictId && (
-                      <ActionButton type="button" onClick={() => setDeleteConfirmId(editConflictId)} label={t("purge")}>
-
-                      </ActionButton>
-                    )}
-                    <ActionButton type="button" onClick={(e) => handleAddConflict(e)} disabled={isSubmitting || !activeMaster || !conflictEnemy} label={isSubmitting ? "..." : (editConflictId ? t("masonhub_update_conflict") : t("add_conflict"))}>
-
-                    </ActionButton>
-                  </div>
+            headerActions={
+              <PanelHeaderGroup>
+                {!editConflictId && (
+                  <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={() => setIsSidePanelOpen(false)} />
                 )}
-              </div>
+                {editConflictId && deleteConfirmId !== editConflictId && (
+                  <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge")} onClick={() => setDeleteConfirmId(editConflictId)} />
+                )}
+                {deleteConfirmId !== editConflictId && (
+                  <PanelHeaderButton icon="check" variant="success" disabled={isSubmitting || !activeMaster || !conflictEnemy} tooltip={isSubmitting ? "..." : (editConflictId ? t("masonhub_update_conflict") : t("add_conflict"))} onClick={(e: any) => handleAddConflict(e)} />
+                )}
+              </PanelHeaderGroup>
             }
             noPadding={true}
             noScroll={true}
           >
             <div className="flex flex-col h-full overflow-hidden relative">
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-32 relative z-10">
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-8 relative z-10">
 
                 <form onSubmit={handleAddConflict} className="flex flex-col gap-8 relative z-10">
                   <div className="flex flex-col gap-6">
@@ -381,12 +357,29 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 w-full mt-2 mb-8">
+                  <div className="flex flex-col gap-2 w-full mt-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
                       {t("label_notes")}
                     </label>
                     <textarea value={conflictResolution} onChange={(e) => setConflictResolution(e.target.value)} placeholder={t("resolution_placeholder")} className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-border-accent resize-none custom-scrollbar shadow-inner relative z-10 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]" />
                   </div>
+
+                  {deleteConfirmId === editConflictId && editConflictId && (
+                    <div className="flex flex-col gap-4 p-5 mt-4 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
+                      <span className="text-sm font-black text-[var(--danger)] capitalize tracking-widest text-center">{t("ui_confirm_delete")}</span>
+                      <input
+                        type="text"
+                        value={deleteReason}
+                        onChange={e => setDeleteReason(e.target.value)}
+                        placeholder={t("matrix_delete_reason_ph")}
+                        className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] placeholder:opacity-40"
+                      />
+                      <div className="flex justify-center gap-3 mt-2">
+                        <ActionButton type="button" disabled={!deleteReason.trim()} onClick={() => handleDeleteConflict(editConflictId)} label={t("purge")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"></ActionButton>
+                        <ActionButton type="button" onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }} label={t("nav_cancel")}></ActionButton>
+                      </div>
+                    </div>
+                  )}
 
                 </form>
               </div>
@@ -397,69 +390,3 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
     </ElevatedHubLayout>
   );
 }
-
-function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val: number) => void }) {
-  const { t } = useLexicon();
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const options = [
-    { id: 4, label: t("tier4"), color: 'theme-text-danger', glow: 'theme-bg-danger', activeBg: 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' },
-    { id: 3, label: t("tier3"), color: 'theme-text-warning', glow: 'theme-bg-warning', activeBg: 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]' },
-  ];
-
-  const selected = options.find(o => o.id === value) || options[0];
-
-  return (
-    <div className={`relative w-full shrink-0 ${isOpen ? 'z-[6000]' : ''}`} ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-12 glass-surface rounded-xl px-5 text-[11px] font-black capitalize tracking-widest focus:outline-none flex justify-start items-center transition-all ${selected.color}`}
-      >
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${selected.glow}`} />
-          {selected.label}
-        </div>
-        <span className="transition-colors shrink-0 flex items-center justify-center text-[var(--subtext)] opacity-60"><span className="material-symbols-outlined !text-[20px]">{isOpen ? 'expand_less' : 'expand_more'}</span></span>
-      </button>
-
-      {isOpen && createPortal(
-        (() => {
-          const rect = containerRef.current?.getBoundingClientRect();
-          if (!rect) return null;
-          const spaceBelow = window.innerHeight - rect.bottom;
-          const shouldDropUp = spaceBelow < 200;
-
-          return (
-            <>
-              <div className="fixed inset-0 z-[50000]" onClick={() => setIsOpen(false)} />
-              <div className="fixed glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-md z-[50001] max-h-60 overflow-y-auto custom-scrollbar flex flex-col animate-in fade-in slide-in-from-top-2" style={{
-                top: shouldDropUp ? undefined : rect.bottom + 8,
-                bottom: shouldDropUp ? window.innerHeight - rect.top + 8 : undefined,
-                left: rect.left,
-                width: rect.width,
-              }}>
-                {options.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => { onChange(opt.id); setIsOpen(false); }}
-                    className={`w-full text-left px-5 py-4 transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center gap-3 ${value === opt.id ? opt.activeBg + ' ' + opt.color : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-70 hover:opacity-100'}`}
-                  >
-                    <div className={`w-2 h-2 rounded-full ${opt.glow} ${value === opt.id ? 'animate-pulse' : ''}`} />
-                    <span className="text-[11px] font-black capitalize tracking-widest">{opt.label}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          );
-        })(), document.body
-      )}
-    </div>
-  );
-}
-
-
-
-

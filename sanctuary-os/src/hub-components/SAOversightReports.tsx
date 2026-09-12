@@ -1,8 +1,8 @@
-import { SearchBar } from "../shared";
+
 import React, { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton, FilterPopover } from "../shared";
+import { CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton, FilterPopover, ActionPill } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 
@@ -267,44 +267,44 @@ export default function SAOversightReports() {
         >
           <div className="flex flex-col gap-4 h-full">
              <div className="flex items-center gap-3 w-full border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 shrink-0 flex-wrap">
-               <div className="relative flex-1 min-w-[200px]">
-            <SearchBar
-              value={groupSearch}
-              onChange={setGroupSearch}
-              placeholder={t("oversight_search")}
-              className="h-12 w-full rounded-2xl"
-            />
-          </div>
-               
-               <PillTabs className="h-10">
-                 <PillTabButton
-                   id="all"
-                   label={t("ql_all")}
-                   activeTab={groupFilterTab}
-                   setTab={setGroupFilterTab}
-                 />
-                 <PillTabButton
-                   id="new"
-                   label={t("badge_new")}
-                   activeTab={groupFilterTab}
-                   setTab={setGroupFilterTab}
-                 />
-                 <PillTabButton
-                   id="archive"
-                   label={t("auto_archive")}
-                   activeTab={groupFilterTab}
-                   setTab={setGroupFilterTab}
-                 />
-               </PillTabs>
+               <ActionPill
+                 searchQuery={groupSearch}
+                 setSearchQuery={setGroupSearch}
+                 searchPlaceholder={t("oversight_search")}
+                 rightContent={
+                   <>
+                     <PillTabs>
+                       <PillTabButton
+                         id="all"
+                         label={t("ql_all")}
+                         activeTab={groupFilterTab}
+                         setTab={setGroupFilterTab}
+                       />
+                       <PillTabButton
+                         id="new"
+                         label={t("badge_new")}
+                         activeTab={groupFilterTab}
+                         setTab={setGroupFilterTab}
+                       />
+                       <PillTabButton
+                         id="archive"
+                         label={t("auto_archive")}
+                         activeTab={groupFilterTab}
+                         setTab={setGroupFilterTab}
+                       />
+                     </PillTabs>
 
-               <div className="w-max min-w-[144px] max-w-xs z-30 shrink-0">
-                 <CustomDropdown 
-                    value={groupTimeRange}
-                    onChange={setGroupTimeRange}
-                    options={timeOptions}
-                    disableTint
-                 />
-               </div>
+                     <CustomDropdown 
+                       flat={true}
+                       variant="pill"
+                       value={groupTimeRange}
+                       onChange={setGroupTimeRange}
+                       options={timeOptions}
+                       disableTint
+                     />
+                   </>
+                 }
+               />
              </div>
              
              <div className="grid grid-cols-2 gap-4 auto-rows-max overflow-y-auto custom-scrollbar flex-1 pr-2">

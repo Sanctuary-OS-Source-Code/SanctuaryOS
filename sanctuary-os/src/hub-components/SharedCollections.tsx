@@ -1,9 +1,9 @@
-import { SearchBar } from "../shared";
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton, FilterPopover, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton, FilterPopover, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction } from "../lib/audit";
@@ -301,7 +301,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
               <h4 className="text-[11px] font-black theme-text-accent capitalize tracking-widest">{t("registry_assets_title")}</h4>
 
               <div className="relative z-[6000]">
-                <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder={t("link_search")} className="rounded-2xl h-[58px]" />
+                <ActionPill searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchPlaceholder={t("link_search")} />
 
                 {searchQuery.length >= 2 && (
          <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
@@ -515,15 +515,14 @@ export function CollectionForge({ setStatus }: any) {
         </h2>
         <div className="flex items-center gap-3 relative flex-1 ml-auto justify-end">
           <div className="relative flex-1 max-w-[300px]">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("search_queue")}
-              className="h-12 w-full rounded-2xl"
+            <ActionPill
+              searchQuery={searchTerm}
+              setSearchQuery={setSearchTerm}
+              searchPlaceholder={t("search_queue")}
+              rightContent={
+                <CustomDropdown disableTint={true} variant="pill" flat={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
+              }
             />
-          </div>
-          <div className="w-max min-w-[160px] max-w-xs relative z-50 h-12">
-            <CustomDropdown disableTint={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
           </div>
           <ActionButton onClick={() => setIsForgePanelOpen(true)} className="h-12 px-6 shrink-0 font-black capitalize tracking-widest text-[10px]" icon={t("icon_add")} label={t("auto_create")} />
         </div>
@@ -663,7 +662,7 @@ export function CollectionForge({ setStatus }: any) {
               <h4 className="text-[11px] font-black theme-text-accent capitalize tracking-widest">{t("registry_assets_title")}</h4>
 
               <div className="relative z-[6000]">
-                <SearchBar value={assetSearch} onChange={setAssetSearch} placeholder={t("forge_search_assets")} className="rounded-2xl h-[58px]" isLoading={isSearching} />
+                <ActionPill searchQuery={assetSearch} setSearchQuery={setAssetSearch} searchPlaceholder={t("forge_search_assets")} isLoading={isSearching} />
 
                 {assetSearch.length >= 2 && availableAssets.length > 0 && (
          <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">

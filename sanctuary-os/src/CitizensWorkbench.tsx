@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, SearchBar, FilterTabs, FilterTabButton, ActionPill } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, FilterTabs, FilterTabButton, ActionPill } from './shared';
 import { WorkbenchFileGrid } from './workbench/WorkbenchFileGrid';
 import { WorkbenchSidePanel } from './workbench/WorkbenchSidePanel';
 import { PushTemplateSidePanel } from './side-panels/PushTemplateSidePanel';

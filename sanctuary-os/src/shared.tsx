@@ -661,6 +661,7 @@ export function ViewHeader({ title, subtitle, icon, iconColorClass = "text-[var(
 
 export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem, onClear, dropUp, className }: any) {
   const { t } = useLexicon();
+  const isInsideSidePanel = React.useContext(SidePanelContext);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -726,13 +727,20 @@ export function ModSearchDropdown({ modList, onSelect, placeholder, selectedItem
           return createPortal(
             <>
               <div className="!fixed inset-0 pointer-events-auto" style={{ zIndex: 300000 }} onClick={() => setIsOpen(false)} />
-              <div className="!fixed glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col" style={{
+              <div className={`!fixed glass-panel portal-glass-fix ${isInsideSidePanel ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-[0_0_40px_rgba(0,0,0,0.5)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl'} rounded-[var(--radius)] pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col`} style={{
                 zIndex: 300001,
                 top: coords.isDropUp ? undefined : coords.top,
                 bottom: coords.isDropUp ? coords.top : undefined,
                 left: coords.left,
                 width: coords.width,
               }}>
+                <style>{`
+                  #sa-portals .portal-glass-fix::before,
+                  #sa-portals .portal-glass-fix .glass-surface::before,
+                  #sa-portals .portal-glass-fix .glass-panel::before {
+                    display: block !important;
+                  }
+                `}</style>
                 {results.map((m: any, idx: number) => (
                   <button
                     key={`${m.hash || m.name}-${idx}`}
@@ -1477,7 +1485,7 @@ export function CustomDropdown({ value, onChange, options, allowCustom, searchab
   const dropdownMenu = isOpen ? createPortal(
     <>
       <div className="!fixed inset-0" style={{ zIndex: 100000000 }} onClick={() => setIsOpen(false)} />
-      <div className={`!fixed pointer-events-auto glass-panel portal-glass-fix ${effectiveVariant === 'panel' ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-2xl' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} rounded-[var(--radius)] shadow-xl animate-in fade-in zoom-in-95 max-h-60 overflow-y-auto custom-scrollbar flex flex-col`} style={{
+      <div className={`!fixed pointer-events-auto glass-panel portal-glass-fix ${isInsideSidePanel || effectiveVariant === 'panel' ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-[0_0_40px_rgba(0,0,0,0.5)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl'} rounded-[var(--radius)] animate-in fade-in zoom-in-95 max-h-60 overflow-y-auto custom-scrollbar flex flex-col`} style={{
         zIndex: 100000001,
         top: (coords as any).isDropUp ? 'auto' : coords.top,
         bottom: (coords as any).isDropUp ? window.innerHeight - coords.top + 8 : 'auto',
@@ -1487,15 +1495,13 @@ export function CustomDropdown({ value, onChange, options, allowCustom, searchab
         width: coords.width || 'max-content',
         minWidth: Math.max(coords.width, 200),
       }}>
-        {effectiveVariant !== 'panel' && (
-          <style>{`
-            #sa-portals .portal-glass-fix::before,
-            #sa-portals .portal-glass-fix .glass-surface::before,
-            #sa-portals .portal-glass-fix .glass-panel::before {
-              display: block !important;
-            }
-          `}</style>
-        )}
+        <style>{`
+          #sa-portals .portal-glass-fix::before,
+          #sa-portals .portal-glass-fix .glass-surface::before,
+          #sa-portals .portal-glass-fix .glass-panel::before {
+            display: block !important;
+          }
+        `}</style>
         {searchable && (
           <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 bg-transparent z-10 shrink-0 flex items-center px-4">
             <span className="material-symbols-outlined !text-[16px] opacity-50 mr-2">search</span>
@@ -1776,16 +1782,14 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "",
             right: coords.isRight ? window.innerWidth - coords.left : undefined,
             transition: 'none'
           }}>
-            <div className={`!absolute top-0 ${coords.isRight ? 'right-0' : 'left-0'} mt-2 pointer-events-auto glass-panel portal-glass-fix ${isInsideSidePanel ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-2xl' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} rounded-[var(--radius)] shadow-2xl animate-in fade-in slide-in-from-top-2 p-4 w-64`}>
-              {!isInsideSidePanel && (
-                <style>{`
-                  #sa-portals .portal-glass-fix::before,
-                  #sa-portals .portal-glass-fix .glass-surface::before,
-                  #sa-portals .portal-glass-fix .glass-panel::before {
-                    display: block !important;
-                  }
-                `}</style>
-              )}
+            <div className={`!absolute top-0 ${coords.isRight ? 'right-0' : 'left-0'} mt-2 pointer-events-auto glass-panel portal-glass-fix ${isInsideSidePanel ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-[0_0_40px_rgba(0,0,0,0.5)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl'} rounded-[var(--radius)] animate-in fade-in slide-in-from-top-2 p-4 w-64`}>
+              <style>{`
+                #sa-portals .portal-glass-fix::before,
+                #sa-portals .portal-glass-fix .glass-surface::before,
+                #sa-portals .portal-glass-fix .glass-panel::before {
+                  display: block !important;
+                }
+              `}</style>
               <div className="flex justify-start items-center mb-4">
                 <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1">{'<'}</button>
                 <div className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{monthNames[month]} {year}</div>
@@ -2286,17 +2290,94 @@ export function EmptyState({ icon, title, subtitle, action, minHeightClass = "mi
 
 export const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
 
-export function CustomTierDropdown({ value, onChange }: { value: number, onChange: (val: number) => void }) {
+export function CustomTierDropdown({ value, onChange, className }: any) {
   const { t } = useLexicon();
+  const isInsideSidePanel = React.useContext(SidePanelContext);
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, isDropUp: false });
+
+  React.useLayoutEffect(() => {
+    if (!isOpen) return;
+    const updatePosition = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const shouldDropUp = spaceBelow < 200;
+        setCoords({
+          top: shouldDropUp ? window.innerHeight - rect.top + 8 : rect.bottom + 8,
+          left: rect.left,
+          width: rect.width,
+          isDropUp: shouldDropUp
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
+
+  const options = [
+    { id: 4, label: t("tier4"), color: 'theme-text-danger', glow: 'theme-bg-danger', activeBg: 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' },
+    { id: 3, label: t("tier3"), color: 'theme-text-warning', glow: 'theme-bg-warning', activeBg: 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]' },
+  ];
+
+  const selected = options.find(o => o.id === value) || options[0];
+
   return (
-    <div className="w-full glass-panel rounded-[var(--radius)] relative">
-      <select value={value} onChange={e => onChange(Number(e.target.value))} className="w-full px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] appearance-none bg-transparent cursor-pointer relative z-10">
-        <option value={1} className="bg-[var(--bg)] text-[var(--text)]">{t("tier_1_universal", "T1 - Universal")}</option>
-        <option value={2} className="bg-[var(--bg)] text-[var(--text)]">{t("tier_2_overrides", "T2 - Overrides")}</option>
-        <option value={3} className="bg-[var(--bg)] text-[var(--text)]">{t("tier_3_structural", "T3 - Structural")}</option>
-        <option value={4} className="bg-[var(--bg)] text-[var(--text)]">{t("tier_4_core", "T4 - Core")}</option>
-      </select>
-      <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 z-10">expand_more</span>
+    <div className={`relative w-full shrink-0 ${isOpen ? 'z-[6000]' : ''}`} ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full h-12 glass-surface rounded-xl px-5 text-[11px] font-black capitalize tracking-widest focus:outline-none flex justify-start items-center transition-all ${selected.color}`}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full ${selected.glow}`} />
+          {selected.label}
+        </div>
+        <span className="transition-colors shrink-0 flex items-center justify-center text-[var(--subtext)] opacity-60 ml-auto"><span className="material-symbols-outlined !text-[20px]">{isOpen ? 'expand_less' : 'expand_more'}</span></span>
+      </button>
+
+      {isOpen && createPortal(
+        <>
+          <div className="fixed inset-0 pointer-events-auto" style={{ zIndex: 500000 }} onClick={() => setIsOpen(false)} />
+          <div className="fixed pointer-events-none" style={{
+            zIndex: 500001,
+            top: coords.isDropUp ? undefined : coords.top,
+            bottom: coords.isDropUp ? coords.top : undefined,
+            left: coords.left,
+            width: coords.width,
+            transition: 'none'
+          }}>
+            <div className={`absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel portal-glass-fix ${isInsideSidePanel ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-[0_0_40px_rgba(0,0,0,0.5)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl'} rounded-[var(--radius)] animate-in fade-in slide-in-from-top-2 flex flex-col`}>
+              <style>{`
+                #sa-portals .portal-glass-fix::before,
+                #sa-portals .portal-glass-fix .glass-surface::before,
+                #sa-portals .portal-glass-fix .glass-panel::before {
+                  display: block !important;
+                }
+              `}</style>
+              <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col">
+                {options.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => { onChange(opt.id); setIsOpen(false); }}
+                    className={`w-full text-left px-5 py-4 transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center gap-3 ${value === opt.id ? opt.activeBg + ' ' + opt.color : 'text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-70 hover:opacity-100'}`}
+                  >
+                    <div className={`w-2 h-2 rounded-full ${opt.glow} ${value === opt.id ? 'animate-pulse' : ''}`} />
+                    <span className="text-[11px] font-black capitalize tracking-widest">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>, document.getElementById('sa-portals') || document.body
+      )}
     </div>
   );
 }
@@ -2375,9 +2456,10 @@ export interface ActionPillProps {
   leftContent?: React.ReactNode;
   rightContent?: React.ReactNode;
   className?: string;
+  isLoading?: boolean;
 }
 
-export function ActionPill({ searchQuery, setSearchQuery, searchPlaceholder, primaryPopover, actions, hideSearch = false, leftContent, rightContent, className = "" }: ActionPillProps) {
+export function ActionPill({ searchQuery, setSearchQuery, searchPlaceholder, primaryPopover, actions, hideSearch = false, leftContent, rightContent, className = "", isLoading }: ActionPillProps) {
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
 
   return (
@@ -2390,7 +2472,7 @@ export function ActionPill({ searchQuery, setSearchQuery, searchPlaceholder, pri
         </div>
       ) : !hideSearch && setSearchQuery ? (
         <div className="relative flex items-center group flex-1 min-w-[60px] transition-all duration-300">
-          <span className={`material-symbols-outlined !text-[20px] transition-colors shrink-0 ml-4 ${isSearchFocused ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>search</span>
+          <span className={`material-symbols-outlined !text-[20px] transition-colors shrink-0 ml-4 ${isSearchFocused ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>{isLoading ? 'hourglass_empty' : 'search'}</span>
           <input
             value={searchQuery || ""}
             onChange={(e) => setSearchQuery(e.target.value)}

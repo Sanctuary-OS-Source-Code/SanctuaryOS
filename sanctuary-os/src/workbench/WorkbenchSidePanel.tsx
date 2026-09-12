@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { SidePanel, standardButtonClass, standardDangerButtonClass, HubTabButton, HoverTooltip, CustomDropdown, ActionButton, SearchBar, PanelHeaderGroup, PanelHeaderButton } from '../shared';
+import { SidePanel, standardButtonClass, standardDangerButtonClass, HubTabButton, HoverTooltip, CustomDropdown, ActionButton, ActionPill, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { WorkbenchRawEditor } from './WorkbenchRawEditor';
 import { WorkbenchVisualEditor } from './WorkbenchVisualEditor';
 import { WorkbenchEmptyVisualState } from './WorkbenchEmptyVisualState';
@@ -201,9 +201,10 @@ export function WorkbenchSidePanel({
                </PanelHeaderGroup>
             </>
          }
-         footer={
-            editorState.problemsList.length > 0 ? (
-               <div className="flex flex-col gap-4 w-full relative z-50">
+      >
+         <div className="flex-1 min-h-0 flex flex-col h-full w-full relative">
+            {editorState.problemsList.length > 0 && (
+               <div className="flex flex-col gap-4 w-full relative z-50 px-2 pt-2">
                   <div className="w-full flex items-center justify-between gap-5 theme-panel-danger !rounded-2xl px-6 py-4 cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all group/problem"
                        onClick={() => { if (editorState.editorRef && editorState.problemsList[0]) { editorState.editorRef.revealLineInCenter(editorState.problemsList[0].line); editorState.editorRef.setPosition({ lineNumber: editorState.problemsList[0].line, column: editorState.problemsList[0].column }); editorState.editorRef.focus(); } }}
                   >
@@ -229,47 +230,43 @@ export function WorkbenchSidePanel({
                      </button>
                   </div>
                </div>
-            ) : undefined
-         }
-      >
-         <div className="flex-1 min-h-0 flex flex-col h-full w-full relative">
+            )}
 
-            <div className="flex-1 relative min-h-0 mx-2 mb-2 flex flex-col gap-4">
+            <div className="flex-1 relative min-h-0 mx-2 mt-2 mb-2 flex flex-col gap-4">
                {!isTemplateMode && (
                   <div className={`flex-1 flex gap-4 min-w-0 min-h-0 ${activeTab === 'dual' ? 'flex-row' : 'flex-col'}`}>
                      <div className={`flex flex-col gap-6 flex-1 relative min-w-0 min-h-0 ${activeTab !== 'visual' && activeTab !== 'dual' ? 'hidden' : ''}`}>
                            <div className="flex flex-col gap-2 shrink-0 mb-4">
                               <div className="flex flex-row items-center gap-2 w-full">
-                                 <div className="flex-[2] min-w-[120px] relative">
-                                    <SearchBar
-                                       value={searchQuery}
-                                       onChange={setSearchQuery}
-                                       placeholder={t("workbench_search_placeholder")}
-                                       className="rounded-xl h-10"
-                                    />
-                                 </div>
-
-                                 {!isTemplateMode && availableTemplates.length > 0 && (
-                                    <div className="w-max shrink-0 relative z-[100]">
-                                       <CustomDropdown
-                                          value={selectedTemplatePath}
-                                          options={availableTemplates}
-                                          onChange={(val: string[]) => {
-                                             const newPath = val[0];
-                                             setSelectedTemplatePath(newPath);
-                                             const tmpl = availableTemplates.find((t: any) => t.id === newPath);
-                                             if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
-                                                setActiveTemplate(tmpl.data);
-                                                setCustomAppliedTemplate(null);
-                                             } else if (tmpl) {
-                                                setCustomAppliedTemplate(tmpl.data);
-                                                setActiveTemplate(null);
-                                             }
-                                          }}
-                                          disableTint={true}
-                                       />
-                                    </div>
-                                 )}
+                                 <ActionPill
+                                    searchQuery={searchQuery}
+                                    setSearchQuery={setSearchQuery}
+                                    searchPlaceholder={t("workbench_search_placeholder")}
+                                    rightContent={
+                                       !isTemplateMode && availableTemplates.length > 0 ? (
+                                          <CustomDropdown
+                                             flat={true}
+                                             variant="pill"
+                                             value={selectedTemplatePath}
+                                             options={availableTemplates}
+                                             onChange={(val: string[]) => {
+                                                const newPath = val[0];
+                                                setSelectedTemplatePath(newPath);
+                                                const tmpl = availableTemplates.find((t: any) => t.id === newPath);
+                                                if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
+                                                   setActiveTemplate(tmpl.data);
+                                                   setCustomAppliedTemplate(null);
+                                                } else if (tmpl) {
+                                                   setCustomAppliedTemplate(tmpl.data);
+                                                   setActiveTemplate(null);
+                                                }
+                                             }}
+                                             disableTint={true}
+                                          />
+                                       ) : undefined
+                                    }
+                                 />
+                              </div>
 
                                  {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (
                                     <div className="w-max shrink-0 relative z-[40]">
@@ -289,7 +286,6 @@ export function WorkbenchSidePanel({
                                     </div>
                                  )}
                               </div>
-                           </div>
 
                            <div className="flex-1 relative min-h-0 min-w-0">
                               {editorState.problemsList.length > 0 ? (

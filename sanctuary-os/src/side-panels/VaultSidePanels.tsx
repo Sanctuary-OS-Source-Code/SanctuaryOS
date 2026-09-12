@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, SidebarActionButton, CustomDropdown, getFileLabel, isSupportedExtension, formatDisplayName, HoverTooltip, HubTabs, ActionButton, getModIcon, SearchBar, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { SidePanel, SidebarActionButton, CustomDropdown, getFileLabel, isSupportedExtension, formatDisplayName, HoverTooltip, HubTabs, ActionButton, getModIcon, ActionPill, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useStore } from "../store";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
@@ -264,10 +264,10 @@ export function VaultLocalFolderEditorSidePanel({
             
             {/* UNIFIED SEARCH BAR */}
             <div className="relative shrink-0 w-full z-[60]">
-              <SearchBar
-                value={searchToAdd}
-                onChange={setSearchToAdd}
-                placeholder={t("btn_search")}
+              <ActionPill
+                searchQuery={searchToAdd}
+                setSearchQuery={setSearchToAdd}
+                searchPlaceholder={t("btn_search")}
               />
               
               {/* SEARCH RESULTS POPOVER */}

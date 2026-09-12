@@ -1,8 +1,8 @@
-﻿import { useStore } from "../store";
+import { useStore } from "../store";
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, FilterPopover } from "../shared";
+import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalInput, UniversalTextArea, UniversalToggle } from "../components/universal/UniversalLayout";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
@@ -191,20 +191,18 @@ export default function KeeperSupportSettings() {
             onTabChange={(id) => setFilter(id === "overview" ? "ALL" : id)}
             headerActions={
                 <div className="flex items-center gap-2">
-                    <FilterPopover icon="tune" label="" className="shrink-0">
-                        <div className="flex flex-col gap-2 p-4">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("filter_status") || "Filter Status"}</label>
-                            <CustomDropdown disableTint={true}
-                                value={filter === "overview" ? "ALL" : filter}
-                                onChange={(v: string[]) => setFilter(v[0] === "ALL" ? "overview" : v[0])}
-                                options={[
-                                    { id: "ALL", label: t("all_classes") },
-                                    { id: "ACTIVE", label: t("support_active_only") },
-                                    { id: "INACTIVE", label: t("support_inactive_only") }
-                                ]}
-                            />
-                        </div>
-                    </FilterPopover>
+                    <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        disableTint={true}
+                        value={filter === "overview" ? "ALL" : filter}
+                        onChange={(v: string[]) => setFilter(v[0] === "ALL" ? "overview" : v[0])}
+                        options={[
+                            { id: "ALL", label: t("all_classes") },
+                            { id: "ACTIVE", label: t("support_active_only") },
+                            { id: "INACTIVE", label: t("support_inactive_only") }
+                        ]}
+                    />
                     <ActionButton
                         onClick={() => openEditor()}
                         iconOnly={true}

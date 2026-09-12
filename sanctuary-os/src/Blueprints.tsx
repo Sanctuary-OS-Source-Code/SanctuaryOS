@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { ActionButton, CustomDropdown, ModSearchDropdown, ViewHeader, FilterTabs, FilterTabButton, standardButtonClass, standardAccentGlassButtonClass, getExtensionRegex, formatDisplayName, SearchBar, SidePanel, isVersionMatch, SidebarActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, HoverTooltip, ActionPill, PillTabs, PillTabButton } from "./shared";
+import { ActionButton, CustomDropdown, ModSearchDropdown, ViewHeader, FilterTabs, FilterTabButton, standardButtonClass, standardAccentGlassButtonClass, getExtensionRegex, formatDisplayName, SidePanel, isVersionMatch, SidebarActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, HoverTooltip, ActionPill, PillTabs, PillTabButton } from "./shared";
 import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { EmptyState, InlineFilterGroup, CustomDropdown, ActionPill, FilterPopover } from "./shared";
+import { EmptyState, InlineFilterGroup, CustomDropdown, ActionPill } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { supabase, supabaseAuth } from "./supabase";
 

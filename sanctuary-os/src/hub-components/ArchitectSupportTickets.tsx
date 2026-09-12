@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { supabase } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { SidePanel, CustomDropdown, EmptyState, FilterTabs, FilterTabButton, FilterPopover } from "../shared";
+import { SidePanel, CustomDropdown, EmptyState, FilterTabs, FilterTabButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 
@@ -378,17 +378,16 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       activeTab={activeFilter}
       onTabChange={(tabId) => setActiveFilter(tabId as any)}
       headerActions={
-        <FilterPopover icon="tune" label="" className="shrink-0">
-          <div className="flex flex-col gap-2 p-4">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("filter_by_type") || "Filter Type"}</label>
-            <CustomDropdown
-              value={activeCategory}
-              onChange={(v: string[]) => setActiveCategory(v[0])}
-              options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
-              disableTint={true}
-            />
-          </div>
-        </FilterPopover>
+        <div className="flex items-center gap-2">
+          <CustomDropdown
+            flat={true}
+            variant="pill"
+            value={activeCategory}
+            onChange={(v: string[]) => setActiveCategory(v[0])}
+            options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
+            disableTint={true}
+          />
+        </div>
       }
     >
       {activeFilter === 'overview' ? renderLanding() : (

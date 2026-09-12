@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ViewHeader, EmptyState, FilterTabs, FilterTabButton, FilterPopover, ActionButton, formatOverviewMetric } from "./shared";
+import { ViewHeader, EmptyState, FilterTabs, FilterTabButton, ActionButton, formatOverviewMetric } from "./shared";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
@@ -350,14 +350,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
             searchPlaceholder={t("ui_placeholder_search") as string}
             headerActions={
                 <div className="flex items-center gap-2">
-                    <div className="md:hidden">
-                        <FilterPopover icon="more_vert" label={t("hub_actions") || "Actions"}>
-                            <div className="flex flex-col gap-4">
-                                <ActionButton onClick={fetchBugReports} icon="refresh" label={t("hub_refresh") || "Refresh"} className="w-full h-10 px-6 font-black capitalize tracking-widest text-[10px] !w-auto" />
-                            </div>
-                        </FilterPopover>
-                    </div>
-                    <ActionButton onClick={fetchBugReports} iconOnly={true} icon="refresh" label={t("hub_refresh") || "Refresh"} className="hidden md:flex shrink-0 h-10 w-10 px-0" />
+                    <ActionButton onClick={fetchBugReports} iconOnly={true} icon="refresh" label={t("hub_refresh") || "Refresh"} className="shrink-0 h-10 w-10 px-0" />
                 </div>
             }
             activeTab={activeTab}

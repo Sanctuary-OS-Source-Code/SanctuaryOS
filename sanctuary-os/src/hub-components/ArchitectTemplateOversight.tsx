@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabaseServices } from "../lib/supabase-services";
 import { useLexicon } from "../LexiconContext";
-import { standardPrimaryButtonClass, standardButtonClass, standardSuccessButtonClass, SidePanel, CustomDropdown, EmptyState, ActionButton, FilterPopover } from "../shared";
+import { standardPrimaryButtonClass, standardButtonClass, standardSuccessButtonClass, SidePanel, CustomDropdown, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import TemplatePreviewer from "../TemplatePreviewer";
@@ -223,17 +223,14 @@ export default function ArchitectTemplateOversight() {
             onTabChange={(tabId) => setActiveFilterTab(tabId as any)}
             headerActions={
                 <div className="flex items-center gap-2">
-                    <FilterPopover icon="tune" label="" className="shrink-0">
-                        <div className="flex flex-col gap-2 p-4">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("template_sort_files") || "Sort Files"}</label>
-                            <CustomDropdown
-                                disableTint={true}
-                                value={fileSort}
-                                options={[{ id: "date", label: t("template_sort_date") }, { id: "name", label: t("sort_name") }]}
-                                onChange={(val: string[]) => setFileSort(val[0])}
-                            />
-                        </div>
-                    </FilterPopover>
+                    <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        disableTint={true}
+                        value={fileSort}
+                        options={[{ id: "date", label: t("template_sort_date") }, { id: "name", label: t("sort_name") }]}
+                        onChange={(val: string[]) => setFileSort(val[0])}
+                    />
                     <ActionButton
                         iconOnly={true}
                         onClick={() => setIsAddPanelOpen(true)}
@@ -398,26 +395,16 @@ export default function ArchitectTemplateOversight() {
                 backdropZ="z-[45000]"
                 panelZ="z-[45001]"
                 noBackdropDim={true}
-                actions={
+                headerActions={
                     selectedTemplateForPreview ? (
-                        <>
-                            <button onClick={() => setSelectedTemplateForPreview(null)} className={standardButtonClass}>
-                                {t("nav_cancel")}
-                            </button>
+                        <PanelHeaderGroup>
+                            <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={() => setSelectedTemplateForPreview(null)} />
                             {selectedTemplateForPreview.is_community_default ? (
-                                <button disabled={true} className="px-8 py-4 rounded-2xl bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
-                                    <span className="material-symbols-outlined !text-[18px]">{t("template_icon_verified")}</span>
-                                    {t("active_default")}</button>
+                                <PanelHeaderButton icon="verified" variant="success" tooltip={t("active_default")} disabled={true} />
                             ) : (
-                                <button
-                                    onClick={() => handleSetDefault(selectedTemplateForPreview)}
-                                    disabled={isSettingDefault === selectedTemplateForPreview.id}
-                                    className={standardSuccessButtonClass}
-                                >
-                                    {isSettingDefault === selectedTemplateForPreview.id ? '' + (t("setting")) + '' : '' + (t("set_default")) + ''}
-                                </button>
+                                <PanelHeaderButton icon="check" variant="success" tooltip={isSettingDefault === selectedTemplateForPreview.id ? t("setting") : t("set_default")} disabled={isSettingDefault === selectedTemplateForPreview.id} onClick={() => handleSetDefault(selectedTemplateForPreview)} />
                             )}
-                        </>
+                        </PanelHeaderGroup>
                     ) : null
                 }
             >

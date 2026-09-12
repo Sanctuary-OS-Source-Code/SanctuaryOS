@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
@@ -9,7 +9,7 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, FilterPopover, LinkAssetSidePanel } from "../shared";
+import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, LinkAssetSidePanel } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import MarkdownRenderer from "../MarkdownRenderer";
@@ -522,21 +522,18 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       onTabChange={(id) => setFilterStatus(id as any)}
       headerActions={
         <div className="flex items-center gap-2">
-            <FilterPopover icon="tune" label="" className="shrink-0">
-                <div className="flex flex-col gap-2 p-4">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("filter_category")}</label>
-                    <CustomDropdown
-                        value={filterCategory}
-                        onChange={(v: string[]) => setFilterCategory(v[0])}
-                        options={[
-                            { id: "All", label: t("all_classes") },
-                            { id: "Update", label: t("category_update") },
-                            { id: "Info", label: t("category_info") },
-                            { id: "Alert", label: t("category_alert") }
-                        ]}
-                    />
-                </div>
-            </FilterPopover>
+            <CustomDropdown
+                flat={true}
+                variant="pill"
+                value={filterCategory}
+                onChange={(v: string[]) => setFilterCategory(v[0])}
+                options={[
+                    { id: "All", label: t("all_classes") },
+                    { id: "Update", label: t("category_update") },
+                    { id: "Info", label: t("category_info") },
+                    { id: "Alert", label: t("category_alert") }
+                ]}
+            />
             <ActionButton
                 onClick={() => openEditor()}
                 iconOnly={true}

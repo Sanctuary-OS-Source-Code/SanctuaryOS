@@ -1,4 +1,4 @@
-import { SearchBar } from "./shared";
+
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -11,7 +11,7 @@ import {
   CustomComplianceDropdown, CustomDatePicker, HubTabButton, ModSearchDropdown, EmptyState, FilterTabs, FilterTabButton, ActionButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, InlineFilterGroup, FilterPopover
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, InlineFilterGroup
 } from "./shared";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "./components/universal/UniversalCard";
@@ -352,42 +352,26 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
       headerActions={
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
-            <FilterPopover icon="tune" label={t("hub_filters") || "Filters"}>
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] capitalize">
-                    {t("filter_type")}
-                  </label>
-                  <CustomDropdown
-                    disableTint={true}
-                    value={sandboxTypeFilter}
-                    onChange={(v: string[]) => setSandboxTypeFilter(v[0] as any)}
-                    options={[
-                      { id: "ALL", label: t("ql_all") },
-                      { id: "ARTIFACTS", label: t("items") },
-                      { id: "CONFIGS", label: t("type_configs") },
-                      { id: "TEMPLATES", label: t("ql_templates") }
-                    ]}
-                  />
-                </div>
-                <div className="pt-4 flex justify-center border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-2 md:hidden">
-                  <ActionButton
-                    onClick={handleImportToSandbox}
-                    disabled={isImporting}
-                    icon={isImporting ? t("icon_refresh") : t("icon_download")}
-                    label={isImporting ? t("btn_importing") : t("btn_import")}
-                    className="w-full h-10 px-6 font-black capitalize tracking-widest text-[10px] !w-auto"
-                  />
-                </div>
-              </div>
-            </FilterPopover>
+            <CustomDropdown
+              flat={true}
+              variant="pill"
+              disableTint={true}
+              value={sandboxTypeFilter}
+              onChange={(v: string[]) => setSandboxTypeFilter(v[0] as any)}
+              options={[
+                { id: "ALL", label: t("ql_all") },
+                { id: "ARTIFACTS", label: t("items") },
+                { id: "CONFIGS", label: t("type_configs") },
+                { id: "TEMPLATES", label: t("ql_templates") }
+              ]}
+            />
             <ActionButton
               onClick={handleImportToSandbox}
               disabled={isImporting}
               icon={isImporting ? t("icon_refresh") : t("icon_download")}
               label={isImporting ? t("btn_importing") : t("btn_import")}
               iconOnly={true}
-              className="hidden md:flex shrink-0 h-10 w-10 px-0"
+              className="shrink-0 h-10 w-10 px-0"
             />
           </div>
         </div>

@@ -623,7 +623,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                           </div>
                           <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("severity")}</label>
-                            <CustomTierDropdown value={severity} onChange={(val) => setSeverity(val)} />
+                            <CustomTierDropdown value={severity} onChange={(val: any) => setSeverity(val)} />
                           </div>
                           <button type="submit" disabled={isSubmitting} className="w-full py-4 theme-bg-success text-[var(--bg)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg disabled:opacity-50 mt-2">
                             {isSubmitting ? "Saving..." : "Save Conflict Rule"}

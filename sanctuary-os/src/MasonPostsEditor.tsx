@@ -1,4 +1,4 @@
-import { SearchBar } from "./shared";
+
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import IconPicker from "./IconPicker";
 import MarkdownRenderer from "./MarkdownRenderer";
@@ -6,7 +6,7 @@ import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
-import { SidePanel, CustomDropdown, ModSearchDropdown, EmptyState, HoverTooltip, CustomDatePicker, ActionButton, FilterPopover, LinkAssetSidePanel } from "./shared";
+import { SidePanel, CustomDropdown, ModSearchDropdown, EmptyState, HoverTooltip, CustomDatePicker, ActionButton, LinkAssetSidePanel } from "./shared";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import {
   DashboardStatTile, ViewHeader, CustomComplianceDropdown,
@@ -450,21 +450,9 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       onTabChange={(id) => setActiveTab(id as string)}
       headerActions={
         <div className="flex items-center gap-2">
-          <div className="md:hidden">
-            <FilterPopover icon="more_vert" label={t("hub_actions") || "Actions"}>
-              <div className="flex flex-col gap-4">
-                <ActionButton
-                  onClick={() => openEditor()}
-                  icon={t("icon_cell_tower") || "cell_tower"}
-                  label={t("post_broadcast")}
-                  className="w-full h-10 px-6 font-black capitalize tracking-widest text-[10px] !w-auto"
-                />
-              </div>
-            </FilterPopover>
-          </div>
           <ActionButton
             onClick={() => openEditor()}
-            className="hidden md:flex shrink-0 h-10 w-10 px-0"
+            className="shrink-0 h-10 w-10 px-0"
             icon={t("icon_cell_tower") || "cell_tower"}
             iconOnly={true}
             label={t("post_broadcast")}

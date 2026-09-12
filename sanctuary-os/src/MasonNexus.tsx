@@ -10,7 +10,7 @@ import {
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton, SearchBar, FilterPopover, formatOverviewMetric
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton, formatOverviewMetric
 } from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
 import { UniversalCard } from "./components/universal/UniversalCard";
@@ -313,42 +313,25 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
       onTabChange={(id) => setActiveTab(id as any)}
       headerActions={
         <div className="flex items-center gap-2">
-          <FilterPopover icon="tune" label={t("hub_filters") || "Filters"}>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] capitalize">
-                  {t("filter_category")}
-                </label>
-                <CustomDropdown
-                  disableTint={true}
-                  value={activeCategory}
-                  options={[
-                    { id: 'all', label: t("ql_all") },
-                    { id: 'lexicon', label: t("stat_lexicons") },
-                    { id: 'chameleon', label: t("tab_chameleons") },
-                    { id: 'workbench_template', label: t("ql_templates") }
-                  ]}
-                  onChange={(val: string[]) => setActiveCategory(val[0])}
-                />
-              </div>
-              {activeCategory !== 'all' && (
-                <div className="pt-4 flex justify-center border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-2 md:hidden">
-                  <ActionButton
-                    icon="add"
-                    label={t("ui_tab_new")}
-                    onClick={() => setUploadState({ isOpen: true, editId: null, assetType: activeCategory, isHidden: false, name: '', version: '1.0.0', description: '', releaseNotes: '', fileContent: null, fileName: '', language: availableLanguages.length > 0 ? availableLanguages[0] : 'English', newLanguage: '', lexiconType: 'Theme', themeMode: 'Dark' })}
-                    className="w-full h-10 px-6 font-black capitalize tracking-widest text-[10px] !w-auto"
-                  />
-                </div>
-              )}
-            </div>
-          </FilterPopover>
+          <CustomDropdown
+            flat={true}
+            variant="pill"
+            disableTint={true}
+            value={activeCategory}
+            options={[
+              { id: 'all', label: t("ql_all") },
+              { id: 'lexicon', label: t("stat_lexicons") },
+              { id: 'chameleon', label: t("tab_chameleons") },
+              { id: 'workbench_template', label: t("ql_templates") }
+            ]}
+            onChange={(val: string[]) => setActiveCategory(val[0])}
+          />
           {activeCategory !== 'all' && (
             <ActionButton
               icon="add"
               label={t("ui_tab_new")}
               iconOnly={true}
-              className="hidden md:flex shrink-0 h-10 w-10 px-0"
+              className="shrink-0 h-10 w-10 px-0"
               onClick={() => setUploadState({ isOpen: true, editId: null, assetType: activeCategory, isHidden: false, name: '', version: '1.0.0', description: '', releaseNotes: '', fileContent: null, fileName: '', language: availableLanguages.length > 0 ? availableLanguages[0] : 'English', newLanguage: '', lexiconType: 'Theme', themeMode: 'Dark' })}
             />
           )}

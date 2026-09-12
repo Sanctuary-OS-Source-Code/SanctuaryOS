@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Editor from "@monaco-editor/react";
 import { useStore, getSafeSchema } from "./store";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip, FilterTabs, FilterTabButton, ActionButton, FilterPopover } from "./shared";
+import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip, FilterTabs, FilterTabButton, ActionButton } from "./shared";
 import { readDir, readTextFile, writeTextFile, exists, remove, rename } from '@tauri-apps/plugin-fs';
 import { open } from "@tauri-apps/plugin-dialog";
 import VersionTimeline from './VersionTimeline';
@@ -495,37 +495,19 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             <div className="flex items-center gap-2">
                {!(isCloudMode && internalCloudTarget === 'sanctuary_schemas') && (
                   <>
-                     <div className="md:hidden">
-                        <FilterPopover icon="more_vert" label={t("hub_actions") || "Actions"}>
-                           <div className="flex flex-col gap-4">
-                              <ActionButton
-                                 onClick={() => setIsCreatePanelOpen(true)}
-                                 icon={t("icon_add") || "add"}
-                                 label={t("auto_create_file")}
-                                 className="w-full h-10 px-6 font-black capitalize tracking-widest text-[10px] !w-auto"
-                              />
-                              <ActionButton
-                                 onClick={handleImport}
-                                 icon={t("icon_upload") || "upload"}
-                                 label={t("import_file")}
-                                 className="w-full h-10 px-6 font-black capitalize tracking-widest text-[10px] !w-auto"
-                              />
-                           </div>
-                        </FilterPopover>
-                     </div>
                      <ActionButton
                         onClick={() => setIsCreatePanelOpen(true)}
                         iconOnly={true}
                         icon={t("icon_add")}
                         label={t("auto_create_file")}
-                        className="hidden md:flex shrink-0 h-10 w-10 px-0"
+                        className="shrink-0 h-10 w-10 px-0"
                      />
                      <ActionButton
                         onClick={handleImport}
                         iconOnly={true}
-                        icon={t("icon_upload")}
+                        icon={t("icon_upload") || "upload"}
                         label={t("import_file")}
-                        className="hidden md:flex shrink-0 h-10 w-10 px-0"
+                        className="shrink-0 h-10 w-10 px-0"
                      />
                   </>
                )}
