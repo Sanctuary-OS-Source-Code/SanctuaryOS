@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { SidePanel, CustomDropdown, standardButtonClass, standardAccentGlassButtonClass } from '../shared';
+import { SidePanel, CustomDropdown, standardButtonClass, standardAccentGlassButtonClass, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 
 export function PushTemplateSidePanel({ 
   isOpen, 
@@ -183,30 +183,6 @@ export function PushTemplateSidePanel({
       setIsUploading(false);
     }
   };
-  const actions = (
-    <div className="flex gap-3">
-      <button 
-        type="button"
-        onClick={onClose}
-        className={standardButtonClass}
-      >
-        {t("nav_cancel")}
-      </button>
-      <button 
-        onClick={() => handleSubmit()}
-        disabled={!name.trim() || isUploading}
-        className={standardAccentGlassButtonClass}
-      >
-        {isUploading ? (
-          <span className="material-symbols-outlined !text-[18px] animate-spin">{t("icon_refresh")}</span>
-        ) : (
-          <span className="material-symbols-outlined !text-[18px]">{t("icon_publish")}</span>
-        )}
-        {t("market_upload_btn")}
-      </button>
-    </div>
-  );
-
   return (
     <SidePanel
       isOpen={isOpen}
@@ -216,7 +192,12 @@ export function PushTemplateSidePanel({
       icon="cloud_upload"
       iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
       widthClass="w-[500px]"
-      actions={actions}
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={onClose} />
+          <PanelHeaderButton icon="publish" variant="success" tooltip={isUploading ? t("uploading") : t("market_upload_btn")} onClick={() => handleSubmit()} disabled={!name.trim() || isUploading} />
+        </PanelHeaderGroup>
+      }
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 p-4 h-full min-h-0 relative">
         

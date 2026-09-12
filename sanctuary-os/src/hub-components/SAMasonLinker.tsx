@@ -1,4 +1,4 @@
-﻿import { SearchBar } from "../shared";
+
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase, getActiveGameClient } from "../supabase";
@@ -11,7 +11,7 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton, FilterPopover
+  fetchAllPaginated, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton
 } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
@@ -170,20 +170,18 @@ export function MasonLinker() {
       searchPlaceholder={t("linker_search_mason")}
       headerActions={
         <div className="flex items-center gap-2">
-            <FilterPopover icon="tune" label="" className="shrink-0">
-                <div className="flex flex-col gap-2 p-4">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("filter_status")}</label>
-                    <CustomDropdown disableTint={true}
-                        value={filterType}
-                        onChange={(v: string[]) => setFilterType(v[0] as any)}
-                        options={[
-                        { id: "all", label: "ALL MASONS" },
-                        { id: "verified", label: "VERIFIED" },
-                        { id: "unverified", label: "UNVERIFIED" }
-                        ]}
-                    />
-                </div>
-            </FilterPopover>
+            <CustomDropdown
+                flat={true}
+                variant="pill"
+                disableTint={true}
+                value={filterType}
+                onChange={(v: string[]) => setFilterType(v[0] as any)}
+                options={[
+                { id: "all", label: "ALL MASONS" },
+                { id: "verified", label: "VERIFIED" },
+                { id: "unverified", label: "UNVERIFIED" }
+                ]}
+            />
 
             <ActionButton
                 onClick={() => handleOpenPanel(null)}

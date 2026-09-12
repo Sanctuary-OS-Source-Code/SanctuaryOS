@@ -2,7 +2,7 @@ import { useStore } from "../store";
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton } from "../shared";
+import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalInput, UniversalTextArea, UniversalToggle } from "../components/universal/UniversalLayout";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
@@ -308,19 +308,13 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
             widthClass="w-[600px]"
             backdropZ="z-[100]"
             panelZ="z-[105]"
-            footer={
-                <div className="flex flex-col gap-4 w-full">
-                    <div className="flex justify-center items-center gap-4 w-full">
-                        {draft.id && (
-                            <ActionButton onClick={handleDelete} disabled={isSaving} label={t("purge")}>
-                                
-                            </ActionButton>
-                        )}
-                        <ActionButton onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name} label={isSaving ? "..." : (t("save"))}>
-                            
-                        </ActionButton>
-                    </div>
-                </div>
+            headerActions={
+                <PanelHeaderGroup>
+                    {draft.id && (
+                        <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge")} onClick={handleDelete} disabled={isSaving} />
+                    )}
+                    <PanelHeaderButton icon="check" variant="success" tooltip={isSaving ? "..." : (t("save"))} onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name} />
+                </PanelHeaderGroup>
             }
         >
             <div className="flex flex-col gap-6">

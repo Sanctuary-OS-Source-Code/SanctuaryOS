@@ -2,7 +2,7 @@ import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } fr
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
-import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ActionPill } from './shared';
+import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ActionPill, PanelHeaderGroup, PanelHeaderButton } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
 import { useStore } from './store';
 import { logArchitectAction } from './lib/audit';
@@ -145,28 +145,19 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
       icon={t("icon_group")}
       subtitle={profile ? `UUID: ${profile.id}` : undefined}
       widthClass={isSkinny ? "w-[90vw] max-w-[475px]" : undefined}
-      footer={
-        <div className="flex flex-col gap-4 w-full">
-          {status && (
-            <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-              <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
-            </div>
-          )}
-          <div className="flex justify-center items-center gap-4 w-full">
-            <ActionButton type="button" onClick={onClose} disabled={isSubmitting} label={t("nav_cancel")}>
-              
-            </ActionButton>
-            <ActionButton
-              onClick={handleUpdateRole}
-              disabled={isSubmitting || (isBanned && !editReason.trim()) || (isCommBanned && !editCommReason.trim()) || (!isWayfinder && profile?.role === 'wayfinder')} label={isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
-            >
-              
-            </ActionButton>
-          </div>
-        </div>
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={onClose} disabled={isSubmitting} />
+          <PanelHeaderButton icon="check" variant="success" tooltip={isSubmitting ? t("identities_updating") : t("ui_btn_commit")} onClick={handleUpdateRole} disabled={isSubmitting || (isBanned && !editReason.trim()) || (isCommBanned && !editCommReason.trim()) || (!isWayfinder && profile?.role === 'wayfinder')} />
+        </PanelHeaderGroup>
       }
     >
       <div className="p-6 flex flex-col h-full gap-8">
+        {status && (
+          <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full -mb-4">
+            <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 shrink-0">
           <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { SidePanel, getExtensionRegex, ActionButton, PanelHeaderGroup, PanelHeaderButton, SearchBar, ActionPill } from "../shared";
+import { SidePanel, getExtensionRegex, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 
 interface LogSection {

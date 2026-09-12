@@ -4,7 +4,7 @@ import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
 import { useStore } from '../store';
-import { ActionButton, SidePanel, CustomDropdown, HoverTooltip, SearchBar, HubTabs, FilterTabs, FilterTabButton, PanelHeaderGroup, PanelHeaderButton, FilterPopover, ActionPill } from '../shared';
+import { ActionButton, SidePanel, CustomDropdown, HoverTooltip, HubTabs, FilterTabs, FilterTabButton, PanelHeaderGroup, PanelHeaderButton, ActionPill } from '../shared';
 import { CommandScreenQuickLink } from '../hub-components/SharedCommandScreenLayout';
 import { ChameleonEditorPanel } from '../side-panels/ChameleonEditorPanel';
 

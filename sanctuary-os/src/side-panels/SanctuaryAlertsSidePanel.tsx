@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
-import { SidePanel, CustomDropdown, extractPostImage, stripMarkdown, ActionPill, EmptyState, FilterPopover } from '../shared';
+import { SidePanel, CustomDropdown, extractPostImage, stripMarkdown, ActionPill, EmptyState } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import MasonPostViewer from "./MasonPostViewer";
 import { useStore } from '../store';

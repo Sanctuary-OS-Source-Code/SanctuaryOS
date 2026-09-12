@@ -9,7 +9,7 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, LinkAssetSidePanel } from "../shared";
+import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, LinkAssetSidePanel, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import MarkdownRenderer from "../MarkdownRenderer";
@@ -577,24 +577,20 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
             widthClass="w-[800px]"
             title={editingPostId ? (t("update_transmission")) : (t("post_broadcast"))}
             subtitle={editingPostId ? (t("editing_record")) : (t("composing_broadcast"))}
-            footer={
-              <div className="flex justify-center items-center gap-4 w-full">
+            headerActions={
+              <PanelHeaderGroup>
                 {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? (
-                  <ActionButton onClick={handleDiscardChanges} disabled={isSubmitting} label={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
-                    
-                  </ActionButton>
+                  <PanelHeaderButton icon={confirmDiscard ? "warning" : "close"} variant={confirmDiscard ? "danger" : "default"} tooltip={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))} onClick={handleDiscardChanges} disabled={isSubmitting} />
                 ) : (
-                  <ActionButton onClick={closeEditor} disabled={isSubmitting} label={t("nav_cancel")}></ActionButton>
+                  <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={closeEditor} disabled={isSubmitting} />
                 )}
                 <div className="relative group/btn flex">
-                  <ActionButton onClick={handleSubmit} disabled={isSubmitting || !title || !content} label={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}>
-                    
-                  </ActionButton>
+                  <PanelHeaderButton icon="check" variant="success" tooltip={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))} onClick={handleSubmit} disabled={isSubmitting || !title || !content} />
                   {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
-                    <HoverTooltip title={t("ph_unsaved_changes")} variant="warning" className="group-hover/btn:flex z-[100]" />
+                    <HoverTooltip title={t("ph_unsaved_changes")} variant="warning" className="group-hover/btn:flex z-[100] mt-10 right-0" />
                   )}
                 </div>
-              </div>
+              </PanelHeaderGroup>
             }
           >
             <div className="flex flex-col gap-6">

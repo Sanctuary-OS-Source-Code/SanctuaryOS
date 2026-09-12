@@ -1,4 +1,4 @@
-import { SidePanel, FilterTabs, FilterTabButton, ActionButton, CustomDropdown, ModSearchDropdown, EmptyState, ActionPill } from "./shared";
+import { SidePanel, FilterTabs, FilterTabButton, ActionButton, CustomDropdown, ModSearchDropdown, EmptyState, ActionPill, PanelHeaderGroup, PanelHeaderButton } from "./shared";
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, } from "./shared";
@@ -646,17 +646,13 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         title={t("missing_artifacts")}
         icon="download"
         widthClass="w-[450px]"
-        footer={
-          <div className="flex flex-col gap-4 mt-4 w-full">
+        headerActions={
+          <PanelHeaderGroup>
             {activeReport?.download_url ? (
-              <ActionButton onClick={() => window.open(activeReport.download_url, "_blank")} label={t("download_source")} icon={t("btn_download")}>
-
-              </ActionButton>
+              <PanelHeaderButton icon="download" tooltip={t("download_source")} onClick={() => window.open(activeReport.download_url, "_blank")} />
             ) : null}
-            <ActionButton onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((useStore.getState().activeGameSchema?.display_name || "Mod") + ' ' + cleanSearchName(activeReport?.name || '', useStore.getState().activeGameSchema))}`, "_blank")} label={t("search_web")} icon={t("icon_search")}>
-
-            </ActionButton>
-          </div>
+            <PanelHeaderButton icon="search" tooltip={t("search_web")} onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((useStore.getState().activeGameSchema?.display_name || "Mod") + ' ' + cleanSearchName(activeReport?.name || '', useStore.getState().activeGameSchema))}`, "_blank")} />
+          </PanelHeaderGroup>
         }
       >
         <div className="flex flex-col p-8 gap-6">

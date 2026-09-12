@@ -1,4 +1,4 @@
-import { SearchBar, ActionPill } from "../shared";
+import { ActionPill } from "../shared";
 import { CustomDropdown, FilterTabs, FilterTabButton, ActionButton } from "../shared";
 
 export default function MasonHeader({

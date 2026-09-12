@@ -1,5 +1,5 @@
 import React from 'react';
-import { CustomDropdown, isVersionMatch, getHighestVersion, getLowestVersion, FilterPopover, HoverTooltip, ActionPill } from "../../shared";
+import { CustomDropdown, isVersionMatch, getHighestVersion, getLowestVersion, HoverTooltip, ActionPill } from "../../shared";
 
 
 

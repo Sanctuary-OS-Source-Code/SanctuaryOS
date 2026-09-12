@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+
 import { useState, useEffect } from 'react';
 import { SidePanel, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";

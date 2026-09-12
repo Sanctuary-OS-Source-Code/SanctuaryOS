@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase, supabaseAuth } from '../supabase';
 import { useLexicon } from '../LexiconContext';
@@ -9,7 +9,7 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, ViewToggle, RadioCardGroup, RadioCard, FilterPopover, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel } from "../shared";
+import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, ViewToggle, RadioCardGroup, RadioCard, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import MasonPostCard from "../MasonPostCard";
@@ -554,22 +554,19 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
       onTabChange={(id) => setFilterStatus(id as any)}
       headerActions={
         <div className="flex items-center gap-2">
-            <FilterPopover icon="tune" label="" className="shrink-0">
-                <div className="flex flex-col gap-2 p-4">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("filter_category")}</label>
-                    <CustomDropdown
-                        value={filterCategory}
-                        onChange={(v: string[]) => setFilterCategory(v[0])}
-                        options={[
-                            { id: "All", label: t("all_classes") },
-                            { id: "Citizen Guide", label: "Citizen Guide" },
-                            { id: "Master Architecture", label: "Master Architecture" },
-                            { id: "Master Protocol List", label: "Master Protocol List" },
-                            { id: "Phase Roadmap", label: "Phase Roadmap" }
-                        ]}
-                    />
-                </div>
-            </FilterPopover>
+            <CustomDropdown
+                flat={true}
+                variant="pill"
+                value={filterCategory}
+                onChange={(v: string[]) => setFilterCategory(v[0])}
+                options={[
+                    { id: "All", label: t("all_classes") },
+                    { id: "Citizen Guide", label: "Citizen Guide" },
+                    { id: "Master Architecture", label: "Master Architecture" },
+                    { id: "Master Protocol List", label: "Master Protocol List" },
+                    { id: "Phase Roadmap", label: "Phase Roadmap" }
+                ]}
+            />
             <ActionButton
                 onClick={() => openEditor()}
                 iconOnly={true}

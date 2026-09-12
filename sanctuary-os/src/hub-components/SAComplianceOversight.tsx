@@ -1,9 +1,9 @@
-﻿import { SearchBar, FilterTabs, FilterTabButton } from "../shared";
+import { FilterTabs, FilterTabButton } from "../shared";
 import React, { useState, useEffect } from 'react';
 import { supabase, getActiveGameClient } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton, FilterPopover } from '../shared';
+import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 import { ElevatedHubLayout } from '../components/layouts/ElevatedHubLayout';
@@ -269,22 +269,19 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       tabs={tabs}
       headerActions={
         <div className="flex items-center gap-2">
-          <FilterPopover icon="tune" label="" className="shrink-0">
-            <div className="flex flex-col gap-2 p-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("comp_filter_tier")}</label>
-              <CustomDropdown
-                value={filterTier === null ? "all" : filterTier}
-                onChange={(v: any[]) => setFilterTier(v[0] === "all" ? null : v[0])}
-                options={[
-                  { id: "all", label: t("comp_filter_all_alerts") },
-                  { id: 1, label: getTierDetails(1).label },
-                  { id: 2, label: getTierDetails(2).label },
-                  { id: 3, label: getTierDetails(3).label },
-                  { id: 4, label: getTierDetails(4).label }
-                ]}
-              />
-            </div>
-          </FilterPopover>
+          <CustomDropdown
+            flat={true}
+            variant="pill"
+            value={filterTier === null ? "all" : filterTier}
+            onChange={(v: any[]) => setFilterTier(v[0] === "all" ? null : v[0])}
+            options={[
+              { id: "all", label: t("comp_filter_all_alerts") },
+              { id: 1, label: getTierDetails(1).label },
+              { id: 2, label: getTierDetails(2).label },
+              { id: 3, label: getTierDetails(3).label },
+              { id: 4, label: getTierDetails(4).label }
+            ]}
+          />
           <ActionButton
             onClick={() => onOpenManualFlag("")}
             iconOnly={true}

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton, FilterPopover, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "../shared";
 import { ArtifactCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -188,45 +188,26 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         onTabChange={(id) => setActiveTab(id as any)}
         headerActions={
           <div className="flex items-center gap-2">
-            <FilterPopover icon="tune" label={t("hub_filters") || "Filters"}>
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] capitalize">
-                    {t("filter_status")}
-                  </label>
-                  <CustomDropdown disableTint={true} value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
-                    { id: "ALL", label: t("status_dd_all") },
-                    { id: "stable", label: t("status_dd_stable") },
-                    { id: "unstable", label: t("label_unstable") },
-                    { id: "corrupted", label: t("status_corrupted") },
-                    { id: "under_review", label: t("status_dd_review") },
-                    { id: "pending", label: t("pending") },
-                    { id: "unverified", label: t("unverified") },
-                  ]} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] capitalize">
-                    {t("category")}
-                  </label>
-                  <CustomClassificationDropdown value={activeCategory} onChange={(val: string) => setActiveCategory(val)} includeAll={true} />
-                </div>
-                {activeCategory === "CAS" && (
-                  <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] capitalize">
-                      {t("registry_col_subcat")}
-                    </label>
-                    <CustomDropdown disableTint={true} value={activeSubType} onChange={(val: string[]) => setActiveSubType(val[0])} options={[
-                      { id: "ALL", label: t("status_dd_all") },
-                      { id: "Hair", label: "Hair" },
-                      { id: "Top", label: "Top" },
-                      { id: "Bottom", label: "Bottom" },
-                      { id: "Shoes", label: "Shoes" },
-                      { id: "Accessories", label: "Accessories" }
-                    ]} />
-                  </div>
-                )}
-              </div>
-            </FilterPopover>
+            <CustomDropdown disableTint={true} flat={true} variant="pill" value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
+              { id: "ALL", label: t("status_dd_all") },
+              { id: "stable", label: t("status_dd_stable") },
+              { id: "unstable", label: t("label_unstable") },
+              { id: "corrupted", label: t("status_corrupted") },
+              { id: "under_review", label: t("status_dd_review") },
+              { id: "pending", label: t("pending") },
+              { id: "unverified", label: t("unverified") },
+            ]} />
+            <CustomClassificationDropdown value={activeCategory} onChange={(val: string) => setActiveCategory(val)} includeAll={true} />
+            {activeCategory === "CAS" && (
+              <CustomDropdown disableTint={true} flat={true} variant="pill" value={activeSubType} onChange={(val: string[]) => setActiveSubType(val[0])} options={[
+                { id: "ALL", label: t("status_dd_all") },
+                { id: "Hair", label: "Hair" },
+                { id: "Top", label: "Top" },
+                { id: "Bottom", label: "Bottom" },
+                { id: "Shoes", label: "Shoes" },
+                { id: "Accessories", label: "Accessories" }
+              ]} />
+            )}
           </div>
         }
       >

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton, FilterPopover, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction } from "../lib/audit";
@@ -189,30 +189,20 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
       onTabChange={(id) => setActiveTab(id as any)}
       headerActions={
         <div className="flex items-center gap-2">
-          <FilterPopover icon="tune" label={t("hub_filters") || "Filters"}>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] capitalize">
-                  {t("registry_col_safety")}
-                </label>
-                <CustomDropdown
-                  disableTint={true}
-                  value={tierFilter}
-                  onChange={(v: string[]) => setTierFilter(v[0])}
-                  options={[
-                    { id: "ALL", label: "ALL TIERS" },
-                    { id: "0", label: "TIER 0" },
-                    { id: "1", label: "TIER 1" },
-                    { id: "2", label: "TIER 2" }
-                  ]}
-                />
-              </div>
-              <div className="pt-4 flex justify-center border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-2 md:hidden">
-                <ActionButton onClick={() => setIsForgePanelOpen(true)} icon="add" label={t("auto_create")} className="w-full h-10 px-6 font-black capitalize tracking-widest text-[10px] !w-auto" />
-              </div>
-            </div>
-          </FilterPopover>
-          <ActionButton onClick={() => setIsForgePanelOpen(true)} iconOnly={true} icon="add" label={t("auto_create")} className="hidden md:flex shrink-0 h-10 w-10 px-0" />
+          <CustomDropdown
+            flat={true}
+            variant="pill"
+            disableTint={true}
+            value={tierFilter}
+            onChange={(v: string[]) => setTierFilter(v[0])}
+            options={[
+              { id: "ALL", label: "ALL TIERS" },
+              { id: "0", label: "TIER 0" },
+              { id: "1", label: "TIER 1" },
+              { id: "2", label: "TIER 2" }
+            ]}
+          />
+          <ActionButton onClick={() => setIsForgePanelOpen(true)} iconOnly={true} icon="add" label={t("auto_create")} />
         </div>
       }
     >

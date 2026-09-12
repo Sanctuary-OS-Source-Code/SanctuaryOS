@@ -1,11 +1,11 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
   DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker,
-  HubTabButton, ModSearchDropdown, EmptyState, FilterPopover,
+  HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
@@ -179,16 +179,14 @@ export function GameManagementOversight() {
       headerActions={
         <div className="flex items-center gap-2">
           {activeTab === 'dlc' && (
-            <FilterPopover icon="tune" label="" className="shrink-0">
-              <div className="flex flex-col gap-2 p-4">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("gm_type_filter_placeholder")}</label>
-                <CustomDropdown disableTint={true}
-                  value={dlcTypeFilter}
-                  onChange={(v: string[]) => setDlcTypeFilter(v[0])}
-                  options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? "ALL TYPES" : x }))}
-                />
-              </div>
-            </FilterPopover>
+            <CustomDropdown
+              flat={true}
+              variant="pill"
+              disableTint={true}
+              value={dlcTypeFilter}
+              onChange={(v: string[]) => setDlcTypeFilter(v[0])}
+              options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? "ALL TYPES" : x }))}
+            />
           )}
           <ActionButton
             onClick={() => openPanel(activeTab === 'versions' ? 'add_version' : 'add_dlc')}

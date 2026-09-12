@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
-import { SidePanel, FilterPopover, InlineFilterGroup, EmptyState, ActionPill } from '../shared';
+import { SidePanel, InlineFilterGroup, EmptyState, ActionPill } from '../shared';
 
 interface Asset {
   id: string;

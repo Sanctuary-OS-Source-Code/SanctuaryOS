@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton } from '../shared';
+import { SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton, CycleSwitcher } from '../shared';
 import { UniversalGroup } from '../components/universal/UniversalLayout';
 import { useModalStore } from '../store/modalStore';
 import { useStore } from '../store';
@@ -234,33 +234,23 @@ export function SystemStatusPanel({ isOpen, onClose }: { isOpen: boolean, onClos
             className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200 ease-out fill-mode-both relative z-10"
             title={t("sys_info_app_footprint")}
             icon={t("icon_monitoring")}
-            headerAction={
-              <PillTabs className="shrink-0 scale-90 origin-right !h-auto">
-                <PillTabButton
-                  id={false}
-                  activeTab={usePrivateMemory}
-                  setTab={setUsePrivateMemory}
-                  label={t("sys_stat_working_set")}
-                  className="py-1.5 px-3 text-[9px] whitespace-nowrap"
-                />
-                <PillTabButton
-                  id={true}
-                  activeTab={usePrivateMemory}
-                  setTab={setUsePrivateMemory}
-                  label={t("sys_stat_private_set")}
-                  className="py-1.5 px-3 text-[9px] whitespace-nowrap"
-                />
-              </PillTabs>
-            }
             innerClassName="flex flex-col gap-4"
           >
             <div className="grid grid-cols-2 gap-4">
               <StatBox
-                label={usePrivateMemory ? t("sys_stat_mem_private_set") : t("sys_stat_mem_working_set")}
-                value={appFootprint ? (() => { const s = parseBytes(usePrivateMemory ? appFootprint.memory_private : appFootprint.memory_used); return <AnimatedNumber value={s.val} suffix={s.unit} />; })() : t("scanning")}
+                label={t("sys_stat_mem_working_set")}
+                value={appFootprint ? (() => { const s = parseBytes(appFootprint.memory_used); return <AnimatedNumber value={s.val} suffix={s.unit} />; })() : t("scanning")}
                 icon={t("icon_memory")}
-                glowColor="rgba(234,88,12,0.4)"
+                glowColor="rgba(244,63,94,0.4)"
               />
+              <StatBox
+                label={t("sys_stat_mem_private_set")}
+                value={appFootprint ? (() => { const s = parseBytes(appFootprint.memory_private); return <AnimatedNumber value={s.val} suffix={s.unit} />; })() : t("scanning")}
+                icon={t("icon_memory")}
+                glowColor="rgba(244,63,94,0.4)"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
               <StatBox
                 label={t("sys_stat_cpu")}
                 value={appFootprint ? <AnimatedNumber value={appFootprint.cpu_usage} suffix="%" /> : t("scanning")}

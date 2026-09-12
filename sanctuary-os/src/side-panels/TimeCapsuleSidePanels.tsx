@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, FilterTabs, FilterTabButton, SearchBar, PillTabs, PillTabButton } from "../shared";
+import { SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 

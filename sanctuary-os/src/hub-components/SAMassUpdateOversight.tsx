@@ -5,7 +5,7 @@ import { useStore } from "../store";
 import {
   DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker,
-  HubTabButton, ModSearchDropdown, EmptyState, FilterPopover,
+  HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
@@ -169,46 +169,30 @@ export function MassUpdateOversight() {
       searchPlaceholder={t("search_ph") as string}
       headerActions={
         <div className="flex items-center gap-2">
-          <FilterPopover icon="tune" label="" className="shrink-0">
-            <div className="flex flex-col gap-4 p-4 min-w-[250px]">
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("filter_category")}</label>
-                <CustomDropdown disableTint={true}
-                  value={filterCategory}
-                  onChange={(v: string[]) => setFilterCategory(v[0])}
-                  options={[
-                    { id: "", label: "ALL CATEGORIES" },
-                    ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
-                      id: cat.id,
-                      label: (t(cat.lexicon_key) || cat.id).toUpperCase()
-                    })) || [])
-                  ]}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("sa_game_versions")}</label>
-                <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} />
-              </div>
-
-              <div className="flex flex-col gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                <button
-                  onClick={() => setShowOnlySelected(!showOnlySelected)}
-                  className={`px-4 py-2 rounded-lg flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${showOnlySelected ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
-                >
-                  <span className="material-symbols-outlined !text-[14px] mr-2">checklist</span>
-                  {showOnlySelected ? "SHOWING SELECTED" : "SELECTED ONLY"}
-                </button>
-                <button
-                  onClick={handleSelectAllFiltered}
-                  className="px-4 py-2 rounded-lg flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                >
-                  <span className="material-symbols-outlined !text-[14px] mr-2">done_all</span>
-                  {t("auto_toggle_all_visible")}
-                </button>
-              </div>
-            </div>
-          </FilterPopover>
+          <CustomDropdown disableTint={true}
+            flat={true} variant="pill"
+            value={filterCategory}
+            onChange={(v: string[]) => setFilterCategory(v[0])}
+            options={[
+              { id: "", label: "ALL CATEGORIES" },
+              ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                id: cat.id,
+                label: (t(cat.lexicon_key) || cat.id).toUpperCase()
+              })) || [])
+            ]}
+          />
+          <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} />
+          <ActionButton
+            onClick={() => setShowOnlySelected(!showOnlySelected)}
+            icon="checklist"
+            label={showOnlySelected ? "SHOWING SELECTED" : "SELECTED ONLY"}
+            variant={showOnlySelected ? "primary" : "default"}
+          />
+          <ActionButton
+            onClick={handleSelectAllFiltered}
+            icon="done_all"
+            label={t("auto_toggle_all_visible")}
+          />
 
           {selectedIds.size > 0 && (
             <ActionButton

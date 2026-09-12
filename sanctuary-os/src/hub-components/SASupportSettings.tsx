@@ -1,10 +1,10 @@
-﻿import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from '../components/universal/UniversalLayout';
+import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from '../components/universal/UniversalLayout';
 import {  } from "../shared";
 import { useStore } from "../store";
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, FilterPopover } from "../shared";
+import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 
@@ -136,20 +136,18 @@ export default function SASupportSettings() {
             ]}
             headerActions={
                 <div className="flex items-center gap-2">
-                    <FilterPopover icon="tune" label="" className="shrink-0">
-                        <div className="flex flex-col gap-2 p-4">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">{t("filter_category")}</label>
-                            <CustomDropdown disableTint={true}
-                                value={filter}
-                                onChange={(v: string[]) => setFilter(v[0])}
-                                options={[
-                                    { id: "ALL", label: t("all_classes") },
-                                    { id: "ACTIVE", label: t("support_active_only") },
-                                    { id: "INACTIVE", label: t("support_inactive_only") }
-                                ]}
-                            />
-                        </div>
-                    </FilterPopover>
+                    <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        disableTint={true}
+                        value={filter}
+                        onChange={(v: string[]) => setFilter(v[0])}
+                        options={[
+                            { id: "ALL", label: t("all_classes") },
+                            { id: "ACTIVE", label: t("support_active_only") },
+                            { id: "INACTIVE", label: t("support_inactive_only") }
+                        ]}
+                    />
                     <ActionButton
                         onClick={() => activeTab === 'CATEGORIES' ? openEditor() : openSourceEditor()}
                         iconOnly={true}
@@ -367,35 +365,29 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
             widthClass="w-[600px]"
             backdropZ="z-[100]"
             panelZ="z-[105]"
-            footer={
-                <div className="flex flex-col gap-4 w-full">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[9px] font-black capitalize tracking-widest theme-text-warning opacity-80 flex items-center gap-2">
-                            <span className="material-symbols-outlined !text-[12px]">{t("icon_history")}</span>
-                            {t("audit_reason_req")}
-                        </label>
-                        <input
-                            type="text"
-                            value={actionReason}
-                            onChange={(e) => setActionReason(e.target.value)}
-                            placeholder={t("describe_change")}
-                            className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] transition-all font-mono"
-                        />
-                    </div>
-                    <div className="flex justify-center items-center gap-4 w-full">
-                        {draft.id && (
-                            <ActionButton onClick={handleDelete} disabled={isSaving || !actionReason} label={t("purge")}>
-                                
-                            </ActionButton>
-                        )}
-                        <ActionButton onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name || !actionReason} label={isSaving ? "..." : (t("save"))}>
-                            
-                        </ActionButton>
-                    </div>
-                </div>
+            headerActions={
+                <PanelHeaderGroup>
+                    {draft.id && (
+                        <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge")} onClick={handleDelete} disabled={isSaving || !actionReason} />
+                    )}
+                    <PanelHeaderButton icon="check" variant="success" tooltip={isSaving ? "..." : (t("save"))} onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name || !actionReason} />
+                </PanelHeaderGroup>
             }
         >
             <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-2 p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] mb-2">
+                    <label className="text-[9px] font-black capitalize tracking-widest theme-text-warning opacity-80 flex items-center gap-2">
+                        <span className="material-symbols-outlined !text-[12px]">{t("icon_history")}</span>
+                        {t("audit_reason_req")}
+                    </label>
+                    <input
+                        type="text"
+                        value={actionReason}
+                        onChange={(e) => setActionReason(e.target.value)}
+                        placeholder={t("describe_change")}
+                        className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] transition-all font-mono border border-transparent"
+                    />
+                </div>
 
                 <div className="flex items-center justify-start glass-panel p-4 rounded-xl border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <span className="text-xs font-black capitalize tracking-widest">{t("support_active_status")}</span>
@@ -707,35 +699,29 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
             widthClass="w-[500px]"
             backdropZ="z-[100]"
             panelZ="z-[105]"
-            footer={
-                <div className="flex flex-col gap-4 w-full">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[9px] font-black capitalize tracking-widest theme-text-warning opacity-80 flex items-center gap-2">
-                            <span className="material-symbols-outlined !text-[12px]">{t("icon_history")}</span>
-                            {t("telemetry_reason")}
-                        </label>
-                        <input
-                            type="text"
-                            value={actionReason}
-                            onChange={(e) => setActionReason(e.target.value)}
-                            placeholder={t("describe_change")}
-                            className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-xs font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-                        />
-                    </div>
-                    <div className="flex justify-center items-center gap-4 w-full">
-                        {draft.id && (
-                            <ActionButton onClick={deleteSource} disabled={isSaving} label={t("purge")}>
-                                
-                            </ActionButton>
-                        )}
-                        <ActionButton onClick={save} disabled={isSaving} label={isSaving ? (t("btn_saving")) : (t("save"))}>
-                            
-                        </ActionButton>
-                    </div>
-                </div>
+            headerActions={
+                <PanelHeaderGroup>
+                    {draft.id && (
+                        <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge")} onClick={deleteSource} disabled={isSaving} />
+                    )}
+                    <PanelHeaderButton icon="check" variant="success" tooltip={isSaving ? (t("btn_saving")) : (t("save"))} onClick={save} disabled={isSaving} />
+                </PanelHeaderGroup>
             }
         >
             <div className="flex flex-col gap-8 p-8">
+                <div className="flex flex-col gap-2 p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)]">
+                    <label className="text-[9px] font-black capitalize tracking-widest theme-text-warning opacity-80 flex items-center gap-2">
+                        <span className="material-symbols-outlined !text-[12px]">{t("icon_history")}</span>
+                        {t("telemetry_reason")}
+                    </label>
+                    <input
+                        type="text"
+                        value={actionReason}
+                        onChange={(e) => setActionReason(e.target.value)}
+                        placeholder={t("describe_change")}
+                        className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-4 py-3 text-[var(--text)] text-xs font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+                    />
+                </div>
                 <UniversalGroup title="SOURCE DETAILS" icon="info" headerColorClass="theme-text-accent">
                     <UniversalInput 
                         label={t("telemetry_label")} 

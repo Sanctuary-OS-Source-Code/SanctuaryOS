@@ -538,17 +538,6 @@ export const DbpfScout = () => {
                                                         searchQuery={blueprintSearch}
                                                         setSearchQuery={setBlueprintSearch}
                                                         searchPlaceholder={t("search_blueprints") as string}
-                                                        leftContent={
-                                                            <div className="w-48 shrink-0 relative z-50 h-[38px]">
-                                                                <CustomDropdown
-                                                                    disableTint={true}
-                                                                    options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
-                                                                    value={scanScope}
-                                                                    onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
-                                                                    icon="map"
-                                                                />
-                                                            </div>
-                                                        }
                                                     />
                                                 </div>
                                             }

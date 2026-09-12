@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatDisplayName, getHighestVersion, mapDlcCode, getExtensionRegex, getFileLabel, HoverTooltip, EmptyState, cleanSearchName, SearchBar, AccordionDrawer, DeferredRender } from '../../shared';
+import { formatDisplayName, getHighestVersion, mapDlcCode, getExtensionRegex, getFileLabel, HoverTooltip, EmptyState, cleanSearchName, AccordionDrawer, DeferredRender, ActionPill } from '../../shared';
 import { ModCard } from '../../ModCard';
 import { useStore } from '../../store';
 
@@ -677,11 +677,11 @@ export function VaultGrid(props: any) {
                     </div>
                     <div className="flex items-center gap-4 w-full md:w-auto">
                       <div className="relative flex-1 md:w-72">
-                        <SearchBar
-                          value={drawerSearchQuery}
-                          onChange={(v: string) => setDrawerSearchQuery(v)}
-                          placeholder={t("search_ph")}
-                          className="h-10 rounded-[calc(var(--radius)-4px)]"
+                        <ActionPill
+                          searchQuery={drawerSearchQuery}
+                          setSearchQuery={(v: string) => setDrawerSearchQuery(v)}
+                          searchPlaceholder={t("search_ph")}
+                          className="!h-10"
                         />
                       </div>
                       <button onClick={() => setExpandedFolder(null)} className="w-10 h-10 rounded-[calc(var(--radius)-4px)] glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">

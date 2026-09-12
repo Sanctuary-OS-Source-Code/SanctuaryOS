@@ -1,4 +1,4 @@
-import { SearchBar } from "../shared";
+
 import React, { useState, useEffect } from "react";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";

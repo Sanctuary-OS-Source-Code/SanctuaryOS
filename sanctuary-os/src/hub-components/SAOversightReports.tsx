@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton, FilterPopover, ActionPill } from "../shared";
+import { CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton, ActionPill } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 
@@ -229,16 +229,10 @@ export default function SAOversightReports() {
           { id: 'archive', label: t("oversight_tab_archive") as string || "Archive", icon: 'archive', number: archiveReportsCount.toString(), colorClass: 'text-[var(--accent)]' }
         ]}
         headerActions={
-          <FilterPopover icon="tune" label="" className="shrink-0">
-            <div className="p-4 w-64 flex flex-col gap-2 text-[10px] font-black uppercase text-[var(--subtext)]">
-              <div className="text-center mb-2">{t("vault_tools_subtitle") || "Actions & Filters"}</div>
-              <div className="pt-4 flex flex-col gap-2 border-t border-white/10 mt-2">
-                <CustomDatePicker flat={true} value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
-                <span className="opacity-50 text-center">-</span>
-                <CustomDatePicker flat={true} value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
-              </div>
-            </div>
-          </FilterPopover>
+          <div className="flex items-center gap-2">
+            <CustomDatePicker flat={true} value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
+            <CustomDatePicker flat={true} value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
+          </div>
         }
       >
           {isLoading ? (

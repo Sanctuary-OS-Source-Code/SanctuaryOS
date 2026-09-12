@@ -4,7 +4,7 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { supabase } from '../supabase';
-import { ActionButton, SidePanel, CustomDropdown, HoverTooltip, SearchBar, HubTabs, FilterTabs, FilterTabButton, PanelHeaderGroup, PanelHeaderButton, FilterPopover, ActionPill } from '../shared';
+import { ActionButton, SidePanel, CustomDropdown, HoverTooltip, HubTabs, FilterTabs, FilterTabButton, PanelHeaderGroup, PanelHeaderButton, ActionPill } from '../shared';
 
 export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { t, registry, activeLang, setActiveLang, importLexicon, deleteLexicon, lexiconMeta, useGlobalLexicon, setUseGlobalLexicon } = useLexicon();

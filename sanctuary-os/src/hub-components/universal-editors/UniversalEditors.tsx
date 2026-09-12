@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLexicon } from '../../LexiconContext';
-import { formatDisplayName, SearchBar, CustomDropdown } from '../../shared';
+import { formatDisplayName, ActionPill, CustomDropdown } from '../../shared';
 
 export const UniversalInjectableSearch = ({
   dataset,
@@ -24,25 +24,20 @@ export const UniversalInjectableSearch = ({
 
   return (
     <div className="flex flex-col gap-2 relative w-full z-[115005]">
-      <div className="flex gap-2 w-full">
-        <div className="flex-1">
-          <SearchBar 
-            value={search} 
-            onChange={setSearch} 
-            placeholder={searchPlaceholder || t("btn_search")} 
+      <ActionPill
+        searchQuery={search}
+        setSearchQuery={setSearch}
+        searchPlaceholder={searchPlaceholder || t("btn_search")}
+        rightContent={targets.length > 1 && (
+          <CustomDropdown
+            flat={true} variant="pill"
+            value={activeTarget}
+            onChange={(v: any) => setActiveTarget(v[0])}
+            options={targets.map((t: any) => ({ id: t.id, label: t.label, icon: 'api' }))}
+            disableSearch={true}
           />
-        </div>
-        {targets.length > 1 && (
-          <div className="w-40 shrink-0">
-            <CustomDropdown
-               value={activeTarget}
-               onChange={(v: any) => setActiveTarget(v[0])}
-               options={targets.map((t: any) => ({ id: t.id, label: t.label, icon: 'api' }))}
-               disableSearch={true}
-            />
-          </div>
         )}
-      </div>
+      />
 
       {filtered.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-2 glass-panel rounded-full shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col w-full bg-black/20 max-h-64 overflow-y-auto custom-scrollbar">
