@@ -81,11 +81,11 @@ export function IncompatibleModCard({ mod, isIgnored, isAmber, setIgnoredBroken,
               </div>
 
               <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar px-5 flex flex-col gap-2 mb-4">
-                 <div className="flex items-start gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm p-3 rounded-2xl">
-                    <span className={`material-symbols-outlined !text-[16px] shrink-0 mt-0.5 ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>info</span>
+                 <div className={`flex items-start gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl ${isAmber ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}`}>
+                    <span className={`material-symbols-outlined !text-[16px] shrink-0 mt-0.5 ${isAmber ? 'text-amber-400' : 'text-red-400'}`}>info</span>
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span className={`text-[8px] font-black opacity-70 capitalize tracking-widest ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>{t("directive_note")}</span>
-                      <span className={`text-[10px] font-mono font-black capitalize tracking-widest leading-tight ${isAmber ? 'text-amber-500' : 'text-[var(--danger)]'}`}>{mod._alert_reason}</span>
+                      <span className={`text-[8px] font-black opacity-90 capitalize tracking-widest ${isAmber ? 'text-amber-400' : 'text-red-400'}`}>{t("directive_note")}</span>
+                      <span className="text-[10px] font-mono font-black capitalize tracking-widest leading-tight text-[var(--text)] mt-1 drop-shadow-md">{mod._alert_reason}</span>
                     </div>
                  </div>
               </div>

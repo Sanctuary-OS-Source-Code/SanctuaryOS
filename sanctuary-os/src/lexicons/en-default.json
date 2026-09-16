@@ -3079,5 +3079,11 @@
   "no_masons_followed": "You aren't following anyone yet.",
   "create_snapshot": "Create New Snapshot",
   "confirm_seal": "Confirm Snapshot?",
-  "confirm_seal_long": "Finalize New Snapshot?"
+  "confirm_seal_long": "Finalize New Snapshot?",
+  "radar_settings": "Radar Settings",
+  "scan_scope": "Scan Scope",
+  "override_filters": "Override Filters",
+  "undo_overrides": "Undo Overrides",
+  "ignored_conflicts": "Ignored Conflicts",
+  "total_conflicts": "Total Conflicts"
 }

@@ -94,5 +94,11 @@
   "tier_4_core": "T4 - Center",
   "create_snapshot": "Create New Snapshot",
   "confirm_seal": "Confirm Snapshot?",
-  "confirm_seal_long": "Finalize New Snapshot?"
+  "confirm_seal_long": "Finalize New Snapshot?",
+  "radar_settings": "Radar Options",
+  "scan_scope": "Look At",
+  "override_filters": "Override Filters",
+  "undo_overrides": "Undo Stuff",
+  "ignored_conflicts": "Ignored Drama",
+  "total_conflicts": "Total Drama"
 }

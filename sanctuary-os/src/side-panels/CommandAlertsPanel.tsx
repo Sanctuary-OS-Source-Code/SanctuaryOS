@@ -248,7 +248,7 @@ export default function CommandAlertsPanel({ isOpen, onClose, playSet, modList, 
 
             <div className={activeConflicts.length === 0 ? "flex flex-col flex-1" : "flex flex-col gap-6 pb-24"}>
               {activeConflicts.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center space-y-6 py-12 relative group">
+                <div className="flex-1 flex flex-col items-center justify-center space-y-6 py-12 relative">
                   <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-transparent  opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                   <div className="relative w-24 h-24 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.2)] group-hover:shadow-[0_0_50px_rgba(var(--success-rgb),0.3)] transition-all duration-700">
                     <div className="absolute inset-0 rounded-[inherit]  border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[ping_3s_ease-in-out_infinite] opacity-20" />
@@ -449,7 +449,7 @@ export default function CommandAlertsPanel({ isOpen, onClose, playSet, modList, 
             )}
             <div className={brokenMods.length === 0 ? "flex flex-col flex-1" : "grid grid-cols-2 gap-4 pb-24"}>
               {brokenMods.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center space-y-6 py-12 relative group">
+                <div className="flex-1 flex flex-col items-center justify-center space-y-6 py-12 relative">
                   <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--success)_5%,transparent)] to-transparent  opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                   <div className="relative w-24 h-24 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.2)] group-hover:shadow-[0_0_50px_rgba(var(--success-rgb),0.3)] transition-all duration-700">
                     <div className="absolute inset-0 rounded-[inherit]  border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[ping_3s_ease-in-out_infinite] opacity-20" />

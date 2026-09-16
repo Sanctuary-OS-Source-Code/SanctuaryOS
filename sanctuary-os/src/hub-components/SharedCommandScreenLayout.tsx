@@ -23,7 +23,7 @@ export function AlertStatTile({ number, onClick, active, className = "" }: any) 
 
 export function CommandScreenLayout({ children }: any) {
     return (
-        <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32">
+        <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full px-4 md:px-0 md:pr-4 pb-32">
             {children}
         </div>
     );

@@ -653,7 +653,6 @@ body,
     -webkit-backdrop-filter: none !important;
   }
 
-
   .glass-panel::before,
   .glass-surface::before {
     display: block !important;

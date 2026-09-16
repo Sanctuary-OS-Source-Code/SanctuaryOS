@@ -2230,5 +2230,9 @@
   "no_masons_followed": "No Vadish Links Yet.",
   "create_snapshot": "Create New Snapshot",
   "confirm_seal": "Confirm Snapshot?",
-  "confirm_seal_long": "Finalize New Snapshot?"
+  "confirm_seal_long": "Finalize New Snapshot?",
+  "total_blueprints": "Total Vadish",
+  "monitored_assets": "Monitored Frobs",
+  "total_clones": "Total Duplo",
+  "total_soft": "Total Smoosh"
 }

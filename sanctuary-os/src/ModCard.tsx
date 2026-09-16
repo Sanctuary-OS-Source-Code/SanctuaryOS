@@ -444,20 +444,20 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                   {delayedConfirmMode === 'dlc' ? (
                     <>
                       {isGameVersionMismatch && (
-                        <div className="flex items-center gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm p-3 rounded-2xl">
-                          <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">sports_esports</span>
+                        <div className="flex items-center gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                          <span className="material-symbols-outlined !text-[16px] text-red-400 shrink-0">sports_esports</span>
                           <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[8px] font-black text-[var(--danger)] opacity-70 capitalize tracking-widest">{t("required_version")}</span>
-                            <span className="text-[10px] font-mono font-black text-[var(--danger)] capitalize tracking-widest truncate">{getHighestVersion(requiredVersions || [])}</span>
+                            <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("required_version")}</span>
+                            <span className="text-[10px] font-mono font-black text-[var(--text)] capitalize tracking-widest truncate mt-1 drop-shadow-md">{getHighestVersion(requiredVersions || [])}</span>
                           </div>
                         </div>
                       )}
                       {missingPacks.length > 0 && missingPacks.map((p: string) => (
-                        <div key={p} className="flex items-center gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm p-3 rounded-2xl">
-                          <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">currency_exchange</span>
+                        <div key={p} className="flex items-center gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                          <span className="material-symbols-outlined !text-[16px] text-red-400 shrink-0">currency_exchange</span>
                           <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[8px] font-black text-[var(--danger)] opacity-70 capitalize tracking-widest">{t("missing_dlc")}</span>
-                            <span className="text-[10px] font-mono font-black text-[var(--danger)] capitalize tracking-widest truncate">{mapDlcCode(p)}</span>
+                            <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("missing_dlc")}</span>
+                            <span className="text-[10px] font-mono font-black text-[var(--text)] capitalize tracking-widest truncate mt-1 drop-shadow-md">{mapDlcCode(p)}</span>
                           </div>
                         </div>
                       ))}
@@ -466,14 +466,14 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                         return (
                           <div key={reqIdStr}
                             onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(req); } }}
-                            className={`flex items-center gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
-                            <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">extension</span>
+                            className={`flex items-center gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] ${onInspectItem ? 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
+                            <span className="material-symbols-outlined !text-[16px] text-red-400 shrink-0">extension</span>
                             <div className="flex flex-col min-w-0 flex-1">
-                              <span className="text-[8px] font-black text-[var(--danger)] opacity-70 capitalize tracking-widest">{t("missing_dependency")}</span>
-                              <span className="text-[10px] font-mono font-black text-[var(--danger)] capitalize tracking-widest truncate">{cleanSearchName(reqIdStr, activeGameSchema)}</span>
+                              <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("missing_dependency")}</span>
+                              <span className="text-[10px] font-mono font-black text-[var(--text)] capitalize tracking-widest truncate mt-1 drop-shadow-md">{cleanSearchName(reqIdStr, activeGameSchema)}</span>
                             </div>
                             {onInspectItem && (
-                              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-0 group-hover/inspect:opacity-50 transition-opacity">open_in_new</span>
+                              <span className="material-symbols-outlined !text-[16px] text-red-400 opacity-0 group-hover/inspect:opacity-80 transition-opacity">open_in_new</span>
                             )}
                           </div>
                         );
@@ -483,14 +483,14 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                     casualtyList.map((c: any, i: number) => (
                       <div key={i}
                         onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(c); } }}
-                        className={`flex items-center gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
-                        <span className={`material-symbols-outlined !text-[16px] shrink-0 ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'theme-text-danger'}`}>{delayedConfirmMode === 'flavor_swap' ? 'swap_horiz' : (!isInActiveSet ? (t("icon_crisis_alert")) : 'delete')}</span>
+                        className={`flex items-center gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl ${delayedConfirmMode === 'flavor_swap' ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'} ${onInspectItem ? `cursor-pointer group/inspect hover:border-[color-mix(in_srgb,${delayedConfirmMode === 'flavor_swap' ? 'var(--accent)' : 'var(--danger)'}_30%,transparent)] hover:bg-[color-mix(in_srgb,${delayedConfirmMode === 'flavor_swap' ? 'var(--accent)' : 'var(--danger)'}_15%,transparent)]` : ''}`}>
+                        <span className={`material-symbols-outlined !text-[16px] shrink-0 ${delayedConfirmMode === 'flavor_swap' ? 'text-cyan-400' : 'text-red-400'}`}>{delayedConfirmMode === 'flavor_swap' ? 'swap_horiz' : (!isInActiveSet ? (t("icon_crisis_alert")) : 'delete')}</span>
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className={`text-[8px] font-black capitalize tracking-widest ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent opacity-70' : 'text-[var(--danger)] opacity-70'}`}>{delayedConfirmMode === 'flavor_swap' ? (t("flavor_replaced")) : (t("artifact_removed"))}</span>
-                          <span className={`text-[10px] font-mono font-black capitalize tracking-widest truncate ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>{formatDisplayName(c.name || c)}</span>
+                          <span className={`text-[8px] font-black capitalize tracking-widest opacity-90 ${delayedConfirmMode === 'flavor_swap' ? 'text-cyan-400' : 'text-red-400'}`}>{delayedConfirmMode === 'flavor_swap' ? (t("flavor_replaced")) : (t("artifact_removed"))}</span>
+                          <span className={`text-[10px] font-mono font-black text-[var(--text)] capitalize tracking-widest truncate mt-1 drop-shadow-md`}>{formatDisplayName(c.name || c)}</span>
                         </div>
                         {onInspectItem && (
-                          <span className={`material-symbols-outlined !text-[16px] opacity-0 group-hover/inspect:opacity-50 transition-opacity ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>open_in_new</span>
+                          <span className={`material-symbols-outlined !text-[16px] opacity-0 group-hover/inspect:opacity-80 transition-opacity ${delayedConfirmMode === 'flavor_swap' ? 'text-cyan-400' : 'text-red-400'}`}>open_in_new</span>
                         )}
                       </div>
                     ))
@@ -498,14 +498,14 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                     brokenMods.map((b: any, i: number) => (
                       <div key={i}
                         onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(b); } }}
-                        className={`flex items-center gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm p-3 rounded-2xl ${onInspectItem ? 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] shrink-0">broken_image</span>
+                        className={`flex items-center gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] ${onInspectItem ? 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
+                        <span className="material-symbols-outlined !text-[16px] text-red-400 shrink-0">broken_image</span>
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-[8px] font-black text-[var(--danger)] opacity-70 capitalize tracking-widest">{t("status_broken")}</span>
-                          <span className="text-[10px] font-mono font-black text-[var(--danger)] capitalize tracking-widest truncate">{formatDisplayName(b.displayName || b.name)}</span>
+                          <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("status_broken")}</span>
+                          <span className="text-[10px] font-mono font-black text-[var(--text)] capitalize tracking-widest truncate mt-1 drop-shadow-md">{formatDisplayName(b.displayName || b.name)}</span>
                         </div>
                         {onInspectItem && (
-                          <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-0 group-hover/inspect:opacity-50 transition-opacity">open_in_new</span>
+                          <span className="material-symbols-outlined !text-[16px] text-red-400 opacity-0 group-hover/inspect:opacity-80 transition-opacity">open_in_new</span>
                         )}
                       </div>
                     ))

@@ -290,7 +290,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         onTitleClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }}
       >
         {activeTab !== "OVERVIEW" && (
-          <div className="animate-in slide-in-from-top-4 duration-500 relative z-20 w-full mb-4">
+          <div className="animate-in slide-in-from-top-4 duration-500 relative z-20 w-full xl:w-auto overflow-hidden">
             <ActionPill
               searchQuery={searchQuery || ""}
               setSearchQuery={setSearchQuery}

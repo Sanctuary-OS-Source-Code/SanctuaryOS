@@ -79,7 +79,7 @@ export function UniversalCard({
     case "vertical-compact":
       layoutClasses = "flex-col";
       imageContainerClasses = "w-full h-24";
-      contentClasses = `flex-col p-4 ${(!image && !customIcon) ? 'justify-center items-center text-center px-6' : ''}`;
+      contentClasses = `flex-col p-4`;
       break;
     case "stat":
       layoutClasses = "flex-col items-center justify-center p-4 text-center min-h-[100px]";
@@ -90,7 +90,7 @@ export function UniversalCard({
     default:
       layoutClasses = "flex-col";
       imageContainerClasses = "w-full h-32";
-      contentClasses = `flex-col p-5 ${(!image && !customIcon) ? 'justify-center items-center text-center px-6' : ''}`;
+      contentClasses = `flex-col p-5`;
       break;
   }
 
@@ -111,11 +111,7 @@ export function UniversalCard({
   const renderMedia = () => {
     if (!image && !icon && !customIcon) return null;
 
-    // For vertical layouts with NO image, skip rendering the massive empty banner!
-    // The icon/customIcon will be handled by the inline block in the content area instead.
-    if ((layout === "vertical" || layout === "vertical-compact") && !image) {
-      return null;
-    }
+    // Render banner for vertical layouts, using the icon if image is missing
 
     // For compact, we don't have the big abstract background
     if (layout === "compact") {
@@ -197,7 +193,7 @@ export function UniversalCard({
         {/* Dividers (Removed for a cleaner glass look) */}
         <div className={`flex flex-col min-w-0 self-stretch grow ${contentClasses}`}>
           {/* Title & Subtitle */}
-          <div className={`flex flex-col gap-1 w-full min-w-0 ${layout === 'stat' || (!image && !customIcon && (layout === 'vertical' || layout === 'vertical-compact')) ? 'items-center' : ''}`}>
+          <div className={`flex flex-col gap-1 w-full min-w-0 ${layout === 'stat' ? 'items-center' : ''}`}>
 
             {subtitle && layout === 'stat' && (
               <div className="sanctuary-subtitle">
@@ -205,19 +201,10 @@ export function UniversalCard({
               </div>
             )}
 
-            <div className={`flex min-w-0 w-full ${layout === 'stat' || (!image && (layout === 'vertical' || layout === 'vertical-compact')) ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
-              {/* If no image and it's a vertical layout, show a beautiful large icon! */}
-              {!image && (icon || customIcon) && (layout === 'vertical' || layout === 'vertical-compact') && (
-                <div className="w-16 h-16 rounded-xl bg-[color-mix(in_srgb,currentColor_5%,transparent)] border border-[color-mix(in_srgb,currentColor_20%,transparent)] flex items-center justify-center shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_2%,transparent)] group-hover/card:shadow-[inset_0_0_20px_color-mix(in_srgb,var(--text)_5%,transparent)] group-hover/card:scale-110 group-hover/card:border-[color-mix(in_srgb,currentColor_40%,transparent)] transition-all duration-500">
-                  {customIcon ? customIcon : (
-                    <span className="material-symbols-outlined opacity-60 group-hover/card:opacity-100 theme-text-accent shrink-0 group-hover/card:drop-shadow-[0_0_15px_currentColor] transition-all duration-500">
-                      {icon}
-                    </span>
-                  )}
-                </div>
-              )}
+            <div className={`flex min-w-0 w-full ${layout === 'stat' ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
+              {/* Removed large inline icon since it now renders in the banner */}
 
-              {(image || customIcon || (layout !== 'vertical' && layout !== 'vertical-compact' && layout !== 'horizontal')) && icon && (
+              {(image || customIcon || icon) && layout !== 'stat' && (
                 <span className={`material-symbols-outlined ${layout === 'compact' ? 'text-lg opacity-70' : 'text-xl theme-text-accent opacity-90'} shrink-0`}>
                   {icon}
                 </span>
@@ -232,7 +219,7 @@ export function UniversalCard({
             </div>
 
             {subtitle && layout !== 'stat' && (
-              <div className={`sanctuary-subtitle line-clamp-2 relative group/subtitle w-max max-w-full ${(!image && !customIcon && (layout === 'vertical' || layout === 'vertical-compact')) ? 'text-center' : ''}`}>
+              <div className={`sanctuary-subtitle line-clamp-2 relative group/subtitle w-max max-w-full`}>
                 {subtitle}
                 {/* typeof subtitle === 'string' && (
                   <HoverTooltip title={subtitle} variant="default" noIcon={true} align="center" vAlign="top" className="!hidden group-hover/subtitle:!flex z-[200]" />

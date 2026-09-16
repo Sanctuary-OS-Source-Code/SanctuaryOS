@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionPill, PillTabs, PillTabButton } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionPill, PillTabs, PillTabButton, GlassSegmentedControl } from "./shared";
 import { getExtensionRegex, formatDisplayName, getFileLabel } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { useLexicon } from "./LexiconContext";
@@ -57,7 +57,7 @@ export const DbpfScout = () => {
     const [visibleClone, setVisibleClone] = useState(50);
     const [visibleSoft, setVisibleSoft] = useState(50);
     const [activeTab, setActiveTab] = useState<string>("COMMAND");
-    const [overrideTab, setOverrideTab] = useState<"ACTIVE" | "IGNORED">("ACTIVE");
+    const [overrideTab, setOverrideTab] = useState<"ACTIVE" | "IGNORED" | "ALL">("ALL");
     const [conflictSearch, setConflictSearch] = useState("");
     const [overrideSearch, setOverrideSearch] = useState("");
     const [blueprintSearch, setBlueprintSearch] = useState("");
@@ -168,6 +168,7 @@ export const DbpfScout = () => {
         }
         setHasScanned(true);
         setLoading(false);
+        setActiveTab("CONFLICTS");
     };
 
     const ignoreConflict = (modPair: string) => {
@@ -407,61 +408,38 @@ export const DbpfScout = () => {
                     onTitleClick={() => setActiveTab("COMMAND")}
                 >
                     {activeTab === "CONFLICTS" && (
-                        <div className="animate-in fade-in slide-in-from-right-4 duration-500 w-full">
+                        <div className="w-full max-w-md animate-in fade-in slide-in-from-right-4 duration-500">
                             <ActionPill
                                 searchQuery={conflictSearch}
                                 setSearchQuery={setConflictSearch}
                                 searchPlaceholder={t("radar_search_conflicts") as string}
-                                leftContent={
-                                    <div className="w-64 shrink-0 hidden xl:block">
-                                        <CustomDropdown
-                                            disableTint={true}
-                                            options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
-                                            value={scanScope}
-                                            onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
-                                            icon="map"
-                                        />
-                                    </div>
-                                }
                                 rightContent={
-                                    <PillTabs className="mr-2 my-auto">
-                                        <PillTabButton id={4} label="S4" activeTab={activeConflictSeverity} setTab={(v: number) => setActiveConflictSeverity(activeConflictSeverity === v ? null : v)} className="text-[var(--danger)] hover:text-[var(--danger)]" />
-                                        <PillTabButton id={3} label="S3" activeTab={activeConflictSeverity} setTab={(v: number) => setActiveConflictSeverity(activeConflictSeverity === v ? null : v)} className="text-[var(--warning)] hover:text-[var(--warning)]" />
-                                        <PillTabButton id={2} label="S2" activeTab={activeConflictSeverity} setTab={(v: number) => setActiveConflictSeverity(activeConflictSeverity === v ? null : v)} className="text-[var(--accent)] hover:text-[var(--accent)]" />
-                                        <PillTabButton id={1} label="S1" activeTab={activeConflictSeverity} setTab={(v: number) => setActiveConflictSeverity(activeConflictSeverity === v ? null : v)} className="text-blue-400 hover:text-blue-400" />
-                                    </PillTabs>
+                                    <div className="flex items-center border-l border-[color-mix(in_srgb,var(--text)_6%,transparent)] pl-2 h-full pr-2">
+                                        <button onClick={() => setIsSidePanelOpen(true)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--subtext)] hover:text-[var(--text)]">
+                                            <span className="material-symbols-outlined !text-[20px]">tune</span>
+                                        </button>
+                                    </div>
                                 }
                             />
                         </div>
                     )}
                     {activeTab === "OVERRIDES" && (
-                        <div className="animate-in fade-in slide-in-from-right-4 duration-500 w-full">
+                        <div className="w-full max-w-md animate-in fade-in slide-in-from-right-4 duration-500">
                             <ActionPill
                                 searchQuery={overrideSearch}
                                 setSearchQuery={setOverrideSearch}
                                 searchPlaceholder={t("radar_search_overrides") as string}
-                                leftContent={
-                                    <div className="w-64 shrink-0 hidden xl:block">
-                                        <CustomDropdown
-                                            disableTint={true}
-                                            options={(playSets || []).map((s: any) => ({ id: s.name, label: s.name }))}
-                                            value={scanScope}
-                                            onChange={(val: any) => { const v = Array.isArray(val) ? val[0] : val; setScanScope(v); runRadar(v); }}
-                                            icon="map"
-                                        />
-                                    </div>
-                                }
                                 rightContent={
-                                    <div className="flex items-center glass-panel rounded-xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner h-10 shrink-0 hidden md:flex">
-                                        <button onClick={() => setOverrideTab("ACTIVE")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] capitalize tracking-widest transition-all ${overrideTab === "ACTIVE" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("active")}</button>
-                                        <button onClick={() => setOverrideTab("IGNORED")} className={`h-full px-4 flex items-center justify-center font-black text-[10px] capitalize tracking-widest transition-all ${overrideTab === "IGNORED" ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ignored")}</button>
+                                    <div className="flex items-center border-l border-[color-mix(in_srgb,var(--text)_6%,transparent)] pl-2 h-full pr-2">
+                                        <button onClick={() => setIsSidePanelOpen(true)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--subtext)] hover:text-[var(--text)]">
+                                            <span className="material-symbols-outlined !text-[20px]">tune</span>
+                                        </button>
                                     </div>
                                 }
                             />
                         </div>
                     )}
                 </ViewHeader>
-
                 <HoverTabDrawer title="Radar Navigation" activeTab={activeTab} setTab={setActiveTab}>
                     <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
                     <VerticalTabButton
@@ -484,50 +462,40 @@ export const DbpfScout = () => {
                         <CommandScreenLayout>
                             <CommandScreenStats>
                                 <DashboardStatTile
-                                    label={t("total_severity_4")}
-                                    number={(() => {
-                                        const cachedStatsStr = localStorage.getItem(`radar_stats_${scanScope}`);
-                                        const cachedStats = cachedStatsStr ? JSON.parse(cachedStatsStr) : { fatal: 0 };
-                                        return hasScanned ? fatalConflicts.length.toString() : cachedStats.fatal.toString();
-                                    })()}
-                                    icon={<span className="material-symbols-outlined">crisis_alert</span>}
-                                    colorClass="text-[var(--danger)]"
-                                    onClick={() => { setActiveTab("CONFLICTS"); setActiveConflictSeverity(4); }}
+                                    label={t("total_blueprints") || "Total Blueprints"}
+                                    number={playSets.length.toString()}
+                                    icon={<span className="material-symbols-outlined">map</span>}
+                                    colorClass="text-[var(--text)]"
                                     className="cursor-pointer hover:scale-105 transition-transform"
                                 />
                                 <DashboardStatTile
-                                    label={t("total_severity_3")}
-                                    number={(() => {
-                                        const cachedStatsStr = localStorage.getItem(`radar_stats_${scanScope}`);
-                                        const cachedStats = cachedStatsStr ? JSON.parse(cachedStatsStr) : { tuning: 0 };
-                                        return hasScanned ? tuningConflicts.length.toString() : cachedStats.tuning.toString();
-                                    })()}
-                                    icon={<span className="material-symbols-outlined">tune</span>}
-                                    colorClass="text-[var(--warning)]"
-                                    onClick={() => { setActiveTab("CONFLICTS"); setActiveConflictSeverity(3); }}
+                                    label={t("total_conflicts") || "Total Conflicts"}
+                                    number={(fatalConflicts.length + tuningConflicts.length + cloneConflicts.length + softConflicts.length).toString()}
+                                    icon={<span className="material-symbols-outlined">warning</span>}
+                                    colorClass={(fatalConflicts.length + tuningConflicts.length) > 0 ? "text-[var(--warning)]" : "text-[var(--text)]"}
+                                    onClick={() => setActiveTab("CONFLICTS")}
                                     className="cursor-pointer hover:scale-105 transition-transform"
                                 />
                                 <DashboardStatTile
-                                    label={t("total_overrides")}
-                                    number={(() => {
-                                        const bp = playSets.find((p: any) => p.name === scanScope);
-                                        return bp ? bp.mods.filter((m: any) => (typeof m === 'string' ? m : (m.name || m.path || '')).toLowerCase().startsWith("sanctuary")).length.toString() : "0";
-                                    })()}
+                                    label={t("total_overrides") || "Total Overrides"}
+                                    number={playSets.reduce((acc: number, bp: any) => acc + (bp.mods ? bp.mods.filter((m: any) => (typeof m === 'string' ? m : (m.name || m.path || '')).toLowerCase().startsWith("sanctuary")).length : 0), 0).toString()}
                                     icon={<span className="material-symbols-outlined">rule</span>}
                                     colorClass="text-[var(--accent)]"
-                                    onClick={() => { setActiveTab("OVERRIDES"); setOverrideTab("ACTIVE"); }}
+                                    onClick={() => setActiveTab("OVERRIDES")}
                                     className="cursor-pointer hover:scale-105 transition-transform"
                                 />
                                 <DashboardStatTile
-                                    label={t("total_ignores")}
+                                    label={t("total_ignores") || "Total Ignored"}
                                     number={ignoredPairs.length.toString()}
                                     icon={<span className="material-symbols-outlined">visibility_off</span>}
-                                    colorClass="text-[var(--subtext)]"
+                                    colorClass="text-[var(--subtext)] opacity-80"
+                                    onClick={() => { setActiveTab("OVERRIDES"); setOverrideTab("IGNORED"); }}
+                                    className="cursor-pointer hover:scale-105 transition-transform"
                                 />
                             </CommandScreenStats>
-
                             <CommandScreenBody>
                                 <CommandScreenMain>
+
                                     <div className="flex flex-col gap-6 w-full">
                                         <CommandScreenSectionHeading
                                             title={t("select_blueprint")}
@@ -542,57 +510,32 @@ export const DbpfScout = () => {
                                                 </div>
                                             }
                                         />
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                             {playSets.filter((bp: any) => !blueprintSearch || bp.name.toLowerCase().includes(blueprintSearch.toLowerCase())).map((blueprint: any) => {
-                                                const cachedStatsStr = localStorage.getItem(`radar_stats_${blueprint.name}`);
-                                                const cachedStats = cachedStatsStr ? JSON.parse(cachedStatsStr) : { fatal: 0, tuning: 0, clone: 0, soft: 0 };
-                                                const fCount = scanScope === blueprint.name && hasScanned ? fatalConflicts.length : cachedStats.fatal;
-                                                const tCount = scanScope === blueprint.name && hasScanned ? tuningConflicts.length : cachedStats.tuning;
-                                                const cCount = scanScope === blueprint.name && hasScanned ? cloneConflicts.length : cachedStats.clone;
-                                                const sCount = scanScope === blueprint.name && hasScanned ? softConflicts.length : cachedStats.soft;
-
                                                 return (
-                                                    <div key={blueprint.name} className={`glass-panel rounded-2xl p-6 border ${scanScope === blueprint.name ? 'border-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'} shadow-lg flex flex-col gap-4 group transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] relative `} style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', boxShadow: '0 0 40px color-mix(in srgb, var(--accent) 15%, transparent)' } : {}}>
-                                                        <div className="flex items-start justify-start">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={`w-10 h-10 rounded-xl ${scanScope === blueprint.name ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'} border flex items-center justify-center transition-colors relative`}>
-                                                                    <span className={`material-symbols-outlined !text-[18px] text-[var(--accent)]`}>account_tree</span>
-                                                                </div>
-                                                                <div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <h3 className="font-black capitalize tracking-widest text-[var(--text)]">{blueprint.name}</h3>
-                                                                    </div>
-                                                                    <p className="text-[10px] font-bold opacity-60 capitalize tracking-widest">{blueprint.mods.length} {t("items")}</p>
-                                                                </div>
-                                                            </div>
+                                                    <div 
+                                                        key={blueprint.name} 
+                                                        onClick={() => { setScanScope(blueprint.name); }}
+                                                        className={`flex flex-col items-start gap-4 p-6 rounded-3xl glass-panel border transition-all text-left group/btn cursor-pointer animate-in slide-in-from-bottom-2 duration-500 fill-mode-both shadow-[0_20px_50px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)] min-h-[10rem] relative ${scanScope === blueprint.name ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
+                                                    >
+                                                        <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br transition-opacity duration-500 opacity-0 group-hover/btn:opacity-100 pointer-events-none ${scanScope === blueprint.name ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent'}`} />
+                                                        
+                                                        <div className="flex flex-row items-start justify-between w-full gap-4 relative z-10">
+                                                            <span className={`text-2xl font-black tracking-tighter transition-colors drop-shadow-md flex-1 ${scanScope === blueprint.name ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/btn:text-[var(--accent)]'}`} style={{wordBreak: "break-word"}}>{blueprint.name}</span>
                                                         </div>
 
-                                                        <div className="grid grid-cols-4 gap-2 mt-2">
-                                                            <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors">
-                                                                <span className="text-xl font-black text-[var(--danger)]">{fCount}</span>
-                                                                <span className="text-[8px] font-black capitalize tracking-widest text-[var(--danger)] opacity-80">{t("stat_fatal")}</span>
+                                                        <div className="flex items-center justify-between w-full mt-auto relative z-10 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover/btn:border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">inventory_2</span>
+                                                                <span className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest">{blueprint.mods ? blueprint.mods.length : 0} {t("items")}</span>
                                                             </div>
-                                                            <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_20%,transparent)] transition-colors">
-                                                                <span className="text-xl font-black text-[var(--warning)]">{tCount}</span>
-                                                                <span className="text-[8px] font-black capitalize tracking-widest text-[var(--warning)] opacity-80">{t("stat_tuning")}</span>
-                                                            </div>
-                                                            <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors">
-                                                                <span className="text-xl font-black text-[var(--accent)]">{cCount}</span>
-                                                                <span className="text-[8px] font-black capitalize tracking-widest text-[var(--accent)] opacity-80">{t("stat_clones")}</span>
-                                                            </div>
-                                                            <div className="bg-black/20 rounded-lg p-2 flex flex-col items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors">
-                                                                <span className="text-xl font-black text-blue-400">{sCount}</span>
-                                                                <span className="text-[8px] font-black capitalize tracking-widest text-blue-400 opacity-80">{t("stat_soft")}</span>
-                                                            </div>
+                                                            {scanScope === blueprint.name && (
+                                                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_40%,transparent)] rounded-lg shrink-0 shadow-sm shadow-[0_0_15px_rgba(var(--success-rgb),0.2)]">
+                                                                    <span className="material-symbols-outlined !text-[14px] text-[var(--success)] drop-shadow-md">track_changes</span>
+                                                                    <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--success)]">{t("btn_selected") || "Selected"}</span>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        <button
-                                                            onClick={() => { setScanScope(blueprint.name); runRadar(blueprint.name); }}
-                                                            className={`w-full mt-4 h-[38px] rounded-xl font-black text-[10px] tracking-widest capitalize transition-all flex items-center justify-center gap-2 relative ${scanScope === blueprint.name ? 'border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] backdrop-blur-md' : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-sm hover:scale-[1.02]'}`}
-                                                            style={scanScope === blueprint.name ? { backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)', boxShadow: '0 0 20px color-mix(in srgb, var(--accent) 20%, transparent)' } : {}}
-                                                        >
-                                                            {scanScope === blueprint.name ? <span className="material-symbols-outlined !text-[16px]">{t("icon_check_circle")}</span> : <span className="material-symbols-outlined !text-[16px]">track_changes</span>}
-                                                            {scanScope === blueprint.name ? (t("btn_selected")) : (t("btn_select"))}
-                                                        </button>
                                                     </div>
                                                 )
                                             })}
@@ -630,8 +573,46 @@ export const DbpfScout = () => {
                     )}
 
                     {activeTab === "CONFLICTS" && (
-                        <>
-                            {/* ViewHeader filters now replace the inline filter bar */}
+                        <CommandScreenLayout>
+                            {hasScanned && (
+                                <CommandScreenStats>
+                                    <DashboardStatTile
+                                        label={t("total_severity_4") || "Severity 4"}
+                                        number={fatalConflicts.length.toString()}
+                                        icon={<span className="material-symbols-outlined">crisis_alert</span>}
+                                        colorClass={activeConflictSeverity === 4 ? "text-white" : "text-[var(--danger)]"}
+                                        className={`cursor-pointer transition-all ${activeConflictSeverity === 4 ? "bg-[var(--danger)] shadow-[0_0_20px_rgba(var(--danger-rgb),0.4)]" : "hover:border-[var(--danger)]"}`}
+                                        onClick={() => setActiveConflictSeverity(activeConflictSeverity === 4 ? null : 4)}
+                                    />
+                                    <DashboardStatTile
+                                        label={t("total_severity_3") || "Severity 3"}
+                                        number={tuningConflicts.length.toString()}
+                                        icon={<span className="material-symbols-outlined">tune</span>}
+                                        colorClass={activeConflictSeverity === 3 ? "text-black" : "text-[var(--warning)]"}
+                                        className={`cursor-pointer transition-all ${activeConflictSeverity === 3 ? "bg-[var(--warning)] shadow-[0_0_20px_rgba(var(--warning-rgb),0.4)]" : "hover:border-[var(--warning)]"}`}
+                                        onClick={() => setActiveConflictSeverity(activeConflictSeverity === 3 ? null : 3)}
+                                    />
+                                    <DashboardStatTile
+                                        label={t("total_clones") || "Total Clones"}
+                                        number={cloneConflicts.length.toString()}
+                                        icon={<span className="material-symbols-outlined">content_copy</span>}
+                                        colorClass={activeConflictSeverity === 2 ? "text-black" : "text-[var(--accent)]"}
+                                        className={`cursor-pointer transition-all ${activeConflictSeverity === 2 ? "bg-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.4)]" : "hover:border-[var(--accent)]"}`}
+                                        onClick={() => setActiveConflictSeverity(activeConflictSeverity === 2 ? null : 2)}
+                                    />
+                                    <DashboardStatTile
+                                        label={t("total_soft") || "Total Soft"}
+                                        number={softConflicts.length.toString()}
+                                        icon={<span className="material-symbols-outlined">info</span>}
+                                        colorClass={activeConflictSeverity === 1 ? "text-black" : "text-blue-400"}
+                                        className={`cursor-pointer transition-all ${activeConflictSeverity === 1 ? "bg-blue-400 shadow-[0_0_20px_rgba(96,165,250,0.4)]" : "hover:border-blue-400"}`}
+                                        onClick={() => setActiveConflictSeverity(activeConflictSeverity === 1 ? null : 1)}
+                                    />
+                                </CommandScreenStats>
+                            )}
+                            <CommandScreenBody>
+                                <CommandScreenMain>
+                                    <div className="flex flex-col gap-6 w-full">
 
                             {!hasScanned && !loading && !error && (
                                 <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
@@ -702,7 +683,7 @@ export const DbpfScout = () => {
 
                             {hasScanned && filteredFatal.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 4) && (
                                 <section className="space-y-6">
-                                    <div className="flex items-center justify-start border-b theme-border-danger pb-4 mb-6">
+                                    <div className="flex items-center justify-start pb-4 mb-6">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
                                                 <span className="material-symbols-outlined !text-2xl theme-text-danger drop-shadow-[0_0_8px_rgba(var(--danger-rgb),0.5)]">{t("icon_warning_amber")}</span>
@@ -731,7 +712,7 @@ export const DbpfScout = () => {
 
                             {hasScanned && filteredTuning.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 3) && (
                                 <section className="space-y-6 mt-12">
-                                    <div className="flex items-center justify-start border-b theme-border-warning pb-4 mb-6">
+                                    <div className="flex items-center justify-start pb-4 mb-6">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
                                                 <span className="material-symbols-outlined !text-2xl theme-text-warning drop-shadow-[0_0_8px_rgba(var(--warning-rgb),0.5)]">{t("icon_tune")}</span>
@@ -760,7 +741,7 @@ export const DbpfScout = () => {
 
                             {hasScanned && filteredClone.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 2) && (
                                 <section className="space-y-6 mt-12">
-                                    <div className="flex flex-col lg:flex-row justify-start items-start lg:items-end gap-6 border-b theme-border-accent pb-4 mb-6">
+                                    <div className="flex flex-col lg:flex-row justify-start items-start lg:items-end gap-6 pb-4 mb-6">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
                                                 <span className="material-symbols-outlined lowercase !text-2xl theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("icon_all_inclusive")}</span>
@@ -856,74 +837,90 @@ export const DbpfScout = () => {
                                     )}
                                 </details>
                             )}
-                        </>
+                        </div>
+                                </CommandScreenMain>
+
+                            </CommandScreenBody>
+                        </CommandScreenLayout>
                     )}
 
-                    {activeTab === "OVERRIDES" && (
-                        <div className="flex flex-col gap-6">
-                            <div className="flex items-center gap-4 mb-8 relative z-20 animate-in slide-in-from-top-4 duration-500">
-                                <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3 shrink-0">
-                                    <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                                        <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">rule</span>
-                                    </div>
-                                    <span className="truncate">{overrideTab === "IGNORED" ? t("ignored") : t("active_overrides")}</span>
-                                </h2>
-                            </div>
-                            {(() => {
-                                const activeSetMods = playSets.find((s: any) => s.name === scanScope)?.mods || [];
-                                const manualOverrides = activeSetMods.filter((m: any) => (typeof m === 'string' ? m : (m.name || m.path || '')).toLowerCase().startsWith("sanctuary")).map((m: any) => typeof m === 'string' ? m : (m.name || m.path || ''));
+                    {activeTab === "OVERRIDES" && (() => {
+                        const activeSetMods = playSets.find((s: any) => s.name === scanScope)?.mods || [];
+                        const manualOverrides = activeSetMods.filter((m: any) => (typeof m === 'string' ? m : (m.name || m.path || '')).toLowerCase().startsWith("sanctuary")).map((m: any) => typeof m === 'string' ? m : (m.name || m.path || ''));
 
-                                const resolvedOverrides = ignoredPairs.map((pair: string) => {
-                                    const parts = pair.split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
-                                    const left = parts[0] || pair;
-                                    const right = parts[1];
-                                    if (!right) return null;
+                        const resolvedOverrides = ignoredPairs.map((pair: string) => {
+                            const parts = pair.split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
+                            const left = parts[0] || pair;
+                            const right = parts[1];
+                            if (!right) return null;
 
-                                    const leftClean = left.replace(/^Sanctuary[/\\]/i, "").toLowerCase();
-                                    const rightClean = right.replace(/^Sanctuary[/\\]/i, "").toLowerCase();
+                            const leftClean = left.replace(/^Sanctuary[/\\]/i, "").toLowerCase();
+                            const rightClean = right.replace(/^Sanctuary[/\\]/i, "").toLowerCase();
 
-                                    const leftIsWinner = manualOverrides.some((m: string) => {
-                                        const p = m.replace(/^Sanctuary[/\\]/i, "").toLowerCase();
-                                        return p === leftClean || p.endsWith(`/${leftClean}`) || p.endsWith(`\\${leftClean}`);
-                                    });
+                            const leftIsWinner = manualOverrides.some((m: string) => {
+                                const p = m.replace(/^Sanctuary[/\\]/i, "").toLowerCase();
+                                return p === leftClean || p.endsWith(`/${leftClean}`) || p.endsWith(`\\${leftClean}`);
+                            });
 
-                                    const rightIsWinner = manualOverrides.some((m: string) => {
-                                        const p = m.replace(/^Sanctuary[/\\]/i, "").toLowerCase();
-                                        return p === rightClean || p.endsWith(`/${rightClean}`) || p.endsWith(`\\${rightClean}`);
-                                    });
+                            const rightIsWinner = manualOverrides.some((m: string) => {
+                                const p = m.replace(/^Sanctuary[/\\]/i, "").toLowerCase();
+                                return p === rightClean || p.endsWith(`/${rightClean}`) || p.endsWith(`\\${rightClean}`);
+                            });
 
-                                    if (leftIsWinner || rightIsWinner) {
-                                        return {
-                                            pair,
-                                            winnerPath: leftIsWinner ? left : right,
-                                            loserPath: leftIsWinner ? right : left,
-                                            isManual: false
-                                        };
-                                    }
-                                    return null;
-                                }).filter(Boolean) as any[];
+                            if (leftIsWinner || rightIsWinner) {
+                                return {
+                                    pair,
+                                    winnerPath: leftIsWinner ? left : right,
+                                    loserPath: leftIsWinner ? right : left,
+                                    isManual: false
+                                };
+                            }
+                            return null;
+                        }).filter(Boolean) as any[];
 
-                                const manualOverridesOnly = manualOverrides.filter((m: string) => {
-                                    const cleanName = m.replace(/^Sanctuary[/\\]/i, "").toLowerCase();
-                                    return !resolvedOverrides.some(res => res.winnerPath.toLowerCase().replace(/^sanctuary[/\\]/i, "").endsWith(cleanName));
-                                }).map((m: string) => ({
-                                    pair: m,
-                                    winnerPath: m,
-                                    loserPath: t("unknown_file"),
-                                    isManual: true
-                                }));
+                        const manualOverridesOnly = manualOverrides.filter((m: string) => {
+                            const cleanName = m.replace(/^Sanctuary[/\\]/i, "").toLowerCase();
+                            return !resolvedOverrides.some(res => res.winnerPath.toLowerCase().replace(/^sanctuary[/\\]/i, "").endsWith(cleanName));
+                        }).map((m: string) => ({
+                            pair: m,
+                            winnerPath: m,
+                            loserPath: t("unknown_file"),
+                            isManual: true
+                        }));
 
-                                const allActiveOverrides = [...resolvedOverrides, ...manualOverridesOnly].filter(o => !overrideSearch || o.winnerPath.toLowerCase().includes(overrideSearch.toLowerCase()));
-                                const trueIgnoredPairs = ignoredPairs.filter((pair: string) => !resolvedOverrides.some(res => res.pair === pair));
+                        const allActiveOverrides = [...resolvedOverrides, ...manualOverridesOnly].filter(o => !overrideSearch || o.winnerPath.toLowerCase().includes(overrideSearch.toLowerCase()));
+                        const trueIgnoredPairs = ignoredPairs.filter((pair: string) => !resolvedOverrides.some(res => res.pair === pair));
 
-                                return (
-                                    <>
-                                        {allActiveOverrides.length === 0 && trueIgnoredPairs.length === 0 && (
-                                            <EmptyState icon="rule" title="NO OVERRIDES" subtitle="No conflicts have been resolved or ignored for this blueprint." />
-                                        )}
+                        return (
+                            <CommandScreenLayout>
+                                {hasScanned && (
+                                    <CommandScreenStats>
+                                        <DashboardStatTile
+                                            label={t("active_overrides") || "Active Overrides"}
+                                            number={allActiveOverrides.length.toString()}
+                                            icon={<span className="material-symbols-outlined">verified</span>}
+                                            colorClass={overrideTab === "ACTIVE" ? "text-black" : "text-[var(--accent)]"}
+                                            className={`cursor-pointer transition-all ${overrideTab === "ACTIVE" ? "bg-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.4)]" : "hover:border-[var(--accent)]"}`}
+                                            onClick={() => setOverrideTab(overrideTab === "ACTIVE" ? "ALL" : "ACTIVE")}
+                                        />
+                                        <DashboardStatTile
+                                            label={t("ignored_conflicts") || "Ignored Conflicts"}
+                                            number={trueIgnoredPairs.length.toString()}
+                                            icon={<span className="material-symbols-outlined">visibility_off</span>}
+                                            colorClass={overrideTab === "IGNORED" ? "text-white" : "text-[var(--subtext)]"}
+                                            className={`cursor-pointer transition-all ${overrideTab === "IGNORED" ? "bg-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-[0_0_20px_rgba(255,255,255,0.1)]" : "hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"}`}
+                                            onClick={() => setOverrideTab(overrideTab === "IGNORED" ? "ALL" : "IGNORED")}
+                                        />
+                                    </CommandScreenStats>
+                                )}
+                                <CommandScreenBody>
+                                    <CommandScreenMain>
+                                        <div className="flex flex-col gap-6">
+                                            {allActiveOverrides.length === 0 && trueIgnoredPairs.length === 0 && (
+                                                <EmptyState icon="rule" title="NO OVERRIDES" subtitle="No conflicts have been resolved or ignored for this blueprint." />
+                                            )}
 
-                                        <div className="grid grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-4">
-                                            {overrideTab === "ACTIVE" && allActiveOverrides.map((override: any, idx: number) => {
+                                            <div className="grid grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-4">                                            {(overrideTab === "ALL" || overrideTab === "ACTIVE") && allActiveOverrides.map((override: any, idx: number) => {
                                                 const cleanWinnerPath = override.winnerPath.replace(/^Sanctuary[/\\]/i, "");
                                                 const displayWinnerName = formatDisplayName(cleanWinnerPath, activeGameSchema);
 
@@ -977,7 +974,7 @@ export const DbpfScout = () => {
                                                 );
                                             })}
 
-                                            {overrideTab === "IGNORED" && trueIgnoredPairs.map((pair: string, i: number) => {
+                                            {(overrideTab === "ALL" || overrideTab === "IGNORED") && trueIgnoredPairs.map((pair: string, i: number) => {
                                                 const parts = pair.split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
                                                 const left = parts[0] || pair;
                                                 const right = parts[1] || t("unknown_file");
@@ -1031,11 +1028,12 @@ export const DbpfScout = () => {
                                                 );
                                             })}
                                         </div>
-                                    </>
-                                );
-                            })()}
-                        </div>
-                    )}
+                                    </div>
+                                </CommandScreenMain>
+                            </CommandScreenBody>
+                        </CommandScreenLayout>
+                        );
+                    })()}
                 </div>
             </div>
             {activeConflictRes && (
@@ -1056,9 +1054,41 @@ export const DbpfScout = () => {
                 onUndo={undoOverride}
                 onClearAll={clearAllOverrides}
             />
+
+            <SidePanel
+                isOpen={isSidePanelOpen}
+                onClose={() => setIsSidePanelOpen(false)}
+                title={t("radar_settings") || "Radar Settings"}
+                icon="tune"
+            >
+                <div className="flex flex-col gap-8 p-6">
+                    <div className="flex flex-col gap-4">
+                        <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-2">
+                            <span className="material-symbols-outlined !text-[18px]">map</span>
+                            {t("scan_scope") || "Scan Scope"}
+                        </h3>
+                        <div className="grid grid-cols-2 gap-2">
+                            {(playSets || []).map((s: any) => (
+                                <button
+                                    key={s.name}
+                                    onClick={() => { setScanScope(s.name); runRadar(s.name); setIsSidePanelOpen(false); }}
+                                    className={`p-4 rounded-xl flex flex-col items-start gap-2 text-left transition-all relative overflow-hidden group glass-panel border ${scanScope === s.name ? '!bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[var(--accent)] text-[var(--accent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.2)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--text)] text-[var(--subtext)] hover:text-[var(--text)]'}`}
+                                >
+                                    <span className="material-symbols-outlined !text-[20px] opacity-70 group-hover:opacity-100 transition-opacity">folder_open</span>
+                                    <span className="font-black text-[10px] uppercase tracking-widest break-all line-clamp-2 w-full">{s.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+
+                </div>
+            </SidePanel>
         </>
     );
 };
+
+
 
 
 

@@ -3094,5 +3094,11 @@
   "no_masons_followed": "No Active Node Links Established.",
   "create_snapshot": "Create New Snapshot",
   "confirm_seal": "Confirm Snapshot?",
-  "confirm_seal_long": "Finalize New Snapshot?"
+  "confirm_seal_long": "Finalize New Snapshot?",
+  "radar_settings": "System Preferences",
+  "scan_scope": "Analysis Vector",
+  "override_filters": "Override Parameters",
+  "undo_overrides": "Purge Overrides",
+  "ignored_conflicts": "Ignored Anomalies",
+  "total_conflicts": "Total Anomalies"
 }

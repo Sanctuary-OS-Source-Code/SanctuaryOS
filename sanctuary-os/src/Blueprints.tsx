@@ -408,15 +408,14 @@ export default function Blueprints({
               searchQuery={vaultSearchQuery}
               setSearchQuery={setVaultSearchQuery}
               searchPlaceholder={(t("nav_search")) as string}
-              rightContent={
-                <button
-                  onClick={() => setIsDraftingSet && setIsDraftingSet(true)}
-                  className="h-10 w-10 shrink-0 rounded-full glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:scale-[1.05] active:scale-95 transition-all shadow-sm relative group/hdrbtn ml-2"
-                >
-                  <span className="material-symbols-outlined !text-[18px]">add</span>
-                  <HoverTooltip title={t("draft_new")} />
-                </button>
-              }
+              actions={[
+                {
+                  id: "draft_new",
+                  icon: <span className="material-symbols-outlined !text-[20px]">add_circle</span>,
+                  label: t("draft_new") || "Draft New Blueprint",
+                  onClick: () => setIsDraftingSet && setIsDraftingSet(true)
+                }
+              ]}
             />
           </div>
         )}
@@ -426,12 +425,13 @@ export default function Blueprints({
               searchQuery={cloudSearchQuery}
               setSearchQuery={setCloudSearchQuery}
               searchPlaceholder={(t("nav_search")) as string}
-              rightContent={
-                <PillTabs className="mr-1">
-                  <PillTabButton id="all" label={t("blueprint_tab_all")} activeTab={cloudFilterTab} setTab={setCloudFilterTab} />
-                  <PillTabButton id="not_in_vault" label={t("blueprint_tab_missing")} activeTab={cloudFilterTab} setTab={setCloudFilterTab} />
-                </PillTabs>
-              }
+              actions={[{
+                id: "filter_missing",
+                icon: <span className="material-symbols-outlined !text-[20px]">{cloudFilterTab === 'not_in_vault' ? 'visibility_off' : 'visibility'}</span>,
+                label: cloudFilterTab === 'not_in_vault' ? (t("show_all") || "Show All Blueprints") : (t("blueprint_tab_missing") || "Hide Owned Blueprints"),
+                activeClassName: cloudFilterTab === 'not_in_vault' ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : '',
+                onClick: () => setCloudFilterTab(cloudFilterTab === 'not_in_vault' ? 'all' : 'not_in_vault')
+              }]}
             />
           </div>
         )}
@@ -642,7 +642,10 @@ export default function Blueprints({
               </div>
             ) : (
               myCloudBlueprints.filter(bp => {
-                const inVault = playSets.some((set: any) => set.code && set.code.toUpperCase() === bp.code.toUpperCase());
+                const inVault = playSets.some((set: any) => 
+                  (set.code && set.code.toUpperCase() === bp.code.toUpperCase()) || 
+                  (set.name.toLowerCase() === bp.name.toLowerCase())
+                );
                 const matchesSearch = !cloudSearchQuery || bp.name.toLowerCase().includes(cloudSearchQuery.toLowerCase()) || bp.code.toLowerCase().includes(cloudSearchQuery.toLowerCase());
                 return (cloudFilterTab === 'all' ? true : !inVault) && matchesSearch;
               }).length === 0 ? (
@@ -665,8 +668,8 @@ export default function Blueprints({
                     >
                       <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br transition-opacity duration-500 opacity-0 group-hover/btn:opacity-100 pointer-events-none ${inVault ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent'}`} />
 
-                      <div className="flex flex-row items-start justify-start w-full gap-2 relative z-10">
-                        <span className={`text-2xl font-black tracking-tighter truncate transition-colors drop-shadow-md ${inVault ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/btn:text-[var(--accent)]'}`}>{bp.name}</span>
+                      <div className="flex flex-row items-start justify-between w-full gap-4 relative z-10">
+                        <span className={`text-2xl font-black tracking-tighter truncate transition-colors drop-shadow-md flex-1 ${inVault ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/btn:text-[var(--accent)]'}`}>{bp.name}</span>
                         {inVault ? (
                           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_40%,transparent)] rounded-lg shrink-0 shadow-sm shadow-[0_0_15px_rgba(var(--success-rgb),0.2)]">
                             <span className="material-symbols-outlined !text-[14px] text-[var(--success)] drop-shadow-md">verified_user</span>
@@ -828,6 +831,7 @@ export default function Blueprints({
                 searchQuery={uplinkArtifactSearch}
                 setSearchQuery={setUplinkArtifactSearch}
                 searchPlaceholder={t("playsets_search_ph")}
+                className="shrink-0 w-full mb-2"
               />
               <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
                 {filteredArtifacts.slice(0, uplinkArtifactsLimit).map((m: any, idx: number) => {

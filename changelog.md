@@ -3,6 +3,7 @@
 ## TITLE
 
 ### Visual Overhauls
+- **Conflict Radar Refinement:** Overhauled the `DbpfScout.tsx` layout and selection flow to scale effectively with hundreds of blueprints. The landing page now correctly utilizes a compact `UniversalCard` auto-fill grid alongside correctly wrapped `CommandScreenStats`. On the Conflicts tab, massive blocky filter buttons have been completely replaced with a sleek, horizontal `GlassSegmentedControl` component (aligning perfectly with the Mason IDE aesthetic) to save vertical space while retaining inline numerical badging.
 - **HoverTooltip Standardization:** Eliminated native browser `title` tooltips across the entire OS. Migrated `<button>` elements in the `ArchitectConflictMatrix`, `MasonHeader`, and `CitizenTickets` as well as generic components like `ActionPill` and `UniversalEditors` to correctly utilize the custom `<HoverTooltip>` component. This comprehensively resolves visual inconsistencies where default white browser tooltips (such as "Create Conflict Rule" or "Toggle Layout") would appear over interactive elements.
 - **Side Panel Filter Box Styling:** Updated the `SearchBar` and `FilterPopover` components within `ScreenUtilityBar` to accept a `variant="panel"` prop. This prop applies a subtle `glass-surface` override for these elements when nested inside Side Panels, ensuring they maintain proper visual hierarchy and contrast against the panel's distinct background.
 - **Global Theme Localization:** Updated the core Chameleon Theme Engine to dynamically label global themes outside of workspaces (like on the web) as "Community Defaults" using proper Lexicon routing (`badge_community_defaults`), replacing the hardcoded "Sanctuary" fallback badge and enabling translated labels like "Global Blueprints" and "Townie Styles".
@@ -60,3 +61,38 @@
 
 ### Visual Overhauls
 - **ActionPill UI Standardization:** Migrated 47+ hub and side panel components to use the new \ActionPill\ component and \CustomDropdown\ (with \flat={true}\ and \variant="pill"\) replacing the legacy \SearchBar\ and \FilterPopover\. This ensures a sleek, unified, stacked filter layout across all complex tables and lists throughout the Sanctuary OS interface.
+- V8 Redesign for Conflict Radar Layout: 
+  - Eradicated the hidden HoverTabDrawer and replaced it with visible inline PillTabs for instant navigation.
+  - Corrected CommandScreenStats scope on the landing page, allowing the main statistics grid to render cleanly across the entire window rather than stacking inside the main body.
+  - Implemented the 'Mason IDE' pattern on the Conflicts view by swapping the clunky GlassSegmentedControl with responsive DashboardStatTiles for seamless severity filtering.
+  - Removed stark red/yellow horizontal borders for a sleeker presentation.
+  - Corrected structural layout tags for the Overrides view to ensure it renders inside the CommandScreenLayout properly with an actions sidebar.
+- V9 Visual Fixes for Radar: 
+  - Restored the HoverTabDrawer navigation to fix missing side tab bar.
+  - Removed the empty CommandScreenSidebars on the Conflicts and Overrides tabs which were crushing the main content column into a tiny sliver.
+  - Integrated the 'Undo Overrides' button into the global top ViewHeader so it's always accessible without taking up vertical sidebar space.
+  - Unified the view structure by applying CommandScreenSectionHeading to Conflicts and Overrides tabs, creating a clean visual break between the stat tiles and the data.
+  - Purged the duplicate inline search bar on the Conflicts tab.
+- V9.1 Layout Polish: 
+  - Shrunk the search bars on the Conflicts and Overrides tabs so they no longer consume the entire screen width.
+  - Eliminated the awkward inline Scope dropdowns, Overrides 'Active/Ignored' pill tabs, and floating Undo button from the top headers.
+  - Consolidated all of these secondary actions/filters into a clean 'Radar Settings' SidePanel triggered by a single settings button within the search bar.
+  - Removed the oversized subheaders from the Conflicts and Overrides tabs to return them to standard compact list views.
+- V9.2 Settings Panel Redesign: 
+  - Restyled the 'Scan Scope' selection options into a grid of interactive cards with folder icons, rather than full-width list items.
+  - Replaced the basic Overrides 'Active/Ignored' list buttons with a unified GlassSegmentedControl for a much cleaner and standard aesthetic.
+  - Registered all missing translation keys (radar_settings, scan_scope, override_filters, undo_overrides) in the lexicon JSON files to fix the raw bracketed text bug.
+- V9.3 Radar Settings Cleanup: 
+  - Purged the active-state 'dot' from the Scan Scope cards.
+  - Removed the 'Override Filters' and 'Undo Overrides' buttons entirely from the Radar Settings side panel, as they were contextually misplaced.
+- V9.4 Overrides Unification: 
+  - Entirely removed the concept of filtering the Overrides tab by Active/Ignored.
+  - The Overrides tab now renders a single unified grid containing both Active Overrides and Ignored Conflicts simultaneously.
+  - Replaced the blue selection dot on Scan Scope cards with a clear radio button icon to improve visual feedback for the selected state.
+- V9.5 Radar Overrides Stat Filters: 
+  - Entirely removed the dot and radio buttons from the Scan Scope cards, relying purely on the glass tint and border to indicate active state as requested.
+  - Implemented the DashboardStatTile filtering pattern for the Overrides tab. Active Overrides and Ignored Conflicts can now be toggled directly from the top stats bar, exactly like the Conflicts view, completely eliminating the need for PillTabs or SidePanels.
+- V9.6 Radar UX Polish:
+  - Re-applied localization keys to fix missing strings in the Overrides panel.
+  - Scan Scope cards in the side panel are now correctly tinted with the accent color.
+  - Running a Sweep on the Overview page now automatically navigates the user to the Conflicts page upon completion.

@@ -69,6 +69,7 @@ export default function WebDocumentFeed() {
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
           userId={null}
+          hideActions={true}
         />
       )}
     </div>

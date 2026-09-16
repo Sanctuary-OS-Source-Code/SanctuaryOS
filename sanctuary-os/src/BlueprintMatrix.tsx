@@ -118,6 +118,12 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
     return { allowedMods: allowed, blockedMods: blocked };
   }, [playSet, modList]);
 
+  const isGuest = !session;
+  const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
+  const hasViolations = blockedMods.length > 0;
+  const showDefconAlert = useModalStore((state: any) => state.showDefconAlert);
+  const isUploadBlocked = isGuest || isBanned || hasViolations || showDefconAlert;
+
   if (!isOpen || !playSet) return null;
 
   const handleRemoveArtifact = (modName: string) => {
@@ -133,12 +139,6 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
     const updatedMods = playSet.mods.filter((m: string) => !violatingNorms.includes(getNormalizedArtifactName(m)));
     onUpdatePlaySet({ ...playSet, mods: updatedMods });
   };
-
-  const isGuest = !session;
-  const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
-  const hasViolations = blockedMods.length > 0;
-  const showDefconAlert = useModalStore((state: any) => state.showDefconAlert);
-  const isUploadBlocked = isGuest || isBanned || hasViolations || showDefconAlert;
 
   return createPortal(
     <SidePanel
