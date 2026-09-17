@@ -10,7 +10,7 @@ import { useStore } from "./store";
 import ConflictCard from "./ConflictCard";
 import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
 import UndoWinnersPanel from "./side-panels/UndoWinnersPanel";
-import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenStats, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenStats, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 
 const isCloneConflict = (modA: string, modB: string) => {
     if (!modA || !modB) return false;
@@ -440,59 +440,44 @@ export const DbpfScout = () => {
                         </div>
                     )}
                 </ViewHeader>
-                <HoverTabDrawer title="Radar Navigation" activeTab={activeTab} setTab={setActiveTab}>
-                    <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
-                    <VerticalTabButton
-                        id="CONFLICTS"
-                        icon="warning"
-                        label={t("conflicts")}
-                        activeTab={activeTab}
-                        setTab={setActiveTab}
-                        badge={(fatalConflicts.length + tuningConflicts.length) > 0 ? (fatalConflicts.length + tuningConflicts.length) : null}
-                        activeColorClass={fatalConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] shadow-md' : tuningConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] text-[var(--warning)] shadow-md' : undefined}
-                        inactiveColorClass={fatalConflicts.length > 0 ? 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : tuningConflicts.length > 0 ? 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : undefined}
-                        badgeColorClass={fatalConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]' : tuningConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)]' : undefined}
-                    />
-                    <VerticalTabButton id="OVERRIDES" icon="rule" label={t("overrides")} activeTab={activeTab} setTab={setActiveTab} badge={ignoredPairs.length > 0 ? ignoredPairs.length : null} />
-                </HoverTabDrawer>
+                <div className="md:hidden">
+                    <HoverTabDrawer title="Radar Navigation" activeTab={activeTab} setTab={setActiveTab}>
+                        <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={activeTab} setTab={setActiveTab} />
+                        <VerticalTabButton
+                            id="CONFLICTS"
+                            icon="warning"
+                            label={t("conflicts")}
+                            activeTab={activeTab}
+                            setTab={setActiveTab}
+                            badge={(fatalConflicts.length + tuningConflicts.length) > 0 ? (fatalConflicts.length + tuningConflicts.length) : null}
+                            activeColorClass={fatalConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] shadow-md' : tuningConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] text-[var(--warning)] shadow-md' : undefined}
+                            inactiveColorClass={fatalConflicts.length > 0 ? 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : tuningConflicts.length > 0 ? 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : undefined}
+                            badgeColorClass={fatalConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]' : tuningConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)]' : undefined}
+                        />
+                        <VerticalTabButton id="OVERRIDES" icon="rule" label={t("overrides")} activeTab={activeTab} setTab={setActiveTab} badge={ignoredPairs.length > 0 ? ignoredPairs.length : null} />
+                    </HoverTabDrawer>
+                </div>
+
+                <div className="hidden md:flex flex-col w-full gap-3 mb-6">
+                    <StatTileCarousel>
+                        <DashboardStatTile variant="tab" icon="dashboard" label={t("overview")} number={scanScope || ""} onClick={() => setActiveTab("COMMAND")} isActive={activeTab === "COMMAND"} />
+                        <DashboardStatTile variant="tab"
+                            icon="warning"
+                            label={t("conflicts")}
+                            number={(fatalConflicts.length + tuningConflicts.length) > 0 ? (fatalConflicts.length + tuningConflicts.length) : 0}
+                            colorClass={fatalConflicts.length > 0 ? 'text-[var(--danger)]' : tuningConflicts.length > 0 ? 'text-[var(--warning)]' : undefined}
+                            onClick={() => setActiveTab("CONFLICTS")}
+                            isActive={activeTab === "CONFLICTS"}
+                        />
+                        <DashboardStatTile variant="tab" icon="rule" label={t("overrides")} number={ignoredPairs.length} onClick={() => setActiveTab("OVERRIDES")} isActive={activeTab === "OVERRIDES"} />
+                    </StatTileCarousel>
+                </div>
 
                 <div className="flex flex-col w-full animate-in slide-in-from-top-4 duration-500 flex-1 min-h-[400px]">
 
                     {activeTab === "COMMAND" && (
                         <CommandScreenLayout>
-                            <CommandScreenStats>
-                                <DashboardStatTile
-                                    label={t("total_blueprints") || "Total Blueprints"}
-                                    number={playSets.length.toString()}
-                                    icon={<span className="material-symbols-outlined">map</span>}
-                                    colorClass="text-[var(--text)]"
-                                    className="cursor-pointer hover:scale-105 transition-transform"
-                                />
-                                <DashboardStatTile
-                                    label={t("total_conflicts") || "Total Conflicts"}
-                                    number={(fatalConflicts.length + tuningConflicts.length + cloneConflicts.length + softConflicts.length).toString()}
-                                    icon={<span className="material-symbols-outlined">warning</span>}
-                                    colorClass={(fatalConflicts.length + tuningConflicts.length) > 0 ? "text-[var(--warning)]" : "text-[var(--text)]"}
-                                    onClick={() => setActiveTab("CONFLICTS")}
-                                    className="cursor-pointer hover:scale-105 transition-transform"
-                                />
-                                <DashboardStatTile
-                                    label={t("total_overrides") || "Total Overrides"}
-                                    number={playSets.reduce((acc: number, bp: any) => acc + (bp.mods ? bp.mods.filter((m: any) => (typeof m === 'string' ? m : (m.name || m.path || '')).toLowerCase().startsWith("sanctuary")).length : 0), 0).toString()}
-                                    icon={<span className="material-symbols-outlined">rule</span>}
-                                    colorClass="text-[var(--accent)]"
-                                    onClick={() => setActiveTab("OVERRIDES")}
-                                    className="cursor-pointer hover:scale-105 transition-transform"
-                                />
-                                <DashboardStatTile
-                                    label={t("total_ignores") || "Total Ignored"}
-                                    number={ignoredPairs.length.toString()}
-                                    icon={<span className="material-symbols-outlined">visibility_off</span>}
-                                    colorClass="text-[var(--subtext)] opacity-80"
-                                    onClick={() => { setActiveTab("OVERRIDES"); setOverrideTab("IGNORED"); }}
-                                    className="cursor-pointer hover:scale-105 transition-transform"
-                                />
-                            </CommandScreenStats>
+
                             <CommandScreenBody>
                                 <CommandScreenMain>
 
@@ -513,15 +498,15 @@ export const DbpfScout = () => {
                                         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                             {playSets.filter((bp: any) => !blueprintSearch || bp.name.toLowerCase().includes(blueprintSearch.toLowerCase())).map((blueprint: any) => {
                                                 return (
-                                                    <div 
-                                                        key={blueprint.name} 
-                                                        onClick={() => { setScanScope(blueprint.name); }}
+                                                    <div
+                                                        key={blueprint.name}
+                                                        onClick={() => { setScanScope(blueprint.name); runRadar(blueprint.name); }}
                                                         className={`flex flex-col items-start gap-4 p-6 rounded-3xl glass-panel border transition-all text-left group/btn cursor-pointer animate-in slide-in-from-bottom-2 duration-500 fill-mode-both shadow-[0_20px_50px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_rgba(var(--accent-rgb),0.1)] min-h-[10rem] relative ${scanScope === blueprint.name ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_20px_50px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)]'}`}
                                                     >
                                                         <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br transition-opacity duration-500 opacity-0 group-hover/btn:opacity-100 pointer-events-none ${scanScope === blueprint.name ? 'from-[color-mix(in_srgb,var(--success)_15%,transparent)] to-transparent' : 'from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent'}`} />
-                                                        
+
                                                         <div className="flex flex-row items-start justify-between w-full gap-4 relative z-10">
-                                                            <span className={`text-2xl font-black tracking-tighter transition-colors drop-shadow-md flex-1 ${scanScope === blueprint.name ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/btn:text-[var(--accent)]'}`} style={{wordBreak: "break-word"}}>{blueprint.name}</span>
+                                                            <span className={`text-2xl font-black tracking-tighter transition-colors drop-shadow-md flex-1 ${scanScope === blueprint.name ? 'text-[var(--text)]' : 'text-[var(--text)] group-hover/btn:text-[var(--accent)]'}`} style={{ wordBreak: "break-word" }}>{blueprint.name}</span>
                                                         </div>
 
                                                         <div className="flex items-center justify-between w-full mt-auto relative z-10 pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover/btn:border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
@@ -544,7 +529,36 @@ export const DbpfScout = () => {
                                 </CommandScreenMain>
 
                                 <CommandScreenSidebar title={t("quick_actions")} icon="bolt">
-
+                                    <CommandScreenQuickLink
+                                        icon="warning"
+                                        title={t("total_conflicts") || "Total Conflicts"}
+                                        subtitle={`${fatalConflicts.length + tuningConflicts.length + cloneConflicts.length + softConflicts.length} ${t("conflicts")}`}
+                                        onClick={() => setActiveTab("CONFLICTS")}
+                                        textColorClass={(fatalConflicts.length + tuningConflicts.length) > 0 ? "text-[var(--warning)]" : "text-[var(--text)]"}
+                                        hoverTextColorClass="group-hover:text-[var(--warning)]"
+                                        iconShadowClass="drop-shadow-md"
+                                        iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
+                                    />
+                                    <CommandScreenQuickLink
+                                        icon="rule"
+                                        title={t("total_overrides") || "Total Overrides"}
+                                        subtitle={`${playSets.reduce((acc: number, bp: any) => acc + (bp.mods ? bp.mods.filter((m: any) => (typeof m === 'string' ? m : (m.name || m.path || '')).toLowerCase().startsWith("sanctuary")).length : 0), 0)} ${t("overrides")}`}
+                                        onClick={() => setActiveTab("OVERRIDES")}
+                                        textColorClass="text-[var(--accent)]"
+                                        hoverTextColorClass="group-hover:text-[var(--accent)]"
+                                        iconShadowClass="drop-shadow-md text-[var(--accent)]"
+                                        iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                                    />
+                                    <CommandScreenQuickLink
+                                        icon="visibility_off"
+                                        title={t("total_ignores") || "Total Ignored"}
+                                        subtitle={`${ignoredPairs.length} ${t("ignored")}`}
+                                        onClick={() => { setActiveTab("OVERRIDES"); setOverrideTab("IGNORED"); }}
+                                        textColorClass="text-[var(--subtext)]"
+                                        hoverTextColorClass="group-hover:text-[var(--text)]"
+                                        iconShadowClass="drop-shadow-md text-[var(--subtext)]"
+                                        iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"
+                                    />
                                     <CommandScreenQuickLink
                                         icon={loading ? "sync" : "track_changes"}
                                         title={t("btn_sweep")}
@@ -575,269 +589,273 @@ export const DbpfScout = () => {
                     {activeTab === "CONFLICTS" && (
                         <CommandScreenLayout>
                             {hasScanned && (
-                                <CommandScreenStats>
-                                    <DashboardStatTile
+                                <StatTileCarousel>
+                                    <DashboardStatTile variant="filter"
                                         label={t("total_severity_4") || "Severity 4"}
                                         number={fatalConflicts.length.toString()}
                                         icon={<span className="material-symbols-outlined">crisis_alert</span>}
-                                        colorClass={activeConflictSeverity === 4 ? "text-white" : "text-[var(--danger)]"}
-                                        className={`cursor-pointer transition-all ${activeConflictSeverity === 4 ? "bg-[var(--danger)] shadow-[0_0_20px_rgba(var(--danger-rgb),0.4)]" : "hover:border-[var(--danger)]"}`}
+                                        colorClass="text-[var(--danger)]"
+                                        isActive={activeConflictSeverity === 4}
+                                        className="cursor-pointer min-w-[200px] shrink-0"
                                         onClick={() => setActiveConflictSeverity(activeConflictSeverity === 4 ? null : 4)}
                                     />
-                                    <DashboardStatTile
+                                    <DashboardStatTile variant="filter"
                                         label={t("total_severity_3") || "Severity 3"}
                                         number={tuningConflicts.length.toString()}
                                         icon={<span className="material-symbols-outlined">tune</span>}
-                                        colorClass={activeConflictSeverity === 3 ? "text-black" : "text-[var(--warning)]"}
-                                        className={`cursor-pointer transition-all ${activeConflictSeverity === 3 ? "bg-[var(--warning)] shadow-[0_0_20px_rgba(var(--warning-rgb),0.4)]" : "hover:border-[var(--warning)]"}`}
+                                        colorClass="text-[var(--warning)]"
+                                        isActive={activeConflictSeverity === 3}
+                                        className="cursor-pointer min-w-[200px] shrink-0"
                                         onClick={() => setActiveConflictSeverity(activeConflictSeverity === 3 ? null : 3)}
                                     />
-                                    <DashboardStatTile
+                                    <DashboardStatTile variant="filter"
                                         label={t("total_clones") || "Total Clones"}
                                         number={cloneConflicts.length.toString()}
                                         icon={<span className="material-symbols-outlined">content_copy</span>}
-                                        colorClass={activeConflictSeverity === 2 ? "text-black" : "text-[var(--accent)]"}
-                                        className={`cursor-pointer transition-all ${activeConflictSeverity === 2 ? "bg-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.4)]" : "hover:border-[var(--accent)]"}`}
+                                        colorClass="text-[var(--accent)]"
+                                        isActive={activeConflictSeverity === 2}
+                                        className="cursor-pointer min-w-[200px] shrink-0"
                                         onClick={() => setActiveConflictSeverity(activeConflictSeverity === 2 ? null : 2)}
                                     />
-                                    <DashboardStatTile
+                                    <DashboardStatTile variant="filter"
                                         label={t("total_soft") || "Total Soft"}
                                         number={softConflicts.length.toString()}
                                         icon={<span className="material-symbols-outlined">info</span>}
-                                        colorClass={activeConflictSeverity === 1 ? "text-black" : "text-blue-400"}
-                                        className={`cursor-pointer transition-all ${activeConflictSeverity === 1 ? "bg-blue-400 shadow-[0_0_20px_rgba(96,165,250,0.4)]" : "hover:border-blue-400"}`}
+                                        colorClass="text-blue-400"
+                                        isActive={activeConflictSeverity === 1}
+                                        className="cursor-pointer min-w-[200px] shrink-0"
                                         onClick={() => setActiveConflictSeverity(activeConflictSeverity === 1 ? null : 1)}
                                     />
-                                </CommandScreenStats>
+                                </StatTileCarousel>
                             )}
                             <CommandScreenBody>
                                 <CommandScreenMain>
                                     <div className="flex flex-col gap-6 w-full">
 
-                            {!hasScanned && !loading && !error && (
-                                <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
-                                    <div className="w-56 h-56 rounded-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-md flex items-center justify-center relative group cursor-pointer" onClick={() => runRadar()}>
-                                        <div className="absolute inset-0 rounded-[inherit]  border-[2px] border-dashed border-[var(--accent)] opacity-20 animate-[spin_20s_linear_infinite]" />
-                                        <div className="absolute inset-4 rounded-full border border-[var(--text)] opacity-10 animate-[spin_15s_linear_infinite_reverse]" />
-                                        <div className="absolute inset-10 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-10 animate-[spin_25s_linear_infinite]" />
-                                        <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 drop-shadow-md">
-                                            {t("icon_track_changes")}
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-col items-center gap-6 relative z-10 w-full animate-in fade-in slide-in-from-bottom-8 duration-700">
-                                        <div className="text-center space-y-2 mb-4">
-                                            <h2 className="text-2xl font-black capitalize tracking-widest text-white/90">
-                                                {t("landing_title")}
-                                            </h2>
-                                            <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80 max-w-lg">
-                                                {t("landing_desc")}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {loading && (
-                                <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
-                                    <div className="w-56 h-56 rounded-full border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shadow-md flex items-center justify-center relative group">
-                                        <div className="absolute inset-0 rounded-[inherit]  border-[2px] border-dashed border-[var(--accent)] opacity-80 animate-[spin_3s_linear_infinite]" />
-                                        <div className="absolute inset-4 rounded-full border-[4px] border-solid border-transparent border-t-[var(--accent)] opacity-60 animate-[spin_1s_linear_infinite_reverse]" />
-                                        <div className="absolute inset-8 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-40 animate-[spin_5s_linear_infinite]" />
-                                        <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] animate-pulse drop-shadow-md">
-                                            {t("icon_track_changes")}
-                                        </span>
-                                    </div>
-                                    <div className="space-y-4 max-w-xl relative z-10">
-                                        <h2 className="text-4xl font-black text-[var(--accent)] capitalize tracking-tighter drop-shadow-lg animate-pulse">
-                                            {t("scanning_title")}
-                                        </h2>
-                                        <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80">
-                                            {t("scanning_desc")}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {hasScanned && stats.totalClashes === 0 && !loading && (
-                                <div className="py-24 flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in-95 duration-700 relative">
-                                    <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] blur-[100px]  pointer-events-none" />
-                                    <div className="relative">
-                                        <div className="w-32 h-32 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-md flex items-center justify-center relative backdrop-blur-md">
-                                            <div className="absolute inset-0 rounded-[inherit]  border-[2px] border-dashed border-[color-mix(in_srgb,var(--success)_50%,transparent)] animate-[spin_10s_linear_infinite]" />
-                                            <div className="absolute inset-2 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[spin_15s_linear_infinite_reverse]" />
-                                            <span className="material-symbols-outlined !text-[64px] text-[var(--success)] animate-pulse drop-shadow-md">
-                                                {t("icon_check")}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="relative z-10 max-w-lg">
-                                        <h2 className="text-4xl font-black text-[var(--success)] capitalize tracking-tighter mb-4 drop-shadow-md">
-                                            {t("clear_title")}
-                                        </h2>
-                                        <p className="text-xs font-bold leading-relaxed capitalize tracking-[0.2em] text-[var(--subtext)] opacity-90 border-t border-[color-mix(in_srgb,var(--success)_20%,transparent)] pt-4">
-                                            {t("clear_desc")}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {hasScanned && filteredFatal.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 4) && (
-                                <section className="space-y-6">
-                                    <div className="flex items-center justify-start pb-4 mb-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
-                                                <span className="material-symbols-outlined !text-2xl theme-text-danger drop-shadow-[0_0_8px_rgba(var(--danger-rgb),0.5)]">{t("icon_warning_amber")}</span>
+                                        {!hasScanned && !loading && !error && (
+                                            <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
+                                                <div className="w-56 h-56 rounded-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-md flex items-center justify-center relative group cursor-pointer" onClick={() => runRadar()}>
+                                                    <div className="absolute inset-0 rounded-[inherit]  border-[2px] border-dashed border-[var(--accent)] opacity-20 animate-[spin_20s_linear_infinite]" />
+                                                    <div className="absolute inset-4 rounded-full border border-[var(--text)] opacity-10 animate-[spin_15s_linear_infinite_reverse]" />
+                                                    <div className="absolute inset-10 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-10 animate-[spin_25s_linear_infinite]" />
+                                                    <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500 drop-shadow-md">
+                                                        {t("icon_track_changes")}
+                                                    </span>
+                                                </div>
+                                                <div className="flex flex-col items-center gap-6 relative z-10 w-full animate-in fade-in slide-in-from-bottom-8 duration-700">
+                                                    <div className="text-center space-y-2 mb-4">
+                                                        <h2 className="text-2xl font-black capitalize tracking-widest text-white/90">
+                                                            {t("landing_title")}
+                                                        </h2>
+                                                        <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80 max-w-lg">
+                                                            {t("landing_desc")}
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col gap-0.5">
-                                                <h2 className="text-2xl font-black theme-text-danger capitalize tracking-tighter italic drop-shadow-md">{t("tier4_title")}</h2>
-                                                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 capitalize tracking-widest">{t("tier4_desc")}</p>
+                                        )}
+
+                                        {loading && (
+                                            <div className="w-full flex flex-col items-center justify-center text-center space-y-10 animate-in fade-in zoom-in-95 duration-1000 relative z-10 my-auto min-h-[calc(100vh-300px)]">
+                                                <div className="w-56 h-56 rounded-full border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shadow-md flex items-center justify-center relative group">
+                                                    <div className="absolute inset-0 rounded-[inherit]  border-[2px] border-dashed border-[var(--accent)] opacity-80 animate-[spin_3s_linear_infinite]" />
+                                                    <div className="absolute inset-4 rounded-full border-[4px] border-solid border-transparent border-t-[var(--accent)] opacity-60 animate-[spin_1s_linear_infinite_reverse]" />
+                                                    <div className="absolute inset-8 rounded-full border-[2px] border-dotted border-[var(--warning)] opacity-40 animate-[spin_5s_linear_infinite]" />
+                                                    <span className="material-symbols-outlined !text-[80px] text-[var(--accent)] animate-pulse drop-shadow-md">
+                                                        {t("icon_track_changes")}
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-4 max-w-xl relative z-10">
+                                                    <h2 className="text-4xl font-black text-[var(--accent)] capitalize tracking-tighter drop-shadow-lg animate-pulse">
+                                                        {t("scanning_title")}
+                                                    </h2>
+                                                    <p className="text-sm font-medium leading-relaxed text-[var(--subtext)] opacity-80">
+                                                        {t("scanning_desc")}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
+                                        )}
 
-                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                                        {filteredFatal.slice(0, visibleFatal).map((c: any) => (
-                                            <ConflictCard key={c.mod_pair} conflict={c} tier={4} onClick={() => setActiveConflictRes(c)} />
-                                        ))}
-                                    </div>
-                                    {fatalConflicts.length > visibleFatal && (
-                                        <div className="flex justify-center mt-8">
-                                            <button onClick={() => setVisibleFatal(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
-                                                {t("nav_load_more")} ({fatalConflicts.length - visibleFatal})
-                                            </button>
-                                        </div>
-                                    )}
-                                </section>
-                            )}
-
-                            {hasScanned && filteredTuning.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 3) && (
-                                <section className="space-y-6 mt-12">
-                                    <div className="flex items-center justify-start pb-4 mb-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
-                                                <span className="material-symbols-outlined !text-2xl theme-text-warning drop-shadow-[0_0_8px_rgba(var(--warning-rgb),0.5)]">{t("icon_tune")}</span>
+                                        {hasScanned && stats.totalClashes === 0 && !loading && (
+                                            <div className="py-24 flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in-95 duration-700 relative">
+                                                <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] blur-[100px]  pointer-events-none" />
+                                                <div className="relative">
+                                                    <div className="w-32 h-32 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-md flex items-center justify-center relative backdrop-blur-md">
+                                                        <div className="absolute inset-0 rounded-[inherit]  border-[2px] border-dashed border-[color-mix(in_srgb,var(--success)_50%,transparent)] animate-[spin_10s_linear_infinite]" />
+                                                        <div className="absolute inset-2 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[spin_15s_linear_infinite_reverse]" />
+                                                        <span className="material-symbols-outlined !text-[64px] text-[var(--success)] animate-pulse drop-shadow-md">
+                                                            {t("icon_check")}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="relative z-10 max-w-lg">
+                                                    <h2 className="text-4xl font-black text-[var(--success)] capitalize tracking-tighter mb-4 drop-shadow-md">
+                                                        {t("clear_title")}
+                                                    </h2>
+                                                    <p className="text-xs font-bold leading-relaxed capitalize tracking-[0.2em] text-[var(--subtext)] opacity-90 border-t border-[color-mix(in_srgb,var(--success)_20%,transparent)] pt-4">
+                                                        {t("clear_desc")}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col gap-0.5">
-                                                <h2 className="text-2xl font-black theme-text-warning capitalize tracking-tighter italic drop-shadow-md">{t("tier3_title")}</h2>
-                                                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 capitalize tracking-widest">{t("tier3_desc")}</p>
-                                            </div>
-                                        </div>
+                                        )}
+
+                                        {hasScanned && filteredFatal.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 4) && (
+                                            <section className="space-y-6">
+                                                <div className="flex items-center justify-start pb-4 mb-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
+                                                            <span className="material-symbols-outlined !text-2xl theme-text-danger drop-shadow-[0_0_8px_rgba(var(--danger-rgb),0.5)]">{t("icon_warning_amber")}</span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <h2 className="text-2xl font-black theme-text-danger capitalize tracking-tighter italic drop-shadow-md">{t("tier4_title")}</h2>
+                                                            <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 capitalize tracking-widest">{t("tier4_desc")}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+                                                    {filteredFatal.slice(0, visibleFatal).map((c: any) => (
+                                                        <ConflictCard key={c.mod_pair} conflict={c} tier={4} onClick={() => setActiveConflictRes(c)} />
+                                                    ))}
+                                                </div>
+                                                {fatalConflicts.length > visibleFatal && (
+                                                    <div className="flex justify-center mt-8">
+                                                        <button onClick={() => setVisibleFatal(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
+                                                            {t("nav_load_more")} ({fatalConflicts.length - visibleFatal})
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </section>
+                                        )}
+
+                                        {hasScanned && filteredTuning.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 3) && (
+                                            <section className="space-y-6 mt-12">
+                                                <div className="flex items-center justify-start pb-4 mb-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]">
+                                                            <span className="material-symbols-outlined !text-2xl theme-text-warning drop-shadow-[0_0_8px_rgba(var(--warning-rgb),0.5)]">{t("icon_tune")}</span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <h2 className="text-2xl font-black theme-text-warning capitalize tracking-tighter italic drop-shadow-md">{t("tier3_title")}</h2>
+                                                            <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 capitalize tracking-widest">{t("tier3_desc")}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+                                                    {filteredTuning.slice(0, visibleTuning).map((c: any) => (
+                                                        <ConflictCard key={c.mod_pair} conflict={c} tier={3} onClick={() => setActiveConflictRes(c)} />
+                                                    ))}
+                                                </div>
+                                                {tuningConflicts.length > visibleTuning && (
+                                                    <div className="flex justify-center mt-8">
+                                                        <button onClick={() => setVisibleTuning(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
+                                                            {t("nav_load_more")} ({tuningConflicts.length - visibleTuning})
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </section>
+                                        )}
+
+                                        {hasScanned && filteredClone.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 2) && (
+                                            <section className="space-y-6 mt-12">
+                                                <div className="flex flex-col lg:flex-row justify-start items-start lg:items-end gap-6 pb-4 mb-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
+                                                            <span className="material-symbols-outlined lowercase !text-2xl theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("icon_all_inclusive")}</span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <h2 className="text-2xl font-black theme-text-accent capitalize tracking-tighter italic drop-shadow-md">{t("duplicate_clones")}</h2>
+                                                            <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 capitalize tracking-widest">{t("identical_assets")}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-3">
+                                                        {isBulkMode && (
+                                                            <>
+                                                                <button onClick={targetHq} className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest transition-all">
+                                                                    {t("btn_select_hq")}
+                                                                </button>
+                                                                <button onClick={targetNonHq} className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest transition-all">
+                                                                    {t("btn_select_nonhq")}
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                        <button
+                                                            onClick={() => {
+                                                                if (!isBulkMode) setIsBulkMode(true);
+                                                                else if (selectedForVault.length > 0) setConfirmMassVault(true);
+                                                                else setIsBulkMode(false);
+                                                            }}
+                                                            className={`h-[42px] px-6 rounded-2xl text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center border ${isBulkMode
+                                                                ? (selectedForVault.length > 0 ? "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] shadow-lg" : "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-lg")
+                                                                : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+                                                                }`}
+                                                        >
+                                                            {isBulkMode ? (selectedForVault.length > 0 ? `${t("purge")} (${selectedForVault.length})` : t("btn_cancel_selection")) : "✓ " + (t("btn_select_assets"))}
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {confirmMassVault && (
+                                                    <div className="animate-in slide-in-from-top-2 p-6 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl flex flex-col md:flex-row gap-6 items-center justify-start shadow-xl mb-6">
+                                                        <p className="text-sm font-black theme-text-danger capitalize tracking-widest">
+                                                            {t("secure_quarantine") || `Yeet ${selectedForVault.length} duplicates to the Vault?`}
+                                                        </p>
+                                                        <div className="flex gap-4">
+                                                            <button onClick={executeMassVault} className="px-8 py-3 bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] transition-all text-[10px] tracking-widest font-black rounded-xl">
+                                                                {t("confirm_purge")}
+                                                            </button>
+                                                            <button onClick={() => setConfirmMassVault(false)} className="px-8 py-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all text-[10px] tracking-widest font-black rounded-xl">
+                                                                {t("nav_cancel")}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+                                                    {filteredClone.slice(0, visibleClone).map((c: any) => (
+                                                        <ConflictCard key={c.mod_pair} conflict={c} tier={2} isSelectedA={selectedForVault.includes(c.modA)} isSelectedB={selectedForVault.includes(c.modB)} onKeepA={() => toggleTarget(c.modA, c.modB)} onKeepB={() => toggleTarget(c.modB, c.modA)} onClick={() => setActiveConflictRes(c)} />
+                                                    ))}
+                                                </div>
+                                                {cloneConflicts.length > visibleClone && (
+                                                    <div className="flex justify-center mt-8">
+                                                        <button onClick={() => setVisibleClone(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
+                                                            {t("nav_load_more")} ({cloneConflicts.length - visibleClone})
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </section>
+                                        )}
+
+                                        {hasScanned && filteredSoft.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 1) && (
+                                            <details className="group space-y-6 glass-surface p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer mt-12 mb-32 transition-all hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                                                <summary className="flex flex-col gap-1 list-none outline-none">
+                                                    <div className="flex justify-start items-center w-full">
+                                                        <h3 className="text-sm font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest flex items-center gap-3 group-open:text-[var(--text)] transition-colors">
+                                                            <span className="material-symbols-outlined !text-xl">{t("icon_info")}</span> {t("tier1_title").replace("{count}", String(softConflicts.length))}
+                                                        </h3>
+                                                        <div className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center text-[var(--subtext)] opacity-60 group-open:rotate-180 transition-transform shrink-0">
+                                                            <span className="material-symbols-outlined !text-[20px]">{t("icon_expand_more")}</span>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[9px] font-bold text-gray-600 capitalize tracking-widest ml-9">{t("safe_textures")}</p>
+                                                </summary>
+                                                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-4">
+                                                    {filteredSoft.slice(0, visibleSoft).map((c: any) => (
+                                                        <ConflictCard key={c.mod_pair} conflict={c} tier={1} onClick={() => setActiveConflictRes(c)} onIgnore={() => ignoreConflict(c.mod_pair)} />
+                                                    ))}
+                                                </div>
+                                                {softConflicts.length > visibleSoft && (
+                                                    <div className="flex justify-center mt-6">
+                                                        <button onClick={() => setVisibleSoft(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
+                                                            {t("nav_load_more")} ({softConflicts.length - visibleSoft})
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </details>
+                                        )}
                                     </div>
-
-                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                                        {filteredTuning.slice(0, visibleTuning).map((c: any) => (
-                                            <ConflictCard key={c.mod_pair} conflict={c} tier={3} onClick={() => setActiveConflictRes(c)} />
-                                        ))}
-                                    </div>
-                                    {tuningConflicts.length > visibleTuning && (
-                                        <div className="flex justify-center mt-8">
-                                            <button onClick={() => setVisibleTuning(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
-                                                {t("nav_load_more")} ({tuningConflicts.length - visibleTuning})
-                                            </button>
-                                        </div>
-                                    )}
-                                </section>
-                            )}
-
-                            {hasScanned && filteredClone.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 2) && (
-                                <section className="space-y-6 mt-12">
-                                    <div className="flex flex-col lg:flex-row justify-start items-start lg:items-end gap-6 pb-4 mb-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shadow-lg shrink-0 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
-                                                <span className="material-symbols-outlined lowercase !text-2xl theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("icon_all_inclusive")}</span>
-                                            </div>
-                                            <div className="flex flex-col gap-0.5">
-                                                <h2 className="text-2xl font-black theme-text-accent capitalize tracking-tighter italic drop-shadow-md">{t("duplicate_clones")}</h2>
-                                                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 capitalize tracking-widest">{t("identical_assets")}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3">
-                                            {isBulkMode && (
-                                                <>
-                                                    <button onClick={targetHq} className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest transition-all">
-                                                        {t("btn_select_hq")}
-                                                    </button>
-                                                    <button onClick={targetNonHq} className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest transition-all">
-                                                        {t("btn_select_nonhq")}
-                                                    </button>
-                                                </>
-                                            )}
-                                            <button
-                                                onClick={() => {
-                                                    if (!isBulkMode) setIsBulkMode(true);
-                                                    else if (selectedForVault.length > 0) setConfirmMassVault(true);
-                                                    else setIsBulkMode(false);
-                                                }}
-                                                className={`h-[42px] px-6 rounded-2xl text-[10px] font-black capitalize tracking-widest transition-all flex items-center justify-center border ${isBulkMode
-                                                    ? (selectedForVault.length > 0 ? "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] shadow-lg" : "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-lg")
-                                                    : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-                                                    }`}
-                                            >
-                                                {isBulkMode ? (selectedForVault.length > 0 ? `${t("purge")} (${selectedForVault.length})` : t("btn_cancel_selection")) : "✓ " + (t("btn_select_assets"))}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {confirmMassVault && (
-                                        <div className="animate-in slide-in-from-top-2 p-6 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl flex flex-col md:flex-row gap-6 items-center justify-start shadow-xl mb-6">
-                                            <p className="text-sm font-black theme-text-danger capitalize tracking-widest">
-                                                {t("secure_quarantine") || `Yeet ${selectedForVault.length} duplicates to the Vault?`}
-                                            </p>
-                                            <div className="flex gap-4">
-                                                <button onClick={executeMassVault} className="px-8 py-3 bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] transition-all text-[10px] tracking-widest font-black rounded-xl">
-                                                    {t("confirm_purge")}
-                                                </button>
-                                                <button onClick={() => setConfirmMassVault(false)} className="px-8 py-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all text-[10px] tracking-widest font-black rounded-xl">
-                                                    {t("nav_cancel")}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                                        {filteredClone.slice(0, visibleClone).map((c: any) => (
-                                            <ConflictCard key={c.mod_pair} conflict={c} tier={2} isSelectedA={selectedForVault.includes(c.modA)} isSelectedB={selectedForVault.includes(c.modB)} onKeepA={() => toggleTarget(c.modA, c.modB)} onKeepB={() => toggleTarget(c.modB, c.modA)} onClick={() => setActiveConflictRes(c)} />
-                                        ))}
-                                    </div>
-                                    {cloneConflicts.length > visibleClone && (
-                                        <div className="flex justify-center mt-8">
-                                            <button onClick={() => setVisibleClone(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
-                                                {t("nav_load_more")} ({cloneConflicts.length - visibleClone})
-                                            </button>
-                                        </div>
-                                    )}
-                                </section>
-                            )}
-
-                            {hasScanned && filteredSoft.length > 0 && (activeConflictSeverity === null || activeConflictSeverity === 1) && (
-                                <details className="group space-y-6 glass-surface p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] cursor-pointer mt-12 mb-32 transition-all hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                                    <summary className="flex flex-col gap-1 list-none outline-none">
-                                        <div className="flex justify-start items-center w-full">
-                                            <h3 className="text-sm font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest flex items-center gap-3 group-open:text-[var(--text)] transition-colors">
-                                                <span className="material-symbols-outlined !text-xl">{t("icon_info")}</span> {t("tier1_title").replace("{count}", String(softConflicts.length))}
-                                            </h3>
-                                            <div className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center text-[var(--subtext)] opacity-60 group-open:rotate-180 transition-transform shrink-0">
-                                                <span className="material-symbols-outlined !text-[20px]">{t("icon_expand_more")}</span>
-                                            </div>
-                                        </div>
-                                        <p className="text-[9px] font-bold text-gray-600 capitalize tracking-widest ml-9">{t("safe_textures")}</p>
-                                    </summary>
-                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-4">
-                                        {filteredSoft.slice(0, visibleSoft).map((c: any) => (
-                                            <ConflictCard key={c.mod_pair} conflict={c} tier={1} onClick={() => setActiveConflictRes(c)} onIgnore={() => ignoreConflict(c.mod_pair)} />
-                                        ))}
-                                    </div>
-                                    {softConflicts.length > visibleSoft && (
-                                        <div className="flex justify-center mt-6">
-                                            <button onClick={() => setVisibleSoft(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
-                                                {t("nav_load_more")} ({softConflicts.length - visibleSoft})
-                                            </button>
-                                        </div>
-                                    )}
-                                </details>
-                            )}
-                        </div>
                                 </CommandScreenMain>
 
                             </CommandScreenBody>
@@ -894,24 +912,26 @@ export const DbpfScout = () => {
                         return (
                             <CommandScreenLayout>
                                 {hasScanned && (
-                                    <CommandScreenStats>
-                                        <DashboardStatTile
+                                    <StatTileCarousel>
+                                        <DashboardStatTile variant="filter"
                                             label={t("active_overrides") || "Active Overrides"}
                                             number={allActiveOverrides.length.toString()}
                                             icon={<span className="material-symbols-outlined">verified</span>}
-                                            colorClass={overrideTab === "ACTIVE" ? "text-black" : "text-[var(--accent)]"}
-                                            className={`cursor-pointer transition-all ${overrideTab === "ACTIVE" ? "bg-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.4)]" : "hover:border-[var(--accent)]"}`}
+                                            colorClass="text-[var(--accent)]"
+                                            isActive={overrideTab === "ACTIVE"}
+                                            className="cursor-pointer min-w-[200px] shrink-0"
                                             onClick={() => setOverrideTab(overrideTab === "ACTIVE" ? "ALL" : "ACTIVE")}
                                         />
-                                        <DashboardStatTile
+                                        <DashboardStatTile variant="filter"
                                             label={t("ignored_conflicts") || "Ignored Conflicts"}
                                             number={trueIgnoredPairs.length.toString()}
                                             icon={<span className="material-symbols-outlined">visibility_off</span>}
-                                            colorClass={overrideTab === "IGNORED" ? "text-white" : "text-[var(--subtext)]"}
-                                            className={`cursor-pointer transition-all ${overrideTab === "IGNORED" ? "bg-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-[0_0_20px_rgba(255,255,255,0.1)]" : "hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"}`}
+                                            colorClass="text-[var(--text)]"
+                                            isActive={overrideTab === "IGNORED"}
+                                            className="cursor-pointer min-w-[200px] shrink-0"
                                             onClick={() => setOverrideTab(overrideTab === "IGNORED" ? "ALL" : "IGNORED")}
                                         />
-                                    </CommandScreenStats>
+                                    </StatTileCarousel>
                                 )}
                                 <CommandScreenBody>
                                     <CommandScreenMain>
@@ -957,7 +977,7 @@ export const DbpfScout = () => {
                                                             </div>
 
                                                             <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
-                                                                <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
+                                                                <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
                                                                     <span className="text-[7px] font-black italic capitalize">{t("vs")}</span>
                                                                 </div>
                                                                 <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
@@ -974,64 +994,64 @@ export const DbpfScout = () => {
                                                 );
                                             })}
 
-                                            {(overrideTab === "ALL" || overrideTab === "IGNORED") && trueIgnoredPairs.map((pair: string, i: number) => {
-                                                const parts = pair.split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
-                                                const left = parts[0] || pair;
-                                                const right = parts[1] || t("unknown_file");
-                                                const leftName = left.split(/[/\\]/).pop();
-                                                const rightName = right.split(/[/\\]/).pop();
+                                                {(overrideTab === "ALL" || overrideTab === "IGNORED") && trueIgnoredPairs.map((pair: string, i: number) => {
+                                                    const parts = pair.split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
+                                                    const left = parts[0] || pair;
+                                                    const right = parts[1] || t("unknown_file");
+                                                    const leftName = left.split(/[/\\]/).pop();
+                                                    const rightName = right.split(/[/\\]/).pop();
 
-                                                return (
-                                                    <div key={`ignored_${i}`} className="p-5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl relative group/card hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-                                                        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-tr from-[color-mix(in_srgb,var(--bg)_5%,transparent)] to-transparent pointer-events-none z-0" />
-                                                        <div className="flex items-center justify-between relative z-10">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] shadow-sm">
-                                                                    <span className="material-symbols-outlined !text-[18px]">visibility_off</span>
+                                                    return (
+                                                        <div key={`ignored_${i}`} className="p-5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl relative group/card hover:shadow-2xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-500 flex flex-col gap-5 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+                                                            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-tr from-[color-mix(in_srgb,var(--bg)_5%,transparent)] to-transparent pointer-events-none z-0" />
+                                                            <div className="flex items-center justify-between relative z-10">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] shadow-sm">
+                                                                        <span className="material-symbols-outlined !text-[18px]">visibility_off</span>
+                                                                    </div>
+                                                                    <h3 className="text-xs font-black capitalize tracking-widest text-[var(--text)] drop-shadow-md opacity-80">
+                                                                        {t("ignored_conflict")}
+                                                                    </h3>
                                                                 </div>
-                                                                <h3 className="text-xs font-black capitalize tracking-widest text-[var(--text)] drop-shadow-md opacity-80">
-                                                                    {t("ignored_conflict")}
-                                                                </h3>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => unignoreConflict(pair).then(() => runRadar())}
-                                                                className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-all flex items-center justify-center shadow-sm relative group/btn"
-                                                            >
-                                                                <span className="material-symbols-outlined !text-[14px]">undo</span>
-                                                                <HoverTooltip title={t("unignore_conflict")} variant="accent" className="z-[200] group-hover/btn:flex" />
-                                                            </button>
-                                                        </div>
-
-                                                        <div className="flex flex-col gap-2 relative z-10 w-full mt-2">
-                                                            <div className="flex flex-col gap-1">
-                                                                <span className="text-[9px] font-black capitalize tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
-                                                                    {t("ignored_file_a")}
-                                                                </span>
-                                                                <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{formatDisplayName(leftName || "", activeGameSchema)}</span>
+                                                                <button
+                                                                    onClick={() => unignoreConflict(pair).then(() => runRadar())}
+                                                                    className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-all flex items-center justify-center shadow-sm relative group/btn"
+                                                                >
+                                                                    <span className="material-symbols-outlined !text-[14px]">undo</span>
+                                                                    <HoverTooltip title={t("unignore_conflict")} variant="accent" className="z-[200] group-hover/btn:flex" />
+                                                                </button>
                                                             </div>
 
-                                                            <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
-                                                                <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
-                                                                    <span className="text-[7px] font-black italic capitalize">{t("vs")}</span>
+                                                            <div className="flex flex-col gap-2 relative z-10 w-full mt-2">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="text-[9px] font-black capitalize tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
+                                                                        {t("ignored_file_a")}
+                                                                    </span>
+                                                                    <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{formatDisplayName(leftName || "", activeGameSchema)}</span>
                                                                 </div>
-                                                                <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
-                                                            </div>
 
-                                                            <div className="flex flex-col gap-1">
-                                                                <span className="text-[9px] font-black capitalize tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
-                                                                    {t("ignored_file_b")}
-                                                                </span>
-                                                                <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{formatDisplayName(rightName || "", activeGameSchema)}</span>
+                                                                <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
+                                                                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
+                                                                        <span className="text-[7px] font-black italic capitalize">{t("vs")}</span>
+                                                                    </div>
+                                                                    <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
+                                                                </div>
+
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="text-[9px] font-black capitalize tracking-widest flex items-center gap-1.5 opacity-80 text-[var(--subtext)]">
+                                                                        {t("ignored_file_b")}
+                                                                    </span>
+                                                                    <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{formatDisplayName(rightName || "", activeGameSchema)}</span>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
-                                </CommandScreenMain>
-                            </CommandScreenBody>
-                        </CommandScreenLayout>
+                                    </CommandScreenMain>
+                                </CommandScreenBody>
+                            </CommandScreenLayout>
                         );
                     })()}
                 </div>
@@ -1087,6 +1107,7 @@ export const DbpfScout = () => {
         </>
     );
 };
+
 
 
 

@@ -2234,5 +2234,8 @@
   "total_blueprints": "Total Vadish",
   "monitored_assets": "Monitored Frobs",
   "total_clones": "Total Duplo",
-  "total_soft": "Total Smoosh"
+  "total_soft": "Total Smoosh",
+  "mod_version": "Mod Version",
+  "status_unknown": "Unknown",
+  "badge_premium": "Premium"
 }

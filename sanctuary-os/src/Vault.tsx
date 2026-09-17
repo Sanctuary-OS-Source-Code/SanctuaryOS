@@ -507,41 +507,12 @@ const Vault = React.memo(function Vault(props: any) {
         )}
       </ViewHeader>
 
-      <VaultTabs t={t} equipFilter={equipFilter} setEquipFilter={setEquipFilter} />
+      <VaultTabs t={t} equipFilter={equipFilter} setEquipFilter={setEquipFilter} finalVisibleMods={finalVisibleMods} equippedDisplayMods={equippedDisplayMods} visibleMods={visibleMods} displayModList={displayModList} selectedVersion={selectedVersion} />
 
       {equipFilter === "OVERVIEW" ? (
         <div className="mt-6">
           <CommandScreenLayout>
-            <CommandScreenStats>
-              <DashboardStatTile
-                icon={<span className="material-symbols-outlined ">{t("icon_inventory_2")}</span>}
-                number={displayModList.length}
-                label={t("title_artifacts")}
-                colorClass="text-cyan-400 cursor-pointer"
-                onClick={() => { setEquipFilter("ALL"); setFilterStatus("ALL"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
-              />
-              <DashboardStatTile
-                icon={<span className="material-symbols-outlined ">{t("icon_check_circle")}</span>}
-                number={equippedDisplayMods.length}
-                label={t("filter_equipped")}
-                colorClass="text-[var(--success)] cursor-pointer"
-                onClick={() => { setEquipFilter("EQUIPPED"); setFilterStatus("ALL"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
-              />
-              <DashboardStatTile
-                icon={<span className="material-symbols-outlined ">{t("icon_warning")}</span>}
-                number={unverifiedCount}
-                label={t("status_unverified")}
-                colorClass="text-[var(--warning)] cursor-pointer"
-                onClick={() => { setEquipFilter("ALL"); setFilterStatus("UNVERIFIED"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
-              />
-              <DashboardStatTile
-                icon={<span className="material-symbols-outlined ">{t("icon_folder_shared")}</span>}
-                number={localFolderCount}
-                label={t("local_folders")}
-                colorClass="text-purple-400 cursor-pointer"
-                onClick={() => { setEquipFilter("ALL"); setActiveCategory("LOCAL_FOLDERS"); }}
-              />
-            </CommandScreenStats>
+
 
             <CommandScreenBody>
               <CommandScreenMain>
@@ -621,6 +592,24 @@ const Vault = React.memo(function Vault(props: any) {
 
               <CommandScreenSidebar title={t("quick_actions")} icon="bolt">
                 <div className="flex flex-col gap-4">
+                  <CommandScreenQuickLink
+                    icon={t("icon_warning")}
+                    title={t("status_unverified")}
+                    subtitle={`${unverifiedCount} ${t("tab_mods")}`}
+                    hoverTextColorClass="group-hover:text-[var(--warning)]"
+                    iconShadowClass="drop-shadow-md text-[var(--warning)]"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
+                    onClick={() => { setEquipFilter("ALL"); setFilterStatus("UNVERIFIED"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
+                  />
+                  <CommandScreenQuickLink
+                    icon={t("icon_folder_shared")}
+                    title={t("local_folders")}
+                    subtitle={`${localFolderCount} ${t("title_artifacts")}`}
+                    hoverTextColorClass="group-hover:text-purple-400"
+                    iconShadowClass="drop-shadow-md text-purple-400"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                    onClick={() => { setEquipFilter("ALL"); setActiveCategory("LOCAL_FOLDERS"); }}
+                  />
                   <CommandScreenQuickLink
                     icon={t("icon_create_new_folder")}
                     title={t("quick_create_node")}

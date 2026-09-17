@@ -13,7 +13,7 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from "./utils/envUtils";
 import BlueprintMatrix from "./BlueprintMatrix";
-import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 
 
@@ -1570,44 +1570,54 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           )}
         </ViewHeader>
 
-        <HoverTabDrawer
-          title="Nexus Navigation"
-          activeTab={marketTab}
-          setTab={setMarketTab}
-          footer={
-            <SidebarFooterButton
-              icon={t("icon_refresh")}
-              label={t("ui_btn_refresh")}
-              variant="glass"
-              onClick={() => {
-                if (marketTab === 'MODS') fetchNexus(true);
-                else fetchNexusAssets(true);
-              }}
-            />
-          }
-        >
-          {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
-            <VerticalTabButton
-              key={tab}
-              id={tab}
-              activeTab={marketTab}
-              setTab={setMarketTab}
-              label={tab === 'HOME' ? t('tab_overview') : t(`tab_${tab.toLowerCase()}`) || tab}
-              icon={tab === 'HOME' ? 'dashboard' : tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : tab === 'TEMPLATES' ? "draw" : "palette"}
-            />
-          ))}
-        </HoverTabDrawer>
+        <div className="md:hidden">
+          <HoverTabDrawer
+            title="Nexus Navigation"
+            activeTab={marketTab}
+            setTab={setMarketTab}
+            footer={
+              <SidebarFooterButton
+                icon={t("icon_refresh")}
+                label={t("ui_btn_refresh")}
+                variant="glass"
+                onClick={() => {
+                  if (marketTab === 'MODS') fetchNexus(true);
+                  else fetchNexusAssets(true);
+                }}
+              />
+            }
+          >
+            {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
+              <VerticalTabButton
+                key={tab}
+                id={tab}
+                activeTab={marketTab}
+                setTab={setMarketTab}
+                label={tab === 'HOME' ? t('tab_overview') : t(`tab_${tab.toLowerCase()}`) || tab}
+                icon={tab === 'HOME' ? 'dashboard' : tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : tab === 'TEMPLATES' ? "draw" : "palette"}
+              />
+            ))}
+          </HoverTabDrawer>
+        </div>
+
+        <div className="hidden md:flex flex-col w-full gap-3 mb-6">
+          <StatTileCarousel>
+            {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
+              <DashboardStatTile
+                key={tab}
+                variant="tab"
+                icon={tab === 'HOME' ? 'dashboard' : tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : tab === 'TEMPLATES' ? "draw" : "palette"}
+                label={tab === 'HOME' ? t('tab_overview') : t(`tab_${tab.toLowerCase()}`) || tab}
+                number={tab === 'HOME' ? (stats.artifacts + stats.blueprints + stats.lexicons + stats.chameleons + stats.templates) : tab === 'MODS' ? stats.artifacts : tab === 'BLUEPRINTS' ? stats.blueprints : tab === 'LEXICONS' ? stats.lexicons : tab === 'CHAMELEONS' ? stats.chameleons : tab === 'TEMPLATES' ? stats.templates : ""}
+                onClick={() => setMarketTab(tab as any)}
+                isActive={marketTab === tab}
+              />
+            ))}
+          </StatTileCarousel>
+        </div>
 
         <div className={marketTab === 'HOME' ? 'flex-1 flex flex-col relative' : 'hidden'}>
           <CommandScreenLayout>
-            <CommandScreenStats>
-              <DashboardStatTile icon={<span className="material-symbols-outlined">extension</span>} number={stats.artifacts} label={t("tab_mods")} colorClass="text-cyan-400 cursor-pointer" onClick={() => setMarketTab('MODS')} />
-              <DashboardStatTile icon={<span className="material-symbols-outlined">map</span>} number={stats.blueprints} label={t("tab_blueprints")} colorClass="text-[var(--success)] cursor-pointer" onClick={() => setMarketTab('BLUEPRINTS')} />
-              <DashboardStatTile icon={<span className="material-symbols-outlined">translate</span>} number={stats.lexicons} label={t("tab_lexicons")} colorClass="text-[var(--warning)] cursor-pointer" onClick={() => setMarketTab('LEXICONS')} />
-              <DashboardStatTile icon={<span className="material-symbols-outlined">palette</span>} number={stats.chameleons} label={t("tab_chameleons")} colorClass="text-[var(--accent)] cursor-pointer" onClick={() => setMarketTab('CHAMELEONS')} />
-              <DashboardStatTile icon={<span className="material-symbols-outlined">draw</span>} number={stats.templates} label={t("tab_templates")} colorClass="text-[var(--danger)] cursor-pointer" onClick={() => setMarketTab('TEMPLATES')} />
-            </CommandScreenStats>
-
             <CommandScreenBody>
               <CommandScreenMain>
                 <div className="flex flex-col gap-6 w-full">

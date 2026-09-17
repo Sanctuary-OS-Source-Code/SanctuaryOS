@@ -4,7 +4,7 @@ import { useLexicon } from "./LexiconContext";
 import { ViewHeader, HubTabButton, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton, HoverTabDrawer, VerticalTabButton, ActionPill } from "./shared";
 import { TimeCapsuleSidePanel } from "./side-panels/TimeCapsuleSidePanels";
 import { useModalStore } from "./store/modalStore";
-import { CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 
 export default function TimeCapsule({
   selectedVersion, isBackingUp, triggerPrePatchSnapshot, triggerFullEngineBackup,
@@ -208,8 +208,8 @@ export default function TimeCapsule({
     <div className="flex flex-col gap-4 min-w-[280px]">
       <div className="flex flex-col gap-2">
         <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] uppercase">{t("game_version")}</label>
-        <CustomDropdown 
-          disableTint={true} 
+        <CustomDropdown
+          disableTint={true}
           variant="panel"
           value={versionFilter}
           onChange={(val: string[]) => setVersionFilter(val[0])}
@@ -264,40 +264,23 @@ export default function TimeCapsule({
         )}
       </ViewHeader>
 
-      <HoverTabDrawer title="Time Capsule" activeTab={activeTab} setTab={setActiveTab}>
-        <VerticalTabButton id="LANDING" icon="dashboard" label={t("tab_landing")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="WORLD" icon="public" label={t("world_state")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="ENGINE" icon="settings" label={t("engine_full")} activeTab={activeTab} setTab={setActiveTab} />
-      </HoverTabDrawer>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-6">
-        <DashboardStatTile
-          icon={<span className="material-symbols-outlined ">{t("icon_verified_user")}</span>}
-          number={selectedVersion || t("status_unknown")}
-          label={t("target_patch")}
-          colorClass="text-emerald-500"
-        />
-        <DashboardStatTile
-          icon={<span className="material-symbols-outlined ">{t("icon_public")}</span>}
-          number={(totalWorldSize / 1024).toFixed(2)}
-          label={`${t("unit_gb")} / ${t("world_space")}`}
-          colorClass="text-indigo-500 cursor-pointer"
-          onClick={() => setActiveTab("WORLD")}
-        />
-        <DashboardStatTile
-          icon={<span className="material-symbols-outlined ">{t("icon_settings")}</span>}
-          number={(totalEngineSize / 1024).toFixed(2)}
-          label={`${t("unit_gb")} / ${t("engine_space")}`}
-          colorClass="text-rose-500 cursor-pointer"
-          onClick={() => setActiveTab("ENGINE")}
-        />
-        <DashboardStatTile
-          icon={<span className="material-symbols-outlined ">{t("icon_storage")}</span>}
-          number={(totalSpace / 1024).toFixed(2)}
-          label={`${t("unit_gb")} / ${t("total_space")}`}
-          colorClass="text-cyan-500"
-        />
+      <div className="md:hidden">
+        <HoverTabDrawer title="Time Capsule" activeTab={activeTab} setTab={setActiveTab}>
+          <VerticalTabButton id="LANDING" icon="dashboard" label={t("tab_landing")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="WORLD" icon="public" label={t("world_state")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="ENGINE" icon="settings" label={t("engine_full")} activeTab={activeTab} setTab={setActiveTab} />
+        </HoverTabDrawer>
       </div>
+
+      <div className="hidden md:flex flex-col w-full gap-3 mb-6">
+        <StatTileCarousel>
+          <DashboardStatTile variant="tab" icon="dashboard" label={t("tab_landing")} number={selectedVersion || ""} onClick={() => setActiveTab("LANDING")} isActive={activeTab === "LANDING"} />
+          <DashboardStatTile variant="tab" icon="public" label={t("world_state")} number={`${worldBackups.length} / ${(totalWorldSize / 1024).toFixed(2)} GB`} onClick={() => setActiveTab("WORLD")} isActive={activeTab === "WORLD"} />
+          <DashboardStatTile variant="tab" icon="settings" label={t("engine_full")} number={`${engineBackups.length} / ${(totalEngineSize / 1024).toFixed(2)} GB`} onClick={() => setActiveTab("ENGINE")} isActive={activeTab === "ENGINE"} />
+        </StatTileCarousel>
+      </div>
+
+
       <div className="flex flex-col gap-10 pt-4">
         {backupList?.length > 0 ? (
           <>

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { ActionButton, CustomDropdown, ModSearchDropdown, ViewHeader, FilterTabs, FilterTabButton, standardButtonClass, standardAccentGlassButtonClass, getExtensionRegex, formatDisplayName, SidePanel, isVersionMatch, SidebarActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, HoverTooltip, ActionPill, PillTabs, PillTabButton } from "./shared";
-import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";
 import { GhostStringsModal } from "./side-panels/GhostStringsModal";
@@ -46,27 +46,25 @@ export default function Blueprints({
   }, [selectedUplinkBlueprint, uplinkArtifactSearch]);
 
   useEffect(() => {
-    if (activeTab === "NETWORK") {
-      const session = useStore.getState().session;
-      if (session?.user?.id) {
-        supabase.from('masons')
-          .select('id')
-          .eq('profile_id', session.user.id)
-          .maybeSingle()
-          .then(({ data: masonData }) => {
-            if (masonData?.id) {
-              supabase.from('blueprints')
-                .select('name, code, created_at, artifacts')
-                .eq('mason_id', masonData.id)
-                .order('created_at', { ascending: false })
-                .then(({ data }) => setMyCloudBlueprints(data || []));
-            } else {
-              setMyCloudBlueprints([]);
-            }
-          });
-      }
+    const session = useStore.getState().session;
+    if (session?.user?.id) {
+      supabase.from('masons')
+        .select('id')
+        .eq('profile_id', session.user.id)
+        .maybeSingle()
+        .then(({ data: masonData }) => {
+          if (masonData?.id) {
+            supabase.from('blueprints')
+              .select('name, code, created_at, artifacts')
+              .eq('mason_id', masonData.id)
+              .order('created_at', { ascending: false })
+              .then(({ data }) => setMyCloudBlueprints(data || []));
+          } else {
+            setMyCloudBlueprints([]);
+          }
+        });
     }
-  }, [activeTab]);
+  }, []);
 
   const handleSync = async () => {
     if (syncCode && syncBlueprintByCode) {
@@ -437,46 +435,25 @@ export default function Blueprints({
         )}
       </ViewHeader>
 
-      <HoverTabDrawer title="Blueprint Navigation" activeTab={activeTab} setTab={setActiveTab}>
-        <VerticalTabButton id="LANDING" icon="dashboard" label={t("tab_landing")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="VAULT" icon="map" label={t("playsets_all")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="NETWORK" icon="cloud" label={t("btn_my_cloud_blueprints")} activeTab={activeTab} setTab={setActiveTab} iconColorClass="text-sky-500" />
-      </HoverTabDrawer>
+      <div className="md:hidden">
+        <HoverTabDrawer title="Blueprint Navigation" activeTab={activeTab} setTab={setActiveTab}>
+          <VerticalTabButton id="LANDING" icon="dashboard" label={t("tab_landing")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="VAULT" icon="map" label={t("playsets_all")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="NETWORK" icon="cloud" label={t("btn_my_cloud_blueprints")} activeTab={activeTab} setTab={setActiveTab} iconColorClass="text-sky-500" />
+        </HoverTabDrawer>
+      </div>
+
+      <div className="hidden md:flex flex-col w-full gap-3 mb-6">
+        <StatTileCarousel>
+          <DashboardStatTile variant="tab" icon="dashboard" label={t("tab_landing")} number={activeSetName || ""} onClick={() => setActiveTab("LANDING")} isActive={activeTab === "LANDING"} />
+          <DashboardStatTile variant="tab" icon="map" label={t("playsets_all")} number={playSets?.length || 0} onClick={() => setActiveTab("VAULT")} isActive={activeTab === "VAULT"} />
+          <DashboardStatTile variant="tab" icon="cloud" label={t("btn_my_cloud_blueprints")} colorClass="text-sky-500" number={myCloudBlueprints?.length || 0} onClick={() => setActiveTab("NETWORK")} isActive={activeTab === "NETWORK"} />
+        </StatTileCarousel>
+      </div>
 
       {activeTab === "LANDING" && (
         <div className="flex flex-col w-full animate-in slide-in-from-top-4 duration-500 flex-1 min-h-[400px]">
           <CommandScreenLayout>
-            <CommandScreenStats>
-              <DashboardStatTile
-                icon={<span className="material-symbols-outlined">{t("icon_check_circle")}</span>}
-                number={activeSetName || t("status_unknown")}
-                label={t("btn_deployed")}
-                colorClass="text-emerald-500 cursor-pointer"
-                onClick={() => setIsBlueprintSwapOpen(true)}
-              />
-              <DashboardStatTile
-                icon={<span className="material-symbols-outlined">{t("icon_map")}</span>}
-                number={playSets?.length || 0}
-                label={t("playsets_title")}
-                colorClass="text-indigo-500 cursor-pointer"
-                onClick={() => setActiveTab("VAULT")}
-              />
-              <DashboardStatTile
-                icon={<span className="material-symbols-outlined">{t("icon_cloud")}</span>}
-                number={myCloudBlueprints.length}
-                label={t("my_cloud_blueprints_title")}
-                colorClass="text-sky-500 cursor-pointer"
-                onClick={() => setActiveTab("NETWORK")}
-              />
-              <DashboardStatTile
-                icon={<span className="material-symbols-outlined">{totalAlerts > 0 ? "error" : "check_circle"}</span>}
-                number={totalAlerts}
-                label={t("system_alerts_title")}
-                colorClass={totalAlerts > 0 ? "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-rose-500 hover:border-rose-500 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] cursor-pointer" : "border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-emerald-500 hover:border-emerald-500 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] cursor-pointer"}
-                onClick={() => setActiveTab("VAULT")}
-              />
-            </CommandScreenStats>
-
             <CommandScreenBody>
               <CommandScreenMain>
                 <div className="flex flex-col gap-6 w-full">
@@ -509,6 +486,30 @@ export default function Blueprints({
                   iconShadowClass="drop-shadow-md"
                   iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]"
                 />
+                <CommandScreenQuickLink
+                  icon="check_circle"
+                  title={t("btn_deployed")}
+                  subtitle={activeSetName || t("status_unknown")}
+                  onClick={() => setIsBlueprintSwapOpen(true)}
+                  dotColorClass="bg-indigo-500 shadow-md"
+                  textColorClass="text-indigo-500"
+                  hoverTextColorClass="group-hover:text-indigo-400"
+                  iconShadowClass="drop-shadow-md"
+                  iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                />
+                {totalAlerts > 0 && (
+                  <CommandScreenQuickLink
+                    icon="error"
+                    title={t("system_alerts_title")}
+                    subtitle={`${totalAlerts} active alerts`}
+                    onClick={() => setActiveTab("VAULT")}
+                    dotColorClass="bg-rose-500 shadow-md"
+                    textColorClass="text-rose-500"
+                    hoverTextColorClass="group-hover:text-rose-400"
+                    iconShadowClass="drop-shadow-md"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
+                  />
+                )}
                 <CommandScreenQuickLink
                   icon={importStatus === "loading" ? "sync" : "download"}
                   title={importStatus === "loading" ? t("btn_importing") : importStatus === "success" ? t("status_profile_imported") : importStatus === "error" ? t("alert_import_failed") : (t("playsets_btn_import"))}

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, PillTabs, PillTabButton, SidePanel, PanelHeaderGroup, PanelHeaderButton, ViewHeader, HoverTooltip, getNormalizedArtifactName, ActionPill } from "../shared";
+import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, PillTabs, PillTabButton, SidePanel, PanelHeaderGroup, PanelHeaderButton, ViewHeader, HoverTooltip, getNormalizedArtifactName, ActionPill, GlassSegmentedControl } from "../shared";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
@@ -500,56 +500,59 @@ export function MarketBlueprintPanel({
       >
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col relative z-10 px-10 py-6">
           <div className="flex flex-col gap-3 pb-8">
-            <div className="glass-panel p-8 rounded-[2rem] flex flex-col justify-start gap-6 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative overflow-hidden mb-4 shadow-xl">
+            <div className="glass-panel p-5 md:p-8 rounded-3xl md:rounded-[2rem] flex flex-col justify-start gap-4 md:gap-6 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative overflow-hidden mb-4 shadow-xl">
               <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-30"></div>
 
-              <div className="flex flex-col gap-3 relative z-10 w-full">
-                <h1 className="text-4xl font-black text-[var(--text)] tracking-tight drop-shadow-md break-words">{enrichedBlueprint.name}</h1>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-xs font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
-                    <span className="material-symbols-outlined !text-[16px] shrink-0">person</span>
-                    <span className="truncate">{enrichedBlueprint.creator_name || enrichedBlueprint.master_author || enrichedBlueprint.author || "Citizen"}</span>
+              <div className="flex flex-col gap-2 md:gap-3 relative z-10 w-full">
+                <h1 className="text-3xl md:text-4xl font-black text-[var(--text)] tracking-tight drop-shadow-md break-words leading-tight">{enrichedBlueprint.name}</h1>
+                <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+                  <span className="px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] md:text-xs font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 md:gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
+                    <span className="material-symbols-outlined !text-[14px] md:!text-[16px] shrink-0">person</span>
+                    <span className="truncate">{enrichedBlueprint.creator_name || enrichedBlueprint.master_author || enrichedBlueprint.author || t("role_citizen") || "Citizen"}</span>
                   </span>
-                  {enrichedBlueprint.is_paid && <div className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] text-[#fef08a] text-xs font-black tracking-widest uppercase flex items-center gap-2 shadow-sm backdrop-blur-sm shrink-0"><span className="material-symbols-outlined !text-[16px]">monetization_on</span> Premium</div>}
+                  {enrichedBlueprint.is_paid && <div className="px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] text-[#fef08a] text-[10px] md:text-xs font-black tracking-widest uppercase flex items-center gap-1.5 md:gap-2 shadow-sm backdrop-blur-sm shrink-0"><span className="material-symbols-outlined !text-[14px] md:!text-[16px]">monetization_on</span> {t("badge_premium") || "Premium"}</div>}
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 relative z-10 w-full flex-wrap">
-                <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
-                  <span className="text-[10px] uppercase font-black tracking-widest opacity-50">Game Version</span>
-                  <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">sell</span> {enrichedBlueprint.game_version || enrichedBlueprint.json_data?.game_version || "UNKNOWN"}</span>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 relative z-10 w-full">
+                <div className="col-span-2 md:col-span-1 flex flex-col gap-0.5 md:gap-1 items-start px-3 py-2 md:px-5 md:py-4 rounded-xl md:rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg min-w-0 w-full">
+                  <span className="text-[9px] md:text-[10px] uppercase font-black tracking-widest opacity-50 truncate w-full">{t("blueprint_version_label") || "Game Version"}</span>
+                  <span className="text-sm md:text-lg font-black flex items-center gap-1.5 md:gap-2 w-full"><span className="material-symbols-outlined !text-[14px] md:!text-[20px] theme-text-accent shrink-0">sell</span><span className="truncate">{enrichedBlueprint.game_version || enrichedBlueprint.json_data?.game_version || t("status_unknown") || "UNKNOWN"}</span></span>
                 </div>
-                <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
-                  <span className="text-[10px] uppercase font-black tracking-widest opacity-50">Downloads</span>
-                  <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">download</span> {enrichedBlueprint.downloads || 0}</span>
+                <div className="col-span-1 flex flex-col gap-0.5 md:gap-1 items-start px-3 py-2 md:px-5 md:py-4 rounded-xl md:rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg min-w-0 w-full">
+                  <span className="text-[9px] md:text-[10px] uppercase font-black tracking-widest opacity-50 truncate w-full">{t("downloads_count") || "Downloads"}</span>
+                  <span className="text-sm md:text-lg font-black flex items-center gap-1.5 md:gap-2 w-full"><span className="material-symbols-outlined !text-[14px] md:!text-[20px] theme-text-accent shrink-0">download</span><span className="truncate">{enrichedBlueprint.downloads || 0}</span></span>
                 </div>
-                <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
-                  <span className="text-[10px] uppercase font-black tracking-widest opacity-50">Published</span>
-                  <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">calendar_today</span> {new Date(enrichedBlueprint.created_at).toLocaleDateString()}</span>
+                <div className="col-span-1 flex flex-col gap-0.5 md:gap-1 items-start px-3 py-2 md:px-5 md:py-4 rounded-xl md:rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg min-w-0 w-full">
+                  <span className="text-[9px] md:text-[10px] uppercase font-black tracking-widest opacity-50 truncate w-full">{t("created_date") || "Published"}</span>
+                  <span className="text-sm md:text-lg font-black flex items-center gap-1.5 md:gap-2 w-full"><span className="material-symbols-outlined !text-[14px] md:!text-[20px] theme-text-accent shrink-0">calendar_today</span><span className="truncate">{new Date(enrichedBlueprint.created_at).toLocaleDateString()}</span></span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-4 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-              <h3 className="text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-80 flex items-center gap-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+              <h3 className="text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-80 flex items-center gap-3 shrink-0">
                 <span className="px-2 py-1 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] theme-text-accent border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   {displayArtifacts.length}
                 </span>
                 {t("blueprint_included") || "Included Artifacts"}
               </h3>
-              <div className="w-full">
-                <ActionPill
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  searchPlaceholder={t("search_artifacts") || "Query Artifacts..."}
-                  rightContent={
-                    <div className="flex items-center gap-4 shrink-0 px-2 h-full">
-                      <PillTabs className="hidden md:flex">
-                        <PillTabButton id="ALL" activeTab={filterTab} setTab={setFilterTab} label={t("filter_all") || "Show All"} />
-                        <PillTabButton id="MISSING" activeTab={filterTab} setTab={setFilterTab} label={t("filter_missing") || "Missing Only"} />
-                      </PillTabs>
-                    </div>
-                  }
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto md:flex-1 md:max-w-xl lg:max-w-2xl">
+                <div className="flex-1 min-w-0">
+                  <ActionPill
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    searchPlaceholder={t("search_artifacts") || "Query Artifacts..."}
+                  />
+                </div>
+                <GlassSegmentedControl
+                  activeTab={filterTab}
+                  setTab={setFilterTab}
+                  options={[
+                    { id: "ALL", label: t("filter_all") || "Global" },
+                    { id: "MISSING", label: t("filter_missing") || "Missing Only" }
+                  ]}
+                  className="shrink-0"
                 />
               </div>
             </div>

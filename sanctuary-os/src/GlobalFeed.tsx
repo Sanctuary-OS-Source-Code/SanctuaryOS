@@ -8,7 +8,7 @@ import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { useStore } from './store';
-import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 import MasonRecentRepliesSidePanel from "./side-panels/MasonRecentRepliesSidePanel";
 import MasonRecentPostsSidePanel from "./side-panels/MasonRecentPostsSidePanel";
 import MasonFollowingSidePanel from "./side-panels/MasonFollowingSidePanel";
@@ -351,22 +351,25 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           </div>
         )}
         </ViewHeader>
-      <HoverTabDrawer title="Comm-Link Navigation" activeTab={activeTab} setTab={setActiveTab}>
-        <VerticalTabButton id="OVERVIEW" icon="dashboard" label={t("tab_overview")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
-        <VerticalTabButton id="DISCOVER" icon="explore" label={t("tab_discover")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
-        <VerticalTabButton id="FOLLOWING" icon="diversity_1" label={t("tab_following")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
-      </HoverTabDrawer>
+      <div className="md:hidden">
+        <HoverTabDrawer title="Comm-Link Navigation" activeTab={activeTab} setTab={setActiveTab}>
+          <VerticalTabButton id="OVERVIEW" icon="dashboard" label={t("tab_overview")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
+          <VerticalTabButton id="DISCOVER" icon="explore" label={t("tab_discover")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
+          <VerticalTabButton id="FOLLOWING" icon="diversity_1" label={t("tab_following")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
+        </HoverTabDrawer>
+      </div>
+
+      <div className="hidden md:flex flex-col w-full gap-3 mb-6">
+        <StatTileCarousel>
+          <DashboardStatTile variant="tab" icon="dashboard" label={t("tab_overview")} number="" onClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "OVERVIEW"} />
+          <DashboardStatTile variant="tab" icon="explore" label={t("tab_discover")} number={overviewStats.posts} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "DISCOVER"} />
+          <DashboardStatTile variant="tab" icon="diversity_1" label={t("tab_following")} number={overviewStats.followingPosts} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "FOLLOWING"} />
+        </StatTileCarousel>
+      </div>
 
       {activeTab === "OVERVIEW" ? (
         <div className="flex-1 w-full">
           <CommandScreenLayout>
-            <CommandScreenStats>
-              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_diversity_1") || "diversity_1"}</span>} number={overviewStats.followingPosts} label={t("feed_stat_following") || "Recent Following"} colorClass="text-emerald-500" onClick={() => { setActiveTab("FOLLOWING"); setStartDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); }} className="cursor-pointer" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined ">explore</span>} number={overviewStats.posts} label={t("feed_stat_global") || "Recent Global"} colorClass="text-blue-500" onClick={() => { setActiveTab("DISCOVER"); setStartDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); }} className="cursor-pointer" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_favorite") || "favorite"}</span>} number={overviewStats.likes + overviewStats.replies} label={t("feed_stat_activity") || "Interactions"} colorClass="text-amber-500" onClick={() => setIsRepliesOpen(true)} className="cursor-pointer" />
-              <DashboardStatTile icon={<span className="material-symbols-outlined ">group</span>} number={overviewStats.followingMasons} label={t("feed_stat_network") || "Your Network"} colorClass="text-purple-500" onClick={() => setFollowingPanelOpen(true)} className="cursor-pointer" />
-            </CommandScreenStats>
-
             <CommandScreenBody>
               <CommandScreenMain>
                 <div className="flex flex-col gap-6 w-full">
@@ -397,11 +400,12 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
               </CommandScreenMain>
 
               <CommandScreenSidebar title={t("feed_quick_actions")} icon="explore">
-                <CommandScreenQuickLink icon="explore" title={t("feed_btn_discover")} subtitle={t("feed_btn_discover_desc")} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} />
-                {masonProfileId && (
-                  <CommandScreenQuickLink icon="reply" title={t("feed_my_replies")} subtitle={t("feed_my_replies_desc")} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-purple-500 shadow-md" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-md" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-                )}
-                <CommandScreenQuickLink icon="diversity_1" title={t("tab_following")} subtitle={t("feed_view_full")} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-md" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-md" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
+                  <CommandScreenQuickLink icon="explore" title={t("feed_btn_discover")} subtitle={`${overviewStats.posts} ${t("tab_posts") || "Posts"}`} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} />
+                  {masonProfileId && (
+                    <CommandScreenQuickLink icon={t("icon_favorite") || "favorite"} title={t("feed_stat_activity") || "Interactions"} subtitle={`${overviewStats.likes + overviewStats.replies} ${t("tab_interactions") || "Total"}`} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-amber-500 shadow-md" textColorClass="text-amber-500" hoverTextColorClass="group-hover:text-amber-400" iconShadowClass="drop-shadow-md text-amber-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+                  )}
+                  <CommandScreenQuickLink icon="diversity_1" title={t("feed_stat_following") || "Following Feed"} subtitle={`${overviewStats.followingPosts} ${t("tab_posts") || "Posts"}`} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-md" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-md text-emerald-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
+                  <CommandScreenQuickLink icon="group" title={t("feed_stat_network") || "Your Network"} subtitle={`${overviewStats.followingMasons} ${t("tab_masons") || "Following"}`} onClick={() => setFollowingPanelOpen(true)} dotColorClass="bg-purple-500 shadow-md" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-md text-purple-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
               </CommandScreenSidebar>
             </CommandScreenBody>
           </CommandScreenLayout>

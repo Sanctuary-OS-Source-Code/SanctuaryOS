@@ -6,7 +6,7 @@ import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
-import { GameVersionMultiSelect, deriveHumanReadableVersion, CustomDatePicker, CustomClassificationDropdown, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, getHighestVersion, getLowestVersion, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, HoverTooltip, cleanSearchName, SidePanel, ActionButton, getModFallbackUrl } from "./shared";
+import { GameVersionMultiSelect, deriveHumanReadableVersion, CustomDatePicker, CustomClassificationDropdown, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, getHighestVersion, getLowestVersion, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, HoverTooltip, cleanSearchName, SidePanel, ActionButton, getModFallbackUrl, PanelHeaderGroup, PanelHeaderButton } from "./shared";
 
 export default function ModDossier({ mod, modList, activePlaySet, onToggleInActiveSet, onShowYeetAlert, onClose, metaInputs, setMetaInputs, onSaveMetadata, onResetMetadata, onOpenMasonProfile, editMode, setEditMode, onSendToLab, onSecureShred, isCorrecting, setIsCorrecting, onSyncToNetwork }: any) {
   const activeGameSchema = useStore(state => state.activeGameSchema);
@@ -422,12 +422,10 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 {!editMode && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
                   <>
                     {targetDbId && session && !isBanned && (
-                      <div className="h-full relative group/flag">
-                        <button onClick={() => setShowFlagModal(true)} className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--warning)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] cursor-pointer">
-                          <span className="material-symbols-outlined !text-[16px]">{t("icon_flag")}</span>
-                          {t("btn_flag")}
-                        </button>
-                      </div>
+                      <button onClick={() => setShowFlagModal(true)} className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--warning)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] cursor-pointer">
+                        <span className="material-symbols-outlined !text-[16px]">{t("icon_flag")}</span>
+                        {t("btn_flag")}
+                      </button>
                     )}
                   </>
                 )}
@@ -941,13 +939,22 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
           backdropZ="z-[100005]"
           panelZ="z-[100006]"
           hideHeader={true}
-        forceShowCloseBtn={true}
+          forceShowCloseBtn={true}
           noPadding={true}
+          headerActions={
+            !isNexusView && (
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon={activeMods.includes(kidToRender.name) ? "remove" : "add"}
+                  tooltip={activeMods.includes(kidToRender.name) ? t("btn_unequip") : t("btn_equip")}
+                  variant={activeMods.includes(kidToRender.name) ? "danger" : "success"}
+                  onClick={() => { safeToggle(kidToRender.name); if (!activeMods.includes(kidToRender.name)) setSelectedKid(null); }}
+                  label={activeMods.includes(kidToRender.name) ? t("btn_unequip") : t("btn_equip")}
+                />
+              </PanelHeaderGroup>
+            )
+          }
         >
-          <button
-            onClick={() => setSelectedKid(null)}
-            className="!absolute top-8 right-8 z-[1000] w-12 h-12 glass-panel !rounded-2xl flex items-center justify-center text-[var(--text)] transition-all hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 pointer-events-auto group/closebtn"
-          ><span className="material-symbols-outlined !text-[28px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("icon_close")}</span></button>
 
           <div className="flex flex-col relative z-10 w-full">
             <div className={`relative bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shrink-0 flex flex-col justify-end transition-all duration-300 ${(showImages && (kidToRender.image_url || kidToRender.imageUrl || mod.image_url || mod.imageUrl)) ? 'h-[250px]' : 'h-[140px]'}`}>
@@ -964,19 +971,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-t from-[color-mix(in_srgb,var(--bg)_60%,transparent)] via-[color-mix(in_srgb,var(--bg)_20%,transparent)] to-transparent z-10 pointer-events-none" />
               </div>
 
-              <div className="absolute -bottom-6 w-full flex justify-center z-50 pointer-events-none">
-                <div className="inline-flex glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full shadow-[0_20px_60px_rgba(0,0,0,0.6)] h-12 items-center flex-nowrap max-w-full pointer-events-auto overflow-hidden">
-                  {!isNexusView && (
-                    <button
-                      onClick={() => { safeToggle(kidToRender.name); if (!activeMods.includes(kidToRender.name)) setSelectedKid(null); }}
-                      className={`h-full px-5 flex items-center justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap opacity-80 hover:opacity-100 ${activeMods.includes(kidToRender.name) ? 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]'}`}
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">{activeMods.includes(kidToRender.name) ? (t("icon_remove")) : (t("icon_add"))}</span>
-                      {activeMods.includes(kidToRender.name) ? t("btn_unequip") : t("btn_equip")}
-                    </button>
-                  )}
-                </div>
-              </div>
             </div>
 
             <div className="p-10 pt-14 flex flex-col gap-10 pb-16">
@@ -1038,21 +1032,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             </div>
           </div>
 
-          <div className="flex-shrink-0 p-8 pt-10 border-t-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--bg)_90%,transparent)] via-[color-mix(in_srgb,var(--bg)_60%,transparent)] to-transparent flex flex-row items-center justify-center gap-4 w-full relative z-50">
-            <button onClick={() => setSelectedKid(null)} className={standardButtonClass}>
-              <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
-              {t("nav_cancel")}
-            </button>
-            {!isNexusView && (
-              <button
-                onClick={() => { safeToggle(kidToRender.name); if (!activeMods.includes(kidToRender.name)) setSelectedKid(null); }}
-                className={activeMods.includes(kidToRender.name) ? standardDangerButtonClass : standardSuccessButtonClass}
-              >
-                <span className="material-symbols-outlined !text-[18px]">{activeMods.includes(kidToRender.name) ? (t("icon_remove")) : (t("icon_add"))}</span>
-                {activeMods.includes(kidToRender.name) ? t("btn_unequip") : t("btn_equip")}
-              </button>
-            )}
-          </div>
         </SidePanel>
       )}
 
@@ -1068,9 +1047,6 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
           noPadding={true}
         >
           <div className="flex flex-col relative z-10 w-full h-full">
-            <button onClick={() => setShowFlagModal(false)} className="!absolute top-8 right-8 z-[1000] w-12 h-12 glass-panel !rounded-2xl flex items-center justify-center text-[var(--text)] transition-all hover:theme-bg-danger hover:text-white hover:scale-110 active:scale-95 pointer-events-auto group/closebtn">
-              <span className="material-symbols-outlined !text-[24px] group-hover/closebtn:rotate-90 transition-transform duration-300">{t("icon_close")}</span>
-            </button>
             <div className="h-48 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex flex-col items-center justify-center overflow-hidden">
               <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] blur-[50px] pointer-events-none  transform scale-150"></div>
               <div className="w-24 h-24 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-inner flex items-center justify-center relative z-10">

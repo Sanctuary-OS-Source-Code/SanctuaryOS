@@ -189,7 +189,7 @@
   "conflicts": "Conflicts",
   "core_plus": "1 Core + ",
   "cover_alt": "Profile Cover",
-  "crit_fail": "critical failures detected",
+  "crit_fail": "critical failures",
   "ctx_paste": "Paste",
   "draft_new": "Draft New Play Set",
   "exclusive": "Exclusive",
@@ -2449,7 +2449,7 @@
   "copied": "Copied",
   "core_artifact": "Core Mod",
   "core_artifact_desc": "Select the primary mod that defines this node. Twins and Addons will inherit state from this core.",
-  "critical_failures_detected": "Critical Failures Detected",
+  "critical_failures_detected": "Critical Failures",
   "current_state": "Active Backup",
   "date_all_time": "All Time",
   "date_range": "Date Range",
@@ -3085,5 +3085,12 @@
   "override_filters": "Override Filters",
   "undo_overrides": "Undo Overrides",
   "ignored_conflicts": "Ignored Conflicts",
-  "total_conflicts": "Total Conflicts"
+  "total_conflicts": "Total Conflicts",
+  "total_blueprints": "Total Play Sets",
+  "total_soft": "Total Soft Overlaps",
+  "total_clones": "Total Clones",
+  "mod_version": "Mod Version",
+  "btn_fullscreen": "Fullscreen",
+  "status_unknown": "Unknown",
+  "badge_premium": "Premium"
 }

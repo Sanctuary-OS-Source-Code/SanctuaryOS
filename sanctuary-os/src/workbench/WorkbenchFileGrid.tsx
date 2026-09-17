@@ -141,8 +141,8 @@ export const WorkbenchFileGrid = React.memo(({
 
    if (filteredMainFiles.length === 0) {
       return (
-         <div className="w-full p-12 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col items-center justify-center gap-4 opacity-60 shadow-inner">
-            <span className="material-symbols-outlined text-[var(--subtext)]">{mainTab === "CONFIGS" ? (t("icon_search_off")) : (t("icon_data_object"))}</span>
+         <div className="w-full p-12 flex flex-col items-center justify-center gap-4 opacity-50">
+            <span className="material-symbols-outlined text-[var(--subtext)] !text-4xl">{mainTab === "CONFIGS" ? (t("icon_search_off") || "search_off") : (t("icon_data_object") || "data_object")}</span>
             <span className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{t("workbench_no_files_found")}</span>
          </div>
       );

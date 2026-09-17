@@ -131,12 +131,12 @@ function ConflictCardInner({ conflict, tier, isSelected, isSelectedA, isSelected
           <ModNameWithBadge name={conflict.modA} />
         </div>
 
-        <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
-          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
-            <span className="text-[7px] font-black italic capitalize">{t("vs")}</span>
+          <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
+              <span className="text-[7px] font-black italic capitalize">{t("vs")}</span>
+            </div>
+            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
           </div>
-          <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
-        </div>
 
         <div 
           onClick={onKeepB ? (e) => { e.stopPropagation(); onKeepB(); } : undefined}

@@ -5,6 +5,72 @@ import { UniversalCard } from '../components/universal/UniversalCard';
 
 export { DashboardStatTile };
 
+export function StatTileCarousel({ children }: any) {
+    const scrollRef = React.useRef<HTMLDivElement>(null);
+    const [canScrollRight, setCanScrollRight] = React.useState(false);
+    const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+
+    const checkScroll = () => {
+        if (scrollRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+            setCanScrollLeft(scrollLeft > 0);
+            setCanScrollRight(Math.ceil(scrollLeft + clientWidth) < scrollWidth - 5);
+        }
+    };
+
+    React.useEffect(() => {
+        // Initial check and setup resize listener
+        // Slight delay to ensure children are rendered and layout is calculated
+        const timer = setTimeout(checkScroll, 100);
+        window.addEventListener('resize', checkScroll);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('resize', checkScroll);
+        };
+    }, [children]);
+
+    React.useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const handleWheel = (e: WheelEvent) => {
+            if (e.deltaY !== 0) {
+                e.preventDefault();
+                el.scrollLeft += e.deltaY;
+            }
+        };
+        el.addEventListener('wheel', handleWheel, { passive: false });
+        el.addEventListener('scroll', checkScroll);
+        return () => {
+            el.removeEventListener('wheel', handleWheel);
+            el.removeEventListener('scroll', checkScroll);
+        }
+    }, []);
+
+    const scrollBy = (amount: number) => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+        }
+    };
+
+    return (
+      <div className="relative w-full group flex items-center">
+        {canScrollLeft && (
+            <button onClick={() => scrollBy(-300)} className="absolute left-0 z-20 w-8 h-8 flex items-center justify-center bg-[var(--bg-panel)] border border-[var(--border)] rounded-full shadow-xl text-[var(--text)] opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+            </button>
+        )}
+        <div ref={scrollRef} className="flex w-full overflow-x-auto gap-4 md:gap-6 py-4 px-2 md:px-4 items-center snap-x scroll-smooth hide-scrollbar -mx-2 md:-mx-4">
+          {children}
+        </div>
+        {canScrollRight && (
+            <button onClick={() => scrollBy(300)} className="absolute right-0 z-20 w-8 h-8 flex items-center justify-center bg-[var(--bg-panel)] border border-[var(--border)] rounded-full shadow-xl text-[var(--text)] opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            </button>
+        )}
+      </div>
+    );
+}
+
 export function AlertStatTile({ number, onClick, active, className = "" }: any) {
     const { t } = useLexicon();
     
@@ -39,7 +105,7 @@ export function CommandScreenSectionHeading({
   const shapeClass = shape === "square" ? "rounded-xl" : "rounded-2xl";
   
   return (
-    <div className={`flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 w-full mb-8 relative z-10 ${className}`}>
+    <div className={`flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 w-full mb-8 relative z-10 min-w-0 ${className}`}>
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
       <div className="flex items-center gap-4 flex-1 min-w-0">
         {icon && (
@@ -52,7 +118,7 @@ export function CommandScreenSectionHeading({
           <div className="flex items-center gap-2 w-full">
             <h2 
                 onClick={onBack}
-                className={`text-2xl font-black text-[var(--text)] capitalize tracking-widest drop-shadow-lg m-0 truncate shrink-0 ${onBack ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
+                className={`text-2xl font-black text-[var(--text)] capitalize tracking-widest drop-shadow-lg m-0 truncate min-w-0 ${onBack ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
             >
               {title}
             </h2>

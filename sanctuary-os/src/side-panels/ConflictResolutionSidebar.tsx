@@ -123,9 +123,9 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                 {idx === 1 && (
                   <div className="relative h-12 flex items-center justify-center z-20 shrink-0">
                     <div className="absolute left-8 right-8 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] z-10 pointer-events-none" />
-                    <div className={`relative z-20 w-8 h-8 rounded-full border flex items-center justify-center text-[9px] font-black shadow-xl transition-all pointer-events-none backdrop-blur-md ${isTier4 ? 'bg-[var(--bg)] border-[var(--danger)] text-[var(--danger)] shadow-[0_0_15px_rgba(239,68,68,0.3)]' :
-                        isTier3 ? 'bg-[var(--bg)] border-[var(--warning)] text-[var(--warning)] shadow-[0_0_15px_rgba(245,158,11,0.3)]' :
-                          'bg-[var(--bg)] border-[var(--accent)] text-[var(--accent)] shadow-[0_0_15px_rgba(99,102,241,0.3)]'
+                    <div className={`relative z-20 w-8 h-8 rounded-full border flex items-center justify-center text-[9px] font-black shadow-xl transition-all pointer-events-none backdrop-blur-md ${isTier4 ? 'bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border-[var(--danger)] text-[var(--danger)] shadow-[0_0_15px_rgba(239,68,68,0.3)]' :
+                        isTier3 ? 'bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] border-[var(--warning)] text-[var(--warning)] shadow-[0_0_15px_rgba(245,158,11,0.3)]' :
+                          'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[var(--accent)] text-[var(--accent)] shadow-[0_0_15px_rgba(99,102,241,0.3)]'
                       }`}>
                       {t("vs")}
                     </div>

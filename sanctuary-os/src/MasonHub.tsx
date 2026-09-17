@@ -23,6 +23,7 @@ import { useLexicon } from "./LexiconContext";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
+import { isDesktop } from "./utils/envUtils";
 import MasonConflictsManager from "./MasonConflictsManager";
 import MasonBugReports from "./MasonBugReports";
 import MasonNotepadSidePanel from './side-panels/MasonNotepadSidePanel';
@@ -125,9 +126,13 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={(t("wf_tab_command")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         <VerticalTabButton id="registry" icon={t("icon_deployed_code")} label={(t("items")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         <VerticalTabButton id="nexus" icon={t("icon_hub")} label={(t("tab_nexus")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="sandbox" icon={t("icon_handyman")} label={(t("filter_dev")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="chameleons" icon="palette" label={(t("tab_chameleons")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="ide" icon={t("icon_code")} label={(t("ide_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+        {isDesktop() && (
+          <>
+            <VerticalTabButton id="sandbox" icon={t("icon_handyman")} label={(t("filter_dev")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+            <VerticalTabButton id="chameleons" icon="palette" label={(t("tab_chameleons")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+            <VerticalTabButton id="ide" icon={t("icon_code")} label={(t("ide_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          </>
+        )}
 
         <VerticalTabButton id="collections" icon={t("icon_collections_bookmark")} label={(t("tab_cc")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         <VerticalTabButton id="protocols" icon={t("icon_link")} label={(t("tab_protocols")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
@@ -149,10 +154,10 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         {masonActiveTab === "protocols" && <ProtocolVisualizer masonId={masonProfile.id} isArchitect={false} />}
         {masonActiveTab === "structure" && <StructureVisualizer masonId={masonProfile.id} isArchitect={false} />}
         {masonActiveTab === "posts" && <MasonPostsEditor masonId={masonProfile.id} masonProfileId={masonProfile.profile_id} handleOpenMasonProfile={handleOpenMasonProfile} />}
-        {masonActiveTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} vaultPath={vaultPath} />}
+        {isDesktop() && masonActiveTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} vaultPath={vaultPath} />}
         {masonActiveTab === "conflicts" && <MasonConflictsManager masonId={masonProfile.id} />}
-        {masonActiveTab === "ide" && <MasonIDE vaultPath={vaultPath} />}
-        {masonActiveTab === "chameleons" && <MasonChameleons masonProfile={masonProfile} />}
+        {isDesktop() && masonActiveTab === "ide" && <MasonIDE vaultPath={vaultPath} />}
+        {isDesktop() && masonActiveTab === "chameleons" && <MasonChameleons masonProfile={masonProfile} />}
       </div>
 
       <MasonSettingsSidePanel

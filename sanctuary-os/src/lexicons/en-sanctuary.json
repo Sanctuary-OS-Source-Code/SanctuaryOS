@@ -189,7 +189,7 @@
   "conflicts": "Conflicts",
   "core_plus": "1 Core + ",
   "cover_alt": "Dossier Cover",
-  "crit_fail": "critical failures detected",
+  "crit_fail": "critical failures",
   "ctx_paste": "Paste",
   "draft_new": "Draft New Blueprint",
   "exclusive": "Exclusive",
@@ -2463,7 +2463,7 @@
   "copied": "Copied",
   "core_artifact": "Core Artifact",
   "core_artifact_desc": "Designate the primary artifact. Linked artifacts will inherit state from this core.",
-  "critical_failures_detected": "Critical Failures Detected",
+  "critical_failures_detected": "Critical Failures",
   "current_state": "Active Capsule",
   "date_all_time": "All Archives",
   "date_range": "Date Range",
@@ -3100,5 +3100,12 @@
   "override_filters": "Override Parameters",
   "undo_overrides": "Purge Overrides",
   "ignored_conflicts": "Ignored Anomalies",
-  "total_conflicts": "Total Anomalies"
+  "total_conflicts": "Total Anomalies",
+  "total_blueprints": "Total Blueprints",
+  "total_soft": "Total Soft Anomalies",
+  "total_clones": "Total Clones",
+  "mod_version": "Artifact Version",
+  "btn_fullscreen": "Fullscreen",
+  "status_unknown": "Unidentified",
+  "badge_premium": "Prime Access"
 }

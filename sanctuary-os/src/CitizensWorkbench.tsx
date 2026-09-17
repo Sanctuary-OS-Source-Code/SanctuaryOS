@@ -11,7 +11,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { supabase } from './supabase';
 import { supabaseServices } from './lib/supabase-services';
 import { writeTextFile, remove } from '@tauri-apps/plugin-fs';
-import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenStats, DashboardStatTile, CommandScreenSectionHeading } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenStats, DashboardStatTile, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 
 import { useWorkbenchFiles } from './workbench/hooks/useWorkbenchFiles';
 import { useWorkbenchEditor } from './workbench/hooks/useWorkbenchEditor';
@@ -101,60 +101,41 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             onTitleClick={() => setMainTab("COMMAND" as any)}
          >
             {mainTab !== "COMMAND" && (
-               <div className="w-full animate-in fade-in slide-in-from-right-4 duration-500">
+               <div className="w-full max-w-[400px] animate-in fade-in slide-in-from-right-4 duration-500">
                   <ActionPill
                      searchQuery={mainSearchQuery}
                      setSearchQuery={setMainSearchQuery}
                      searchPlaceholder={t("search_files") as string}
-                     rightContent={
-                          <div className="flex items-center gap-1 shrink-0 px-2 h-full">
-                             <PillTabs className="hidden md:flex">
-                                <PillTabButton id="ALL" icon={null} label="ALL" activeTab={gridFilter} setTab={setGridFilter} />
-                                <PillTabButton id="UNSAVED" icon={null} label={t("unsaved_changes")} activeTab={gridFilter} setTab={setGridFilter} />
-                             </PillTabs>
-                          </div>
-                     }
                   />
                </div>
             )}
          </ViewHeader>
 
-         <HoverTabDrawer title="Workbench Navigation" activeTab={mainTab} setTab={setMainTab as any}>
-            <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={mainTab} setTab={setMainTab as any} />
-            <VerticalTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} />
-            <VerticalTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates")} activeTab={mainTab} setTab={setMainTab as any} />
-         </HoverTabDrawer>
+         <div className="md:hidden">
+            <HoverTabDrawer title="Workbench Navigation" activeTab={mainTab} setTab={setMainTab as any}>
+               <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview")} activeTab={mainTab} setTab={setMainTab as any} />
+               <VerticalTabButton id="CONFIGS" icon="settings" label={t("configs")} activeTab={mainTab} setTab={setMainTab as any} />
+               <VerticalTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates")} activeTab={mainTab} setTab={setMainTab as any} />
+            </HoverTabDrawer>
+         </div>
+
+         <div className="hidden md:flex flex-col w-full gap-3 mb-6">
+            <StatTileCarousel>
+               <DashboardStatTile variant="tab" icon="dashboard" label={t("overview")} number="" onClick={() => setMainTab("COMMAND" as any)} isActive={mainTab === "COMMAND"} />
+               <DashboardStatTile variant="tab" icon="settings" label={t("configs")} number={configsCount} onClick={() => setMainTab("CONFIGS" as any)} isActive={mainTab === "CONFIGS"} />
+               <DashboardStatTile variant="tab" icon="data_object" label={t("ql_templates")} number={templatesCount} onClick={() => setMainTab("TEMPLATES" as any)} isActive={mainTab === "TEMPLATES"} />
+            </StatTileCarousel>
+         </div>
 
          <div className="flex flex-col w-full animate-in slide-in-from-top-4 duration-500 flex-1 min-h-[400px]">
             {mainTab === "COMMAND" && (
                <CommandScreenLayout>
-                  <CommandScreenStats>
-                     <DashboardStatTile icon={<span className="material-symbols-outlined ">settings</span>} number={configsCount} label={t("configs")} colorClass="text-blue-500" onClick={() => { setMainTab("CONFIGS" as any); setGridFilter("ALL"); }} className="cursor-pointer hover:scale-105 transition-transform" />
-                     <DashboardStatTile icon={<span className="material-symbols-outlined ">data_object</span>} number={templatesCount} label={t("ql_templates")} colorClass="text-emerald-500" onClick={() => { setMainTab("TEMPLATES" as any); setGridFilter("ALL"); }} className="cursor-pointer hover:scale-105 transition-transform" />
-                     <DashboardStatTile icon={<span className="material-symbols-outlined ">edit_document</span>} number={unsavedConfigsCount} label={t("unsaved_configs")} colorClass="text-amber-500" onClick={() => { setMainTab("CONFIGS" as any); setGridFilter("UNSAVED"); }} className="cursor-pointer hover:scale-105 transition-transform" />
-                     <DashboardStatTile icon={<span className="material-symbols-outlined ">edit_note</span>} number={unsavedTemplatesCount} label={t("unsaved_templates")} colorClass="text-orange-500" onClick={() => { setMainTab("TEMPLATES" as any); setGridFilter("UNSAVED"); }} className="cursor-pointer hover:scale-105 transition-transform" />
-                  </CommandScreenStats>
-
                   <CommandScreenBody>
                      <CommandScreenMain>
                         <div className="flex flex-col gap-6">
                            <CommandScreenSectionHeading
                               title={t("recent_activity")}
                               icon="history"
-                              rightContent={
-                                 <CustomDropdown
-                                    flat={true}
-                                    variant="pill"
-                                    disableTint={true}
-                                    value={feedFilter}
-                                    onChange={(v: string[]) => setFeedFilter(v[0] as any)}
-                                    options={[
-                                       { id: "ALL", label: "ALL" },
-                                       { id: "CONFIGS", label: t("configs") },
-                                       { id: "TEMPLATES", label: t("ql_templates") }
-                                    ]}
-                                 />
-                              }
                            />
 
                            {(() => {
@@ -221,6 +202,28 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                            dotColorClass="bg-emerald-400"
                            onClick={() => setMainTab("TEMPLATES" as any)}
                         />
+                        {unsavedConfigsCount > 0 && (
+                           <CommandScreenQuickLink
+                              icon="edit_document"
+                              title={t("unsaved_configs")}
+                              subtitle={`${unsavedConfigsCount} unsaved`}
+                              textColorClass="text-amber-400"
+                              hoverTextColorClass="group-hover:text-amber-300"
+                              dotColorClass="bg-amber-400"
+                              onClick={() => { setMainTab("CONFIGS" as any); setGridFilter("UNSAVED"); }}
+                           />
+                        )}
+                        {unsavedTemplatesCount > 0 && (
+                           <CommandScreenQuickLink
+                              icon="edit_note"
+                              title={t("unsaved_templates")}
+                              subtitle={`${unsavedTemplatesCount} unsaved`}
+                              textColorClass="text-orange-400"
+                              hoverTextColorClass="group-hover:text-orange-300"
+                              dotColorClass="bg-orange-400"
+                              onClick={() => { setMainTab("TEMPLATES" as any); setGridFilter("UNSAVED"); }}
+                           />
+                        )}
                         <CommandScreenQuickLink
                            icon="explore"
                            title={t("nexus_templates")}

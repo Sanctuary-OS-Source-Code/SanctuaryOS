@@ -100,5 +100,9 @@
   "override_filters": "Override Filters",
   "undo_overrides": "Undo Stuff",
   "ignored_conflicts": "Ignored Drama",
-  "total_conflicts": "Total Drama"
+  "total_conflicts": "Total Drama",
+  "total_blueprints": "Total Play Sets",
+  "total_soft": "Total Minor Overlaps",
+  "total_clones": "Total Clones",
+  "btn_fullscreen": "Fullscreen"
 }
