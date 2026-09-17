@@ -1063,7 +1063,7 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
 
           // Re-trigger layout effect after popup paints
           requestAnimationFrame(() => {
-            updatePosition();
+            setCoords(prev => ({ ...prev }));
           });
         }
 
@@ -1125,7 +1125,7 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
               <div className="!fixed inset-0 pointer-events-auto" style={{ zIndex: 200000 }} onClick={() => setIsOpen(false)} />
               <div
                 ref={popoverRef}
-                className={`!fixed backdrop-blur-[24px] backdrop-saturate-[140%] border ${effectiveVariant === 'panel' ? 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]' : 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'} shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col
+                className={`!fixed glass-panel ${effectiveVariant === 'panel' ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-2xl' : 'border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'} shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col mobile-dock-override
                   min-w-[200px] p-2 gap-1 !rounded-xl w-max max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto custom-scrollbar`}
                 style={{
                   zIndex: 200001,
@@ -1133,10 +1133,18 @@ export function FilterPopover({ className = "", buttonClassName = "", icon = "tu
                   left: coords.left,
                   margin: 0,
                   bottom: 'auto',
-                  transition: 'none',
-                  background: 'linear-gradient(135deg, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.15) 0%, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.02) 100%)'
+                  transition: 'none'
                 }}
               >
+                {effectiveVariant !== 'panel' && (
+                  <style>{`
+                    #sa-portals .mobile-dock-override::before,
+                    #sa-portals .mobile-dock-override .glass-surface::before,
+                    #sa-portals .mobile-dock-override .glass-panel::before {
+                      display: block !important;
+                    }
+                  `}</style>
+                )}
                 {children ? children : options?.map((opt: any) => {
                   const active = isOptionActive(opt.id);
                   return (
@@ -1381,8 +1389,7 @@ export function HoverTabDrawer({ title = "Navigation", tabs, activeTab, setTab, 
       extractedTabs.push({
         id: props.id,
         label: props.label || props.id,
-        icon: props.icon,
-        setTab: props.setTab
+        icon: props.icon
       });
     }
   });
@@ -1536,7 +1543,7 @@ export function CustomDropdown({ value, onChange, options, allowCustom, searchab
   const dropdownMenu = isOpen ? createPortal(
     <>
       <div className="!fixed inset-0" style={{ zIndex: 100000000 }} onClick={() => setIsOpen(false)} />
-      <div className={`!fixed pointer-events-auto backdrop-blur-2xl bg-[color-mix(in_srgb,var(--panelTint)_15%,transparent)] border ${isInsideSidePanel || effectiveVariant === 'panel' ? 'border-[rgba(var(--text-rgb),0.1)]' : 'border-[rgba(var(--text-rgb),0.2)]'} shadow-[0_30px_60px_rgba(0,0,0,0.6)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 max-h-60 overflow-y-auto custom-scrollbar flex flex-col`} style={{
+      <div className={`!fixed pointer-events-auto glass-panel portal-glass-fix ${isInsideSidePanel || effectiveVariant === 'panel' ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-[0_0_40px_rgba(0,0,0,0.5)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl'} rounded-[var(--radius)] animate-in fade-in zoom-in-95 max-h-60 overflow-y-auto custom-scrollbar flex flex-col`} style={{
         zIndex: 100000001,
         top: (coords as any).isDropUp ? 'auto' : coords.top,
         bottom: (coords as any).isDropUp ? window.innerHeight - coords.top + 8 : 'auto',
@@ -1544,8 +1551,15 @@ export function CustomDropdown({ value, onChange, options, allowCustom, searchab
         right: coords.isRight ? window.innerWidth - coords.left : 'auto',
         transition: 'none',
         width: coords.width || 'max-content',
-        minWidth: Math.max(coords.width, 200)
+        minWidth: Math.max(coords.width, 200),
       }}>
+        <style>{`
+          #sa-portals .portal-glass-fix::before,
+          #sa-portals .portal-glass-fix .glass-surface::before,
+          #sa-portals .portal-glass-fix .glass-panel::before {
+            display: block !important;
+          }
+        `}</style>
         {searchable && (
           <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 bg-transparent z-10 shrink-0 flex items-center px-4">
             <span className="material-symbols-outlined !text-[16px] opacity-50 mr-2">search</span>
@@ -1831,7 +1845,14 @@ export function CustomDatePicker({ value, onChange, placeholder, className = "",
             right: coords.isRight ? window.innerWidth - coords.left : undefined,
             transition: 'none'
           }}>
-            <div className={`!absolute top-0 ${coords.isRight ? 'right-0' : 'left-0'} mt-2 pointer-events-auto backdrop-blur-2xl bg-[color-mix(in_srgb,var(--panelTint)_15%,transparent)] border ${isInsideSidePanel ? 'border-[rgba(var(--text-rgb),0.1)]' : 'border-[rgba(var(--text-rgb),0.2)]'} shadow-[0_30px_60px_rgba(0,0,0,0.6)] rounded-[var(--radius)] animate-in fade-in slide-in-from-top-2 p-4 w-64`}>
+            <div className={`!absolute top-0 ${coords.isRight ? 'right-0' : 'left-0'} mt-2 pointer-events-auto glass-panel portal-glass-fix ${isInsideSidePanel ? '!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-[0_0_40px_rgba(0,0,0,0.5)]' : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl'} rounded-[var(--radius)] animate-in fade-in slide-in-from-top-2 p-4 w-64`}>
+              <style>{`
+                #sa-portals .portal-glass-fix::before,
+                #sa-portals .portal-glass-fix .glass-surface::before,
+                #sa-portals .portal-glass-fix .glass-panel::before {
+                  display: block !important;
+                }
+              `}</style>
               <div className="flex justify-start items-center mb-4">
                 <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1">{'<'}</button>
                 <div className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{monthNames[month]} {year}</div>
@@ -2165,7 +2186,7 @@ export function SidePanel({
             )}
 
             {!hideHeader && (
-              <div className={`pt-6 px-6 pb-4 md:pt-8 md:px-10 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${coverImage ? 'pt-48' : ''} flex flex-col-reverse md:flex-row items-start md:justify-between gap-4 md:gap-6 w-full`}>
+              <div className={`pt-6 px-6 pb-4 md:pt-8 md:px-10 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${coverImage ? 'pt-48' : ''} flex flex-row items-start justify-between gap-4 md:gap-6 w-full`}>
 
                 {coverImage && (
                   <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[var(--radius)] rounded-tr-[var(--radius)]">
@@ -3058,32 +3079,37 @@ export function useIsMobile() {
 
 export function MobileSegmentedControl({ tabs, activeTab, setTab, className = "" }: any) {
   return (
-    <div className={`w-full overflow-x-auto custom-scrollbar md:hidden relative z-10 ${className}`}>
-      <div className="flex items-center gap-3 px-4 py-3 w-max min-w-full">
+    <div className={`w-full overflow-x-auto custom-scrollbar md:hidden ${className}`}>
+      <div className="flex items-center w-max min-w-full border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
         {tabs.map((tab: any) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => { tab.setTab ? tab.setTab(tab.id) : setTab(tab.id); }}
-              className={`relative flex items-center justify-center gap-2 px-6 py-3 rounded-2xl transition-all duration-300 group backdrop-blur-[24px] backdrop-saturate-[140%] border
-                ${isActive 
-                  ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_10px_20px_rgba(0,0,0,0.5),0_0_20px_rgba(var(--accent-rgb),0.2)] scale-105 z-10' 
-                  : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] scale-95 opacity-80 hover:opacity-100 hover:scale-100'}`}
-              style={{
-                background: isActive 
-                  ? 'linear-gradient(135deg, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.15) 0%, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.05) 100%)'
-                  : 'linear-gradient(135deg, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.05) 0%, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.01) 100%)'
-              }}
+              onClick={() => setTab(tab.id)}
+              className={`relative flex items-center justify-center gap-2 px-6 py-4 transition-all duration-300 group
+                ${isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}
             >
               {tab.icon && (
-                <span className={`material-symbols-outlined !text-[16px] transition-transform duration-300 ${isActive ? 'drop-shadow-[0_0_8px_currentColor]' : 'group-hover:scale-110'}`}>
+                <span className={`material-symbols-outlined !text-[18px] transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
                   {tab.icon}
                 </span>
               )}
               <span className="font-black uppercase tracking-widest text-[10px] whitespace-nowrap">
                 {tab.label}
               </span>
+
+              <div
+                className={`absolute bottom-0 left-0 right-0 h-[2px] transition-all duration-300 
+                  ${isActive
+                    ? 'bg-[var(--accent)] opacity-100 scale-x-100'
+                    : 'bg-[color-mix(in_srgb,var(--text)_20%,transparent)] opacity-0 scale-x-50 group-hover:opacity-100 group-hover:scale-x-75'
+                  }`}
+              />
+
+              {isActive && (
+                <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none opacity-50" />
+              )}
             </button>
           );
         })}
