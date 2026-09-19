@@ -5,6 +5,7 @@ import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSideP
 import { WayfinderPostsEditor } from "../WayfinderPostsEditor";
 import { useStore } from '../../store';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
+import { UniversalCard } from "../../components/universal/UniversalCard";
 
 export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }: any) {
   const { t } = useLexicon();
@@ -17,6 +18,11 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isDispatchOpen, setIsDispatchOpen] = useState(false);
   const [urgentBroadcast, setUrgentBroadcast] = useState<any>(null);
+  
+  const [recentScout, setRecentScout] = useState<any[]>([]);
+  const [recentMason, setRecentMason] = useState<any[]>([]);
+  const [recentReports, setRecentReports] = useState<any[]>([]);
+
 
   useEffect(() => {
     const fetchBroadcasts = async () => {
@@ -53,7 +59,18 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
         }
       }
     };
+    const fetchRecentItems = async () => {
+        const [scoutRes, masonRes, reportRes] = await Promise.all([
+            supabase.from('scout_suggestions').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
+            supabase.from('mods').select('id, name, created_at, description').eq('status', 'under_review').order('created_at', { ascending: false }).limit(6),
+            supabase.from('nexus_reports').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(6)
+        ]);
+        if (scoutRes.data) setRecentScout(scoutRes.data);
+        if (masonRes.data) setRecentMason(masonRes.data);
+        if (reportRes.data) setRecentReports(reportRes.data);
+    };
     fetchBroadcasts();
+    fetchRecentItems();
   }, []);
 
   useEffect(() => {
@@ -195,6 +212,109 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
           <div className="w-full mb-8">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
           </div>
+
+          {recentScout.length > 0 && (
+            <>
+              <CommandScreenSectionHeading title={t("reviewing")} icon="search" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                  {recentScout.map((item: any) => (
+                      <UniversalCard 
+                          key={`scout-${item.id}`} 
+                          layout="vertical" 
+                          title={item.suggestion_text || "Scout Suggestion"} 
+                          icon="search" 
+                          onClick={() => onNavigate("queue")}
+                          className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--info)_20%,transparent)] text-[var(--info)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("reviewing")}</span>
+                              </div>
+                          }
+                          footer={
+                              <div className="flex items-center justify-start w-full mt-2">
+                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
+                                  </span>
+                              </div>
+                          }
+                      >
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                              {item.metadata?.notes || "Pending architect review."}
+                          </p>
+                      </UniversalCard>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {recentMason.length > 0 && (
+            <>
+              <CommandScreenSectionHeading title={t("stat_mason_queue")} icon="handyman" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                  {recentMason.map((item: any) => (
+                      <UniversalCard 
+                          key={`mason-${item.id}`} 
+                          layout="vertical" 
+                          title={item.name || "Artifact"} 
+                          icon="handyman" 
+                          onClick={() => onNavigate("mason_queue")}
+                          className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("stat_mason_queue")}</span>
+                              </div>
+                          }
+                          footer={
+                              <div className="flex items-center justify-start w-full mt-2">
+                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
+                                  </span>
+                              </div>
+                          }
+                      >
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                              {item.description || "Pending approval."}
+                          </p>
+                      </UniversalCard>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {recentReports.length > 0 && (
+            <>
+              <CommandScreenSectionHeading title={t("title_reports")} icon="flag" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                  {recentReports.map((report: any) => (
+                      <UniversalCard 
+                          key={`rep-${report.id}`} 
+                          layout="vertical" 
+                          title={report.report_reason || "Report"} 
+                          icon="flag" 
+                          onClick={() => onNavigate("nexus_reports")}
+                          className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("title_reports")}</span>
+                              </div>
+                          }
+                          footer={
+                              <div className="flex items-center justify-start w-full mt-2">
+                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(report.created_at).toLocaleDateString()}
+                                  </span>
+                              </div>
+                          }
+                      >
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                              {report.details || "Pending investigation."}
+                          </p>
+                      </UniversalCard>
+                  ))}
+              </div>
+            </>
+          )}
+
           <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <CommandScreenMetricTile value={stats.totalArtifacts} label={t("items")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" />
@@ -202,7 +322,6 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
             <CommandScreenMetricTile value={stats.tier4Conflicts} label={t("stat_tier4")} valueColorClass="text-red-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" />
             <CommandScreenMetricTile value={stats.tier3Conflicts} label={t("stat_tier3")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" />
             <CommandScreenMetricTile value={stats.labQueue} label={t("stat_lab_queue")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-
           </div>
         </CommandScreenMain>
 

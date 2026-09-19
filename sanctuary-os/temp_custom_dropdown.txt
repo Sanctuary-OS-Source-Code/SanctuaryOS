@@ -1,0 +1,270 @@
+﻿
+> export function CustomDropdown({
+    value,
+    onChange,
+    options,
+    allowCustom,
+    searchable,
+    multiSelect,
+    disableTint,
+    placeholder,
+    className,
+    buttonClassName,
+    flat,
+    variant = "pill",
+  }: any) {
+    const { t } = useLexicon();
+    const [isOpen, setIsOpen] = useState(false);
+    const [query, setQuery] = useState("");
+    const btnRef = React.useRef<HTMLButtonElement>(null);
+    const [coords, setCoords] = useState({
+      top: 0,
+      left: 0,
+      width: 0,
+      isRight: false,
+    });
+    const selectedValues = Array.isArray(value) ? value : value ? [value] : [];
+  
+    React.useLayoutEffect(() => {
+      if (!isOpen) return;
+      const updatePosition = () => {
+        if (btnRef.current) {
+          const rect = btnRef.current.getBoundingClientRect();
+          const shouldDropUp = rect.bottom + 200 > window.innerHeight;
+          setCoords({
+            top: shouldDropUp ? rect.top - 4 : rect.bottom + 4,
+            left: rect.left >= window.innerWidth / 2 ? rect.right : rect.left,
+            width: rect.width,
+            isRight: rect.left >= window.innerWidth / 2,
+            isDropUp: shouldDropUp,
+          } as any);
+        }
+      };
+      updatePosition();
+      window.addEventListener("resize", updatePosition);
+      window.addEventListener("scroll", updatePosition, true);
+      return () => {
+        window.removeEventListener("resize", updatePosition);
+        window.removeEventListener("scroll", updatePosition, true);
+      };
+    }, [isOpen]);
+  
+    const getSelectedLabel = () => {
+      if (multiSelect) {
+        if (selectedValues.length === 0) return placeholder || "Select...";
+        if (selectedValues.length === 1)
+          return (
+            options.find((o: any) => String(o.id) === String(selectedValues[0]))
+              ?.label || selectedValues[0]
+          );
+        return `${selectedValues.length} Selected`;
+      }
+      const selected =
+        options.find((o: any) => String(o.id) === String(value)) ||
+        options.find((o: any) => selectedValues.includes(o.id));
+      if (allowCustom && !selected && value) return value;
+      return selected?.label || placeholder || "Select...";
+    };
+  
+    const handleSelect = (id: string) => {
+      if (multiSelect) {
+        const newVals = selectedValues.includes(id)
+          ? selectedValues.filter((v: any) => v !== id)
+          : [...selectedValues, id];
+        onChange(newVals);
+      } else {
+        onChange([id]);
+        setIsOpen(false);
+      }
+    };
+  
+    const isInsideSidePanel = React.useContext(SidePanelContext);
+    const effectiveVariant =
+      variant === "panel" ? "panel" : isInsideSidePanel ? "panel" : variant;
+  
+    const isActive =
+      !disableTint &&
+      (multiSelect
+        ? selectedValues.length > 0
+        : value !== undefined &&
+          value !== null &&
+          String(value).trim() !== "" &&
+          String(value).toLowerCase() !== "all" &&
+          String(value).toLowerCase() !== "any" &&
+          String(value).toLowerCase() !== "vlocal");
+  
+    const dropdownMenu = isOpen
+      ? createPortal(
+          <>
+            <div
+              className="!fixed inset-0"
+              style={{ zIndex: 100000000 }}
+              onClick={() => setIsOpen(false)}
+            />
+            <div
+              className={`!fixed pointer-events-auto backdrop-blur-2xl 
+bg-[color-mix(in_srgb,var(--panelTint)_15%,transparent)] border ${isInsideSidePanel || effectiveVariant === "panel" ? 
+"border-[rgba(var(--text-rgb),0.1)]" : "border-[rgba(var(--text-rgb),0.2)]"} shadow-[0_30px_60px_rgba(0,0,0,0.6)] 
+rounded-[var(--radius)] animate-in fade-in zoom-in-95 max-h-60 overflow-y-auto custom-scrollbar flex flex-col`}
+              style={{
+                zIndex: 100000001,
+                top: (coords as any).isDropUp ? "auto" : coords.top,
+                bottom: (coords as any).isDropUp
+                  ? window.innerHeight - coords.top + 8
+                  : "auto",
+                left: coords.isRight ? "auto" : coords.left,
+                right: coords.isRight ? window.innerWidth - coords.left : "auto",
+                transition: "none",
+                width: coords.width || "max-content",
+                minWidth: Math.max(coords.width, 200),
+              }}
+            >
+              {searchable && (
+                <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] sticky top-0 
+bg-transparent z-10 shrink-0 flex items-center px-4">
+                  <span className="material-symbols-outlined !text-[16px] opacity-50 mr-2">
+                    search
+                  </span>
+                  <input
+                    type="text"
+                    data-1p-ignore="true"
+                    autoFocus
+                    placeholder={t("shared_search") || "Search..."}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="w-full bg-transparent border-none py-3 text-[11px] font-black capitalize 
+focus:outline-none text-[var(--text)] placeholder:opacity-30"
+                  />
+                </div>
+              )}
+              {multiSelect && options && options.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-2 border-b 
+border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] 
+sticky top-0 z-[5]">
+                  <span className="text-[9px] font-black text-[var(--subtext)] opacity-70 tracking-widest uppercase">
+                    {selectedValues.length} {t("shared_selected") || "Selected"}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onChange(options.map((o: any) => String(o.id)))
+                      }
+                      className="text-[9px] font-black text-[var(--accent)] hover:text-white transition-colors 
+uppercase tracking-widest"
+                    >
+                      {t("shared_select_all") || "Select All"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onChange([])}
+                      className="text-[9px] font-black text-[var(--subtext)] hover:text-[var(--danger)] 
+transition-colors uppercase tracking-widest"
+                    >
+                      {t("shared_clear") || "Clear"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
+                {(options || [])
+                  .filter((opt: any) => {
+                    if (!searchable || !query) return true;
+                    const searchTarget =
+                      opt.searchText !== undefined
+                        ? opt.searchText
+                        : typeof opt.label === "string"
+                          ? opt.label
+                          : "";
+                    return searchTarget
+                      .toLowerCase()
+                      .includes(query.toLowerCase());
+                  })
+                  .map((opt: any) => {
+                    const isSelected = multiSelect
+                      ? selectedValues.includes(opt.id)
+                      : String(value) === String(opt.id);
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleSelect(opt.id)}
+                        className={`w-full text-left px-4 py-3 
+hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg text-[11px] font-black capitalize flex 
+items-center gap-2 group transition-all ${isSelected ? "text-[var(--accent)] 
+bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]" : "text-[var(--text)]"}`}
+                      >
+                        {multiSelect && (
+                          <div
+                            className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center 
+transition-colors shrink-0 ${isSelected ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]" : 
+"border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]"}`}
+                          >
+                            {isSelected && (
+                              <span className="material-symbols-outlined !text-[12px] font-bold">
+                                check
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {opt.icon && (
+                          <span className="material-symbols-outlined !text-[16px] opacity-70 shrink-0">
+                            {opt.icon}
+                          </span>
+                        )}
+                        <span className="flex-1">{opt.label}</span>
+                        {isSelected && !multiSelect && (
+                          <span className="material-symbols-outlined !text-[16px] shrink-0">
+                            check
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                {searchable &&
+                  query &&
+                  (options || []).filter((opt: any) => {
+                    const searchTarget =
+                      opt.searchText !== undefined
+                        ? opt.searchText
+                        : typeof opt.label === "string"
+                          ? opt.label
+                          : "";
+                    return searchTarget
+                      .toLowerCase()
+                      .includes(query.toLowerCase());
+                  }).length === 0 &&
+                  !allowCustom && (
+                    <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">
+                      {t("shared_no_options")}
+                    </div>
+                  )}
+                {searchable &&
+                  query &&
+                  allowCustom &&
+                  !(options || []).some(
+                    (o: any) =>
+                      String(o.id).toLowerCase() === query.toLowerCase() ||
+                      (typeof o.label === "string" &&
+                        o.label.toLowerCase() === query.toLowerCase()),
+                  ) && (
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(query)}
+                      className="w-full text-left px-4 py-3 text-sm font-bold transition-all 
+hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t 
+border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] flex items-center gap-2"
+                    >
+                      <span className="material-symbols-outlined !text-[16px] opacity-60">
+                        add
+                      </span>
+                      <span className="text-[11px] font-black capitalize w-full">
+                        Create "{query}"
+                      </span>
+                    </button>
+                  )}
+              </div>
+            </div>
+          </>,
+
+

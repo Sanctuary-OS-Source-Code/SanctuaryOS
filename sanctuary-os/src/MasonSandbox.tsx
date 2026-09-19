@@ -36,7 +36,6 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
   const [linkSearch, setLinkSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [sandboxTabFilter, setSandboxTabFilter] = useState<'overview' | 'local' | 'synced'>('overview');
-  const [sandboxTypeFilter, setSandboxTypeFilter] = useState<'ALL' | 'ARTIFACTS' | 'CONFIGS' | 'TEMPLATES'>('ALL');
   const [confirmPurge, setConfirmPurge] = useState(false);
 
   const [isEditorOpen, setIsEditorOpen] = useState(!!initialSandboxMod);
@@ -220,17 +219,8 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
     if (searchTerm && !m.name?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
 
     const nameLower = m.name?.toLowerCase() || "";
-    if (sandboxTypeFilter === 'ARTIFACTS') {
-      return !nameLower.endsWith('.ini') && !nameLower.endsWith('.cfg') && !nameLower.endsWith('.json');
-    }
-    if (sandboxTypeFilter === 'CONFIGS') {
-      return nameLower.endsWith('.ini') || nameLower.endsWith('.cfg');
-    }
-    if (sandboxTypeFilter === 'TEMPLATES') {
-      return nameLower.endsWith('.json');
-    }
-
-    return true;
+    // Only show Artifacts (no configs or misc files)
+    return !nameLower.endsWith('.ini') && !nameLower.endsWith('.cfg') && !nameLower.endsWith('.json') && !nameLower.endsWith('.txt');
   };
   const syncedMods = sandboxMods.filter(m => existingHashes.has(m.hash) && searchFilter(m));
   const unlinkedMods = sandboxMods.filter(m => !existingHashes.has(m.hash) && searchFilter(m));
@@ -352,19 +342,6 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
       headerActions={
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
-            <CustomDropdown
-              flat={true}
-              variant="pill"
-              disableTint={true}
-              value={sandboxTypeFilter}
-              onChange={(v: string[]) => setSandboxTypeFilter(v[0] as any)}
-              options={[
-                { id: "ALL", label: t("ql_all") },
-                { id: "ARTIFACTS", label: t("items") },
-                { id: "CONFIGS", label: t("type_configs") },
-                { id: "TEMPLATES", label: t("ql_templates") }
-              ]}
-            />
             <ActionButton
               onClick={handleImportToSandbox}
               disabled={isImporting}

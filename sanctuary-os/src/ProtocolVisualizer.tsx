@@ -3,9 +3,13 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { logArchitectAction } from "./lib/audit";
 import { useLexicon } from "./LexiconContext";
-import { SidePanel, CustomDropdown, FilterTabs, FilterTabButton, PillTabs, PillTabButton, ModSearchDropdown, EmptyState, ActionButton, cleanSearchName, HoverTooltip, ActionPill } from "./shared";
+import { SidePanel, CustomDropdown, FilterTabs, FilterTabButton, PillTabs, PillTabButton, ModSearchDropdown, EmptyState, ActionButton, cleanSearchName, HoverTooltip, ActionPill, CustomClassificationDropdown } from "./shared";
 import ModLineageTree from "./ModLineageTree";
 import { useStore } from './store';
+import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
+import { ArtifactCard } from "./Cards";
+import { UniversalCard } from "./components/universal/UniversalCard";
+import { MasonStatusDropdown } from "./MasonHub";
 
 const fetchAllPaginated = async (queryFn: () => any) => {
   let allData: any[] = [];
@@ -62,6 +66,61 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
   const [leftTab, setLeftTab] = useState('All');
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editGroupName, setEditGroupName] = useState('');
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState<string>("overview");
+
+  // Selection Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [activeCategory, setActiveCategory] = useState("ALL");
+
+  // Overview Data
+  const [recentHashes, setRecentHashes] = useState<any[]>([]);
+  const [recentRelationships, setRecentRelationships] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchOverviewData = async () => {
+      // Recent hashes
+      const { data: hashes } = await supabase.from('mod_versions')
+        .select('id, dna_hash, version_label, created_at, mods(name, image_url)')
+        .order('created_at', { ascending: false }).limit(6);
+      if (hashes) setRecentHashes(hashes);
+
+      // Recent relationships
+      const { data: rels } = await supabase.from('mod_relationships')
+        .select('id, created_at, relationship_type, parent_id, child_id')
+        .order('created_at', { ascending: false }).limit(6);
+      if (rels) {
+         const allIds = Array.from(new Set(rels.flatMap(r => [r.parent_id, r.child_id])));
+         const { data: modData } = await supabase.from('mods').select('id, name').in('id', allIds);
+         
+         const enriched = rels.map(r => ({
+           ...r,
+           parent_name: modData?.find(m => m.id === r.parent_id)?.name || "Unknown",
+           child_name: modData?.find(m => m.id === r.child_id)?.name || "Unknown",
+         }));
+         setRecentRelationships(enriched);
+      }
+    };
+    if (activeTab === 'overview') {
+      fetchOverviewData();
+    }
+  }, [activeTab]);
+
+  const filteredMods = cloudMods.filter(mod => {
+    if (statusFilter !== "ALL" && mod.status !== statusFilter) return false;
+    if (activeCategory !== "ALL" && (mod.category_override || "Script") !== activeCategory) return false;
+    if (searchTerm) return (mod.name?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+    return true;
+  });
+
+  const tabs = [
+    { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
+    { id: "select", label: t("sel_artifact") || "Select Artifact", icon: "search" },
+    { id: "workspace", label: t("tab_workspace") || "Workspace", icon: "device_hub" },
+    { id: "recent", label: t("tab_recent") || "Recent Changes", icon: "history" }
+  ];
 
   const fetchData = async () => {
     let modsQuery = supabase.from('mods').select('*').order('name');
@@ -496,11 +555,11 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
     >
       <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[var(--accent)] opacity-[0.05] group-hover:opacity-[0.15] transition-opacity pointer-events-none rounded-full blur-2xl group-hover:scale-150 duration-700" />
 
-      <div className="flex justify-start items-start w-full relative z-10">
+      <div className="flex justify-between items-start w-full relative z-10">
         <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all shadow-inner">
           <span className="material-symbols-outlined !text-[28px] text-[var(--text)] group-hover:text-[var(--accent)] transition-colors drop-shadow-md">{icon}</span>
         </div>
-        <div className="px-4 py-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[11px] font-black capitalize tracking-widest text-[var(--subtext)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:text-[var(--accent)] transition-colors border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-sm">
+        <div className="px-4 py-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[11px] font-black capitalize tracking-widest text-[var(--subtext)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:text-[var(--accent)] transition-colors border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-sm ml-auto">
           {count} {t("items")}
         </div>
       </div>
@@ -856,47 +915,167 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
   };
 
   return (
-    <div className="flex flex-col w-full relative animate-in fade-in h-full">
-
-      {/* 1. The Seamless Header */}
-      {/* 1. The Seamless Header */}
-      <div className="px-6 py-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full z-20">
-        <ActionPill
-          searchQuery=""
-          setSearchQuery={() => {}}
-          hideSearch={true}
-          leftContent={
-            <div className="w-full md:w-[400px] z-50">
-              <ModSearchDropdown
-                placeholder={t("search_ph")}
-                selectedItem={targetMod}
-                onSelect={(mod: any) => setTargetMod(mod)}
-                onClear={() => { setTargetMod(null); setActivePanel(null); }}
-                modList={isArchitect ? cloudMods : cloudMods.filter(m => m.mason_id === masonId)}
+    <ElevatedHubLayout
+      headerTitle={t("mason_hub_title")}
+      headerBreadcrumb={t("tab_protocols") || "Protocols"}
+      headerIcon="link"
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      hideSearch={activeTab !== 'select' && activeTab !== 'recent'}
+      hideHeader={activeTab !== 'select' && activeTab !== 'recent'}
+      search={searchTerm}
+      onSearchChange={setSearchTerm}
+      primaryPopover={activeTab === 'select' ? {
+        icon: "tune",
+        label: t("filters") || "Filters",
+        content: (
+          <div className="flex flex-col w-[400px] p-4 text-left max-w-[calc(100vw-40px)]">
+            <div className="flex flex-col mb-5 w-full">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                {t("filter_category") || "Category"}
+              </div>
+              <CustomClassificationDropdown 
+                value={activeCategory} 
+                onChange={(v) => setActiveCategory(v as string)} 
               />
             </div>
-          }
-        />
-      </div>
-
-      {/* 2. The Main Body (The Trigger Grid) */}
-      <div className="flex-1 overflow-y-auto accent-scrollbar w-full p-6">
-        {!targetMod ? (
-          <div className="w-full h-full flex items-center justify-center opacity-80">
-            <EmptyState icon="dashboard_customize" className="py-24" />
-          </div>
-        ) : (
-          <div className="w-full flex flex-col gap-10 animate-in fade-in zoom-in-95 duration-500 pb-32">
-
-            {/* The Boxes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {renderTriggerBox("timeline", t("lineage_title"), t("lineage_desc"), targetVersions.length, "lineage")}
-              {renderTriggerBox("device_hub", t("section_folder_title"), t("section_folder_desc"), twinsAndAddons.length, "twins")}
-              {renderTriggerBox("alt_route", t("section_alternatives_title"), t("section_alternatives_desc"), alternatives.length, "flavors")}
-              {renderTriggerBox("category", t("section_community_groups_title"), t("section_community_groups_desc"), activeCommunityGroup ? 1 : 0, "community")}
-              {renderTriggerBox("widgets", t("section_dlc_title"), t("section_dlc_desc"), parseDLC(targetMod.requiredDLC).length, "dlc")}
-              {renderTriggerBox("extension", t("section_deps_title"), t("section_deps_desc"), dependencies.length, "dependencies")}
+            <div className="flex flex-col w-full">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                {t("filter_status") || "Status"}
+              </div>
+              <CustomDropdown 
+                variant="pill" 
+                value={statusFilter} 
+                onChange={(v: string[]) => setStatusFilter(v[0])} 
+                options={[
+                  { id: "ALL", label: t("status_dd_all") },
+                  { id: "stable", label: t("status_dd_stable") },
+                  { id: "unstable", label: t("label_unstable") },
+                  { id: "corrupted", label: t("status_corrupted") },
+                  { id: "under_review", label: t("status_dd_review") },
+                  { id: "pending", label: t("pending") },
+                  { id: "unverified", label: t("unverified") }
+                ]} 
+              />
             </div>
+          </div>
+        )
+      } : undefined}
+    >
+      <div className="flex-1 w-full relative z-0 h-full overflow-hidden flex flex-col pt-4">
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-[var(--accent)]">fingerprint</span>
+                <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("recent_hashes") || "Recent DNA Hashes"}</h3>
+                <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+              </div>
+              {recentHashes.length === 0 ? (
+                <EmptyState icon="fingerprint" className="py-8" />
+              ) : (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 md:pr-2">
+                  {recentHashes.slice(0, 12).map(h => (
+                    <UniversalCard
+                      key={h.id}
+                      layout="vertical"
+                      image={h.mods?.image_url}
+                      icon={!h.mods?.image_url ? "deployed_code" : undefined}
+                      title={h.mods?.name || "Unknown"}
+                      subtitle={`${h.version_label} • ${new Date(h.created_at).toLocaleDateString()}`}
+                      onClick={() => {
+                        if (h.mods) {
+                          setTargetMod(h.mods);
+                          setActiveTab('workspace');
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-[var(--accent)]">link</span>
+                <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("recent_protocols") || "Recent Protocols"}</h3>
+                <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+              </div>
+              {recentRelationships.length === 0 ? (
+                <EmptyState icon="link" className="py-8" />
+              ) : (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 md:pr-2">
+                  {recentRelationships.slice(0, 12).map(r => (
+                    <UniversalCard
+                      key={r.id}
+                      layout="vertical"
+                      icon="link"
+                      title={`${r.parent_name} ↔ ${r.child_name}`}
+                      subtitle={`${r.relationship_type.toUpperCase()} • ${new Date(r.created_at).toLocaleDateString()}`}
+                      onClick={() => {}}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'select' && (
+          <div className="flex-1 overflow-y-auto custom-scrollbar pb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredMods.length === 0 ? (
+                <EmptyState icon="search_off" title={t("no_matches")} className="col-span-full py-16" />
+              ) : filteredMods.map(mod => (
+                <ArtifactCard
+                  key={mod.id}
+                  mod={mod}
+                  activeModId={targetMod?.id}
+                  onClick={() => { setTargetMod(mod); setActiveTab('workspace'); }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'workspace' && (
+          <div className="w-full flex flex-col gap-10 animate-in fade-in zoom-in-95 duration-500 pb-32 h-full">
+            {!targetMod ? (
+              <div className="w-full h-full flex items-center justify-center opacity-80 pb-32">
+                <EmptyState icon="link" className="py-24" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {renderTriggerBox("timeline", t("lineage_title"), t("lineage_desc"), targetVersions.length, "lineage")}
+                {renderTriggerBox("device_hub", t("section_folder_title"), t("section_folder_desc"), twinsAndAddons.length, "twins")}
+                {renderTriggerBox("alt_route", t("section_alternatives_title"), t("section_alternatives_desc"), alternatives.length, "flavors")}
+                {renderTriggerBox("category", t("section_community_groups_title"), t("section_community_groups_desc"), activeCommunityGroup ? 1 : 0, "community")}
+                {renderTriggerBox("widgets", t("section_dlc_title"), t("section_dlc_desc"), parseDLC(targetMod.requiredDLC).length, "dlc")}
+                {renderTriggerBox("extension", t("section_deps_title"), t("section_deps_desc"), dependencies.length, "dependencies")}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'recent' && (
+          <div className="flex-1 overflow-y-auto custom-scrollbar pb-10">
+               <div className="flex items-center gap-2 mb-6 w-full">
+                <span className="material-symbols-outlined text-[var(--text)]">history</span>
+                <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("recent_activity") || "Recent Activity"}</h3>
+                <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+              </div>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 md:pr-2 w-full">
+                {recentRelationships.filter(r => !searchTerm || r.parent_name?.toLowerCase().includes(searchTerm.toLowerCase()) || r.child_name?.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 30).map(r => (
+                    <UniversalCard
+                      key={r.id}
+                      layout="vertical"
+                      icon="link"
+                      title={`${r.parent_name} ↔ ${r.child_name}`}
+                      subtitle={`${r.relationship_type.toUpperCase()} • ${new Date(r.created_at).toLocaleString()}`}
+                    />
+                ))}
+              </div>
           </div>
         )}
       </div>
@@ -1002,7 +1181,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
         </div>
       </SidePanel>
 
-    </div>
+    </ElevatedHubLayout>
   );
 }
 

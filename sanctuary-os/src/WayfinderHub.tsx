@@ -48,44 +48,47 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader title={t("wf_hub_title")} subtitle={t("wf_hub_subtitle")} icon={t("icon_terminal")} iconColorClass="text-[var(--success)]" breadcrumb={activeTab !== "command_center" ? activeTab.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined} onTitleClick={() => setActiveTab("command_center")} />
 
-      <HoverTabDrawer 
-        title="Wayfinder Navigation" 
-        activeTab={activeTab} 
-        setTab={setActiveTab}
-        footer={
-          <>
-            <SidebarFooterButton
-              icon={t("icon_verified_user")}
-              label={t("wf_hub_verify")}
-              variant="glass"
-              className="w-full"
-              onClick={() => setIsVerifyPanelOpen(true)}
-            />
-            <SidebarFooterButton
-              icon={defconLevel === 1 ? "warning" : "security"}
-              label={<span className="truncate">{t("defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>}
-              variant={defconLevel === 1 ? "danger" : "glass"}
-              className={`w-full ${defconLevel === 1 ? 'animate-pulse' : ''}`}
-              onClick={() => setDefconOpen(true)}
-            />
-          </>
-        }
-      >
-        <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="wf_comms_title" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="sanctuary_tickets" icon={t("icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
+      <div className="md:hidden">
+        <HoverTabDrawer 
+          title="Wayfinder Navigation" 
+          activeTab={activeTab} 
+          setTab={setActiveTab}
+          hideMobilePills={true}
+          footer={
+            <>
+              <SidebarFooterButton
+                icon={t("icon_verified_user")}
+                label={t("wf_hub_verify")}
+                variant="glass"
+                className="w-full"
+                onClick={() => setIsVerifyPanelOpen(true)}
+              />
+              <SidebarFooterButton
+                icon={defconLevel === 1 ? "warning" : "security"}
+                label={<span className="truncate">{t("defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>}
+                variant={defconLevel === 1 ? "danger" : "glass"}
+                className={`w-full ${defconLevel === 1 ? 'animate-pulse' : ''}`}
+                onClick={() => setDefconOpen(true)}
+              />
+            </>
+          }
+        >
+          <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="wf_comms_title" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="sanctuary_tickets" icon={t("icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
 
-        <VerticalTabButton id="linker" icon={t("icon_link")} label={t("tab_linker")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="compliance" icon={t("icon_policy")} label={t("tab_compliance")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="malware_oversight" icon={t("icon_coronavirus")} label={t("rating_malware")} activeTab={activeTab} setTab={(id: string) => { setComplianceFilter('pending'); setActiveTab(id); }} />
-        <VerticalTabButton id="oversight_reports" icon={t("icon_threat_intelligence")} label={t("tab_malware_logs")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="reports" icon={t("icon_flag")} label={t("stat_bugs")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="audit_logs" icon={t("icon_history")} label={t("tab_audit")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="support_settings" icon={t("icon_support_agent")} label={t("wf_tab_support")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="ide" icon="code" label="WAYFINDER IDE" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="chameleons" icon="palette" label={t("wf_master_themes")} activeTab={activeTab} setTab={setActiveTab} />
-      </HoverTabDrawer>
+          <VerticalTabButton id="linker" icon={t("icon_link")} label={t("tab_linker")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="compliance" icon={t("icon_policy")} label={t("tab_compliance")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="malware_oversight" icon={t("icon_coronavirus")} label={t("rating_malware")} activeTab={activeTab} setTab={(id: string) => { setComplianceFilter('pending'); setActiveTab(id); }} />
+          <VerticalTabButton id="oversight_reports" icon={t("icon_threat_intelligence")} label={t("tab_malware_logs")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="reports" icon={t("icon_flag")} label={t("stat_bugs")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="audit_logs" icon={t("icon_history")} label={t("tab_audit")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="support_settings" icon={t("icon_support_agent")} label={t("wf_tab_support")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="ide" icon="code" label="WAYFINDER IDE" activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="chameleons" icon="palette" label={t("wf_master_themes")} activeTab={activeTab} setTab={setActiveTab} />
+        </HoverTabDrawer>
+      </div>
 
       <div className="w-full flex-1 flex flex-col min-h-0">
         {activeTab === "command_center" && <WayfinderCommandScreen setTab={setActiveTab} setComplianceFilter={setComplianceFilter} onOpenMasonProfile={onOpenMasonProfile} />}

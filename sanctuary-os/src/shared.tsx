@@ -2267,7 +2267,7 @@ export function CustomDropdown({
   className,
   buttonClassName,
   flat,
-  variant = "pill",
+  variant = "default",
 }: any) {
   const { t } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
@@ -2545,10 +2545,12 @@ export function GameVersionMultiSelect({
   selectedVersions,
   onChange,
   variant = "default",
+  dropUp = false,
 }: {
   selectedVersions: string[];
   onChange: (v: string[]) => void;
   variant?: "default" | "pill";
+  dropUp?: boolean;
 }) {
   selectedVersions = Array.isArray(selectedVersions)
     ? selectedVersions
@@ -2664,7 +2666,8 @@ export function GameVersionMultiSelect({
               className="fixed pointer-events-none"
               style={{
                 zIndex: 200001,
-                top: rect ? rect.bottom : 0,
+                top: rect ? (dropUp ? undefined : rect.bottom) : 0,
+                bottom: rect ? (dropUp ? window.innerHeight - rect.top : undefined) : undefined,
                 left: rect ? (isRightHalf ? undefined : rect.left) : 0,
                 right: rect
                   ? isRightHalf
@@ -2674,7 +2677,7 @@ export function GameVersionMultiSelect({
                 width: rect ? rect.width : "max-content",
               }}
             >
-              <div className="absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel portal-glass-fix border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col">
+              <div className={`absolute ${dropUp ? 'bottom-0' : 'top-0'} left-0 w-full pointer-events-auto ${dropUp ? 'mb-2' : 'mt-2'} glass-panel portal-glass-fix border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl animate-in fade-in ${dropUp ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2'} flex flex-col`}>
                 <style>{`
                   #sa-portals .portal-glass-fix::before,
                   #sa-portals .portal-glass-fix .glass-surface::before,
@@ -2687,12 +2690,13 @@ export function GameVersionMultiSelect({
                     <button
                       key={v.version}
                       type="button"
-                      onClick={() => {
+                      onMouseDown={(e) => {
+                        e.preventDefault();
                         toggleVersion(v.version);
                         setQuery("");
                         setIsOpen(false);
                       }}
-                      className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--text)] flex justify-start cursor-pointer"
+                      className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--text)] flex justify-between items-center cursor-pointer"
                     >
                       <span>{v.version}</span>
                       {selectedVersions.includes(v.version) && (
@@ -2707,7 +2711,8 @@ export function GameVersionMultiSelect({
                   {query && !versions.some((v) => v.version === query) && (
                     <button
                       type="button"
-                      onClick={() => {
+                      onMouseDown={(e) => {
+                        e.preventDefault();
                         toggleVersion(query);
                         setQuery("");
                         setIsOpen(false);
@@ -2804,12 +2809,16 @@ export function CustomDatePicker({
   return (
     <div className={`relative w-full ${className}`}>
       <button
+        type="button"
         ref={btnRef}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.preventDefault();
+          setIsOpen(!isOpen);
+        }}
         className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all group ${flat ? "bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90" : "h-12 px-5 rounded-[var(--radius)] glass-surface shadow-inner text-sm font-bold text-[var(--text)] focus:theme-border-accent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
       >
         <span
-          className={`${flat ? "flex-1 text-left flex items-center h-full overflow-hidden" : "truncate pr-4"}`}
+          className={`flex-1 text-left flex items-center h-full overflow-hidden ${flat ? "" : "truncate pr-4"}`}
         >
           {value
             ? new Date(value).toLocaleDateString()
@@ -3755,7 +3764,7 @@ export function DashboardStatTile({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={style}
-      className={`${sizeConstraintClass} h-auto flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-3xl glass-panel ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer hover:shadow-[0_10px_40px_rgba(0,0,0,0.3)] hover:-translate-y-1" : ""} ${activeStyles} ${className}`}
+      className={`${sizeConstraintClass} h-auto flex flex-col md:flex-row items-center justify-center md:justify-start text-center md:text-left ${paddingClass} gap-2 md:gap-4 rounded-3xl glass-panel ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer hover:shadow-[0_10px_40px_rgba(0,0,0,0.3)] hover:-translate-y-1" : ""} ${activeStyles} ${className}`}
     >
       <div
         className="absolute inset-0 rounded-[inherit] pointer-events-none"
@@ -3779,15 +3788,15 @@ export function DashboardStatTile({
         </div>
       )}
 
-      <div className="flex flex-col flex-1 min-w-0 relative z-10 py-1 items-start">
+      <div className="flex flex-col flex-1 min-w-0 relative z-10 py-1 items-center md:items-start">
         <span
-          className={`text-[9px] md:text-xs uppercase tracking-widest font-black group-hover:text-current transition-colors duration-500 mb-0 md:mb-1 truncate w-full pr-2 ${isActive && isSpecial ? "text-[var(--accent)]" : "text-[var(--subtext)]"}`}
+          className={`text-[9px] md:text-xs uppercase tracking-widest font-black group-hover:text-current transition-colors duration-500 mb-0 md:mb-1 truncate w-full pr-2 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : "text-[var(--subtext)]"}`}
         >
           {label}
         </span>
         {displayValue !== undefined && displayValue !== "" && (
           <span
-            className={`${sizeClass} font-black tracking-tighter truncate pr-2 [text-shadow:0_2px_4px_rgba(0,0,0,0.2)] leading-none`}
+            className={`${sizeClass} font-black tracking-tighter pr-2 md:pr-1 [text-shadow:0_2px_4px_rgba(0,0,0,0.2)] leading-none`}
           >
             {displayValue}
           </span>

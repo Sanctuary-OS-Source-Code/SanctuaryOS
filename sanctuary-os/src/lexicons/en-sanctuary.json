@@ -3113,6 +3113,12 @@
   "status_tag_pending": "Pending",
   "status_tag_unknown": "Unknown",
   "status_tag_unstable": "Corrupted",
-  "title_issues": "Issues",
-  "no_issues": "No Issues"
+  "title_issues": "Anomalies",
+  "no_issues": "No Issues",
+  "registry_no_issues": "System Stable",
+  "recent_hashes": "Recent DNA Hashes",
+  "recent_protocols": "Recent Protocols",
+  "recent_structures": "Recent Structures",
+  "tab_workspace": "Workspace",
+  "tab_recent": "Recent Changes"
 }

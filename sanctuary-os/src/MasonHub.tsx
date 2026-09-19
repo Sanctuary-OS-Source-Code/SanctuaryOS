@@ -52,6 +52,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [isRecentRepliesOpen, setIsRecentRepliesOpen] = useState(false);
   const [isSupportDeskOpen, setIsSupportDeskOpen] = useState(false);
+  const [supportTicketInitialId, setSupportTicketInitialId] = useState<string | undefined>(undefined);
   const [isMetadataEditorOpen, setIsMetadataEditorOpen] = useState(false);
   const [metadataEditorInitialId, setMetadataEditorInitialId] = useState<string | undefined>(undefined);
   const [viewingPost, setViewingPost] = useState<any>(null);
@@ -149,8 +150,17 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         </HoverTabDrawer>
       </div>
 
-      <div className="w-full pr-4">
-        {masonActiveTab === "command_center" && <MasonCommandScreen onNavigate={setMasonActiveTab} masonId={masonProfile.id} session={session} onOpenRecentReplies={() => setIsRecentRepliesOpen(true)} onOpenSupportDesk={() => setIsSupportDeskOpen(true)} setViewingPost={setViewingPost} />}
+      <div className="w-full md:pr-4">
+        {masonActiveTab === "command_center" && <MasonCommandScreen 
+          onNavigate={setMasonActiveTab} 
+          masonId={masonProfile.id} 
+          session={session} 
+          onOpenRecentReplies={() => setIsRecentRepliesOpen(true)} 
+          onOpenSupportDesk={() => { setSupportTicketInitialId(undefined); setIsSupportDeskOpen(true); }} 
+          setViewingPost={setViewingPost} 
+          onOpenMetadataEditor={(id: string) => { setMetadataEditorInitialId(id); setIsMetadataEditorOpen(true); }}
+          onOpenBugReport={(bugId: string) => { setSupportTicketInitialId(bugId); setIsSupportDeskOpen(true); }}
+        />}
         {masonActiveTab === "registry" && <MasonRegistry masonId={masonProfile.id} initialActiveMod={registryTargetMod} onClearActiveMod={() => setRegistryTargetMod(null)} isActiveTab={masonActiveTab === "registry"} />}
         {masonActiveTab === "collections" && <MasonCollectionBuilder masonId={masonProfile.id} masonName={masonProfile.name} />}
         {masonActiveTab === "bug_reports" && <MasonBugReports masonId={masonProfile?.id} onEditMetadata={(hash) => {
@@ -187,7 +197,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           }
         }}
       />
-      {session?.user?.id && <CitizenTicketsSidePanel isOpen={isSupportDeskOpen} onClose={() => setIsSupportDeskOpen(false)} userId={session.user.id} />}
+      {session?.user?.id && <CitizenTicketsSidePanel isOpen={isSupportDeskOpen} onClose={() => { setIsSupportDeskOpen(false); setSupportTicketInitialId(undefined); }} userId={session.user.id} initialTicketId={supportTicketInitialId} />}
       {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId={session?.user?.id || masonProfile.id} onOpenMasonProfile={handleOpenMasonProfile} onAssetClick={(type, id) => setActiveAsset({ type, id })} />}
       {activeAsset && <AssetPreviewSidebar assetType={activeAsset.type} assetId={activeAsset.id} onClose={() => setActiveAsset(null)} />}
       <SharedMetadataEditorSidePanel

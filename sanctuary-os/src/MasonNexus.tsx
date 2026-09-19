@@ -27,7 +27,9 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
-  const [activeTab, setActiveTab] = useState<"overview" | "active" | "inactive">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "lexicon" | "chameleon" | "workbench_template" | "blueprint">("overview");
+  const [blueprints, setBlueprints] = useState<any[]>([]);
+  const [flags, setFlags] = useState<any[]>([]);
 
   const [uploadState, setUploadState] = useState({
     isOpen: false,
@@ -52,12 +54,21 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
 
   const fetchAssets = async () => {
     setLoading(true);
-    const { data } = await supabase.from('nexus_assets').select('*').or(`author_id.eq.${masonProfile.id},author.ilike.${masonProfile.name}`).order('created_at', { ascending: false });
-    if (data) {
-      setAssets(data);
-      const dbLangs = data?.map(d => d.language).filter(Boolean) || [];
+    const { data: assetsData } = await supabase.from('nexus_assets').select('*').or(`author_id.eq.${masonProfile.id},author.ilike.${masonProfile.name}`).order('created_at', { ascending: false });
+    const { data: bpData } = await supabase.from('blueprints').select('*').eq('mason_id', masonProfile.id).order('created_at', { ascending: false });
+    const { data: flagsData } = await supabase.from('nexus_reports').select('*').order('created_at', { ascending: false });
+
+    if (assetsData) {
+      setAssets(assetsData);
+      const dbLangs = assetsData?.map(d => d.language).filter(Boolean) || [];
       const commonLangs = ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Russian", "Japanese", "Korean", "Chinese"];
       setAvailableLanguages(Array.from(new Set([...commonLangs, ...dbLangs])) as string[]);
+    }
+    if (bpData) setBlueprints(bpData);
+    if (flagsData) {
+        // filter flags to only those affecting our assets
+        const myAssetIds = assetsData?.map(a => a.id) || [];
+        setFlags(flagsData.filter((f: any) => myAssetIds.includes(f.asset_id)));
     }
     setLoading(false);
   };
@@ -133,20 +144,15 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
   if (loading) return <LoadingScreen title={t("market_fetching")} />;
 
   const getTabAssets = (tabId: string) => {
-    return assets.filter(a => {
-      const isHidden = a.is_public === false;
-      if (tabId === "active") return !isHidden;
-      if (tabId === "inactive") return isHidden;
-      return true; // overview shows all
-    });
+    if (tabId === "overview") return [...assets, ...blueprints];
+    if (tabId === "blueprint") return blueprints;
+    return assets.filter(a => a.asset_type === tabId);
   };
 
-  const getFilteredAssets = (tabAssets: any[]) => {
+  const getFilteredAssets = (tabAssets: any[], isBlueprintTab: boolean = false) => {
     return tabAssets.filter(a => {
-      const displayAssetType = a.asset_type;
-      const matchCat = activeCategory === 'all' || displayAssetType === activeCategory;
-      const matchSearch = a.name.toLowerCase().includes(searchQuery.toLowerCase()) || (a.description || "").toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
+      const matchSearch = a.name?.toLowerCase().includes(searchQuery.toLowerCase()) || (a.description || "").toLowerCase().includes(searchQuery.toLowerCase());
+      return matchSearch;
     });
   };
 
@@ -158,51 +164,70 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
       number: formatOverviewMetric(getFilteredAssets(getTabAssets("overview")), 'created_at')
     },
     {
-      id: "active",
-      label: t("status_active") || "Active",
-      icon: "check_circle",
-      number: getFilteredAssets(getTabAssets("active")).length
+      id: "lexicon",
+      label: "Lexicons",
+      icon: "translate",
+      number: getFilteredAssets(getTabAssets("lexicon")).length
     },
     {
-      id: "inactive",
-      label: t("status_inactive") || "Inactive",
-      icon: "block",
-      number: getFilteredAssets(getTabAssets("inactive")).length
+      id: "chameleon",
+      label: "Chameleons",
+      icon: "palette",
+      number: getFilteredAssets(getTabAssets("chameleon")).length
+    },
+    {
+      id: "workbench_template",
+      label: "Templates",
+      icon: "draw",
+      number: getFilteredAssets(getTabAssets("workbench_template")).length
+    },
+    {
+      id: "blueprint",
+      label: "Blueprints",
+      icon: "account_tree",
+      number: getFilteredAssets(getTabAssets("blueprint"), true).length
     }
   ];
 
   const currentTabAssets = getTabAssets(activeTab);
-  const filteredAssets = getFilteredAssets(currentTabAssets);
+  const filteredAssets = getFilteredAssets(currentTabAssets, activeTab === 'blueprint');
 
   const renderLanding = () => {
-    const activeAssets = getFilteredAssets(getTabAssets("active")).slice(0, 5);
-    const inactiveAssets = getFilteredAssets(getTabAssets("inactive")).slice(0, 5);
+    const recentAssets = [...assets].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
+    const recentBlueprints = [...blueprints].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
 
-    const renderAssetCard = (asset: any) => {
+    const renderAssetCard = (asset: any, isBp: boolean = false) => {
       const isHidden = asset.is_public === false;
-      const displayAssetType = asset.asset_type;
+      const displayAssetType = isBp ? 'blueprint' : asset.asset_type;
+      
+      const flagForAsset = flags.find(f => f.asset_id === asset.id);
+
       return (
         <UniversalCard
           key={asset.id}
-          onClick={() => handleEditAsset(asset)}
+          onClick={() => isBp ? null : handleEditAsset(asset)}
           layout="horizontal"
           title={asset.name || "Untitled"}
-          statusColor={isHidden ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]"}
+          statusColor={flagForAsset ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]"}
           badges={[
-            <span key="badge" className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 ${isHidden ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)]'}`}>
-              {isHidden ? (t("status_inactive")) : (t("status_active"))}
-            </span>,
+            flagForAsset ? (
+              <span key="badge-flag" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
+                FLAGGED
+              </span>
+            ) : null,
             <span key="type-badge" className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] rounded-md text-[8px] capitalize tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner shrink-0 font-black">
-              {displayAssetType === 'chameleon' ? 'THEME' : displayAssetType === 'workbench_template' ? 'TEMPLATE' : 'LEXICON'}
+              {displayAssetType === 'chameleon' ? 'THEME' : displayAssetType === 'workbench_template' ? 'TEMPLATE' : displayAssetType === 'blueprint' ? 'BLUEPRINT' : 'LEXICON'}
             </span>
           ]}
-          icon={displayAssetType === 'chameleon' ? 'palette' : displayAssetType === 'workbench_template' ? 'draw' : 'translate'}
+          icon={displayAssetType === 'chameleon' ? 'palette' : displayAssetType === 'workbench_template' ? 'draw' : displayAssetType === 'blueprint' ? 'account_tree' : 'translate'}
           footer={
             <div className="flex justify-between items-center w-full">
               <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_download")}</span> {asset.downloads || 0}</span>
-              <button className="text-[9px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                {t("mason_edit_listing")} <span className="material-symbols-outlined !text-[14px]">arrow_forward</span>
-              </button>
+              {!isBp && (
+                  <button className="text-[9px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                    {t("mason_edit_listing")} <span className="material-symbols-outlined !text-[14px]">arrow_forward</span>
+                  </button>
+              )}
             </div>
           }
         >
@@ -221,13 +246,13 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
           <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
             <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] text-[var(--success)] opacity-90 drop-shadow-lg">check_circle</span>
+                <span className="material-symbols-outlined !text-[24px] text-[var(--success)] opacity-90 drop-shadow-lg">schedule</span>
               </div>
-              {t("status_active") || "Active Assets"}
+              Recent Assets
             </h3>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
-            {activeAssets.length > 0 ? activeAssets.map(renderAssetCard) : (
+            {recentAssets.length > 0 ? recentAssets.map(a => renderAssetCard(a, false)) : (
               <EmptyState icon="storefront" title={t("market_no_assets")} className="py-8" />
             )}
           </div>
@@ -236,15 +261,15 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
             <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] text-[var(--danger)] opacity-90 drop-shadow-lg">block</span>
+              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--info)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined !text-[24px] text-[var(--info)] opacity-90 drop-shadow-lg">account_tree</span>
               </div>
-              {t("status_inactive") || "Inactive Assets"}
+              Recent Blueprints
             </h3>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
-            {inactiveAssets.length > 0 ? inactiveAssets.map(renderAssetCard) : (
-              <EmptyState icon="storefront" title={t("market_no_assets")} className="py-8" />
+            {recentBlueprints.length > 0 ? recentBlueprints.map(a => renderAssetCard(a, true)) : (
+              <EmptyState icon="account_tree" title="No blueprints yet" className="py-8" />
             )}
           </div>
         </div>
@@ -261,29 +286,37 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
             {filteredAssets.map(asset => {
               const isHidden = asset.is_public === false;
-              const displayAssetType = asset.asset_type;
+              const isBp = activeTab === 'blueprint';
+              const displayAssetType = isBp ? 'blueprint' : asset.asset_type;
+              
+              const flagForAsset = flags.find(f => f.asset_id === asset.id);
+
               return (
                 <UniversalCard
                   key={asset.id}
-                  onClick={() => handleEditAsset(asset)}
+                  onClick={() => isBp ? null : handleEditAsset(asset)}
                   layout="horizontal"
                   title={asset.name || "Untitled"}
-                  statusColor={isHidden ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]"}
+                  statusColor={flagForAsset ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]"}
                   badges={[
-                    <span key="badge" className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 ${isHidden ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)]'}`}>
-                      {isHidden ? (t("status_inactive")) : (t("status_active"))}
-                    </span>,
+                    flagForAsset ? (
+                        <span key="badge-flag" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
+                            FLAGGED
+                        </span>
+                    ) : null,
                     <span key="type-badge" className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] rounded-md text-[8px] capitalize tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner shrink-0 font-black">
-                      {displayAssetType === 'chameleon' ? 'THEME' : displayAssetType === 'workbench_template' ? 'TEMPLATE' : 'LEXICON'}
+                      {displayAssetType === 'chameleon' ? 'THEME' : displayAssetType === 'workbench_template' ? 'TEMPLATE' : displayAssetType === 'blueprint' ? 'BLUEPRINT' : 'LEXICON'}
                     </span>
                   ]}
-                  icon={displayAssetType === 'chameleon' ? 'palette' : displayAssetType === 'workbench_template' ? 'draw' : 'translate'}
+                  icon={displayAssetType === 'chameleon' ? 'palette' : displayAssetType === 'workbench_template' ? 'draw' : displayAssetType === 'blueprint' ? 'account_tree' : 'translate'}
                   footer={
                     <div className="flex justify-start items-center w-full">
                       <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_download")}</span> {asset.downloads || 0}</span>
-                      <button className="text-[9px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                        {t("mason_edit_listing")} <span className="material-symbols-outlined !text-[14px]">arrow_forward</span>
-                      </button>
+                      {!isBp && (
+                          <button className="text-[9px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                            {t("mason_edit_listing")} <span className="material-symbols-outlined !text-[14px]">arrow_forward</span>
+                          </button>
+                      )}
                     </div>
                   }
                 >
@@ -313,26 +346,13 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
       onTabChange={(id) => setActiveTab(id as any)}
       headerActions={
         <div className="flex items-center gap-2">
-          <CustomDropdown
-            flat={true}
-            variant="pill"
-            disableTint={true}
-            value={activeCategory}
-            options={[
-              { id: 'all', label: t("ql_all") },
-              { id: 'lexicon', label: t("stat_lexicons") },
-              { id: 'chameleon', label: t("tab_chameleons") },
-              { id: 'workbench_template', label: t("ql_templates") }
-            ]}
-            onChange={(val: string[]) => setActiveCategory(val[0])}
-          />
-          {activeCategory !== 'all' && (
+          {activeTab !== 'overview' && activeTab !== 'blueprint' && (
             <ActionButton
               icon="add"
               label={t("ui_tab_new")}
               iconOnly={true}
               className="shrink-0 h-10 w-10 px-0"
-              onClick={() => setUploadState({ isOpen: true, editId: null, assetType: activeCategory, isHidden: false, name: '', version: '1.0.0', description: '', releaseNotes: '', fileContent: null, fileName: '', language: availableLanguages.length > 0 ? availableLanguages[0] : 'English', newLanguage: '', lexiconType: 'Theme', themeMode: 'Dark' })}
+              onClick={() => setUploadState({ isOpen: true, editId: null, assetType: activeTab, isHidden: false, name: '', version: '1.0.0', description: '', releaseNotes: '', fileContent: null, fileName: '', language: availableLanguages.length > 0 ? availableLanguages[0] : 'English', newLanguage: '', lexiconType: 'Theme', themeMode: 'Dark' })}
             />
           )}
         </div>

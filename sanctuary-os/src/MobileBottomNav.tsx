@@ -133,7 +133,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
           {["mason", "architect", "oversight", "wayfinder", "admin"].includes(userRole) && !isRootDomain() && (
             <button onClick={() => handleTabClick('MasonHub')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
               <span className="material-symbols-outlined text-orange-400 text-[20px]">{t("icon_construction") || "construction"}</span>
-              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("sidebar_mason_hub") || "Mason Hub"}</span>
+              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("mason_hub_title") || "Mason Workshop"}</span>
             </button>
           )}
 
@@ -172,7 +172,12 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
         className={`md:hidden fixed inset-x-0 bottom-[80px] z-[999998] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isMasonNavOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none'}`}
       >
         <div className="mx-4 mb-4 p-4 glass-panel !rounded-3xl shadow-2xl flex flex-col gap-2 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar">
-          <div className="w-12 h-1 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-auto mb-2 shrink-0" />
+          <div className="w-12 h-1 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-auto mb-4 shrink-0" />
+
+          <div className="flex items-center gap-2 mb-2 px-4 shrink-0">
+            <span className="material-symbols-outlined text-[var(--accent)] !text-[20px]">{t("icon_construction") || "construction"}</span>
+            <span className="font-black tracking-widest text-[14px] uppercase text-[var(--text)]">{t("mason_hub_title") || "Mason Workshop"}</span>
+          </div>
 
           <div className="flex flex-col gap-1 w-full pb-8">
             {[

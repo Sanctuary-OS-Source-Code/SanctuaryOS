@@ -127,9 +127,14 @@
 * Fixed mobile ActionPill width constraint to fully extend horizontally.
 
 ### Visual Overhauls
+- **Artifact Workspace Redesign:** Refactored `ProtocolVisualizer` and `StructureVisualizer` to utilize the `ElevatedHubLayout` matching the modern 4-tab MasonRegistry flow. Replaced isolated dropdowns with full `ArtifactCard` selection grids, and introduced real-time Overview dashboards for tracking recent DNA hashes, structures, and protocol updates.
 - **UI Refinements:** Fixed mobile menu clipping by adjusting scroll padding, removed duplicated Mason Hub navigation blocks in the sidebar, applied a max-width constraint to desktop search bars in the Registry, and converted the Registry Overview large vertical cards into a sleek horizontal layout.
 - **Registry Overview Styling:** Replaced the horizontal list layout in the Registry Overview with a responsive grid of smaller, more compact artifact cards.
 - **Mobile Navigation Fix:** Fixed a bug in the Mobile Bottom Nav where the Mason Workshop active icon would not properly highlight or display its text label when inside the hub.
 - **Layout Fixes:** Corrected StatTile margins so they perfectly align with content on desktop, stretch across the entire screen on mobile, and reduced the vertical padding so they fit more comfortably.
 
 - **Mason Layout Overhaul:** Re-aligned the global ViewHeader to prioritize a fluid lex-row alignment on Desktop viewports, preventing the global Search Bar from breaking onto a new line and pushing down nested content. This completely resolves the massive vertical drift seen in the Mason Workshop when compared to other core hubs like the Vault. Furthermore, rebuilt the mobile registry StatTileCarousel with standard -mx-6 wrappers to seamlessly extend edge-to-edge on mobile, perfectly matching the visual parity of the VaultTabs drawer navigation.
+- **Edit Panel UI/UX Polish:** Improved visual styling and interactions of the Edit Panel. Added a glassy UI to Paid and Early Access toggles while shifting their layout to match primary hub interfaces. Increased CustomDropdown sizes to match standard inputs. Pinned CustomDatePicker carets to the right edge. Enabled dropUp for GameVersionMultiSelect so it does not clip the bottom viewport.
+- **Mobile Navigation Enhancement:** Added the Mason Workshop title banner to the top of the Mason bottom navigation drawer.
+- **Card UI Tweaks:** Removed glowing shadow effects on active cards and corrected grid padding on mobile to perfectly center ArtifactCards within the Registry viewport.
+- **Mobile Mason Hub UI Fix:** Fixed an asymmetrical container padding (pr-4 -> md:pr-4) inside MasonHub that was causing the mobile view to push all content, including Registry cards, off-center to the left.

@@ -3,15 +3,19 @@ import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from '../../store';
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
-import { ActionButton } from "../../shared";
+import { ActionButton, stripMarkdown } from "../../shared";
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
+import { UniversalCard } from "../../components/universal/UniversalCard";
 
-export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies, onOpenSupportDesk, setViewingPost }: any) {
+export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentReplies, onOpenSupportDesk, setViewingPost, onOpenBugReport, onOpenMetadataEditor }: any) {
   const { t } = useLexicon();
   const [repliesCount, setRepliesCount] = useState(0);
   const [stats, setStats] = useState({ artifacts: 0, collections: 0, posts: 0, bugs: 0, support: 0, followers: 0, blueprints: 0 });
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [urgentBroadcast, setUrgentBroadcast] = useState<any>(null);
+  const [recentBugs, setRecentBugs] = useState<any[]>([]);
+  const [recentArtifacts, setRecentArtifacts] = useState<any[]>([]);
+  const [recentReplies, setRecentReplies] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -77,6 +81,57 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
       });
     };
     fetchCounts();
+  }, [masonId, session]);
+
+  useEffect(() => {
+    const fetchRecent = async () => {
+      if (masonId) {
+          const { data: allTickets } = await supabase.from('sanctuary_tickets').select('*')
+            .in('status', ['NEW', 'OPEN', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'new', 'open', 'pending', 'escalated', 'investigating'])
+            .order('created_at', { ascending: false });
+          if (allTickets) {
+            let filtered = allTickets.filter(t => {
+              const typeStr = (t.ticket_type || t.category || '').toLowerCase();
+              return (typeStr.includes('bug') || typeStr.includes('artifact')) && !typeStr.includes('os');
+            });
+            const { data: modsData } = await supabase.from('mods').select("id").eq('mason_id', masonId);
+            let masonModIds: string[] = [];
+            if (modsData) masonModIds = modsData.flatMap(m => [m.id]).filter(Boolean);
+            const userId = session?.user?.id;
+            
+            filtered = filtered.filter(t => {
+              const targetUser = t.metadata?.target_user_id;
+              const targetMason = t.metadata?.target_mason;
+              const ticketMasonId = t.metadata?.mason_id;
+              const targetMod = t.target_mod_id || t.metadata?.target_mod_id;
+              if (userId && (targetUser === userId || targetMason === userId || ticketMasonId === userId || t.author_id === userId)) return true;
+              if (masonId && (targetUser === masonId || targetMason === masonId || ticketMasonId === masonId)) return true;
+              if (targetMod && masonModIds.includes(targetMod)) return true;
+              return false;
+            });
+            setRecentBugs(filtered.slice(0, 2));
+          }
+
+          const { data: artifacts } = await supabase.from('mods').select('*').eq('mason_id', masonId).order('updated_at', { ascending: false }).limit(2);
+          if (artifacts) setRecentArtifacts(artifacts);
+
+          const { data: posts } = await supabase.from('mason_posts').select('id').eq('mason_id', masonId);
+          if (posts && posts.length > 0) {
+              const postIds = posts.map(p => p.id);
+              const { data: replies } = await supabase.from('mason_post_comments').select('*').in('post_id', postIds).order('created_at', { ascending: false }).limit(2);
+              if (replies && replies.length > 0) {
+                  const authorIds = replies.map(r => r.author_id);
+                  const { data: profiles } = await supabase.from('profiles').select('id, username, display_name').in('id', authorIds);
+                  const repliesWithProfiles = replies.map(r => ({
+                      ...r,
+                      profiles: profiles?.find(p => p.id === r.author_id)
+                  }));
+                  setRecentReplies(repliesWithProfiles);
+              }
+          }
+      }
+    };
+    fetchRecent();
   }, [masonId, session]);
 
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
@@ -146,14 +201,107 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
           </div>
 
-          <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <CommandScreenMetricTile icon={t("icon_deployed_code")} value={stats.artifacts} label={t("items")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-            <CommandScreenMetricTile icon={t("icon_architecture")} value={stats.blueprints || 1} label={t("playsets_title")} valueColorClass="text-emerald-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
-            <CommandScreenMetricTile icon={t("icon_library_books")} value={1} label={t("tab_lexicons")} valueColorClass="text-indigo-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-            <CommandScreenMetricTile icon={t("icon_palette")} value={1} label={t("type_theme")} valueColorClass="text-pink-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" />
-            <CommandScreenMetricTile icon={t("icon_group")} value={stats.followers} label={t("followers")} valueColorClass="text-teal-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
-          </div>
+          {recentBugs.length > 0 && (
+            <>
+              <CommandScreenSectionHeading title={t("stat_bugs")} icon="bug_report" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                  {recentBugs.map((bug: any) => (
+                      <UniversalCard 
+                          key={`bug-${bug.id}`} 
+                          layout="vertical" 
+                          title={bug.title || "Bug Report"} 
+                          icon="bug_report" 
+                          onClick={() => onOpenBugReport && onOpenBugReport(bug.id)}
+                          className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("stat_bugs")}</span>
+                              </div>
+                          }
+                          footer={
+                              <div className="flex items-center justify-start w-full mt-2">
+                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(bug.created_at).toLocaleDateString()}
+                                  </span>
+                              </div>
+                          }
+                      >
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                              {stripMarkdown(bug.description || bug.content || "Ticket opened.")}
+                          </p>
+                      </UniversalCard>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {recentArtifacts.length > 0 && (
+            <>
+              <CommandScreenSectionHeading title={t("items")} icon="deployed_code" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                  {recentArtifacts.map((art: any) => (
+                      <UniversalCard 
+                          key={`art-${art.id}`} 
+                          layout="vertical" 
+                          title={art.name || art.title} 
+                          icon="deployed_code" 
+                          onClick={() => onOpenMetadataEditor && onOpenMetadataEditor(art.id)}
+                          className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("items")}</span>
+                              </div>
+                          }
+                          footer={
+                              <div className="flex items-center justify-start w-full mt-2">
+                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(art.updated_at).toLocaleDateString()}
+                                  </span>
+                              </div>
+                          }
+                      >
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                              {stripMarkdown(art.description || "Artifact metadata updated.")}
+                          </p>
+                      </UniversalCard>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {recentReplies.length > 0 && (
+            <>
+              <CommandScreenSectionHeading title={t("ui.replies")} icon="forum" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                  {recentReplies.map((rep: any) => (
+                      <UniversalCard 
+                          key={`rep-${rep.id}`} 
+                          layout="vertical" 
+                          title={rep.profiles?.display_name || rep.profiles?.username || "Citizen"} 
+                          icon="forum" 
+                          onClick={onOpenRecentReplies}
+                          className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("ui.replies")}</span>
+                              </div>
+                          }
+                          footer={
+                              <div className="flex items-center justify-start w-full mt-2">
+                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(rep.created_at).toLocaleDateString()}
+                                  </span>
+                              </div>
+                          }
+                      >
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                              {stripMarkdown(rep.content || "")}
+                          </p>
+                      </UniversalCard>
+                  ))}
+              </div>
+            </>
+          )}
         </CommandScreenMain>
 
         <CommandScreenSidebar title={t("wf_quick_links")} icon="rocket_launch">
@@ -191,6 +339,17 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
 
         </CommandScreenSidebar>
       </CommandScreenBody>
+
+      <div className="w-full">
+        <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <CommandScreenMetricTile icon={t("icon_deployed_code")} value={stats.artifacts} label={t("items")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+          <CommandScreenMetricTile icon={t("icon_architecture")} value={stats.blueprints || 1} label={t("playsets_title")} valueColorClass="text-emerald-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
+          <CommandScreenMetricTile icon={t("icon_library_books")} value={1} label={t("tab_lexicons")} valueColorClass="text-indigo-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+          <CommandScreenMetricTile icon={t("icon_palette")} value={1} label={t("type_theme")} valueColorClass="text-pink-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" />
+          <CommandScreenMetricTile icon={t("icon_group")} value={stats.followers} label={t("followers")} valueColorClass="text-teal-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
+        </div>
+      </div>
 
       <SanctuaryAlertsSidePanel
         isOpen={isAlertsOpen}

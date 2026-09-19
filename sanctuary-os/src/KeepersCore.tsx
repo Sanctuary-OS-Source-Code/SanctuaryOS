@@ -17,8 +17,8 @@ import KeeperSupportSettings from './hub-components/KeeperSupportSettings';
 
 export default function KeepersCore() {
   const { t } = useLexicon();
-  const activeTab = useStore(state => state.keepersActiveTab || "command_center");
-  const setActiveTab = useStore(state => state.setKeepersActiveTab || (() => { }));
+  const activeTab = useStore(state => state.keepersActiveTab);
+  const setActiveTab = useStore(state => state.setKeepersActiveTab);
 
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
@@ -32,20 +32,22 @@ export default function KeepersCore() {
       >
       </ViewHeader>
 
-      <HoverTabDrawer title="Keepers Navigation" activeTab={activeTab} setTab={setActiveTab}>
-        <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="keepers_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="web_directives" icon="folder_special" label="System Directives" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="web_news" icon="public" label="Website News" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="web_legal" icon="gavel" label="Legal Documents" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="active_games" icon="dns" label="Active Workspaces" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="identities" icon="group" label="Citizen Oversight" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="support" icon={t("icon_support_agent")} label="Support Center" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="support_settings" icon={t("icon_support_agent")} label={t("wf_tab_support")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="audit_logs" icon={t("icon_history")} label={t("audit_title")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="ide" icon="code" label="Keepers IDE" activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="chameleons" icon="palette" label={t("wf_master_themes")} activeTab={activeTab} setTab={setActiveTab} />
-      </HoverTabDrawer>
+      <div className="md:hidden">
+        <HoverTabDrawer title="Keepers Navigation" activeTab={activeTab} setTab={setActiveTab} hideMobilePills={true}>
+          <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="keepers_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="web_directives" icon="folder_special" label="System Directives" activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="web_news" icon="public" label="Website News" activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="web_legal" icon="gavel" label="Legal Documents" activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="active_games" icon="dns" label="Active Workspaces" activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="identities" icon="group" label="Citizen Oversight" activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="support" icon={t("icon_support_agent")} label="Support Center" activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="support_settings" icon={t("icon_support_agent")} label={t("wf_tab_support")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="audit_logs" icon={t("icon_history")} label={t("audit_title")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="ide" icon="code" label="Keepers IDE" activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="chameleons" icon="palette" label={t("wf_master_themes")} activeTab={activeTab} setTab={setActiveTab} />
+        </HoverTabDrawer>
+      </div>
 
       <div className="w-full flex-1 flex flex-col min-h-0">
         {activeTab === "command_center" && <KeeperCommandScreen setTab={setActiveTab} />}

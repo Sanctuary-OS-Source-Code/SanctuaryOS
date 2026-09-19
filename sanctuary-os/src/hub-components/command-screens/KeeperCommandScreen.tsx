@@ -6,6 +6,7 @@ import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSideP
 import { ServerHealthSidePanel } from '../../side-panels/WayfinderSidePanels';
 import MasonPostViewer from "../../side-panels/MasonPostViewer";
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
+import { UniversalCard } from "../../components/universal/UniversalCard";
 
 export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
   const { t } = useLexicon();
@@ -27,6 +28,8 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
     networkStatus: "ONLINE",
     urgentBroadcast: null as any
   });
+
+  const [recentSupport, setRecentSupport] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchBroadcasts = async () => {
@@ -87,8 +90,14 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
       });
     };
 
+    const fetchRecentItems = async () => {
+        const { data } = await supabase.from('keeper_tickets').select('*').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(6);
+        if (data) setRecentSupport(data);
+    };
+
     fetchBroadcasts();
     fetchStats();
+    fetchRecentItems();
   }, []);
 
   return (
@@ -110,6 +119,40 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
           <div className="flex flex-col gap-8 w-full mb-8">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
           </div>
+
+          {recentSupport.length > 0 && (
+            <>
+              <CommandScreenSectionHeading title="Support Queue" icon="local_activity" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                  {recentSupport.map((item: any) => (
+                      <UniversalCard 
+                          key={`support-${item.id}`} 
+                          layout="vertical" 
+                          title={item.subject || "Support Ticket"} 
+                          icon="local_activity" 
+                          onClick={() => setTab("support")}
+                          className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--info)_20%,transparent)] text-[var(--info)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">Support Queue</span>
+                              </div>
+                          }
+                          footer={
+                              <div className="flex items-center justify-start w-full mt-2">
+                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">calendar_today</span> {new Date(item.created_at).toLocaleDateString()}
+                                  </span>
+                              </div>
+                          }
+                      >
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                              {item.description || "Open ticket."}
+                          </p>
+                      </UniversalCard>
+                  ))}
+              </div>
+            </>
+          )}
         </CommandScreenMain>
 
         <CommandScreenSidebar title="KEEPER QUICK LINKS" icon="rocket_launch">

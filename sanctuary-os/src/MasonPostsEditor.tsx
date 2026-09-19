@@ -56,6 +56,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   const [activeTab, setActiveTab] = useState("all");
 
   const [isPinned, setIsPinned] = useState(false);
+  const [isActive, setIsActive] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const masonHubDrafts = useStore(state => state.masonHubDrafts);
@@ -82,7 +83,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
           content === rawContent &&
           imageUrl === parsedImage &&
           codeSnippet === (editingPost.code_snippet || "") &&
-          isPinned === !!editingPost.is_pinned;
+          isPinned === !!editingPost.is_pinned &&
+          isActive === (editingPost.is_active !== false);
       } else {
         isUnchanged =
           title === "" &&
@@ -90,7 +92,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
           content === "" &&
           imageUrl === "" &&
           codeSnippet === "" &&
-          isPinned === false;
+          isPinned === false &&
+          isActive === true;
       }
 
       if (isUnchanged) {
@@ -103,11 +106,11 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       } else {
         setMasonHubDrafts(prev => ({
           ...prev,
-          [draftId]: { title, description, content, imageUrl, codeSnippet, isPinned }
+          [draftId]: { title, description, content, imageUrl, codeSnippet, isPinned, isActive }
         }));
       }
     }
-  }, [isEditorOpen, editingPostId, editingPost, title, description, content, imageUrl, codeSnippet, isPinned]);
+  }, [isEditorOpen, editingPostId, editingPost, title, description, content, imageUrl, codeSnippet, isPinned, isActive]);
 
   useEffect(() => {
     if (masonHubDrafts && Object.keys(masonHubDrafts).length > 0) {
@@ -210,6 +213,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
       setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
       setIsPinned(draft?.isPinned ?? !!post.is_pinned);
+      setIsActive(draft?.isActive ?? (post.is_active !== false));
 
       const contentToSet = draft?.content ?? rawContent;
       setContent(contentToSet);
@@ -231,6 +235,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       setCodeSnippet(draft?.codeSnippet ?? "");
       setShowCodeInput(!!draft?.codeSnippet);
       setIsPinned(draft?.isPinned ?? false);
+      setIsActive(draft?.isActive ?? true);
     }
     setIsEditorOpen(true);
   };
@@ -251,6 +256,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     setShowImageInput(false);
     setShowIconPicker(false);
     setIsPinned(false);
+    setIsActive(true);
   };
 
   const handleDiscardChanges = () => {
@@ -311,6 +317,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       content: finalContent.trim(),
       code_snippet: codeSnippet.trim() || null,
       is_pinned: isPinned,
+      is_active: isActive
     };
     if (imageUrl.trim()) payload.image_url = imageUrl.trim();
 
@@ -398,6 +405,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   const filteredPosts = useMemo(() => {
     return posts.filter(p => {
       if (activeTab === "pinned" && !p.is_pinned) return false;
+      if (activeTab === "active" && p.is_active === false) return false;
+      if (activeTab === "inactive" && p.is_active !== false) return false;
       return p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
              p.content?.toLowerCase().includes(searchTerm.toLowerCase());
     });
@@ -434,6 +443,18 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       label: t("tab_pinned") || "Pinned",
       icon: "push_pin",
       number: posts.filter(p => p.is_pinned).length
+    },
+    {
+      id: "active",
+      label: t("tab_active") || "Active",
+      icon: "check_circle",
+      number: posts.filter(p => p.is_active !== false).length
+    },
+    {
+      id: "inactive",
+      label: t("tab_inactive") || "Inactive",
+      icon: "cancel",
+      number: posts.filter(p => p.is_active === false).length
     }
   ];
 
@@ -503,6 +524,14 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                   tooltip={t("pin_transmission")}
                   icon="push_pin"
                   isActive={isPinned}
+                />
+                <PanelHeaderButton
+                  onClick={() => setIsActive(!isActive)}
+                  disabled={isSubmitting}
+                  tooltip={isActive ? (t("mark_inactive") || "Mark Inactive") : (t("mark_active") || "Mark Active")}
+                  icon={isActive ? "visibility" : "visibility_off"}
+                  isActive={!isActive}
+                  variant={isActive ? "default" : "warning"}
                 />
                 {editingPostId && (
                   confirmDelete === editingPostId ? (

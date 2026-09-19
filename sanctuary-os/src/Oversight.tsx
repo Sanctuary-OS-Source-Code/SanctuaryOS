@@ -44,9 +44,10 @@ import { WayfinderComms } from "./hub-components/SAWayfinderComms";
 import { MassUpdateOversight } from "./hub-components/SAMassUpdateOversight";
 import { GameManagementOversight } from "./hub-components/SAGameManagementOversight";
 import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
-export default function Oversight({ onOpenMasonProfile }: any) {
+export default function Oversight({ userRole, activeGameSchema, onOpenMasonProfile }: any) {
     const { t } = useLexicon();
-    const [activeTab, setActiveTab] = useState("command_center");
+    const activeTab = useStore((state) => state.oversightActiveTab);
+    const setActiveTab = useStore((state) => state.setOversightActiveTab);
     const [defconOpen, setDefconOpen] = useState(false);
     const [complianceFilter, setComplianceFilter] = useState("ALL");
     const [viewingPost, setViewingPost] = useState<any | null>(null);
@@ -72,43 +73,46 @@ export default function Oversight({ onOpenMasonProfile }: any) {
                 onTitleClick={() => setActiveTab("command_center")}
             />
 
-            <HoverTabDrawer 
-                title="Oversight Navigation" 
-                activeTab={activeTab} 
-                setTab={setActiveTab}
-                footer={
-                    <>
-                        <SidebarFooterButton
-                            icon={t("icon_verified_user")}
-                            label={t("wf_hub_verify")}
-                            variant="glass"
-                            className="w-full"
-                            onClick={() => setIsVerifyPanelOpen(true)}
-                        />
-                        <SidebarFooterButton
-                            icon={defconLevel === 1 ? "warning" : "security"}
-                            label={<span className="truncate">{t("defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>}
-                            variant={defconLevel === 1 ? "danger" : "glass"}
-                            className={`w-full ${defconLevel === 1 ? 'animate-pulse' : ''}`}
-                            onClick={() => setDefconOpen(true)}
-                        />
-                    </>
-                }
-            >
-                <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
-                <VerticalTabButton id="oversight_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
-                <VerticalTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
-                <VerticalTabButton id="compliance" icon={t("icon_policy")} label={t("tab_compliance")} activeTab={activeTab} setTab={setActiveTab} />
+            <div className="md:hidden">
+                <HoverTabDrawer 
+                    title="Oversight Navigation" 
+                    activeTab={activeTab} 
+                    setTab={setActiveTab}
+                    hideMobilePills={true}
+                    footer={
+                        <>
+                            <SidebarFooterButton
+                                icon={t("icon_verified_user")}
+                                label={t("wf_hub_verify")}
+                                variant="glass"
+                                className="w-full"
+                                onClick={() => setIsVerifyPanelOpen(true)}
+                            />
+                            <SidebarFooterButton
+                                icon={defconLevel === 1 ? "warning" : "security"}
+                                label={<span className="truncate">{t("defcon_title").replace("🚨 ", "").replace("⚠️ ", "")}</span>}
+                                variant={defconLevel === 1 ? "danger" : "glass"}
+                                className={`w-full ${defconLevel === 1 ? 'animate-pulse' : ''}`}
+                                onClick={() => setDefconOpen(true)}
+                            />
+                        </>
+                    }
+                >
+                    <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
+                    <VerticalTabButton id="oversight_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
+                    <VerticalTabButton id="identities" icon={t("icon_group")} label={t("tab_identities")} activeTab={activeTab} setTab={setActiveTab} />
+                    <VerticalTabButton id="compliance" icon={t("icon_policy")} label={t("tab_compliance")} activeTab={activeTab} setTab={setActiveTab} />
 
-                <VerticalTabButton id="linker" icon={t("icon_link")} label={t("tab_linker")} activeTab={activeTab} setTab={setActiveTab} />
-                <VerticalTabButton id="malware_oversight" icon={t("icon_coronavirus")} label={t("rating_malware")} activeTab={activeTab} setTab={(id: string) => { setComplianceFilter('pending'); setActiveTab(id); }} />
-                <VerticalTabButton id="oversight_reports" icon={t("icon_threat_intelligence")} label={t("tab_malware_logs")} activeTab={activeTab} setTab={setActiveTab} />
-                <VerticalTabButton id="sanctuary_tickets" icon={t("icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />
-                <VerticalTabButton id="mass_update" icon={t("icon_dynamic_feed")} label={t("tab_mass_update")} activeTab={activeTab} setTab={setActiveTab} />
-                <VerticalTabButton id="game_versions" icon={t("icon_settings")} label={t("tab_game_versions")} activeTab={activeTab} setTab={setActiveTab} />
-                <VerticalTabButton id="support_settings" icon={t("icon_support_agent")} label={t("wf_tab_support")} activeTab={activeTab} setTab={setActiveTab} />
-                <VerticalTabButton id="audit_logs" icon={t("icon_history")} label={t("tab_audit")} activeTab={activeTab} setTab={setActiveTab} />
-            </HoverTabDrawer>
+                    <VerticalTabButton id="linker" icon={t("icon_link")} label={t("tab_linker")} activeTab={activeTab} setTab={setActiveTab} />
+                    <VerticalTabButton id="malware_oversight" icon={t("icon_coronavirus")} label={t("rating_malware")} activeTab={activeTab} setTab={(id: string) => { setComplianceFilter('pending'); setActiveTab(id); }} />
+                    <VerticalTabButton id="oversight_reports" icon={t("icon_threat_intelligence")} label={t("tab_malware_logs")} activeTab={activeTab} setTab={setActiveTab} />
+                    <VerticalTabButton id="sanctuary_tickets" icon={t("icon_local_activity")} label={t("wf_tab_tickets")} activeTab={activeTab} setTab={setActiveTab} />
+                    <VerticalTabButton id="mass_update" icon={t("icon_dynamic_feed")} label={t("tab_mass_update")} activeTab={activeTab} setTab={setActiveTab} />
+                    <VerticalTabButton id="game_versions" icon={t("icon_settings")} label={t("tab_game_versions")} activeTab={activeTab} setTab={setActiveTab} />
+                    <VerticalTabButton id="support_settings" icon={t("icon_support_agent")} label={t("wf_tab_support")} activeTab={activeTab} setTab={setActiveTab} />
+                    <VerticalTabButton id="audit_logs" icon={t("icon_history")} label={t("tab_audit")} activeTab={activeTab} setTab={setActiveTab} />
+                </HoverTabDrawer>
+            </div>
 
             <div className="w-full flex-1 flex flex-col min-h-0">
                 {activeTab === "command_center" && <OversightCommandScreen setTab={setActiveTab} onOpenDefcon={() => setDefconOpen(true)} setComplianceFilter={setComplianceFilter} setViewingPost={setViewingPost} />}

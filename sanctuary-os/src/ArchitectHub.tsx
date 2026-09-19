@@ -28,9 +28,13 @@ import { MasonQueue } from "./ArchitectMasonQueue";
 import { HomesteadDiagnostics } from "./ArchitectHomesteadDiagnostics";
 import { MasonRegistrationSidePanel, FileVerificationSidePanel } from './side-panels/ArchitectSidePanels';
 import { NexusReportsViewer } from "./side-panels/NexusReportsViewer";
+import { useStore } from "./store";
+import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
+
 export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDossier, onOpenMasonProfile, setStatus }: any) {
   const { t } = useLexicon();
-  const [activeTab, setActiveTab] = useState("command_center");
+  const activeTab = useStore((state) => state.architectActiveTab);
+  const setActiveTab = useStore((state) => state.setArchitectActiveTab);
   const [isVerifyPanelOpen, setIsVerifyPanelOpen] = useState(false);
 
   const [registrySearch, setRegistrySearch] = useState("");
@@ -57,34 +61,37 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         onTitleClick={() => setActiveTab("command_center")}
       />
 
-      <HoverTabDrawer
-        title="Architect Navigation"
-        activeTab={activeTab}
-        setTab={setActiveTab}
-        footer={
-          <ActionButton
-            icon={t("icon_verified_user")}
-            label={t("wf_hub_verify")}
-            variant="glass"
-            className="w-full"
-            onClick={() => setIsVerifyPanelOpen(true)}
-          />
-        }
-      >
-        <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="registry" icon={t("icon_inventory_2")} label={t("items")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="queue" icon={t("icon_search")} label={t("tab_queue")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="lab" icon={t("icon_monitor_heart")} label={t("tab_diagnostics")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+      <div className="md:hidden">
+        <HoverTabDrawer
+          title="Architect Navigation"
+          activeTab={activeTab}
+          setTab={setActiveTab}
+          hideMobilePills={true}
+          footer={
+            <ActionButton
+              icon={t("icon_verified_user")}
+              label={t("wf_hub_verify")}
+              variant="glass"
+              className="w-full"
+              onClick={() => setIsVerifyPanelOpen(true)}
+            />
+          }
+        >
+          <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="registry" icon={t("icon_inventory_2")} label={t("items")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="queue" icon={t("icon_search")} label={t("tab_queue")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="lab" icon={t("icon_monitor_heart")} label={t("tab_diagnostics")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
 
-        <VerticalTabButton id="collections" icon={t("icon_collections_bookmark")} label={t("tab_cc")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="protocols" icon={t("icon_link")} label={t("tab_protocols")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="structure" icon={t("icon_architecture")} label={t("tab_structure")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="matrix" icon={t("icon_security")} label={t("tab_matrix")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="mason_queue" icon={t("icon_construction")} label={t("mason")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="template_oversight" icon={t("icon_data_object")} label={t("ql_templates")} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="nexus_reports" icon={t("icon_flag")} label={t("stat_bugs")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-        <VerticalTabButton id="support_tickets" icon={t("icon_local_activity")} label={(t("wf_tab_tickets")).replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
-      </HoverTabDrawer>
+          <VerticalTabButton id="collections" icon={t("icon_collections_bookmark")} label={t("tab_cc")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="protocols" icon={t("icon_link")} label={t("tab_protocols")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="structure" icon={t("icon_architecture")} label={t("tab_structure")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="matrix" icon={t("icon_security")} label={t("tab_matrix")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="mason_queue" icon={t("icon_construction")} label={t("mason")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="template_oversight" icon={t("icon_data_object")} label={t("ql_templates")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="nexus_reports" icon={t("icon_flag")} label={t("stat_bugs")?.replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="support_tickets" icon={t("icon_local_activity")} label={(t("wf_tab_tickets")).replace(/^[^\w]*/, '').trim()} activeTab={activeTab} setTab={setActiveTab} />
+        </HoverTabDrawer>
+      </div>
 
       <FileVerificationSidePanel
         isOpen={isVerifyPanelOpen}

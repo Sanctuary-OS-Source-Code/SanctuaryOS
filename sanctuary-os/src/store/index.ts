@@ -232,6 +232,10 @@ interface GlobalState {
   setMasonHubDrafts: (drafts: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => void;
   cwMainTab: "COMMAND" | "CONFIGS" | "TEMPLATES";
   setCwMainTab: (tab: "COMMAND" | "CONFIGS" | "TEMPLATES") => void;
+  architectActiveTab: string;
+  setArchitectActiveTab: (tab: string) => void;
+  oversightActiveTab: string;
+  setOversightActiveTab: (tab: string) => void;
   wayfinderActiveTab: string;
   setWayfinderActiveTab: (tab: string) => void;
   keepersActiveTab: string;
@@ -309,8 +313,14 @@ export const useStore = create<GlobalState>((set) => ({
 
     return { status, statusLog: [newEntry, ...state.statusLog].slice(0, 50) };
   }),
+  architectActiveTab: "command_center",
+  setArchitectActiveTab: (tab) => set({ architectActiveTab: tab }),
+  oversightActiveTab: "command_center",
+  setOversightActiveTab: (tab) => set({ oversightActiveTab: tab }),
   wayfinderActiveTab: "command_center",
   setWayfinderActiveTab: (tab) => set({ wayfinderActiveTab: tab }),
+  keepersActiveTab: "command_center",
+  setKeepersActiveTab: (tab) => set({ keepersActiveTab: tab }),
   cwMainTab: "COMMAND",
   setCwMainTab: (tab) => set({ cwMainTab: tab }),
   statusLog: [],
@@ -520,9 +530,7 @@ export const useStore = create<GlobalState>((set) => ({
       const wsId = state.activeWorkspaceId || 'default';
       localStorage.setItem(`sanctuary_${wsId}_mason_hub_drafts`, JSON.stringify(newDrafts));
       return { masonHubDrafts: newDrafts };
-  }),
-  keepersActiveTab: "active_games",
-  setKeepersActiveTab: (tab) => set({ keepersActiveTab: tab })
+  })
 }));
 
 export const syncMasterSchemas = async (initialSchemaId: string = 'default_schema') => {

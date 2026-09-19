@@ -3099,5 +3099,11 @@
   "status_tag_unknown": "Unknown",
   "status_tag_unstable": "Unstable & Corrupted",
   "title_issues": "Issues",
-  "no_issues": "No Issues"
+  "no_issues": "No Issues",
+  "registry_no_issues": "No Known Issues",
+  "recent_hashes": "Recent DNA Hashes",
+  "recent_protocols": "Recent Protocols",
+  "recent_structures": "Recent Structures",
+  "tab_workspace": "Workspace",
+  "tab_recent": "Recent Changes"
 }

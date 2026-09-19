@@ -4,6 +4,7 @@ import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
 import { CommandScreenLayout, UrgentBroadcastBanner, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, SystemBroadcastsGrid, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
+import { UniversalCard } from "../../components/universal/UniversalCard";
 
 export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPost }: any) {
   const { t } = useLexicon();
@@ -11,6 +12,10 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [stats, setStats] = useState({ masons: 0, citizens: 0, explicit: 0, malware: 0, nsfw: 0, tickets: 0, architects: 0, artifacts: 0, blacklists: 0, oversightQueue: 0, oversightQueueNew: 0, urgentBroadcast: null as any | null });
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
+
+  const [recentSupport, setRecentSupport] = useState<any[]>([]);
+  const [recentMalware, setRecentMalware] = useState<any[]>([]);
+  const [recentCompliance, setRecentCompliance] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchBroadcasts = async () => {
@@ -29,7 +34,18 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
         })));
       }
     };
+    const fetchRecentItems = async () => {
+        const [supportRes, malwareRes, complianceRes] = await Promise.all([
+            supabase.from('sanctuary_tickets').select('*').neq('status', 'RESOLVED').order('created_at', { ascending: false }).limit(6),
+            supabase.from('malware_reports').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
+            supabase.from('mods').select('id, name, created_at, description, compliance_tier').in('compliance_tier', [1,2,3,4,5]).order('created_at', { ascending: false }).limit(6)
+        ]);
+        if (supportRes.data) setRecentSupport(supportRes.data);
+        if (malwareRes.data) setRecentMalware(malwareRes.data);
+        if (complianceRes.data) setRecentCompliance(complianceRes.data);
+    };
     fetchBroadcasts();
+    fetchRecentItems();
   }, []);
 
   useEffect(() => {
@@ -194,6 +210,109 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
           <div className="w-full mb-8">
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
           </div>
+
+          {recentSupport.length > 0 && (
+            <>
+              <CommandScreenSectionHeading title={t("wf_tab_tickets")} icon="local_activity" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                  {recentSupport.map((item: any) => (
+                      <UniversalCard 
+                          key={`support-${item.id}`} 
+                          layout="vertical" 
+                          title={item.ticket_type || "Support Ticket"} 
+                          icon="local_activity" 
+                          onClick={() => setTab("sanctuary_tickets")}
+                          className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--info)_20%,transparent)] text-[var(--info)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("wf_tab_tickets")}</span>
+                              </div>
+                          }
+                          footer={
+                              <div className="flex items-center justify-start w-full mt-2">
+                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
+                                  </span>
+                              </div>
+                          }
+                      >
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                              {item.metadata?.description || "Open ticket."}
+                          </p>
+                      </UniversalCard>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {recentMalware.length > 0 && (
+            <>
+              <CommandScreenSectionHeading title={t("rating_malware")} icon="coronavirus" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                  {recentMalware.map((item: any) => (
+                      <UniversalCard 
+                          key={`malware-${item.id}`} 
+                          layout="vertical" 
+                          title={"Malware Report"} 
+                          icon="coronavirus" 
+                          onClick={() => { setComplianceFilter('pending'); setTab("malware_oversight"); }}
+                          className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("rating_malware")}</span>
+                              </div>
+                          }
+                          footer={
+                              <div className="flex items-center justify-start w-full mt-2">
+                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
+                                  </span>
+                              </div>
+                          }
+                      >
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                              {item.reason || "Pending oversight review."}
+                          </p>
+                      </UniversalCard>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {recentCompliance.length > 0 && (
+            <>
+              <CommandScreenSectionHeading title={t("tab_compliance")} icon="policy" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                  {recentCompliance.map((item: any) => (
+                      <UniversalCard 
+                          key={`compliance-${item.id}`} 
+                          layout="vertical" 
+                          title={item.name || "Artifact"} 
+                          icon="policy" 
+                          onClick={() => setTab("compliance")}
+                          className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("tab_compliance")}</span>
+                              </div>
+                          }
+                          footer={
+                              <div className="flex items-center justify-start w-full mt-2">
+                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
+                                  </span>
+                              </div>
+                          }
+                      >
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
+                              {item.description || "Compliance flagged artifact."}
+                          </p>
+                      </UniversalCard>
+                  ))}
+              </div>
+            </>
+          )}
+
           <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <CommandScreenMetricTile value={stats.citizens + stats.masons} label={t("stat_users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />

@@ -85,8 +85,9 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
   const [livePreview, setLivePreview] = useState(false);
   const [originalThemeId, setOriginalThemeId] = useState(activeThemeId);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<'overview' | 'local' | 'published'>('overview');
-  const [publishedThemes, setPublishedThemes] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'local' | 'synced'>('overview');
+  const [syncedThemes, setSyncedThemes] = useState<any[]>([]);
+  const [flags, setFlags] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchPublished = async () => {
@@ -96,7 +97,13 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         .select('*')
         .eq('asset_type', 'chameleon')
         .or(`mason_id.eq.${masonProfile.id},author.eq.${masonProfile.name}`);
-      if (data) setPublishedThemes(data);
+      if (data) setSyncedThemes(data);
+      
+      const { data: flagsData } = await supabase.from('nexus_reports').select('*').order('created_at', { ascending: false });
+      if (flagsData && data) {
+          const myThemeIds = data.map(d => d.id);
+          setFlags(flagsData.filter((f: any) => myThemeIds.includes(f.asset_id)));
+      }
     };
     fetchPublished();
   }, [masonProfile?.id]);
@@ -191,7 +198,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
   };
 
   const unpublishedCustomThemes = Object.entries(customThemes).filter(([id, theme]: any) => 
-    !publishedThemes.some(pt => pt.name === theme.name)
+    !syncedThemes.some(pt => pt.name === theme.name)
   );
 
   const tabs = [
@@ -207,35 +214,78 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
       number: unpublishedCustomThemes.length + Object.keys(devThemes).length
     },
     {
-      id: "published",
-      label: t("chameleon_published") || "Published",
-      icon: "cloud",
-      number: publishedThemes.length
+      id: "synced",
+      label: t("synced_badge") || "Synced",
+      icon: "cloud_done",
+      number: syncedThemes.length
     }
   ];
 
   const renderLanding = () => {
+    const recentSynced = [...syncedThemes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 4);
+    const flaggedThemes = syncedThemes.filter(st => flags.some(f => f.asset_id === st.id)).slice(0, 4);
+
     return (
-      <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--accent)]">palette</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("theme_personal") || "Custom Themes"}</h3>
-            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl theme-glass-panel border shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0 border-[color-mix(in_srgb,var(--success)_30%,transparent)]">
+                <span className="material-symbols-outlined !text-[24px] opacity-90 drop-shadow-lg text-[var(--success)]">schedule</span>
+              </div>
+              Recent Themes
+            </h3>
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-            {Object.entries(customThemes).slice(0, 4).map(([id, theme]: any) => (
-              <ThemeCard
-                key={id}
-                id={id}
-                theme={theme}
-                isDev={false}
-                onClick={() => openEditor(id)}
-                onDelete={deleteTheme}
-                confirmDelete={confirmDelete}
-                setConfirmDelete={setConfirmDelete}
-              />
-            ))}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
+            {recentSynced.length > 0 ? recentSynced.map((pt: any) => {
+              const themeData = typeof pt.json_data === 'string' ? JSON.parse(pt.json_data) : pt.json_data;
+              return (
+                <ThemeCard
+                  key={pt.id}
+                  id={pt.id}
+                  theme={themeData}
+                  isDev={false}
+                  onClick={() => openEditor(pt.id)}
+                  onDelete={() => {}}
+                  confirmDelete={confirmDelete}
+                  setConfirmDelete={setConfirmDelete}
+                  isCloud={true}
+                />
+              )
+            }) : (
+              <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent themes found</div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl theme-glass-panel border shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0 border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
+                <span className="material-symbols-outlined !text-[24px] opacity-90 drop-shadow-lg text-[var(--danger)]">flag</span>
+              </div>
+              Flagged Themes
+            </h3>
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
+            {flaggedThemes.length > 0 ? flaggedThemes.map((pt: any) => {
+              const themeData = typeof pt.json_data === 'string' ? JSON.parse(pt.json_data) : pt.json_data;
+              return (
+                <ThemeCard
+                  key={pt.id}
+                  id={pt.id}
+                  theme={themeData}
+                  isDev={false}
+                  onClick={() => openEditor(pt.id)}
+                  onDelete={() => {}}
+                  confirmDelete={confirmDelete}
+                  setConfirmDelete={setConfirmDelete}
+                  isCloud={true}
+                />
+              )
+            }) : (
+              <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No flagged themes found</div>
+            )}
           </div>
         </div>
       </div>
@@ -243,11 +293,11 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
   };
 
   const renderList = () => {
-    if (activeTab === 'published') {
+    if (activeTab === 'synced') {
       return (
         <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
-            {publishedThemes.filter(pt => !searchQuery || pt.name.toLowerCase().includes(searchQuery.toLowerCase())).map((pt: any) => {
+            {syncedThemes.filter(pt => !searchQuery || pt.name.toLowerCase().includes(searchQuery.toLowerCase())).map((pt: any) => {
               const themeData = typeof pt.json_data === 'string' ? JSON.parse(pt.json_data) : pt.json_data;
               return (
                 <ThemeCard

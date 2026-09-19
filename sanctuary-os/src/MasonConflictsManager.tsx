@@ -152,11 +152,13 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
     return nameA.toLowerCase().includes(search) || nameB.toLowerCase().includes(search) || (c.resolution_note || "").toLowerCase().includes(search);
   });
 
-  const s4Conflicts = filteredGhosts.filter(c => c.severity_rank === 4);
-  const s3Conflicts = filteredGhosts.filter(c => c.severity_rank === 3);
+  const s4Conflicts = filteredGhosts.filter(c => c.severity_rank === 4 && c.status !== 'pending');
+  const s3Conflicts = filteredGhosts.filter(c => c.severity_rank === 3 && c.status !== 'pending');
+  const pendingConflicts = filteredGhosts.filter(c => c.status === 'pending');
 
   const recentS4 = s4Conflicts.slice(0, 5);
   const recentS3 = s3Conflicts.slice(0, 5);
+  const recentPending = pendingConflicts.slice(0, 5);
 
   const renderConflictCard = (c: any) => {
     const nameA = c.mod_a?.name || c.mod_a || "UNKNOWN";
@@ -203,7 +205,23 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
 
   const renderLanding = () => (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
+            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-90 drop-shadow-lg">hourglass_empty</span>
+              </div>
+              {t("status_tag_pending") || "Pending"}
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            {recentPending.length > 0 ? recentPending.map(renderConflictCard) : (
+              <EmptyState icon="check_circle" title={t("masonhub_no_conflicts") || "No Conflicts"} className="py-8" />
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
             <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
@@ -213,7 +231,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
               {t("tier4") || "S4 Conflicts"}
             </h3>
           </div>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {recentS4.length > 0 ? recentS4.map(renderConflictCard) : (
               <EmptyState icon="check_circle" title={t("masonhub_no_conflicts") || "No Conflicts"} className="py-8" />
             )}
@@ -229,7 +247,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
               {t("tier3") || "S3 Conflicts"}
             </h3>
           </div>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {recentS3.length > 0 ? recentS3.map(renderConflictCard) : (
               <EmptyState icon="check_circle" title={t("masonhub_no_conflicts") || "No Conflicts"} className="py-8" />
             )}
@@ -275,11 +293,13 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
       onTabChange={setActiveTab}
       tabs={[
         { id: 'LANDING', label: t("overview_tab") || "Overview", icon: 'dashboard', number: formatOverviewMetric(ghosts, 'created_at'), colorClass: 'text-[var(--accent)]' },
+        { id: 'PENDING', label: t("status_tag_pending") || "Pending", icon: 'hourglass_empty', number: pendingConflicts.length.toString(), colorClass: 'text-[var(--text)]' },
         { id: '4', label: "S4", icon: 'warning', number: s4Conflicts.length.toString(), colorClass: 'text-[var(--danger)]' },
         { id: '3', label: "S3", icon: 'error', number: s3Conflicts.length.toString(), colorClass: 'text-[var(--warning)]' }
       ]}
     >
       {activeTab === "LANDING" && renderLanding()}
+      {activeTab === "PENDING" && renderList(pendingConflicts)}
       {activeTab === "4" && renderList(s4Conflicts)}
       {activeTab === "3" && renderList(s3Conflicts)}
 

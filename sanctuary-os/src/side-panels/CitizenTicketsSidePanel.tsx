@@ -8,11 +8,19 @@ interface CitizenTicketsSidePanelProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
+  initialTicketId?: string;
 }
 
-export default function CitizenTicketsSidePanel({ isOpen, onClose, userId }: CitizenTicketsSidePanelProps) {
+export default function CitizenTicketsSidePanel({ isOpen, onClose, userId, initialTicketId }: CitizenTicketsSidePanelProps) {
   const { t } = useLexicon();
-  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+
+  React.useEffect(() => {
+    if (isOpen && initialTicketId) {
+      setSelectedTicket({ id: initialTicketId });
+    }
+  }, [isOpen, initialTicketId]);
+
   return (
     <>
       <SidePanel

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActionPill, DashboardStatTile, useIsMobile, HeaderActionPortal, HubTabButton } from '../../shared';
+import { ActionPill, DashboardStatTile, useIsMobile, HeaderActionPortal } from '../../shared';
 import { StatTileCarousel } from '../../hub-components/SharedCommandScreenLayout';
 
 export interface HubTab {
@@ -19,6 +19,7 @@ interface ElevatedHubLayoutProps {
   headerBreadcrumb?: string;
   onHeaderTitleClick?: () => void;
 
+
   // Utility Bar Props
   search?: string;
   onSearchChange?: (val: string) => void;
@@ -27,6 +28,13 @@ interface ElevatedHubLayoutProps {
   hideSearch?: boolean;
   hideHeader?: boolean;
   leftContent?: React.ReactNode;
+  primaryPopover?: {
+    icon: string;
+    label: string;
+    content: React.ReactNode;
+    hideLabelOnMobile?: boolean;
+    buttonClassName?: string;
+  };
 
   // Navigation (Big Stat Tiles below header)
   tabs?: HubTab[];
@@ -58,6 +66,7 @@ export function ElevatedHubLayout({
   hideSearch = false,
   hideHeader = false,
   leftContent,
+  primaryPopover,
   tabs = [],
   activeTab = "",
   onTabChange = () => { },
@@ -79,6 +88,7 @@ export function ElevatedHubLayout({
             hideSearch={hideSearch}
             leftContent={leftContent}
             rightContent={headerActions}
+            primaryPopover={primaryPopover}
           />
         </HeaderActionPortal>
       )}
@@ -86,19 +96,21 @@ export function ElevatedHubLayout({
       <div className="flex-1 flex flex-col h-full px-6 pt-4">
         {/* Navigation Tabs (Big Stat Tiles) */}
         {tabs.length > 0 && (
-          <div className="w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-4 md:mb-8 shrink-0">
-            <div className="grid grid-cols-2 md:flex md:flex-row w-full gap-3">
+          <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 md:mb-8 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+            <StatTileCarousel innerClassName="px-6 md:px-0">
               {tabs.map((tab) => (
-                <HubTabButton
+                <DashboardStatTile
                   key={tab.id}
-                  id={tab.id}
-                  icon={tab.icon}
+                  variant="tab"
+                  isActive={activeTab === tab.id}
+                  icon={tab.icon || "dashboard"}
                   label={tab.label}
-                  activeTab={activeTab}
-                  setTab={onTabChange}
+                  number={tab.number}
+                  onClick={() => onTabChange(tab.id)}
+                  colorClass={tab.colorClass}
                 />
               ))}
-            </div>
+            </StatTileCarousel>
           </div>
         )}
 

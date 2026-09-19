@@ -111,5 +111,11 @@
   "status_tag_unknown": "Who Knows?",
   "status_tag_unstable": "Broken/Glitchy",
   "title_issues": "Issues",
-  "no_issues": "No Issues"
+  "no_issues": "No Issues",
+  "registry_no_issues": "No Issues Found",
+  "recent_hashes": "Recent Hashes",
+  "recent_protocols": "Recent Protocols",
+  "recent_structures": "Recent Structures",
+  "tab_workspace": "Workspace",
+  "tab_recent": "Recent Changes"
 }

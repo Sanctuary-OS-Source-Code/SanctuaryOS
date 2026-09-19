@@ -96,7 +96,7 @@ export function UniversalCard({
 
   const cleanStatusColor = statusColor ? statusColor.split(' ').filter((c: string) => !c.startsWith('border-') && !c.startsWith('theme-border-')).join(' ') : "";
   const activeClasses = isActive
-    ? "border border-[var(--accent)] shadow-[0_0_40px_-10px_var(--accent),inset_0_0_20px_-5px_var(--accent)] scale-[1.02] z-10"
+    ? "border border-[var(--accent)] scale-[1.02] z-10"
     : cleanStatusColor;
 
   // For ghosted or disabled states
