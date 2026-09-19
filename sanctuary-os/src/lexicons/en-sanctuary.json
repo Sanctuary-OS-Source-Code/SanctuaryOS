@@ -3107,5 +3107,12 @@
   "mod_version": "Artifact Version",
   "btn_fullscreen": "Fullscreen",
   "status_unknown": "Unidentified",
-  "badge_premium": "Prime Access"
+  "badge_premium": "Prime Access",
+  "status_tag_stable": "Stable",
+  "status_tag_under_review": "Under Review",
+  "status_tag_pending": "Pending",
+  "status_tag_unknown": "Unknown",
+  "status_tag_unstable": "Corrupted",
+  "title_issues": "Issues",
+  "no_issues": "No Issues"
 }

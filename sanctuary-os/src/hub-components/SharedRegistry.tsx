@@ -3,12 +3,13 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill, HeaderActionPortal } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, GameVersionMultiSelect, CustomComplianceDropdown, CustomDatePicker, standardButtonClass, standardAccentGlassButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill, HeaderActionPortal, DashboardStatTile } from "../shared";
 import { ArtifactCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
 import { logArchitectAction } from "../lib/audit";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { StatTileCarousel } from "./SharedCommandScreenLayout";
 const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
 
 
@@ -23,7 +24,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [activeSubType, setActiveSubType] = useState("ALL");
-  const [activeTab, setActiveTab] = useState<"overview" | "all">("overview");
+  const [activeTab, setActiveTab] = useState<string>("overview");
 
   const fetchData = async () => {
     const { data } = await supabase.from('mods').select('*, mod_versions(id, dna_hash, version_label, game_version)').eq('mason_id', masonId).order('name');
@@ -133,13 +134,14 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
           {filteredMods.length === 0 ? (
             <EmptyState icon={t("icon_deployed_code")} title={t("registry_no_mods")} className="py-8" />
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pr-2">
-              {filteredMods.slice(0, 6).map((mod: any) => (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pr-2">
+              {filteredMods.slice(0, 4).map((mod: any) => (
                 <ArtifactCard
                   key={mod.id}
                   mod={mod}
                   activeModId={activeMod?.id}
                   onClick={() => setActiveMod(mod)}
+                  layout="horizontal"
                 />
               ))}
             </div>
@@ -155,7 +157,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         {displayMods.length === 0 ? (
           <EmptyState icon={t("icon_deployed_code")} title={t("registry_no_mods")} className="py-8" />
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pr-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pr-2">
             {displayMods.map((mod: any) => (
               <ArtifactCard
                 key={mod.id}
@@ -174,45 +176,57 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
 
   return (
     <>
-      <ElevatedHubLayout
-        headerTitle={t("items") || "Artifact Registry"}
-        headerIcon="inventory_2"
-        search={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder={t("search_ph") as string}
-        tabs={[
-          { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
-          { id: "all", label: t("hub_all_artifacts") || "All Artifacts", icon: "inventory_2", number: filteredMods.length }
-        ]}
-        activeTab={activeTab}
-        onTabChange={(id) => setActiveTab(id as any)}
-        headerActions={
-          <div className="flex items-center gap-2">
-            <CustomDropdown disableTint={true} flat={true} variant="pill" value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
-              { id: "ALL", label: t("status_dd_all") },
-              { id: "stable", label: t("status_dd_stable") },
-              { id: "unstable", label: t("label_unstable") },
-              { id: "corrupted", label: t("status_corrupted") },
-              { id: "under_review", label: t("status_dd_review") },
-              { id: "pending", label: t("pending") },
-              { id: "unverified", label: t("unverified") },
-            ]} />
-            <CustomClassificationDropdown value={activeCategory} onChange={(val: string) => setActiveCategory(val)} includeAll={true} />
-            {activeCategory === "CAS" && (
-              <CustomDropdown disableTint={true} flat={true} variant="pill" value={activeSubType} onChange={(val: string[]) => setActiveSubType(val[0])} options={[
-                { id: "ALL", label: t("status_dd_all") },
-                { id: "Hair", label: "Hair" },
-                { id: "Top", label: "Top" },
-                { id: "Bottom", label: "Bottom" },
-                { id: "Shoes", label: "Shoes" },
-                { id: "Accessories", label: "Accessories" }
-              ]} />
-            )}
-          </div>
-        }
-      >
-        {activeTab === 'overview' ? renderLanding() : renderList()}
-      </ElevatedHubLayout>
+      <div className="flex flex-col w-full h-full relative">
+        <HeaderActionPortal>
+          <ActionPill
+            searchQuery={searchTerm}
+            setSearchQuery={setSearchTerm}
+            searchPlaceholder={t("search_ph") as string}
+            primaryPopover={{
+              icon: "tune",
+              label: t("filters") || "Filters",
+              content: (
+                <div className="flex flex-col w-[400px] p-4 text-left max-w-[calc(100vw-40px)]">
+                  <div className="flex flex-col mb-5 w-full">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                      {t("filter_category") || "Category"}
+                    </div>
+                    <CustomClassificationDropdown 
+                      value={activeCategory} 
+                      onChange={setActiveCategory} 
+                      hideLabel={true} 
+                    />
+                  </div>
+                  <div className="flex flex-col w-full">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                      {t("filter_status") || "Status"}
+                    </div>
+                    <MasonStatusDropdown
+                      value={activeSubType}
+                      onChange={setActiveSubType}
+                    />
+                  </div>
+                </div>
+              )
+            }}
+          />
+        </HeaderActionPortal>
+
+        <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+          <StatTileCarousel innerClassName="px-6 md:px-0">
+            <DashboardStatTile variant="tab" isActive={activeTab === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} number={myMods.length} onClick={() => setActiveTab('overview')} />
+            <DashboardStatTile variant="tab" isActive={activeTab === 'stable'} icon="verified" label={t("status_tag_stable") || "Stable"} number={myMods.filter(m => m.status === 'stable').length} onClick={() => setActiveTab('stable')} />
+            <DashboardStatTile variant="tab" isActive={activeTab === 'under_review'} icon="policy" label={t("status_tag_under_review") || "Under Review"} number={myMods.filter(m => m.status === 'under_review').length} onClick={() => setActiveTab('under_review')} />
+            <DashboardStatTile variant="tab" isActive={activeTab === 'pending'} icon="schedule" label={t("status_tag_pending") || "Pending"} number={myMods.filter(m => m.status === 'pending').length} onClick={() => setActiveTab('pending')} />
+            <DashboardStatTile variant="tab" isActive={activeTab === 'unknown'} icon="help" label={t("status_tag_unknown") || "Unknown"} number={myMods.filter(m => m.status === 'unknown' || !m.status).length} onClick={() => setActiveTab('unknown')} />
+            <DashboardStatTile variant="tab" isActive={activeTab === 'unstable_corrupted'} icon="warning" label={t("status_tag_unstable") || "Unstable & Corrupted"} number={myMods.filter(m => m.status === 'unstable' || m.status === 'corrupted').length} onClick={() => setActiveTab('unstable_corrupted')} />
+          </StatTileCarousel>
+        </div>
+
+        <div className="flex-1 relative">
+          {activeTab === 'overview' ? renderLanding() : renderList()}
+        </div>
+      </div>
 
       <SidePanel
         isOpen={!!activeMod}

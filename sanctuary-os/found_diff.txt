@@ -1,0 +1,56 @@
+Created At: 2026-09-19T16:13:25-04:00
+Completed At: 2026-09-19T16:13:25-04:00
+
+				The command exited with code 0.
+				Output:
+				commit 288f2c5d523532eb40267cf6cab8e7442110fef9
+Author: Sanctuary-OS-Source-Code <ty.lyons26@gmail.com>
+Date:   Wed Sep 9 16:27:32 2026 -0400
+
+    V0.5.5-1
+
+diff --git a/sanctuary-os/src/MobileBottomNav.tsx b/sanctuary-os/src/MobileBottomNav.tsx
+index 10de6aa..d0afd03 100644
+--- a/sanctuary-os/src/MobileBottomNav.tsx
++++ b/sanctuary-os/src/MobileBottomNav.tsx
+@@ -8,6 +8,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v:
+   const { t } = useLexicon();
+   const session = useStore((state) => state.session);
+   const userRole = useStore((state) => state.userRole);
++  const osRole = useStore((state) => state.osRole);
+   const activeGameSchema = useStore((state) => state.activeGameSchema);
+   const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
+   const [isMenuOpen, setIsMenuOpen] = useState(false);
+@@ -144,7 +145,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v:
+             </button>
+           )}
+ 
+-          {["core_dev", "admin", "keeper"].includes(userRole) && (
++          {["core_dev", "admin", "keeper"].includes(osRole) && (
+             <button onClick={() => handleTabClick('KeepersCore')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
+               <span className="material-symbols-outlined text-green-400 text-[20px]">{t("icon_terminal") || "terminal"}</span>
+               <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("sidebar_keepers_core") || "Keepers Core"}</span>
+
+commit 985ae74e59b701e61668178880f3362075c56cb0
+Author: Sanctuary-OS-Source-Code <ty.lyons26@gmail.com>
+Date:   Tue Sep 8 03:56:13 2026 -0400
+
+    Initial commit (Clean slate)
+
+diff --git a/sanctuary-os/src/MobileBottomNav.tsx b/sanctuary-os/src/MobileBottomNav.tsx
+new file mode 100644
+index 0000000..10de6aa
+--- /dev/null
++++ b/sanctuary-os/src/MobileBottomNav.tsx
+@@ -0,0 +1,157 @@
++import React, { useState } from 'react';
++import { useStore } from './store';
++import { useLexicon } from './LexiconContext';
++import { useTheme } from './ThemeContext';
++import { isRootDomain } from './utils/routingUtils';
++
++export function MobileBottomNav({ view, setView }: { view: string, setView: (v: string) => void }) {
++  const { t } = useLexicon();
++  const session = useStore((state) => state.session);
++  const userRole = useStore((state) => state.userRole);
+

@@ -24,6 +24,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "./utils/envUtils";
+import { isRootDomain } from "./utils/routingUtils";
 import MasonConflictsManager from "./MasonConflictsManager";
 import MasonBugReports from "./MasonBugReports";
 import MasonNotepadSidePanel from './side-panels/MasonNotepadSidePanel';
@@ -42,7 +43,9 @@ import { MasonNexus } from "./MasonNexus";
 import { MasonChameleons } from "./MasonChameleons";
 export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handleOpenMasonProfile }: { sandboxMod?: any, clearSandboxMod?: () => void, vaultPath?: string, handleOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
   const { t } = useLexicon();
-  const { session, masonActiveTab, setMasonActiveTab } = useStore();
+  const session = useStore((state) => state.session);
+  const masonActiveTab = useStore((state) => state.masonActiveTab);
+  const setMasonActiveTab = useStore((state) => state.setMasonActiveTab);
   const [masonProfile, setMasonProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -54,6 +57,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [activeAsset, setActiveAsset] = useState<{ type: string, id: string } | null>(null);
   const [registryTargetMod, setRegistryTargetMod] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (sandboxMod) setMasonActiveTab("sandbox");
@@ -93,54 +97,57 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         breadcrumb={masonActiveTab !== "command_center" ? masonActiveTab.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
       />
 
-      <HoverTabDrawer
-        title="Mason Navigation"
-        activeTab={masonActiveTab}
-        setTab={setMasonActiveTab}
-        footer={
-          <>
-            <ActionButton
-              icon={t("icon_visibility")}
-              label={t("btn_view_profile")}
-              variant="glass"
-              className="w-full"
-              onClick={() => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)}
-            />
-            <ActionButton
-              icon={t("icon_description")}
-              label={t("ui_btn_notepad")}
-              variant="glass"
-              className="w-full"
-              onClick={() => setIsNotepadOpen(true)}
-            />
-            <ActionButton
-              icon={t("icon_settings")}
-              label={t("wf_tab_support")}
-              variant="glass"
-              className="w-full"
-              onClick={() => setIsSettingsOpen(true)}
-            />
-          </>
-        }
-      >
-        <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={(t("wf_tab_command")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="registry" icon={t("icon_deployed_code")} label={(t("items")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="nexus" icon={t("icon_hub")} label={(t("tab_nexus")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        {isDesktop() && (
-          <>
-            <VerticalTabButton id="sandbox" icon={t("icon_handyman")} label={(t("filter_dev")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-            <VerticalTabButton id="chameleons" icon="palette" label={(t("tab_chameleons")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-            <VerticalTabButton id="ide" icon={t("icon_code")} label={(t("ide_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          </>
-        )}
+      <div className="md:hidden">
+        <HoverTabDrawer
+          title="Mason Navigation"
+          activeTab={masonActiveTab}
+          setTab={setMasonActiveTab}
+          hideMobilePills={true}
+          footer={
+            <>
+              <ActionButton
+                icon={t("icon_visibility")}
+                label={t("btn_view_profile")}
+                variant="glass"
+                className="w-full"
+                onClick={() => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)}
+              />
+              <ActionButton
+                icon={t("icon_description")}
+                label={t("ui_btn_notepad")}
+                variant="glass"
+                className="w-full"
+                onClick={() => setIsNotepadOpen(true)}
+              />
+              <ActionButton
+                icon={t("icon_settings")}
+                label={t("wf_tab_support")}
+                variant="glass"
+                className="w-full"
+                onClick={() => setIsSettingsOpen(true)}
+              />
+            </>
+          }
+        >
+          <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={(t("wf_tab_command")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="registry" icon={t("icon_deployed_code")} label={(t("items")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="nexus" icon={t("icon_hub")} label={(t("tab_nexus")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          {isDesktop() && (
+            <>
+              <VerticalTabButton id="sandbox" icon={t("icon_handyman")} label={(t("filter_dev")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+              <VerticalTabButton id="chameleons" icon="palette" label={(t("tab_chameleons")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+              <VerticalTabButton id="ide" icon={t("icon_code")} label={(t("ide_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+            </>
+          )}
 
-        <VerticalTabButton id="collections" icon={t("icon_collections_bookmark")} label={(t("tab_cc")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="protocols" icon={t("icon_link")} label={(t("tab_protocols")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="structure" icon={t("icon_architecture")} label={(t("tab_structure")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="conflicts" icon={t("icon_security")} label={(t("tab_matrix")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="posts" icon={t("icon_edit_document")} label={(t("tab_posts")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-        <VerticalTabButton id="bug_reports" icon={t("icon_bug_report")} label={(t("stat_bugs")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-      </HoverTabDrawer>
+          <VerticalTabButton id="collections" icon={t("icon_collections_bookmark")} label={(t("tab_cc")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="protocols" icon={t("icon_link")} label={(t("tab_protocols")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="structure" icon={t("icon_architecture")} label={(t("tab_structure")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="conflicts" icon={t("icon_security")} label={(t("tab_matrix")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="posts" icon={t("icon_edit_document")} label={(t("tab_posts")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="bug_reports" icon={t("icon_bug_report")} label={(t("stat_bugs")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+        </HoverTabDrawer>
+      </div>
 
       <div className="w-full pr-4">
         {masonActiveTab === "command_center" && <MasonCommandScreen onNavigate={setMasonActiveTab} masonId={masonProfile.id} session={session} onOpenRecentReplies={() => setIsRecentRepliesOpen(true)} onOpenSupportDesk={() => setIsSupportDeskOpen(true)} setViewingPost={setViewingPost} />}
@@ -196,7 +203,8 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
 
 function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
   const { t } = useLexicon();
-  const [query, setQuery] = useState("");  const results = cloudMods.filter((m: any) =>
+  const [query, setQuery] = useState("");
+  const results = cloudMods.filter((m: any) =>
     (m.name || '').toLowerCase().includes((query || '').toLowerCase()) ||
     (m.master_author || '').toLowerCase().includes((query || '').toLowerCase())
   ).slice(0, 15);
@@ -229,17 +237,14 @@ function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
 export function MasonStatusDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const options = [
-    { id: 'stable', label: t("status_dd_stable") },
-    { id: 'unstable', label: t("label_unstable") },
-    { id: 'corrupted', label: t("status_corrupted") },
-    { id: 'under_review', label: t("status_dd_review") },
-    { id: 'pending', label: t("pending") },
-    { id: 'unverified', label: t("unverified") },
+    { id: 'stable', label: t("status_tag_stable") || "Stable" },
+    { id: 'unstable', label: t("status_tag_unstable") || "Unstable" },
+    { id: 'corrupted', label: t("status_tag_corrupted") || "Corrupted" },
+    { id: 'under_review', label: t("status_tag_under_review") || "Under Review" },
+    { id: 'pending', label: t("status_tag_pending") || "Pending" },
+    { id: 'unknown', label: t("status_tag_unknown") || "Unknown" },
   ];
-  if (value === 'verified') {
-    options.unshift({ id: 'verified', label: t("status_dd_verified") });
-  }
-  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("mason")} />;
+  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("registry_label_status")} />;
 }
 
 

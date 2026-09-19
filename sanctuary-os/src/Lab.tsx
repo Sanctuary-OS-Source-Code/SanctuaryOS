@@ -754,6 +754,8 @@ Mod ID: ${reportTarget?.hash || reportTarget?.id || "N/A"}
                                     .from("mods")
                                     .select("*")
                                     .eq("id", depId)
+                                    .eq("compliance_tier", 0)
+                                    .in("status", ["stable", "unstable", "corrupted", "pending"])
                                     .single();
                                   data = d;
                                 } else {
@@ -766,6 +768,8 @@ Mod ID: ${reportTarget?.hash || reportTarget?.id || "N/A"}
                                     .from("mods")
                                     .select("*")
                                     .ilike("name", `%${searchTerms}%`)
+                                    .eq("compliance_tier", 0)
+                                    .in("status", ["stable", "unstable", "corrupted", "pending"])
                                     .limit(1)
                                     .maybeSingle();
                                   data = d;

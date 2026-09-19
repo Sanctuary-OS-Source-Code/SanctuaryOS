@@ -127,19 +127,20 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
 export function CustomStatusDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const options = [
-    { id: 'stable', label: t("status_dd_stable") },
-    { id: 'unstable', label: t("label_unstable") },
-    { id: 'corrupted', label: t("status_corrupted") },
-    { id: 'under_review', label: t("status_dd_review") },
-    { id: 'pending', label: t("pending") },
-    { id: 'unverified', label: t("unverified") },
+    { id: 'stable', label: t("status_tag_stable") || "Stable" },
+    { id: 'unstable', label: t("status_tag_unstable") || "Unstable" },
+    { id: 'corrupted', label: t("status_tag_corrupted") || "Corrupted" },
+    { id: 'under_review', label: t("status_tag_under_review") || "Under Review" },
+    { id: 'pending', label: t("status_tag_pending") || "Pending" },
+    { id: 'unknown', label: t("status_tag_unknown") || "Unknown" },
   ];
   return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("auto_select_status")} />;
 }
 
 function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods, mode }: { isOpen: boolean, onClose: () => void, onSelect: (targetId: string) => void, cloudMods: any[], mode: string }) {
   const { t } = useLexicon();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState("");
+
   const results = cloudMods.filter((m: any) =>
     (m.name || '').toLowerCase().includes((query || '').toLowerCase()) ||
     (m.master_author || '').toLowerCase().includes((query || '').toLowerCase())

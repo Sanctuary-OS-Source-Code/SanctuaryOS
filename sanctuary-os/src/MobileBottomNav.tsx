@@ -10,8 +10,11 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   const userRole = useStore((state) => state.userRole);
   const osRole = useStore((state) => state.osRole);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const masonActiveTab = useStore((state: any) => state.masonActiveTab);
+  const setMasonActiveTab = useStore((state: any) => state.setMasonActiveTab);
   const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMasonNavOpen, setIsMasonNavOpen] = useState(false);
 
   const tabs = [];
 
@@ -27,6 +30,10 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
       tabs.push({ id: 'GlobalFeed', icon: t("icon_satellite_alt") || "satellite_alt", label: t("feed_title") || 'Feed' });
     }
 
+    if (view === "MasonHub") {
+      tabs.push({ id: 'mason_nav', icon: 'account_tree', label: t("sidebar_mason_hub") || 'Mason Workshop' });
+    }
+
     // Everyone gets the "More" menu
     tabs.push({ id: 'menu', icon: 'menu', label: t("ui_btn_more") || 'More' });
   }
@@ -34,6 +41,10 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   const handleTabClick = (tabId: string) => {
     if (tabId === 'menu') {
       setIsMenuOpen(!isMenuOpen);
+      setIsMasonNavOpen(false);
+    } else if (tabId === 'mason_nav') {
+      setIsMasonNavOpen(!isMasonNavOpen);
+      setIsMenuOpen(false);
     } else if (isRootDomain()) {
       if (tabId === 'workspaces') {
         setView('landing');
@@ -46,10 +57,12 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
         setTimeout(() => document.getElementById('download')?.scrollIntoView({ behavior: 'smooth' }), 100);
       } else {
         setIsMenuOpen(false);
+        setIsMasonNavOpen(false);
         setView(tabId);
       }
     } else {
       setIsMenuOpen(false);
+      setIsMasonNavOpen(false);
       setView(tabId);
     }
   };
@@ -58,7 +71,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     <>
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-[80px] z-[999999] flex items-center justify-around px-2 glass-panel !rounded-none !border-x-0 !border-b-0 pb-[env(safe-area-inset-bottom)]">
         {tabs.map(tab => {
-          const isActive = view === tab.id || (tab.id === 'menu' && isMenuOpen);
+          const isActive = view === tab.id || (tab.id === 'menu' && isMenuOpen) || (tab.id === 'mason_nav' && (isMasonNavOpen || view === 'MasonHub'));
           return (
             <button
               key={tab.id}
@@ -153,6 +166,43 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
           )}
         </div>
       </div>
+
+      {/* Mason Navigation Drawer */}
+      <div
+        className={`md:hidden fixed inset-x-0 bottom-[80px] z-[999998] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isMasonNavOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none'}`}
+      >
+        <div className="mx-4 mb-4 p-4 glass-panel !rounded-3xl shadow-2xl flex flex-col gap-2 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar">
+          <div className="w-12 h-1 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-auto mb-2 shrink-0" />
+
+          <div className="flex flex-col gap-1 w-full pb-8">
+            {[
+              { id: "command_center", icon: t("icon_desktop_windows") || "desktop_windows", label: (t("wf_tab_command") || "Command Center").replace(/^[^\w]*/, '').trim() },
+              { id: "registry", icon: t("icon_deployed_code") || "deployed_code", label: (t("items") || "Registry").replace(/^[^\w]*/, '').trim() },
+              { id: "nexus", icon: t("icon_hub") || "hub", label: (t("tab_nexus") || "Nexus").replace(/^[^\w]*/, '').trim() },
+              { id: "collections", icon: t("icon_collections_bookmark") || "collections_bookmark", label: (t("tab_cc") || "Collections").replace(/^[^\w]*/, '').trim() },
+              { id: "protocols", icon: t("icon_link") || "link", label: (t("tab_protocols") || "Protocols").replace(/^[^\w]*/, '').trim() },
+              { id: "structure", icon: t("icon_architecture") || "architecture", label: (t("tab_structure") || "Structure").replace(/^[^\w]*/, '').trim() },
+              { id: "conflicts", icon: t("icon_security") || "security", label: (t("tab_matrix") || "Conflicts").replace(/^[^\w]*/, '').trim() },
+              { id: "posts", icon: t("icon_edit_document") || "edit_document", label: (t("tab_posts") || "Posts").replace(/^[^\w]*/, '').trim() },
+              { id: "bug_reports", icon: t("icon_bug_report") || "bug_report", label: (t("stat_bugs") || "Bug Reports").replace(/^[^\w]*/, '').trim() },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setMasonActiveTab(tab.id);
+                  setIsMasonNavOpen(false);
+                }}
+                className={`p-4 rounded-xl flex items-center gap-4 transition-all ${masonActiveTab === tab.id ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+              >
+                <span className={`material-symbols-outlined text-[20px] ${masonActiveTab === tab.id ? 'text-[var(--accent)]' : ''}`}>{tab.icon}</span>
+                <span className="font-black tracking-widest text-[12px] uppercase">{tab.label}</span>
+              </button>
+            ))}
+
+          </div>
+        </div>
+      </div>
+
     </>
   );
 }

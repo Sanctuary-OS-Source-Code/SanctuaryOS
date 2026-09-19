@@ -100,12 +100,12 @@ export function VaultFilters({
         onChange={(val: string) => setFilterStatus(val)}
         options={[
           { id: "ALL", label: t("ql_all") },
-          { id: "STABLE", label: t("status_stable") },
-          { id: "UNSTABLE", label: t("status_unstable") },
-          { id: "CORRUPTED", label: t("status_corrupted") },
-          { id: "REVIEW", label: t("status_dd_review") },
-          { id: "PENDING", label: t("status_pending") },
-          { id: "UNVERIFIED", label: t("status_unverified") },
+          { id: "stable", label: t("status_tag_stable") || "Stable" },
+          { id: "unstable", label: t("status_tag_unstable") || "Unstable" },
+          { id: "corrupted", label: t("status_tag_corrupted") || "Corrupted" },
+          { id: "under_review", label: t("status_tag_under_review") || "Under Review" },
+          { id: "pending", label: t("status_tag_pending") || "Pending" },
+          { id: "unknown", label: t("status_tag_unknown") || "Unknown" },
         ]}
       />
 

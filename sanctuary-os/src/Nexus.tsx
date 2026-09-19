@@ -193,8 +193,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             { count: chameleonsCount },
             { count: templatesCount }
           ] = await Promise.all([
-            supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 0),
-            supabase.from('blueprints').select('*', { count: 'exact', head: true }).eq('is_public', true),
+            supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 0).in('status', ['stable', 'unstable', 'corrupted', 'pending']),
+            supabase.from('blueprints').select('*', { count: 'exact', head: true }).eq('is_public', true).eq('compliance_tier', 0).in('status', ['stable', 'unstable', 'corrupted', 'pending']),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'lexicon').or('is_public.eq.true,is_public.is.null'),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'chameleon').or('is_public.eq.true,is_public.is.null'),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'workbench_template').or('is_public.eq.true,is_public.is.null')
@@ -216,6 +216,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             .from('mods')
             .select(selectFields)
             .eq('compliance_tier', 0)
+            .in('status', ['stable', 'unstable', 'corrupted', 'pending'])
             .order('created_at', { ascending: false })
             .limit(100);
 
@@ -891,7 +892,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         const { count, error: countError } = await supabase
           .from("mods")
           .select("id", { count: "exact", head: true })
-          .eq('compliance_tier', 0);
+          .eq('compliance_tier', 0)
+          .in('status', ['stable', 'unstable', 'corrupted', 'pending']);
 
         if (countError) throw countError;
 
@@ -904,6 +906,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             .from("mods")
             .select("id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label), masons(id, name)")
             .eq('compliance_tier', 0)
+            .in('status', ['stable', 'unstable', 'corrupted', 'pending'])
             .range(i * BATCH_SIZE, (i + 1) * BATCH_SIZE - 1);
 
           if (res.error) throw res.error;
@@ -1570,37 +1573,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           )}
         </ViewHeader>
 
-        <div className="md:hidden">
-          <HoverTabDrawer
-            title="Nexus Navigation"
-            activeTab={marketTab}
-            setTab={setMarketTab}
-            footer={
-              <SidebarFooterButton
-                icon={t("icon_refresh")}
-                label={t("ui_btn_refresh")}
-                variant="glass"
-                onClick={() => {
-                  if (marketTab === 'MODS') fetchNexus(true);
-                  else fetchNexusAssets(true);
-                }}
-              />
-            }
-          >
-            {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
-              <VerticalTabButton
-                key={tab}
-                id={tab}
-                activeTab={marketTab}
-                setTab={setMarketTab}
-                label={tab === 'HOME' ? t('tab_overview') : t(`tab_${tab.toLowerCase()}`) || tab}
-                icon={tab === 'HOME' ? 'dashboard' : tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : tab === 'TEMPLATES' ? "draw" : "palette"}
-              />
-            ))}
-          </HoverTabDrawer>
-        </div>
-
-        <div className="hidden md:flex flex-col w-full gap-3 mb-6">
+        <div className="flex flex-col w-full gap-3 mb-6 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
           <StatTileCarousel>
             {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
               <DashboardStatTile

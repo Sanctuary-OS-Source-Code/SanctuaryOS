@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActionPill, DashboardStatTile, useIsMobile, HeaderActionPortal } from '../../shared';
+import { ActionPill, DashboardStatTile, useIsMobile, HeaderActionPortal, HubTabButton } from '../../shared';
+import { StatTileCarousel } from '../../hub-components/SharedCommandScreenLayout';
 
 export interface HubTab {
   id: string;
@@ -32,6 +33,9 @@ interface ElevatedHubLayoutProps {
   activeTab?: string | any;
   onTabChange?: (id: string | any) => void;
 
+  // Custom Content Above Scroll
+  topContent?: React.ReactNode;
+
   // Content
   children: React.ReactNode;
 
@@ -57,6 +61,7 @@ export function ElevatedHubLayout({
   tabs = [],
   activeTab = "",
   onTabChange = () => { },
+  topContent,
   children,
   className = "",
   isHiddenTab = false
@@ -78,22 +83,29 @@ export function ElevatedHubLayout({
         </HeaderActionPortal>
       )}
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden px-6 pt-4">
+      <div className="flex-1 flex flex-col h-full px-6 pt-4">
         {/* Navigation Tabs (Big Stat Tiles) */}
         {tabs.length > 0 && (
-          <div className={`grid grid-cols-2 ${tabs.length === 2 ? 'md:grid-cols-2' : tabs.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4 lg:gap-6 w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-4 md:mb-8 shrink-0`}>
-            {tabs.map((tab) => (
-              <DashboardStatTile
-                key={tab.id}
-                isActive={activeTab === tab.id}
-                icon={isMobile || !tab.icon ? null : <span className="material-symbols-outlined">{tab.icon}</span>}
-                label={tab.label}
-                number={tab.number?.toString()}
-                onClick={() => onTabChange(tab.id)}
-                colorClass={activeTab === tab.id ? (tab.colorClass || "text-[var(--accent)]") : "text-[var(--subtext)] hover:text-[var(--text)]"}
-                className={activeTab !== tab.id ? "cursor-pointer shadow-none border-transparent" : "cursor-pointer shadow-[0_0_30px_color-mix(in_srgb,currentColor_15%,transparent)] border-[color-mix(in_srgb,currentColor_30%,transparent)] scale-[1.02]"}
-              />
-            ))}
+          <div className="w-full relative z-10 animate-in slide-in-from-top-4 duration-500 mb-4 md:mb-8 shrink-0">
+            <div className="grid grid-cols-2 md:flex md:flex-row w-full gap-3">
+              {tabs.map((tab) => (
+                <HubTabButton
+                  key={tab.id}
+                  id={tab.id}
+                  icon={tab.icon}
+                  label={tab.label}
+                  activeTab={activeTab}
+                  setTab={onTabChange}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Custom Top Content */}
+        {topContent && (
+          <div className="w-full shrink-0 relative z-10">
+            {topContent}
           </div>
         )}
 

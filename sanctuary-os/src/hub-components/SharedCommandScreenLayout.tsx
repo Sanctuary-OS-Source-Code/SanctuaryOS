@@ -5,7 +5,7 @@ import { UniversalCard } from '../components/universal/UniversalCard';
 
 export { DashboardStatTile };
 
-export function StatTileCarousel({ children }: any) {
+export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
     const scrollRef = React.useRef<HTMLDivElement>(null);
     const [canScrollRight, setCanScrollRight] = React.useState(false);
     const [canScrollLeft, setCanScrollLeft] = React.useState(false);
@@ -53,17 +53,17 @@ export function StatTileCarousel({ children }: any) {
     };
 
     return (
-      <div className="relative w-full group flex items-center">
+      <div className="relative group flex items-center w-full">
         {canScrollLeft && (
-            <button onClick={() => scrollBy(-300)} className="absolute left-0 z-20 w-8 h-8 flex items-center justify-center bg-[var(--bg-panel)] border border-[var(--border)] rounded-full shadow-xl text-[var(--text)] opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => scrollBy(-300)} className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center bg-[var(--bg-panel)] border border-[var(--border)] rounded-full shadow-xl text-[var(--text)] opacity-0 group-hover:opacity-100 transition-opacity">
                 <span className="material-symbols-outlined text-[16px]">chevron_left</span>
             </button>
         )}
-        <div ref={scrollRef} className="flex w-full overflow-x-auto gap-4 md:gap-6 py-4 px-2 md:px-4 items-center snap-x scroll-smooth hide-scrollbar -mx-2 md:-mx-4">
+        <div ref={scrollRef} className={`flex w-full overflow-x-auto gap-4 md:gap-6 py-4 items-center snap-x scroll-smooth hide-scrollbar ${innerClassName}`}>
           {children}
         </div>
         {canScrollRight && (
-            <button onClick={() => scrollBy(300)} className="absolute right-0 z-20 w-8 h-8 flex items-center justify-center bg-[var(--bg-panel)] border border-[var(--border)] rounded-full shadow-xl text-[var(--text)] opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => scrollBy(300)} className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center bg-[var(--bg-panel)] border border-[var(--border)] rounded-full shadow-xl text-[var(--text)] opacity-0 group-hover:opacity-100 transition-opacity">
                 <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
         )}

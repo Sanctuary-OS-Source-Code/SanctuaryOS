@@ -154,7 +154,7 @@ export function Sidebar({
           </div>
         </div>
 
-        <div className="flex-1 pt-2 pb-2 space-y-0.5 overflow-y-auto accent-scrollbar">
+        <div className="flex-1 pt-2 pb-24 md:pb-6 space-y-0.5 overflow-y-auto accent-scrollbar">
           {(!isConfigured || (!isDesktop() && isRootDomain())) ? (
             <>
               <NavButton
@@ -360,7 +360,22 @@ export function Sidebar({
                     isAccent={true}
                     setHoveredTooltip={setHoveredTooltip}
                   />
-                </div>
+                  {view === "MasonHub" && !isSidebarCollapsed && (
+                    <div className="flex flex-col gap-0.5 mt-2 ml-4 pl-4 border-l border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                      <NavButton active={useStore.getState().masonActiveTab === "command_center"} onClick={() => useStore.getState().setMasonActiveTab("command_center")} icon={t("icon_desktop_windows") as string} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim() || "Command Center"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "command_center"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "registry"} onClick={() => useStore.getState().setMasonActiveTab("registry")} icon={t("icon_deployed_code") as string} label={t("items")?.replace(/^[^\w]*/, '').trim() || "Artifacts"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "registry"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "nexus"} onClick={() => useStore.getState().setMasonActiveTab("nexus")} icon={t("icon_hub") as string} label={t("tab_nexus")?.replace(/^[^\w]*/, '').trim() || "Nexus"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "nexus"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "sandbox"} onClick={() => useStore.getState().setMasonActiveTab("sandbox")} icon={t("icon_handyman") as string} label={t("filter_dev")?.replace(/^[^\w]*/, '').trim() || "Sandbox"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "sandbox"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "chameleons"} onClick={() => useStore.getState().setMasonActiveTab("chameleons")} icon="palette" label={t("tab_chameleons")?.replace(/^[^\w]*/, '').trim() || "Chameleons"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "chameleons"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "ide"} onClick={() => useStore.getState().setMasonActiveTab("ide")} icon={t("icon_code") as string} label={t("ide_tab")?.replace(/^[^\w]*/, '').trim() || "IDE"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "ide"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "collections"} onClick={() => useStore.getState().setMasonActiveTab("collections")} icon={t("icon_collections_bookmark") as string} label={t("tab_cc")?.replace(/^[^\w]*/, '').trim() || "Collections"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "collections"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "protocols"} onClick={() => useStore.getState().setMasonActiveTab("protocols")} icon={t("icon_link") as string} label={t("tab_protocols")?.replace(/^[^\w]*/, '').trim() || "Protocols"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "protocols"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "structure"} onClick={() => useStore.getState().setMasonActiveTab("structure")} icon={t("icon_architecture") as string} label={t("tab_structure")?.replace(/^[^\w]*/, '').trim() || "Structure"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "structure"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "conflicts"} onClick={() => useStore.getState().setMasonActiveTab("conflicts")} icon={t("icon_security") as string} label={t("tab_matrix")?.replace(/^[^\w]*/, '').trim() || "Conflicts"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "conflicts"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "posts"} onClick={() => useStore.getState().setMasonActiveTab("posts")} icon={t("icon_edit_document") as string} label={t("tab_posts")?.replace(/^[^\w]*/, '').trim() || "Posts"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "posts"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "bug_reports"} onClick={() => useStore.getState().setMasonActiveTab("bug_reports")} icon={t("icon_bug_report") as string} label={t("stat_bugs")?.replace(/^[^\w]*/, '').trim() || "Bug Reports"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "bug_reports"} setHoveredTooltip={setHoveredTooltip} />
+                    </div>
+                  )}</div>
               )}
               {session && !(!isDesktop() && isRootDomain()) && schemaFeatures.has_cc && ["architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
                 <div className={`mt-3 mb-1 pt-3 relative ${isSidebarCollapsed ? 'px-0' : ''}`}>

@@ -104,5 +104,12 @@
   "total_blueprints": "Total Play Sets",
   "total_soft": "Total Minor Overlaps",
   "total_clones": "Total Clones",
-  "btn_fullscreen": "Fullscreen"
+  "btn_fullscreen": "Fullscreen",
+  "status_tag_stable": "Safe to Play",
+  "status_tag_under_review": "Checking...",
+  "status_tag_pending": "Waiting",
+  "status_tag_unknown": "Who Knows?",
+  "status_tag_unstable": "Broken/Glitchy",
+  "title_issues": "Issues",
+  "no_issues": "No Issues"
 }

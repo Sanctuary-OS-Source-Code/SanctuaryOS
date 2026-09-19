@@ -351,15 +351,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           </div>
         )}
         </ViewHeader>
-      <div className="md:hidden">
-        <HoverTabDrawer title="Comm-Link Navigation" activeTab={activeTab} setTab={setActiveTab}>
-          <VerticalTabButton id="OVERVIEW" icon="dashboard" label={t("tab_overview")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
-          <VerticalTabButton id="DISCOVER" icon="explore" label={t("tab_discover")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
-          <VerticalTabButton id="FOLLOWING" icon="diversity_1" label={t("tab_following")} activeTab={activeTab} setTab={(id: any) => { setActiveTab(id); setStartDate(null); setEndDate(null); }} />
-        </HoverTabDrawer>
-      </div>
-
-      <div className="hidden md:flex flex-col w-full gap-3 mb-6">
+      <div className="flex flex-col w-full gap-3 mb-6 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
         <StatTileCarousel>
           <DashboardStatTile variant="tab" icon="dashboard" label={t("tab_overview")} number="" onClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "OVERVIEW"} />
           <DashboardStatTile variant="tab" icon="explore" label={t("tab_discover")} number={overviewStats.posts} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "DISCOVER"} />
