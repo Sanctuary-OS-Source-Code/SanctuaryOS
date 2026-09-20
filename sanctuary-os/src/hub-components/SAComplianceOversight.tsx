@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { supabase, getActiveGameClient } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton } from '../shared';
+import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, ActionPill, HeaderActionPortal } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 import { ElevatedHubLayout } from '../components/layouts/ElevatedHubLayout';
+import { StatTileCarousel } from "./SharedCommandScreenLayout";
 
 export default function SAComplianceOversight({ initialFilter, setInitialFilter, onOpenManualFlag }: any) {
   const { t } = useLexicon();
@@ -291,124 +292,120 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         </div>
       }
     >
-      {loading ? (
-        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning")}</div>
-      ) : filterStatus === 'overview' ? renderLanding() : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-          {filteredMods.map(renderModCard)}
-          {filteredMods.length === 0 && (
-            <EmptyState icon={t("icon_warning_amber")} title={t("comp_no_alerts")} className="col-span-full py-16" />
-          )}
-        </div>
-      )}
-
-      <SidePanel
-        isOpen={!!selectedMod}
-        onClose={() => setSelectedMod(null)}
-        title={t("comp_edit_tier")}
-        icon={t("icon_policy")}
-        subtitle={selectedMod ? `UUID: ${selectedMod.id}` : undefined}
-        widthClass="w-[800px]"
-        headerActions={
-          <PanelHeaderGroup>
-            <PanelHeaderButton
-              icon="close"
-              tooltip={t("nav_cancel")}
-              onClick={() => setSelectedMod(null)}
-            />
-            {(selectedMod?.status === 'pending' || selectedMod?.status === 'under_review') ? (
-              <>
-                <PanelHeaderButton
-                  icon="check_circle"
-                  tooltip={t("btn_clear_flag")}
-                  variant="success"
-                  disabled={isSubmitting || !editReason.trim()}
-                  onClick={(e: React.MouseEvent) => { e.preventDefault(); handleClearFlag(e, selectedMod); setSelectedMod(null); }}
-                />
-                <PanelHeaderButton
-                  icon="flag"
-                  tooltip={t("btn_set_flag")}
-                  variant="error"
-                  disabled={isSubmitting || !editReason.trim()}
-                  onClick={(e: React.MouseEvent) => { e.preventDefault(); handleSetFlag(e, selectedMod); setSelectedMod(null); }}
-                />
-              </>
-            ) : (
-              <PanelHeaderButton
-                icon="save"
-                tooltip={isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
-                variant="accent"
-                disabled={isSubmitting || !editReason.trim()}
-                onClick={handleSaveTier}
-              />
+        {loading ? (
+          <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning")}</div>
+        ) : filterStatus === 'overview' ? renderLanding() : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+            {filteredMods.map(renderModCard)}
+            {filteredMods.length === 0 && (
+              <EmptyState icon={t("icon_warning_amber")} title={t("comp_no_alerts")} className="col-span-full py-16" />
             )}
-          </PanelHeaderGroup>
-        }
-      >
-        <div className="p-6 flex flex-col h-full gap-8">
-          {status && (
-            <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-              <p className={`text-[10px] font-black capitalize tracking-widest ${status.includes('Failed') || status.includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
-            </div>
-          )}
+          </div>
+        )}
 
-          <div className="flex flex-col gap-3 shrink-0">
-            <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
-              {selectedMod?.name}
-            </h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setMetadataMod(selectedMod)}
-                className="text-[10px] font-black capitalize tracking-widest theme-text-accent hover:text-[var(--text)] transition-colors flex items-center gap-1 w-max bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2 py-1 rounded"
-              >
-                <span className="material-symbols-outlined !text-[12px]">{t("icon_edit")}</span>
-                {t("ui_edit_metadata")}
-              </button>
+        <SidePanel
+          isOpen={!!selectedMod}
+          onClose={() => setSelectedMod(null)}
+          title={t("comp_edit_tier")}
+          icon={t("icon_policy")}
+          subtitle={selectedMod ? `UUID: ${selectedMod.id}` : undefined}
+          widthClass="w-[800px]"
+          headerActions={
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon="close"
+                tooltip={t("nav_cancel")}
+                onClick={() => setSelectedMod(null)}
+              />
+              {(selectedMod?.status === 'pending' || selectedMod?.status === 'under_review') ? (
+                <>
+                  <PanelHeaderButton
+                    icon="check_circle"
+                    tooltip={t("btn_clear_flag")}
+                    variant="success"
+                    disabled={isSubmitting || !editReason.trim()}
+                    onClick={(e: React.MouseEvent) => { e.preventDefault(); handleClearFlag(e, selectedMod); setSelectedMod(null); }}
+                  />
+                  <PanelHeaderButton
+                    icon="flag"
+                    tooltip={t("btn_set_flag")}
+                    variant="error"
+                    disabled={isSubmitting || !editReason.trim()}
+                    onClick={(e: React.MouseEvent) => { e.preventDefault(); handleSetFlag(e, selectedMod); setSelectedMod(null); }}
+                  />
+                </>
+              ) : (
+                <PanelHeaderButton
+                  icon="save"
+                  tooltip={isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
+                  variant="accent"
+                  disabled={isSubmitting || !editReason.trim()}
+                  onClick={handleSaveTier}
+                />
+              )}
+            </PanelHeaderGroup>
+          }
+        >
+          <div className="p-6 flex flex-col h-full gap-8">
+            {status && (
+              <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
+                <p className={`text-[10px] font-black capitalize tracking-widest ${status.includes('Failed') || status.includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 shrink-0">
+              <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
+                {selectedMod?.name}
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setMetadataMod(selectedMod)}
+                  className="text-[10px] font-black capitalize tracking-widest theme-text-accent hover:text-[var(--text)] transition-colors flex items-center gap-1 w-max bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2 py-1 rounded"
+                >
+                  <span className="material-symbols-outlined !text-[12px]">{t("icon_edit")}</span>
+                  {t("ui_edit_metadata")}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-6 relative">
+              <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+                <span className="material-symbols-outlined !text-[14px]">{t("icon_policy")}</span>
+                {t("comp_enforcement")}
+              </h4>
+
+              <div className="flex flex-col gap-2 relative z-50">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("assign_tier")}</label>
+                <CustomComplianceDropdown
+                  value={editTier}
+                  onChange={setEditTier}
+                  maxTier={5}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-40 mt-2">
+                <label className="text-[9px] font-black text-red-400 capitalize tracking-widest ml-2 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-md"></span>
+                  {t("tier_reason_req")}
+                </label>
+                <textarea
+                  value={editReason}
+                  onChange={e => setEditReason(e.target.value)}
+                  placeholder={t("comp_reason_placeholder")}
+                  className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] focus:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
+                />
+              </div>
             </div>
           </div>
+        </SidePanel>
 
-          <div className="flex flex-col gap-6 relative">
-            <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_policy")}</span>
-              {t("comp_enforcement")}
-            </h4>
-
-            <div className="flex flex-col gap-2 relative z-50">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("assign_tier")}</label>
-              <CustomComplianceDropdown
-                value={editTier}
-                onChange={setEditTier}
-                maxTier={5}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-40 mt-2">
-              <label className="text-[9px] font-black text-red-400 capitalize tracking-widest ml-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-md"></span>
-                {t("tier_reason_req")}
-              </label>
-              <textarea
-                value={editReason}
-                onChange={e => setEditReason(e.target.value)}
-                placeholder={t("comp_reason_placeholder")}
-                className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] focus:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
-              />
-            </div>
-          </div>
-        </div>
-      </SidePanel>
-
-      <SharedMetadataEditorSidePanel
-        isOpen={!!metadataMod}
-        onClose={() => setMetadataMod(null)}
-        activeMod={metadataMod}
-        masonsList={masonsList}
-        onModUpdated={fetchMods}
-      />
-    </ElevatedHubLayout>
+        <SharedMetadataEditorSidePanel
+          isOpen={!!metadataMod}
+          onClose={() => setMetadataMod(null)}
+          activeMod={metadataMod}
+          masonsList={masonsList}
+          onModUpdated={fetchMods}
+        />
+      </ElevatedHubLayout>
   );
 }
-
-
-
-

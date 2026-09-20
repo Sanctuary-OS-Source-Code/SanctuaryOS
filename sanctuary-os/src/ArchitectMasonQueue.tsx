@@ -15,17 +15,18 @@ import {
 } from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
-import { MasonStatusDropdown } from "./MasonHub";
 import { logArchitectAction } from "./lib/audit";
+import { MasonStatusDropdown } from "./MasonHub";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import MarkdownRenderer from "./MarkdownRenderer";
+import { StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 
 
 export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: any }) {
   const { t } = useLexicon();
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterTab, setFilterTab] = useState<'pending' | 'completed'>('pending');
+  const [filterTab, setFilterTab] = useState<'overview' | 'pending' | 'completed'>('overview');
   const [visibleCount, setVisibleCount] = useState(100);
   const [masonsList, setMasonsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +117,12 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     setIsProcessing(false);
   };
 
-  const activeSubmissions = submissions.filter((s: any) => s.mason_id && (filterTab === 'pending' ? s.status === 'under_review' : (s.status === 'verified' || s.status === 'unverified')));
+  const activeSubmissions = submissions.filter((s: any) => {
+    if (!s.mason_id) return false;
+    if (filterTab === 'pending') return s.status === 'under_review';
+    if (filterTab === 'completed') return s.status === 'verified' || s.status === 'unverified';
+    return true; // for overview, let's include all mason submissions
+  });
   let filteredSubmissions = activeSubmissions.filter((s: any) => s.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const seenNames = new Set();
@@ -134,21 +140,51 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
         <ActionPill
           searchQuery={searchTerm}
           setSearchQuery={setSearchTerm}
-          searchPlaceholder={t("search_queue") as string}
-          rightContent={
-            <div className="flex items-center gap-4 shrink-0 px-2 h-full">
-              <PillTabs className="hidden md:flex bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full h-10">
-                <PillTabButton id="pending" activeTab={filterTab} setTab={setFilterTab} label={t("pending")} />
-                <PillTabButton id="completed" activeTab={filterTab} setTab={setFilterTab} label={t("status_completed")} />
-              </PillTabs>
-            </div>
-          }
+          searchPlaceholder={t("search_ph") as string}
+          hideSearch={filterTab === 'overview'}
         />
       </HeaderActionPortal>
 
-      <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
+      <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+        <StatTileCarousel innerClassName="px-6 md:px-0">
+          <DashboardStatTile variant="tab" isActive={filterTab === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} onClick={() => setFilterTab('overview')} />
+          <DashboardStatTile variant="tab" isActive={filterTab === 'pending'} icon="schedule" label={t("pending") || "Pending"} number={submissions.filter(s => s.mason_id && s.status === 'under_review').length} onClick={() => setFilterTab('pending')} />
+          <DashboardStatTile variant="tab" isActive={filterTab === 'completed'} icon="check_circle" label={t("status_completed") || "Completed"} number={submissions.filter(s => s.mason_id && (s.status === 'verified' || s.status === 'unverified')).length} onClick={() => setFilterTab('completed')} />
+        </StatTileCarousel>
+      </div>
+
+      <div className="p-6 flex-1 overflow-y-auto custom-scrollbar transition-all duration-500">
         {loading ? (
           <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("hub_loading")}</div>
+        ) : filterTab === 'overview' ? (
+          <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+                <span className="material-symbols-outlined text-[var(--accent)]">schedule</span>
+                <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("recent_pending") || "Recent Pending"}</h3>
+              </div>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                {filteredSubmissions.filter(s => s.status === 'under_review').slice(0, 4).length > 0 ? filteredSubmissions.filter(s => s.status === 'under_review').slice(0, 4).map((mod: any) => (
+                  <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view")} />
+                )) : (
+                  <EmptyState icon="check_circle" title={t("no_pending_masons") || "No pending submissions"} className="col-span-full py-8" />
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+                <span className="material-symbols-outlined text-[var(--success)]">check_circle</span>
+                <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("recent_completed") || "Recent Completed"}</h3>
+              </div>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                {filteredSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified').slice(0, 4).length > 0 ? filteredSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified').slice(0, 4).map((mod: any) => (
+                  <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view")} />
+                )) : (
+                  <EmptyState icon="history" title={t("no_history") || "No history"} className="col-span-full py-8" />
+                )}
+              </div>
+            </div>
+          </div>
         ) : filteredSubmissions.length === 0 ? (
           <EmptyState icon={t("icon_account_balance")} title={t("no_pending_masons")} className="col-span-full py-16" />
         ) : (

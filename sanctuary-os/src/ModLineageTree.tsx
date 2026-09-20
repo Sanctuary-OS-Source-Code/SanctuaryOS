@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { GameVersionMultiSelect, SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, ModSearchDropdown, ActionButton, HoverTooltip } from "./shared";
+import { GameVersionMultiSelect, SidePanel, standardAccentGlassButtonClass, standardSuccessButtonClass, standardDangerButtonClass, ModSearchDropdown, ActionButton, HoverTooltip, EmptyState } from "./shared";
 import { useStore } from './store';
 
 interface ModLineageTreeProps {
@@ -268,13 +268,9 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
 
   return (
     <>
-    <div className="w-full h-full glass-panel rounded-3xl p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl [transform:translateZ(0)] [backface-visibility:hidden]">
+    <div className="flex flex-col h-full w-full min-w-0 p-2">
       
-      {/* Hero Background Effects */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full blur-[60px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
-
-      <div className="flex justify-start items-end pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2">
+      <div className="flex justify-between items-center pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2">
         <div className="flex flex-col gap-1">
           <h3 className="text-[13px] font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
             <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] drop-shadow-md">{t("icon_timeline")}</span>
@@ -292,12 +288,9 @@ export default function ModLineageTree({ targetMod, cloudMods, onRefresh }: ModL
         />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 relative z-10 flex-1 overflow-y-auto accent-scrollbar p-2 content-start">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 relative z-10 flex-1 overflow-y-auto custom-scrollbar p-2 content-start">
         {versionHistory.length === 0 ? (
-          <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-40 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl bg-[color-mix(in_srgb,var(--bg)_40%,transparent)]">
-             <span className="material-symbols-outlined ">{t("icon_timeline")}</span>
-             <span className="text-[10px] font-black capitalize tracking-[0.2em]">{t("no_links")}</span>
-          </div>
+          <EmptyState icon={t("icon_timeline")} title={t("no_links")} className="col-span-full py-16" />
         ) : (
           versionHistory.map((version, index) => (
             <EditableVersionRow

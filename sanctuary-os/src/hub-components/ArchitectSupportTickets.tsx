@@ -4,9 +4,9 @@ import { useStore } from '../store';
 import { supabase } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { SidePanel, CustomDropdown, EmptyState, FilterTabs, FilterTabButton } from "../shared";
+import { SidePanel, CustomDropdown, EmptyState, FilterTabs, FilterTabButton, HeaderActionPortal, ActionPill, DashboardStatTile } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { StatTileCarousel } from "./SharedCommandScreenLayout";
 
 interface Ticket {
   id: string;
@@ -333,7 +333,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     const pendingTickets = tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status));
 
     return (
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
             <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
@@ -366,73 +366,91 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
   };
 
   return (
-    <ElevatedHubLayout
-      headerTitle={t("support_tickets") || "Support Tickets"}
-      headerSubtitle={t("support_tickets_desc") || "Manage and review user support tickets."}
-      headerIcon="support_agent"
-      headerIconColorClass="theme-text-accent"
-      search={searchQuery}
-      onSearchChange={setSearchQuery}
-      searchPlaceholder={t("ui_placeholder_search")}
-      tabs={tabs}
-      activeTab={activeFilter}
-      onTabChange={(tabId) => setActiveFilter(tabId as any)}
-      headerActions={
-        <div className="flex items-center gap-2">
-          <CustomDropdown
-            flat={true}
-            variant="pill"
-            value={activeCategory}
-            onChange={(v: string[]) => setActiveCategory(v[0])}
-            options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
-            disableTint={true}
-          />
-        </div>
-      }
-    >
-      {activeFilter === 'overview' ? renderLanding() : (
-        <div className="flex flex-col gap-4">
-          {isLoading ? (
-            <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting")}</div>
-          ) : (() => {
-            const filteredTickets = tickets.filter(t => {
-              if (activeCategory !== "all") {
-                const tCat = t.ticket_type || t.category || "GENERAL";
-                if (tCat !== activeCategory) return false;
-              }
-              if (searchQuery) {
-                const q = searchQuery.toLowerCase();
-                if (!(t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q))) return false;
-              }
-
-              const isClaimedByMe = t.metadata?.claimed_by === currentUserId;
-              const isClaimedByOther = t.metadata?.claimed_by && !isClaimedByMe;
-
-              if (activeFilter === "new") {
-                if (!['NEW', 'OPEN', 'new', 'open'].includes(t.status)) return false;
-                if (isClaimedByOther || isClaimedByMe) return false;
-              } else if (activeFilter === "pending") {
-                if (!['NEW', 'OPEN', 'new', 'open', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)) return false;
-                if (!isClaimedByMe) return false;
-              } else if (activeFilter === "closed") {
-                if (!['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)) return false;
-              }
-
-              return true;
-            });
-
-            if (filteredTickets.length === 0) return (
-              <EmptyState icon={searchQuery ? "search_off" : t("icon_celebration")} title={searchQuery ? t("no_matches") : (activeFilter === 'new' ? t("no_bug_reports") : t("no_tickets"))} className="col-span-full py-16" />
-            );
-
-            return (
-              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                {filteredTickets.map(renderTicketCard)}
+    <div className="flex flex-col w-full relative h-full">
+      <HeaderActionPortal>
+        <ActionPill
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchPlaceholder={t("ui_placeholder_search") as string}
+          hideSearch={activeFilter === 'overview'}
+          primaryPopover={{
+            icon: "tune",
+            label: t("filters") || "Filters",
+            content: (
+              <div className="flex flex-col w-[300px] p-4 text-left">
+                <div className="flex flex-col mb-5 w-full">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                    CATEGORY
+                  </div>
+                  <CustomDropdown
+                    flat={true}
+                    variant="pill"
+                    value={activeCategory}
+                    onChange={(v: string[]) => setActiveCategory(v[0])}
+                    options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
+                    disableTint={true}
+                  />
+                </div>
               </div>
-            );
-          })()}
-        </div>
-      )}
+            )
+          }}
+        />
+      </HeaderActionPortal>
+
+      <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+        <StatTileCarousel innerClassName="px-6 md:px-0">
+          <DashboardStatTile variant="tab" isActive={activeFilter === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} onClick={() => setActiveFilter('overview')} />
+          <DashboardStatTile variant="tab" isActive={activeFilter === 'new'} icon="new_releases" label={t("ui_tab_new") || "New"} number={tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status)).length} onClick={() => setActiveFilter('new')} />
+          <DashboardStatTile variant="tab" isActive={activeFilter === 'pending'} icon="pending_actions" label={t("ticket_tab_claimed") || t("pending")} number={tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)).length} onClick={() => setActiveFilter('pending')} />
+          <DashboardStatTile variant="tab" isActive={activeFilter === 'closed'} icon="check_circle" label={t("ui_tab_closed") || "Closed"} number={tickets.filter(t => ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)).length} onClick={() => setActiveFilter('closed')} />
+        </StatTileCarousel>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 transition-all duration-500">
+        {activeFilter === 'overview' ? renderLanding() : (
+          <div className="flex flex-col gap-4">
+            {isLoading ? (
+              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting")}</div>
+            ) : (() => {
+              const filteredTickets = tickets.filter(t => {
+                if (activeCategory !== "all") {
+                  const tCat = t.ticket_type || t.category || "GENERAL";
+                  if (tCat !== activeCategory) return false;
+                }
+                if (searchQuery) {
+                  const q = searchQuery.toLowerCase();
+                  if (!(t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q))) return false;
+                }
+
+                const isClaimedByMe = t.metadata?.claimed_by === currentUserId;
+                const isClaimedByOther = t.metadata?.claimed_by && !isClaimedByMe;
+
+                if (activeFilter === "new") {
+                  if (!['NEW', 'OPEN', 'new', 'open'].includes(t.status)) return false;
+                  if (isClaimedByOther || isClaimedByMe) return false;
+                } else if (activeFilter === "pending") {
+                  if (!['NEW', 'OPEN', 'new', 'open', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)) return false;
+                  if (!isClaimedByMe) return false;
+                } else if (activeFilter === "closed") {
+                  if (!['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)) return false;
+                }
+
+                return true;
+              });
+
+              if (filteredTickets.length === 0) return (
+                <EmptyState icon={searchQuery ? "search_off" : t("icon_celebration")} title={searchQuery ? t("no_matches") : (activeFilter === 'new' ? t("no_bug_reports") : t("no_tickets"))} className="col-span-full py-16" />
+              );
+
+              return (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                  {filteredTickets.map(renderTicketCard)}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+      </div>
       <TicketDossierSidePanel
         isOpen={!!selectedTicket}
         onClose={() => setSelectedTicket(null)}
@@ -449,7 +467,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
           fetchTickets();
         }}
       />
-    </ElevatedHubLayout>
+    </div>
   );
 }
 

@@ -281,11 +281,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
         noPadding
       >
         <div className="flex flex-col h-[calc(100vh-100px)] w-full overflow-hidden p-8">
-          <div className="flex-1 flex flex-col h-full min-w-0 relative z-10 glass-panel rounded-3xl p-6 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-md backdrop-blur-3xl">
-            
-            {/* Background Effects */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-full blur-[100px] pointer-events-none -translate-y-1/3 translate-x-1/3" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full blur-[80px] pointer-events-none translate-y-1/3 -translate-x-1/3" />
+          <div className="flex-1 flex flex-col h-full min-w-0 relative z-10">
 
             {/* Header for Right Pane */}
             <div className="shrink-0 flex items-center justify-start pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">

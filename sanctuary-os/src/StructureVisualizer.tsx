@@ -54,16 +54,20 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
   useEffect(() => {
     const fetchOverviewData = async () => {
       // Recent hashes
-      const { data: hashes } = await supabase.from('mod_versions')
-        .select('id, dna_hash, version_label, created_at, mods(name, image_url)')
+      let hashesQuery = supabase.from('mod_versions')
+        .select('id, dna_hash, version_label, created_at, mods!inner(name, image_url, mason_id)')
         .order('created_at', { ascending: false }).limit(6);
+      if (!isArchitect && masonId) hashesQuery = hashesQuery.eq('mods.mason_id', masonId);
+      const { data: hashes } = await hashesQuery;
       if (hashes) setRecentHashes(hashes);
 
       // Recent structures
-      const { data: structures } = await supabase.from('mods')
-        .select('id, name, updated_at, image_url, folder_structure, master_author, latest_version')
+      let structuresQuery = supabase.from('mods')
+        .select('id, name, updated_at, image_url, folder_structure, master_author, latest_version, mason_id')
         .not('folder_structure', 'is', null)
         .order('updated_at', { ascending: false }).limit(6);
+      if (!isArchitect && masonId) structuresQuery = structuresQuery.eq('mason_id', masonId);
+      const { data: structures } = await structuresQuery;
       if (structures) setRecentStructures(structures);
     };
     if (activeTab === 'overview') {
@@ -241,26 +245,23 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
               </div>
             ) : (
               <div className="flex-1 relative z-10 flex flex-col h-full gap-6">
-                <div className="flex items-center gap-4 shrink-0">
-                  <button
+                <div className="grid grid-cols-2 gap-6 shrink-0">
+                  <UniversalCard
+                    layout="horizontal"
+                    icon="create_new_folder"
+                    title={t("structure_add_root")}
                     onClick={() => {
                       const newFolder = { id: Math.random().toString(36).substr(2, 9), name: t("structure_new_folder"), type: "folder" as const, children: [] };
                       handleStructureChange([...(targetMod.folder_structure || []), newFolder]);
                     }}
-                    className="flex-1 h-14 rounded-2xl border-2 border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all flex items-center justify-center gap-3 text-[var(--text)] opacity-70 hover:opacity-100"
-                  >
-                    <span className="material-symbols-outlined !text-[20px]">create_new_folder</span>
-                    <span className="text-[12px] font-black uppercase tracking-widest">{t("structure_add_root")}</span>
-                  </button>
-
-                  <button
+                  />
+                  <UniversalCard
+                    layout="horizontal"
+                    icon={isSaving ? "sync" : "save"}
+                    title={isSaving ? t("btn_saving") : t("btn_save_structure")}
                     onClick={saveStructure}
-                    disabled={isSaving}
-                    className={`flex-1 h-14 rounded-2xl border-2 border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-[color-mix(in_srgb,var(--bg)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all flex items-center justify-center gap-3 text-[var(--text)] opacity-70 hover:opacity-100 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
-                  >
-                    <span className="material-symbols-outlined !text-[20px]">{isSaving ? "sync" : "save"}</span>
-                    <span className="text-[12px] font-black uppercase tracking-widest">{isSaving ? t("btn_saving") : t("btn_save_structure")}</span>
-                  </button>
+                    isDisabled={isSaving}
+                  />
                 </div>
                 <ModStructureBuilder 
                   structure={targetMod.folder_structure || []} 

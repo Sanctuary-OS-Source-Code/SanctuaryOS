@@ -3,11 +3,12 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill, HeaderActionPortal } from "../shared";
+import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill, HeaderActionPortal, DashboardStatTile } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction } from "../lib/audit";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { StatTileCarousel } from "../hub-components/SharedCommandScreenLayout";
 
 
 export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string, masonName: string }) {
@@ -294,7 +295,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                 <ActionPill searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchPlaceholder={t("link_search")} />
 
                 {searchQuery.length >= 2 && (
-         <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+                  <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
                     {myMods.filter(m => !members.some(mem => mem.mod_id === m.id) && m.name.toLowerCase().includes(searchQuery.toLowerCase())).map(m => (
                       <button type="button" key={m.id} onClick={() => { handleAddMod(m.id); setSearchQuery(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center group transition-all shrink-0">
                         <span className="text-[10px] font-black text-[var(--text)] capitalize truncate">{m.name}</span>
@@ -356,6 +357,7 @@ export function CollectionForge({ setStatus }: any) {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [tierFilter, setTierFilter] = useState("ALL");
+  const [filterTab, setFilterTab] = useState<'stable' | 'under_review' | 'pending' | 'unknown' | 'corrupted'>('stable');
 
   const [isSaving, setIsSaving] = useState(false);
   const [manifestMembers, setManifestMembers] = useState<any[]>([]);
@@ -489,41 +491,56 @@ export function CollectionForge({ setStatus }: any) {
   };
 
   const filteredSets = sets.filter((s: any) => {
+    if (filterTab === 'unknown') {
+      if (s.status && s.status !== 'unknown') return false;
+    } else {
+      if (s.status !== filterTab) return false;
+    }
+
     if (tierFilter !== "ALL" && s.compliance_tier !== parseInt(tierFilter)) return false;
     return s.name?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
-    <div className="flex flex-col h-full overflow-hidden animate-in fade-in pb-20">
-
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-        <div className="flex flex-col gap-0">
-          <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] theme-text-accent opacity-90 drop-shadow-lg">{t("icon_collections_bookmark")}</span>
-            </div>
-            <span className="truncate">{t("tab_cc")}</span>
-          </h2>
-        </div>
-
-        <HeaderActionPortal>
-          <ActionPill
-            searchQuery={searchTerm}
-            setSearchQuery={setSearchTerm}
-            searchPlaceholder={t("search_queue")}
-            rightContent={
-              <CustomDropdown disableTint={true} variant="pill" flat={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
+    <div className="flex flex-col h-full overflow-hidden animate-in fade-in pb-20 relative">
+      <HeaderActionPortal>
+        <ActionPill
+          searchQuery={searchTerm}
+          setSearchQuery={setSearchTerm}
+          searchPlaceholder={t("search_queue") as string}
+          primaryPopover={{
+            icon: "tune",
+            label: t("filters") || "Filters",
+            content: (
+              <div className="flex flex-col w-[300px] p-4 text-left">
+                <div className="flex flex-col mb-5 w-full">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                    TIER
+                  </div>
+                  <CustomDropdown disableTint={true} variant="pill" flat={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
+                </div>
+              </div>
+            )
+          }}
+          actions={[
+            {
+              id: "create",
+              icon: t("icon_add"),
+              label: t("auto_create") || "Create",
+              onClick: () => setIsForgePanelOpen(true)
             }
-            actions={[
-              {
-                id: "create",
-                icon: t("icon_add"),
-                label: t("auto_create") || "Create",
-                onClick: () => setIsForgePanelOpen(true)
-              }
-            ]}
-          />
-        </HeaderActionPortal>
+          ]}
+        />
+      </HeaderActionPortal>
+
+      <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+        <StatTileCarousel innerClassName="px-6 md:px-0">
+          <DashboardStatTile variant="tab" isActive={filterTab === 'stable'} icon="verified" label={t("status_tag_stable") || "Stable"} number={sets.filter(s => s.status === 'stable').length} onClick={() => setFilterTab('stable')} />
+          <DashboardStatTile variant="tab" isActive={filterTab === 'under_review'} icon="policy" label={t("status_tag_under_review") || "Under Review"} number={sets.filter(s => s.status === 'under_review').length} onClick={() => setFilterTab('under_review')} />
+          <DashboardStatTile variant="tab" isActive={filterTab === 'pending'} icon="schedule" label={t("status_tag_pending") || "Pending"} number={sets.filter(s => s.status === 'pending').length} onClick={() => setFilterTab('pending')} />
+          <DashboardStatTile variant="tab" isActive={filterTab === 'unknown'} icon="help" label={t("status_tag_unknown") || "Unknown"} number={sets.filter(s => s.status === 'unknown' || !s.status).length} onClick={() => setFilterTab('unknown')} />
+          <DashboardStatTile variant="tab" isActive={filterTab === 'corrupted'} icon="warning" label={t("status_tag_corrupted") || "Corrupted"} number={sets.filter(s => s.status === 'corrupted').length} onClick={() => setFilterTab('corrupted')} />
+        </StatTileCarousel>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
@@ -663,7 +680,7 @@ export function CollectionForge({ setStatus }: any) {
                 <ActionPill searchQuery={assetSearch} setSearchQuery={setAssetSearch} searchPlaceholder={t("forge_search_assets")} isLoading={isSearching} />
 
                 {assetSearch.length >= 2 && availableAssets.length > 0 && (
-         <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+                  <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
                     {availableAssets.filter(asset => !manifestMembers.some(m => m.mod_id === asset.id)).map(asset => (
                       <button type="button" key={asset.id} onClick={() => { addToManifest(asset.id); setAssetSearch(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center group transition-all shrink-0">
                         <div className="flex flex-col min-w-0 pr-4">

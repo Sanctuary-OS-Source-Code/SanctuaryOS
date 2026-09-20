@@ -18,6 +18,7 @@ import { MasonStatusDropdown } from "./MasonHub";
 import { logArchitectAction } from "./lib/audit";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import MarkdownRenderer from "./MarkdownRenderer";
+import { StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 
 
 export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], setStatus?: any }) {
@@ -43,7 +44,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
   const [severity, setSeverity] = useState(4);
   const [resolution, setResolution] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [filterTab, setFilterTab] = useState<'pending' | 'completed'>('pending');
+  const [filterTab, setFilterTab] = useState<'overview' | 'pending' | 'completed'>('overview');
   const [visibleCount, setVisibleCount] = useState(100);
 
   useEffect(() => {
@@ -389,25 +390,55 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           searchQuery={searchTerm}
           setSearchQuery={setSearchTerm}
           searchPlaceholder={t("search_ph") as string}
-          primaryPopover={{
-            icon: "tune",
-            label: t("filters"),
-            content: (
-              <div className="flex flex-col gap-4 p-4 w-[280px]">
-                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
-                  STATUS
-                </div>
-                <div className="flex items-stretch glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-10 shrink-0 divide-x divide-white/5 overflow-hidden">
-                  <button onClick={() => setFilterTab('pending')} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterTab === 'pending' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("pending")}</button>
-                  <button onClick={() => setFilterTab('completed')} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${filterTab === 'completed' ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("status_completed")}</button>
-                </div>
-              </div>
-            )
-          }}
+          hideSearch={filterTab === 'overview'}
         />
       </HeaderActionPortal>
 
+      <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+        <StatTileCarousel innerClassName="px-6 md:px-0">
+          <DashboardStatTile variant="tab" isActive={filterTab === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} onClick={() => setFilterTab('overview')} />
+          <DashboardStatTile variant="tab" isActive={filterTab === 'pending'} icon="schedule" label={t("pending") || "Pending"} number={pendingReports.length} onClick={() => setFilterTab('pending')} />
+          <DashboardStatTile variant="tab" isActive={filterTab === 'completed'} icon="check_circle" label={t("status_completed") || "Completed"} number={completedReports.length} onClick={() => setFilterTab('completed')} />
+        </StatTileCarousel>
+      </div>
+
       <div className="flex-1 w-full flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
+        {filterTab === 'overview' && (
+          <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+                <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">schedule</span>
+                  {t("recent_pending") || "Recent Pending"}
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+                {pendingReports.slice(0, 10).length > 0 ? pendingReports.slice(0, 10).map((mod: any) => (
+                  <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view")} />
+                )) : (
+                  <EmptyState icon="check_circle" title={t("no_pending") || "No Pending Reports"} className="py-8" />
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+                <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--success)]">check_circle</span>
+                  {t("recent_completed") || "Recent Completed"}
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+                {completedReports.slice(0, 10).length > 0 ? completedReports.slice(0, 10).map((mod: any) => (
+                  <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view")} />
+                )) : (
+                  <EmptyState icon="history" title={t("no_history") || "No History"} className="py-8" />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {filterTab === 'pending' && (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">

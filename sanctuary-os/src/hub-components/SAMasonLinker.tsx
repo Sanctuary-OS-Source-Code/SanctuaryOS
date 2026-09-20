@@ -11,7 +11,7 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton
+  fetchAllPaginated, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton, HeaderActionPortal, ActionPill,
 } from "../shared";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
@@ -24,6 +24,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { CustomClassificationDropdown } from "../hub-components/SharedRegistry";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import MarkdownRenderer from "../MarkdownRenderer";
+import { StatTileCarousel } from "./SharedCommandScreenLayout";
 
 
 
@@ -231,85 +232,85 @@ export function MasonLinker() {
         )}
       </div>
 
-      <SidePanel
-        isOpen={!!selectedMason || isCreating}
-        onClose={handleClosePanel}
-        title={isCreating ? "LINK NEW MASON" : "EDIT MASON"}
-        icon={t("icon_link")}
-        subtitle={selectedMason ? `UUID: ${selectedMason.id}` : t("create_mason_subtitle")}
-        headerActions={
-          <PanelHeaderGroup>
-            <PanelHeaderButton
-              icon="close"
-              tooltip={t("nav_cancel")}
-              onClick={handleClosePanel}
-              disabled={isSubmitting}
-            />
-            <PanelHeaderButton
-              icon="save"
-              tooltip={isSubmitting ? t("identities_updating") : (isCreating ? t("btn_create_mason_naked") : t("ui_btn_commit"))}
-              variant="accent"
-              disabled={isSubmitting || !editName.trim()}
-              onClick={handleSave}
-            />
-          </PanelHeaderGroup>
-        }
-      >
-        <div className="p-6 flex flex-col h-full gap-8">
-          {status && (
-            <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-              <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
-            <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-              {t("metadata")}
-            </h4>
-
-            <div className="flex flex-col gap-2 relative z-50 w-full">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason_name")}</label>
-              <input
-                value={editName}
-                onChange={e => setEditName(e.target.value)}
-                placeholder={t("placeholder_mason_name")}
-                className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40"
-              />
-            </div>
+    <SidePanel
+      isOpen={!!selectedMason || isCreating}
+      onClose={handleClosePanel}
+      title={isCreating ? "LINK NEW MASON" : "EDIT MASON"}
+      icon={t("icon_link")}
+      subtitle={selectedMason ? `UUID: ${selectedMason.id}` : t("create_mason_subtitle")}
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon="close"
+            tooltip={t("nav_cancel")}
+            onClick={handleClosePanel}
+            disabled={isSubmitting}
+          />
+          <PanelHeaderButton
+            icon="save"
+            tooltip={isSubmitting ? t("identities_updating") : (isCreating ? t("btn_create_mason_naked") : t("ui_btn_commit"))}
+            variant="accent"
+            disabled={isSubmitting || !editName.trim()}
+            onClick={handleSave}
+          />
+        </PanelHeaderGroup>
+      }
+    >
+      <div className="p-6 flex flex-col h-full gap-8">
+        {status && (
+          <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
+            <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
           </div>
+        )}
 
-          <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none " />
-            <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span>
-              {t("linking_verification")}
-            </h4>
+        <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
+          <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+            <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
+            {t("metadata")}
+          </h4>
 
-            <div className="flex flex-col gap-2 relative z-40 w-full">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("link_profile")}</label>
-              <ProfileSearchDropdown
-                value={linkedProfileId}
-                profiles={profiles}
-                onChange={setLinkedProfileId}
-              />
-            </div>
-
-            <div className="flex items-center justify-start mt-4 w-full">
-              <label className="text-[10px] font-black text-[var(--text)] capitalize tracking-widest ml-2 flex items-center gap-2">
-                {t("mark_verified")}
-              </label>
-              <button
-                onClick={() => setIsVerified(!isVerified)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isVerified ? 'theme-bg-success' : 'bg-gray-600'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isVerified ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
+          <div className="flex flex-col gap-2 relative z-50 w-full">
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason_name")}</label>
+            <input
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              placeholder={t("placeholder_mason_name")}
+              className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40"
+            />
           </div>
-
         </div>
+
+        <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none " />
+          <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
+            <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span>
+            {t("linking_verification")}
+          </h4>
+
+          <div className="flex flex-col gap-2 relative z-40 w-full">
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("link_profile")}</label>
+            <ProfileSearchDropdown
+              value={linkedProfileId}
+              profiles={profiles}
+              onChange={setLinkedProfileId}
+            />
+          </div>
+
+          <div className="flex items-center justify-start mt-4 w-full">
+            <label className="text-[10px] font-black text-[var(--text)] capitalize tracking-widest ml-2 flex items-center gap-2">
+              {t("mark_verified")}
+            </label>
+            <button
+              onClick={() => setIsVerified(!isVerified)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isVerified ? 'theme-bg-success' : 'bg-gray-600'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isVerified ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+        </div>
+
+      </div>
       </SidePanel>
     </ElevatedHubLayout>
   );

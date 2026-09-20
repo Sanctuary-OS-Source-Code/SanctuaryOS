@@ -24,7 +24,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [activeSubType, setActiveSubType] = useState("ALL");
-  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [activeTab, setActiveTab] = useState<'overview' | 'stable' | 'under_review' | 'pending' | 'unknown' | 'corrupted' | 'unstable_corrupted'>('stable');
 
   const fetchData = async () => {
     const { data } = await supabase.from('mods').select('*, mod_versions(id, dna_hash, version_label, game_version)').eq('mason_id', masonId).order('name');
@@ -84,6 +84,12 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
   };
 
   const filteredMods = myMods.filter(mod => {
+    if (activeTab === 'unknown') {
+      if (mod.status && mod.status !== 'unknown') return false;
+    } else {
+      if (mod.status !== activeTab) return false;
+    }
+
     if (statusFilter !== "ALL") {
       if (statusFilter === "paid" && !mod.is_paid) return false;
       else if (statusFilter === "early_access" && !mod.is_early_access) return false;
@@ -108,48 +114,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
 
   const displayMods = filteredMods.slice(0, 50);
 
-  const tabs = [
-    {
-      id: "overview",
-      label: t("landing_overview") || "Overview",
-      icon: "dashboard",
-    },
-    {
-      id: "all",
-      label: t("ql_all") || "All Items",
-      icon: "inventory_2",
-      count: filteredMods.length
-    }
-  ];
 
-  const renderLanding = () => {
-    return (
-      <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--accent)]">schedule</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_artifacts") || "Recent Artifacts"}</h3>
-            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-          </div>
-          {filteredMods.length === 0 ? (
-            <EmptyState icon={t("icon_deployed_code")} title={t("registry_no_mods")} className="py-8" />
-          ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pr-2">
-              {filteredMods.slice(0, 4).map((mod: any) => (
-                <ArtifactCard
-                  key={mod.id}
-                  mod={mod}
-                  activeModId={activeMod?.id}
-                  onClick={() => setActiveMod(mod)}
-                  layout="horizontal"
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   const renderList = () => {
     return (
@@ -214,17 +179,16 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
 
         <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
           <StatTileCarousel innerClassName="px-6 md:px-0">
-            <DashboardStatTile variant="tab" isActive={activeTab === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} number={myMods.length} onClick={() => setActiveTab('overview')} />
             <DashboardStatTile variant="tab" isActive={activeTab === 'stable'} icon="verified" label={t("status_tag_stable") || "Stable"} number={myMods.filter(m => m.status === 'stable').length} onClick={() => setActiveTab('stable')} />
             <DashboardStatTile variant="tab" isActive={activeTab === 'under_review'} icon="policy" label={t("status_tag_under_review") || "Under Review"} number={myMods.filter(m => m.status === 'under_review').length} onClick={() => setActiveTab('under_review')} />
             <DashboardStatTile variant="tab" isActive={activeTab === 'pending'} icon="schedule" label={t("status_tag_pending") || "Pending"} number={myMods.filter(m => m.status === 'pending').length} onClick={() => setActiveTab('pending')} />
             <DashboardStatTile variant="tab" isActive={activeTab === 'unknown'} icon="help" label={t("status_tag_unknown") || "Unknown"} number={myMods.filter(m => m.status === 'unknown' || !m.status).length} onClick={() => setActiveTab('unknown')} />
-            <DashboardStatTile variant="tab" isActive={activeTab === 'unstable_corrupted'} icon="warning" label={t("status_tag_unstable") || "Unstable & Corrupted"} number={myMods.filter(m => m.status === 'unstable' || m.status === 'corrupted').length} onClick={() => setActiveTab('unstable_corrupted')} />
+            <DashboardStatTile variant="tab" isActive={activeTab === 'corrupted'} icon="warning" label={t("status_tag_corrupted") || "Corrupted"} number={myMods.filter(m => m.status === 'corrupted').length} onClick={() => setActiveTab('corrupted')} />
           </StatTileCarousel>
         </div>
 
         <div className="flex-1 relative">
-          {activeTab === 'overview' ? renderLanding() : renderList()}
+          {renderList()}
         </div>
       </div>
 

@@ -3,10 +3,11 @@ import { createPortal } from "react-dom";
 import { supabase, getActiveGameClient } from "./supabase";
 import { useStore } from './store';
 import { useLexicon } from "./LexiconContext";
-import { ModSearchDropdown, SidePanel, formatOverviewMetric, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton, FilterTabs, FilterTabButton, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton } from "./shared";
+import { ModSearchDropdown, SidePanel, formatOverviewMetric, standardDangerButtonClass, standardAccentGlassButtonClass, standardButtonClass, EmptyState, ActionButton, FilterTabs, FilterTabButton, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, ActionPill, HeaderActionPortal } from "./shared";
 import { logArchitectAction } from "./lib/audit";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { ElevatedHubLayout } from './components/layouts/ElevatedHubLayout';
+import { StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 
 const fetchAllPaginated = async (queryFn: () => any) => {
   let allData: any[] = [];
@@ -205,7 +206,7 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
 
   const renderLanding = () => (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
             <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
@@ -273,140 +274,139 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
 
   return (
     <ElevatedHubLayout
-      headerTitle={t("forge_title") || "Conflicts"}
+      headerTitle={t("masonhub_conflicts_title") || "Conflict Management"}
+      headerSubtitle={t("masonhub_conflicts_subtitle") || "Manage logical conflicts between mods"}
       headerIcon="security"
+      headerIconColorClass="theme-text-accent"
       search={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("ui_placeholder_search") as string}
-      headerActions={
-        <div className="flex items-center gap-2">
-          <ActionButton
-            onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }}
-            iconOnly={true}
-            icon={t("icon_add") || "add"}
-            label={t("auto_create")}
-            className="shrink-0 h-10 w-10 px-0 font-black capitalize tracking-widest text-[10px] !text-[var(--accent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)]"
-          />
-        </div>
-      }
+      searchPlaceholder={t("ui_placeholder_search")}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={(id) => setActiveTab(id as any)}
       tabs={[
-        { id: 'LANDING', label: t("overview_tab") || "Overview", icon: 'dashboard', number: formatOverviewMetric(ghosts, 'created_at'), colorClass: 'text-[var(--accent)]' },
+        { id: 'LANDING', label: t("overview_tab") || "Overview", icon: 'dashboard', colorClass: 'text-[var(--accent)]' },
         { id: 'PENDING', label: t("status_tag_pending") || "Pending", icon: 'hourglass_empty', number: pendingConflicts.length.toString(), colorClass: 'text-[var(--text)]' },
         { id: '4', label: "S4", icon: 'warning', number: s4Conflicts.length.toString(), colorClass: 'text-[var(--danger)]' },
         { id: '3', label: "S3", icon: 'error', number: s3Conflicts.length.toString(), colorClass: 'text-[var(--warning)]' }
       ]}
+      headerActions={
+        <ActionButton
+          onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }}
+          className="shrink-0 h-10 px-4 font-black capitalize tracking-widest text-[10px] theme-bg-accent text-black hover:bg-white transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.6)]"
+          icon="add"
+          label={t("auto_create")}
+        />
+      }
     >
-      {activeTab === "LANDING" && renderLanding()}
-      {activeTab === "PENDING" && renderList(pendingConflicts)}
-      {activeTab === "4" && renderList(s4Conflicts)}
-      {activeTab === "3" && renderList(s3Conflicts)}
+        {activeTab === "LANDING" && renderLanding()}
+        {activeTab === "PENDING" && renderList(pendingConflicts)}
+        {activeTab === "4" && renderList(s4Conflicts)}
+        {activeTab === "3" && renderList(s3Conflicts)}
 
-      {(() => {
-        const editingGhost = ghosts.find(g => g.id === editConflictId);
+        {(() => {
+          const editingGhost = ghosts.find(g => g.id === editConflictId);
 
-        return (
-          <SidePanel
-            isOpen={isSidePanelOpen}
-            onClose={() => setIsSidePanelOpen(false)}
-            title={editConflictId ? t("edit_side_panel") : t("forge_title")}
-            headerActions={
-              <PanelHeaderGroup>
-                {!editConflictId && (
-                  <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={() => setIsSidePanelOpen(false)} />
-                )}
-                {editConflictId && deleteConfirmId !== editConflictId && (
-                  <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge")} onClick={() => setDeleteConfirmId(editConflictId)} />
-                )}
-                {deleteConfirmId !== editConflictId && (
-                  <PanelHeaderButton icon="check" variant="success" disabled={isSubmitting || !activeMaster || !conflictEnemy} tooltip={isSubmitting ? "..." : (editConflictId ? t("masonhub_update_conflict") : t("add_conflict"))} onClick={(e: any) => handleAddConflict(e)} />
-                )}
-              </PanelHeaderGroup>
-            }
-            noPadding={true}
-            noScroll={true}
-          >
-            <div className="flex flex-col h-full overflow-hidden relative">
+          return (
+            <SidePanel
+              isOpen={isSidePanelOpen}
+              onClose={() => setIsSidePanelOpen(false)}
+              title={editConflictId ? t("edit_side_panel") : t("forge_title")}
+              headerActions={
+                <PanelHeaderGroup>
+                  {!editConflictId && (
+                    <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={() => setIsSidePanelOpen(false)} />
+                  )}
+                  {editConflictId && deleteConfirmId !== editConflictId && (
+                    <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge")} onClick={() => setDeleteConfirmId(editConflictId)} />
+                  )}
+                  {deleteConfirmId !== editConflictId && (
+                    <PanelHeaderButton icon="check" variant="success" disabled={isSubmitting || !activeMaster || !conflictEnemy} tooltip={isSubmitting ? "..." : (editConflictId ? t("masonhub_update_conflict") : t("add_conflict"))} onClick={(e: any) => handleAddConflict(e)} />
+                  )}
+                </PanelHeaderGroup>
+              }
+              noPadding={true}
+              noScroll={true}
+            >
+              <div className="flex flex-col h-full overflow-hidden relative">
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-8 relative z-10">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 relative z-10">
 
-                <form onSubmit={handleAddConflict} className="flex flex-col gap-8 relative z-10">
-                  <div className="flex flex-col gap-6">
-                    {editingGhost && (
-                      <div className="flex flex-col gap-2 relative z-10 w-full text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] mb-4">
-                        <div className="flex justify-start items-center">
-                          <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">calendar_today</span>{t("date_created")}</span>
-                          <span className="text-[var(--text)] drop-shadow-md">{new Date(editingGhost.created_at).toLocaleDateString()}</span>
+                  <form onSubmit={handleAddConflict} className="flex flex-col gap-8 relative z-10">
+                    <div className="flex flex-col gap-6">
+                      {editingGhost && (
+                        <div className="flex flex-col gap-2 relative z-10 w-full text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] mb-4">
+                          <div className="flex justify-start items-center">
+                            <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">calendar_today</span>{t("date_created")}</span>
+                            <span className="text-[var(--text)] drop-shadow-md">{new Date(editingGhost.created_at).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex justify-start items-center mt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3 relative z-10">
+                            <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">fingerprint</span>{t("source")}</span>
+                            <span className="text-[var(--accent)] drop-shadow-md">{editingGhost.author_id ? (t("tab_architect")) : (t("source_system"))}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-start items-center mt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-3 relative z-10">
-                          <span className="opacity-60 flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">fingerprint</span>{t("source")}</span>
-                          <span className="text-[var(--accent)] drop-shadow-md">{editingGhost.author_id ? (t("tab_architect")) : (t("source_system"))}</span>
+                      )}
+
+                      <div className="flex flex-col gap-2 w-full">
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
+                          {t("items")}
+                        </label>
+                        <ModSearchDropdown placeholder={t("registry_select_master")} modList={myMods} selectedItem={activeMaster} onSelect={(m: any) => setActiveMaster(m)} onClear={() => setActiveMaster(null)} />
+                      </div>
+
+                      <div className="relative h-6 w-full flex items-center justify-center z-20 my-2">
+                        <div className="absolute left-6 right-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] z-10 pointer-events-none" />
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm relative z-20 text-[var(--subtext)]">
+                          <span className="text-[8px] font-black italic capitalize drop-shadow-md">{t("vs")}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2 w-full">
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
+                          {t("conflicting_mod")}
+                        </label>
+                        <ModSearchDropdown placeholder={t("enemy_placeholder")} modList={cloudMods} selectedItem={conflictEnemy} onSelect={(m: any) => setConflictEnemy(m)} onClear={() => setConflictEnemy(null)} />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 w-full mt-2">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
+                        {t("label_severity")}
+                      </label>
+                      <div className="relative z-50">
+                        <CustomTierDropdown value={conflictSeverity} onChange={(val: number) => setConflictSeverity(val)} />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 w-full mt-2">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
+                        {t("label_notes")}
+                      </label>
+                      <textarea value={conflictResolution} onChange={(e) => setConflictResolution(e.target.value)} placeholder={t("resolution_placeholder")} className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-border-accent resize-none custom-scrollbar shadow-inner relative z-10 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]" />
+                    </div>
+
+                    {deleteConfirmId === editConflictId && editConflictId && (
+                      <div className="flex flex-col gap-4 p-5 mt-4 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
+                        <span className="text-sm font-black text-[var(--danger)] capitalize tracking-widest text-center">{t("ui_confirm_delete")}</span>
+                        <input
+                          type="text"
+                          value={deleteReason}
+                          onChange={e => setDeleteReason(e.target.value)}
+                          placeholder={t("matrix_delete_reason_ph")}
+                          className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] placeholder:opacity-40"
+                        />
+                        <div className="flex justify-center gap-3 mt-2">
+                          <ActionButton type="button" disabled={!deleteReason.trim()} onClick={() => handleDeleteConflict(editConflictId)} label={t("purge")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"></ActionButton>
+                          <ActionButton type="button" onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }} label={t("nav_cancel")}></ActionButton>
                         </div>
                       </div>
                     )}
 
-                    <div className="flex flex-col gap-2 w-full">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
-                        {t("items")}
-                      </label>
-                      <ModSearchDropdown placeholder={t("registry_select_master")} modList={myMods} selectedItem={activeMaster} onSelect={(m: any) => setActiveMaster(m)} onClear={() => setActiveMaster(null)} />
-                    </div>
-
-                    <div className="relative h-6 w-full flex items-center justify-center z-20 my-2">
-                      <div className="absolute left-6 right-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] z-10 pointer-events-none" />
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm relative z-20 text-[var(--subtext)]">
-                        <span className="text-[8px] font-black italic capitalize drop-shadow-md">{t("vs")}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 w-full">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
-                        {t("conflicting_mod")}
-                      </label>
-                      <ModSearchDropdown placeholder={t("enemy_placeholder")} modList={cloudMods} selectedItem={conflictEnemy} onSelect={(m: any) => setConflictEnemy(m)} onClear={() => setConflictEnemy(null)} />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 w-full mt-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
-                      {t("label_severity")}
-                    </label>
-                    <div className="relative z-50">
-                      <CustomTierDropdown value={conflictSeverity} onChange={(val: number) => setConflictSeverity(val)} />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 w-full mt-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
-                      {t("label_notes")}
-                    </label>
-                    <textarea value={conflictResolution} onChange={(e) => setConflictResolution(e.target.value)} placeholder={t("resolution_placeholder")} className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold min-h-[120px] focus:outline-none transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-border-accent resize-none custom-scrollbar shadow-inner relative z-10 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)]" />
-                  </div>
-
-                  {deleteConfirmId === editConflictId && editConflictId && (
-                    <div className="flex flex-col gap-4 p-5 mt-4 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md shadow-[0_0_20px_rgba(var(--danger-rgb),0.2)] animate-in slide-in-from-bottom-2">
-                      <span className="text-sm font-black text-[var(--danger)] capitalize tracking-widest text-center">{t("ui_confirm_delete")}</span>
-                      <input
-                        type="text"
-                        value={deleteReason}
-                        onChange={e => setDeleteReason(e.target.value)}
-                        placeholder={t("matrix_delete_reason_ph")}
-                        className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] placeholder:opacity-40"
-                      />
-                      <div className="flex justify-center gap-3 mt-2">
-                        <ActionButton type="button" disabled={!deleteReason.trim()} onClick={() => handleDeleteConflict(editConflictId)} label={t("purge")} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"></ActionButton>
-                        <ActionButton type="button" onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }} label={t("nav_cancel")}></ActionButton>
-                      </div>
-                    </div>
-                  )}
-
-                </form>
+                  </form>
+                </div>
               </div>
-            </div>
-          </SidePanel>
-        );
-      })()}
+            </SidePanel>
+          );
+        })()}
     </ElevatedHubLayout>
   );
 }

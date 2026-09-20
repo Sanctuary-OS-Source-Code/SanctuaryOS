@@ -106,7 +106,7 @@ export function UniversalCard({
   const isInteractive = !!onClick || !!onContextMenu;
   const hoverClasses = !isDisabled && isInteractive ? "group-hover/card:shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]" : "transition-all duration-500";
 
-  const containerClasses = `glass-panel rounded-[inherit] relative flex group/card shrink-0 ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
+  const containerClasses = `glass-panel rounded-[inherit] relative flex group group/card shrink-0 ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
 
   const renderMedia = () => {
     if (!image && !icon && !customIcon) return null;
@@ -203,12 +203,6 @@ export function UniversalCard({
 
             <div className={`flex min-w-0 w-full ${layout === 'stat' ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
               {/* Removed large inline icon since it now renders in the banner */}
-
-              {(image || customIcon || icon) && layout !== 'stat' && (
-                <span className={`material-symbols-outlined ${layout === 'compact' ? 'text-lg opacity-70' : 'text-xl theme-text-accent opacity-90'} shrink-0`}>
-                  {icon}
-                </span>
-              )}
 
               <span className={`flex-none min-w-0 w-full capitalize break-words ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm line-clamp-2 text-balance leading-snug' : layout === 'vertical-compact' ? 'text-base line-clamp-2 text-balance leading-snug' : layout === 'stat' ? 'text-base' : 'text-lg md:text-xl line-clamp-2 text-balance leading-tight'} sanctuary-title group-hover:theme-text-accent transition-colors`}>
                 {typeof title === 'string' ? title.toLowerCase() : title}
