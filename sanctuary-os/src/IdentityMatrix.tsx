@@ -149,7 +149,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={onClose} disabled={isSubmitting} />
-          <PanelHeaderButton icon="check" variant="success" tooltip={isSubmitting ? t("identities_updating") : t("ui_btn_commit")} onClick={handleUpdateRole} disabled={isSubmitting || (isBanned && !editReason.trim()) || (isCommBanned && !editCommReason.trim()) || (!isWayfinder && profile?.role === 'wayfinder')} />
+          <PanelHeaderButton icon="check" variant="success" tooltip={isSubmitting ? t("identities_updating") : t("ui_btn_commit")} onClick={handleUpdateRole} disabled={isSubmitting || (isBanned && !editReason.trim()) || (isCommBanned && !editCommReason.trim()) || (!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(profile?.role))} />
         </PanelHeaderGroup>
       }
     >
@@ -167,7 +167,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
         </div>
 
         <UniversalGroup title={t("identities_role_label")} icon={t("icon_settings")}>
-          {(!isWayfinder && profile?.role === 'wayfinder') ? (
+          {(!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(profile?.role)) ? (
             <div className="flex flex-col gap-2 relative z-50 p-4 rounded-xl bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] w-full">
               <p className="text-xs font-bold text-amber-500">{t("identities_wayfinder_locked")}</p>
             </div>
@@ -175,7 +175,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
             <div className="flex flex-col gap-2 relative z-50 w-full">
               <CustomRoleSelect
                 value={editRole}
-                roles={isWayfinder ? ROLES : ['citizen', 'keeper', 'admin']}
+                roles={isKeepers ? ['citizen', 'keeper', 'admin'] : (isWayfinder ? ROLES : ['citizen', 'mason', 'architect'])}
                 onChange={(newRole: string) => setEditRole(newRole)}
                 isBlacklisted={isBanned}
               />
@@ -183,7 +183,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
           )}
         </UniversalGroup>
 
-        {(!isWayfinder && profile?.role === 'wayfinder') ? null : (
+        {(!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(profile?.role)) ? null : (
           <div className="flex flex-col gap-6">
             <UniversalGroup 
               title={isWayfinder ? (t("identities_punitive_upload")) : (t("ui_network_blacklist"))} 
@@ -269,8 +269,12 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
     const client = isKeepers ? supabaseAuth : getActiveGameClient();
     const { data } = await client.from('profiles').select('*').order('username');
     if (data) {
-      setProfiles(data.filter((p: any) => !p.is_banned && !p.is_comm_banned));
-      setBlacklistedProfiles(data.filter((p: any) => p.is_banned || p.is_comm_banned));
+      let filteredData = data;
+      if (!isKeepers && !isWayfinder) {
+        filteredData = data.filter(p => !['oversight', 'wayfinder'].includes(p.role));
+      }
+      setProfiles(filteredData.filter((p: any) => !p.is_banned && !p.is_comm_banned));
+      setBlacklistedProfiles(filteredData.filter((p: any) => p.is_banned || p.is_comm_banned));
     }
     setLoading(false);
   };
@@ -278,7 +282,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
   useEffect(() => { fetchData(); }, []);
 
   const handleOpenPanel = (p: any) => {
-    if (!isWayfinder && p.role === 'wayfinder') {
+    if (!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(p.role)) {
       useStore.getState().pushStatus(t("auto_you_cannot_edit_45"));
       return;
     }
@@ -295,13 +299,17 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
     { id: "all", label: t("landing_overview") || "Overview", icon: "dashboard" },
     ...ROLES.filter(r => {
       if (isKeepers) return r === 'citizen';
-      return isWayfinder || r !== 'wayfinder';
+      if (!isWayfinder) return !['oversight', 'wayfinder'].includes(r);
+      return true;
     }).map(r => ({ 
       id: r, 
       label: r.replace(/_/g, ' ').toUpperCase(), 
       icon: r === 'citizen' ? 'person' : r === 'mason' ? 'architecture' : r === 'architect' ? 'engineering' : 'admin_panel_settings' 
     })),
-    ...(isKeepers ? [{ id: 'admin', label: 'DEV', icon: "developer_mode" }] : [])
+    ...(isKeepers ? [
+      { id: 'keeper', label: 'KEEPER', icon: "admin_panel_settings" },
+      { id: 'admin', label: 'ADMIN', icon: "developer_mode" }
+    ] : [])
   ];
 
   return (
@@ -330,7 +338,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
                   <UniversalCard
                     key={p.id}
                     onClick={() => handleOpenPanel(p)}
-                    className={(!isWayfinder && p.role === 'wayfinder') ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
+                    className={(!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(p.role)) ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
                     layout="horizontal"
                     icon="person"
                     title={p.username || t("vlocal")}
