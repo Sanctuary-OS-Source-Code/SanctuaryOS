@@ -39,7 +39,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
   const [banDuration, setBanDuration] = useState<string>("");
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeStatus, setActiveStatus] = useState<"pending" | "resolved" | "ALL">("pending");
+  const [activeStatus, setActiveStatus] = useState<"pending" | "resolved" | "dismissed" | "overview" | "ALL">("overview");
   const [activeType, setActiveType] = useState<string>("ALL");
 
   useEffect(() => {

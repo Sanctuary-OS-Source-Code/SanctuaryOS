@@ -74,7 +74,6 @@ export function DefconPanel() {
       hideSearch={activeTab === 'overview'}
 
       tabs={tabs}
-      hideSearch={activeTab === 'overview'}
 
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
