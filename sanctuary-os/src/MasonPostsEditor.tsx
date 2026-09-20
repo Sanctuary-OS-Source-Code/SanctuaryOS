@@ -53,7 +53,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("overview");
 
   const [isPinned, setIsPinned] = useState(false);
   const [isActive, setIsActive] = useState(true);
@@ -431,30 +431,66 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     });
   }, [filteredPosts, draftKeysStr, confirmDelete, t, setPreviewPost]);
 
+  const renderLanding = () => {
+    const recentPosts = posts.slice(0, 4);
+    const draftSet = new Set(draftKeysStr.split(','));
+
+    return (
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[var(--accent)]">history</span>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_posts") || "Recent Posts"}</h3>
+            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+          </div>
+          {recentPosts.length === 0 ? (
+            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent posts</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+              {recentPosts.map((post, index) => (
+                <div key={post.id} className="w-full">
+                  <MasonPostCard layout="vertical"
+                    post={post}
+                    index={index}
+                    onPostClick={openEditor}
+                    onToggleLike={() => { }}
+                    hasUnsavedEdits={draftSet.has(post.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[var(--accent)]">forum</span>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_replies") || "Recent Replies"}</h3>
+            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+          </div>
+          <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent replies</div>
+        </div>
+      </div>
+    );
+  };
+
   const tabs = [
     {
-      id: "all",
+      id: "overview",
       label: t("landing_overview") || "Overview",
-      icon: "dashboard",
-      number: posts.length
-    },
-    {
-      id: "pinned",
-      label: t("tab_pinned") || "Pinned",
-      icon: "push_pin",
-      number: posts.filter(p => p.is_pinned).length
+      icon: "dashboard"
     },
     {
       id: "active",
       label: t("tab_active") || "Active",
       icon: "check_circle",
-      number: posts.filter(p => p.is_active !== false).length
+      number: posts.filter(p => p.is_active !== false).length.toString()
     },
     {
       id: "inactive",
       label: t("tab_inactive") || "Inactive",
       icon: "cancel",
-      number: posts.filter(p => p.is_active === false).length
+      number: posts.filter(p => p.is_active === false).length.toString()
     }
   ];
 
@@ -466,28 +502,35 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       search={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder={t("mason_search_placeholder")}
+      hideSearch={activeTab === 'overview'}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as string)}
       headerActions={
-        <div className="flex items-center gap-2">
-          <ActionButton
-            onClick={() => openEditor()}
-            className="shrink-0 h-10 w-10 px-0"
-            icon={t("icon_cell_tower") || "cell_tower"}
-            iconOnly={true}
-            label={t("post_broadcast")}
-          />
-        </div>
+        activeTab !== 'overview' ? (
+          <div className="flex items-center gap-2">
+            <ActionButton
+              onClick={() => openEditor()}
+              className="shrink-0 h-10 w-10 px-0"
+              icon={t("icon_cell_tower") || "cell_tower"}
+              iconOnly={true}
+              label={t("post_broadcast")}
+            />
+          </div>
+        ) : undefined
       }
     >
       <div className="w-full flex flex-col gap-10 pb-32">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
-          {postCards}
-          {filteredPosts.length === 0 && (
-            <EmptyState icon={t("icon_cell_tower")} title={t("no_transmissions")} className="col-span-full py-16" />
-          )}
-        </div>
+        {activeTab === 'overview' ? (
+          renderLanding()
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
+            {postCards}
+            {filteredPosts.length === 0 && (
+              <EmptyState icon={t("icon_cell_tower")} title={t("no_transmissions")} className="col-span-full py-16" />
+            )}
+          </div>
+        )}
       </div>
 
       {isEditorOpen && (
@@ -713,3 +756,4 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     </ElevatedHubLayout>
   );
 }
+

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { supabaseServices } from "../lib/supabase-services";
 import { useLexicon } from "../LexiconContext";
 import { standardPrimaryButtonClass, standardButtonClass, standardSuccessButtonClass, SidePanel, CustomDropdown, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill, HeaderActionPortal, DashboardStatTile } from "../shared";
+import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { StatTileCarousel } from "./SharedCommandScreenLayout";
 import TemplatePreviewer from "../TemplatePreviewer";
@@ -179,7 +180,7 @@ export default function ArchitectTemplateOversight() {
         });
 
         return (
-            <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
                 <div className="flex flex-col gap-6">
                     <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
                         <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
@@ -210,57 +211,49 @@ export default function ArchitectTemplateOversight() {
     };
 
     return (
-        <div className="flex flex-col w-full relative h-full">
-            <HeaderActionPortal>
-                <ActionPill
-                    searchQuery={fileSearch}
-                    setSearchQuery={setFileSearch}
-                    searchPlaceholder={t("template_search_files") as string}
-                    hideSearch={activeFilterTab === 'overview'}
-                    primaryPopover={{
-                        icon: "tune",
-                        label: t("filters") || "Filters",
-                        content: (
-                            <div className="flex flex-col w-[300px] p-4 text-left">
-                                <div className="flex flex-col mb-5 w-full">
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                                        SORT BY
-                                    </div>
-                                    <CustomDropdown
-                                        flat={true}
-                                        variant="pill"
-                                        disableTint={true}
-                                        value={fileSort}
-                                        options={[{ id: "date", label: t("template_sort_date") }, { id: "name", label: t("sort_name") }]}
-                                        onChange={(val: string[]) => setFileSort(val[0])}
-                                    />
-                                </div>
+        <>
+        <ElevatedHubLayout
+            headerTitle={t("architect_templates") || "Template Oversight"}
+            headerSubtitle={t("architect_templates_desc") || "Manage and review configuration templates."}
+            headerIcon="description"
+            headerIconColorClass="theme-text-accent"
+            search={fileSearch}
+            onSearchChange={setFileSearch}
+            searchPlaceholder={t("template_search_files") as string}
+            tabs={tabs}
+            activeTab={activeFilterTab}
+            onTabChange={(tabId: string) => setActiveFilterTab(tabId as any)}
+            hideSearch={activeFilterTab === 'overview'}
+            primaryPopover={activeFilterTab !== 'overview' ? {
+                icon: "tune",
+                label: t("filters") || "Filters",
+                content: (
+                    <div className="flex flex-col w-[300px] p-4 text-left">
+                        <div className="flex flex-col mb-5 w-full">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                                SORT BY
                             </div>
-                        )
-                    }}
-                    actions={[
-                        {
-                            id: "add",
-                            icon: "add",
-                            label: t("btn_add") || "Add",
-                            onClick: () => setIsAddPanelOpen(true)
-                        }
-                    ]}
-                />
-            </HeaderActionPortal>
-
-            <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-                <StatTileCarousel innerClassName="px-6 md:px-0">
-                    <DashboardStatTile variant="tab" isActive={activeFilterTab === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} onClick={() => setActiveFilterTab('overview')} />
-                    <DashboardStatTile variant="tab" isActive={activeFilterTab === 'active'} icon="description" label={t("status_active") || "Active"} number={trackedFiles.length} onClick={() => setActiveFilterTab('active')} />
-                    <DashboardStatTile variant="tab" isActive={activeFilterTab === 'flagged'} icon="flag" label={t("oversight_tab_flagged") || "Flagged"} number={trackedFiles.filter(f => {
-                        const fileTemplates = templates.filter(t => t.targetFile === f.file_name);
-                        return fileTemplates.some(t => flaggedTemplateIds.includes(t.id));
-                    }).length} onClick={() => setActiveFilterTab('flagged')} />
-                </StatTileCarousel>
-            </div>
-
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 transition-all duration-500">
+                            <CustomDropdown
+                                flat={true}
+                                variant="pill"
+                                disableTint={true}
+                                value={fileSort}
+                                options={[{ id: "date", label: t("template_sort_date") }, { id: "name", label: t("sort_name") }]}
+                                onChange={(val: string[]) => setFileSort(val[0])}
+                            />
+                        </div>
+                    </div>
+                )
+            } : undefined}
+            actions={activeFilterTab !== 'overview' ? [
+                {
+                    id: "add",
+                    icon: "add",
+                    label: t("auto_create") || "Add",
+                    onClick: () => setIsAddPanelOpen(true)
+                }
+            ] : undefined}
+        >
                 {activeFilterTab === 'overview' ? renderLanding() : (
                     <div className="flex flex-col gap-4">
                         {isLoading ? (
@@ -274,7 +267,7 @@ export default function ArchitectTemplateOversight() {
                         )}
                     </div>
                 )}
-            </div>
+            </ElevatedHubLayout>
 
             <SidePanel
                 isOpen={isAddPanelOpen}
@@ -448,9 +441,10 @@ export default function ArchitectTemplateOversight() {
                     </div>
                 )}
             </SidePanel>
-        </div>
+        </>
     );
 }
+
 
 
 

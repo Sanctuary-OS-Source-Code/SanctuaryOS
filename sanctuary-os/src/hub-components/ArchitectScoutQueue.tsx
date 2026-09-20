@@ -259,7 +259,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
     const completedSubmissions = submissions.filter((s: any) => s.status !== 'pending');
 
     return (
-      <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
             <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
@@ -292,33 +292,20 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
   };
 
   return (
-    <div className="flex flex-col w-full h-full relative">
-      <HeaderActionPortal>
-        <ActionPill
-          searchQuery={searchTerm}
-          setSearchQuery={setSearchTerm}
-          searchPlaceholder={t("search_queue") as string}
-          hideSearch={filterTab === 'overview'}
-        />
-      </HeaderActionPortal>
-
-      <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-        <StatTileCarousel innerClassName="px-6 md:px-0">
-          {tabs.map((tab) => (
-            <DashboardStatTile
-              key={tab.id}
-              variant="tab"
-              isActive={filterTab === tab.id}
-              icon={tab.icon}
-              label={tab.label}
-              number={tab.number}
-              onClick={() => setFilterTab(tab.id as any)}
-            />
-          ))}
-        </StatTileCarousel>
-      </div>
-
-      <div className="flex-1 relative overflow-y-auto custom-scrollbar pr-2 pb-16">
+    <>
+      <ElevatedHubLayout
+        headerTitle={t("scout_queue") || "Scout Queue"}
+        headerSubtitle={t("scout_queue_desc") || "Review automated network anomaly submissions."}
+        headerIcon="radar"
+        headerIconColorClass="theme-text-accent"
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("search_queue") as string}
+        hideSearch={filterTab === 'overview'}
+        activeTab={filterTab}
+        onTabChange={(tabId: string) => setFilterTab(tabId as any)}
+        tabs={tabs.map(t => ({...t, number: t.number?.toString()}))}
+      >
         {filterTab === 'overview' ? renderLanding() : (
           <div className="flex flex-col gap-4">
             {loading ? (
@@ -340,6 +327,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
             )}
           </div>
         )}
+      </ElevatedHubLayout>
 
         <SidePanel
           isOpen={!!activeScout}
@@ -495,9 +483,10 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
             <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
           </div>
         </SidePanel>
-      </div> </div>
+      </>
   );
 }
+
 
 
 

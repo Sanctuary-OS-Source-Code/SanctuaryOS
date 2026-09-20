@@ -110,39 +110,64 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
   };
 
   const filteredSets = sets.filter((s: any) => {
+    if (activeTab === 'overview') {
+      // Do not filter by status
+    } else if (activeTab === 'unknown') {
+      if (s.status && s.status !== 'unknown') return false;
+    } else {
+      if (s.status !== activeTab) return false;
+    }
     if (tierFilter !== "ALL" && s.compliance_tier !== parseInt(tierFilter)) return false;
     return s.name?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const tabs = [
-    {
-      id: "overview",
-      label: t("landing_overview") || "Overview",
-      icon: "dashboard",
-    },
-    {
-      id: "all",
-      label: t("ql_all") || "All",
-      icon: "collections_bookmark",
-      count: filteredSets.length
-    }
+    { id: 'overview', label: t("landing_overview") || "Overview", icon: 'dashboard', colorClass: 'text-[var(--accent)]' },
+    { id: 'stable', label: t("status_tag_stable") || "Stable", icon: 'verified', number: sets.filter(s => s.status === 'stable').length.toString() },
+    { id: 'under_review', label: t("status_tag_under_review") || "Under Review", icon: 'policy', number: sets.filter(s => s.status === 'under_review').length.toString() },
+    { id: 'pending', label: t("status_tag_pending") || "Pending", icon: 'schedule', number: sets.filter(s => s.status === 'pending').length.toString() },
+    { id: 'unknown', label: t("status_tag_unknown") || "Unknown", icon: 'help', number: sets.filter(s => s.status === 'unknown' || !s.status).length.toString() },
+    { id: 'corrupted', label: t("status_tag_corrupted") || "Corrupted", icon: 'warning', number: sets.filter(s => s.status === 'corrupted').length.toString() }
   ];
 
   const renderLanding = () => {
     return (
-      <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--accent)]">collections_bookmark</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("nav_collections")}</h3>
+            <span className="material-symbols-outlined text-[var(--accent)]">history</span>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_activity") || "Recent Activity"}</h3>
             <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
           </div>
-          {filteredSets.length === 0 ? (
-            <EmptyState icon={t("icon_extension_off")} title={t("cc_no_sets")} className="py-8" />
+          {sets.length === 0 ? (
+            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent collections found</div>
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 content-start pr-2">
-              {filteredSets.slice(0, 4).map(setItem => (
-                <div key={setItem.id} className="w-full max-w-[450px]">
+            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+              {sets.slice(0, 4).map(setItem => (
+                <div key={setItem.id} className="w-full">
+                  <VaultCard
+                    setItem={setItem}
+                    activeSetId={activeSet?.id}
+                    onClick={() => { setActiveSet(setItem); fetchMembers(setItem.id); }}
+                    masonNameFallback={masonName}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[var(--warning)]">warning</span>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_issues") || "Flags & Issues"}</h3>
+            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+          </div>
+          {sets.filter(s => s.status === 'corrupted' || s.status === 'unknown').length === 0 ? (
+            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No flagged collections found</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+              {sets.filter(s => s.status === 'corrupted' || s.status === 'unknown').slice(0, 4).map(setItem => (
+                <div key={setItem.id} className="w-full">
                   <VaultCard
                     setItem={setItem}
                     activeSetId={activeSet?.id}
@@ -185,26 +210,35 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
       search={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder={t("search_ph") as string}
-      tabs={[]}
+      tabs={tabs}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
+      hideSearch={activeTab === 'overview'}
+      primaryPopover={activeTab !== 'overview' ? {
+        icon: "tune",
+        label: t("filters") || "Filters",
+        content: (
+          <div className="flex flex-col w-[300px] p-4 text-left">
+            <div className="flex flex-col mb-5 w-full">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                TIER
+              </div>
+              <CustomDropdown disableTint={true} variant="pill" flat={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
+            </div>
+          </div>
+        )
+      } : undefined}
       headerActions={
-        <div className="flex items-center gap-2">
-          <CustomDropdown
-            flat={true}
-            variant="pill"
-            disableTint={true}
-            value={tierFilter}
-            onChange={(v: string[]) => setTierFilter(v[0])}
-            options={[
-              { id: "ALL", label: "ALL TIERS" },
-              { id: "0", label: "TIER 0" },
-              { id: "1", label: "TIER 1" },
-              { id: "2", label: "TIER 2" }
-            ]}
-          />
-          <ActionButton onClick={() => setIsForgePanelOpen(true)} iconOnly={true} icon="add" label={t("auto_create")} />
-        </div>
+        activeTab !== 'overview' ? (
+          <div className="flex items-center gap-2">
+            <ActionButton
+              onClick={() => setIsForgePanelOpen(true)}
+              iconOnly={true}
+              icon={t("icon_add")}
+              label={t("auto_create")}
+            />
+          </div>
+        ) : undefined
       }
     >
       <div className="h-full flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
@@ -320,7 +354,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                       <ArtifactCard
                         key={mem.id}
                         mod={mem.mods}
-                        layout="horizontal"
+                        layout="vertical"
                         onClick={() => { }}
                         onRemove={(e) => handleRemoveMod(mem.id)}
                         masonsList={[]}
@@ -357,7 +391,7 @@ export function CollectionForge({ setStatus }: any) {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [tierFilter, setTierFilter] = useState("ALL");
-  const [filterTab, setFilterTab] = useState<'stable' | 'under_review' | 'pending' | 'unknown' | 'corrupted'>('stable');
+  const [filterTab, setFilterTab] = useState<'overview' | 'stable' | 'under_review' | 'pending' | 'unknown' | 'corrupted'>('overview');
 
   const [isSaving, setIsSaving] = useState(false);
   const [manifestMembers, setManifestMembers] = useState<any[]>([]);
@@ -491,7 +525,9 @@ export function CollectionForge({ setStatus }: any) {
   };
 
   const filteredSets = sets.filter((s: any) => {
-    if (filterTab === 'unknown') {
+    if (filterTab === 'overview') {
+      // Do not filter by status
+    } else if (filterTab === 'unknown') {
       if (s.status && s.status !== 'unknown') return false;
     } else {
       if (s.status !== filterTab) return false;
@@ -502,49 +538,102 @@ export function CollectionForge({ setStatus }: any) {
   });
 
   return (
-    <div className="flex flex-col h-full overflow-hidden animate-in fade-in pb-20 relative">
-      <HeaderActionPortal>
-        <ActionPill
-          searchQuery={searchTerm}
-          setSearchQuery={setSearchTerm}
-          searchPlaceholder={t("search_queue") as string}
-          primaryPopover={{
-            icon: "tune",
-            label: t("filters") || "Filters",
-            content: (
-              <div className="flex flex-col w-[300px] p-4 text-left">
-                <div className="flex flex-col mb-5 w-full">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                    TIER
-                  </div>
-                  <CustomDropdown disableTint={true} variant="pill" flat={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
-                </div>
+    <>
+      <ElevatedHubLayout
+      headerTitle={t("collections") || "Collections"}
+      headerSubtitle={t("architect_collections_desc") || "Registry review, metadata governance, and conflict triage"}
+      headerIcon="folder"
+      headerIconColorClass="theme-text-accent"
+      search={searchTerm}
+      onSearchChange={setSearchTerm}
+      searchPlaceholder={t("search_queue")}
+      activeTab={filterTab}
+      onTabChange={(tabId) => setFilterTab(tabId as any)}
+      tabs={[
+        { id: 'overview', label: t("landing_overview") || "Overview", icon: 'dashboard', colorClass: 'text-[var(--accent)]' },
+        { id: 'stable', label: t("status_tag_stable") || "Stable", icon: 'verified', number: sets.filter(s => s.status === 'stable').length.toString() },
+        { id: 'under_review', label: t("status_tag_under_review") || "Under Review", icon: 'policy', number: sets.filter(s => s.status === 'under_review').length.toString() },
+        { id: 'pending', label: t("status_tag_pending") || "Pending", icon: 'schedule', number: sets.filter(s => s.status === 'pending').length.toString() },
+        { id: 'unknown', label: t("status_tag_unknown") || "Unknown", icon: 'help', number: sets.filter(s => s.status === 'unknown' || !s.status).length.toString() },
+        { id: 'corrupted', label: t("status_tag_corrupted") || "Corrupted", icon: 'warning', number: sets.filter(s => s.status === 'corrupted').length.toString() }
+      ]}
+      hideSearch={filterTab === 'overview'}
+      primaryPopover={filterTab !== 'overview' ? {
+        icon: "tune",
+        label: t("filters") || "Filters",
+        content: (
+          <div className="flex flex-col w-[300px] p-4 text-left">
+            <div className="flex flex-col mb-5 w-full">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                TIER
               </div>
-            )
-          }}
-          actions={[
-            {
-              id: "create",
-              icon: t("icon_add"),
-              label: t("auto_create") || "Create",
-              onClick: () => setIsForgePanelOpen(true)
-            }
-          ]}
-        />
-      </HeaderActionPortal>
-
-      <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-        <StatTileCarousel innerClassName="px-6 md:px-0">
-          <DashboardStatTile variant="tab" isActive={filterTab === 'stable'} icon="verified" label={t("status_tag_stable") || "Stable"} number={sets.filter(s => s.status === 'stable').length} onClick={() => setFilterTab('stable')} />
-          <DashboardStatTile variant="tab" isActive={filterTab === 'under_review'} icon="policy" label={t("status_tag_under_review") || "Under Review"} number={sets.filter(s => s.status === 'under_review').length} onClick={() => setFilterTab('under_review')} />
-          <DashboardStatTile variant="tab" isActive={filterTab === 'pending'} icon="schedule" label={t("status_tag_pending") || "Pending"} number={sets.filter(s => s.status === 'pending').length} onClick={() => setFilterTab('pending')} />
-          <DashboardStatTile variant="tab" isActive={filterTab === 'unknown'} icon="help" label={t("status_tag_unknown") || "Unknown"} number={sets.filter(s => s.status === 'unknown' || !s.status).length} onClick={() => setFilterTab('unknown')} />
-          <DashboardStatTile variant="tab" isActive={filterTab === 'corrupted'} icon="warning" label={t("status_tag_corrupted") || "Corrupted"} number={sets.filter(s => s.status === 'corrupted').length} onClick={() => setFilterTab('corrupted')} />
-        </StatTileCarousel>
-      </div>
-
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 content-start pr-2">
+              <CustomDropdown disableTint={true} variant="pill" flat={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
+            </div>
+          </div>
+        )
+      } : undefined}
+      headerActions={
+        filterTab !== 'overview' ? (
+          <ActionButton
+            onClick={() => setIsForgePanelOpen(true)}
+            className="shrink-0 h-10 px-4 font-black capitalize tracking-widest text-[10px] theme-bg-accent text-black hover:bg-white transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.6)]"
+            icon={t("icon_add")}
+            label={t("auto_create") || "Create"}
+          />
+        ) : undefined
+      }
+    >
+      {filterTab === 'overview' ? (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[var(--accent)]">history</span>
+              <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_activity") || "Recent Activity"}</h3>
+              <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+            </div>
+            {sets.length === 0 ? (
+              <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent collections found</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+                {sets.slice(0, 4).map(setItem => (
+                  <div key={setItem.id} className="w-full">
+                    <VaultCard
+                      setItem={setItem}
+                      activeSetId={activeSet?.id}
+                      onClick={() => handleSelectSet(setItem)}
+                      masonsList={masonsList}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[var(--warning)]">warning</span>
+              <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_issues") || "Flags & Issues"}</h3>
+              <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+            </div>
+            {sets.filter(s => s.status === 'corrupted' || s.status === 'unknown').length === 0 ? (
+              <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No flagged collections found</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+                {sets.filter(s => s.status === 'corrupted' || s.status === 'unknown').slice(0, 4).map(setItem => (
+                  <div key={setItem.id} className="w-full">
+                    <VaultCard
+                      setItem={setItem}
+                      activeSetId={activeSet?.id}
+                      onClick={() => handleSelectSet(setItem)}
+                      masonsList={masonsList}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 content-start">
           {filteredSets.length === 0 ? (
             <EmptyState icon={searchTerm ? "search_off" : (t("icon_folder"))} title={searchTerm ? t("no_matches") : (t("no_vaults"))} className="col-span-full py-16" />
           ) : filteredSets.map(setItem => (
@@ -557,7 +646,8 @@ export function CollectionForge({ setStatus }: any) {
             />
           ))}
         </div>
-      </div>
+      )}
+    </ElevatedHubLayout>
 
       <SidePanel
         isOpen={isForgePanelOpen}
@@ -705,7 +795,7 @@ export function CollectionForge({ setStatus }: any) {
                     <ArtifactCard
                       key={member.id}
                       mod={member.mods}
-                      layout="horizontal"
+                      layout="vertical"
                       onClick={() => { }}
                       onRemove={() => removeFromManifest(member.id, member.mods?.name || "Unknown")}
                       masonsList={[]}
@@ -748,9 +838,10 @@ export function CollectionForge({ setStatus }: any) {
         </div>
       </SidePanel>
 
-    </div>
+    </>
   );
 }
+
 
 
 

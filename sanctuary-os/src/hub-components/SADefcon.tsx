@@ -71,7 +71,11 @@ export function DefconPanel() {
       headerSubtitle={t("defcon_override_desc") || "Emergency global override to lock down all active nodes and enforce a maintenance mode. This overrides all other permissions."}
       headerIcon="warning"
       headerIconColorClass={defconLevel === 1 ? "text-amber-500 animate-pulse" : "text-amber-400"}
+      hideSearch={activeTab === 'overview'}
+
       tabs={tabs}
+      hideSearch={activeTab === 'overview'}
+
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
     >
@@ -414,6 +418,8 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
     </SidePanel>
   );
 }
+
+
 
 
 

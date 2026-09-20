@@ -22,7 +22,8 @@ export default function MasonFileBrowser({
    handlePublishLexicon,
    isCloudMode,
    internalCloudTarget,
-   fetchError
+   fetchError,
+   layout
 }: any) {
    const [templatePaths, setTemplatePaths] = useState<string[]>([]);
 
@@ -67,11 +68,11 @@ export default function MasonFileBrowser({
    }
 
    if (filteredFiles.length === 0) {
-      return <EmptyState icon={t("icon_folder_off")} title={t("tools_ide")} className="col-span-full py-16" />;
+      return <EmptyState icon="folder_off" title={t("workbench_no_files_found") || "No Files Found"} className="col-span-full py-16" />;
    }
 
    return (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
+      <div className={`grid ${layout === 'list' ? 'grid-cols-1' : 'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]'} gap-6 w-full`}>
          {filteredFiles.map((file: any) => {
             const isTmpl = file.name.toLowerCase().endsWith('.json');
             const isLexicon = isCloudMode ? internalCloudTarget === 'sanctuary_lexicons' : file.name.match(/^[a-z]{2}-.+\.json$/i);

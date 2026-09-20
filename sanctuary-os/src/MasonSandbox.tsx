@@ -259,7 +259,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
         {items.length === 0 ? (
           <EmptyState icon={type === 'local' ? t("icon_folder_off") : t("ui_icon_sync_disabled")} title={t("empty")} className="py-8" />
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
             {items.map(mod => (
               <UniversalCard
                 key={mod.hash}
@@ -268,7 +268,6 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                 icon={type === 'local' ? "folder_zip" : "cloud_done"}
                 title={mod.name.split(/[\\/]/).pop()}
                 statusColor={type === 'local' ? "border-[color-mix(in_srgb,var(--warning)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]"}
-                isGhosted={type === 'synced'}
                 badges={[
                   <span key="badge" className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 transition-colors ${type === 'local' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-orange-400 border border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-400 border border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]'}`}>
                     {type === 'local' ? (t("unlinked_badge")) : (t("synced_badge"))}
@@ -286,7 +285,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
     );
 
     return (
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
         {renderSection(t("unlinked_badge") || "Local", "folder_zip", unlinkedMods.slice(0, 4), 'local')}
         {renderSection(t("synced_badge") || "Synced", "cloud_done", syncedMods.slice(0, 4), 'synced')}
       </div>
@@ -311,7 +310,6 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                 icon={type === 'local' ? "folder_zip" : "cloud_done"}
                 title={mod.name.split(/[\\/]/).pop()}
                 statusColor={type === 'local' ? "border-[color-mix(in_srgb,var(--warning)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]"}
-                isGhosted={type === 'synced'}
                 badges={[
                   <span key="badge" className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 transition-colors ${type === 'local' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-orange-400 border border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-400 border border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]'}`}>
                     {type === 'local' ? (t("unlinked_badge")) : (t("synced_badge"))}
@@ -339,8 +337,9 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
       tabs={tabs}
       activeTab={sandboxTabFilter}
       onTabChange={(id) => setSandboxTabFilter(id as any)}
+      hideSearch={sandboxTabFilter === 'overview'}
       headerActions={
-        <div className="flex items-center gap-2">
+        sandboxTabFilter !== 'overview' ? (
           <div className="flex items-center gap-2">
             <ActionButton
               onClick={handleImportToSandbox}
@@ -351,7 +350,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
               className="shrink-0 h-10 w-10 px-0"
             />
           </div>
-        </div>
+        ) : undefined
       }
     >
       <div className="h-full flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
@@ -541,5 +540,6 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
     </ElevatedHubLayout>
   );
 }
+
 
 

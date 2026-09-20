@@ -241,7 +241,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
     };
 
     return (
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
             <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
@@ -344,9 +344,10 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
+      hideSearch={activeTab === 'overview'}
       headerActions={
-        <div className="flex items-center gap-2">
-          {activeTab !== 'overview' && activeTab !== 'blueprint' && (
+        activeTab !== 'overview' && activeTab !== 'blueprint' ? (
+          <div className="flex items-center gap-2">
             <ActionButton
               icon="add"
               label={t("ui_tab_new")}
@@ -354,8 +355,8 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
               className="shrink-0 h-10 w-10 px-0"
               onClick={() => setUploadState({ isOpen: true, editId: null, assetType: activeTab, isHidden: false, name: '', version: '1.0.0', description: '', releaseNotes: '', fileContent: null, fileName: '', language: availableLanguages.length > 0 ? availableLanguages[0] : 'English', newLanguage: '', lexiconType: 'Theme', themeMode: 'Dark' })}
             />
-          )}
-        </div>
+          </div>
+        ) : undefined
       }
     >
       {activeTab === 'overview' ? renderLanding() : renderList()}

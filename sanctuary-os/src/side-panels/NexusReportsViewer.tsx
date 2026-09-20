@@ -1,3 +1,4 @@
+import { ElevatedHubLayout } from '../components/layouts/ElevatedHubLayout';
 
 import React, { useState, useEffect } from "react";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
@@ -188,50 +189,78 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
   });
 
   return (
-    <div className="flex flex-col w-full relative h-full">
-      <HeaderActionPortal>
-        <ActionPill
-          searchQuery={searchTerm}
-          setSearchQuery={setSearchTerm}
-          searchPlaceholder={t("search_queue")}
-          primaryPopover={{
-            icon: "tune",
-            label: t("filters"),
-            content: (
-              <div className="flex flex-col gap-4 p-4 w-[280px]">
-                <div className="flex flex-col gap-2">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
-                    {t("auto_select_type")}
-                  </div>
-                  <CustomDropdown disableTint={true} variant="panel"
+    <ElevatedHubLayout
+        headerTitle={t("stat_bugs") || "Nexus Reports"}
+        headerSubtitle={t("nexus_reports_desc") || "Review flags and reports"}
+        headerIcon="flag"
+        headerIconColorClass="theme-text-accent"
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("search_queue") as string}
+        hideSearch={activeStatus === 'overview'}
+        activeTab={activeStatus}
+        onTabChange={(tabId: string) => setActiveStatus(tabId as any)}
+        tabs={[
+          { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
+          { id: "pending", label: t("pending") || "Pending", icon: "schedule", number: reports.filter(r => r.status === 'pending').length.toString() },
+          { id: "resolved", label: t("resolved") || "Resolved", icon: "check_circle", number: reports.filter(r => r.status === 'resolved').length.toString() },
+          { id: "dismissed", label: t("dismissed") || "Dismissed", icon: "close", number: reports.filter(r => r.status === 'dismissed').length.toString() }
+        ]}
+        headerActions={
+            activeStatus !== 'overview' ? (
+                <div className="flex items-center gap-3 w-48 shrink-0 h-10 relative z-50">
+                  <CustomDropdown variant="pill"
                     value={activeType}
                     options={[
-                      { id: 'ALL', label: t("ui_tab_all_types") },
-                      { id: 'nexus', label: t("tab_nexus") },
-                      { id: 'blueprint', label: t("playsets_title") },
-                      { id: 'comm-link', label: t("feed_title") }
+                      { id: 'ALL', label: t("ui_tab_all_types") || "All Types" },
+                      { id: 'nexus', label: t("tab_nexus") || "Nexus" },
+                      { id: 'blueprint', label: t("playsets_title") || "Playsets" },
+                      { id: 'comm-link', label: t("feed_title") || "Comm-Link" }
                     ]}
                     onChange={(v: string[]) => setActiveType(v[0])}
-                    placeholder={t("auto_select_type")}
+                    placeholder={t("auto_select_type") as string}
                   />
                 </div>
+            ) : undefined
+        }
+    >
+      <div className="flex-1 flex flex-col gap-6 w-full animate-in fade-in pb-16">
+        {activeStatus === 'overview' ? (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+                <span className="material-symbols-outlined text-[var(--accent)]">schedule</span>
+                <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("recent_pending") || "Recent Pending"}</h3>
               </div>
-            )
-          }}
-          rightContent={
-            <div className="flex items-center gap-4 shrink-0 px-2 h-full">
-              <PillTabs className="hidden md:flex">
-                <PillTabButton id="pending" activeTab={activeStatus} setTab={setActiveStatus} label={t("pending")} />
-                <PillTabButton id="resolved" activeTab={activeStatus} setTab={setActiveStatus} label={t("resolved")} />
-                <PillTabButton id="dismissed" activeTab={activeStatus} setTab={setActiveStatus} label={t("dismissed")} />
-              </PillTabs>
+              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+                {reports.filter(r => r.status === 'pending').slice(0, 4).length > 0 ? reports.filter(r => r.status === 'pending').slice(0, 4).map(report => (
+                  <div key={"op_"+report.id} onClick={() => setSelectedReport(report)} className="glass-panel rounded-2xl flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] min-h-[200px] p-5 relative">
+                    <span className="text-xs font-black capitalize tracking-widest text-[var(--text)] mb-2 truncate">{report.title}</span>
+                    <span className="text-[10px] font-bold text-[var(--subtext)] line-clamp-3">{report.description}</span>
+                  </div>
+                )) : (
+                  <EmptyState icon="check_circle" title={t("no_pending") || "No Pending Reports"} className="col-span-full py-8" />
+                )}
+              </div>
             </div>
-          }
-        />
-      </HeaderActionPortal>
-
-      <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
-        {loading ? (
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+                <span className="material-symbols-outlined text-[var(--success)]">check_circle</span>
+                <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("recent_completed") || "Recent Completed"}</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+                {reports.filter(r => r.status === 'resolved' || r.status === 'dismissed').slice(0, 4).length > 0 ? reports.filter(r => r.status === 'resolved' || r.status === 'dismissed').slice(0, 4).map(report => (
+                  <div key={"oc_"+report.id} onClick={() => setSelectedReport(report)} className="glass-panel rounded-2xl flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] min-h-[200px] p-5 relative">
+                    <span className="text-xs font-black capitalize tracking-widest text-[var(--text)] mb-2 truncate">{report.title}</span>
+                    <span className="text-[10px] font-bold text-[var(--subtext)] line-clamp-3">{report.description}</span>
+                  </div>
+                )) : (
+                  <EmptyState icon="history" title={t("no_history") || "No history"} className="col-span-full py-8" />
+                )}
+              </div>
+            </div>
+          </div>
+        ) : loading ? (
           <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading")}</div>
         ) : filteredReports.length === 0 ? (
           <EmptyState icon={t("icon_security")} title={t("auto_no_tickets_found_38")} className="col-span-full py-16" />
@@ -442,10 +471,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
           onClose={() => setActiveAsset(null)}
         />
       )}
-    </div>
+    </ElevatedHubLayout>
   );
 }
-
-
-
 

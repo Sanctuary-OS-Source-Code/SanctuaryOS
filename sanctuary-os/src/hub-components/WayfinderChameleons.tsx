@@ -20,6 +20,7 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
   const [cloudThemes, setCloudThemes] = useState<Record<string, any>>({});
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("overview");
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -156,6 +157,14 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
       search={searchQuery}
       onSearchChange={setSearchQuery}
       searchPlaceholder={t("ui_search_chameleons") as string}
+      hideSearch={activeTab === 'overview'}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      tabs={[
+        { id: 'overview', label: t("landing_overview") || "Overview", icon: "dashboard" },
+        { id: 'active', label: t("status_active") || "Active", icon: "check_circle" },
+        { id: 'inactive', label: t("status_inactive") || "Inactive", icon: "cancel" }
+      ]}
       headerActions={
         <div className="flex items-center gap-2">
           <ActionButton
@@ -178,11 +187,22 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
           <div className="w-full h-full flex items-center justify-center py-20">
             <div className="w-12 h-12 border-4 border-[color-mix(in_srgb,var(--accent)_30%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
           </div>
+        ) : activeTab === 'overview' ? (
+          <div className="flex flex-col items-center justify-center h-full opacity-50 py-20">
+            <span className="material-symbols-outlined text-6xl mb-4">palette</span>
+            <h2 className="text-xl font-black tracking-widest uppercase">{t("ui_chameleons") || "Chameleons"}</h2>
+            <p className="text-xs font-bold">{t("ui_chameleons_subtitle") || "Manage application themes"}</p>
+          </div>
         ) : Object.keys(cloudThemes).length === 0 ? (
           <EmptyState icon="palette" title="No Cloud Themes" className="py-20" />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
-            {Object.entries(cloudThemes).filter(([id, theme]: any) => !searchQuery || theme.name?.toLowerCase().includes(searchQuery.toLowerCase())).map(([id, theme]: any) => (
+            {Object.entries(cloudThemes).filter(([id, theme]: any) => {
+              if (searchQuery && !theme.name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+              if (activeTab === 'active' && theme.is_active === false) return false;
+              if (activeTab === 'inactive' && theme.is_active !== false) return false;
+              return true;
+            }).map(([id, theme]: any) => (
               <ThemeCard
                 key={id}
                 id={id}

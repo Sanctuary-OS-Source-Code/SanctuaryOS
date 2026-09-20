@@ -27,6 +27,15 @@ interface ElevatedHubLayoutProps {
   headerActions?: React.ReactNode;
   hideSearch?: boolean;
   hideHeader?: boolean;
+
+  actions?: {
+    id: string;
+    icon: React.ReactNode;
+    label: string;
+    onClick: (e?: any) => void;
+    activeClassName?: string;
+  }[];
+
   leftContent?: React.ReactNode;
   primaryPopover?: {
     icon: string;
@@ -73,7 +82,8 @@ export function ElevatedHubLayout({
   topContent,
   children,
   className = "",
-  isHiddenTab = false
+  isHiddenTab = false,
+  actions
 }: ElevatedHubLayoutProps) {
   const isMobile = useIsMobile();
 
@@ -89,6 +99,7 @@ export function ElevatedHubLayout({
             leftContent={leftContent}
             rightContent={headerActions}
             primaryPopover={primaryPopover}
+            actions={actions}
           />
         </HeaderActionPortal>
       )}

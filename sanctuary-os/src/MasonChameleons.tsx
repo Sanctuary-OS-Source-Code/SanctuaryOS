@@ -98,11 +98,11 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         .eq('asset_type', 'chameleon')
         .or(`mason_id.eq.${masonProfile.id},author.eq.${masonProfile.name}`);
       if (data) setSyncedThemes(data);
-      
+
       const { data: flagsData } = await supabase.from('nexus_reports').select('*').order('created_at', { ascending: false });
       if (flagsData && data) {
-          const myThemeIds = data.map(d => d.id);
-          setFlags(flagsData.filter((f: any) => myThemeIds.includes(f.asset_id)));
+        const myThemeIds = data.map(d => d.id);
+        setFlags(flagsData.filter((f: any) => myThemeIds.includes(f.asset_id)));
       }
     };
     fetchPublished();
@@ -197,7 +197,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
     if (livePreview) setActiveThemeId(id);
   };
 
-  const unpublishedCustomThemes = Object.entries(customThemes).filter(([id, theme]: any) => 
+  const unpublishedCustomThemes = Object.entries(customThemes).filter(([id, theme]: any) =>
     !syncedThemes.some(pt => pt.name === theme.name)
   );
 
@@ -225,68 +225,67 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
     const recentSynced = [...syncedThemes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 4);
     const flaggedThemes = syncedThemes.filter(st => flags.some(f => f.asset_id === st.id)).slice(0, 4);
 
+
     return (
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0 border-[color-mix(in_srgb,var(--success)_30%,transparent)]">
-                <span className="material-symbols-outlined !text-[24px] opacity-90 drop-shadow-lg text-[var(--success)]">schedule</span>
-              </div>
-              Recent Themes
-            </h3>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[var(--accent)]">schedule</span>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">Recent Themes</h3>
+            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
-            {recentSynced.length > 0 ? recentSynced.map((pt: any) => {
-              const themeData = typeof pt.json_data === 'string' ? JSON.parse(pt.json_data) : pt.json_data;
-              return (
-                <ThemeCard
-                  key={pt.id}
-                  id={pt.id}
-                  theme={themeData}
-                  isDev={false}
-                  onClick={() => openEditor(pt.id)}
-                  onDelete={() => {}}
-                  confirmDelete={confirmDelete}
-                  setConfirmDelete={setConfirmDelete}
-                  isCloud={true}
-                />
-              )
-            }) : (
-              <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent themes found</div>
-            )}
-          </div>
+          {recentSynced.length === 0 ? (
+            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent themes found</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+              {recentSynced.map((pt: any) => {
+                const themeData = typeof pt.json_data === 'string' ? JSON.parse(pt.json_data) : pt.json_data;
+                return (
+                  <ThemeCard
+                    key={pt.id}
+                    id={pt.id}
+                    theme={themeData}
+                    isDev={false}
+                    onClick={() => openEditor(pt.id)}
+                    onDelete={() => { }}
+                    confirmDelete={confirmDelete}
+                    setConfirmDelete={setConfirmDelete}
+                    isCloud={true}
+                  />
+                )
+              })}
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0 border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                <span className="material-symbols-outlined !text-[24px] opacity-90 drop-shadow-lg text-[var(--danger)]">flag</span>
-              </div>
-              Flagged Themes
-            </h3>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[var(--warning)]">warning</span>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_issues") || "Flags & Issues"}</h3>
+            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
-            {flaggedThemes.length > 0 ? flaggedThemes.map((pt: any) => {
-              const themeData = typeof pt.json_data === 'string' ? JSON.parse(pt.json_data) : pt.json_data;
-              return (
-                <ThemeCard
-                  key={pt.id}
-                  id={pt.id}
-                  theme={themeData}
-                  isDev={false}
-                  onClick={() => openEditor(pt.id)}
-                  onDelete={() => {}}
-                  confirmDelete={confirmDelete}
-                  setConfirmDelete={setConfirmDelete}
-                  isCloud={true}
-                />
-              )
-            }) : (
-              <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No flagged themes found</div>
-            )}
-          </div>
+          {flaggedThemes.length === 0 ? (
+            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No flagged themes found</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+              {flaggedThemes.map((pt: any) => {
+                const themeData = typeof pt.json_data === 'string' ? JSON.parse(pt.json_data) : pt.json_data;
+                return (
+                  <ThemeCard
+                    key={pt.id}
+                    id={pt.id}
+                    theme={themeData}
+                    isDev={false}
+                    onClick={() => openEditor(pt.id)}
+                    onDelete={() => { }}
+                    confirmDelete={confirmDelete}
+                    setConfirmDelete={setConfirmDelete}
+                    isCloud={true}
+                  />
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -306,7 +305,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                   theme={themeData}
                   isDev={false}
                   onClick={() => openEditor(pt.id)}
-                  onDelete={() => {}}
+                  onDelete={() => { }}
                   confirmDelete={confirmDelete}
                   setConfirmDelete={setConfirmDelete}
                   isCloud={true}
@@ -360,10 +359,13 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
+      hideSearch={activeTab === 'overview'}
       headerActions={
-        <div className="flex items-center gap-2">
-          <ActionButton onClick={() => setIsCreatePanelOpen(true)} iconOnly={true} icon="add" label={t("auto_create")} />
-        </div>
+        activeTab !== 'overview' ? (
+          <div className="flex items-center gap-2">
+            <ActionButton onClick={() => setIsCreatePanelOpen(true)} iconOnly={true} icon="add" label={t("auto_create")} />
+          </div>
+        ) : undefined
       }
     >
       <div className="h-full flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
@@ -456,5 +458,6 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
     </ElevatedHubLayout>
   );
 }
+
 
 

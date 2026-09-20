@@ -38,7 +38,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     const { data } = await supabase
       .from('mods')
       .select('id, name, master_author, compliance_tier, status, mason_id')
-      .or('compliance_tier.in.(1,2,3,4),status.in.(under_review,pending)')
+      .or('compliance_tier.in.(1,2,3,4,5),status.in.(under_review,pending,blacklisted,quarantined)')
       .order('compliance_tier', { ascending: false });
 
     if (data) setMods(data);
@@ -153,12 +153,17 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     const matchesTier = filterTier ? m.compliance_tier === filterTier : true;
 
     let matchesStatus = true;
-    const isPending = ["under_review", "pending", "unverified"].includes(m.status?.toLowerCase() || "");
+    const statusLower = m.status?.toLowerCase() || "";
+    const isPending = ["under_review", "pending", "unverified"].includes(statusLower);
+    const isInactive = m.compliance_tier === 5 || ["blacklisted", "quarantined"].includes(statusLower);
+    const isActive = !isPending && !isInactive && m.compliance_tier >= 1 && m.compliance_tier <= 4;
 
     if (filterStatus === "pending") {
       matchesStatus = isPending;
-    } else if (filterStatus === "live") {
-      matchesStatus = !isPending && m.compliance_tier >= 1 && m.compliance_tier <= 4;
+    } else if (filterStatus === "active") {
+      matchesStatus = isActive;
+    } else if (filterStatus === "inactive") {
+      matchesStatus = isInactive;
     }
 
     return matchesSearch && matchesTier && matchesStatus;
@@ -176,7 +181,8 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   };
 
   const pendingCount = mods.filter(m => m.compliance_tier !== 5 && ["under_review", "pending", "unverified"].includes(m.status?.toLowerCase() || "")).length;
-  const liveCount = mods.filter(m => m.compliance_tier !== 5 && !["under_review", "pending", "unverified"].includes(m.status?.toLowerCase() || "") && m.compliance_tier >= 1 && m.compliance_tier <= 4).length;
+  const activeCount = mods.filter(m => m.compliance_tier !== 5 && !["under_review", "pending", "unverified", "blacklisted", "quarantined"].includes(m.status?.toLowerCase() || "") && m.compliance_tier >= 1 && m.compliance_tier <= 4).length;
+  const inactiveCount = mods.filter(m => m.compliance_tier === 5 || ["blacklisted", "quarantined"].includes(m.status?.toLowerCase() || "")).length;
 
   const tabs = [
     {
@@ -185,7 +191,8 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       icon: "dashboard",
     },
     { id: 'pending', label: t("pending"), icon: 'policy', number: pendingCount.toString(), colorClass: 'text-[var(--danger)]' },
-    { id: 'live', label: t("status_dd_live"), icon: 'verified', number: liveCount.toString(), colorClass: 'text-[var(--success)]' }
+    { id: 'active', label: t("status_active") || "Active", icon: 'verified', number: activeCount.toString(), colorClass: 'text-[var(--success)]' },
+    { id: 'inactive', label: t("status_inactive") || "Inactive", icon: 'block', number: inactiveCount.toString(), colorClass: 'text-[var(--warning)]' }
   ];
 
   const renderModCard = (mod: any) => {
@@ -223,7 +230,8 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
   const renderLanding = () => {
     const pendingMods = mods.filter(m => m.compliance_tier !== 5 && ["under_review", "pending", "unverified"].includes(m.status?.toLowerCase() || ""));
-    const liveMods = mods.filter(m => m.compliance_tier !== 5 && !["under_review", "pending", "unverified"].includes(m.status?.toLowerCase() || "") && m.compliance_tier >= 1 && m.compliance_tier <= 4);
+    const activeMods = mods.filter(m => m.compliance_tier !== 5 && !["under_review", "pending", "unverified", "blacklisted", "quarantined"].includes(m.status?.toLowerCase() || "") && m.compliance_tier >= 1 && m.compliance_tier <= 4);
+    const inactiveMods = mods.filter(m => m.compliance_tier === 5 || ["blacklisted", "quarantined"].includes(m.status?.toLowerCase() || ""));
 
     return (
       <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -244,12 +252,25 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
             <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
               <span className="material-symbols-outlined !text-[18px] text-[var(--success)]">verified</span>
-              {t("recent_live") || "Recent Live"}
+              {t("recent_live") || "Recent Active"}
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {liveMods.slice(0, 10).map(renderModCard)}
-            {liveMods.length === 0 && <EmptyState icon="verified" title={t("comp_no_alerts")} className="py-8" />}
+            {activeMods.slice(0, 10).map(renderModCard)}
+            {activeMods.length === 0 && <EmptyState icon="verified" title={t("comp_no_alerts")} className="py-8" />}
+          </div>
+        </div>
+        
+        <div className="flex flex-col gap-6 col-span-1 2xl:col-span-2">
+          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[18px] text-[var(--warning)]">block</span>
+              {t("recent_inactive") || "Recent Inactive"}
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+            {inactiveMods.slice(0, 10).map(renderModCard)}
+            {inactiveMods.length === 0 && <EmptyState icon="block" title={t("comp_no_alerts")} className="py-8" />}
           </div>
         </div>
       </div>
@@ -265,32 +286,45 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       search={search}
       onSearchChange={setSearch}
       searchPlaceholder={t("search_ph")}
+      hideSearch={filterStatus === 'overview'}
       activeTab={filterStatus === 'overview' ? 'overview' : filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
       tabs={tabs}
-      headerActions={
-        <div className="flex items-center gap-2">
-          <CustomDropdown
-            flat={true}
-            variant="pill"
-            value={filterTier === null ? "all" : filterTier}
-            onChange={(v: any[]) => setFilterTier(v[0] === "all" ? null : v[0])}
-            options={[
-              { id: "all", label: t("comp_filter_all_alerts") },
-              { id: 1, label: getTierDetails(1).label },
-              { id: 2, label: getTierDetails(2).label },
-              { id: 3, label: getTierDetails(3).label },
-              { id: 4, label: getTierDetails(4).label }
-            ]}
-          />
-          <ActionButton
-            onClick={() => onOpenManualFlag("")}
-            iconOnly={true}
-            icon={t("icon_flag")}
-            label={t("comp_btn_manual_flag")}
-          />
-        </div>
-      }
+      primaryPopover={{
+        icon: "tune",
+        label: t("filters") || "Filters",
+        content: (
+          <div className="flex flex-col w-[300px] p-4 text-left">
+            <div className="flex flex-col mb-5 w-full">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                FILTER
+              </div>
+              <CustomDropdown
+                flat={true}
+                variant="pill"
+                value={filterTier === null ? "all" : filterTier}
+                onChange={(v: any[]) => setFilterTier(v[0] === "all" ? null : v[0])}
+                options={[
+                  { id: "all", label: t("comp_filter_all_alerts") },
+                  { id: 1, label: getTierDetails(1).label },
+                  { id: 2, label: getTierDetails(2).label },
+                  { id: 3, label: getTierDetails(3).label },
+                  { id: 4, label: getTierDetails(4).label }
+                ]}
+              />
+            </div>
+          </div>
+        )
+      }}
+      actions={[
+        {
+          id: "manual_flag",
+          icon: t("icon_flag") as string,
+          label: t("comp_btn_manual_flag") as string,
+          activeClassName: "bg-[var(--accent)] text-black",
+          onClick: () => onOpenManualFlag("")
+        }
+      ]}
     >
         {loading ? (
           <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning")}</div>

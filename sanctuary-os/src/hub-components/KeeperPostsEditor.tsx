@@ -517,7 +517,9 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       search={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder={t("mason_search_placeholder")}
+      hideSearch={filterStatus === 'overview'}
       tabs={tabs}
+
       activeTab={filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
       headerActions={
@@ -598,7 +600,8 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
               <div className="flex justify-between items-center border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4 pb-4">
                 <div className="w-56 shrink-0">
                   <HubTabs 
-                    tabs={[{id: 'edit', label: t("editor")}, {id: 'preview', label: t("preview")}]} 
+                    tabs={[{id: 'edit', label: t("editor")}, {id: 'preview', label: t("preview")}]}
+ 
                     activeTab={viewMode} 
                     setTab={setViewMode} 
                   />
@@ -839,6 +842,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
     </>
   );
 }
+
 
 
 

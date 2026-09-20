@@ -157,9 +157,8 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
   const s3Conflicts = filteredGhosts.filter(c => c.severity_rank === 3 && c.status !== 'pending');
   const pendingConflicts = filteredGhosts.filter(c => c.status === 'pending');
 
-  const recentS4 = s4Conflicts.slice(0, 5);
-  const recentS3 = s3Conflicts.slice(0, 5);
   const recentPending = pendingConflicts.slice(0, 5);
+  const recentApproved = [...s4Conflicts, ...s3Conflicts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
 
   const renderConflictCard = (c: any) => {
     const nameA = c.mod_a?.name || c.mod_a || "UNKNOWN";
@@ -205,57 +204,37 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
   };
 
   const renderLanding = () => (
-    <>
-      <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-90 drop-shadow-lg">hourglass_empty</span>
-              </div>
-              {t("status_tag_pending") || "Pending"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 gap-6">
-            {recentPending.length > 0 ? recentPending.map(renderConflictCard) : (
-              <EmptyState icon="check_circle" title={t("masonhub_no_conflicts") || "No Conflicts"} className="py-8" />
-            )}
-          </div>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[var(--accent)]">history</span>
+          <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_activity") || "Recent Activity"}</h3>
+          <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
         </div>
-
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] text-[var(--danger)] opacity-90 drop-shadow-lg">warning</span>
-              </div>
-              {t("tier4") || "S4 Conflicts"}
-            </h3>
+        {recentPending.length === 0 ? (
+          <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No pending conflicts found</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+            {recentPending.map(renderConflictCard)}
           </div>
-          <div className="grid grid-cols-1 gap-6">
-            {recentS4.length > 0 ? recentS4.map(renderConflictCard) : (
-              <EmptyState icon="check_circle" title={t("masonhub_no_conflicts") || "No Conflicts"} className="py-8" />
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] text-[var(--warning)] opacity-90 drop-shadow-lg">error</span>
-              </div>
-              {t("tier3") || "S3 Conflicts"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 gap-6">
-            {recentS3.length > 0 ? recentS3.map(renderConflictCard) : (
-              <EmptyState icon="check_circle" title={t("masonhub_no_conflicts") || "No Conflicts"} className="py-8" />
-            )}
-          </div>
-        </div>
+        )}
       </div>
-    </>
+
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[var(--success)]">verified</span>
+          <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_approved") || "Approved"}</h3>
+          <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+        </div>
+        {recentApproved.length === 0 ? (
+          <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No approved conflicts found</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+            {recentApproved.map(renderConflictCard)}
+          </div>
+        )}
+      </div>
+    </div>
   );
 
   const renderList = (listConflicts: any[]) => (
@@ -281,21 +260,25 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
       search={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder={t("ui_placeholder_search")}
+      hideSearch={activeTab === 'LANDING'}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
       tabs={[
         { id: 'LANDING', label: t("overview_tab") || "Overview", icon: 'dashboard', colorClass: 'text-[var(--accent)]' },
-        { id: 'PENDING', label: t("status_tag_pending") || "Pending", icon: 'hourglass_empty', number: pendingConflicts.length.toString(), colorClass: 'text-[var(--text)]' },
-        { id: '4', label: "S4", icon: 'warning', number: s4Conflicts.length.toString(), colorClass: 'text-[var(--danger)]' },
-        { id: '3', label: "S3", icon: 'error', number: s3Conflicts.length.toString(), colorClass: 'text-[var(--warning)]' }
+        { id: '4', label: t("tier4") || "S4", icon: 'warning', number: s4Conflicts.length.toString(), colorClass: 'text-[var(--danger)]' },
+        { id: '3', label: t("tier3") || "S3", icon: 'error', number: s3Conflicts.length.toString(), colorClass: 'text-[var(--warning)]' }
       ]}
       headerActions={
-        <ActionButton
-          onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }}
-          className="shrink-0 h-10 px-4 font-black capitalize tracking-widest text-[10px] theme-bg-accent text-black hover:bg-white transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.6)]"
-          icon="add"
-          label={t("auto_create")}
-        />
+        activeTab !== 'LANDING' ? (
+          <div className="flex items-center gap-2">
+            <ActionButton
+              onClick={() => { setEditConflictId(null); setActiveMaster(myMods[0] || null); setConflictEnemy(null); setConflictResolution(""); setConflictSeverity(4); setIsSidePanelOpen(true); }}
+              className="shrink-0 h-10 px-4 font-black capitalize tracking-widest text-[10px] theme-bg-accent text-black hover:bg-white transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.6)]"
+              icon="add"
+              label={t("auto_create")}
+            />
+          </div>
+        ) : undefined
       }
     >
         {activeTab === "LANDING" && renderLanding()}
@@ -410,3 +393,4 @@ export default function MasonConflictsManager({ masonId }: { masonId: string }) 
     </ElevatedHubLayout>
   );
 }
+

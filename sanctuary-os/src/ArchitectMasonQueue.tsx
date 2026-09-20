@@ -1,4 +1,5 @@
 import { ActionPill, FilterTabs, FilterTabButton, PillTabs, PillTabButton, HeaderActionPortal } from "./shared";
+import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import React, { useState, useEffect } from "react";
 import { fetchAllPaginated } from "./shared";
 import { CustomClassificationDropdown } from "./hub-components/SharedRegistry";
@@ -134,36 +135,51 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     return true;
   });
 
+  const tabs = [
+    {
+      id: "overview",
+      label: t("landing_overview") || "Overview",
+      icon: "dashboard"
+    },
+    {
+      id: "pending",
+      label: t("pending") || "Pending",
+      icon: "schedule",
+      number: submissions.filter(s => s.mason_id && s.status === 'under_review').length.toString()
+    },
+    {
+      id: "completed",
+      label: t("status_completed") || "Completed",
+      icon: "check_circle",
+      number: submissions.filter(s => s.mason_id && (s.status === 'verified' || s.status === 'unverified')).length.toString()
+    }
+  ];
+
   return (
-    <div className="flex flex-col w-full relative h-full">
-      <HeaderActionPortal>
-        <ActionPill
-          searchQuery={searchTerm}
-          setSearchQuery={setSearchTerm}
-          searchPlaceholder={t("search_ph") as string}
-          hideSearch={filterTab === 'overview'}
-        />
-      </HeaderActionPortal>
-
-      <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-        <StatTileCarousel innerClassName="px-6 md:px-0">
-          <DashboardStatTile variant="tab" isActive={filterTab === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} onClick={() => setFilterTab('overview')} />
-          <DashboardStatTile variant="tab" isActive={filterTab === 'pending'} icon="schedule" label={t("pending") || "Pending"} number={submissions.filter(s => s.mason_id && s.status === 'under_review').length} onClick={() => setFilterTab('pending')} />
-          <DashboardStatTile variant="tab" isActive={filterTab === 'completed'} icon="check_circle" label={t("status_completed") || "Completed"} number={submissions.filter(s => s.mason_id && (s.status === 'verified' || s.status === 'unverified')).length} onClick={() => setFilterTab('completed')} />
-        </StatTileCarousel>
-      </div>
-
-      <div className="p-6 flex-1 overflow-y-auto custom-scrollbar transition-all duration-500">
+    <>
+      <ElevatedHubLayout
+        headerTitle={t("mason_queue") || "Mason Queue"}
+        headerSubtitle={t("mason_queue_desc") || "Review submissions from Masons."}
+        headerIcon="construction"
+        headerIconColorClass="theme-text-accent"
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("search_ph") as string}
+        hideSearch={filterTab === 'overview'}
+        activeTab={filterTab}
+        onTabChange={(tabId: string) => setFilterTab(tabId as any)}
+        tabs={tabs}
+      >
         {loading ? (
           <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("hub_loading")}</div>
         ) : filterTab === 'overview' ? (
-          <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
             <div className="flex flex-col gap-6">
               <div className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
                 <span className="material-symbols-outlined text-[var(--accent)]">schedule</span>
                 <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("recent_pending") || "Recent Pending"}</h3>
               </div>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
                 {filteredSubmissions.filter(s => s.status === 'under_review').slice(0, 4).length > 0 ? filteredSubmissions.filter(s => s.status === 'under_review').slice(0, 4).map((mod: any) => (
                   <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view")} />
                 )) : (
@@ -176,7 +192,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
                 <span className="material-symbols-outlined text-[var(--success)]">check_circle</span>
                 <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("recent_completed") || "Recent Completed"}</h3>
               </div>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
                 {filteredSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified').slice(0, 4).length > 0 ? filteredSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified').slice(0, 4).map((mod: any) => (
                   <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view")} />
                 )) : (
@@ -204,7 +220,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
             )}
           </div>
         )}
-      </div>
+      </ElevatedHubLayout>
 
       <SidePanel
         isOpen={!!activeMod}
@@ -302,9 +318,10 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
           </div>
         )}
       </SidePanel>
-    </div>
+    </>
   )
 }
+
 
 
 

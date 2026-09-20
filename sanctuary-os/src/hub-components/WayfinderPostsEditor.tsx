@@ -523,10 +523,12 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       search={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder={t("mason_search_placeholder") as string}
+      hideSearch={filterStatus === 'overview'}
       tabs={[
         { id: "Active", label: t("status_active") || "Active" },
         { id: "Inactive", label: t("status_inactive") || "Inactive" }
       ]}
+
       activeTab={filterStatus}
       onTabChange={setFilterStatus as any}
       headerActions={
@@ -862,6 +864,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     </>
   );
 }
+
 
 
 

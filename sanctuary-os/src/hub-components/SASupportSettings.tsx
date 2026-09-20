@@ -53,8 +53,7 @@ export default function SASupportSettings() {
     const [telemetrySources, setTelemetrySources] = useState<TelemetrySource[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [filter, setFilter] = useState("ALL");
-    const [activeTab, setActiveTab] = useState<"CATEGORIES" | "TELEMETRY">("CATEGORIES");
+    const [activeTab, setActiveTab] = useState<"overview" | "active_categories" | "active_log_sources" | "inactive_categories" | "inactive_log_sources">("overview");
     const [editingCat, setEditingCat] = useState<SupportCategory | null>(null);
     const [editingSource, setEditingSource] = useState<TelemetrySource | null>(null);
 
@@ -112,9 +111,16 @@ export default function SASupportSettings() {
     };
 
     const filteredCategories = categories.filter(c => {
-        if (filter === "ACTIVE" && !c.is_active) return false;
-        if (filter === "INACTIVE" && c.is_active) return false;
+        if (activeTab === "active_categories" && !c.is_active) return false;
+        if (activeTab === "inactive_categories" && c.is_active) return false;
         if (searchQuery && !c.category_name.toLowerCase().includes(searchQuery.toLowerCase()) && !c.category_code.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+        return true;
+    });
+
+    const filteredSources = telemetrySources.filter(s => {
+        if (activeTab === "active_log_sources" && !s.is_active) return false;
+        if (activeTab === "inactive_log_sources" && s.is_active) return false;
+        if (searchQuery && !s.label.toLowerCase().includes(searchQuery.toLowerCase())) return false;
         return true;
     });
 
@@ -127,36 +133,38 @@ export default function SASupportSettings() {
             search={searchQuery}
             onSearchChange={setSearchQuery}
             searchPlaceholder={t("support_search") as string}
+            hideSearch={activeTab === 'overview'}
             activeTab={activeTab}
             onTabChange={setActiveTab as any}
             tabs={[
-                { id: 'CATEGORIES', label: t("categories") },
-                { id: 'TELEMETRY', label: t("telemetry_sources") }
+                { id: 'overview', label: t("landing_overview") || "Overview", icon: "dashboard" },
+                { id: 'active_categories', label: t("active_categories") || "Active Categories", icon: "category" },
+                { id: 'active_log_sources', label: t("active_log_sources") || "Active Log Sources", icon: "description" },
+                { id: 'inactive_categories', label: t("inactive_categories") || "Inactive Categories", icon: "block" },
+                { id: 'inactive_log_sources', label: t("inactive_log_sources") || "Inactive Log Sources", icon: "cancel" }
             ]}
             headerActions={
-                <div className="flex items-center gap-2">
-                    <CustomDropdown
-                        flat={true}
-                        variant="pill"
-                        disableTint={true}
-                        value={filter}
-                        onChange={(v: string[]) => setFilter(v[0])}
-                        options={[
-                            { id: "ALL", label: t("all_classes") },
-                            { id: "ACTIVE", label: t("support_active_only") },
-                            { id: "INACTIVE", label: t("support_inactive_only") }
-                        ]}
-                    />
-                    <ActionButton
-                        onClick={() => activeTab === 'CATEGORIES' ? openEditor() : openSourceEditor()}
-                        iconOnly={true}
-                        icon={t("icon_add")}
-                        label={activeTab === 'CATEGORIES' ? (t("support_add_cat")) : (t("telemetry_add_source"))}
-                    />
-                </div>
+                activeTab !== 'overview' && (
+                    <div className="flex items-center gap-2">
+                        <ActionButton
+                            onClick={() => activeTab.includes('categories') ? openEditor() : openSourceEditor()}
+                            iconOnly={true}
+                            icon={t("icon_add")}
+                            label={activeTab.includes('categories') ? (t("support_add_cat")) : (t("telemetry_add_source"))}
+                        />
+                    </div>
+                )
             }
         >
-            {activeTab === 'CATEGORIES' && (
+            {activeTab === 'overview' && (
+                <div className="flex flex-col items-center justify-center h-full opacity-50 py-20">
+                    <span className="material-symbols-outlined text-6xl mb-4">support_agent</span>
+                    <h2 className="text-xl font-black tracking-widest uppercase">{t("support_hub") || "Support Settings"}</h2>
+                    <p className="text-xs font-bold">{t("support_subtitle") || "Configure support categories and telemetry"}</p>
+                </div>
+            )}
+
+            {activeTab.includes('categories') && (
                 <div className="flex flex-col gap-4">
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                         {filteredCategories.map(cat => (
@@ -206,10 +214,10 @@ export default function SASupportSettings() {
                 </div>
             )}
 
-            {activeTab === 'TELEMETRY' && (
+            {activeTab.includes('log_sources') && (
                 <div className="flex flex-col gap-4">
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 auto-rows-fr">
-                        {telemetrySources.map(source => (
+                        {filteredSources.map(source => (
                             <UniversalCard
                                 key={source.id}
                                 onClick={() => openSourceEditor(source)}
@@ -252,7 +260,7 @@ export default function SASupportSettings() {
                             </UniversalCard>
                         ))}
                     </div>
-                    {!loading && telemetrySources.length === 0 && (
+                    {!loading && filteredSources.length === 0 && (
                         <EmptyState icon={t("icon_inventory_2")} title={t("telemetry_no_sources")} className="py-8" />
                     )}
                 </div>

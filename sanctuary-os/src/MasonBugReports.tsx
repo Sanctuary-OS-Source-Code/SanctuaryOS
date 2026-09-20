@@ -269,9 +269,9 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
     };
 
     const renderLanding = () => {
-        const pendingTickets = tickets.filter(t => {
+        const closedTickets = tickets.filter(t => {
             const status = t.status?.toLowerCase() || 'open';
-            return status === "investigating" || status === "pending" || status === "escalated";
+            return status === "resolved" || status === "rejected";
         }).slice(0, 5);
 
         const openTickets = tickets.filter(t => {
@@ -280,7 +280,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
         }).slice(0, 5);
 
         return (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
                 <div className="flex flex-col gap-6">
                     <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
                         <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
@@ -290,7 +290,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                             {t("ui_tab_new") || "New Tickets"}
                         </h3>
                     </div>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
                         {openTickets.length > 0 ? openTickets.map(renderTicketCard) : (
                             <EmptyState icon="celebration" title={t("no_tickets")} className="py-8" />
                         )}
@@ -300,14 +300,14 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                 <div className="flex flex-col gap-6">
                     <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
                         <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined !text-[24px] text-[var(--warning)] opacity-90 drop-shadow-lg">warning</span>
+                            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined !text-[24px] text-[var(--success)] opacity-90 drop-shadow-lg">done_all</span>
                             </div>
-                            {t("pending") || "Pending Action"}
+                            {t("filter_closed") || "Closed"}
                         </h3>
                     </div>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                        {pendingTickets.length > 0 ? pendingTickets.map(renderTicketCard) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+                        {closedTickets.length > 0 ? closedTickets.map(renderTicketCard) : (
                             <EmptyState icon="celebration" title={t("no_tickets")} className="py-8" />
                         )}
                     </div>
@@ -348,16 +348,18 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
             search={searchQuery}
             onSearchChange={setSearchQuery}
             searchPlaceholder={t("ui_placeholder_search") as string}
+            hideSearch={activeTab === 'LANDING'}
             headerActions={
-                <div className="flex items-center gap-2">
-                    <ActionButton onClick={fetchBugReports} iconOnly={true} icon="refresh" label={t("hub_refresh") || "Refresh"} className="shrink-0 h-10 w-10 px-0" />
-                </div>
+                activeTab !== 'LANDING' ? (
+                    <div className="flex items-center gap-2">
+                        <ActionButton onClick={fetchBugReports} iconOnly={true} icon="refresh" label={t("hub_refresh") || "Refresh"} className="shrink-0 h-10 w-10 px-0" />
+                    </div>
+                ) : undefined
             }
             activeTab={activeTab}
             onTabChange={setActiveTab as any}
             tabs={[
-                { id: 'LANDING', label: t("overview_tab") || "Overview", icon: 'dashboard', number: formatOverviewMetric(tickets, 'created_at'), colorClass: 'text-[var(--accent)]' },
-                { id: 'pending', label: t("pending"), icon: 'warning', number: tickets.filter(t => { const s = t.status?.toLowerCase(); return s === 'investigating' || s === 'pending' || s === 'escalated'; }).length.toString(), colorClass: 'text-[var(--warning)]' },
+                { id: 'LANDING', label: t("overview_tab") || "Overview", icon: 'dashboard', colorClass: 'text-[var(--accent)]' },
                 { id: 'open', label: t("ui_tab_new"), icon: 'support_agent', number: tickets.filter(t => { const s = t.status?.toLowerCase(); return s === 'open' || s === 'new'; }).length.toString(), colorClass: 'text-[var(--danger)]' },
                 { id: 'closed', label: t("filter_closed"), icon: 'done_all', number: tickets.filter(t => { const s = t.status?.toLowerCase(); return s === 'resolved' || s === 'rejected'; }).length.toString(), colorClass: 'text-[var(--success)]' }
             ]}
@@ -387,3 +389,4 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
         </ElevatedHubLayout>
     );
 }
+

@@ -333,7 +333,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     const pendingTickets = tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status));
 
     return (
-      <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
             <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
@@ -470,6 +470,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     </div>
   );
 }
+
 
 
 

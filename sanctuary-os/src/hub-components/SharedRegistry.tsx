@@ -116,6 +116,57 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
 
 
 
+  const renderLanding = () => {
+    const issuesList = filteredMods.filter(m => m.status === 'unstable' || m.status === 'corrupted' || m.status === 'under_review');
+    return (
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[var(--accent)]">schedule</span>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_artifacts") || "Recent Artifacts"}</h3>
+            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+          </div>
+          {filteredMods.length === 0 ? (
+            <EmptyState icon={t("icon_deployed_code")} title={t("registry_no_mods")} className="py-8" />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+              {filteredMods.slice(0, 4).map((mod: any) => (
+                <ArtifactCard
+                  key={mod.id}
+                  mod={mod}
+                  activeModId={activeMod?.id}
+                  onClick={() => setActiveMod(mod)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[var(--warning)]">warning</span>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_issues") || "Flags & Issues"}</h3>
+            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+          </div>
+          {issuesList.length === 0 ? (
+            <EmptyState icon="check_circle" title={t("no_issues") || "No issues detected"} className="py-8" />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+              {issuesList.slice(0, 4).map((mod: any) => (
+                <ArtifactCard
+                  key={mod.id}
+                  mod={mod}
+                  activeModId={activeMod?.id}
+                  onClick={() => setActiveMod(mod)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderList = () => {
     return (
       <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -141,56 +192,65 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
 
   return (
     <>
-      <div className="flex flex-col w-full h-full relative">
-        <HeaderActionPortal>
-          <ActionPill
-            searchQuery={searchTerm}
-            setSearchQuery={setSearchTerm}
-            searchPlaceholder={t("search_ph") as string}
-            primaryPopover={{
-              icon: "tune",
-              label: t("filters") || "Filters",
-              content: (
-                <div className="flex flex-col w-[400px] p-4 text-left max-w-[calc(100vw-40px)]">
-                  <div className="flex flex-col mb-5 w-full">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                      {t("filter_category") || "Category"}
-                    </div>
-                    <CustomClassificationDropdown 
-                      value={activeCategory} 
-                      onChange={setActiveCategory} 
-                      hideLabel={true} 
-                    />
-                  </div>
-                  <div className="flex flex-col w-full">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                      {t("filter_status") || "Status"}
-                    </div>
-                    <MasonStatusDropdown
+      <ElevatedHubLayout
+        headerTitle={t("items") || "Artifact Registry"}
+        headerIcon="inventory_2"
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("search_ph") as string}
+        tabs={[
+          { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
+          { id: 'stable', label: t("status_tag_stable") || "Stable", icon: 'verified', number: myMods.filter(m => m.status === 'stable').length.toString() },
+          { id: 'under_review', label: t("status_tag_under_review") || "Under Review", icon: 'policy', number: myMods.filter(m => m.status === 'under_review').length.toString() },
+          { id: 'pending', label: t("status_tag_pending") || "Pending", icon: 'schedule', number: myMods.filter(m => m.status === 'pending').length.toString() },
+          { id: 'unknown', label: t("status_tag_unknown") || "Unknown", icon: 'help', number: myMods.filter(m => m.status === 'unknown' || !m.status).length.toString() },
+          { id: 'unstable_corrupted', label: t("status_tag_unstable") || "Unstable & Corrupted", icon: 'warning', number: myMods.filter(m => m.status === 'unstable' || m.status === 'corrupted').length.toString() }
+        ]}
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as any)}
+        hideSearch={activeTab === 'overview'}
+        headerActions={
+          activeTab !== 'overview' ? (
+            <div className="flex items-center gap-3">
+              <div className="w-max min-w-[160px] max-w-xs relative z-50 h-10">
+                <CustomDropdown variant="pill"
+                  value={activeCategory}
+                  onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
+                  options={[
+                    { id: "ALL", label: t("ql_all") },
+                    ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({ id: c.id, label: t(c.lexicon_key) || c.id }))
+                  ]}
+                />
+              </div>
+
+              {(() => {
+                const activeSchemaCategory = useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
+                const subcats = activeSchemaCategory?.subcategories || [];
+                if (subcats.length === 0) return null;
+
+                return (
+                  <div className="w-max min-w-[160px] max-w-xs relative z-50 h-10 animate-in fade-in slide-in-from-right-4">
+                    <CustomDropdown variant="pill"
                       value={activeSubType}
-                      onChange={setActiveSubType}
+                      onChange={(val: string[]) => setActiveSubType(val[0])}
+                      options={[
+                        { id: "ALL", label: t("ql_all") },
+                        ...subcats.map((sub: any) => ({
+                          id: sub.id,
+                          label: t(sub.lexicon_key) || sub.id
+                        }))
+                      ]}
                     />
                   </div>
-                </div>
-              )
-            }}
-          />
-        </HeaderActionPortal>
-
-        <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-          <StatTileCarousel innerClassName="px-6 md:px-0">
-            <DashboardStatTile variant="tab" isActive={activeTab === 'stable'} icon="verified" label={t("status_tag_stable") || "Stable"} number={myMods.filter(m => m.status === 'stable').length} onClick={() => setActiveTab('stable')} />
-            <DashboardStatTile variant="tab" isActive={activeTab === 'under_review'} icon="policy" label={t("status_tag_under_review") || "Under Review"} number={myMods.filter(m => m.status === 'under_review').length} onClick={() => setActiveTab('under_review')} />
-            <DashboardStatTile variant="tab" isActive={activeTab === 'pending'} icon="schedule" label={t("status_tag_pending") || "Pending"} number={myMods.filter(m => m.status === 'pending').length} onClick={() => setActiveTab('pending')} />
-            <DashboardStatTile variant="tab" isActive={activeTab === 'unknown'} icon="help" label={t("status_tag_unknown") || "Unknown"} number={myMods.filter(m => m.status === 'unknown' || !m.status).length} onClick={() => setActiveTab('unknown')} />
-            <DashboardStatTile variant="tab" isActive={activeTab === 'corrupted'} icon="warning" label={t("status_tag_corrupted") || "Corrupted"} number={myMods.filter(m => m.status === 'corrupted').length} onClick={() => setActiveTab('corrupted')} />
-          </StatTileCarousel>
-        </div>
-
-        <div className="flex-1 relative">
-          {renderList()}
-        </div>
-      </div>
+                );
+              })()}
+            </div>
+          ) : undefined
+        }
+        className={isActiveTab ? '' : 'hidden'}
+      >
+        {activeTab === 'overview' ? renderLanding() : renderList()}
+      </ElevatedHubLayout>
 
       <SidePanel
         isOpen={!!activeMod}
@@ -766,6 +826,7 @@ export function CustomClassificationDropdown({ value, onChange }: any) {
   ];
   return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("category")} />;
 }
+
 
 
 

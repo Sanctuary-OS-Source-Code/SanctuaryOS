@@ -158,7 +158,11 @@ export default function KeepersWebLegalEditor() {
       headerSubtitle={t("hub_legal_docs_subtitle") || "Manage system-wide agreements and policies"}
       headerIcon="gavel"
       headerIconColorClass="text-emerald-500"
+      hideSearch={activeTab === 'overview'}
+
       tabs={tabs}
+      hideSearch={activeTab === 'overview'}
+
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
     >
@@ -234,3 +238,4 @@ export default function KeepersWebLegalEditor() {
     </ElevatedHubLayout>
   );
 }
+

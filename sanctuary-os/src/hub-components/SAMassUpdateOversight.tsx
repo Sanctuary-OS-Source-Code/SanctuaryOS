@@ -30,9 +30,11 @@ export function MassUpdateOversight() {
   const [mods, setMods] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("overview");
   const [showOnlySelected, setShowOnlySelected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(100);
+  const [recentChanges, setRecentChanges] = useState<any[]>([]);
 
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [filterGameVersions, setFilterGameVersions] = useState<string[]>([]);
@@ -53,6 +55,14 @@ export function MassUpdateOversight() {
     setLoading(true);
     const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, status, category_override, sub_type, compliance_tier, compatible_versions, master_author').order('name'));
     if (data) setMods(data);
+
+    const { data: auditData } = await supabase.from('audit_logs')
+      .select('*')
+      .ilike('action', 'Mass Updated%')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (auditData) setRecentChanges(auditData);
+
     setLoading(false);
   };
 
@@ -159,6 +169,12 @@ export function MassUpdateOversight() {
 
   const hasAnyAction = !!(massStatus || massCategory || massCompliance || massGameVersions.length > 0 || massConflictId);
 
+  const tabs = [
+    { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
+    { id: "mass_select", label: t("mass_update_apply") || "Mass Select", icon: "checklist" },
+    { id: "recent", label: t("recent_changes") || "Recent Changes", icon: "history" }
+  ];
+
   return (
     <ElevatedHubLayout
       headerTitle={t("mass_update_apply") || "Mass Update"}
@@ -168,7 +184,33 @@ export function MassUpdateOversight() {
       search={searchQuery}
       onSearchChange={setSearchQuery}
       searchPlaceholder={t("search_ph") as string}
-      headerActions={
+      hideSearch={activeTab !== 'mass_select'}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      tabs={tabs}
+      actions={activeTab === 'mass_select' ? [
+        {
+          id: "toggleSelected",
+          icon: "checklist",
+          label: showOnlySelected ? "SHOWING SELECTED" : "SELECTED ONLY",
+          activeClassName: showOnlySelected ? "bg-[var(--accent)] text-white" : "",
+          onClick: () => setShowOnlySelected(!showOnlySelected)
+        },
+        {
+          id: "selectAll",
+          icon: "done_all",
+          label: t("auto_toggle_all_visible") as string,
+          onClick: handleSelectAllFiltered
+        },
+        ...(selectedIds.size > 0 ? [{
+          id: "applyMassUpdate",
+          icon: "tune",
+          label: `${t("mass_update_apply")} (${selectedIds.size})`,
+          activeClassName: "bg-[var(--accent)] text-white",
+          onClick: () => setIsActionPanelOpen(true)
+        }] : [])
+      ] : []}
+      headerActions={activeTab === 'mass_select' ? (
         <div className="flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)]">
           <div className="px-2">
             <CustomDropdown disableTint={true}
@@ -187,42 +229,35 @@ export function MassUpdateOversight() {
           <div className="px-2">
             <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} variant="pill" />
           </div>
-          <div className="h-full flex items-center px-2">
-            <ActionButton
-              onClick={() => setShowOnlySelected(!showOnlySelected)}
-              icon="checklist"
-              label={showOnlySelected ? "SHOWING SELECTED" : "SELECTED ONLY"}
-              variant={showOnlySelected ? "primary" : "glass"}
-              className="!border-none !shadow-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-            />
-          </div>
-          <div className="h-full flex items-center px-2">
-            <ActionButton
-              onClick={handleSelectAllFiltered}
-              icon="done_all"
-              label={t("auto_toggle_all_visible")}
-              variant="glass"
-              className="!border-none !shadow-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-            />
-          </div>
-
-          {selectedIds.size > 0 && (
-            <div className="h-full flex items-center pl-2">
-              <ActionButton
-                onClick={() => setIsActionPanelOpen(true)}
-                variant="accent"
-                icon="tune"
-                label={`${t("mass_update_apply")} (${selectedIds.size})`}
-                className="rounded-r-full !rounded-l-none !h-full"
-              />
-            </div>
-          )}
         </div>
-      }
+      ) : undefined}
     >
       <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
         {loading ? (
           <div className="py-20 text-center font-black opacity-50 capitalize tracking-widest animate-pulse">{t("loading_registry")}</div>
+        ) : activeTab === 'overview' ? (
+          <div className="flex flex-col items-center justify-center h-full opacity-50">
+            <span className="material-symbols-outlined text-6xl mb-4">batch_prediction</span>
+            <h2 className="text-xl font-black tracking-widest uppercase">{t("mass_update_apply") || "Mass Update"}</h2>
+            <p className="text-xs font-bold">{t("mass_update_subtitle") || "Select artifacts to perform batch operations"}</p>
+          </div>
+        ) : activeTab === 'recent' ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+            {recentChanges.map(log => (
+              <UniversalCard
+                key={log.id}
+                layout="vertical"
+                icon="history"
+                title={log.action}
+                subtitle={<span className="text-xs opacity-70">{new Date(log.created_at).toLocaleString()}</span>}
+                badges={[]}
+                footer={<div className="text-xs font-bold text-[var(--subtext)] italic truncate">{log.reason || "No reason provided"}</div>}
+              />
+            ))}
+            {recentChanges.length === 0 && (
+              <EmptyState icon="history" title="No Recent Changes" />
+            )}
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">

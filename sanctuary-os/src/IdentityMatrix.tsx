@@ -4,6 +4,7 @@ import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { CustomDropdown, SidePanel, standardDangerButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ActionPill, PanelHeaderGroup, PanelHeaderButton } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
+import { ElevatedHubLayout } from './components/layouts/ElevatedHubLayout';
 import { useStore } from './store';
 import { logArchitectAction } from './lib/audit';
 
@@ -290,37 +291,32 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
     return matchesSearch && matchesRole;
   });
 
+  const tabs = [
+    { id: "all", label: t("landing_overview") || "Overview", icon: "dashboard" },
+    ...ROLES.filter(r => {
+      if (isKeepers) return r === 'citizen';
+      return isWayfinder || r !== 'wayfinder';
+    }).map(r => ({ 
+      id: r, 
+      label: r.replace(/_/g, ' ').toUpperCase(), 
+      icon: r === 'citizen' ? 'person' : r === 'mason' ? 'architecture' : r === 'architect' ? 'engineering' : 'admin_panel_settings' 
+    })),
+    ...(isKeepers ? [{ id: 'admin', label: 'DEV', icon: "developer_mode" }] : [])
+  ];
+
   return (
-    <div className="flex flex-col w-full relative h-full">
-      <div className="flex items-center gap-4 px-6 py-4 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-          <div className="w-full">
-            <ActionPill
-              searchQuery={search}
-              setSearchQuery={setSearch}
-              searchPlaceholder={t("identities_search")}
-              rightContent={
-                <div className="w-48 ml-2">
-                  <CustomDropdown
-                    flat={true}
-                    variant="pill"
-                    disableTint={true}
-                    value={filterRole}
-                    onChange={(v: string[]) => setFilterRole(v[0])}
-                    options={[
-                      { id: "all", label: "ALL ROLES" },
-                      ...ROLES.filter(r => {
-                        if (isKeepers) return r === 'citizen';
-                        return isWayfinder || r !== 'wayfinder';
-                      }).map(r => ({ id: r, label: r.replace(/_/g, ' ').toUpperCase() })),
-                      ...(isKeepers ? [{ id: 'admin', label: 'DEV' }] : [])
-                    ]}
-                    placeholder={t("auto_filter_role")}
-                  />
-                </div>
-              }
-            />
-          </div>
-      </div>
+    <ElevatedHubLayout
+      headerTitle={t("identities_title") || "Identity Matrix"}
+      headerSubtitle={t("identities_subtitle") || "Manage users, assign roles, and handle network violations."}
+      headerIcon="group"
+      search={search}
+      onSearchChange={setSearch}
+      searchPlaceholder={t("identities_search") as string}
+      tabs={tabs}
+      activeTab={filterRole}
+      onTabChange={(id) => setFilterRole(id as string)}
+      
+    >
 
       <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-8">
         {loading ? (
@@ -397,9 +393,10 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
         )}
       </div>
       <SharedIdentityEditor profile={selectedProfile} onClose={() => setSelectedProfile(null)} onUpdated={fetchData} isWayfinder={isWayfinder} isKeepers={isKeepers} />
-    </div>
+    </ElevatedHubLayout>
   );
 }
+
 
 
 

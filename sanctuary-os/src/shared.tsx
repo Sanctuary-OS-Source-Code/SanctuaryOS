@@ -3843,16 +3843,22 @@ export function ActionPill({
 }: ActionPillProps) {
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
 
+  const hasSearch = !hideSearch && !!setSearchQuery;
+  const hasActions = (actions && actions.length > 0) || !!primaryPopover || !!rightContent;
+  const hasContent = !!leftContent || hasSearch || hasActions;
+
+  if (!hasContent) return null;
+
   return (
     <div
-      className={`flex items-center w-full md:max-w-md lg:max-w-lg h-13 glass-panel rounded-full shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className}`}
+      className={`flex items-center w-[fit-content] md:max-w-md lg:max-w-lg h-13 glass-panel rounded-full shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className} ${!hasSearch && !leftContent ? 'md:max-w-[fit-content]' : 'w-full'}`}
     >
       {/* Integrated Search or Left Content */}
       {leftContent ? (
         <div className="relative flex items-center flex-1 transition-all duration-300 h-full px-4">
           {leftContent}
         </div>
-      ) : !hideSearch && setSearchQuery ? (
+      ) : hasSearch ? (
         <div className="relative flex items-center group flex-1 min-w-[60px] transition-all duration-300">
           <span
             className={`material-symbols-outlined !text-[20px] transition-colors shrink-0 ml-4 ${isSearchFocused ? "text-[var(--accent)]" : "text-[var(--subtext)]"}`}
@@ -3869,7 +3875,7 @@ export function ActionPill({
           />
         </div>
       ) : (
-        <div className="flex-1" />
+        <div className="flex-1 hidden" />
       )}
 
       {/* Action Buttons Container (Collapses on search focus for mobile) */}

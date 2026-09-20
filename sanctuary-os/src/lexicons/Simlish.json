@@ -2237,5 +2237,21 @@
   "total_soft": "Total Smoosh",
   "mod_version": "Mod Version",
   "status_unknown": "Unknown",
-  "badge_premium": "Premium"
+  "badge_premium": "Premium",
+  "recent_completed": "Recent Completed",
+  "no_history": "No History",
+  "no_pending": "No Pending",
+  "recent_active_files": "Recent Active Files",
+  "recent_flagged_files": "Recent Flagged Files",
+  "status_tag_corrupted": "Corrupted",
+  "resolved": "Resolved",
+  "dismissed": "Dismissed",
+  "no_vault_records": "No Vault Records",
+  "chameleon_local": "Local Townie Styles",
+  "ide_recent_file": "Recent Files",
+  "ide_unsaved_files": "Unsaved Files",
+  "tab_settings": "Options",
+  "tab_active": "Active",
+  "tab_inactive": "Inactive",
+  "filter_closed": "Closed"
 }

@@ -441,7 +441,10 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
         (p.message || p.content)?.toLowerCase().includes(searchTerm.toLowerCase());
       const audienceMatch = filterAudience === "All" || (p.target_audience && p.target_audience.includes(filterAudience));
       const categoryMatch = filterCategory === "All" || p.category === filterCategory;
-      const statusMatch = filterStatus === "All" || (filterStatus === "Active" ? p.is_active !== false : p.is_active === false);
+      const statusMatch = filterStatus === "overview" || filterStatus === "All" || 
+        (filterStatus === "Urgent" ? isPostPinned(p) :
+         (filterStatus === "Active" ? p.is_active !== false && !isPostPinned(p) :
+          (filterStatus === "Inactive" ? p.is_active === false : true)));
       return searchMatch && audienceMatch && categoryMatch && statusMatch;
     });
   }, [posts, searchTerm, filterAudience, filterCategory, filterStatus]);
@@ -491,25 +494,46 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
       icon: "dashboard",
     },
     {
+      id: "Urgent",
+      label: t("urgent") || "Urgent",
+      icon: "notification_important",
+      number: posts.filter(p => isPostPinned(p)).length,
+      colorClass: "text-[var(--danger)]"
+    },
+    {
       id: "Active",
-      label: t("status_active"),
+      label: t("status_active") || "Active",
       icon: "gavel",
-      number: posts.filter(p => p.is_active !== false).length,
+      number: posts.filter(p => p.is_active !== false && !isPostPinned(p)).length,
     },
     {
       id: "Inactive",
-      label: t("status_inactive"),
+      label: t("status_inactive") || "Inactive",
       icon: "block",
       number: posts.filter(p => p.is_active === false).length,
     }
   ];
 
   const renderLanding = () => {
-    const activePosts = posts.filter(p => p.is_active !== false);
+    const urgentPosts = posts.filter(p => isPostPinned(p));
+    const activePosts = posts.filter(p => p.is_active !== false && !isPostPinned(p));
     const inactivePosts = posts.filter(p => p.is_active === false);
 
     return (
       <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col gap-6 col-span-1 2xl:col-span-2">
+          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
+            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[18px] text-[var(--danger)]">notification_important</span>
+              {t("urgent_directives") || "Urgent Directives"}
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+            {urgentPosts.slice(0, 10).map(renderPostCard)}
+            {urgentPosts.length === 0 && <EmptyState icon="done_all" title={t("no_transmissions") || "No Urgent Directives"} className="py-8" />}
+          </div>
+        </div>
+
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
             <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
@@ -549,7 +573,9 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
       search={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder={t("mason_search_placeholder")}
+      hideSearch={filterStatus === 'overview'}
       tabs={tabs}
+
       activeTab={filterStatus === 'overview' ? 'overview' : filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
       headerActions={
@@ -808,6 +834,8 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
     </>
   );
 }
+
+
 
 
 

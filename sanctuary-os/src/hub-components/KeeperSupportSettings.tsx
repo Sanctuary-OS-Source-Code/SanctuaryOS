@@ -186,7 +186,11 @@ export default function KeeperSupportSettings() {
             search={searchQuery}
             onSearchChange={setSearchQuery}
             searchPlaceholder={t("support_search") as string}
+            hideSearch={activeTab === 'overview'}
+
             tabs={tabs}
+            hideSearch={activeTab === 'overview'}
+
             activeTab={filter === "ALL" ? "overview" : filter}
             onTabChange={(id) => setFilter(id === "overview" ? "ALL" : id)}
             headerActions={
@@ -499,6 +503,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
         </SidePanel>
     );
 }
+
 
 
 

@@ -1,4 +1,5 @@
 import { SidePanel, FilterTabs, FilterTabButton, ActionButton, CustomDropdown, ModSearchDropdown, EmptyState, ActionPill, PanelHeaderGroup, PanelHeaderButton, HeaderActionPortal } from "./shared";
+import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, } from "./shared";
@@ -383,28 +384,43 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
   const pendingReports = filteredReports.filter((mod: any) => mod.status === 'under_review');
   const completedReports = filteredReports.filter((mod: any) => mod.status !== 'under_review');
 
+  const tabs = [
+    {
+      id: "overview",
+      label: t("landing_overview") || "Overview",
+      icon: "dashboard"
+    },
+    {
+      id: "pending",
+      label: t("pending") || "Pending",
+      icon: "schedule",
+      number: pendingReports.length.toString()
+    },
+    {
+      id: "completed",
+      label: t("status_completed") || "Completed",
+      icon: "check_circle",
+      number: completedReports.length.toString()
+    }
+  ];
+
   return (
-    <div className="flex flex-col w-full relative h-full">
-      <HeaderActionPortal>
-        <ActionPill
-          searchQuery={searchTerm}
-          setSearchQuery={setSearchTerm}
-          searchPlaceholder={t("search_ph") as string}
-          hideSearch={filterTab === 'overview'}
-        />
-      </HeaderActionPortal>
-
-      <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-        <StatTileCarousel innerClassName="px-6 md:px-0">
-          <DashboardStatTile variant="tab" isActive={filterTab === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} onClick={() => setFilterTab('overview')} />
-          <DashboardStatTile variant="tab" isActive={filterTab === 'pending'} icon="schedule" label={t("pending") || "Pending"} number={pendingReports.length} onClick={() => setFilterTab('pending')} />
-          <DashboardStatTile variant="tab" isActive={filterTab === 'completed'} icon="check_circle" label={t("status_completed") || "Completed"} number={completedReports.length} onClick={() => setFilterTab('completed')} />
-        </StatTileCarousel>
-      </div>
-
-      <div className="flex-1 w-full flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
+    <>
+      <ElevatedHubLayout
+        headerTitle={t("tab_diagnostics") || "Lab"}
+        headerSubtitle={t("lab_diagnostics_desc") || "Automated lab testing and diagnostics"}
+        headerIcon="science"
+        headerIconColorClass="theme-text-accent"
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("search_ph") as string}
+        hideSearch={filterTab === 'overview'}
+        activeTab={filterTab}
+        onTabChange={(tabId: string) => setFilterTab(tabId as any)}
+        tabs={tabs}
+      >
         {filterTab === 'overview' && (
-          <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
             <div className="flex flex-col gap-6">
               <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
                 <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
@@ -483,7 +499,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         {filterTab === 'completed' && completedReports.length === 0 && (
           <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart")} title={searchTerm ? t("no_matches") : t("no_completed_reports")} className="py-16 mt-10" />
         )}
-      </div>
+      </ElevatedHubLayout>
 
       {activeReport && (
         <SidePanel
@@ -696,9 +712,10 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           </div>
         </div>
       </SidePanel>
-    </div>
+    </>
   );
 }
+
 
 
 

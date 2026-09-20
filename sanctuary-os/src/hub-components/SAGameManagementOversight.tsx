@@ -26,7 +26,7 @@ import MarkdownRenderer from "../MarkdownRenderer";
 
 export function GameManagementOversight() {
   const { t } = useLexicon();
-  const [activeTab, setActiveTab] = useState<'versions' | 'dlc'>('versions');
+  const [activeTab, setActiveTab] = useState<'overview' | 'versions' | 'dlc'>('overview');
 
   const [versions, setVersions] = useState<any[]>([]);
   const [versionSearch, setVersionSearch] = useState("");
@@ -170,12 +170,14 @@ export function GameManagementOversight() {
       search={activeTab === 'versions' ? versionSearch : dlcSearch}
       onSearchChange={(e: string) => activeTab === 'versions' ? setVersionSearch(e) : setDlcSearch(e)}
       searchPlaceholder={activeTab === 'versions' ? "Search Patches..." : "Search DLC..."}
+      hideSearch={activeTab === 'overview'}
       tabs={[
-        { id: 'versions', label: t("sa_game_versions") },
-        { id: 'dlc', label: t("dlc_registry") }
+        { id: 'overview', label: t("landing_overview") || "Overview", icon: "dashboard" },
+        { id: 'versions', label: t("sa_game_versions") || "Game Versions", icon: "gamepad" },
+        { id: 'dlc', label: t("dlc_registry") || "DLC Registry", icon: "extension" }
       ]}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={setActiveTab as any}
       headerActions={
         <div className="flex items-center gap-2">
           {activeTab === 'dlc' && (
@@ -198,6 +200,14 @@ export function GameManagementOversight() {
       }
     >
       <div className="flex flex-col gap-8">
+
+        {activeTab === 'overview' && (
+          <div className="flex flex-col items-center justify-center h-full opacity-50 py-20">
+            <span className="material-symbols-outlined text-6xl mb-4">settings</span>
+            <h2 className="text-xl font-black tracking-widest uppercase">{t("tab_game_versions") || "Game Versions"}</h2>
+            <p className="text-xs font-bold">{t("game_management_subtitle") || "Manage patches, versions, and DLCs"}</p>
+          </div>
+        )}
 
         {activeTab === 'versions' && (
           <>

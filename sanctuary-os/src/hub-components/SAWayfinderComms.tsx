@@ -124,7 +124,7 @@ export function WayfinderComms() {
             commsMessages.map((msg, i) => (
               <UniversalCard
                 key={msg.id || i}
-                layout="horizontal"
+                layout="vertical"
                 icon="person"
                 title={
                   <span className="text-[10px] font-black capitalize tracking-[0.2em] theme-text-accent drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">

@@ -11,7 +11,7 @@ export default function KeepersActiveGames() {
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [filter, setFilter] = useState<'overview' | 'all' | 'active' | 'inactive'>('all');
+  const [filter, setFilter] = useState<'overview' | 'all' | 'active' | 'inactive' | 'urgent'>('all');
   const [sidePanelMode, setSidePanelMode] = useState<'add' | 'edit' | null>(null);
   const [formData, setFormData] = useState({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "" });
 
@@ -263,5 +263,6 @@ export default function KeepersActiveGames() {
     </ElevatedHubLayout>
   );
 }
+
 
 

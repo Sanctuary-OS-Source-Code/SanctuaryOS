@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { ModSearchDropdown, SidePanel, standardDangerButtonClass, standardAccentGlassButtonClass, standardSuccessButtonClass, standardButtonClass, EmptyState, ActionButton, ActionPill, FilterTabs, FilterTabButton, PillTabs, PillTabButton, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton, HeaderActionPortal, HoverTooltip, DashboardStatTile } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import { StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 import { logArchitectAction } from "./lib/audit";
 
@@ -154,109 +155,102 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
   );
 
   const renderConflictCard = (g: any) => {
-    const tierColor = g.severity_rank == 4 ? 'text-[var(--danger)]' : g.severity_rank == 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]';
+    const tierColor = g.severity_rank == 4 ? 'border-[var(--danger)] text-[var(--danger)]' : g.severity_rank == 3 ? 'border-[var(--warning)] text-[var(--warning)]' : 'border-[var(--accent)] text-[var(--accent)]';
+    const statusIcon = g.status === 'active' ? 'check_circle' : 'hourglass_empty';
+    
     return (
-      <div
+      <UniversalCard
         key={g.id}
         onClick={() => handleEditConflict(g)}
-        className="glass-panel p-5 rounded-2xl flex flex-col gap-4 group border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl transition-all duration-500 relative cursor-pointer"
-      >
-        <div className="absolute inset-0 rounded-[inherit] pointer-events-none transition-all duration-700 opacity-20 group-hover:opacity-40" />
-
-        {/* Header */}
-        <div className="flex justify-between items-start z-10 relative">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">hourglass_empty</span>
-            <span className="text-[10px] font-black capitalize tracking-widest opacity-80 text-[var(--subtext)]">{g.status === 'active' ? t("status_completed") : t("matrix_pending_queue")}</span>
-          </div>
-          <span className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank == 4 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]'}`}>{t("ui_icon_logo")}{g.severity_rank}</span>
-        </div>
-
-        {/* A vs B Section */}
-        <div className="flex flex-col gap-2 relative z-10 w-full mt-2">
-          <div className="flex flex-col gap-1">
-            <span className={`text-[9px] font-black capitalize tracking-widest flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-              {t("enemy_a")}
-            </span>
-            <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{g.nameA}</span>
-          </div>
-
-          <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
-            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
-              <span className="text-[7px] font-black italic capitalize">{t("vs")}</span>
+        layout="vertical"
+        icon={statusIcon}
+        title={
+          <div className="flex flex-col gap-2 w-full mt-2">
+            <div className="flex flex-col gap-1">
+              <span className={`text-[9px] font-black capitalize tracking-widest flex items-center gap-1.5 opacity-80 ${g.severity_rank == 4 ? 'text-[var(--danger)]' : g.severity_rank == 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}>
+                {t("enemy_a")}
+              </span>
+              <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameA}</span>
             </div>
-            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
+            <div className="relative h-px w-full flex items-center justify-center z-20 my-2">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg)] absolute border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm text-[var(--subtext)]">
+                <span className="text-[7px] font-black italic capitalize">{t("vs")}</span>
+              </div>
+              <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className={`text-[9px] font-black capitalize tracking-widest flex items-center gap-1.5 opacity-80 ${g.severity_rank == 4 ? 'text-[var(--danger)]' : g.severity_rank == 3 ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}>
+                {t("enemy_b")}
+              </span>
+              <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight">{g.nameB}</span>
+            </div>
           </div>
-
-          <div className="flex flex-col gap-1">
-            <span className={`text-[9px] font-black capitalize tracking-widest flex items-center gap-1.5 opacity-80 ${tierColor}`}>
-              {t("enemy_b")}
+        }
+        badges={
+          <span className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest backdrop-blur-md shadow-sm border ${g.severity_rank == 4 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]'}`}>{t("ui_icon_logo")}{g.severity_rank}</span>
+        }
+        footer={
+          <div className="flex justify-between items-center w-full">
+            <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
+              <span className="material-symbols-outlined !text-[12px] normal-case">{t("icon_calendar_today")}</span>
+              {new Date(g.created_at).toLocaleDateString()}
             </span>
-            <span className="text-sm font-black text-[var(--text)] line-clamp-2 tracking-tight drop-shadow-md">{g.nameB}</span>
+            <span className="text-[9px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
+              {t("btn_review")} <span className="text-lg leading-none">&rarr;</span>
+            </span>
           </div>
-        </div>
-
-        <div className="mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center w-full relative z-10">
-          <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
-            <span className="material-symbols-outlined !text-[12px] normal-case">{t("icon_calendar_today")}</span>
-            {new Date(g.created_at).toLocaleDateString()}
-          </span>
-          <span className="text-[9px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
-            {t("btn_review")} <span className="text-lg leading-none">&rarr;</span>
-          </span>
-        </div>
-      </div>
+        }
+      />
     );
   };
 
   return (
-    <div className="flex flex-col h-full w-full relative overflow-hidden text-[var(--text)]">
-
-      <HeaderActionPortal>
-        <ActionPill
-          searchQuery={searchTerm}
-          setSearchQuery={setSearchTerm}
-          searchPlaceholder={t("ui_placeholder_search") as string}
-          hideSearch={filterTab === 'overview'}
-          primaryPopover={{
-            icon: "tune",
-            label: t("filters") || "Filters",
-            content: (
-              <div className="flex flex-col w-[300px] p-4 text-left">
-                <div className="flex flex-col mb-5 w-full">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                    TIER
-                  </div>
-                  <div className="flex items-stretch glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-10 shrink-0 divide-x divide-white/5 overflow-hidden">
-                    <button onClick={() => setTierFilter(null)} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${tierFilter === null ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ql_all")}</button>
-                    {[4, 3].map(tLevel => (
-                      <button key={tLevel} onClick={() => setTierFilter(tLevel)} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${tierFilter === tLevel ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{`${t("ui_icon_logo")}${tLevel}`}</button>
-                    ))}
-                  </div>
+    <>
+      <ElevatedHubLayout
+        headerTitle={t("architect_conflict_matrix") || "Matrix"}
+        headerSubtitle={t("architect_conflict_matrix_desc") || "Registry review, metadata governance, and conflict triage"}
+        headerIcon="developer_board"
+        headerIconColorClass="theme-text-accent"
+        search={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t("ui_placeholder_search")}
+        hideSearch={filterTab === 'overview'}
+        activeTab={filterTab}
+        onTabChange={(tabId: string) => setFilterTab(tabId as any)}
+        tabs={[
+          { id: 'overview', label: t("landing_overview") || "Overview (HQ)", icon: 'dashboard', colorClass: 'text-[var(--accent)]' },
+          { id: 'pending', label: t("pending") || "Pending", icon: 'schedule', number: pendingGhosts.length.toString() },
+          { id: 'completed', label: t("status_completed") || "Completed", icon: 'check_circle', number: activeGhosts.length.toString() }
+        ]}
+        primaryPopover={{
+          icon: "tune",
+          label: t("filters") || "Filters",
+          content: (
+            <div className="flex flex-col w-[300px] p-4 text-left">
+              <div className="flex flex-col mb-5 w-full">
+                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                  TIER
+                </div>
+                <div className="flex items-stretch glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-10 shrink-0 divide-x divide-white/5 overflow-hidden">
+                  <button onClick={() => setTierFilter(null)} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${tierFilter === null ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{t("ql_all")}</button>
+                  {[4, 3].map(tLevel => (
+                    <button key={tLevel} onClick={() => setTierFilter(tLevel)} className={`flex-1 px-3 rounded-none flex items-center justify-center text-[10px] font-black capitalize tracking-widest transition-all ${tierFilter === tLevel ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>{`${t("ui_icon_logo")}${tLevel}`}</button>
+                  ))}
                 </div>
               </div>
-            )
-          }}
-          actions={[
-            {
-              id: "create",
-              icon: "add",
-              label: t("auto_create") || "Create",
-              onClick: () => { setEditConflictId(null); setModA(null); setModB(null); setNote(""); setSeverity(4); setIsSidePanelOpen(true); }
-            }
-          ]}
-        />
-      </HeaderActionPortal>
+            </div>
+          )
+        }}
+        actions={[
+          {
+            id: "create",
+            icon: "add",
+            label: t("auto_create") || "Create",
+            onClick: () => { setEditConflictId(null); setModA(null); setModB(null); setNote(""); setSeverity(4); setIsSidePanelOpen(true); }
+          }
+        ]}
+      >
 
-      <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-        <StatTileCarousel innerClassName="px-6 md:px-0">
-          <DashboardStatTile variant="tab" isActive={filterTab === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} onClick={() => setFilterTab('overview')} />
-          <DashboardStatTile variant="tab" isActive={filterTab === 'pending'} icon="schedule" label={t("pending") || "Pending"} number={pendingGhosts.length} onClick={() => setFilterTab('pending')} />
-          <DashboardStatTile variant="tab" isActive={filterTab === 'completed'} icon="check_circle" label={t("status_completed") || "Completed"} number={activeGhosts.length} onClick={() => setFilterTab('completed')} />
-        </StatTileCarousel>
-      </div>
-
-      <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-6 pb-32 transition-all duration-500">
         {filterTab === 'overview' && (
           <div className="flex flex-col gap-10">
             <div className="flex flex-col gap-4">
@@ -366,7 +360,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
             )}
           </div>
         )}
-      </div>
+      </ElevatedHubLayout>
 
       {(() => {
         const editingGhost = ghosts.find(g => g.id === editConflictId);
@@ -488,7 +482,7 @@ export default function ArchitectConflictMatrix({ modList }: { modList?: any[] }
           </SidePanel>
         );
       })()}
-    </div>
+    </>
   );
 }
 

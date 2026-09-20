@@ -298,6 +298,11 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
       search={searchQuery}
       onSearchChange={setSearchQuery}
       searchPlaceholder={t("ui_placeholder_search")}
+      hideSearch={activeFilter === 'overview'}
+      tabs={tabs}
+
+      activeTab={activeFilter}
+      onTabChange={(id) => setActiveFilter(id as any)}
       headerActions={
         <div className="flex items-center gap-2">
           <CustomDropdown
@@ -376,6 +381,8 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
     </ElevatedHubLayout>
   );
 }
+
+
 
 
 

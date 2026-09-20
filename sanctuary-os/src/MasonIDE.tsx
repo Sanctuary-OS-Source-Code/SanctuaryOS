@@ -491,27 +491,26 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             if (isCloudMode) setInternalCloudTarget(id as any);
             else setFileTypeFilter(id);
          }}
+         hideSearch={activeTab === 'overview'}
          headerActions={
-            <div className="flex items-center gap-2">
-               {!(isCloudMode && internalCloudTarget === 'sanctuary_schemas') && (
-                  <>
-                     <ActionButton
-                        onClick={() => setIsCreatePanelOpen(true)}
-                        iconOnly={true}
-                        icon={t("icon_add")}
-                        label={t("auto_create_file")}
-                        className="shrink-0 h-10 w-10 px-0"
-                     />
-                     <ActionButton
-                        onClick={handleImport}
-                        iconOnly={true}
-                        icon={t("icon_upload") || "upload"}
-                        label={t("import_file")}
-                        className="shrink-0 h-10 w-10 px-0"
-                     />
-                  </>
-               )}
-            </div>
+            activeTab !== 'overview' && !(isCloudMode && internalCloudTarget === 'sanctuary_schemas') ? (
+               <div className="flex items-center gap-2">
+                  <ActionButton
+                     onClick={() => setIsCreatePanelOpen(true)}
+                     iconOnly={true}
+                     icon={t("icon_add")}
+                     label={t("auto_create_file")}
+                     className="shrink-0 h-10 w-10 px-0"
+                  />
+                  <ActionButton
+                     onClick={handleImport}
+                     iconOnly={true}
+                     icon={t("icon_upload") || "upload"}
+                     label={t("import_file")}
+                     className="shrink-0 h-10 w-10 px-0"
+                  />
+               </div>
+            ) : undefined
          }
       >
          {uploadState.isOpen && (
@@ -529,11 +528,11 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          <div className="flex-1 overflow-hidden relative px-6 flex flex-col pt-4">
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                {fileTypeFilter === 'overview' && !isCloudMode ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
                      <div className="flex flex-col gap-4">
                         <div className="flex items-center gap-2 mb-2">
                            <span className="material-symbols-outlined text-[var(--accent)]">history</span>
-                           <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("ide_recent_files") || "Recent Files"}</h3>
+                           <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("ide_recent_file") || "Recent Files"}</h3>
                            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
                         </div>
                         <MasonFileBrowser
@@ -556,6 +555,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                            handleDeleteFile={handleDeleteFile}
                            openFiles={openFiles}
                            handlePublishLexicon={handlePublishLexicon}
+                           layout="list"
                         />
                      </div>
                      <div className="flex flex-col gap-4">
@@ -584,6 +584,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                            handleDeleteFile={handleDeleteFile}
                            openFiles={openFiles}
                            handlePublishLexicon={handlePublishLexicon}
+                           layout="list"
                         />
                      </div>
                   </div>

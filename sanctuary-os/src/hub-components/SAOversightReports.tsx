@@ -4,6 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
 import { CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton, ActionPill, HeaderActionPortal, DashboardStatTile } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { StatTileCarousel } from "./SharedCommandScreenLayout";
 
 export default function SAOversightReports() {
@@ -175,7 +176,7 @@ export default function SAOversightReports() {
   };
 
   const renderLanding = () => (
-    <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
           <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
@@ -212,58 +213,55 @@ export default function SAOversightReports() {
 
   return (
     <>
-      <div className="flex flex-col w-full relative h-full">
-        <HeaderActionPortal>
-          <ActionPill
-            searchQuery={search}
-            setSearchQuery={setSearch}
-            searchPlaceholder={t("oversight_search") as string}
-            hideSearch={filterTab === 'overview'}
-            primaryPopover={{
-                icon: "tune",
-                label: t("filters") || "Filters",
-                content: (
-                    <div className="flex flex-col w-[300px] p-4 text-left">
-                        <div className="flex flex-col gap-4 w-full">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1 flex items-center gap-2">
-                                DATE RANGE
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <CustomDatePicker flat={true} value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
-                                <CustomDatePicker flat={true} value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
-                            </div>
+      <ElevatedHubLayout
+        headerTitle={t("tab_oversight") || "Nexus Reports"}
+        headerSubtitle={t("oversight_reports_desc") || "Security scans and anomaly tracking."}
+        headerIcon="threat_intelligence"
+        headerIconColorClass="theme-text-danger"
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={t("oversight_search") as string}
+        hideSearch={filterTab === 'overview'}
+        activeTab={filterTab}
+        onTabChange={(tabId: string) => setFilterTab(tabId as any)}
+        tabs={[
+            { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
+            { id: "pending", label: t("pending") || "Pending", icon: "schedule", number: reports.filter(r => r.status === 'pending').length.toString() },
+            { id: "resolved", label: t("resolved") || "Resolved", icon: "verified_user", number: reports.filter(r => r.status === 'blacklisted').length.toString() },
+            { id: "dismissed", label: t("dismissed") || "Dismissed", icon: "cancel", number: reports.filter(r => r.status === 'cleared').length.toString() }
+        ]}
+        primaryPopover={filterTab !== 'overview' ? {
+            icon: "tune",
+            label: t("filters") || "Filters",
+            content: (
+                <div className="flex flex-col w-[300px] p-4 text-left">
+                    <div className="flex flex-col gap-4 w-full">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1 flex items-center gap-2">
+                            DATE RANGE
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <CustomDatePicker flat={true} value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
+                            <CustomDatePicker flat={true} value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
                         </div>
                     </div>
-                )
-            }}
-          />
-        </HeaderActionPortal>
-
-        <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-          <StatTileCarousel innerClassName="px-6 md:px-0">
-            <DashboardStatTile variant="tab" isActive={filterTab === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} onClick={() => setFilterTab('overview')} />
-            <DashboardStatTile variant="tab" isActive={filterTab === 'pending'} icon="schedule" label={t("pending") || "Pending"} number={reports.filter(r => r.status === 'pending').length} onClick={() => setFilterTab('pending')} />
-            <DashboardStatTile variant="tab" isActive={filterTab === 'resolved'} icon="verified_user" label={t("resolved") || "Resolved"} number={reports.filter(r => r.status === 'blacklisted').length} onClick={() => setFilterTab('resolved')} />
-            <DashboardStatTile variant="tab" isActive={filterTab === 'dismissed'} icon="cancel" label={t("dismissed") || "Dismissed"} number={reports.filter(r => r.status === 'cleared').length} onClick={() => setFilterTab('dismissed')} />
-          </StatTileCarousel>
-        </div>
-
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 transition-all duration-500">
-          {isLoading ? (
-            <div className="w-full flex justify-center items-center py-20">
-              <div className="w-8 h-8 border-4 border-[color-mix(in_srgb,var(--accent)_30%,transparent)] border-t-[var(--accent)] rounded-full animate-spin"></div>
-            </div>
-          ) : filterTab === "overview" ? (
-            renderLanding()
-          ) : groupedReports.length === 0 ? (
-            <EmptyState icon={t("icon_threat_intelligence")} title={t("sa_no_reports")} className="col-span-full py-16" />
-          ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-              {groupedReports.map(renderReportCard)}
-            </div>
-          )}
-        </div>
-      </div>
+                </div>
+            )
+        } : undefined}
+      >
+        {isLoading ? (
+          <div className="w-full flex justify-center items-center py-20">
+            <div className="w-8 h-8 border-4 border-[color-mix(in_srgb,var(--accent)_30%,transparent)] border-t-[var(--accent)] rounded-full animate-spin"></div>
+          </div>
+        ) : filterTab === "overview" ? (
+          renderLanding()
+        ) : groupedReports.length === 0 ? (
+          <EmptyState icon={t("icon_threat_intelligence")} title={t("sa_no_reports")} className="col-span-full py-16" />
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+            {groupedReports.map(renderReportCard)}
+          </div>
+        )}
+      </ElevatedHubLayout>
 
       {viewingGroup && (
         <SidePanel
@@ -452,6 +450,7 @@ export default function SAOversightReports() {
     </>
   );
 }
+
 
 
 

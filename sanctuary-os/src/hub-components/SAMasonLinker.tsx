@@ -36,7 +36,7 @@ export function MasonLinker() {
   const [profiles, setProfiles] = useState<any[]>([]);
 
   const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "verified" | "unverified">("all");
+  const [activeTab, setActiveTab] = useState<"overview" | "pending" | "linked">("overview");
   const [loading, setLoading] = useState(true);
 
   const [selectedMason, setSelectedMason] = useState<any | null>(null);
@@ -156,9 +156,22 @@ export function MasonLinker() {
 
   const filteredMasons = masons.filter((m: any) => {
     const matchesSearch = m.name?.toLowerCase().includes(search.toLowerCase()) || m.id?.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = filterType === "all" ? true : filterType === "verified" ? m.is_verified : !m.is_verified;
+    const matchesFilter = activeTab === "overview" ? true : activeTab === "linked" ? m.is_verified : !m.is_verified;
     return matchesSearch && matchesFilter;
   });
+
+  const pendingCount = masons.filter(m => !m.is_verified).length;
+  const linkedCount = masons.filter(m => m.is_verified).length;
+
+  const tabs = [
+    {
+      id: "overview",
+      label: t("landing_overview") || "Overview",
+      icon: "dashboard",
+    },
+    { id: 'pending', label: t("pending"), icon: 'pending', number: pendingCount.toString() },
+    { id: 'linked', label: t("linked") || "Linked", icon: 'link', number: linkedCount.toString() }
+  ];
 
   return (
     <ElevatedHubLayout
@@ -168,30 +181,21 @@ export function MasonLinker() {
       headerIconColorClass="theme-text-accent"
       search={search}
       onSearchChange={setSearch}
-      searchPlaceholder={t("linker_search_mason")}
-      headerActions={
-        <div className="flex items-center gap-2">
-            <CustomDropdown
-                flat={true}
-                variant="pill"
-                disableTint={true}
-                value={filterType}
-                onChange={(v: string[]) => setFilterType(v[0] as any)}
-                options={[
-                { id: "all", label: "ALL MASONS" },
-                { id: "verified", label: "VERIFIED" },
-                { id: "unverified", label: "UNVERIFIED" }
-                ]}
-            />
+      searchPlaceholder={t("linker_search_mason") as string}
+      hideSearch={activeTab === 'overview'}
+      activeTab={activeTab}
+      onTabChange={(id) => setActiveTab(id as any)}
 
-            <ActionButton
-                onClick={() => handleOpenPanel(null)}
-                iconOnly={true}
-                icon={t("icon_add")}
-                label={t("btn_create_mason_naked")}
-            />
-        </div>
-      }
+      tabs={tabs}
+      actions={[
+        {
+          id: "create_mason",
+          icon: t("icon_add") as string,
+          label: t("btn_create_mason_naked") as string,
+          activeClassName: "bg-[var(--accent)] text-black",
+          onClick: () => handleOpenPanel(null)
+        }
+      ]}
     >
       <div className="flex flex-col gap-6">
         {loading ? (
@@ -411,6 +415,8 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
     </div>
   );
 }
+
+
 
 
 

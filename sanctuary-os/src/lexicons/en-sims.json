@@ -117,5 +117,12 @@
   "recent_protocols": "Recent Protocols",
   "recent_structures": "Recent Structures",
   "tab_workspace": "Workspace",
-  "tab_recent": "Recent Changes"
+  "tab_recent": "Recent Changes",
+  "chameleon_local": "Local Townie Styles",
+  "ide_recent_file": "Recent Files",
+  "ide_unsaved_files": "Unsaved Files",
+  "tab_settings": "Options",
+  "tab_active": "Active",
+  "tab_inactive": "Inactive",
+  "filter_closed": "Closed"
 }
