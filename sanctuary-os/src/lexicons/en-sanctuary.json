@@ -20,6 +20,7 @@
   "mason": "Mason",
   "purge": "Purge",
   "queue": "Test Queue",
+  "flagged": "Flagged",
   "tier3": "Severity 3: Tuning Overlap",
   "tier4": "Severity 4: Fatal Collision",
   "title": "Identify",
@@ -3133,5 +3134,18 @@
   "tab_settings": "System Preferences",
   "tab_active": "Active",
   "tab_inactive": "Inactive",
-  "filter_closed": "Resolved"
+  "filter_closed": "Resolved",
+  "recent_assets": "Recent Network Assets",
+  "recent_blueprints": "Recent Blueprints",
+  "market_no_blueprints": "No blueprints available",
+  "market_untitled": "Unidentified",
+  "market_no_desc": "Data corrupted or missing.",
+  "lex_theme": "CHAMELEON",
+  "lex_template": "TEMPLATE",
+  "lex_blueprint": "BLUEPRINT",
+  "lex_lexicon": "LEXICON",
+  "upload_blueprint_name": "Blueprint Name",
+  "upload_blueprint_title": "Patch Blueprint",
+  "hub_abort": "Abort",
+  "hub_save": "Save"
 }

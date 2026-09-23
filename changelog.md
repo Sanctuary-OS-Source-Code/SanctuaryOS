@@ -1,4 +1,4 @@
-**Date: September 2, 2026**
+**Date: September 23, 2026**
 **Version: 0.5.7**
 ## TITLE
 
@@ -39,6 +39,7 @@
 - **Lexicon Patch:** Restored missing dictionary keys (`status_tag_stable`, `status_tag_under_review`, `status_tag_pending`, `status_tag_unknown`, `status_tag_unstable`, `title_issues`, `no_issues`) across all localization dictionaries.
 - **Mobile Navigation Stability:** Fixed the HoverTabDrawer crash by injecting mobileOpen states, restoring global mobile navigation feeds.
 - **Stat Tile Unification & Layout Fixes:** Standardized the DashboardStatTile component explicit widths, fixing horizontal overflow clipping. Implemented dynamic w-[calc(50vw-1.375rem)] sizing for a clean two-tile-wide display on mobile devices. Restored dynamic counts to Mason Registry StatTiles. Fixed HoverTabDrawer text visibility on mobile. Resolved duplicate navigation entries in the Desktop Sidebar. Fixed mobile ActionPill width constraint to fully extend horizontally.
+- **Mason Registry Overview Fix:** Fixed a critical bug in the Mason Registry where the Overview tab would incorrectly evaluate the 'overview' ID as a status string, resulting in all artifacts linked to the creator being hidden from the landing dashboard.
 
 ### Visual Overhauls
 
@@ -77,7 +78,11 @@
 - **Side Panel Action Header Consolidation:** Migrated the bulky `footer` actions in matrices and managers into the unified `SidePanel` `headerActions` slot using sleek `PanelHeaderButton`s.
 - **Blueprint Inspector Polish:** Refactored the statistics tiles at the top of the Blueprint Inspector to use a responsive grid layout. Replaced the embedded `PillTabs` inside the artifact search bar with a standalone sleek `GlassSegmentedControl`. Replaced hardcoded fallback UI strings with proper lexicon keys.
 - **Desktop Dashboard Navigation Cleanup:** Successfully rolled out the new StatTileCarousel horizontal scrolling component across all remaining main application screens.
-
+- **Registry Filter Redesign:** Consolidated the scattered dropdown filters (Category, Subcategory, Status) in the Mason Registry and Architect Registry into a unified, clean 'Filters' popover attached to the central search bar, matching the standard set by the Comm-Link Feed.
+- **Side Panel Polish:** Re-styled the 'Paid' and 'Early Access' toggle buttons across Registry Side Panels to feature a sleeker glass-surface look with correctly pinned toggle icons. Also fixed a critical clipping issue in the side panels where bottom dropdowns (like Game Versions) were being cut off by the viewport.
+- **Registry Landing Tab:** Updated the Mason Registry to default to the 'Overview' tab rather than 'Stable' when first opened, providing a better at-a-glance dashboard experience.
+- **Nexus UI Polish:** Realigned the 'Add' action in the Mason Workshop Nexus to correctly reside inside the ActionPill search bar matching Vault conventions. Consolidated the Nexus Asset Editor side panel actions by moving the Update/Publish buttons into the header, removing the redundant 'Abort' footer, and ensuring card alignment identically matches across all Nexus tabs.
+- **Nexus Blueprint Integration:** Enabled Blueprint inspection directly from the Mason Nexus side panel. Unified Nexus stat tiles and asset cards to share exact proportions across all views, and fully migrated all hardcoded interface strings through the Lexicon routing dictionaries.
 #### Conflict Radar & Settings Redesign
 - **V8 Redesign for Conflict Radar Layout:** Eradicated the hidden HoverTabDrawer and replaced it with visible inline PillTabs. Corrected CommandScreenStats scope on the landing page. Implemented the 'Mason IDE' pattern on the Conflicts view by swapping the clunky GlassSegmentedControl with responsive DashboardStatTiles.
 - **V9 Visual Fixes for Radar:** Restored the HoverTabDrawer navigation. Removed the empty CommandScreenSidebars on the Conflicts and Overrides tabs. Integrated the 'Undo Overrides' button into the global top ViewHeader.

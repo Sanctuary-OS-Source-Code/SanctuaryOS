@@ -124,5 +124,22 @@
   "tab_settings": "Options",
   "tab_active": "Active",
   "tab_inactive": "Inactive",
-  "filter_closed": "Closed"
+  "filter_closed": "Closed",
+  "recent_assets": "Recent Mods",
+  "recent_blueprints": "Recent Play Sets",
+  "market_no_blueprints": "No Play Sets yet",
+  "market_untitled": "Untitled Mod",
+  "market_no_desc": "No description available.",
+  "lex_theme": "THEME",
+  "lex_template": "TEMPLATE",
+  "lex_blueprint": "PLAY SET",
+  "lex_lexicon": "LANGUAGE",
+  "upload_blueprint_name": "Play Set Name",
+  "upload_blueprint_title": "Update Play Set",
+  "tab_lexicons": "Languages",
+  "tab_chameleons": "Themes",
+  "tab_templates": "Templates",
+  "tab_blueprints": "Play Sets",
+  "hub_abort": "Cancel",
+  "hub_save": "Save"
 }

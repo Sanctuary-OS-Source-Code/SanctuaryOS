@@ -24,7 +24,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [activeSubType, setActiveSubType] = useState("ALL");
-  const [activeTab, setActiveTab] = useState<'overview' | 'stable' | 'under_review' | 'pending' | 'unknown' | 'corrupted' | 'unstable_corrupted'>('stable');
+  const [activeTab, setActiveTab] = useState<'overview' | 'stable' | 'under_review' | 'pending' | 'unknown' | 'corrupted' | 'unstable_corrupted'>('overview');
 
   const fetchData = async () => {
     const { data } = await supabase.from('mods').select('*, mod_versions(id, dna_hash, version_label, game_version)').eq('mason_id', masonId).order('name');
@@ -84,10 +84,12 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
   };
 
   const filteredMods = myMods.filter(mod => {
-    if (activeTab === 'unknown') {
-      if (mod.status && mod.status !== 'unknown') return false;
-    } else {
-      if (mod.status !== activeTab) return false;
+    if (activeTab !== 'overview') {
+      if (activeTab === 'unknown') {
+        if (mod.status && mod.status !== 'unknown') return false;
+      } else {
+        if (mod.status !== activeTab) return false;
+      }
     }
 
     if (statusFilter !== "ALL") {
@@ -209,43 +211,68 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         activeTab={activeTab}
         onTabChange={(id) => setActiveTab(id as any)}
         hideSearch={activeTab === 'overview'}
-        headerActions={
-          activeTab !== 'overview' ? (
-            <div className="flex items-center gap-3">
-              <div className="w-max min-w-[160px] max-w-xs relative z-50 h-10">
-                <CustomDropdown variant="pill"
-                  value={activeCategory}
-                  onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
-                  options={[
-                    { id: "ALL", label: t("ql_all") },
-                    ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({ id: c.id, label: t(c.lexicon_key) || c.id }))
-                  ]}
-                />
+        primaryPopover={
+          activeTab !== 'overview' ? {
+            icon: "tune",
+            label: t("filters") || "Filters",
+            content: (
+              <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "Category"}</span>
+                  <CustomDropdown
+                    flat={true}
+                    variant="pill"
+                    disableTint={true}
+                    value={activeCategory}
+                    onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
+                    options={[
+                      { id: "ALL", label: t("ql_all") || "All" },
+                      ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({ id: c.id, label: t(c.lexicon_key) || c.id }))
+                    ]}
+                  />
+                </div>
+
+                {(() => {
+                  const activeSchemaCategory = useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
+                  const subcats = activeSchemaCategory?.subcategories || [];
+                  if (subcats.length === 0) return null;
+
+                  return (
+                    <>
+                      <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+                      <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("registry_col_subcat") || "Subcategory"}</span>
+                        <CustomDropdown
+                          flat={true}
+                          variant="pill"
+                          disableTint={true}
+                          value={activeSubType}
+                          onChange={(val: string[]) => setActiveSubType(val[0])}
+                          options={[
+                            { id: "ALL", label: t("ql_all") || "All" },
+                            ...subcats.map((sub: any) => ({
+                              id: sub.id,
+                              label: t(sub.lexicon_key) || sub.id
+                            }))
+                          ]}
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+
+                {(activeCategory !== "ALL" || activeSubType !== "ALL") && (
+                  <ActionButton 
+                    icon="close" 
+                    label={t("btn_clear") || "Clear Filters"} 
+                    onClick={() => { setActiveCategory("ALL"); setActiveSubType("ALL"); }} 
+                    className="w-full mt-2" 
+                    variant="danger"
+                  />
+                )}
               </div>
-
-              {(() => {
-                const activeSchemaCategory = useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
-                const subcats = activeSchemaCategory?.subcategories || [];
-                if (subcats.length === 0) return null;
-
-                return (
-                  <div className="w-max min-w-[160px] max-w-xs relative z-50 h-10 animate-in fade-in slide-in-from-right-4">
-                    <CustomDropdown variant="pill"
-                      value={activeSubType}
-                      onChange={(val: string[]) => setActiveSubType(val[0])}
-                      options={[
-                        { id: "ALL", label: t("ql_all") },
-                        ...subcats.map((sub: any) => ({
-                          id: sub.id,
-                          label: t(sub.lexicon_key) || sub.id
-                        }))
-                      ]}
-                    />
-                  </div>
-                );
-              })()}
-            </div>
-          ) : undefined
+            )
+          } : undefined
         }
         className={isActiveTab ? '' : 'hidden'}
       >
@@ -323,7 +350,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <label className={`w-full glass-surface rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on")}</span>
                   {t("label_is_paid")}
@@ -335,7 +362,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
                 <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
               </label>
 
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <label className={`w-full glass-surface rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_science")}</span>
                   {t("label_is_early_access")}
@@ -376,7 +403,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 mt-4 pb-25">
+            <div className="flex flex-col gap-2 mt-4 pb-48">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_versions")}</label>
               <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({ ...activeMod, compatible_versions: v })} />
             </div>
@@ -560,54 +587,90 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
               searchQuery={searchTerm}
               setSearchQuery={setSearchTerm}
               searchPlaceholder={t("search_queue") as string}
-              rightContent={
-                <div className="flex items-center gap-3">
-                  <div className="w-max min-w-[160px] max-w-xs relative z-50 h-10">
-                    <CustomDropdown variant="pill"
-                      value={activeCategory}
-                      onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
-                      options={[
-                        { id: "ALL", label: t("ql_all") },
-                        ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({ id: c.id, label: t(c.lexicon_key) || c.id }))
-                      ]}
-                    />
+              primaryPopover={{
+                icon: "tune",
+                label: t("filters") || "Filters",
+                content: (
+                  <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "Category"}</span>
+                      <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        disableTint={true}
+                        value={activeCategory}
+                        onChange={(val: string[]) => { setActiveCategory(val[0]); setActiveSubType("ALL"); }}
+                        options={[
+                          { id: "ALL", label: t("ql_all") || "All" },
+                          ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({ id: c.id, label: t(c.lexicon_key) || c.id }))
+                        ]}
+                      />
+                    </div>
+
+                    {(() => {
+                      const activeSchemaCategory = useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
+                      const subcats = activeSchemaCategory?.subcategories || [];
+                      if (subcats.length === 0) return null;
+
+                      return (
+                        <>
+                          <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+                          <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("registry_col_subcat") || "Subcategory"}</span>
+                            <CustomDropdown
+                              flat={true}
+                              variant="pill"
+                              disableTint={true}
+                              value={activeSubType}
+                              onChange={(val: string[]) => setActiveSubType(val[0])}
+                              options={[
+                                { id: "ALL", label: t("ql_all") || "All" },
+                                ...subcats.map((sub: any) => ({
+                                  id: sub.id,
+                                  label: t(sub.lexicon_key) || sub.id
+                                }))
+                              ]}
+                            />
+                          </div>
+                        </>
+                      );
+                    })()}
+
+                    <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("registry_label_status") || "Status"}</span>
+                      <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        disableTint={true}
+                        value={statusFilter}
+                        onChange={(v: string[]) => setStatusFilter(v[0])}
+                        options={[
+                          { id: "ALL", label: t("status_dd_all") || "All" },
+                          { id: "stable", label: t("status_dd_stable") || "Stable" },
+                          { id: "unstable", label: t("label_unstable") || "Unstable" },
+                          { id: "corrupted", label: t("status_corrupted") || "Corrupted" },
+                          { id: "under_review", label: t("status_dd_review") || "Under Review" },
+                          { id: "pending", label: t("pending") || "Pending" },
+                          { id: "unverified", label: t("unverified") || "Unverified" },
+                          { id: "paid", label: t("label_is_paid") || "Paid" },
+                          { id: "early_access", label: t("label_is_early_access") || "Early Access" }
+                        ]}
+                      />
+                    </div>
+
+                    {(activeCategory !== "ALL" || activeSubType !== "ALL" || statusFilter !== "ALL") && (
+                      <ActionButton 
+                        icon="close" 
+                        label={t("btn_clear") || "Clear Filters"} 
+                        onClick={() => { setActiveCategory("ALL"); setActiveSubType("ALL"); setStatusFilter("ALL"); }} 
+                        className="w-full mt-2" 
+                        variant="danger"
+                      />
+                    )}
                   </div>
-
-                  {(() => {
-                    const activeSchemaCategory = useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
-                    const subcats = activeSchemaCategory?.subcategories || [];
-                    if (subcats.length === 0) return null;
-
-                    return (
-                      <div className="w-max min-w-[160px] max-w-xs relative z-50 h-10 animate-in fade-in slide-in-from-right-4">
-                        <CustomDropdown variant="pill"
-                          value={activeSubType}
-                          onChange={(val: string[]) => setActiveSubType(val[0])}
-                          options={[
-                            { id: "ALL", label: t("ql_all") },
-                            ...subcats.map((sub: any) => ({
-                              id: sub.id,
-                              label: t(sub.lexicon_key) || sub.id
-                            }))
-                          ]}
-                        />
-                      </div>
-                    );
-                  })()}
-
-                  <div className="w-max min-w-[192px] max-w-xs relative z-50 h-10">
-                    <CustomDropdown variant="pill" value={statusFilter} onChange={(v: string[]) => setStatusFilter(v[0])} options={[
-                      { id: "ALL", label: t("status_dd_all") },
-                      { id: "stable", label: t("status_dd_stable") },
-                      { id: "unstable", label: t("label_unstable") },
-                      { id: "corrupted", label: t("status_corrupted") },
-                      { id: "under_review", label: t("status_dd_review") },
-                      { id: "pending", label: t("pending") },
-                      { id: "unverified", label: t("unverified") },
-                    ]} />
-                  </div>
-                </div>
-              }
+                )
+              }}
             />
           </HeaderActionPortal>
         )}
@@ -727,7 +790,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <label className={`w-full glass-surface rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on")}</span>
                   {t("label_is_paid")}
@@ -739,7 +802,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
                 <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
               </label>
 
-              <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+              <label className={`w-full glass-surface rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                 <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_science")}</span>
                   {t("label_is_early_access")}
@@ -780,7 +843,7 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 mt-4 pb-25">
+            <div className="flex flex-col gap-2 mt-4 pb-48">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_versions")}</label>
               <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v: string[]) => setActiveMod({ ...activeMod, compatible_versions: v })} />
             </div>

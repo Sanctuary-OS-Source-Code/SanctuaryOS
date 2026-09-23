@@ -16,6 +16,7 @@
   "auto_": "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢",
   "clear": "Clear",
   "empty": "Sandbox Empty",
+  "flagged": "Flagged",
   "items": "MODS",
   "mason": "Creator",
   "purge": "Purge",
@@ -3122,5 +3123,18 @@
   "tab_settings": "Settings",
   "tab_active": "Active",
   "tab_inactive": "Inactive",
-  "filter_closed": "Closed"
+  "filter_closed": "Closed",
+  "recent_assets": "Recent Assets",
+  "recent_blueprints": "Recent Blueprints",
+  "market_no_blueprints": "No blueprints yet",
+  "market_untitled": "Untitled",
+  "market_no_desc": "No description provided.",
+  "lex_theme": "THEME",
+  "lex_template": "TEMPLATE",
+  "lex_blueprint": "BLUEPRINT",
+  "lex_lexicon": "LEXICON",
+  "upload_blueprint_name": "Blueprint Name",
+  "upload_blueprint_title": "Update Blueprint",
+  "hub_abort": "Abort",
+  "hub_save": "Save"
 }

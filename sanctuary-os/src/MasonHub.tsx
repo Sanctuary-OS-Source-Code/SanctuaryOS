@@ -249,10 +249,7 @@ export function MasonStatusDropdown({ value, onChange }: { value: string, onChan
   const options = [
     { id: 'stable', label: t("status_tag_stable") || "Stable" },
     { id: 'unstable', label: t("status_tag_unstable") || "Unstable" },
-    { id: 'corrupted', label: t("status_tag_corrupted") || "Corrupted" },
-    { id: 'under_review', label: t("status_tag_under_review") || "Under Review" },
-    { id: 'pending', label: t("status_tag_pending") || "Pending" },
-    { id: 'unknown', label: t("status_tag_unknown") || "Unknown" },
+    { id: 'corrupted', label: t("status_tag_corrupted") || "Corrupted" }
   ];
   return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("registry_label_status")} />;
 }
