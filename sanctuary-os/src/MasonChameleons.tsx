@@ -16,6 +16,7 @@ import { ThemeCard } from './chameleon-components/ThemeCard';
 import { ChameleonControlDashboard } from './chameleon-components/ChameleonControlDashboard';
 import { ChameleonSandboxPreview } from './chameleon-components/ChameleonSandboxPreview';
 import { PanelHeaderGroup, PanelHeaderButton } from './shared';
+import { UniversalCard } from './components/universal/UniversalCard';
 
 function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes }: any) {
   const { t } = useLexicon();
@@ -31,43 +32,53 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
         subtitle={t("theme_choose_blueprint")}
         icon="palette"
       >
-        <div className="flex flex-col gap-6">
-          <button onClick={() => onSelect(null)} className="w-full p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-[1.01] transition-all flex items-center gap-4 group text-left shadow-sm">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-[var(--accent)]">add</span>
-            </div>
-            <div>
-              <h4 className="text-sm font-black text-[var(--accent)] capitalize tracking-widest">{t("theme_blank")}</h4>
-              <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80">{t("theme_scratch_desc")}</p>
-            </div>
-          </button>
+        <div className="flex flex-col gap-8">
+          <UniversalCard
+            layout="horizontal"
+            icon="add"
+            title={t("theme_blank")}
+            onClick={() => onSelect(null)}
+            className="w-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-[1.01] transition-all cursor-pointer shadow-sm group"
+          >
+            <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1">{t("theme_scratch_desc")}</p>
+          </UniversalCard>
 
           <div>
-            <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mb-3 ml-2">{t("theme_core_arch")}</h4>
+            <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mb-4 ml-2">{t("theme_core_arch")}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.entries(CORE_THEMES).map(([id, theme]: any) => (
-                <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left shadow-sm hover:shadow-md">
-                  <div className="w-12 h-12 rounded-xl shrink-0" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-black text-[var(--text)] capitalize tracking-widest truncate">{theme.name}</h4>
-                    <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">{t("theme_core_os")}</p>
-                  </div>
-                </button>
+                <UniversalCard
+                  key={id}
+                  layout="horizontal"
+                  title={theme.name}
+                  customIcon={
+                    <div className="w-10 h-10 rounded-xl shrink-0 shadow-sm" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
+                  }
+                  onClick={() => onSelect(theme)}
+                  className="w-full cursor-pointer hover:scale-[1.02] transition-all group"
+                >
+                  <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate mt-1">{t("theme_core_os")}</p>
+                </UniversalCard>
               ))}
             </div>
           </div>
 
           <div>
-            <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mb-3 ml-2">{t("theme_personal")}</h4>
+            <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mb-4 ml-2">{t("theme_personal")}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.entries(customThemes).map(([id, theme]: any) => (
-                <button key={id} onClick={() => onSelect(theme)} className="w-full p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] transition-all flex items-center gap-4 text-left shadow-sm hover:shadow-md">
-                  <div className="w-12 h-12 rounded-xl shrink-0" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-black text-[var(--text)] capitalize tracking-widest truncate">{theme.name}</h4>
-                    <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">{t("theme_custom")}</p>
-                  </div>
-                </button>
+                <UniversalCard
+                  key={id}
+                  layout="horizontal"
+                  title={theme.name}
+                  customIcon={
+                    <div className="w-10 h-10 rounded-xl shrink-0 shadow-sm" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
+                  }
+                  onClick={() => onSelect(theme)}
+                  className="w-full cursor-pointer hover:scale-[1.02] transition-all group"
+                >
+                  <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate mt-1">{t("theme_custom")}</p>
+                </UniversalCard>
               ))}
             </div>
           </div>
@@ -96,7 +107,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
       const { data } = await supabase.from('nexus_assets')
         .select('*')
         .eq('asset_type', 'chameleon')
-        .or(`mason_id.eq.${masonProfile.id},author.eq.${masonProfile.name}`);
+        .or(`mason_id.eq.${masonProfile.id},author.eq."${masonProfile.name}"`);
       if (data) setSyncedThemes(data);
 
       const { data: flagsData } = await supabase.from('nexus_reports').select('*').order('created_at', { ascending: false });
@@ -241,11 +252,11 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[var(--accent)]">schedule</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">Recent Themes</h3>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("theme_recent")}</h3>
             <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
           </div>
           {recentSynced.length === 0 ? (
-            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent themes found</div>
+            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">{t("theme_recent_empty")}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {recentSynced.map((pt: any) => {
@@ -275,7 +286,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
             <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
           </div>
           {flaggedThemes.length === 0 ? (
-            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No flagged themes found</div>
+            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">{t("theme_flagged_empty")}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {flaggedThemes.map((pt: any) => {
@@ -463,7 +474,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                       }
                     } else {
                       const el = e.currentTarget as HTMLElement;
-                      el.innerHTML = `<span class="material-symbols-outlined !text-[16px]">warning</span> ARE YOU SURE?`;
+                      el.innerHTML = `<span class="material-symbols-outlined !text-[16px]">warning</span> ${t("theme_are_you_sure")}`;
                       el.classList.add("!text-[var(--danger)]", "!border-[color-mix(in_srgb,var(--danger)_50%,transparent)]");
                       setTimeout(() => {
                         if (el) {
@@ -501,7 +512,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         backdropZ="z-[50000]"
         panelZ="z-[50001]"
       />
-      <CreateThemePanel isOpen={isCreatePanelOpen} onClose={() => setIsCreatePanelOpen(false)} onSelect={(t: any) => { setIsCreatePanelOpen(false); createNewDevTheme(t); }} CORE_THEMES={CORE_THEMES} customThemes={customThemes} />
+      <CreateThemePanel isOpen={isCreatePanelOpen} onClose={() => setIsCreatePanelOpen(false)} onSelect={(t: any) => { setIsCreatePanelOpen(false); const newId = createNewDevTheme(t); setEditingThemeId(newId); }} CORE_THEMES={CORE_THEMES} customThemes={customThemes} />
     </ElevatedHubLayout>
   );
 }

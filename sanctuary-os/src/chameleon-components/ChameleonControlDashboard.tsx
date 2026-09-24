@@ -138,7 +138,7 @@ export function ChameleonControlDashboard({
                 </label>
                 <div className="relative">
                   <div
-                    className="flex items-center justify-between w-full glass-panel rounded-2xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner cursor-pointer active:scale-95 group/swatch"
+                    className="flex items-center justify-between w-full glass-panel rounded-2xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner cursor-pointer active:scale-95 group/swatch"
                     onPointerDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -154,19 +154,19 @@ export function ChameleonControlDashboard({
                       }
                     }}
                   >
-                    <div className="flex items-center gap-3 w-full">
+                    <div className="flex items-center gap-4 w-full">
                       <div
-                        className="w-5 h-5 rounded-full border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-inner shrink-0 group-hover/swatch:scale-110 transition-transform"
+                        className="w-8 h-8 rounded-full border-2 border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-inner shrink-0 group-hover/swatch:scale-110 transition-transform"
                         style={{ backgroundColor: currentTheme[key] }}
                       />
                       <code
-                        className="text-[10px] font-mono tracking-widest opacity-70 group-hover/swatch:opacity-100 transition-opacity uppercase"
+                        className="text-xs font-mono font-bold tracking-widest opacity-70 group-hover/swatch:opacity-100 transition-opacity uppercase"
                         style={{ color: currentTheme.text }}
                       >
                         {currentTheme[key]?.toUpperCase() || '#000000'}
                       </code>
                     </div>
-                    <span className="material-symbols-outlined !text-[16px] opacity-30 group-hover/swatch:opacity-100 transition-opacity">colorize</span>
+                    <span className="material-symbols-outlined !text-[20px] opacity-30 group-hover/swatch:opacity-100 transition-opacity">colorize</span>
                   </div>
 
                   {activeColorPicker === key && createPortal(
@@ -290,110 +290,118 @@ export function ChameleonControlDashboard({
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 w-full xl:w-4/5">
+            <div className="flex flex-col gap-3 w-full">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1 mb-2">{t("forge_tab_fonts")}</label>
-              {[
-                { key: 'fontSizeHeader', label: t('forge_font_header'), def: '1.875', max: 4, icon: 'format_h1' },
-                { key: 'fontSizeSubheader', label: t('forge_font_subheader'), def: '1.5', max: 3, icon: 'format_h2' },
-                { key: 'fontSizeTitle', label: t('forge_font_title'), def: '1.25', max: 2.5, icon: 'title' },
-                { key: 'fontSizeSubtitle', label: t('forge_font_subtitle'), def: '1.125', max: 2, icon: 'subtitles' },
-                { key: 'fontSizeText', label: t('forge_font_text'), def: '1', max: 2, icon: 'notes' },
-                { key: 'fontSizeSubtext', label: t('forge_font_subtext'), def: '0.75', max: 1.5, icon: 'short_text' },
-                { key: 'fontSizeSidebar', label: t('forge_font_sidebar'), def: '10', max: 20, isPx: true, icon: 'view_sidebar' },
-                { key: 'sidebarWidth', label: t('forge_sidebar_width'), def: '288', max: 500, min: 200, isPx: true, icon: 'width' }
-              ].map(cfg => (
-                <UniversalCard
-                  key={cfg.key}
-                  layout="horizontal"
-                  icon={cfg.icon}
-                  title={cfg.label}
-                  subtitle={
-                    <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
-                      {currentTheme[cfg.key] || (cfg.isPx ? `${cfg.def}px` : `${cfg.def}rem`)}
-                    </span>
-                  }
-                  className="w-full"
-                >
-                  <div className="w-full pt-2">
-                    <Slider
-                      min={cfg.min !== undefined ? cfg.min : (cfg.isPx ? 6 : 0.5)} max={cfg.max} step={cfg.isPx ? 1 : 0.125}
-                      value={parseFloat(currentTheme[cfg.key] || cfg.def) || parseFloat(cfg.def)}
-                      onChange={(e) => handleUpdateTheme({ [cfg.key]: cfg.isPx ? `${e.target.value}px` : `${e.target.value}rem` })}
-                      className="w-full sanctuary-slider"
-                    />
-                  </div>
-                </UniversalCard>
-              ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4 w-full">
+                {[
+                  { key: 'fontSizeHeader', label: t('forge_font_header'), def: '1.875', max: 4, icon: 'format_h1' },
+                  { key: 'fontSizeSubheader', label: t('forge_font_subheader'), def: '1.5', max: 3, icon: 'format_h2' },
+                  { key: 'fontSizeTitle', label: t('forge_font_title'), def: '1.25', max: 2.5, icon: 'title' },
+                  { key: 'fontSizeSubtitle', label: t('forge_font_subtitle'), def: '1.125', max: 2, icon: 'subtitles' },
+                  { key: 'fontSizeText', label: t('forge_font_text'), def: '1', max: 2, icon: 'notes' },
+                  { key: 'fontSizeSubtext', label: t('forge_font_subtext'), def: '0.75', max: 1.5, icon: 'short_text' },
+                  { key: 'fontSizeSidebar', label: t('forge_font_sidebar'), def: '10', max: 20, isPx: true, icon: 'view_sidebar' },
+                  { key: 'sidebarWidth', label: t('forge_sidebar_width'), def: '288', max: 500, min: 200, isPx: true, icon: 'width' }
+                ].map(cfg => (
+                  <UniversalCard
+                    key={cfg.key}
+                    layout="horizontal"
+                    icon={cfg.icon}
+                    title={cfg.label}
+                    subtitle={
+                      <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                        {currentTheme[cfg.key] || (cfg.isPx ? `${cfg.def}px` : `${cfg.def}rem`)}
+                      </span>
+                    }
+                    className="w-full h-full"
+                  >
+                    <div className="w-full pt-2">
+                      <input
+                        type="range"
+                        min={cfg.min !== undefined ? cfg.min : (cfg.isPx ? 6 : 0.5)} max={cfg.max} step={cfg.isPx ? 1 : 0.125}
+                        value={parseFloat(currentTheme[cfg.key] || cfg.def) || parseFloat(cfg.def)}
+                        onChange={(e) => handleUpdateTheme({ [cfg.key]: cfg.isPx ? `${e.target.value}px` : `${e.target.value}rem` })}
+                        className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                      />
+                    </div>
+                  </UniversalCard>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === 'structure' && (
           <div className="flex flex-col gap-12 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="flex flex-col gap-3 w-full xl:w-4/5">
+            <div className="flex flex-col gap-3 w-full">
               <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1 mb-2">{t("forge_glass_opacity")}</label>
-              <UniversalCard
-                layout="horizontal"
-                icon="opacity"
-                title={t("forge_glass_opacity")}
-                subtitle={
-                  <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
-                    {currentTheme.glassOpacity || "3%"}
-                  </span>
-                }
-                className="w-full"
-              >
-                <div className="w-full pt-2">
-                  <Slider
-                    min={0} max={100} step={1}
-                    value={parseFloat(currentTheme.glassOpacity || '3')}
-                    onChange={(e) => handleUpdateTheme({ glassOpacity: `${e.target.value}%` })}
-                    className="w-full sanctuary-slider"
-                  />
-                </div>
-              </UniversalCard>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4 w-full">
+                <UniversalCard
+                  layout="horizontal"
+                  icon="opacity"
+                  title={t("forge_glass_opacity")}
+                  subtitle={
+                    <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                      {currentTheme.glassOpacity || "3%"}
+                    </span>
+                  }
+                  className="w-full h-full"
+                >
+                  <div className="w-full pt-2">
+                    <input
+                      type="range"
+                      min={0} max={100} step={1}
+                      value={parseFloat(currentTheme.glassOpacity || '3')}
+                      onChange={(e) => handleUpdateTheme({ glassOpacity: `${e.target.value}%` })}
+                      className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                    />
+                  </div>
+                </UniversalCard>
 
-              <UniversalCard
-                layout="horizontal"
-                icon="blur_on"
-                title={t("forge_glass_blur")}
-                subtitle={
-                  <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
-                    {currentTheme.glassBlur || "16px"}
-                  </span>
-                }
-                className="w-full mt-2"
-              >
-                <div className="w-full pt-2">
-                  <Slider
-                    min={0} max={64} step={1}
-                    value={parseInt(currentTheme.glassBlur || "16") || 16}
-                    onChange={(e) => handleUpdateTheme({ glassBlur: `${e.target.value}px` })}
-                    className="w-full sanctuary-slider"
-                  />
-                </div>
-              </UniversalCard>
+                <UniversalCard
+                  layout="horizontal"
+                  icon="blur_on"
+                  title={t("forge_glass_blur")}
+                  subtitle={
+                    <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                      {currentTheme.glassBlur || "16px"}
+                    </span>
+                  }
+                  className="w-full h-full"
+                >
+                  <div className="w-full pt-2">
+                    <input
+                      type="range"
+                      min={0} max={64} step={1}
+                      value={parseInt(currentTheme.glassBlur || "16") || 16}
+                      onChange={(e) => handleUpdateTheme({ glassBlur: `${e.target.value}px` })}
+                      className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                    />
+                  </div>
+                </UniversalCard>
 
-              <UniversalCard
-                layout="horizontal"
-                icon="rounded_corner"
-                title={t("forge_radius")}
-                subtitle={
-                  <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
-                    {currentTheme.radius || "1.5rem"}
-                  </span>
-                }
-                className="w-full mt-2"
-              >
-                <div className="w-full pt-2">
-                  <Slider
-                    min={0} max={4} step={0.125}
-                    value={parseFloat(currentTheme.radius || "1.5") || 1.5}
-                    onChange={(e) => handleUpdateTheme({ radius: `${e.target.value}rem` })}
-                    className="w-full sanctuary-slider"
-                  />
-                </div>
-              </UniversalCard>
+                <UniversalCard
+                  layout="horizontal"
+                  icon="rounded_corner"
+                  title={t("forge_radius")}
+                  subtitle={
+                    <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                      {currentTheme.radius || "1.5rem"}
+                    </span>
+                  }
+                  className="w-full h-full"
+                >
+                  <div className="w-full pt-2">
+                    <input
+                      type="range"
+                      min={0} max={4} step={0.125}
+                      value={parseFloat(currentTheme.radius || "1.5") || 1.5}
+                      onChange={(e) => handleUpdateTheme({ radius: `${e.target.value}rem` })}
+                      className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                    />
+                  </div>
+                </UniversalCard>
+              </div>
             </div>
           </div>
         )}
@@ -468,72 +476,70 @@ export function ChameleonControlDashboard({
                 ))}
               </div>
 
-
-              <div className="flex flex-col gap-4 mt-6 w-full lg:w-2/3">
-                <div className="glass-panel rounded-2xl flex flex-col overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg transition-all focus-within:border-[var(--accent)] focus-within:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] group">
-                  <div className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center group-focus-within:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text)]">{t("forge_background_builder") || "Atmospheric Forge"}</span>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <span className={`text-[8px] font-black uppercase tracking-widest transition-colors ${currentTheme.animated !== false ? 'theme-text-accent drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]' : 'text-[var(--subtext)]'}`}>{t("forge_bg_animated")}</span>
-                      <div className={`w-6 h-3 rounded-full p-0.5 transition-colors ${currentTheme.animated !== false ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-                        <div className={`w-2 h-2 rounded-full bg-white transition-transform shadow-sm ${currentTheme.animated !== false ? 'translate-x-3' : 'translate-x-0'}`} />
-                      </div>
-                      <input
-                        type="checkbox"
-                        className="hidden"
-                        checked={currentTheme.animated !== false}
-                        onChange={(e) => handleUpdateTheme({ animated: e.target.checked })}
-                      />
-                    </label>
+              <div className="flex flex-col gap-4 mt-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <UniversalCard 
+                  layout="vertical" 
+                  title={t("forge_background_builder") || "Atmospheric Forge"} 
+                >
+                  <div 
+                    className="w-full h-32 md:h-48 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner mt-4 relative overflow-hidden group/preview"
+                    style={{
+                      background: bgBuilderType === 'solid' ? bgBuilderColor1 : 
+                                  bgBuilderType === 'linear' ? `linear-gradient(${bgBuilderAngle}deg, ${bgBuilderColor1}, ${bgBuilderColor2})` :
+                                  `radial-gradient(circle, ${bgBuilderColor1}, ${bgBuilderColor2})`
+                    }}
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm pointer-events-none">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white drop-shadow-md">{t("forge_hologram_preview")}</span>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                  <div className="flex flex-col lg:flex-row gap-8 pt-6 w-full border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-6">
+                    
                     {/* Render Topology */}
-                    <div className="p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-3 block">Render Topology</label>
-                      <div className="flex gap-2">
-                        {([
-                          { id: 'solid', label: 'Solid' },
-                          { id: 'linear', label: 'Linear' },
-                          { id: 'radial', label: 'Radial' }
-                        ] as const).map((mode) => (
-                          <button
-                            key={mode.id}
-                            onClick={() => {
-                              setBgBuilderType(mode.id);
-                              applyBgBuilder(mode.id, bgBuilderAngle, bgBuilderColor1, bgBuilderColor2);
-                            }}
-                            className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${bgBuilderType === mode.id ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[var(--accent)] text-white shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'bg-black/20 border border-transparent text-[var(--subtext)] hover:text-white'}`}
-                          >
-                            {mode.label}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="flex flex-col gap-3 w-full lg:w-auto shrink-0">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("forge_topology")}</label>
+                      <GlassSegmentedControl
+                        options={[
+                          { id: 'solid', label: t("forge_topology_solid") },
+                          { id: 'linear', label: t("forge_topology_linear") },
+                          { id: 'radial', label: t("forge_topology_radial") }
+                        ]}
+                        activeTab={bgBuilderType}
+                        setTab={(val: string) => {
+                          setBgBuilderType(val as any);
+                          applyBgBuilder(val as any, bgBuilderAngle, bgBuilderColor1, bgBuilderColor2);
+                        }}
+                        className="w-full lg:w-auto"
+                        buttonClassName="px-3 md:px-4 h-8 md:h-10 text-[9px] md:text-[10px]"
+                      />
                     </div>
 
                     {/* Trajectory Vector */}
-                    <div className={`p-4 rounded-xl border transition-all ${bgBuilderType === 'linear' ? 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'border-transparent bg-transparent opacity-30 pointer-events-none'} flex flex-col justify-between`}>
-                      <div className="flex justify-between items-center mb-3">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] block">Trajectory Vector</label>
-                        <code className="text-[10px] font-mono font-black theme-text-accent">{bgBuilderAngle}°</code>
+                    <div className={`flex flex-col gap-3 w-full lg:flex-1 transition-opacity duration-300 ${bgBuilderType === 'linear' ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("forge_trajectory")}</label>
+                        <code className="text-[10px] font-mono font-bold text-[var(--accent)]">{bgBuilderAngle}°</code>
                       </div>
-                      <Slider
-                        min={0} max={360} step={1}
-                        value={bgBuilderAngle}
-                        onChange={(e) => {
-                          const ang = parseInt(e.target.value);
-                          setBgBuilderAngle(ang);
-                          applyBgBuilder(bgBuilderType, ang, bgBuilderColor1, bgBuilderColor2);
-                        }}
-                        className="w-full"
-                      />
+                      <div className="flex items-center h-[48px] pb-2">
+                        <input
+                          type="range"
+                          min="0" max="360" step="1"
+                          value={bgBuilderAngle}
+                          onChange={(e) => {
+                            const ang = parseInt(e.target.value);
+                            setBgBuilderAngle(ang);
+                            applyBgBuilder(bgBuilderType, ang, bgBuilderColor1, bgBuilderColor2);
+                          }}
+                          className="w-full h-1.5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                        />
+                      </div>
                     </div>
 
                     {/* Chromatic Matrix */}
-                    <div className="col-span-1 md:col-span-2 p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mb-3 block">Chromatic Matrix</label>
-                      <div className={`grid gap-4 ${bgBuilderType === 'solid' ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                        {/* Node 1 */}
+                    <div className="flex flex-col gap-3 w-full lg:w-auto shrink-0">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("forge_chromatic")}</label>
+                      <div className="flex items-center gap-3 h-[48px] pb-2">
                         <button
                           onClick={(e) => {
                             if (activeColorPicker === 'bgbuilder_c1') setActiveColorPicker(null);
@@ -543,41 +549,45 @@ export function ChameleonControlDashboard({
                               setActiveColorPicker('bgbuilder_c1');
                             }
                           }}
-                          className={`flex items-center gap-4 p-3 rounded-lg bg-black/20 border transition-all text-left group ${activeColorPicker === 'bgbuilder_c1' ? 'border-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] scale-[1.02]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
-                        >
-                          <div className="w-10 h-10 rounded-full border-2 border-white/20 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] shrink-0 transition-transform group-hover:scale-110" style={{ backgroundColor: bgBuilderColor1 }} />
-                          <div className="flex flex-col">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] group-hover:text-white transition-colors">Primary Node</span>
-                            <code className="text-[13px] font-mono font-black text-white">{bgBuilderColor1}</code>
-                          </div>
-                        </button>
-
-                        {/* Node 2 */}
+                          className={`w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm ${activeColorPicker === 'bgbuilder_c1' ? 'border-[var(--accent)] scale-110' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]'}`}
+                          style={{ backgroundColor: bgBuilderColor1 }}
+                        />
                         {bgBuilderType !== 'solid' && (
-                          <button
-                            onClick={(e) => {
-                              if (activeColorPicker === 'bgbuilder_c2') setActiveColorPicker(null);
-                              else {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setPickerCoords({ top: Math.min(rect.bottom + 12, window.innerHeight - 450), left: Math.min(rect.left, window.innerWidth - 450) });
-                                setActiveColorPicker('bgbuilder_c2');
-                              }
-                            }}
-                            className={`flex items-center gap-4 p-3 rounded-lg bg-black/20 border transition-all text-left group ${activeColorPicker === 'bgbuilder_c2' ? 'border-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] scale-[1.02]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
-                          >
-                            <div className="w-10 h-10 rounded-full border-2 border-white/20 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] shrink-0 transition-transform group-hover:scale-110" style={{ backgroundColor: bgBuilderColor2 }} />
-                            <div className="flex flex-col">
-                              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] group-hover:text-white transition-colors">Secondary Node</span>
-                              <code className="text-[13px] font-mono font-black text-white">{bgBuilderColor2}</code>
-                            </div>
-                          </button>
+                          <>
+                            <span className="text-[var(--subtext)] material-symbols-outlined !text-[16px] opacity-60">sync_alt</span>
+                            <button
+                              onClick={(e) => {
+                                if (activeColorPicker === 'bgbuilder_c2') setActiveColorPicker(null);
+                                else {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setPickerCoords({ top: Math.min(rect.bottom + 12, window.innerHeight - 450), left: Math.min(rect.left, window.innerWidth - 450) });
+                                  setActiveColorPicker('bgbuilder_c2');
+                                }
+                              }}
+                              className={`w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm ${activeColorPicker === 'bgbuilder_c2' ? 'border-[var(--accent)] scale-110' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]'}`}
+                              style={{ backgroundColor: bgBuilderColor2 }}
+                            />
+                          </>
                         )}
                       </div>
                     </div>
                   </div>
+                </UniversalCard>
+              
+                {/* Color Picker Portal for Background Builder */}
+                {(activeColorPicker === 'bgbuilder_c1' || activeColorPicker === 'bgbuilder_c2') && (() => {
+                  const currentColor = activeColorPicker === 'bgbuilder_c1' ? bgBuilderColor1 : bgBuilderColor2;
+                  const updateColor = (col: string) => {
+                    if (activeColorPicker === 'bgbuilder_c1') {
+                      setBgBuilderColor1(col);
+                      applyBgBuilder(bgBuilderType, bgBuilderAngle, col, bgBuilderColor2);
+                    } else {
+                      setBgBuilderColor2(col);
+                      applyBgBuilder(bgBuilderType, bgBuilderAngle, bgBuilderColor1, col);
+                    }
+                  };
 
-                  {/* Color Picker Portal for Background Builder */}
-                  {(activeColorPicker === 'bgbuilder_c1' || activeColorPicker === 'bgbuilder_c2') && createPortal(
+                  return createPortal(
                     <>
                       <div className="fixed inset-0" style={{ zIndex: 999998 }} onPointerDown={(e) => { e.stopPropagation(); setActiveColorPicker(null); }} />
                       <div className="fixed p-8 glass-panel backdrop-blur-3xl rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-[26rem] animate-in fade-in zoom-in-95 duration-200"
@@ -585,70 +595,133 @@ export function ChameleonControlDashboard({
                         <div className="flex gap-4 mb-8">
                           <input
                             type="text"
-                            value={activeColorPicker === 'bgbuilder_c1' ? bgBuilderColor1 : bgBuilderColor2}
-                            onChange={(e) => {
-                              const col = e.target.value;
-                              if (activeColorPicker === 'bgbuilder_c1') {
-                                setBgBuilderColor1(col);
-                                applyBgBuilder(bgBuilderType, bgBuilderAngle, col, bgBuilderColor2);
-                              } else {
-                                setBgBuilderColor2(col);
-                                applyBgBuilder(bgBuilderType, bgBuilderAngle, bgBuilderColor1, col);
-                              }
-                            }}
+                            value={currentColor}
+                            onChange={(e) => updateColor(e.target.value)}
                             className="flex-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-xs font-black text-[var(--text)] capitalize tracking-widest outline-none focus:theme-border-accent transition-colors shadow-inner "
                           />
+                          <div className="w-12 h-12 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0 shadow-inner flex items-center justify-center cursor-pointer hover:scale-110 transition-transform group/fav" style={{ backgroundColor: currentColor }} onClick={() => toggleFavColor(currentColor)}>
+                            {favColors.includes(currentColor) ? <span className="text-yellow-500 text-2xl drop-shadow-md">★</span> : <span className="opacity-0 group-hover/fav:opacity-50 text-white font-black text-2xl material-symbols-outlined">{t("icon_add")}</span>}
+                          </div>
                         </div>
-                        <div className="grid grid-cols-8 gap-3">
+                        <div className="grid grid-cols-8 gap-3 mb-6">
                           {PRESET_COLORS.map(color => (
                             <button
                               key={color}
-                              onClick={() => {
-                                if (activeColorPicker === 'bgbuilder_c1') {
-                                  setBgBuilderColor1(color);
-                                  applyBgBuilder(bgBuilderType, bgBuilderAngle, color, bgBuilderColor2);
-                                } else {
-                                  setBgBuilderColor2(color);
-                                  applyBgBuilder(bgBuilderType, bgBuilderAngle, bgBuilderColor1, color);
-                                }
-                              }}
-                              className={`w-7 h-7 rounded-full border hover:scale-125 transition-all shadow-sm ${((activeColorPicker === 'bgbuilder_c1' ? bgBuilderColor1 : bgBuilderColor2) === color) ? 'theme-border-accent scale-110 shadow-[0_0_15px_var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
+                              onClick={() => updateColor(color)}
+                              className={`w-7 h-7 rounded-full border hover:scale-125 transition-all shadow-sm ${currentColor === color ? 'theme-border-accent scale-110 shadow-[0_0_15px_var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
                               style={{ backgroundColor: color }}
                             />
                           ))}
                         </div>
+                        {favColors.length > 0 && (
+                          <div className="mb-8 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                            <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] mb-4">{t("color_favs")}</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {favColors.map((color: string) => (
+                                <button
+                                  key={color}
+                                  onClick={() => updateColor(color)}
+                                  className={`w-7 h-7 rounded-xl border hover:scale-125 transition-all shadow-sm ${currentColor.toLowerCase() === color.toLowerCase() ? 'theme-border-accent scale-110 shadow-[0_0_15px_var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
+                                  style={{ backgroundColor: color }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-4 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                          <div className="flex items-center gap-4">
+                            <span className="text-xs font-black opacity-50 w-3 text-center text-red-500">{t("color_r")}</span>
+                            <Slider
+                              min={0} max={255}
+                              value={HexToRGB(currentColor).r}
+                              onChange={(e: any) => updateColor(RGBToHex(parseInt(e.target.value), HexToRGB(currentColor).g, HexToRGB(currentColor).b))}
+                              className="flex-1"
+                              style={{ '--accent': '#ef4444' } as React.CSSProperties}
+                            />
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className="text-xs font-black opacity-50 w-3 text-center text-green-500">{t("color_g")}</span>
+                            <Slider
+                              min={0} max={255}
+                              value={HexToRGB(currentColor).g}
+                              onChange={(e: any) => updateColor(RGBToHex(HexToRGB(currentColor).r, parseInt(e.target.value), HexToRGB(currentColor).b))}
+                              className="flex-1"
+                              style={{ '--accent': '#22c55e' } as React.CSSProperties}
+                            />
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className="text-xs font-black opacity-50 w-3 text-center text-blue-500">{t("color_b")}</span>
+                            <Slider
+                              min={0} max={255}
+                              value={HexToRGB(currentColor).b}
+                              onChange={(e: any) => updateColor(RGBToHex(HexToRGB(currentColor).r, HexToRGB(currentColor).g, parseInt(e.target.value)))}
+                              className="flex-1"
+                              style={{ '--accent': '#3b82f6' } as React.CSSProperties}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </>, document.getElementById('sa-portals') || document.body
-                  )}
-
-                </div>
+                  );
+                })()}
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("forge_atmospheric_overrides")}</label>
-              <div className="flex flex-col gap-3">
-                <label className="flex items-center gap-3 cursor-pointer group w-fit">
-                  <input
-                    type="checkbox"
-                    checked={currentTheme.ambientNoise !== false}
-                    onChange={(e) => handleUpdateTheme({ ambientNoise: e.target.checked })}
-                    className="w-4 h-4 rounded border border-[color-mix(in_srgb,var(--text)_30%,transparent)] appearance-none checked:bg-[var(--accent)] checked:border-[var(--accent)] transition-all relative before:content-[''] before:absolute before:inset-0 before:bg-white before:opacity-0 checked:before:opacity-20 hover:border-[var(--text)] shadow-inner"
-                  />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("forge_ambient_grain")}</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer group w-fit">
-                  <input
-                    type="checkbox"
-                    checked={currentTheme.ambientOrb !== false}
-                    onChange={(e) => handleUpdateTheme({ ambientOrb: e.target.checked })}
-                    className="w-4 h-4 rounded border border-[color-mix(in_srgb,var(--text)_30%,transparent)] appearance-none checked:bg-[var(--accent)] checked:border-[var(--accent)] transition-all relative before:content-[''] before:absolute before:inset-0 before:bg-white before:opacity-0 checked:before:opacity-20 hover:border-[var(--text)] shadow-inner"
-                  />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors">{t("forge_ambient_orb")}</span>
-                </label>
-                <p className="text-[9px] text-[var(--subtext)] font-black capitalize tracking-widest ml-1 opacity-60 mt-1">
-                  {t("forge_atmospheric_desc")}
-                </p>
+            <div className="flex flex-col gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full pb-12">
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                {t("forge_atmospheric_overrides")}
+              </label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                {/* Static Interference (Ambient Grain) */}
+                <UniversalCard
+                  layout="horizontal"
+                  icon="grain"
+                  title={t("forge_ambient_grain")}
+                  actions={
+                    <label className="flex items-center gap-2 cursor-pointer mt-1">
+                      <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${currentTheme.ambientNoise !== false ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
+                        <div className={`w-3 h-3 rounded-full bg-white transition-transform shadow-sm ${currentTheme.ambientNoise !== false ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </div>
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={currentTheme.ambientNoise !== false}
+                        onChange={(e) => handleUpdateTheme({ ambientNoise: e.target.checked })}
+                      />
+                    </label>
+                  }
+                  className="w-full"
+                >
+                  <p className="text-[10px] text-[var(--subtext)] leading-relaxed mt-1">
+                    {t("forge_ambient_grain_desc")}
+                  </p>
+                </UniversalCard>
+
+                {/* Kinetic Anomaly (Ambient Orb) */}
+                <UniversalCard
+                  layout="horizontal"
+                  icon="blur_on"
+                  title={t("forge_ambient_orb")}
+                  actions={
+                    <label className="flex items-center gap-2 cursor-pointer mt-1">
+                      <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${currentTheme.ambientOrb !== false ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
+                        <div className={`w-3 h-3 rounded-full bg-white transition-transform shadow-sm ${currentTheme.ambientOrb !== false ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </div>
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={currentTheme.ambientOrb !== false}
+                        onChange={(e) => handleUpdateTheme({ ambientOrb: e.target.checked })}
+                      />
+                    </label>
+                  }
+                  className="w-full"
+                >
+                  <p className="text-[10px] text-[var(--subtext)] leading-relaxed mt-1">
+                    {t("forge_ambient_orb_desc")}
+                  </p>
+                </UniversalCard>
               </div>
             </div>
           </div>

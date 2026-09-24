@@ -2254,5 +2254,13 @@
   "tab_active": "Active",
   "tab_inactive": "Inactive",
   "filter_closed": "Closed",
-  "forge_background_builder": "Boo-da-bop Maker"
+  "forge_background_builder": "Boo-da-bop Maker",
+  "forge_topology": "Background Style",
+  "forge_trajectory": "Gradient Direction",
+  "forge_chromatic": "Theme Colors",
+  "forge_node_primary": "Color 1",
+  "forge_node_secondary": "Color 2",
+  "forge_topology_solid": "Solid",
+  "forge_topology_linear": "Gradient",
+  "forge_topology_radial": "Radial"
 }

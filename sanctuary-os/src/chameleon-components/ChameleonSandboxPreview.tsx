@@ -71,10 +71,10 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
         }}>
 
           <div className="flex flex-col gap-3">
-            <h1 style={{ fontSize: `${currentTheme.fontSizeHeader || '1.875'}rem`, color: currentTheme.headerText || currentTheme.text, fontWeight: '900', lineHeight: 1.1 }}>
+            <h1 style={{ fontSize: currentTheme.fontSizeHeader || '1.875rem', color: currentTheme.headerText || currentTheme.text, fontWeight: '900', lineHeight: 1.1 }}>
               {t("forge_preview")}
             </h1>
-            <p style={{ fontSize: `${currentTheme.fontSizeText || '1'}rem`, color: currentTheme.subtext, opacity: 0.8 }}>
+            <p style={{ fontSize: currentTheme.fontSizeText || '1rem', color: currentTheme.subtext, opacity: 0.8 }}>
               {t("forge_preview_desc")}
             </p>
           </div>
@@ -87,10 +87,10 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
             borderColor: `color-mix(in srgb, ${currentTheme.text} 10%, transparent)`,
             boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
           }}>
-            <h2 style={{ fontSize: `${currentTheme.fontSizeTitle || '1.25'}rem`, color: currentTheme.text, fontWeight: '800' }}>
+            <h2 style={{ fontSize: currentTheme.fontSizeTitle || '1.25rem', color: currentTheme.text, fontWeight: '800' }}>
               {t("ui_forge_glass")}
             </h2>
-            <p style={{ fontSize: `${currentTheme.fontSizeSubtext || '0.75'}rem`, color: currentTheme.subtext, lineHeight: 1.5 }}>
+            <p style={{ fontSize: currentTheme.fontSizeSubtext || '0.75rem', color: currentTheme.subtext, lineHeight: 1.5 }}>
               {t("ui_forge_glass_desc")}
             </p>
 

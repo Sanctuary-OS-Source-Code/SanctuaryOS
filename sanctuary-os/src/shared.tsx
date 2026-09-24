@@ -4696,6 +4696,7 @@ export function GlassSegmentedControl({
   activeTab,
   setTab,
   className = "",
+  buttonClassName = "",
 }: any) {
   return (
     <div
@@ -4712,7 +4713,7 @@ export function GlassSegmentedControl({
           <button
             key={opt.id}
             onClick={() => setTab(opt.id)}
-            className={`px-4 md:px-5 h-10 md:h-12 text-[10px] md:text-xs font-black capitalize tracking-widest transition-all shrink-0 flex-1 md:flex-none text-center whitespace-nowrap ${isActive ? activeClass : inactiveClass}`}
+            className={`${buttonClassName || "px-4 md:px-5 h-10 md:h-12 text-[10px] md:text-xs"} font-black capitalize tracking-widest transition-all shrink-0 flex-1 md:flex-none text-center whitespace-nowrap ${isActive ? activeClass : inactiveClass}`}
           >
             {opt.label}
           </button>

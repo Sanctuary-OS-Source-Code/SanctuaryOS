@@ -487,8 +487,8 @@ export const ThemeProvider = ({ children }: any) => {
     };
     const updated = { ...devThemes, [id]: newTheme };
     setDevThemes(updated);
-    setActiveThemeId(id);
     localStorage.setItem("sanctuary_dev_themes", JSON.stringify(updated));
+    return id;
   };
 
   const exportDevThemeToCustom = (id: string) => {
