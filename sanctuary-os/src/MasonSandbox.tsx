@@ -10,7 +10,7 @@ import {
   DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
   CustomComplianceDropdown, CustomDatePicker, HubTabButton, ModSearchDropdown, EmptyState, FilterTabs, FilterTabButton, ActionButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass,
+  standardDangerButtonClass, standardAccentGlassButtonClass, PanelHeaderButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, InlineFilterGroup
 } from "./shared";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
@@ -301,7 +301,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
         {items.length === 0 ? (
           <EmptyState icon={type === 'local' ? t("icon_folder_off") : t("ui_icon_sync_disabled")} title={t("empty")} className="col-span-full py-16" />
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {items.map(mod => (
               <UniversalCard
                 key={mod.hash}
@@ -338,19 +338,15 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
       activeTab={sandboxTabFilter}
       onTabChange={(id) => setSandboxTabFilter(id as any)}
       hideSearch={sandboxTabFilter === 'overview'}
-      headerActions={
-        sandboxTabFilter !== 'overview' ? (
-          <div className="flex items-center gap-2">
-            <ActionButton
-              onClick={handleImportToSandbox}
-              disabled={isImporting}
-              icon={isImporting ? t("icon_refresh") : t("icon_download")}
-              label={isImporting ? t("btn_importing") : t("btn_import")}
-              iconOnly={true}
-              className="shrink-0 h-10 w-10 px-0"
-            />
-          </div>
-        ) : undefined
+      actions={
+        sandboxTabFilter !== 'overview' ? [
+          {
+            id: 'import',
+            icon: <span className={`material-symbols-outlined !text-[20px] ${isImporting ? 'animate-spin' : ''}`}>{isImporting ? "refresh" : "download"}</span>,
+            label: (isImporting ? t("btn_importing") || "Importing" : t("btn_import") || "Import") as string,
+            onClick: () => { if (!isImporting) handleImportToSandbox(); }
+          }
+        ] : undefined
       }
     >
       <div className="h-full flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
@@ -374,14 +370,22 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             widthClass="w-[600px]"
             backdropZ="z-[50000]"
             panelZ="z-[50001]"
-            footer={
-              <div className="flex justify-center items-center gap-4 w-full">
-                <ActionButton onClick={handlePurge} disabled={isCommitting} label={confirmPurge ? (t("ui_confirm_delete")) : (t("purge"))} className="!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
-
-                </ActionButton>
-                <ActionButton onClick={handleSyncToNetwork} disabled={isCommitting} label={isCommitting ? t("btn_syncing") : (t("sandbox_btn_sync"))}>
-
-                </ActionButton>
+            headerActions={
+              <div className="flex items-center gap-2 pr-2">
+                <PanelHeaderButton 
+                  icon="delete" 
+                  onClick={handlePurge} 
+                  disabled={isCommitting} 
+                  tooltip={confirmPurge ? (t("ui_confirm_delete") || "Confirm") : (t("purge") || "Purge")} 
+                  isDestructive={true} 
+                />
+                <PanelHeaderButton 
+                  icon="sync" 
+                  onClick={handleSyncToNetwork} 
+                  disabled={isCommitting} 
+                  tooltip={isCommitting ? (t("btn_syncing") || "Syncing...") : (t("sandbox_btn_sync") || "Sync to Network")} 
+                  isAccent={true}
+                />
               </div>
             }
           >
@@ -449,24 +453,24 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 col-span-full">
-                  <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                    <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on")}</span>
+                  <label className={`w-full glass-surface rounded-xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all shadow-inner group hover:theme-border-accent ${activeMod.is_paid ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : ''}`}>
+                    <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_paid ? 'text-[var(--warning)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                      <span className="material-symbols-outlined !text-[16px]">monetization_on</span>
                       {t("label_is_paid")}
                     </span>
-                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_paid ? 'bg-yellow-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_paid ? 'bg-[var(--warning)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                       <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
                       </div>
                     </div>
                     <input type="checkbox" checked={activeMod.is_paid || false} onChange={e => setActiveMod({ ...activeMod, is_paid: e.target.checked })} className="hidden" />
                   </label>
 
-                  <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${activeMod.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                    <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-purple-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_science")}</span>
+                  <label className={`w-full glass-surface rounded-xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all shadow-inner group hover:theme-border-accent ${activeMod.is_early_access ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : ''}`}>
+                    <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${activeMod.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                      <span className="material-symbols-outlined !text-[16px]">science</span>
                       {t("label_is_early_access")}
                     </span>
-                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_early_access ? 'bg-purple-500' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${activeMod.is_early_access ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                       <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${activeMod.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
                       </div>
                     </div>

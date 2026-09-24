@@ -136,10 +136,13 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
       themeMode = yiq >= 128 ? 'Light' : 'Dark';
     }
 
+    let isEdit = !!editingThemeId && !editingThemeId.startsWith('dev_') && !editingThemeId.startsWith('custom_') && syncedThemes.some(t => t.id === editingThemeId);
+    let editThemeMeta = isEdit ? syncedThemes.find(t => t.id === editingThemeId) : null;
+
     setUploadState({
-      isOpen: true, editId: null, assetType: 'chameleon', isHidden: false,
-      fileContent: currentTheme, fileName: currentTheme.name + '.json', name: currentTheme.name, version: '1.0.0',
-      description: '', releaseNotes: '', language: 'English', newLanguage: '', lexiconType: 'Theme', themeMode
+      isOpen: true, editId: isEdit ? editingThemeId : null, assetType: 'chameleon', isHidden: false,
+      fileContent: currentTheme, fileName: currentTheme.name + '.json', name: currentTheme.name, version: editThemeMeta?.version || '1.0.0',
+      description: editThemeMeta?.description || '', releaseNotes: '', language: 'English', newLanguage: '', lexiconType: 'Theme', themeMode
     });
   };
 
@@ -179,12 +182,19 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
 
       let payload = {
         name: uploadState.name, version: uploadState.version, description: uploadState.description, release_notes: uploadState.releaseNotes,
-        json_data: finalContent, asset_type: 'chameleon', is_public: true, theme_mode: uploadState.themeMode, author: masonProfile.name, mason_id: masonProfile.id, author_id: session?.user?.id || masonProfile.id, downloads: 0
+        json_data: finalContent, asset_type: 'chameleon', is_public: true, theme_mode: uploadState.themeMode, author: masonProfile.name, mason_id: masonProfile.id, author_id: session?.user?.id || masonProfile.id
       };
 
-      const { error } = await supabase.from('nexus_assets').insert([payload]);
-      if (error) throw error;
-      useStore.getState().pushStatus(`Theme published successfully.`, "success");
+      if (uploadState.editId) {
+        const { error } = await supabase.from('nexus_assets').update(payload).eq('id', uploadState.editId);
+        if (error) throw error;
+        useStore.getState().pushStatus(`Theme updated successfully.`, "success");
+      } else {
+        (payload as any).downloads = 0;
+        const { error } = await supabase.from('nexus_assets').insert([payload]);
+        if (error) throw error;
+        useStore.getState().pushStatus(`Theme published successfully.`, "success");
+      }
       setUploadState(s => ({ ...s, isOpen: false }));
     } catch (err: any) {
       useStore.getState().pushStatus(`Error: ${err.message}`, "error");
@@ -237,7 +247,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
           {recentSynced.length === 0 ? (
             <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent themes found</div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {recentSynced.map((pt: any) => {
                 const themeData = typeof pt.json_data === 'string' ? JSON.parse(pt.json_data) : pt.json_data;
                 return (
@@ -267,7 +277,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
           {flaggedThemes.length === 0 ? (
             <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No flagged themes found</div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {flaggedThemes.map((pt: any) => {
                 const themeData = typeof pt.json_data === 'string' ? JSON.parse(pt.json_data) : pt.json_data;
                 return (
@@ -295,7 +305,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
     if (activeTab === 'synced') {
       return (
         <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full">
             {syncedThemes.filter(pt => !searchQuery || pt.name.toLowerCase().includes(searchQuery.toLowerCase())).map((pt: any) => {
               const themeData = typeof pt.json_data === 'string' ? JSON.parse(pt.json_data) : pt.json_data;
               return (
@@ -319,7 +329,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
 
     return (
       <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full">
           {unpublishedCustomThemes.filter(([id, theme]: any) => !searchQuery || theme.name.toLowerCase().includes(searchQuery.toLowerCase())).map(([id, theme]: any) => (
             <ThemeCard
               key={id}
@@ -360,12 +370,15 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
       hideSearch={activeTab === 'overview'}
-      headerActions={
-        activeTab !== 'overview' ? (
-          <div className="flex items-center gap-2">
-            <ActionButton onClick={() => setIsCreatePanelOpen(true)} iconOnly={true} icon="add" label={t("auto_create")} />
-          </div>
-        ) : undefined
+      actions={
+        activeTab !== 'overview' ? [
+          {
+            id: 'create',
+            icon: <span className="material-symbols-outlined !text-[20px]">add</span>,
+            label: (t("auto_create") || "Create") as string,
+            onClick: () => setIsCreatePanelOpen(true)
+          }
+        ] : undefined
       }
     >
       <div className="h-full flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
@@ -382,7 +395,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         isResizable={true}
         defaultWidth={1400}
         headerActions={
-          typeof editingThemeId === 'string' && editingThemeId.startsWith('dev_') ? (
+          typeof editingThemeId === 'string' ? (
             <PanelHeaderGroup>
               <PanelHeaderButton
                 icon={livePreview ? 'visibility' : 'visibility_off'}
@@ -394,40 +407,74 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                   setLivePreview(!livePreview);
                 }}
               />
-              <PanelHeaderButton
-                icon="refresh"
-                tooltip={t("btn_reset")}
-                onClick={() => {
-                  setActiveThemeId(originalThemeId);
-                  useStore.getState().pushStatus(t("ui_theme_reset"), "success");
-                }}
-              />
-              <PanelHeaderButton
-                icon="check_circle"
-                tooltip={t("ui_btn_apply")}
-                variant="success"
-                onClick={() => {
-                  setActiveThemeId(editingThemeId);
-                  setOriginalThemeId(editingThemeId);
-                  setEditingThemeId(null);
-                  useStore.getState().pushStatus(t("ui_theme_applied"), "success");
-                }}
-              />
+              {editingThemeId.startsWith('dev_') && (
+                <>
+                  <PanelHeaderButton
+                    icon="refresh"
+                    tooltip={t("btn_reset")}
+                    onClick={() => {
+                      setActiveThemeId(originalThemeId);
+                      useStore.getState().pushStatus(t("ui_theme_reset"), "success");
+                    }}
+                  />
+                  <PanelHeaderButton
+                    icon="check_circle"
+                    tooltip={t("ui_btn_apply")}
+                    variant="success"
+                    onClick={() => {
+                      setActiveThemeId(editingThemeId);
+                      setOriginalThemeId(editingThemeId);
+                      setEditingThemeId(null);
+                      useStore.getState().pushStatus(t("ui_theme_applied"), "success");
+                    }}
+                  />
+                </>
+              )}
               <PanelHeaderButton
                 icon="cloud_upload"
                 tooltip={t("btn_publish")}
                 onClick={publishThemeToNexus}
                 variant="primary"
               />
-              <PanelHeaderButton
-                icon="save"
-                tooltip={t("ui_export_theme")}
-                onClick={() => {
-                  exportDevThemeToCustom(editingThemeId);
-                  useStore.getState().pushStatus(t("ui_saved_personal"), "success");
-                }}
-                variant="primary"
-              />
+              {editingThemeId.startsWith('dev_') && (
+                <PanelHeaderButton
+                  icon="save"
+                  tooltip={t("ui_export_theme")}
+                  onClick={() => {
+                    exportDevThemeToCustom(editingThemeId);
+                    useStore.getState().pushStatus(t("ui_saved_personal"), "success");
+                  }}
+                  variant="primary"
+                />
+              )}
+              {!editingThemeId.startsWith('dev_') && !editingThemeId.startsWith('custom_') && (
+                <PanelHeaderButton
+                  icon="delete"
+                  tooltip={t("btn_remove_asset")}
+                  onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
+                    if (e.currentTarget.textContent?.includes("SURE")) {
+                      const { supabase } = await import('./supabase');
+                      const { error } = await supabase.from('nexus_assets').update({ is_public: false }).eq('id', editingThemeId);
+                      if (error) {
+                        useStore.getState().pushStatus(`Failed to hide asset: ${error.message} ${error.details ? `(${error.details})` : ''}`, "error");
+                      } else {
+                        useStore.getState().pushStatus("Asset removed from public view.", "success");
+                        setEditingThemeId(null);
+                      }
+                    } else {
+                      const el = e.currentTarget as HTMLElement;
+                      el.innerHTML = `<span class="material-symbols-outlined !text-[16px]">warning</span> ARE YOU SURE?`;
+                      el.classList.add("!text-[var(--danger)]", "!border-[color-mix(in_srgb,var(--danger)_50%,transparent)]");
+                      setTimeout(() => {
+                        if (el) {
+                          el.innerHTML = `<span class="material-symbols-outlined !text-[16px]">delete</span>`;
+                          el.classList.remove("!text-[var(--danger)]", "!border-[color-mix(in_srgb,var(--danger)_50%,transparent)]");
+                        }
+                      }, 3000);
+                    }
+                  }}
+                />
+              )}
             </PanelHeaderGroup>
           ) : undefined
         }

@@ -55,10 +55,10 @@
   "auth_masked_title": "Masked Sign-Ups Only:",
   "auth_masked_desc": "We highly recommend registering with a temporary burner or masked email alias (such as Apple Hide My Email, Firefox Relay, or DuckDuckGo Email Protection).",
   "forge_theme_name_placeholder": "BADEESHO",
-  "forge_tab_colors": "Kolorz",
+  "forge_tab_colors": "Colors",
   "forge_tab_typography": "Werdz",
-  "forge_tab_structure": "Bildin & Glas",
-  "forge_tab_backgrounds": "Bakgrundz & Fix",
+  "forge_tab_structure": "Structure",
+  "forge_tab_backgrounds": "Backgrounds",
   "forge_bg_remove": "Yeet Pikchur",
   "forge_bg_none": "No Pikchur",
   "forge_bg_upload": "Uplod Pikchur",
@@ -141,5 +141,11 @@
   "tab_templates": "Templates",
   "tab_blueprints": "Play Sets",
   "hub_abort": "Cancel",
-  "hub_save": "Save"
+  "hub_save": "Save",
+  "status_tag_corrupted": "Corrupted",
+  "forge_tab_fonts": "Typography",
+  "forge_holo_opacity": "Opacity",
+  "forge_plasma_blur": "Blur",
+  "forge_edge_smoothing": "Border Radius",
+  "forge_background_builder": "Backdrop Maker"
 }

@@ -10,8 +10,7 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
   const { t } = useLexicon();
 
   return (
-    <div className="w-[400px] xl:w-[480px] shrink-0 h-full border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative flex flex-col glass-panel !rounded-none z-0" style={{
-      backgroundColor: `color-mix(in srgb, ${currentTheme.bg} 15%, transparent)`,
+    <div className="w-[400px] xl:w-[480px] shrink-0 h-full border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative flex flex-col !rounded-none z-0 overflow-hidden" style={{
       '--bg': currentTheme.bg,
       '--text': currentTheme.text,
       '--subtext': currentTheme.subtext,
@@ -29,8 +28,47 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
       fontFamily: currentTheme.fontFamily || 'Inter, sans-serif'
     } as React.CSSProperties}>
 
+      {/* Live Background Engine */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden rounded-[inherit]">
+        {currentTheme.bgImage ? (
+          <div
+            className="absolute inset-0 rounded-[inherit] w-full h-full opacity-100 transition-all duration-1000"
+            style={{
+              backgroundImage: `url("${currentTheme.bgImage}")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            }}
+          />
+        ) : (
+          <div
+            className="absolute inset-0 rounded-[inherit] w-full h-full opacity-100 transition-all duration-1000"
+            style={{ background: 'var(--bgGradient)' }}
+          />
+        )}
+
+        {currentTheme.ambientOrb !== false && currentTheme.volumetricOrbs && currentTheme.volumetricOrbs.length > 0 ? (
+          <div className="absolute inset-0 rounded-[inherit] w-full h-full">
+            {currentTheme.volumetricOrbs.map((orb: any, index: number) => (
+              <div
+                key={`${currentTheme.name || 'theme'}-${index}`}
+                className={`absolute rounded-full pointer-events-none ${orb.blendMode || 'mix-blend-screen'}`}
+                style={{
+                  backgroundColor: orb.color,
+                  top: orb.top, left: orb.left, width: orb.width || '120vw', height: orb.height || '120vh',
+                  filter: `blur(${orb.blur})`, opacity: orb.opacity || 0.5,
+                  animation: currentTheme.animated !== false ? `${orb.animation || 'ambient-drift'} ${orb.duration || '60s'} ease-in-out infinite alternate` : 'none'
+                }}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+
       <div className="absolute inset-0 rounded-[inherit] flex z-10">
-        <div className="flex-1 flex flex-col p-8 gap-10 overflow-y-auto custom-scrollbar pt-10 pb-32">
+        <div className="flex-1 flex flex-col p-8 gap-10 overflow-y-auto custom-scrollbar pt-10 pb-32 relative z-10 glass-panel !rounded-none" style={{
+          backgroundColor: `color-mix(in srgb, ${currentTheme.bg} 15%, transparent)`,
+        }}>
 
           <div className="flex flex-col gap-3">
             <h1 style={{ fontSize: `${currentTheme.fontSizeHeader || '1.875'}rem`, color: currentTheme.headerText || currentTheme.text, fontWeight: '900', lineHeight: 1.1 }}>

@@ -4,6 +4,7 @@ import { SidePanel, HubTabs } from '../shared';
 import { useLexicon } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
 import { useStore } from '../store';
+import { Slider } from '../components/universal/Slider';
 import { open } from '@tauri-apps/plugin-dialog';
 import { copyFile, mkdir, readDir } from '@tauri-apps/plugin-fs';
 import { convertFileSrc } from '@tauri-apps/api/core';
@@ -197,29 +198,32 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                           <div className="flex flex-col gap-4 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                             <div className="flex items-center gap-4">
                               <span className="text-xs font-black opacity-50 w-3 text-center text-[var(--danger)]">{t("color_r")}</span>
-                              <input
-                                type="range" min="0" max="255"
+                              <Slider
+                                min={0} max={255}
                                 value={HexToRGB(currentTheme[key]).r}
                                 onChange={(e) => updateActiveTheme({ [key]: RGBToHex(parseInt(e.target.value), HexToRGB(currentTheme[key]).g, HexToRGB(currentTheme[key]).b) })}
-                                className="flex-1 h-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-[var(--danger)] [&::-webkit-slider-thumb]:rounded-full cursor-pointer shadow-inner"
+                                className="flex-1"
+                                style={{ '--accent': 'var(--danger)' } as React.CSSProperties}
                               />
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="text-xs font-black opacity-50 w-3 text-center text-[var(--success)]">{t("color_g")}</span>
-                              <input
-                                type="range" min="0" max="255"
+                              <Slider
+                                min={0} max={255}
                                 value={HexToRGB(currentTheme[key]).g}
                                 onChange={(e) => updateActiveTheme({ [key]: RGBToHex(HexToRGB(currentTheme[key]).r, parseInt(e.target.value), HexToRGB(currentTheme[key]).b) })}
-                                className="flex-1 h-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-[var(--success)] [&::-webkit-slider-thumb]:rounded-full cursor-pointer shadow-inner"
+                                className="flex-1"
+                                style={{ '--accent': 'var(--success)' } as React.CSSProperties}
                               />
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="text-xs font-black opacity-50 w-3 text-center text-[var(--accent)]">{t("editor_bold")}</span>
-                              <input
-                                type="range" min="0" max="255"
+                              <Slider
+                                min={0} max={255}
                                 value={HexToRGB(currentTheme[key]).b}
                                 onChange={(e) => updateActiveTheme({ [key]: RGBToHex(HexToRGB(currentTheme[key]).r, HexToRGB(currentTheme[key]).g, parseInt(e.target.value)) })}
-                                className="flex-1 h-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-[var(--accent)] [&::-webkit-slider-thumb]:rounded-full cursor-pointer shadow-inner"
+                                className="flex-1"
+                                style={{ '--accent': '#3b82f6' } as React.CSSProperties}
                               />
                             </div>
                           </div>
@@ -272,11 +276,11 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                       <span>{cfg.label}</span>
                       <span className="theme-text-accent ml-auto">{currentTheme[cfg.key] || (cfg.isPx ? `${cfg.def}px` : `${cfg.def}rem`)}</span>
                     </label>
-                    <input 
-                      type="range" min={cfg.min !== undefined ? cfg.min : (cfg.isPx ? 6 : 0.5)} max={cfg.max} step={cfg.isPx ? 1 : 0.125}
+                    <Slider 
+                      min={cfg.min !== undefined ? cfg.min : (cfg.isPx ? 6 : 0.5)} max={cfg.max} step={cfg.isPx ? 1 : 0.125}
                       value={parseFloat(currentTheme[cfg.key] || cfg.def) || parseFloat(cfg.def)}
                       onChange={(e) => updateActiveTheme({ [cfg.key]: cfg.isPx ? `${e.target.value}px` : `${e.target.value}rem` })}
-                      className="w-full sanctuary-slider"
+                      className="w-full"
                     />
                   </div>
                 ))}
@@ -293,11 +297,11 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                   <span>{t("forge_glass_opacity")}</span>
                   <span className="theme-text-accent ml-auto">{currentTheme.glassOpacity || "3%"}</span>
                 </label>
-                <input 
-                  type="range" min="0" max="100" step="1"
+                <Slider 
+                  min={0} max={100} step={1}
                   value={parseFloat(currentTheme.glassOpacity || '3')}
                   onChange={(e) => updateActiveTheme({ glassOpacity: `${e.target.value}%` })}
-                  className="w-full sanctuary-slider"
+                  className="w-full"
                 />
               </div>
               
@@ -306,11 +310,11 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                   <span>{t("forge_glass_blur")}</span>
                   <span className="theme-text-accent ml-auto">{currentTheme.glassBlur || "16px"}</span>
                 </label>
-                <input 
-                  type="range" min="0" max="64" step="1"
+                <Slider 
+                  min={0} max={64} step={1}
                   value={parseInt(currentTheme.glassBlur || "16") || 16}
                   onChange={(e) => updateActiveTheme({ glassBlur: `${e.target.value}px` })}
-                  className="w-full sanctuary-slider"
+                  className="w-full"
                 />
               </div>
             </div>
@@ -320,11 +324,11 @@ export function ChameleonEditorPanel({ isOpen, onClose }: { isOpen: boolean, onC
                 <span>{t("forge_radius")}</span>
                 <span className="theme-text-accent ml-auto">{currentTheme.radius || "1.5rem"}</span>
               </label>
-              <input 
-                type="range" min="0" max="4" step="0.125"
+              <Slider 
+                min={0} max={4} step={0.125}
                 value={parseFloat(currentTheme.radius || "1.5") || 1.5}
                 onChange={(e) => updateActiveTheme({ radius: `${e.target.value}rem` })}
-                className="w-full sanctuary-slider"
+                className="w-full"
               />
             </div>
           </div>

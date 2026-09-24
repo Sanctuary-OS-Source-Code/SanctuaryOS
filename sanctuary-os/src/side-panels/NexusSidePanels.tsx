@@ -35,8 +35,8 @@ export function MarketUploadPanel({
           <>
             <PanelHeaderGroup>
               <PanelHeaderButton
-                icon={uploadState.isEdit ? "save" : "cloud_upload"}
-                tooltip={uploadState.isEdit ? (t("upload_btn_update") || "Update") : (t("upload_submit") || "Submit")}
+                icon={uploadState.editId ? "save" : "cloud_upload"}
+                tooltip={uploadState.editId ? (t("upload_btn_update") || "Update") : (t("upload_submit") || "Submit")}
                 onClick={submitUpload}
                 disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
                 variant="accent"
@@ -47,30 +47,21 @@ export function MarketUploadPanel({
       >
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-6 flex flex-col gap-6 relative z-10">
           <div className="flex flex-col gap-8 pb-8 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-            <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none" style={{ transform: 'translate(20%, -20%)' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '300px' }}>cloud_upload</span>
-            </div>
             <div className="flex items-start justify-between gap-6 relative z-10 w-full">
               <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-full">
-                <h1 className="text-4xl font-black capitalize tracking-tight text-[var(--text)] drop-shadow-md break-words break-all" style={{ overflowWrap: 'anywhere' }}>
+                <h1 className="text-3xl font-black capitalize tracking-tight text-[var(--text)] drop-shadow-md break-words break-all" style={{ overflowWrap: 'anywhere' }}>
                   {uploadState.name || t("new_upload") || "New Upload"}
                 </h1>
                 <div className="flex items-center gap-3 flex-wrap mt-2">
-                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-xs font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
+                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
                     <span className="material-symbols-outlined !text-[16px] shrink-0">draft</span>
                     <span className="truncate">{marketTab}</span>
                   </span>
+                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
+                    <span className="material-symbols-outlined !text-[16px] shrink-0">new_releases</span>
+                    <span className="truncate">{uploadState.version || "1.0.0"}</span>
+                  </span>
                 </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 relative z-10 w-full flex-wrap">
-              <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
-                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("label_version") || "Version"}</span>
-                <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">new_releases</span> {uploadState.version || "1.0.0"}</span>
-              </div>
-              <div className="flex-1 min-w-[160px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
-                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("upload_type") || "Upload Type"}</span>
-                <span className="text-lg font-black flex items-center gap-2 capitalize"><span className="material-symbols-outlined !text-[20px] theme-text-accent">{uploadState.isEdit ? 'edit' : 'add_circle'}</span> {uploadState.isEdit ? 'Update' : 'New Release'}</span>
               </div>
             </div>
           </div>
@@ -108,7 +99,7 @@ export function MarketUploadPanel({
             </div>
             <div className="flex gap-4">
               <div className="flex flex-col gap-2 flex-1">
-                <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
                   {marketTab === 'LEXICONS'
                     ? (t("upload_lexicon_name"))
                     : marketTab === 'TEMPLATES'
@@ -119,42 +110,42 @@ export function MarketUploadPanel({
                   type="text"
                   value={uploadState.name}
                   onChange={e => setUploadState((s: any) => ({ ...s, name: e.target.value }))}
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)]"
+                  className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)]"
                 />
               </div>
               <div className="flex flex-col gap-2 w-32 shrink-0">
-                <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("label_version")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_version")}</label>
                 <input
                   type="text"
                   value={uploadState.version}
                   onChange={e => setUploadState((s: any) => ({ ...s, version: e.target.value }))}
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)] text-center"
+                  className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)] text-center"
                 />
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("upload_desc")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc")}</label>
               <textarea
                 value={uploadState.description}
                 onChange={e => setUploadState((s: any) => ({ ...s, description: e.target.value }))}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[100px] text-[var(--text)]"
+                className="w-full glass-surface rounded-xl px-5 py-4 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[100px] text-[var(--text)]"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("whats_new")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("whats_new")}</label>
               <textarea
                 value={uploadState.releaseNotes || ""}
                 onChange={e => setUploadState((s: any) => ({ ...s, releaseNotes: e.target.value }))}
                 placeholder={t("update_panel_no_notes")}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[80px] text-[var(--text)]"
+                className="w-full glass-surface rounded-xl px-5 py-4 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[80px] text-[var(--text)]"
               />
             </div>
 
             {marketTab === 'LEXICONS' && (
               <>
                 <div className="flex flex-col gap-2 relative z-[60]">
-                  <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("tab_lexicons")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("tab_lexicons")}</label>
                   <CustomDropdown disableTint={true}
                     value={uploadState.language}
                     onChange={(val: string[]) => setUploadState((s: any) => ({ ...s, language: val[0] }))}
@@ -167,18 +158,18 @@ export function MarketUploadPanel({
                 </div>
                 {uploadState.language === 'add_new' && (
                   <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
-                    <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("upload_new_language")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_new_language")}</label>
                     <input
                       type="text"
                       value={uploadState.newLanguage}
                       onChange={e => setUploadState((s: any) => ({ ...s, newLanguage: e.target.value }))}
-                      className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
+                      className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
                       placeholder={t("ph_language")}
                     />
                   </div>
                 )}
                 <div className="flex flex-col gap-2 relative z-[50]">
-                  <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("filter_type")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("filter_type")}</label>
                   <CustomDropdown disableTint={true}
                     value={uploadState.lexiconType}
                     onChange={(val: string[]) => setUploadState((s: any) => ({ ...s, lexiconType: val[0] }))}
@@ -193,7 +184,7 @@ export function MarketUploadPanel({
 
             {marketTab === 'CHAMELEONS' && (
               <div className="flex flex-col gap-2 relative z-[60]">
-                <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("filter_mode")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("filter_mode")}</label>
                 <CustomDropdown disableTint={true}
                   value={uploadState.themeMode}
                   onChange={(val: string[]) => setUploadState((s: any) => ({ ...s, themeMode: val[0] }))}

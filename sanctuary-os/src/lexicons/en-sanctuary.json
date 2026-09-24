@@ -3111,7 +3111,7 @@
   "status_tag_under_review": "Under Review",
   "status_tag_pending": "Pending",
   "status_tag_unknown": "Unknown",
-  "status_tag_unstable": "Corrupted",
+  "status_tag_unstable": "Unstable",
   "title_issues": "Anomalies",
   "no_issues": "No Issues",
   "registry_no_issues": "System Stable",
@@ -3147,5 +3147,10 @@
   "upload_blueprint_name": "Blueprint Name",
   "upload_blueprint_title": "Patch Blueprint",
   "hub_abort": "Abort",
-  "hub_save": "Save"
+  "hub_save": "Save",
+  "forge_tab_fonts": "Glyphs",
+  "forge_holo_opacity": "Holo Opacity",
+  "forge_plasma_blur": "Plasma Blur",
+  "forge_edge_smoothing": "Edge Smoothing",
+  "forge_background_builder": "Atmospheric Forge"
 }

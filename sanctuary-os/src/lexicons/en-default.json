@@ -3037,8 +3037,8 @@
   "forge_theme_name_placeholder": "THEME NAME",
   "forge_tab_colors": "Colors",
   "forge_tab_typography": "Typography",
-  "forge_tab_structure": "Structure & Glass",
-  "forge_tab_backgrounds": "Backgrounds & FX",
+  "forge_tab_structure": "Structure",
+  "forge_tab_backgrounds": "Backgrounds",
   "forge_bg_remove": "Remove Wallpaper",
   "forge_bg_none": "No Wallpaper",
   "forge_bg_upload": "Upload Local Image",
@@ -3099,7 +3099,7 @@
   "status_tag_under_review": "Under Review",
   "status_tag_pending": "Pending",
   "status_tag_unknown": "Unknown",
-  "status_tag_unstable": "Unstable & Corrupted",
+  "status_tag_unstable": "Unstable",
   "title_issues": "Issues",
   "no_issues": "No Issues",
   "registry_no_issues": "No Known Issues",
@@ -3136,5 +3136,10 @@
   "upload_blueprint_name": "Blueprint Name",
   "upload_blueprint_title": "Update Blueprint",
   "hub_abort": "Abort",
-  "hub_save": "Save"
+  "hub_save": "Save",
+  "forge_tab_fonts": "Typography",
+  "forge_holo_opacity": "Opacity",
+  "forge_plasma_blur": "Blur",
+  "forge_edge_smoothing": "Border Radius",
+  "forge_background_builder": "Background Builder"
 }
