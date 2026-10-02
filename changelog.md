@@ -101,6 +101,7 @@
 
 ### Architecture
 - **Theme Engine Logic:** Decoupled the creation of new themes from the active system theme. Generating a new Dev Theme from the blueprint panel now exclusively opens the editor without immediately enforcing the work-in-progress theme onto your entire desktop session.
+- **Sandbox & Registry Decoupling:** Removed the 'Sandbox' filter entirely from the main Artifact Registry (`SharedRegistry.tsx`) to prevent sync overlaps. Overhauled the Sandbox Dashboard (`MasonSandbox.tsx`) to categorize mods strictly into 'In-Development' (local Sandbox files), 'Local' (exported but unsynced files in the main mods folder), and 'Synced' (fully uploaded Nexus tier-0 files). Added a foundational 'Export Release' button placeholder in the Sandbox editor panel to support the upcoming decentralized static polling pipeline.
 
 ### Visual Overhauls
 - **Chameleon Dashboard Aesthetics:** Re-engineered the UI controls in the Chameleon Control Dashboard to achieve an ultra-premium aesthetic. Built a custom, CSS gradient-powered `<Slider />` component with flawless fill tracking and glowing thumbs. Replaced the generic Background Builder layout with a dense, highly-readable Holographic Panel, integrating inset segmented controls and crisp horizontal swatches for chromatic selection. Integrated the full interactive color portal with R/G/B sliders, hex input, and swatches from the Chromatics tab into the Atmospheric Forge.

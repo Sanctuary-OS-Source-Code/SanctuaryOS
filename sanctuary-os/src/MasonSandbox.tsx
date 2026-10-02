@@ -35,7 +35,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
   const [existingHashes, setExistingHashes] = useState<Set<string>>(new Set());
   const [linkSearch, setLinkSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [sandboxTabFilter, setSandboxTabFilter] = useState<'overview' | 'local' | 'synced'>('overview');
+  const [sandboxTabFilter, setSandboxTabFilter] = useState<'overview' | 'in_development' | 'local' | 'synced'>('overview');
   const [confirmPurge, setConfirmPurge] = useState(false);
 
   const [isEditorOpen, setIsEditorOpen] = useState(!!initialSandboxMod);
@@ -232,10 +232,16 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
       icon: "dashboard",
     },
     {
+      id: "in_development",
+      label: t("filter_dev") || "In-Development",
+      icon: "architecture",
+      number: unlinkedMods.length
+    },
+    {
       id: "local",
       label: t("unlinked_badge") || "Local",
-      icon: "folder_zip",
-      number: unlinkedMods.length
+      icon: "folder",
+      number: 0
     },
     {
       id: "synced",
@@ -286,15 +292,19 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
     return (
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
-        {renderSection(t("unlinked_badge") || "Local", "folder_zip", unlinkedMods.slice(0, 4), 'local')}
+        {renderSection(t("filter_dev") || "In-Development", "architecture", unlinkedMods.slice(0, 4), 'local')}
         {renderSection(t("synced_badge") || "Synced", "cloud_done", syncedMods.slice(0, 4), 'synced')}
       </div>
     );
   };
 
   const renderList = () => {
-    const items = sandboxTabFilter === 'local' ? unlinkedMods : syncedMods;
-    const type = sandboxTabFilter;
+    let items: any[] = [];
+    if (sandboxTabFilter === 'in_development') items = unlinkedMods;
+    else if (sandboxTabFilter === 'synced') items = syncedMods;
+    else if (sandboxTabFilter === 'local') items = [];
+
+    const type = sandboxTabFilter === 'in_development' || sandboxTabFilter === 'local' ? 'local' : 'synced';
 
     return (
       <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -372,6 +382,14 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
             panelZ="z-[50001]"
             headerActions={
               <div className="flex items-center gap-2 pr-2">
+                <PanelHeaderButton 
+                  icon="move_to_inbox" 
+                  onClick={() => {
+                     useStore.getState().pushStatus("Exporting release manifest... (Placeholder)", "success");
+                  }} 
+                  disabled={isCommitting} 
+                  tooltip={"Export Release"} 
+                />
                 <PanelHeaderButton 
                   icon="delete" 
                   onClick={handlePurge} 

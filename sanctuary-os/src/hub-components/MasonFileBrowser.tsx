@@ -72,7 +72,7 @@ export default function MasonFileBrowser({
    }
 
    return (
-      <div className={`grid ${layout === 'list' ? 'grid-cols-1' : 'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]'} gap-6 w-full`}>
+      <div className={`grid ${layout === 'list' ? 'grid-cols-2' : 'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]'} gap-6 w-full px-2 py-4`}>
          {filteredFiles.map((file: any) => {
             const isTmpl = file.name.toLowerCase().endsWith('.json');
             const isLexicon = isCloudMode ? internalCloudTarget === 'sanctuary_lexicons' : file.name.match(/^[a-z]{2}-.+\.json$/i);

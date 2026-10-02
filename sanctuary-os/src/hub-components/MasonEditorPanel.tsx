@@ -84,7 +84,7 @@ export default function MasonEditorPanel({
 
    const isLexiconActive = activeFile?.content?.includes('_meta_lang') || activeFile?.content?.includes('"a_citizen"') || activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) !== null;
    const isSchemaActive = activeFile?.content?.includes('"schema_version"');
-   const hasReference = isLexiconActive || isSchemaActive || (referenceData && Object.keys(referenceData).length > 0);
+   const hasReference = (isLexiconActive || isSchemaActive || activeFile?.name?.endsWith('.json')) && (referenceData && Object.keys(referenceData).length > 0);
 
    const isJsonParseError = React.useMemo(() => {
       if (!activeFile) return false;
@@ -120,8 +120,8 @@ export default function MasonEditorPanel({
          <SidePanel
             isOpen={!!activeFile}
             onClose={() => setActiveFileIndex(-1)}
-            title={isCloudMode ? (isKeepers ? "KEEPERS IDE" : "WAYFINDER IDE") : (t("tools_ide"))}
-            subtitle={t("mason_ide_subtitle")}
+            title={isCloudMode ? (isKeepers ? "KEEPERS IDE" : "WAYFINDER IDE") : (t("tools_ide") || "MASON IDE")}
+            subtitle={t("mason_ide_subtitle") || "Development & Localization Environment"}
             icon="code"
             iconColorClass="theme-text-accent"
             isResizable={!isFullscreen}
@@ -198,7 +198,7 @@ export default function MasonEditorPanel({
                               </div>
                               <div className="flex flex-col min-w-0">
                                  <span className="text-sm font-bold text-[var(--warning)] flex items-center gap-2">
-                                    <strong>{validationStats.total - validationStats.missing}</strong> 
+                                    <strong>{validationStats.total - validationStats.missing}</strong>
                                     {activeFile?.name.match(/^[a-z]{2}-.+\.json$/i) ? (t("lexicon_translated_count")?.replace("{translated} / {total}", `/ ${validationStats.total}`) || `/ ${validationStats.total} Translated`) : `/ ${validationStats.total} Validated`}
                                     <span className="text-[10px] text-[var(--warning)] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--warning)_20%,transparent)] shrink-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] ml-1">
                                        Schema Validation
@@ -244,7 +244,7 @@ export default function MasonEditorPanel({
                      {/* Syntax Error Banner */}
                      {problemsList.length > 0 && (
                         <div className="w-full flex items-center justify-between gap-5 theme-panel-danger !rounded-2xl px-6 py-4 cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all group/problem"
-                             onClick={() => { if (editorRef && problemsList[0]) { editorRef.revealLineInCenter(problemsList[0].line); editorRef.setPosition({ lineNumber: problemsList[0].line, column: problemsList[0].column }); editorRef.focus(); } }}
+                           onClick={() => { if (editorRef && problemsList[0]) { editorRef.revealLineInCenter(problemsList[0].line); editorRef.setPosition({ lineNumber: problemsList[0].line, column: problemsList[0].column }); editorRef.focus(); } }}
                         >
                            <div className="flex items-center gap-5">
                               <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] flex items-center justify-center text-[var(--danger)] group-hover/problem:animate-pulse shrink-0">
@@ -262,7 +262,7 @@ export default function MasonEditorPanel({
                                  </span>
                               </div>
                            </div>
-                           
+
                            <button onClick={(e) => { e.stopPropagation(); setProblemsList([]); }} className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] transition-all shrink-0">
                               <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
                            </button>
@@ -287,9 +287,12 @@ export default function MasonEditorPanel({
                         return {
                            id: i,
                            label: (
-                              <span className={fileIsDirty ? "text-[var(--warning)] italic drop-shadow-[0_0_8px_color-mix(in_srgb,var(--warning)_50%,transparent)]" : ""}>
-                                 {file.name}{fileIsDirty ? " *" : ""}
-                              </span>
+                              <>
+                                 <span className="opacity-50 mr-1 font-mono tracking-normal">{i + 1}.</span>
+                                 <span className={fileIsDirty ? "text-[var(--warning)] italic drop-shadow-[0_0_8px_color-mix(in_srgb,var(--warning)_50%,transparent)]" : ""}>
+                                    {file.name}{fileIsDirty ? " *" : ""}
+                                 </span>
+                              </>
                            ),
                            icon: file.name.endsWith('.json') ? 'data_object' : 'description',
                            badge: (
@@ -313,44 +316,58 @@ export default function MasonEditorPanel({
                      <div style={{ width: (showReference && hasReference) ? `${splitRatio}%` : '100%' }} className="flex-shrink-0 w-full flex flex-col relative h-full min-w-0 transition-none">
 
                         {activeFile && (
-                           <Editor
-                              height="100%"
-                              language={activeFile.name.endsWith('.json') || (activeFile.content && (activeFile.content.trim().startsWith('{') || activeFile.content.trim().startsWith('['))) ? 'json' : activeFile.name.endsWith('.ts') || activeFile.name.endsWith('.tsx') ? 'typescript' : 'javascript'}
-                              theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
-                              beforeMount={handleEditorWillMount}
-                              value={activeFile.content}
-                              onChange={handleEditorChange}
-                              onMount={(editor, monaco) => {
-                                 setEditorRef(editor);
-                                 (window as any).monaco = monaco;
-                                 validateContent(activeFile.content, monaco, editor.getModel());
-                                 editor.onContextMenu((e: any) => {
-                                    if (e.event) {
-                                       if (e.event.browserEvent) e.event.browserEvent.preventDefault();
-                                       window.dispatchEvent(new CustomEvent('sanctuary-monaco-contextmenu', {
-                                          detail: {
-                                             x: e.event.browserEvent ? e.event.browserEvent.clientX : e.event.posx,
-                                             y: e.event.browserEvent ? e.event.browserEvent.clientY : e.event.posy,
-                                             target: e.target?.element || document.body,
-                                             isReadOnly: false
-                                          }
-                                       }));
-                                    }
-                                 });
-                              }}
-                              options={{
-                                 contextmenu: false,
-                                 minimap: { enabled: true },
-                                 fontSize: 14,
-                                 fontFamily: "var(--font-mono), Consolas, monospace",
-                                 padding: { top: 24, bottom: 24 },
-                                 smoothScrolling: true,
-                                 cursorBlinking: "smooth",
-                                 lineHeight: 24,
-                                 automaticLayout: true,
-                                 scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 }
-                              }}
-                           />
+                           <>
+                              <div className="flex-1 min-h-0 relative flex flex-col">
+                                 <div className="flex w-full items-center justify-center py-4 shrink-0">
+                                    <div className="glass-surface px-6 py-2 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[11px] font-black tracking-widest text-[var(--text)] shadow-md flex items-center gap-3 backdrop-blur-xl">
+                                       <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                                          {activeFile.name.endsWith('.json') ? 'data_object' : 'description'}
+                                       </span>
+                                       {activeFile.name}
+                                    </div>
+                                 </div>
+                                 <div className="flex-1 min-h-0 relative w-full">
+                                    <Editor
+                                       height="100%"
+                                       language={activeFile.name.endsWith('.json') || (activeFile.content && (activeFile.content.trim().startsWith('{') || activeFile.content.trim().startsWith('['))) ? 'json' : activeFile.name.endsWith('.ts') || activeFile.name.endsWith('.tsx') ? 'typescript' : 'javascript'}
+                                       theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
+                                       beforeMount={handleEditorWillMount}
+                                       value={activeFile.content}
+                                       onChange={handleEditorChange}
+                                       onMount={(editor, monaco) => {
+                                          setEditorRef(editor);
+                                          (window as any).monaco = monaco;
+                                          validateContent(activeFile.content, monaco, editor.getModel());
+                                          editor.onContextMenu((e: any) => {
+                                             if (e.event) {
+                                                if (e.event.browserEvent) e.event.browserEvent.preventDefault();
+                                                window.dispatchEvent(new CustomEvent('sanctuary-monaco-contextmenu', {
+                                                   detail: {
+                                                      x: e.event.browserEvent ? e.event.browserEvent.clientX : e.event.posx,
+                                                      y: e.event.browserEvent ? e.event.browserEvent.clientY : e.event.posy,
+                                                      target: e.target?.element || document.body,
+                                                      isReadOnly: false
+                                                   }
+                                                }));
+                                             }
+                                          });
+                                       }}
+                                       options={{
+                                          contextmenu: false,
+                                          minimap: { enabled: true },
+                                          fontSize: 14,
+                                          fontFamily: "var(--font-mono), Consolas, monospace",
+                                          padding: { top: 24, bottom: 24 },
+                                          smoothScrolling: true,
+                                          cursorBlinking: "smooth",
+                                          lineHeight: 24,
+                                          automaticLayout: true,
+                                          scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 }
+                                       }}
+                                    />
+                                 </div>
+                              </div>
+                           </>
                         )}
                      </div>
 
@@ -362,32 +379,40 @@ export default function MasonEditorPanel({
                            >
                               <div className="w-[2px] h-12 bg-[color-mix(in_srgb,var(--text)_20%,transparent)] group-hover:bg-[var(--accent)] transition-colors rounded-full" />
                            </div>
-                           <div style={{ width: `${100 - splitRatio}%` }} className="flex-1 relative h-full min-w-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] pl-2 transition-none">
-                              <div className="absolute top-4 right-6 z-10 glass-panel px-4 py-1.5 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] shadow-md">{referenceLabel}</div>
-                              <Editor
-                                 height="100%"
-                                 language="json"
-                                 theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
-                                 value={JSON.stringify(referenceData, null, 2)}
-                                 onMount={(editor) => {
-                                    rightEditorRef.current = editor;
-                                    editor.onContextMenu((e: any) => {
-                                       if (e.event) {
-                                          if (e.event.browserEvent) e.event.browserEvent.preventDefault();
-                                          window.dispatchEvent(new CustomEvent('sanctuary-monaco-contextmenu', {
-                                             detail: {
-                                                x: e.event.browserEvent ? e.event.browserEvent.clientX : e.event.posx,
-                                                y: e.event.browserEvent ? e.event.browserEvent.clientY : e.event.posy,
-                                                target: e.target?.element || document.body,
-                                                isReadOnly: true
+                           <div style={{ width: `${100 - splitRatio}%` }} className="flex-1 relative h-full min-w-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col transition-none bg-[color-mix(in_srgb,var(--bg)_30%,transparent)]">
+                              <div className="flex-1 min-h-0 relative flex flex-col">
+                                 <div className="flex w-full items-center justify-center py-4 shrink-0">
+                                    <div className="glass-surface px-6 py-2 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[11px] font-black tracking-widest text-[var(--subtext)] shadow-md flex items-center gap-3 backdrop-blur-xl opacity-80">
+                                       <span className="material-symbols-outlined !text-[16px] opacity-70">vertical_split</span>
+                                       {referenceLabel}
+                                    </div>
+                                 </div>
+                                 <div className="flex-1 min-h-0 relative w-full">
+                                    <Editor
+                                       height="100%"
+                                       language="json"
+                                       theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
+                                       value={JSON.stringify(referenceData, null, 2)}
+                                       onMount={(editor) => {
+                                          rightEditorRef.current = editor;
+                                          editor.onContextMenu((e: any) => {
+                                             if (e.event) {
+                                                if (e.event.browserEvent) e.event.browserEvent.preventDefault();
+                                                window.dispatchEvent(new CustomEvent('sanctuary-monaco-contextmenu', {
+                                                   detail: {
+                                                      x: e.event.browserEvent ? e.event.browserEvent.clientX : e.event.posx,
+                                                      y: e.event.browserEvent ? e.event.browserEvent.clientY : e.event.posy,
+                                                      target: e.target?.element || document.body,
+                                                      isReadOnly: true
+                                                   }
+                                                }));
                                              }
-                                          }));
-                                       }
-                                    });
-                                 }}
-                                 options={{ contextmenu: false, readOnly: true, minimap: { enabled: false }, fontSize: 13, fontFamily: "var(--font-mono)", padding: { top: 24, bottom: 24 }, automaticLayout: true }}
-                              />
-                           </div>
+                                          });
+                                       }}
+                                       options={{ contextmenu: false, readOnly: true, minimap: { enabled: false }, fontSize: 13, fontFamily: "var(--font-mono)", padding: { top: 24, bottom: 24 }, automaticLayout: true }}
+                                    />
+                                 </div>
+                              </div></div>
                         </>
                      )}
                   </div>

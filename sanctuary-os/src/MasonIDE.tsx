@@ -464,15 +464,15 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
    };
 
    const cloudTabs = [
-      { id: "sanctuary_schemas", label: "Schemas", icon: "data_object" },
-      { id: "sanctuary_lexicons", label: "Lexicons", icon: "translate" }
+      { id: "sanctuary_schemas", label: "Schemas", icon: "data_object", number: internalCloudTarget === 'sanctuary_schemas' ? files.length : undefined },
+      { id: "sanctuary_lexicons", label: "Lexicons", icon: "translate", number: internalCloudTarget === 'sanctuary_lexicons' ? files.length : undefined }
    ];
 
    const localTabs = [
-      { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
-      { id: "templates", label: t("upload_template_title") || "Templates", icon: "data_object" },
-      { id: "lexicon", label: t("tab_lexicons") || "Lexicons", icon: "translate" },
-      { id: "settings", label: t("tab_settings") || "Settings", icon: "settings" }
+      { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard", number: files?.length || 0 },
+      { id: "templates", label: t("upload_template_title") || "Templates", icon: "data_object", number: files?.filter((f: any) => f.name.toLowerCase().endsWith('.json') && !f.name.match(/^[a-z]{2}-.+\.json$/i)).length || 0 },
+      { id: "lexicon", label: t("tab_lexicons") || "Lexicons", icon: "translate", number: files?.filter((f: any) => f.name.match(/^[a-z]{2}-.+\.json$/i)).length || 0 },
+      { id: "settings", label: t("tab_settings") || "Settings", icon: "settings", number: files?.filter((f: any) => f.name.toLowerCase().endsWith('.ini') || f.name.toLowerCase().endsWith('.cfg')).length || 0 }
    ];
 
    const tabs = isCloudMode ? cloudTabs : localTabs;
@@ -492,25 +492,21 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             else setFileTypeFilter(id);
          }}
          hideSearch={activeTab === 'overview'}
-         headerActions={
-            activeTab !== 'overview' && !(isCloudMode && internalCloudTarget === 'sanctuary_schemas') ? (
-               <div className="flex items-center gap-2">
-                  <ActionButton
-                     onClick={() => setIsCreatePanelOpen(true)}
-                     iconOnly={true}
-                     icon={t("icon_add")}
-                     label={t("auto_create_file")}
-                     className="shrink-0 h-10 w-10 px-0"
-                  />
-                  <ActionButton
-                     onClick={handleImport}
-                     iconOnly={true}
-                     icon={t("icon_upload") || "upload"}
-                     label={t("import_file")}
-                     className="shrink-0 h-10 w-10 px-0"
-                  />
-               </div>
-            ) : undefined
+         actions={
+            activeTab !== 'overview' && !(isCloudMode && internalCloudTarget === 'sanctuary_schemas') ? [
+               {
+                  id: 'create',
+                  icon: <span className="material-symbols-outlined !text-[20px]">{t("icon_add") || "add"}</span>,
+                  label: (t("auto_create_file") || "Create") as string,
+                  onClick: () => setIsCreatePanelOpen(true)
+               },
+               {
+                  id: 'import',
+                  icon: <span className="material-symbols-outlined !text-[20px]">{t("icon_upload") || "upload"}</span>,
+                  label: (t("import_file") || "Import") as string,
+                  onClick: handleImport
+               }
+            ] : undefined
          }
       >
          {uploadState.isOpen && (
@@ -525,8 +521,6 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             />
          )}
 
-         <div className="flex-1 overflow-hidden relative px-6 flex flex-col pt-4">
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                {fileTypeFilter === 'overview' && !isCloudMode ? (
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
                      <div className="flex flex-col gap-4">
@@ -612,8 +606,6 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                      handlePublishLexicon={handlePublishLexicon}
                   />
                )}
-            </div>
-         </div>
 
          <MasonEditorPanel
             t={t}
