@@ -227,6 +227,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
+      number: (unpublishedCustomThemes.length + Object.keys(devThemes).length + syncedThemes.length).toString()
     },
     {
       id: "local",

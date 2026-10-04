@@ -201,7 +201,7 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
         onSearchChange={setSearchTerm}
         searchPlaceholder={t("search_ph") as string}
         tabs={[
-          { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
+          { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard", number: myMods.length.toString() },
           { id: 'stable', label: t("status_tag_stable") || "Stable", icon: 'verified', number: myMods.filter(m => m.status === 'stable').length.toString() },
           { id: 'under_review', label: t("status_tag_under_review") || "Under Review", icon: 'policy', number: myMods.filter(m => m.status === 'under_review').length.toString() },
           { id: 'pending', label: t("status_tag_pending") || "Pending", icon: 'schedule', number: myMods.filter(m => m.status === 'pending').length.toString() },

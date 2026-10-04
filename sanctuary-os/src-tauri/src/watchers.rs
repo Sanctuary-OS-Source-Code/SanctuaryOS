@@ -265,9 +265,10 @@ pub async fn start_downloads_watch(
                         for path in event.paths {
                             if path.is_file() {
                                 if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                                    let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string().to_lowercase();
                                     let ext_with_dot = format!(".{}", ext.to_lowercase());
                                     let path_str = path.to_string_lossy().to_string();
-                                    if extensions.contains(&ext_with_dot)
+                                    if (extensions.contains(&ext_with_dot) || file_name == "override.json")
                                         && !path_str.ends_with(".crdownload")
                                         && !path_str.ends_with(".part")
                                     {

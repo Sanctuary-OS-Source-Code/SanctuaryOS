@@ -161,18 +161,19 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
       <div key={node.id} className="flex flex-col items-start relative group/node hover:z-[100]">
         
         {depth > 0 && (
-          <div className="absolute left-[-2rem] top-7 w-8 h-px bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)] rounded-r-full" />
+          <div className="absolute left-[-2rem] top-6 w-8 h-px bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)] rounded-r-full" />
         )}
 
-        <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-3xl p-4 pr-6 flex items-center justify-start shadow-xl hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 group/card relative z-10 hover:z-[100] shrink-0 backdrop-blur-xl min-w-[280px]">
-          
-          <div className="flex items-center gap-4">
+        <div className="relative group/card z-10 shrink-0 hover:z-[100] w-max">
+          <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-3xl p-4 pr-6 flex items-center justify-start shadow-xl hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 relative z-10 shrink-0 backdrop-blur-xl min-w-[280px]">
+            
+            <div className="flex items-center gap-4 w-full">
             {node.type === "folder" ? (
               <button 
                 onClick={() => toggleExpand(node.id)} 
-                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:text-[var(--accent)] transition-all text-[var(--text)] shrink-0 shadow-inner group-hover/card:border-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
+                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:text-[var(--accent)] transition-all text-[var(--text)] shrink-0 shadow-inner group-hover/node:border-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
               >
-                <span className="material-symbols-outlined !text-[24px] drop-shadow-md transition-transform duration-300 group-hover/card:scale-110">{isExpanded ? "folder_open" : "folder"}</span>
+                <span className="material-symbols-outlined !text-[24px] drop-shadow-md transition-transform duration-300 group-hover/node:scale-110">{isExpanded ? "folder_open" : "folder"}</span>
               </button>
             ) : (
               <div className={`w-12 h-12 flex items-center justify-center rounded-2xl border shrink-0 shadow-inner ${isConfigFile ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]'}`}>
@@ -183,7 +184,7 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
             <div className="flex flex-col justify-center flex-1 min-w-0">
               {node.assignedModName ? (
                 <div className="flex items-center gap-2">
-                   <span className={`text-[13px] font-black capitalize tracking-widest truncate leading-tight ${isConfigFile ? 'text-[var(--warning)]' : 'text-[var(--text)] group-hover/card:text-[var(--accent)] transition-colors'}`}>
+                   <span className={`text-[13px] font-black capitalize tracking-widest truncate leading-tight ${isConfigFile ? 'text-[var(--warning)]' : 'text-[var(--text)] group-hover/node:text-[var(--accent)] transition-colors'}`}>
                      {isConfigFile ? node.assignedModName.replace(/^\[|\]$/g, '') : `[${node.assignedModName.replace(/^\[|\]$/g, '')}]`}
                    </span>
                    {isPackage && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] font-black tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] leading-none shrink-0">PKG</span>}
@@ -203,41 +204,42 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
               )}
             </div>
           </div>
-
-
-          
-     <div className="absolute top-12 left-10 opacity-0 pointer-events-none group-hover/card:opacity-100 group-hover/card:pointer-events-auto transition-all scale-95 group-hover/card:scale-100 w-48 h-max glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl flex flex-col py-1 z-[60] origin-top-left">
-            {node.type === "file" && availableMods && (
-              <button onClick={() => setActiveDropdown(activeDropdown === node.id ? null : node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--accent)] group">
-                <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">link</span>
-                {t("auto_assign_binding")}
+          </div>
+            
+          <div className="absolute top-1/2 -translate-y-1/2 left-full pl-4 opacity-0 pointer-events-none group-hover/card:opacity-100 group-hover/card:pointer-events-auto transition-all scale-95 group-hover/card:scale-100 w-52 h-max z-[60] origin-left">
+            <div className="w-full h-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl flex flex-col py-1">
+              {node.type === "file" && availableMods && (
+                <button onClick={() => setActiveDropdown(activeDropdown === node.id ? null : node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--accent)] group">
+                  <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">link</span>
+                  {t("auto_assign_binding")}
+                </button>
+              )}
+              
+              {node.type === "folder" && (
+                <>
+                  <button onClick={() => handleAddFolder(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group">
+                    <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_create_new_folder")}</span>
+                    {t("auto_directory")}
+                  </button>
+                  <button onClick={() => handleAddFile(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group">
+                    <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_note_add")}</span>
+                    {t("auto_file")}
+                  </button>
+                  <div className="h-px w-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] my-1" />
+                </>
+              )}
+              
+              <button onClick={() => handleDelete(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--danger)] group">
+                <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_delete")}</span>
+                DELETE
               </button>
-            )}
-            
-            {node.type === "folder" && (
-              <>
-                <button onClick={() => handleAddFolder(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group">
-                  <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_create_new_folder")}</span>
-                  {t("auto_directory")}
-                </button>
-                <button onClick={() => handleAddFile(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group">
-                  <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_note_add")}</span>
-                  {t("auto_file")}
-                </button>
-                <div className="h-px w-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] my-1" />
-              </>
-            )}
-            
-            <button onClick={() => handleDelete(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--danger)] group">
-              <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_delete")}</span>
-              DELETE
-            </button>
+            </div>
           </div>
         </div>
 
         {node.type === "folder" && isExpanded && node.children && node.children.length > 0 && (
-          <div className="flex flex-wrap gap-8 pl-12 relative mt-4 pb-4">
-            <div className="absolute top-[-1rem] left-6 bottom-4 w-px bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-b-full shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" />
+          <div className="flex flex-col gap-4 pl-8 relative mt-2 pb-2">
+            <div className="absolute top-[-1rem] left-4 bottom-4 w-px bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-b-full shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" />
             
             {node.children.map((child, idx) => 
               renderNode(child, depth + 1, idx === node.children!.length - 1)
@@ -284,20 +286,20 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
           <div className="flex-1 flex flex-col h-full min-w-0 relative z-10">
 
             {/* Header for Right Pane */}
-            <div className="shrink-0 flex items-center justify-start pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14">
-              <h3 className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-2">
+            <div className="shrink-0 flex flex-col md:flex-row md:items-center justify-between pb-4 mb-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 gap-4 h-auto min-h-[56px]">
+              <h3 className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-2 shrink-0">
                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">apps</span>
                 {t("available_lists")}
               </h3>
 
-              <div className="w-full md:w-[280px]">
+              <div className="w-full md:w-auto flex-1 max-w-[280px]">
                 <input 
                   type="text" 
                   autoFocus 
                   placeholder={t("search_ph")} 
                   value={searchQuery} 
                   onChange={e => { setSearchQuery(e.target.value); setAvailablePage(0); }} 
-                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl text-[12px] font-mono text-[var(--text)] px-5 py-2.5 outline-none focus:theme-border-accent shadow-inner transition-all bg-transparent" 
+                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl text-[12px] font-mono text-[var(--text)] px-4 py-2 outline-none focus:theme-border-accent shadow-inner transition-all bg-black/20" 
                 />
               </div>
             </div>
@@ -321,26 +323,27 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                     <div className="flex flex-col gap-4">
                       <h4 className="text-[10px] font-black capitalize text-[var(--accent)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">stars</span> {t("structure_assign_primary")}</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate">
-                          <div className="flex items-start justify-start gap-3 mb-4">
-                            <div className="w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
-                              {targetMod.image_url ? <img src={targetMod.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">extension</span>}
+                        <div className="relative group/item flex flex-col p-5 rounded-[24px] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate min-h-[140px] cursor-pointer" onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }}>
+                          
+                          <div className="flex items-start justify-between mb-4 w-full gap-4">
+                            <div className="w-10 h-10 flex items-center justify-center shrink-0 rounded-[14px] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
+                              {targetMod.image_url ? <img src={targetMod.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[20px] text-[var(--text)] opacity-40">extension</span>}
                             </div>
-                            <div className="flex flex-col items-end gap-1">
-                              <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[8px] font-black capitalize tracking-widest text-[var(--accent)] text-right break-words max-w-[100px] leading-tight">
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <span className="px-2.5 py-1 rounded-lg bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--accent)] text-right">
                                 PRIMARY
                               </span>
                             </div>
                           </div>
                           
-                          <div className="flex flex-col min-w-0 flex-1 justify-center relative z-10 mb-4 cursor-pointer" onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }}>
-                            <span className="text-[13px] font-black text-[var(--text)] capitalize tracking-widest leading-tight group-hover/item:text-[var(--accent)] transition-colors duration-300 break-words line-clamp-2">{targetMod.name}</span>
+                          <div className="flex flex-col min-w-0 flex-1 justify-start relative z-10 mb-4">
+                            <span className="text-[14px] font-black text-[var(--text)] tracking-wider leading-snug group-hover/item:text-[var(--accent)] transition-colors duration-300 line-clamp-2">{targetMod.name}</span>
                           </div>
 
                           {(targetMod.sub_type === 'TS4SCRIPT' || targetMod.sub_type === 'PACKAGE') && (
-                            <div className="flex bg-black/20 text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] rounded-xl overflow-hidden mt-auto">
-                              {targetMod.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, pkgExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)] cursor-pointer border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">{t("auto_pkg")}</div>}
-                              {targetMod.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, scriptExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)] cursor-pointer transition-all">{t("auto_script")}</div>}
+                            <div className="flex bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] rounded-xl overflow-hidden mt-auto border border-[color-mix(in_srgb,var(--text)_5%,transparent)]" onClick={(e) => e.stopPropagation()}>
+                              {targetMod.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, pkgExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)] cursor-pointer border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">{t("auto_pkg")}</div>}
+                              {targetMod.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, scriptExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)] cursor-pointer transition-all">{t("auto_script")}</div>}
                             </div>
                           )}
                         </div>
@@ -354,29 +357,30 @@ export default function ModStructureBuilder({ structure, onChange, targetMod, av
                       <h4 className="text-[10px] font-black capitalize text-[var(--subtext)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">folder_shared</span> {t("structure_assign_family")}</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 min-[2000px]:grid-cols-3 gap-4">
                         {displayAvailableMods.map(m => (
-                          <div key={m.id} className="relative group/item flex flex-col p-4 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate">
-                            <div className="flex items-start justify-start gap-3 mb-4">
-                              <div className="w-12 h-12 flex items-center justify-center shrink-0 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
-                                {m.image_url ? <img src={m.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-40">extension</span>}
+                          <div key={m.id} className="relative group/item flex flex-col p-5 rounded-[24px] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate min-h-[140px] cursor-pointer" onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }}>
+                            
+                            <div className="flex items-start justify-between mb-4 w-full gap-4">
+                              <div className="w-10 h-10 flex items-center justify-center shrink-0 rounded-[14px] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
+                                {m.image_url ? <img src={m.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[20px] text-[var(--text)] opacity-40">extension</span>}
                               </div>
-                              <div className="flex flex-col items-end gap-1">
-                                <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-black capitalize tracking-widest text-[var(--text)] text-right break-words max-w-[100px] leading-tight">
+                              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                <span className="px-2.5 py-1 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-80 text-right">
                                   {m.file_extension ? m.file_extension.replace(".", "") : (m.sub_type || 'PACKAGE')}
                                 </span>
                                 {m.latest_version && (
-                                   <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize">v{m.latest_version}</span>
+                                   <span className="text-[10px] font-bold text-[var(--subtext)] opacity-50 capitalize">v{m.latest_version}</span>
                                 )}
                               </div>
                             </div>
                             
-                            <div className="flex flex-col min-w-0 flex-1 justify-center relative z-10 mb-4 cursor-pointer" onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }}>
-                              <span className="text-[13px] font-black text-[var(--text)] capitalize tracking-widest leading-tight group-hover/item:text-[var(--accent)] transition-colors duration-300 break-words line-clamp-2">{m.name}</span>
+                            <div className="flex flex-col min-w-0 flex-1 justify-start relative z-10 mb-4">
+                              <span className="text-[14px] font-black text-[var(--text)] tracking-wider leading-snug group-hover/item:text-[var(--accent)] transition-colors duration-300 line-clamp-2">{m.name}</span>
                             </div>
 
                             {(m.sub_type === 'TS4SCRIPT' || m.sub_type === 'PACKAGE') && (
-                              <div className="flex bg-black/20 text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] rounded-xl overflow-hidden mt-auto">
-                                {m.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, pkgExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)] cursor-pointer border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">{t("auto_pkg")}</div>}
-                                {m.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, scriptExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)] cursor-pointer transition-all">{t("auto_script")}</div>}
+                              <div className="flex bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] rounded-xl overflow-hidden mt-auto border border-[color-mix(in_srgb,var(--text)_5%,transparent)]" onClick={(e) => e.stopPropagation()}>
+                                {m.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, pkgExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)] cursor-pointer border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">{t("auto_pkg")}</div>}
+                                {m.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, scriptExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)] cursor-pointer transition-all">{t("auto_script")}</div>}
                               </div>
                             )}
                           </div>

@@ -27,11 +27,6 @@ const fetchAllPaginated = async (queryFn: () => any) => {
 
 const getDlcAbbreviation = (type: string) => {
   if (!type) return '';
-  const t = type.toLowerCase();
-  if (t.includes('expansion')) return 'EP';
-  if (t.includes('game')) return 'GP';
-  if (t.includes('stuff')) return 'SP';
-  if (t.includes('kit')) return 'KIT';
   return type;
 };
 
@@ -601,27 +596,27 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">check_circle</span>
                 {t("assigned_artifacts")}
               </h3>
-              <span className="px-3 py-1 rounded-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[10px] font-black text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]">{activeFiltered.length}</span>
             </div>
 
             {/* Filter Tabs for Left Pane */}
             {(type === 'twins' || type === 'flavors') && (
-              <GlassSegmentedControl
-                className="mb-4 self-start"
-                activeTab={leftTab}
-                setTab={setLeftTab}
-                options={[
-                  { id: 'All', label: 'All' },
-                  ...(type === 'twins' ? [
-                    { id: 'twin', label: t('link_twin') },
-                    { id: 'addon', label: t('link_addon') }
-                  ] : []),
-                  ...(type === 'flavors' ? [
-                    { id: 'flavor', label: t('link_flavor') },
-                    { id: 'beta', label: t('link_beta') }
-                  ] : [])
-                ]}
-              />
+              <div className="w-full flex justify-center mb-4">
+                <GlassSegmentedControl
+                  activeTab={leftTab}
+                  setTab={setLeftTab}
+                  options={[
+                    { id: 'All', label: 'All' },
+                    ...(type === 'twins' ? [
+                      { id: 'twin', label: t('link_twin') },
+                      { id: 'addon', label: t('link_addon') }
+                    ] : []),
+                    ...(type === 'flavors' ? [
+                      { id: 'flavor', label: t('link_flavor') },
+                      { id: 'beta', label: t('link_beta') }
+                    ] : [])
+                  ]}
+                />
+              </div>
             )}
 
             {type === 'flavors' && (
@@ -753,7 +748,7 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                   <span className="text-[11px] font-black capitalize tracking-[0.3em] text-center px-4 leading-relaxed">{t("no_links")}</span>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 pb-4">
+                <div className="grid grid-cols-1 gap-4 pb-4 px-2 pt-2">
                   {activeFiltered.map((item) => (
                     <UniversalCard
                       key={item.id}
@@ -782,29 +777,32 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
         <div className="flex-1 flex flex-col h-full min-w-0 relative z-10 p-2">
 
           {/* Header for Right Pane */}
-          <div className="shrink-0 flex items-center justify-start pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-14 gap-4">
+          <div className="shrink-0 flex items-center justify-between pb-4 mb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 h-auto gap-4 flex-wrap">
             <h3 className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-2 shrink-0">
               <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">apps</span>
               {t("available_lists")}
             </h3>
 
-            <div className="flex-1 ml-auto flex justify-end">
+            {type === 'dlc' && (
+              <div className="flex-1 flex justify-center min-w-[300px]">
+                <GlassSegmentedControl
+                  activeTab={dlcTab}
+                  setTab={setDlcTab}
+                  options={[
+                    { id: 'Expansion Pack', label: t("tab_expansion") },
+                    { id: 'Game Pack', label: t("tab_game_pack") },
+                    { id: 'Stuff Pack', label: t("tab_stuff_pack") },
+                    { id: 'Kit', label: t("tab_kit") }
+                  ]}
+                />
+              </div>
+            )}
+
+            <div className="ml-auto flex justify-end shrink-0 w-full md:w-[250px]">
               <ActionPill
                 searchQuery={type === 'dlc' ? dlcSearch : availableSearch}
                 setSearchQuery={(v) => type === 'dlc' ? setDlcSearch(v) : setAvailableSearch(v)}
                 searchPlaceholder={t("search_ph")}
-                rightContent={type === 'dlc' ? (
-                  <GlassSegmentedControl
-                    activeTab={dlcTab}
-                    setTab={setDlcTab}
-                    options={[
-                      { id: 'Expansion Pack', label: t("tab_expansion") },
-                      { id: 'Game Pack', label: t("tab_game_pack") },
-                      { id: 'Stuff Pack', label: t("tab_stuff_pack") },
-                      { id: 'Kit', label: t("tab_kit") }
-                    ]}
-                  />
-                ) : undefined}
               />
             </div>
           </div>
@@ -821,31 +819,31 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
                 <span className="text-[12px] font-black capitalize tracking-[0.3em] text-center max-w-sm leading-relaxed">{t("no_artifact")}</span>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 min-[2000px]:grid-cols-4 gap-4 pb-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 min-[2000px]:grid-cols-4 gap-4 pb-4 px-2 pt-2">
                 {availableItems.map((item) => {
                   const actions = (
                       type === 'twins' ? (
-                        <div className="flex items-center gap-2">
-                          <ActionButton onClick={() => handleAddLink(item.id, 'twin')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl" icon="device_hub" label={t("link_twin")} iconOnly={true} />
-                          <ActionButton onClick={() => handleAddLink(item.id, 'addon')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl" icon="extension" label={t("link_addon")} iconOnly={true} />
+                        <div className="flex items-center gap-2 w-full">
+                          <ActionButton onClick={() => handleAddLink(item.id, 'twin')} className="flex-1 !px-2 !py-2 !h-8 !rounded-lg !text-[9px] !gap-1" icon="device_hub" label={t("link_twin")} variant="default" />
+                          <ActionButton onClick={() => handleAddLink(item.id, 'addon')} className="flex-1 !px-2 !py-2 !h-8 !rounded-lg !text-[9px] !gap-1" icon="extension" label={t("link_addon")} variant="default" />
                         </div>
                       ) : type === 'flavors' ? (
-                        <div className="flex items-center gap-2">
-                          <ActionButton onClick={() => handleAddLink(item.id, 'flavor')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl" icon="alt_route" label={t("link_flavor")} iconOnly={true} />
-                          <ActionButton onClick={() => handleAddLink(item.id, 'beta')} className="flex-1 !px-2 !py-2 !h-10 !rounded-xl" icon="science" label={t("link_beta")} iconOnly={true} />
+                        <div className="flex items-center gap-2 w-full">
+                          <ActionButton onClick={() => handleAddLink(item.id, 'flavor')} className="flex-1 !px-2 !py-2 !h-8 !rounded-lg !text-[9px] !gap-1" icon="alt_route" label={t("link_flavor")} variant="default" />
+                          <ActionButton onClick={() => handleAddLink(item.id, 'beta')} className="flex-1 !px-2 !py-2 !h-8 !rounded-lg !text-[9px] !gap-1" icon="science" label={t("link_beta")} variant="default" />
                         </div>
                       ) : (type === 'dependencies' || type === 'dlc' || (type === 'community' && activeCommunityGroup)) ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-full">
                           <ActionButton
                             onClick={() => {
                               if (type === 'dlc') handleToggleDLC(item.id, false);
                               else if (type === 'community') handleAddLink(item.id, 'community');
                               else handleAddLink(item.id, 'dependency');
                             }}
-                            className="w-full !px-2 !py-2 !h-10 !rounded-xl"
+                            className="flex-1 !px-2 !py-2 !h-8 !rounded-lg !text-[9px] !gap-1"
                             icon={type === 'dlc' ? 'add_circle' : (type === 'community' ? 'category' : 'account_tree')}
-                            label={t("btn_add_link")}
-                            iconOnly={true}
+                            label={t("btn_add_link") || "Add"}
+                            variant={type === 'dlc' ? 'success' : 'accent'}
                           />
                         </div>
                       ) : undefined

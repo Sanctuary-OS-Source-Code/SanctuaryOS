@@ -168,6 +168,7 @@ export function MasonLinker() {
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
+      number: masons.length.toString()
     },
     { id: 'pending', label: t("pending"), icon: 'pending', number: pendingCount.toString() },
     { id: 'linked', label: t("linked") || "Linked", icon: 'link', number: linkedCount.toString() }

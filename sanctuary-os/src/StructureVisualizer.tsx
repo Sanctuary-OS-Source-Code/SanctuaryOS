@@ -120,9 +120,29 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
       activeTab={activeTab}
       onTabChange={setActiveTab}
       hideSearch={activeTab !== 'select' && activeTab !== 'recent'}
-      hideHeader={activeTab !== 'select' && activeTab !== 'recent'}
+      hideHeader={activeTab === 'overview'}
       search={searchTerm}
       onSearchChange={setSearchTerm}
+      actions={activeTab === 'workspace' ? [
+        {
+          id: "add_root",
+          icon: <span className="material-symbols-outlined !text-[16px]">create_new_folder</span>,
+          label: t("structure_add_root") || "Add Root Directory",
+          onClick: () => {
+             if (targetMod) {
+               const newFolder = { id: Math.random().toString(36).substr(2, 9), name: t("structure_new_folder"), type: "folder" as const, children: [] };
+               handleStructureChange([...(targetMod.folder_structure || []), newFolder]);
+             }
+          }
+        },
+        {
+          id: "save_structure",
+          icon: <span className={`material-symbols-outlined !text-[16px] ${isSaving ? 'animate-spin' : ''}`}>{isSaving ? "sync" : "save"}</span>,
+          label: isSaving ? (t("btn_saving") || "Saving...") : (t("btn_save_structure") || "Save Structure"),
+          onClick: () => { if (!isSaving) saveStructure(); },
+          activeClassName: "text-[var(--accent)] hover:text-[var(--bg)] hover:bg-[var(--accent)]"
+        }
+      ] : undefined}
       primaryPopover={activeTab === 'select' ? {
         icon: "tune",
         label: t("filters") || "Filters",
@@ -244,25 +264,7 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
                 <EmptyState icon={t("icon_architecture")} className="py-24" />
               </div>
             ) : (
-              <div className="flex-1 relative z-10 flex flex-col h-full gap-6">
-                <div className="grid grid-cols-2 gap-6 shrink-0">
-                  <UniversalCard
-                    layout="horizontal"
-                    icon="create_new_folder"
-                    title={t("structure_add_root")}
-                    onClick={() => {
-                      const newFolder = { id: Math.random().toString(36).substr(2, 9), name: t("structure_new_folder"), type: "folder" as const, children: [] };
-                      handleStructureChange([...(targetMod.folder_structure || []), newFolder]);
-                    }}
-                  />
-                  <UniversalCard
-                    layout="horizontal"
-                    icon={isSaving ? "sync" : "save"}
-                    title={isSaving ? t("btn_saving") : t("btn_save_structure")}
-                    onClick={saveStructure}
-                    isDisabled={isSaving}
-                  />
-                </div>
+              <div className="flex-1 relative z-10 flex flex-col h-full pt-2">
                 <ModStructureBuilder 
                   structure={targetMod.folder_structure || []} 
                   onChange={handleStructureChange} 
@@ -301,3 +303,4 @@ export default function StructureVisualizer({ masonId, isArchitect }: { masonId?
     </ElevatedHubLayout>
   );
 }
+

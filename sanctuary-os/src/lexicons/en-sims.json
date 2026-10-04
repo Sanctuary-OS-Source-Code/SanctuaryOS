@@ -165,5 +165,22 @@
   "forge_ambient_orb_desc": "A cool glowing ball that floats around behind your windows.",
   "theme_view_installed": "SEE WHAT I GOT",
   "theme_upload": "ADD MINE",
-  "theme_no_images": "I have no pictures here!"
+  "theme_no_images": "I have no pictures here!",
+  "title_edge_override_detected": "Edge Network Update Found!",
+  "desc_edge_override_detected": "We found an override.json file in your new mod.",
+  "desc_edge_override_prompt": "The creator added an Edge Network link. Do you want to connect this mod to get automatic updates and keep your game happy?",
+  "btn_reject": "No Thanks",
+  "btn_accept": "Connect Mod!",
+  "status_linking_edge": "Connecting...",
+  "status_edge_linked": "Connected!",
+  "btn_reject_all": "No To All",
+  "btn_accept_all": "Connect All Mods",
+  "title_edge_override_details": "Mod Update Details",
+  "desc_edge_override_details": "Check out what this update is connecting to.",
+  "label_target_mod": "Mod Name",
+  "label_overwriting": "Overwriting:",
+  "label_manifest_source": "Update Link",
+  "label_hashes_affected": "Files Changed",
+  "label_target": "(Main Mod)",
+  "label_archive": "(Extra File)"
 }

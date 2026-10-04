@@ -29,6 +29,7 @@ export const tauriBridge = {
   listenToScanProgress: (callback: (payload: any) => void) => isDesktop() ? listen('scan-progress', (event: any) => callback(event.payload)) : Promise.resolve(() => {}),
   listenToBackupProgress: (callback: (payload: any) => void) => isDesktop() ? listen('backup-progress', (event: any) => callback(event)) : Promise.resolve(() => {}),
   listenToDnaMatch: (callback: (payload: any) => void) => isDesktop() ? listen('dna_match_detected', (event: any) => callback(event.payload)) : Promise.resolve(() => {}),
+  listenToEdgeOverride: (callback: (payload: any) => void) => isDesktop() ? listen('edge_override_detected', (event: any) => callback(event.payload)) : Promise.resolve(() => {}),
   setupDragDrop: (onEnter: () => void, onLeave: () => void, onDrop: (paths: string[]) => void): Promise<() => void> => {
     if (!isDesktop()) return Promise.resolve(() => {});
     return getCurrentWebview().onDragDropEvent((event) => {

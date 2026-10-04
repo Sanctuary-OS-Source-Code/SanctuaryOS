@@ -777,6 +777,8 @@ function App() {
     setYeetConfirmPending,
     dnaMatchQueue,
     setDnaMatchQueue,
+    edgeOverrideQueue,
+    setEdgeOverrideQueue,
     scoutQueue,
     setScoutQueue,
     setUpdatePayload
@@ -816,6 +818,12 @@ function App() {
             return [...prev, event.payload];
           });
         }).then((handler) => { unlisten = handler; });
+
+        listen("edge_override_detected", (event: any) => {
+          setEdgeOverrideQueue((prev: any[]) => {
+            return [...prev, event.payload];
+          });
+        });
       }
     }
 
@@ -2780,6 +2788,8 @@ function App() {
             setYeetConfirmPending={setYeetConfirmPending}
             dnaMatchQueue={dnaMatchQueue}
             setDnaMatchQueue={setDnaMatchQueue}
+            edgeOverrideQueue={edgeOverrideQueue}
+            setEdgeOverrideQueue={setEdgeOverrideQueue}
             ignoredHashesRef={ignoredHashesRef}
             setStatus={setStatus}
             statusLog={statusLog}
@@ -2871,6 +2881,7 @@ function App() {
   );
 }
 export default App;
+
 
 
 

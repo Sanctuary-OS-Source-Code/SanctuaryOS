@@ -8,6 +8,7 @@ import { DefconAlert } from "./DefconAlert";
 import { GlobalConfirmDialog } from "./app-modals/GlobalConfirmDialog";
 import { DropzoneSidePanel } from "./app-modals/DropzoneSidePanel";
 import { DnaMatchQueueSidePanel } from "./app-modals/DnaMatchQueueSidePanel";
+
 import { ScoutQueueSidePanel } from "./app-modals/ScoutQueueSidePanel";
 import { SystemStatusPanel } from "./side-panels/SystemStatusPanel";
 import SidePanelBrowser from "./side-panels/SidePanelBrowser";
@@ -53,6 +54,7 @@ export const AppModals = React.memo(function AppModals(props: any) {
     showDefconAlert, setShowDefconAlert, triggerFullEngineBackup, triggerPrePatchSnapshot,
     yeetConfirmPending, setYeetConfirmPending,
     dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus, statusLog, clearStatusLog,
+    edgeOverrideQueue, setEdgeOverrideQueue,
     scoutQueue, setScoutQueue, onOpenScoutDossier,
     malwareAlert, setMalwareAlert, setPlaySets,
     isSidebarCollapsed, equipPlaySet
@@ -197,6 +199,8 @@ export const AppModals = React.memo(function AppModals(props: any) {
       
       <DnaMatchQueueSidePanel dnaMatchQueue={dnaMatchQueue} setDnaMatchQueue={setDnaMatchQueue} ignoredHashesRef={ignoredHashesRef} runRadarSweep={runRadarSweep} setStatus={setStatus} setPlaySets={setPlaySets} activePlaySetIndex={activePlaySetIndex} />
       
+      
+
       <ScoutQueueSidePanel scoutQueue={scoutQueue} setScoutQueue={setScoutQueue} onOpenScoutDossier={onOpenScoutDossier} />
       
       <SystemLogModal isLogExpanded={isLogExpanded} setIsLogExpanded={setIsLogExpanded} statusLog={statusLog} clearStatusLog={clearStatusLog} logModalRef={logModalRef} handleLogPointerDown={handleLogPointerDown} handleLogPointerMove={handleLogPointerMove} handleLogPointerUp={handleLogPointerUp} />

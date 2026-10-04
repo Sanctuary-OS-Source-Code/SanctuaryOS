@@ -121,7 +121,7 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
               const { data: replies } = await supabase.from('mason_post_comments').select('*').in('post_id', postIds).order('created_at', { ascending: false }).limit(2);
               if (replies && replies.length > 0) {
                   const authorIds = replies.map(r => r.author_id);
-                  const { data: profiles } = await supabase.from('profiles').select('id, username, display_name').in('id', authorIds);
+                  const { data: profiles } = await supabase.from('profiles').select('id, username').in('id', authorIds);
                   const repliesWithProfiles = replies.map(r => ({
                       ...r,
                       profiles: profiles?.find(p => p.id === r.author_id)

@@ -442,7 +442,8 @@ pub fn ingest_dropped_file(
         .to_lowercase();
 
     let supported = crate::game_logic::get_supported_extensions(&game_schema);
-    if !source.is_dir() && ext != "zip" && !supported.contains(&ext) {
+    let is_override = source.file_name().unwrap_or_default().to_string_lossy().to_string().to_lowercase() == "override.json";
+    if !source.is_dir() && ext != "zip" && ext != "rar" && ext != "7z" && !supported.contains(&ext) && !is_override {
         return Err("UNSUPPORTED_ARTIFACT_TYPE".into());
     }
 
@@ -486,7 +487,13 @@ pub fn ingest_dropped_file(
                 .map(|list| list.contains(&ext_with_dot))
                 .unwrap_or(false);
             if is_setting_file {
-                let _ = app.emit("dna_match_detected", serde_json::json!({ "path": path, "hash": hash, "existing_name": existing_name, "source_action": "ingest_dropped_file", "reason": "SETTINGS_CONFLICT" }));
+                let mut override_json = None::<String>;
+                if source.file_name().unwrap_or_default().to_string_lossy().to_lowercase() == "override.json" {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        override_json = Some(content);
+                    }
+                }
+                let _ = app.emit("dna_match_detected", serde_json::json!({ "path": path, "hash": hash, "existing_name": existing_name, "source_action": "ingest_dropped_file", "reason": "SETTINGS_CONFLICT", "override_json": override_json }));
                 return Err("SETTINGS_CONFLICT".into());
             } else if !force_replace {
                 let _ = app.emit("dna_match_detected", serde_json::json!({ "path": path, "hash": hash, "existing_name": existing_name, "source_action": "ingest_dropped_file", "reason": match_reason }));
@@ -564,6 +571,19 @@ pub fn ingest_dropped_file(
             let _ = std::fs::create_dir_all(&target_base);
 
             let cache = load_cache(&config.vault_path);
+            
+            let mut zip_override_json: Option<String> = None;
+            for i in 0..archive.len() {
+                if let Ok(mut zf) = archive.by_index(i) {
+                    if zf.is_file() && std::path::Path::new(zf.name()).file_name().unwrap_or_default() == "override.json" {
+                        let mut buf = String::new();
+                        use std::io::Read;
+                        if zf.read_to_string(&mut buf).is_ok() {
+                            zip_override_json = Some(buf);
+                        }
+                    }
+                }
+            }
 
             for i in 0..archive.len() {
                 if let Ok(mut zf) = archive.by_index(i) {
@@ -577,7 +597,7 @@ pub fn ingest_dropped_file(
                             .to_lowercase();
                         let vault_visible_exts =
                             crate::game_logic::get_vault_visible_extensions(&game_schema);
-                        if vault_visible_exts.contains(&zf_ext) {
+                        if vault_visible_exts.contains(&zf_ext) || p.file_name().unwrap_or_default() == "override.json" {
                             if let Some(zf_file_name) = p.file_name() {
                                 let file_name_str = zf_file_name.to_string_lossy().to_string();
                                 let mut file_target = target_base.clone();
@@ -635,6 +655,15 @@ pub fn ingest_dropped_file(
                                 if let Ok(mut out_file) = std::fs::File::create(&extract_target) {
                                     let _ = std::io::copy(&mut zf, &mut out_file);
                                     extracted_files.push(file_name_str.clone());
+
+                                    if file_name_str == "override.json" {
+                                        if let Ok(content) = std::fs::read_to_string(&extract_target) {
+                                            let _ = app.emit("edge_override_detected", serde_json::json!({
+                                                "source_action": "ingest_dropped_file",
+                                                "override_json": content,
+                                            }));
+                                        }
+                                    }
 
                                     let extracted_hash =
                                         calculate_hash(&extract_target).unwrap_or_default();
@@ -708,12 +737,19 @@ pub fn ingest_dropped_file(
                                             } else {
                                                 "ZIP_NAME_MATCH"
                                             };
+                                            let mut override_json = None::<String>;
+                                            if file_name_str.to_lowercase() == "override.json" {
+                                                if let Ok(content) = std::fs::read_to_string(&extract_target) {
+                                                    override_json = Some(content);
+                                                }
+                                            }
                                             let _ = app.emit("dna_match_detected", serde_json::json!({
                                                 "path": extract_target.to_string_lossy().to_string(), 
                                                 "hash": "", 
                                                 "existing_name": resolution_existing_name, 
                                                 "source_action": "ingest_dropped_file", 
-                                                "reason": reason 
+                                                "reason": reason,
+                                                "override_json": override_json
                                             }));
                                         } else {
                                             let mut hash_match_found = false;
@@ -877,6 +913,15 @@ pub fn ingest_dropped_file(
                             if let Ok(_) = std::fs::copy(p, &extract_target) {
                                 extracted_files.push(file_name_str.clone());
 
+                                    if file_name_str == "override.json" {
+                                        if let Ok(content) = std::fs::read_to_string(&extract_target) {
+                                            let _ = app.emit("edge_override_detected", serde_json::json!({
+                                                "source_action": "ingest_dropped_file",
+                                                "override_json": content,
+                                            }));
+                                        }
+                                    }
+
                                 let extracted_hash =
                                     calculate_hash(&extract_target).unwrap_or_default();
                                 let is_malware = if let Ok(m) = state.malware_hashes.lock() {
@@ -948,12 +993,19 @@ pub fn ingest_dropped_file(
                                         } else {
                                             "ZIP_NAME_MATCH"
                                         };
+                                        let mut override_json = None::<String>;
+                                        if file_name_str.to_lowercase() == "override.json" {
+                                            if let Ok(content) = std::fs::read_to_string(&extract_target) {
+                                                override_json = Some(content);
+                                            }
+                                        }
                                         let _ = app.emit("dna_match_detected", serde_json::json!({
                                             "path": extract_target.to_string_lossy().to_string(), 
                                             "hash": "", 
                                             "existing_name": resolution_existing_name, 
                                             "source_action": "ingest_dropped_file", 
-                                            "reason": reason 
+                                            "reason": reason,
+                                            "override_json": override_json
                                         }));
                                     } else {
                                         let mut hash_match_found = false;
@@ -982,7 +1034,8 @@ pub fn ingest_dropped_file(
                                                 "hash": extracted_hash, 
                                                 "existing_name": matched_existing_name, 
                                                 "source_action": "ingest_dropped_file", 
-                                                "reason": "ZIP_DNA_MATCH" 
+                                                "reason": "ZIP_DNA_MATCH",
+                                                "override_json": None::<String>
                                             }));
                                         }
                                     }
@@ -1005,7 +1058,7 @@ pub fn ingest_dropped_file(
                 return Err("No supported files found inside archive.".into());
             }
             return Ok(serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()));
-        } else if crate::game_logic::get_supported_extensions(&game_schema).contains(&ext) {
+        } else if crate::game_logic::get_supported_extensions(&game_schema).contains(&ext) || file_name.to_string_lossy().to_string().to_lowercase() == "override.json" {
             let file_hash = calculate_hash(&source).unwrap_or_default();
             let is_malware = if let Ok(m) = state.malware_hashes.lock() {
                 m.contains(&file_hash)
@@ -1064,8 +1117,20 @@ pub fn ingest_dropped_file(
                     std::fs::copy(source, &target).and_then(|_| std::fs::remove_file(source))
                 })
                 .map_err(|e| e.to_string())?;
+
+            let file_name_str = file_name.to_string_lossy().to_string();
+            if file_name_str.to_lowercase() == "override.json" {
+                if let Ok(content) = std::fs::read_to_string(&target) {
+                    let _ = app.emit("edge_override_detected", serde_json::json!({
+                        "source_action": "ingest_dropped_file",
+                        "override_json": content,
+                    }));
+                }
+                let _ = std::fs::remove_file(&target);
+            }
+
             return Ok(
-                serde_json::to_string(&vec![file_name.to_string_lossy().to_string()])
+                serde_json::to_string(&vec![file_name_str])
                     .unwrap_or_default(),
             );
         } else {
@@ -1159,9 +1224,30 @@ pub fn import_to_sandbox(files: Vec<String>, vault_path: String) -> Result<usize
     for file in files {
         let source = PathBuf::from(&file);
         if let Some(name) = source.file_name() {
-            let dest = dev_lane.join(name);
-            if fs::copy(&source, &dest).is_ok() {
-                imported += 1;
+            let stem = source.file_stem().unwrap_or_default().to_string_lossy().to_string();
+            let mod_folder = dev_lane.join(&stem);
+            
+            if !mod_folder.exists() {
+                let _ = fs::create_dir_all(&mod_folder);
+            }
+            
+            let ext = source.extension().unwrap_or_default().to_string_lossy().to_lowercase();
+            if ext == "zip" {
+                let status = std::process::Command::new("tar")
+                    .arg("-xf")
+                    .arg(&source)
+                    .arg("-C")
+                    .arg(&mod_folder)
+                    .status();
+                
+                if status.map_or(false, |s| s.success()) {
+                    imported += 1;
+                }
+            } else {
+                let dest = mod_folder.join(name);
+                if fs::copy(&source, &dest).is_ok() {
+                    imported += 1;
+                }
             }
         }
     }
@@ -1288,3 +1374,47 @@ pub fn read_blueprint(path: String) -> Result<String, String> {
 pub fn save_blueprint(path: String, content: String) -> Result<(), String> {
     std::fs::write(path, content).map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn move_mod_between_lanes(vault_path: String, mod_name_or_path: String, to_sandbox: bool) -> Result<(), String> {
+    let vault_dir = PathBuf::from(&vault_path);
+    let dev_lane = if crate::utils::is_mods_dir(&vault_dir) {
+        vault_dir.parent().unwrap_or(&vault_dir).join("Dev").join("Sandbox")
+    } else {
+        vault_dir.join("Dev").join("Sandbox")
+    };
+    
+    let mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+
+    if to_sandbox {
+        let source = mods_lane.join(&mod_name_or_path);
+        if source.exists() {
+            let stem = source.file_stem().unwrap_or_default().to_string_lossy().to_string();
+            let dest_dir = dev_lane.join(&stem);
+            let _ = std::fs::create_dir_all(&dest_dir);
+            let dest = dest_dir.join(source.file_name().unwrap());
+            std::fs::rename(&source, &dest).map_err(|e| e.to_string())?;
+        }
+    } else {
+        let source_dir = dev_lane.join(&mod_name_or_path);
+        if source_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&source_dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_file() {
+                        let dest = mods_lane.join(p.file_name().unwrap());
+                        let _ = std::fs::rename(&p, &dest);
+                    }
+                }
+            }
+            let _ = std::fs::remove_dir_all(&source_dir);
+        } else if source_dir.is_file() {
+            let dest = mods_lane.join(source_dir.file_name().unwrap());
+            let _ = std::fs::rename(&source_dir, &dest);
+        }
+    }
+    
+    Ok(())
+}
+
+

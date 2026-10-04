@@ -140,6 +140,67 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
     }
   };
 
+  const handleExportRelease = async () => {
+    if (!activeMod) {
+      useStore.getState().pushStatus(t("auto_no_valid_sandbox_45"), "error");
+      return;
+    }
+    setIsCommitting(true);
+    try {
+      let previousHashes: string[] = [];
+      if (activeMod.id) {
+         try {
+             const { data: verData } = await supabase.from('mod_versions').select('dna_hash').eq('mod_id', activeMod.id);
+             if (verData) previousHashes = verData.map((v: any) => v.dna_hash).filter(Boolean);
+         } catch(e) {}
+      }
+
+      const manifest = {
+        schema_version: "1.0",
+        artifact: {
+          id: activeMod.id || activeMod.name || "unknown",
+          name: activeMod.name || "Unknown Mod",
+          author: masonId || "Unknown Author",
+          version: activeMod.latest_version || "1.0.0",
+          game_version: activeMod.compatible_versions?.[0] || "",
+          release_date: new Date().toISOString(),
+          game_id: useStore.getState().activeGameSchema?.id || "unknown"
+        },
+        payload: {
+          download_url: "https://example.com/" + (activeMod.name || "mod") + ".zip",
+          sha256: activeMod.hash || "",
+          archive_type: "zip"
+        },
+        atomic_logic: {
+          required_dlc: [],
+          dependencies: [],
+          twins: [],
+          addons: [],
+          conflicts: [],
+          flavors: []
+        },
+        virtual_filesystem: {
+          overrides: [],
+          injected_folders: []
+        },
+        changelog: activeMod.changelog_cache ? [activeMod.changelog_cache] : ["Initial Release"],
+        previous_hashes: previousHashes
+      };
+
+      await invoke("export_edge_release", { 
+        vaultPath, 
+        sandboxModName: activeMod.name, 
+        manifest,
+        customUrl: ""
+      });
+      useStore.getState().pushStatus("Successfully exported Edge Manifests to your sandbox folder!", "success");
+    } catch (err: any) {
+      console.error(err);
+      useStore.getState().pushStatus(`Failed to export release: ${err.message || String(err)}`, "error");
+    }
+    setIsCommitting(false);
+  };
+
   const handleSyncToNetwork = async () => {
     if (!activeMod || !activeMod.hash) {
       useStore.getState().pushStatus(t("auto_no_valid_sandbox_45"), "error");
@@ -230,6 +291,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
+      number: (unlinkedMods.length + syncedMods.length).toString()
     },
     {
       id: "in_development",
@@ -384,9 +446,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
               <div className="flex items-center gap-2 pr-2">
                 <PanelHeaderButton 
                   icon="move_to_inbox" 
-                  onClick={() => {
-                     useStore.getState().pushStatus("Exporting release manifest... (Placeholder)", "success");
-                  }} 
+                  onClick={handleExportRelease} 
                   disabled={isCommitting} 
                   tooltip={"Export Release"} 
                 />

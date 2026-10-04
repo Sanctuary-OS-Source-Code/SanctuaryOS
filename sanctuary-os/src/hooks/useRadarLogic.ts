@@ -273,6 +273,24 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         setMembership = members || [];
         collectionsMetadata = sets || [];
         globalConflicts = rawConflicts || [];
+        // --- EDGE NETWORK STATIC POLLING CONFLICTS ---
+        try {
+            const edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+            Object.keys(edgeLogic).forEach((hash) => {
+                const item = edgeLogic[hash];
+                if (item.conflicts && Array.isArray(item.conflicts)) {
+                    item.conflicts.forEach((c: any) => {
+                        globalConflicts.push({
+                            mod_a_id: hash, // Using hash instead of ID, which the UI logic handles loosely
+                            mod_b: c.name || c.hash, // Target the conflicting mod by name or hash
+                            description: c.description || "Edge Network Override Conflict",
+                            tier: c.tier || 3
+                        });
+                    });
+                }
+            });
+        } catch (e) {}
+        // ---------------------------------------------
         if (hashes.length > 0) {
           await runInBatches(hashes, 200, 0, async (chunk) => {
             const { data } = await supabase
@@ -1103,3 +1121,4 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
   return { runRadarSweep, fetchVault, malwareAlert, setMalwareAlert };
 }
+

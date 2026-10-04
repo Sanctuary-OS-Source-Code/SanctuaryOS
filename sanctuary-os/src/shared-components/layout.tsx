@@ -675,7 +675,7 @@ export function DashboardStatTile({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={style}
-      className={`${sizeConstraintClass} h-auto flex flex-col md:flex-row items-center justify-center md:justify-start text-center md:text-left ${paddingClass} gap-2 md:gap-4 rounded-3xl glass-panel ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer hover:shadow-[0_10px_40px_rgba(0,0,0,0.3)] hover:-translate-y-1" : ""} ${activeStyles} ${className}`}
+      className={`${sizeConstraintClass} h-auto flex flex-row items-center justify-start text-left ${paddingClass} gap-2 md:gap-4 rounded-3xl glass-panel ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer hover:shadow-[0_10px_40px_rgba(0,0,0,0.3)] hover:-translate-y-1" : ""} ${activeStyles} ${className}`}
     >
       <div
         className="absolute inset-0 rounded-[inherit] pointer-events-none"
@@ -699,7 +699,7 @@ export function DashboardStatTile({
         </div>
       )}
 
-      <div className="flex flex-col flex-1 min-w-0 relative z-10 py-1 items-center md:items-start">
+      <div className="flex flex-col flex-1 min-w-0 relative z-10 py-1 items-start">
         <span
           className={`text-[9px] md:text-xs uppercase tracking-widest font-black group-hover:text-current transition-colors duration-500 mb-0 md:mb-1 truncate w-full pr-2 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : "text-[var(--subtext)]"}`}
         >

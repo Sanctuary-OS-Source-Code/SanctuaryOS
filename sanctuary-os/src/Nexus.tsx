@@ -194,7 +194,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             { count: templatesCount }
           ] = await Promise.all([
             supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 0).in('status', ['stable', 'unstable', 'corrupted', 'pending']),
-            supabase.from('blueprints').select('*', { count: 'exact', head: true }).eq('is_public', true).eq('compliance_tier', 0).in('status', ['stable', 'unstable', 'corrupted', 'pending']),
+            supabase.from('blueprints').select('*', { count: 'exact', head: true }).eq('is_public', true).eq('compliance_tier', 0),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'lexicon').or('is_public.eq.true,is_public.is.null'),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'chameleon').or('is_public.eq.true,is_public.is.null'),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'workbench_template').or('is_public.eq.true,is_public.is.null')

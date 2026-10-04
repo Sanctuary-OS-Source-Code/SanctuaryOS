@@ -30,6 +30,8 @@ interface ModalState {
   setYeetConfirmPending: (val: any) => void;
   dnaMatchQueue: any[];
   setDnaMatchQueue: (val: any[] | ((prev: any[]) => any[])) => void;
+  edgeOverrideQueue: any[];
+  setEdgeOverrideQueue: (val: any[] | ((prev: any[]) => any[])) => void;
   scoutQueue: any[];
   setScoutQueue: (val: any[] | ((prev: any[]) => any[])) => void;
   isScoutPanelOpen: boolean;
@@ -160,6 +162,8 @@ export const useModalStore = create<ModalState>((set) => ({
   setYeetConfirmPending: (yeetConfirmPending) => set({ yeetConfirmPending }),
   dnaMatchQueue: [],
   setDnaMatchQueue: (dnaMatchQueue) => set((state) => ({ dnaMatchQueue: typeof dnaMatchQueue === 'function' ? dnaMatchQueue(state.dnaMatchQueue) : dnaMatchQueue })),
+  edgeOverrideQueue: [],
+  setEdgeOverrideQueue: (edgeOverrideQueue) => set((state) => ({ edgeOverrideQueue: typeof edgeOverrideQueue === 'function' ? edgeOverrideQueue(state.edgeOverrideQueue) : edgeOverrideQueue })),
   scoutQueue: [],
   setScoutQueue: (scoutQueue) => set((state) => ({ scoutQueue: typeof scoutQueue === 'function' ? scoutQueue(state.scoutQueue) : scoutQueue })),
   isScoutPanelOpen: false,

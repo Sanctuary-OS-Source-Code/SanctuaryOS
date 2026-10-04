@@ -230,6 +230,11 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                 {(t("flagged") as string).toUpperCase()}
               </span>
             ) : null,
+            isHidden ? (
+              <span key="badge-hidden" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)]">
+                {(t("status_tag_hidden") || "HIDDEN").toUpperCase()}
+              </span>
+            ) : null,
             <span key="type-badge" className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] rounded-md text-[8px] capitalize tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner shrink-0 font-black">
               {displayAssetType === 'chameleon' ? (t("lex_theme") as string).toUpperCase() : displayAssetType === 'workbench_template' ? (t("lex_template") as string).toUpperCase() : displayAssetType === 'blueprint' ? (t("lex_blueprint") as string).toUpperCase() : (t("lex_lexicon") as string).toUpperCase()}
             </span>
@@ -315,6 +320,11 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                         {t("flagged")}
                       </span>
                     ) : null,
+                    isHidden ? (
+                      <span key="badge-hidden" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)]">
+                        {(t("status_tag_hidden") || "HIDDEN").toUpperCase()}
+                      </span>
+                    ) : null,
                     <span key="type-badge" className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] rounded-md text-[8px] capitalize tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner shrink-0 font-black">
                       {displayAssetType === 'chameleon' ? 'THEME' : displayAssetType === 'workbench_template' ? 'TEMPLATE' : displayAssetType === 'blueprint' ? 'BLUEPRINT' : 'LEXICON'}
                     </span>
@@ -377,30 +387,19 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
         icon={uploadState.assetType === 'blueprint' ? "account_tree" : "cloud_upload"}
         headerActions={
           <div className="flex items-center gap-2">
-            {uploadState.editId && !uploadState.isHidden && uploadState.assetType !== 'blueprint' && (
+            {uploadState.editId && uploadState.assetType !== 'blueprint' && (
               <PanelHeaderButton
-                icon="delete"
-                tooltip={t("btn_remove_asset")}
+                icon={uploadState.isHidden ? "visibility" : "visibility_off"}
+                tooltip={uploadState.isHidden ? t("btn_show_asset") || "Publish Asset" : t("btn_hide_asset") || "Hide Asset"}
                 onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
-                  if (e.currentTarget.textContent?.includes("SURE")) {
-                    const { error } = await supabase.from('nexus_assets').update({ is_public: false }).eq('id', uploadState.editId);
-                    if (error) {
-                      useStore.getState().pushStatus(`Failed to hide asset: ${error.message} ${error.details ? `(${error.details})` : ''}`, "error");
-                    } else {
-                      useStore.getState().pushStatus("Asset removed from public view.", "success");
-                      setUploadState(s => ({ ...s, isOpen: false }));
-                      fetchAssets();
-                    }
+                  const newIsPublic = uploadState.isHidden; // if it's hidden, we want it to be public
+                  const { error } = await supabase.from('nexus_assets').update({ is_public: newIsPublic }).eq('id', uploadState.editId);
+                  if (error) {
+                    useStore.getState().pushStatus(`Failed to update asset visibility: ${error.message} ${error.details ? `(${error.details})` : ''}`, "error");
                   } else {
-                    const el = e.currentTarget as HTMLElement;
-                    el.innerHTML = `<span class="material-symbols-outlined !text-[16px]">warning</span> ARE YOU SURE?`;
-                    el.classList.add("!text-[var(--danger)]", "!border-[color-mix(in_srgb,var(--danger)_50%,transparent)]");
-                    setTimeout(() => {
-                      if (el) {
-                        el.innerHTML = `<span class="material-symbols-outlined !text-[16px]">delete</span>`;
-                        el.classList.remove("!text-[var(--danger)]", "!border-[color-mix(in_srgb,var(--danger)_50%,transparent)]");
-                      }
-                    }, 3000);
+                    useStore.getState().pushStatus(newIsPublic ? "Asset is now public." : "Asset is now hidden.", "success");
+                    setUploadState(s => ({ ...s, isHidden: !newIsPublic }));
+                    fetchAssets();
                   }
                 }}
               />

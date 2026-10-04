@@ -20,6 +20,7 @@ use crate::commands::radar::*;
 use crate::commands::shelter::*;
 use crate::commands::state_ops::*;
 use crate::commands::system::*;
+use crate::commands::edge_network::*;
 use crate::state::*;
 use crate::utils::*;
 use crate::watchers::*;
@@ -100,6 +101,7 @@ fn main() {
             scan_bunker,
             scan_sandbox,
             import_to_sandbox,
+            move_mod_between_lanes,
             delete_local_file,
             get_sandbox_files,
             get_saved_coordinates,
@@ -180,7 +182,11 @@ fn main() {
             telemetry::get_directory_size,
             get_backup_contents,
             extract_backup_file,
-            diff_backup
+            diff_backup,
+            register_edge_override,
+            fetch_and_sync_edge_manifest,
+            get_all_edge_manifests,
+            export_edge_release
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

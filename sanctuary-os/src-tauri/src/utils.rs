@@ -128,6 +128,17 @@ pub fn get_db_conn(vault_path: &str) -> Connection {
         [],
     );
     let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS edge_manifests (
+            artifact_id TEXT PRIMARY KEY,
+            mason_id TEXT NOT NULL,
+            manifest_url TEXT NOT NULL,
+            last_fetched_hash TEXT,
+            last_fetched_metadata TEXT,
+            created_at INTEGER NOT NULL
+        )",
+        [],
+    );
+    let _ = conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache (dna_hash)",
         [],
     );

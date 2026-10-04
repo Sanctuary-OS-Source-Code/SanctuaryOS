@@ -14,6 +14,7 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
   const [isDragging, setIsDragging] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<string[]>([]);
   const [dnaMatchQueue, setDnaMatchQueue] = useState<any[]>([]);
+  const [edgeOverrideQueue, setEdgeOverrideQueue] = useState<any[]>([]);
   const ignoredHashesRef = useRef<Set<string>>(new Set());
 
   const handleDroppedFiles = async (paths: string[]): Promise<boolean> => {
@@ -97,7 +98,18 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
         return [...prev, payload];
       });
     }).then((handler: any) => { unlisten = handler; });
-    return () => { if (unlisten) unlisten(); };
+    
+    let unlistenEdge: any;
+    tauriBridge.listenToEdgeOverride((payload: any) => {
+      setDnaMatchQueue((prev: any[]) => {
+        return [...prev, { ...payload, reason: "EDGE_OVERRIDE" }];
+      });
+    }).then((handler: any) => { unlistenEdge = handler; });
+
+    return () => { 
+      if (unlisten) unlisten(); 
+      if (unlistenEdge) unlistenEdge();
+    };
   }, []);
 
   return {
@@ -107,6 +119,7 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
     isDragging,
     droppedFiles,
     dnaMatchQueue, setDnaMatchQueue,
+    edgeOverrideQueue, setEdgeOverrideQueue,
     ignoredHashesRef
   };
 }

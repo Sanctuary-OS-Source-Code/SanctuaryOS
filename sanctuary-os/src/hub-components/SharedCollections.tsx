@@ -71,7 +71,9 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
     const { error } = await supabase.from('collections').update({
       name: activeSet.name,
       image_url: activeSet.image_url,
-      url: activeSet.url
+      url: activeSet.url,
+      status: activeSet.status,
+      compliance_tier: activeSet.compliance_tier
     }).eq('id', activeSet.id);
     fetchSets();
     setIsSaving(false);
@@ -122,7 +124,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
   });
 
   const tabs = [
-    { id: 'overview', label: t("landing_overview") || "Overview", icon: 'dashboard', colorClass: 'text-[var(--accent)]' },
+    { id: 'overview', label: t("landing_overview") || "Overview", icon: 'dashboard', colorClass: 'text-[var(--accent)]', number: sets.length.toString() },
     { id: 'stable', label: t("status_tag_stable") || "Stable", icon: 'verified', number: sets.filter(s => s.status === 'stable').length.toString() },
     { id: 'under_review', label: t("status_tag_under_review") || "Under Review", icon: 'policy', number: sets.filter(s => s.status === 'under_review').length.toString() },
     { id: 'pending', label: t("status_tag_pending") || "Pending", icon: 'schedule', number: sets.filter(s => s.status === 'pending').length.toString() },
@@ -228,17 +230,15 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
           </div>
         )
       } : undefined}
-      headerActions={
-        activeTab !== 'overview' ? (
-          <div className="flex items-center gap-2">
-            <ActionButton
-              onClick={() => setIsForgePanelOpen(true)}
-              iconOnly={true}
-              icon={t("icon_add")}
-              label={t("auto_create")}
-            />
-          </div>
-        ) : undefined
+      actions={
+        activeTab !== 'overview' ? [
+          {
+            id: 'create',
+            icon: <span className="material-symbols-outlined !text-[20px]">{t("icon_add") || "add"}</span>,
+            label: (t("auto_create") || "Create") as string,
+            onClick: () => setIsForgePanelOpen(true)
+          }
+        ] : undefined
       }
     >
       <div className="h-full flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
@@ -320,6 +320,25 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
                 <input value={activeSet.url || ""} onChange={e => setActiveSet({ ...activeSet, url: e.target.value })} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
+                <CustomComplianceDropdown value={activeSet.compliance_tier || 0} onChange={(val: number) => setActiveSet({ ...activeSet, compliance_tier: val })} maxTier={4} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("status_tag") || "Status"}</label>
+                <CustomDropdown
+                   disableTint={true}
+                   value={activeSet.status || "unknown"}
+                   onChange={(v: string[]) => setActiveSet({ ...activeSet, status: v[0] })}
+                   options={[
+                     { id: "stable", label: t("status_tag_stable") || "Stable" },
+                     { id: "under_review", label: t("status_tag_under_review") || "Under Review" },
+                     { id: "pending", label: t("status_tag_pending") || "Pending" },
+                     { id: "unknown", label: t("status_tag_unknown") || "Unknown" },
+                     { id: "corrupted", label: t("status_tag_corrupted") || "Corrupted" }
+                   ]}
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-4 pb-12">
@@ -354,7 +373,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                       <ArtifactCard
                         key={mem.id}
                         mod={mem.mods}
-                        layout="vertical"
+                        layout="horizontal"
                         onClick={() => { }}
                         onRemove={(e) => handleRemoveMod(mem.id)}
                         masonsList={[]}
@@ -470,6 +489,7 @@ export function CollectionForge({ setStatus }: any) {
       image_url: activeSet.image_url,
       url: activeSet.url,
       mason_id: activeSet.mason_id,
+      status: activeSet.status,
       compliance_tier: activeSet.compliance_tier
     }).eq('id', activeSet.id);
 
@@ -550,7 +570,7 @@ export function CollectionForge({ setStatus }: any) {
       activeTab={filterTab}
       onTabChange={(tabId) => setFilterTab(tabId as any)}
       tabs={[
-        { id: 'overview', label: t("landing_overview") || "Overview", icon: 'dashboard', colorClass: 'text-[var(--accent)]' },
+        { id: 'overview', label: t("landing_overview") || "Overview", icon: 'dashboard', colorClass: 'text-[var(--accent)]', number: sets.length.toString() },
         { id: 'stable', label: t("status_tag_stable") || "Stable", icon: 'verified', number: sets.filter(s => s.status === 'stable').length.toString() },
         { id: 'under_review', label: t("status_tag_under_review") || "Under Review", icon: 'policy', number: sets.filter(s => s.status === 'under_review').length.toString() },
         { id: 'pending', label: t("status_tag_pending") || "Pending", icon: 'schedule', number: sets.filter(s => s.status === 'pending').length.toString() },
@@ -572,15 +592,15 @@ export function CollectionForge({ setStatus }: any) {
           </div>
         )
       } : undefined}
-      headerActions={
-        filterTab !== 'overview' ? (
-          <ActionButton
-            onClick={() => setIsForgePanelOpen(true)}
-            className="shrink-0 h-10 px-4 font-black capitalize tracking-widest text-[10px] theme-bg-accent text-black hover:bg-white transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.6)]"
-            icon={t("icon_add")}
-            label={t("auto_create") || "Create"}
-          />
-        ) : undefined
+      actions={
+        filterTab !== 'overview' ? [
+          {
+            id: 'create',
+            icon: <span className="material-symbols-outlined !text-[20px]">{t("icon_add") || "add"}</span>,
+            label: (t("auto_create") || "Create") as string,
+            onClick: () => setIsForgePanelOpen(true)
+          }
+        ] : undefined
       }
     >
       {filterTab === 'overview' ? (
@@ -753,6 +773,22 @@ export function CollectionForge({ setStatus }: any) {
               </div>
 
               <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("status_tag") || "Status"}</label>
+                <CustomDropdown
+                   disableTint={true}
+                   value={activeSet.status || "unknown"}
+                   onChange={(v: string[]) => setActiveSet({ ...activeSet, status: v[0] })}
+                   options={[
+                     { id: "stable", label: t("status_tag_stable") || "Stable" },
+                     { id: "under_review", label: t("status_tag_under_review") || "Under Review" },
+                     { id: "pending", label: t("status_tag_pending") || "Pending" },
+                     { id: "unknown", label: t("status_tag_unknown") || "Unknown" },
+                     { id: "corrupted", label: t("status_tag_corrupted") || "Corrupted" }
+                   ]}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url")}</label>
                 <input value={activeSet.image_url || ""} onChange={e => setActiveSet({ ...activeSet, image_url: e.target.value })} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
@@ -795,7 +831,7 @@ export function CollectionForge({ setStatus }: any) {
                     <ArtifactCard
                       key={member.id}
                       mod={member.mods}
-                      layout="vertical"
+                      layout="horizontal"
                       onClick={() => { }}
                       onRemove={() => removeFromManifest(member.id, member.mods?.name || "Unknown")}
                       masonsList={[]}

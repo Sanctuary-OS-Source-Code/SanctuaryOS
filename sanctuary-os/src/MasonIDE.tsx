@@ -472,7 +472,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
       { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard", number: files?.length || 0 },
       { id: "templates", label: t("upload_template_title") || "Templates", icon: "data_object", number: files?.filter((f: any) => f.name.toLowerCase().endsWith('.json') && !f.name.match(/^[a-z]{2}-.+\.json$/i)).length || 0 },
       { id: "lexicon", label: t("tab_lexicons") || "Lexicons", icon: "translate", number: files?.filter((f: any) => f.name.match(/^[a-z]{2}-.+\.json$/i)).length || 0 },
-      { id: "settings", label: t("tab_settings") || "Settings", icon: "settings", number: files?.filter((f: any) => f.name.toLowerCase().endsWith('.ini') || f.name.toLowerCase().endsWith('.cfg')).length || 0 }
+      { id: "settings", label: t("tab_configs") || "Configurations", icon: "settings", number: files?.filter((f: any) => f.name.toLowerCase().endsWith('.ini') || f.name.toLowerCase().endsWith('.cfg')).length || 0 }
    ];
 
    const tabs = isCloudMode ? cloudTabs : localTabs;
@@ -521,76 +521,21 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             />
          )}
 
-               {fileTypeFilter === 'overview' && !isCloudMode ? (
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-                     <div className="flex flex-col gap-4">
-                        <div className="flex items-center gap-2 mb-2">
-                           <span className="material-symbols-outlined text-[var(--accent)]">history</span>
-                           <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("ide_recent_file") || "Recent Files"}</h3>
-                           <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-                        </div>
-                        <MasonFileBrowser
-                           t={t}
-                           isCloudMode={isCloudMode}
-                           internalCloudTarget={internalCloudTarget}
-                           files={files.slice(0, 10)}
-                           searchQuery={searchQuery}
-                           fileTypeFilter="all"
-                           openFile={openFile}
-                           renamingFile={renamingFile}
-                           setRenamingFile={setRenamingFile}
-                           renameInput={renameInput}
-                           setRenameInput={setRenameInput}
-                           renameExt={renameExt}
-                           setRenameExt={setRenameExt}
-                           handleRenameSubmit={handleRenameSubmit}
-                           deleteConfirmPath={deleteConfirmPath}
-                           setDeleteConfirmPath={setDeleteConfirmPath}
-                           handleDeleteFile={handleDeleteFile}
-                           openFiles={openFiles}
-                           handlePublishLexicon={handlePublishLexicon}
-                           layout="list"
-                        />
-                     </div>
-                     <div className="flex flex-col gap-4">
-                        <div className="flex items-center gap-2 mb-2">
-                           <span className="material-symbols-outlined text-[var(--warning)]">warning</span>
-                           <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("ide_unsaved_files") || "Unsaved Changes"}</h3>
-                           <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-                        </div>
-                        <MasonFileBrowser
-                           t={t}
-                           isCloudMode={isCloudMode}
-                           internalCloudTarget={internalCloudTarget}
-                           files={openFiles.filter((f: any) => f.content !== f.originalContent)}
-                           searchQuery={searchQuery}
-                           fileTypeFilter="all"
-                           openFile={openFile}
-                           renamingFile={renamingFile}
-                           setRenamingFile={setRenamingFile}
-                           renameInput={renameInput}
-                           setRenameInput={setRenameInput}
-                           renameExt={renameExt}
-                           setRenameExt={setRenameExt}
-                           handleRenameSubmit={handleRenameSubmit}
-                           deleteConfirmPath={deleteConfirmPath}
-                           setDeleteConfirmPath={setDeleteConfirmPath}
-                           handleDeleteFile={handleDeleteFile}
-                           openFiles={openFiles}
-                           handlePublishLexicon={handlePublishLexicon}
-                           layout="list"
-                        />
-                     </div>
+         {fileTypeFilter === 'overview' && !isCloudMode ? (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+               <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-2 mb-2">
+                     <span className="material-symbols-outlined text-[var(--accent)]">history</span>
+                     <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("ide_recent_file") || "Recent Files"}</h3>
+                     <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
                   </div>
-               ) : (
                   <MasonFileBrowser
                      t={t}
                      isCloudMode={isCloudMode}
                      internalCloudTarget={internalCloudTarget}
-                     files={files}
+                     files={files.slice(0, 10)}
                      searchQuery={searchQuery}
-                     fileTypeFilter={fileTypeFilter}
-                     fetchError={mason.fetchError}
+                     fileTypeFilter="all"
                      openFile={openFile}
                      renamingFile={renamingFile}
                      setRenamingFile={setRenamingFile}
@@ -604,8 +549,63 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                      handleDeleteFile={handleDeleteFile}
                      openFiles={openFiles}
                      handlePublishLexicon={handlePublishLexicon}
+                     layout="list"
                   />
-               )}
+               </div>
+               <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-2 mb-2">
+                     <span className="material-symbols-outlined text-[var(--warning)]">warning</span>
+                     <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("ide_unsaved_files") || "Unsaved Changes"}</h3>
+                     <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
+                  </div>
+                  <MasonFileBrowser
+                     t={t}
+                     isCloudMode={isCloudMode}
+                     internalCloudTarget={internalCloudTarget}
+                     files={openFiles.filter((f: any) => f.content !== f.originalContent)}
+                     searchQuery={searchQuery}
+                     fileTypeFilter="all"
+                     openFile={openFile}
+                     renamingFile={renamingFile}
+                     setRenamingFile={setRenamingFile}
+                     renameInput={renameInput}
+                     setRenameInput={setRenameInput}
+                     renameExt={renameExt}
+                     setRenameExt={setRenameExt}
+                     handleRenameSubmit={handleRenameSubmit}
+                     deleteConfirmPath={deleteConfirmPath}
+                     setDeleteConfirmPath={setDeleteConfirmPath}
+                     handleDeleteFile={handleDeleteFile}
+                     openFiles={openFiles}
+                     handlePublishLexicon={handlePublishLexicon}
+                     layout="list"
+                  />
+               </div>
+            </div>
+         ) : (
+            <MasonFileBrowser
+               t={t}
+               isCloudMode={isCloudMode}
+               internalCloudTarget={internalCloudTarget}
+               files={files}
+               searchQuery={searchQuery}
+               fileTypeFilter={fileTypeFilter}
+               fetchError={mason.fetchError}
+               openFile={openFile}
+               renamingFile={renamingFile}
+               setRenamingFile={setRenamingFile}
+               renameInput={renameInput}
+               setRenameInput={setRenameInput}
+               renameExt={renameExt}
+               setRenameExt={setRenameExt}
+               handleRenameSubmit={handleRenameSubmit}
+               deleteConfirmPath={deleteConfirmPath}
+               setDeleteConfirmPath={setDeleteConfirmPath}
+               handleDeleteFile={handleDeleteFile}
+               openFiles={openFiles}
+               handlePublishLexicon={handlePublishLexicon}
+            />
+         )}
 
          <MasonEditorPanel
             t={t}
