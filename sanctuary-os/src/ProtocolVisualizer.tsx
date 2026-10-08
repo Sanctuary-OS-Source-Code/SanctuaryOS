@@ -64,11 +64,16 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
 
   // Tabs
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [selectPage, setSelectPage] = useState<number>(1);
 
   // Selection Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [activeCategory, setActiveCategory] = useState("ALL");
+
+  useEffect(() => {
+    setSelectPage(1);
+  }, [searchTerm, statusFilter, activeCategory]);
 
   // Overview Data
   const [recentHashes, setRecentHashes] = useState<any[]>([]);
@@ -119,6 +124,8 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
     if (searchTerm) return (mod.name?.toLowerCase() || "").includes(searchTerm.toLowerCase());
     return true;
   });
+
+  const displayedMods = filteredMods.slice(0, selectPage * 50);
 
   const tabs = [
     { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
@@ -990,11 +997,16 @@ export default function ProtocolVisualizer({ masonId, isArchitect }: { masonId?:
         )}
 
         {activeTab === 'select' && (
-          <div className="flex-1 overflow-y-auto custom-scrollbar pb-10">
+          <div className="flex-1 overflow-y-auto custom-scrollbar pb-10" onScroll={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollHeight - el.scrollTop - el.clientHeight < 200 && displayedMods.length < filteredMods.length) {
+              setSelectPage(p => p + 1);
+            }
+          }}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredMods.length === 0 ? (
+              {displayedMods.length === 0 ? (
                 <EmptyState icon="search_off" title={t("no_matches")} className="col-span-full py-16" />
-              ) : filteredMods.map(mod => (
+              ) : displayedMods.map(mod => (
                 <ArtifactCard
                   key={mod.id}
                   mod={mod}
