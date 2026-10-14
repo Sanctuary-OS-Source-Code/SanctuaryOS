@@ -1235,11 +1235,7 @@ function App() {
   }
   useEffect(() => {
     async function fetchUserRole() {
-      useStore.getState().pushStatus("fetchUserRole triggered", "info");
-      if (!isGameDatabasesSynced) {
-        useStore.getState().pushStatus("Waiting for DB sync...", "warning");
-        return;
-      }
+      if (!isGameDatabasesSynced) return;
       if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
 
       if (session?.user) {
@@ -1261,27 +1257,27 @@ function App() {
         let newRole = "citizen";
         try {
           const gameClient = getActiveGameClient();
-          if (!gameClient) {
-            useStore.getState().pushStatus("getActiveGameClient returned null", "error");
-          } else {
-            const { data: gameData, error: gameError } = await gameClient
-              .from("profiles")
-              .select("role")
-              .eq("id", session.user.id)
-              .maybeSingle();
+          if (gameClient) {
+            const syncRes: any = await supabase.rpc("secure_sync_spoke_profile", {
+              p_token: session.access_token
+            });
 
-            if (gameError) {
-              useStore.getState().pushStatus("Game profile fetch error: " + gameError.message, "error");
-            } else if (gameData && gameData.role) {
-              newRole = gameData.role.toLowerCase();
-              useStore.getState().pushStatus("Fetched game role: " + newRole, "success");
+            if (syncRes?.data && !syncRes.data.error && syncRes.data.role) {
+              newRole = syncRes.data.role.toLowerCase();
             } else {
-              useStore.getState().pushStatus("No profile or role found", "warning");
+              const { data: gameData, error: gameError } = await gameClient
+                .from("profiles")
+                .select("role")
+                .eq("id", session.user.id)
+                .maybeSingle();
+
+              if (!gameError && gameData && gameData.role) {
+                newRole = gameData.role.toLowerCase();
+              }
             }
           }
         } catch (e: any) {
-          console.error("Game profile fetch failed", e);
-          useStore.getState().pushStatus("Game profile fetch exception: " + e.message, "error");
+          console.error(e);
         }
         setUserRole(newRole);
 
@@ -1293,7 +1289,7 @@ function App() {
           else if (currentView === "Oversight" && !["oversight", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
           else if (currentView === "WayfinderHub" && !["wayfinder", "admin"].includes(newRole)) setView("dashboard");
           else if (currentView === "KeepersCore" && !["core_dev", "admin", "keeper"].includes(currentOsRole)) setView("dashboard");
-          else if (currentView === "SADefcon" && !["admin"].includes(currentOsRole)) setView("dashboard");
+          else if (currentView === "SADefcon" && !["keeper", "admin"].includes(currentOsRole)) setView("dashboard");
         }
       }
     }

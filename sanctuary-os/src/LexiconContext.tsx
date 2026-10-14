@@ -122,8 +122,8 @@ export const LexiconProvider = ({ children }: any) => {
         if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
 
         // Fetch Core OS Lexicons ONLY if they have access
-        const userRole = useStore.getState().userRole;
-        const hasOSAccess = ["keeper", "admin", "core_dev"].includes(userRole);
+        const osRole = useStore.getState().osRole;
+        const hasOSAccess = ["keeper", "admin", "core_dev"].includes(osRole);
         let osRes: { data: any[] | null, error: any } = { data: [], error: null };
         
         if (hasOSAccess) {

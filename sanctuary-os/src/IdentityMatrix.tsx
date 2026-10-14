@@ -93,16 +93,36 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     setIsSubmitting(true);
     setStatus(t("identities_updating"));
 
-    const { getActiveGameClient } = await import('./supabase');
-    const client = isKeepers ? supabaseAuth : getActiveGameClient();
+    let data: any = null;
+    let error: any = null;
 
-    const { data, error } = await client.from('profiles').update({
-      role: editRole,
-      is_banned: isBanned,
-      is_comm_banned: isCommBanned,
-      blacklist_reason: isBanned ? editReason : null,
-      comm_blacklist_reason: isCommBanned ? editCommReason : null
-    }).eq('id', profile.id).select();
+    if (isKeepers) {
+      const res = await supabaseAuth.from('profiles').update({
+        role: editRole,
+        is_banned: isBanned,
+        blacklist_reason: isBanned ? editReason : null
+      }).eq('id', profile.id).select();
+      data = res.data;
+      error = res.error;
+      if (!error && data && data.length > 0) {
+        await supabase.rpc('secure_sync_hub_ban_to_spokes', {
+          p_target_user_id: profile.id
+        });
+      }
+    } else {
+      const res: any = await supabase.rpc('secure_update_spoke_profile', {
+        p_target_user_id: profile.id,
+        p_updates: {
+          role: editRole,
+          is_banned: isBanned,
+          is_comm_banned: isCommBanned,
+          blacklist_reason: isBanned ? editReason : null,
+          comm_blacklist_reason: isCommBanned ? editCommReason : null
+        }
+      });
+      data = res.data;
+      error = res.error || (res.data?.error ? new Error(res.data.error) : null);
+    }
 
     if (error || !data || data.length === 0) {
       setStatus(t("identities_failed_prefix") + " " + (error?.message || "Permission Denied."));
@@ -175,7 +195,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
             <div className="flex flex-col gap-2 relative z-50 w-full">
               <CustomRoleSelect
                 value={editRole}
-                roles={isKeepers ? ['citizen', 'keeper', 'admin'] : (isWayfinder ? ROLES : ['citizen', 'mason', 'architect'])}
+                roles={isKeepers ? ['citizen', 'keeper'] : (isWayfinder ? ROLES : ['citizen', 'mason', 'architect'])}
                 onChange={(newRole: string) => setEditRole(newRole)}
                 isBlacklisted={isBanned}
               />
@@ -307,8 +327,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
       icon: r === 'citizen' ? 'person' : r === 'mason' ? 'architecture' : r === 'architect' ? 'engineering' : 'admin_panel_settings' 
     })),
     ...(isKeepers ? [
-      { id: 'keeper', label: 'KEEPER', icon: "admin_panel_settings" },
-      { id: 'admin', label: 'ADMIN', icon: "developer_mode" }
+      { id: 'keeper', label: 'KEEPER', icon: "admin_panel_settings" }
     ] : [])
   ];
 

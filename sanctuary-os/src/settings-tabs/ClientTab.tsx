@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { useModalStore } from '../store/modalStore';
-import { supabase } from '../supabase';
+import { supabase, getActiveGameClient } from '../supabase';
 import { HoverTooltip } from '../shared';
 import { TabContainer, SettingsGrid, SettingsToggle } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
@@ -23,8 +23,9 @@ export default function ClientTab() {
   const [banReason, setBanReason] = useState("");
 
   useEffect(() => {
-    if (session?.user?.id) {
-       supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', session.user.id).single()
+    const gameClient = getActiveGameClient();
+    if (session?.user?.id && gameClient) {
+       gameClient.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', session.user.id).maybeSingle()
          .then(({ data }) => {
             if (data?.is_comm_banned) {
                setIsBanned(true);

@@ -28,14 +28,17 @@ DROP TABLE IF EXISTS keeper_support_categories CASCADE;
 CREATE TABLE profiles (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY, 
     username TEXT, 
-    role TEXT DEFAULT 'citizen' -- osRole (Global OS permissions: citizen, keeper, admin, core_dev)
+    email TEXT,
+    role TEXT DEFAULT 'citizen' CHECK (role IN ('citizen', 'keeper')), -- osRole (Global OS permissions: citizen, keeper)
+    is_banned BOOLEAN DEFAULT false,
+    blacklist_reason TEXT
 );
 
 -- Auto-create profile trigger on Supabase Auth Signup
 CREATE OR REPLACE FUNCTION public.handle_new_user() RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, role) 
-  VALUES (new.id, new.raw_user_meta_data->>'username', 'citizen');
+  INSERT INTO public.profiles (id, username, email, role) 
+  VALUES (new.id, new.raw_user_meta_data->>'username', new.email, 'citizen');
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

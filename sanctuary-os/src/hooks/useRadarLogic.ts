@@ -2,7 +2,7 @@ import { isDesktop } from "../utils/envUtils";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
-import { supabase, getActiveGameClient } from "../supabase";
+import { supabase, supabaseAuth, getActiveGameClient } from "../supabase";
 import { isVersionMatch, getExtensionRegex } from "../shared";
 import { hashString } from "../lib/cryptoUtils";
 import { useState } from "react";
@@ -152,11 +152,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           
           const { data: sessionData } = await supabase.auth.getSession();
           if (sessionData?.session?.user) {
-            await supabase.from('profiles').update({ is_banned: true, blacklist_reason: "Malware Evasion" }).eq('id', sessionData.session.user.id);
+            await supabaseAuth.from('profiles').update({ is_banned: true, blacklist_reason: "Malware Evasion" }).eq('id', sessionData.session.user.id);
             
             const gameClient = getActiveGameClient();
             if (gameClient) {
-               await gameClient.from('profiles').update({ is_banned: true }).eq('id', sessionData.session.user.id);
+               await supabase.rpc('secure_sync_hub_ban_to_spokes', { p_target_user_id: sessionData.session.user.id });
             }
           }
           localStorage.setItem("sanctuary_blacklisted", "true");

@@ -53,10 +53,16 @@ DROP TABLE IF EXISTS sanctuary_schemas CASCADE;
 -- ==========================================
 -- 1. PROFILES & MASONS (CREATORS)
 -- ==========================================
+-- Synced from Core OS Hub via game-gateway (id, username, is_banned, blacklist_reason).
+-- Spoke-owned columns: role, is_comm_banned, comm_blacklist_reason.
 CREATE TABLE profiles (
-    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY, 
+    id UUID PRIMARY KEY, 
     username TEXT, 
-    role TEXT DEFAULT 'citizen' -- Roles: citizen, mason, architect, oversight, wayfinder, blacklisted
+    role TEXT DEFAULT 'citizen' CHECK (role IN ('citizen', 'mason', 'architect', 'oversight', 'wayfinder')),
+    is_banned BOOLEAN DEFAULT false,
+    blacklist_reason TEXT,
+    is_comm_banned BOOLEAN DEFAULT false,
+    comm_blacklist_reason TEXT
 );
   
 CREATE TABLE masons (
@@ -90,19 +96,7 @@ CREATE TABLE mason_posts (
     content TEXT, 
     image_url TEXT, 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Auto-create profile trigger on Supabase Auth Signup
-CREATE OR REPLACE FUNCTION public.handle_new_user() RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, username, role) 
-  VALUES (new.id, new.raw_user_meta_data->>'username', 'citizen');
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-CREATE TRIGGER on_auth_user_created 
-  AFTER INSERT ON auth.users 
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user(); 
+); 
 
 -- ==========================================
 -- 2. GLOBAL REGISTRY & VERSIONS

@@ -142,7 +142,10 @@ export function MasonLinker() {
     if (linkedProfileId) {
       const linkedProfile = profiles.find(p => p.id === linkedProfileId);
       if (linkedProfile && (linkedProfile.role === 'citizen' || !linkedProfile.role)) {
-        await supabase.from('profiles').update({ role: 'mason' }).eq('id', linkedProfileId);
+        await supabase.rpc('secure_update_spoke_profile', {
+          p_target_user_id: linkedProfileId,
+          p_updates: { role: 'mason' }
+        });
       }
     }
 

@@ -111,7 +111,6 @@ export const supabase = new Proxy({} as SupabaseClient, {
         if (prop === 'from') {
             return (table: string) => {
                 const osTables = [
-                    'profiles', 
                     'sanctuary_themes', 
                     'sanctuary_games',
                     'keeper_tickets',
@@ -125,8 +124,8 @@ export const supabase = new Proxy({} as SupabaseClient, {
                 const state = useStore.getState();
                 const view = state.view;
 
-                // When in Keepers Core, Schemas and Lexicons must route to the Core Hub Database
-                if (view === 'KeepersCore' && (table === 'sanctuary_lexicons' || table === 'sanctuary_schemas' || table === 'master_tags')) {
+                // When in Keepers Core, Schemas, Lexicons, and Profiles must route to the Core Hub Database
+                if (view === 'KeepersCore' && (table === 'profiles' || table === 'sanctuary_lexicons' || table === 'sanctuary_schemas' || table === 'master_tags')) {
                     return supabaseAuth.from(table);
                 }
 
@@ -135,9 +134,12 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     return supabaseAuth.from(table);
                 }
 
-                // Route Game-level tables to the Game Database
+                // Route Game-level tables (including Spoke profiles) to the Game Database
                 const client = getActiveGameClient();
                 if (!client) {
+                    if (table === 'profiles') {
+                        return supabaseAuth.from(table);
+                    }
                     return createMockPostgrestBuilder();
                 }
                 return client.from(table);
@@ -146,13 +148,16 @@ export const supabase = new Proxy({} as SupabaseClient, {
 
         // Intercept secure RPC calls and route them to the OS Edge Function (API Gateway)
         if (prop === 'rpc') {
-            return async (fnName: string, args: any) => {
+            return async (fnName: string, args: any = {}) => {
                 const state = useStore.getState();
                 const activeWsId = state.activeWorkspaceId;
                 const workspaces = state.workspaces || [];
                 const activeWs = workspaces.find((w: any) => w.id === activeWsId);
                 
                 const isInterceptedRpc = [
+                    'secure_sync_spoke_profile',
+                    'secure_update_spoke_profile',
+                    'secure_sync_hub_ban_to_spokes',
                     'secure_upsert_cloud_file', 
                     'secure_delete_cloud_file', 
                     'secure_update_mason_profile', 
@@ -166,8 +171,21 @@ export const supabase = new Proxy({} as SupabaseClient, {
                 
                 if (isInterceptedRpc) {
                     const view = state.view;
+                    const token = args?.p_token || state.session?.access_token || '';
+
+                    if (fnName === 'secure_sync_hub_ban_to_spokes') {
+                        return await supabaseAuth.functions.invoke('game-gateway', {
+                            headers: {
+                                Authorization: `Bearer ${token}`
+                            },
+                            body: {
+                                action: 'sync_hub_ban_to_spokes',
+                                payload: { target_user_id: args?.p_target_user_id }
+                            }
+                        });
+                    }
                     
-                    if (view === 'KeepersCore') {
+                    if (view === 'KeepersCore' && fnName !== 'secure_sync_spoke_profile' && fnName !== 'secure_update_spoke_profile') {
                         if (fnName.includes('notifications')) {
                             return { data: [], error: null };
                         }
@@ -182,6 +200,8 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     }
 
                     const actionMap: Record<string, string> = {
+                        'secure_sync_spoke_profile': 'sync_spoke_profile',
+                        'secure_update_spoke_profile': 'update_spoke_profile',
                         'secure_upsert_cloud_file': 'upsert_cloud_file',
                         'secure_delete_cloud_file': 'delete_cloud_file',
                         'secure_update_mason_profile': 'update_mason_profile',
@@ -190,10 +210,13 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         'secure_mark_notifications_read': 'mark_notifications_read',
                         'secure_delete_notifications': 'delete_notifications',
                         'secure_mark_all_notifications_read': 'mark_all_notifications_read',
-                        'secure_delete_all_notifications': 'delete_all_notifications'                    };
+                        'secure_delete_all_notifications': 'delete_all_notifications'
+                    };
 
                     let payload: any = {};
-                    if (fnName === 'secure_upsert_cloud_file') {
+                    if (fnName === 'secure_update_spoke_profile') {
+                        payload = { target_user_id: args.p_target_user_id, updates: args.p_updates };
+                    } else if (fnName === 'secure_upsert_cloud_file') {
                         payload = { target_table: args.p_target, payload_data: args.p_payload };
                     } else if (fnName === 'secure_delete_cloud_file') {
                         payload = { target_table: args.p_target, id_value: args.p_id };
@@ -209,7 +232,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
 
                     const res = await supabaseAuth.functions.invoke('game-gateway', {
                         headers: {
-                            Authorization: `Bearer ${args.p_token}`
+                            Authorization: `Bearer ${token}`
                         },
                         body: {
                             game_id: targetGameId,
