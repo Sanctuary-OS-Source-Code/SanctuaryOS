@@ -9,8 +9,8 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, LinkAssetSidePanel, PanelHeaderGroup, PanelHeaderButton } from "../shared";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, LinkAssetSidePanel, PanelHeaderGroup, PanelHeaderButton, RadioCardGroup, RadioCard } from "../shared";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import MarkdownRenderer from "../MarkdownRenderer";
 import IconPicker from "../IconPicker";
@@ -55,7 +55,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
 
   const [filterAudience, setFilterAudience] = useState("All");
   const [filterCategory, setFilterCategory] = useState("All");
-  const [filterStatus, setFilterStatus] = useState("Active");
+  const [filterStatus, setFilterStatus] = useState("overview");
 
   const wayfinderDrafts = useStore(state => state.wayfinderDrafts);
   const setWayfinderDrafts = useStore(state => state.setWayfinderDrafts);
@@ -392,7 +392,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
         (p.message || p.content)?.toLowerCase().includes(searchTerm.toLowerCase());
       const audienceMatch = filterAudience === "All" || (p.target_audience && p.target_audience.includes(filterAudience));
       const categoryMatch = filterCategory === "All" || p.category === filterCategory;
-      const statusMatch = filterStatus === "All" || (filterStatus === "Active" ? p.is_active !== false : p.is_active === false);
+      const statusMatch = filterStatus === "All" || filterStatus === "overview" || (filterStatus === "Active" ? p.is_active !== false : p.is_active === false);
       return searchMatch && audienceMatch && categoryMatch && statusMatch;
     });
   }, [posts, searchTerm, filterAudience, filterCategory, filterStatus]);
@@ -411,7 +411,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
           layout="vertical"
           title={post.title}
           icon={isPostPinned(post) ? "notification_important" : hasUnsavedEdits ? "edit_note" : "feed"}
-          statusColor={hasUnsavedEdits ? "border-amber-500" : isPostPinned(post) ? "border-red-500" : undefined}
+          statusColor={hasUnsavedEdits ? "border-[var(--warning)]" : isPostPinned(post) ? "border-[var(--danger)]" : undefined}
           badges={[
               <span key="date" className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{new Date(post.created_at).toLocaleDateString()}</span>,
               isPostPinned(post) ? <span key="urgent" className="text-[9px] font-black capitalize tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] px-2 py-0.5 rounded-md flex items-center gap-1 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md"><span className="material-symbols-outlined !text-[10px]">warning_amber</span>{t("urgent_alert")}</span> : null,
@@ -439,7 +439,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
         >
           {extractPostImage(post) && (
             <div className="w-full h-32 rounded-xl overflow-hidden mb-3 relative group">
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--background)_60%,transparent)] to-transparent z-10 pointer-events-none" />
               <img src={extractPostImage(post)} alt={t("auto_cover")} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
             </div>
           )}
@@ -455,18 +455,19 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
+      number: posts.length.toString(),
     },
     {
       id: "Active",
       label: t("status_active"),
       icon: "cell_tower",
-      number: posts.filter(p => p.is_active !== false).length,
+      number: posts.filter(p => p.is_active !== false).length.toString(),
     },
     {
       id: "Inactive",
       label: t("status_inactive"),
       icon: "portable_wifi_off",
-      number: posts.filter(p => p.is_active === false).length,
+      number: posts.filter(p => p.is_active === false).length.toString(),
     }
   ];
 
@@ -475,35 +476,27 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
     const inactivePosts = posts.filter(p => p.is_active === false);
 
     return (
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">cell_tower</span>
-              {t("recent_active_transmissions") || "Recent Active Transmissions"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {activePosts.slice(0, 10).length > 0 ? activePosts.slice(0, 10).map(renderPostCard) : (
-              <EmptyState icon="feed" title={t("no_transmissions")} className="py-8" />
-            )}
-          </div>
-        </div>
+      <HubOverviewLanding>
+        <HubOverviewSection
+          title={t("recent_active_transmissions") || "Recent Active Transmissions"}
+          icon="cell_tower"
+          iconColorClass="text-[var(--accent)]"
+          isEmpty={activePosts.length === 0}
+          emptyState={<EmptyState icon="feed" title={t("no_transmissions")} className="py-8" />}
+        >
+          {activePosts.slice(0, 4).map(renderPostCard)}
+        </HubOverviewSection>
 
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)]">portable_wifi_off</span>
-              {t("recent_inactive_transmissions") || "Recent Inactive Transmissions"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {inactivePosts.slice(0, 10).length > 0 ? inactivePosts.slice(0, 10).map(renderPostCard) : (
-              <EmptyState icon="feed" title={t("no_transmissions")} className="py-8" />
-            )}
-          </div>
-        </div>
-      </div>
+        <HubOverviewSection
+          title={t("recent_inactive_transmissions") || "Recent Inactive Transmissions"}
+          icon="portable_wifi_off"
+          iconColorClass="text-[var(--subtext)]"
+          isEmpty={inactivePosts.length === 0}
+          emptyState={<EmptyState icon="feed" title={t("no_transmissions")} className="py-8" />}
+        >
+          {inactivePosts.slice(0, 4).map(renderPostCard)}
+        </HubOverviewSection>
+      </HubOverviewLanding>
     );
   };
 
@@ -522,28 +515,41 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
 
       activeTab={filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
-      headerActions={
-        <div className="flex items-center gap-2">
-            <CustomDropdown
-                flat={true}
-                variant="pill"
-                value={filterCategory}
-                onChange={(v: string[]) => setFilterCategory(v[0])}
-                options={[
+      primaryPopover={
+        filterStatus !== 'overview' ? {
+          icon: "tune",
+          label: t("filters") || "Filters",
+          content: (
+            <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "Category"}</span>
+                <CustomDropdown
+                  flat={true}
+                  variant="pill"
+                  disableTint={true}
+                  value={filterCategory}
+                  onChange={(v: string[]) => setFilterCategory(v[0])}
+                  options={[
                     { id: "All", label: t("all_classes") },
                     { id: "Update", label: t("category_update") },
                     { id: "Info", label: t("category_info") },
                     { id: "Alert", label: t("category_alert") }
-                ]}
-            />
-            <ActionButton
-                onClick={() => openEditor()}
-                iconOnly={true}
-                icon={t("icon_cell_tower")}
-                label={wayfinderDrafts['new'] ? t("action_unsaved_draft") : t("post_broadcast")}
-                variant={wayfinderDrafts['new'] ? "warning" : "default"}
-            />
-        </div>
+                  ]}
+                />
+              </div>
+            </div>
+          )
+        } : undefined
+      }
+      actions={
+        filterStatus !== 'overview' ? [
+          {
+            id: "post",
+            icon: t("icon_cell_tower") || "cell_tower",
+            label: wayfinderDrafts['new'] ? t("action_unsaved_draft") : t("post_broadcast"),
+            onClick: () => openEditor()
+          }
+        ] : undefined
       }
     >
       {filterStatus === 'overview' ? renderLanding() : (
@@ -581,11 +587,15 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
             subtitle={editingPostId ? (t("editing_record")) : (t("composing_broadcast"))}
             headerActions={
               <PanelHeaderGroup>
-                {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? (
+                {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
                   <PanelHeaderButton icon={confirmDiscard ? "warning" : "close"} variant={confirmDiscard ? "danger" : "default"} tooltip={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))} onClick={handleDiscardChanges} disabled={isSubmitting} />
-                ) : (
-                  <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={closeEditor} disabled={isSubmitting} />
                 )}
+                <PanelHeaderButton
+                  icon={isActive ? "cell_tower" : "portable_wifi_off"}
+                  variant={isActive ? "success" : "default"}
+                  tooltip={isActive ? (t("status_active") || "Live / Active") : (t("status_inactive") || "Draft Mode")}
+                  onClick={() => setIsActive(!isActive)}
+                />
                 <div className="relative group/btn flex">
                   <PanelHeaderButton icon="check" variant="success" tooltip={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))} onClick={handleSubmit} disabled={isSubmitting || !title || !content} />
                   {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
@@ -597,7 +607,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
           >
             <div className="flex flex-col gap-6">
 
-              <div className="flex justify-between items-center border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4 pb-4">
+              <div className="flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-4 pb-4">
                 <div className="w-56 shrink-0">
                   <HubTabs 
                     tabs={[{id: 'edit', label: t("editor")}, {id: 'preview', label: t("preview")}]}
@@ -606,45 +616,42 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                     setTab={setViewMode} 
                   />
                 </div>
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => setIsActive(!isActive)}
-                    className={`flex items-center gap-2 px-5 h-[38px] rounded-full border transition-all font-black text-[10px] capitalize tracking-widest ${isActive ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] shadow-[inset_0_0_20px_rgba(34,197,94,0.1)]' : 'glass-panel bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                  >
-                    <div className={`w-2 h-2 rounded-full transition-all duration-300 ${isActive ? 'bg-[var(--success)] shadow-[0_0_10px_var(--success)]' : 'bg-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}></div>
-                    {isActive ? "Live / Active" : "Draft Mode"}
-                  </button>
-                </div>
               </div>
 
               {viewMode === 'edit' ? (
                 <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div className="flex flex-col items-center justify-center gap-3 w-full mb-2">
-                    <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-70">{t("trans_type")}</span>
-                    <div className="flex p-1 rounded-full glass-panel bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                      <button 
+                  <SidePanelTitleInput
+                    label={t("post_title")}
+                    value={title}
+                    onChange={setTitle}
+                    placeholder={t("post_title")}
+                  />
+
+                  <div className="flex flex-col gap-2 w-full">
+                    <span className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60 ml-2">{t("trans_type")}</span>
+                    <RadioCardGroup>
+                      <RadioCard
+                        active={deliveryMethod === "Dispatch"}
                         onClick={() => { setDeliveryMethod("Dispatch"); setIsUrgent(false); if (category === "Alert") setCategory("Update"); }}
-                        className={`h-[38px] px-6 rounded-full flex items-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${deliveryMethod === "Dispatch" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md' : 'text-[var(--subtext)] hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[16px]">feed</span> Dispatch
-                      </button>
-                      <button 
+                        icon="feed"
+                        label="Dispatch"
+                        desc="Standard broadcast"
+                      />
+                      <RadioCard
+                        active={deliveryMethod === "Alert" && !isUrgent}
                         onClick={() => { setDeliveryMethod("Alert"); setIsUrgent(false); if (["Update", "Info"].includes(category)) setCategory("Alert"); }}
-                        className={`h-[38px] px-6 rounded-full flex items-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${deliveryMethod === "Alert" && !isUrgent ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] shadow-md' : 'text-[var(--subtext)] hover:text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[16px]">notifications</span> Standard Alert
-                      </button>
-                      <button 
+                        icon="notifications"
+                        label="Standard Alert"
+                        desc="High visibility notice"
+                      />
+                      <RadioCard
+                        active={deliveryMethod === "Alert" && isUrgent}
                         onClick={() => { setDeliveryMethod("Alert"); setIsUrgent(true); if (["Update", "Info"].includes(category)) setCategory("Alert"); }}
-                        className={`h-[38px] px-6 rounded-full flex items-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all ${deliveryMethod === "Alert" && isUrgent ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] shadow-md' : 'text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[16px]">notification_important</span> Urgent Alert
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("post_title")}</label>
-                    <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
+                        icon="notification_important"
+                        label="Urgent Alert"
+                        desc="Critical system banner"
+                      />
+                    </RadioCardGroup>
                   </div>
 
                   <div className="flex flex-col gap-2 w-full">
@@ -652,7 +659,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                       <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_description")}</label>
                       <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length} / 250</span>
                     </div>
-                    <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
+                    <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph")} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-xs font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
                   </div>
 
                   <div className="flex gap-4 w-full">
@@ -698,7 +705,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
 
                   <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("header_image_placeholder")}</label>
-                    <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
+                    <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder")} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-xs font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
                   </div>
 
                   <div className="flex flex-col gap-2 flex-1 min-h-[400px]">

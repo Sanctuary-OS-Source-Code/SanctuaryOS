@@ -34,7 +34,11 @@ export function CustomDropdown({
     width: 0,
     isRight: false,
   });
-  const selectedValues = Array.isArray(value) ? value : value ? [value] : [];
+  const selectedValues = Array.isArray(value)
+    ? value
+    : value !== undefined && value !== null && value !== ""
+      ? [value]
+      : [];
 
   React.useLayoutEffect(() => {
     if (!isOpen) return;
@@ -71,13 +75,14 @@ export function CustomDropdown({
       return `${selectedValues.length} Selected`;
     }
     const selected =
-      options.find((o: any) => String(o.id) === String(value)) ||
-      options.find((o: any) => selectedValues.includes(o.id));
-    if (allowCustom && !selected && value) return value;
+      options.find(
+        (o: any) => o.id === value || String(o.id) === String(value),
+      ) || options.find((o: any) => selectedValues.includes(o.id));
+    if (allowCustom && !selected && value !== undefined && value !== null && value !== "") return value;
     return selected?.label || placeholder || "Select...";
   };
 
-  const handleSelect = (id: string) => {
+  const handleSelect = (id: any) => {
     if (multiSelect) {
       const newVals = selectedValues.includes(id)
         ? selectedValues.filter((v: any) => v !== id)
@@ -110,9 +115,13 @@ export function CustomDropdown({
           <div
             className="!fixed inset-0"
             style={{ zIndex: 100000000 }}
-            onClick={() => setIsOpen(false)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+            }}
           />
           <div
+            onClick={(e) => e.stopPropagation()}
             className={`!fixed pointer-events-auto backdrop-blur-2xl bg-[color-mix(in_srgb,var(--panelTint)_15%,transparent)] border ${isInsideSidePanel || effectiveVariant === "panel" ? "border-[rgba(var(--text-rgb),0.1)]" : "border-[rgba(var(--text-rgb),0.2)]"} shadow-[0_30px_60px_rgba(0,0,0,0.6)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 max-h-60 overflow-y-auto custom-scrollbar flex flex-col`}
             style={{
               zIndex: 100000001,
@@ -154,7 +163,7 @@ export function CustomDropdown({
                     onClick={() =>
                       onChange(options.map((o: any) => String(o.id)))
                     }
-                    className="text-[9px] font-black text-[var(--accent)] hover:text-white transition-colors uppercase tracking-widest"
+                    className="text-[9px] font-black text-[var(--accent)] hover:text-[var(--text)] transition-colors uppercase tracking-widest"
                   >
                     {t("shared_select_all") || "Select All"}
                   </button>
@@ -185,12 +194,15 @@ export function CustomDropdown({
                 .map((opt: any) => {
                   const isSelected = multiSelect
                     ? selectedValues.includes(opt.id)
-                    : String(value) === String(opt.id);
+                    : opt.id === value || String(value) === String(opt.id);
                   return (
                     <button
                       key={opt.id}
                       type="button"
-                      onClick={() => handleSelect(opt.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelect(opt.id);
+                      }}
                       className={`w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg text-[11px] font-black capitalize flex items-center gap-2 group transition-all ${isSelected ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]" : "text-[var(--text)]"}`}
                     >
                       {multiSelect && (
@@ -247,7 +259,10 @@ export function CustomDropdown({
                 ) && (
                   <button
                     type="button"
-                    onClick={() => handleSelect(query)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelect(query);
+                    }}
                     className="w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined !text-[16px] opacity-60">
@@ -275,7 +290,10 @@ export function CustomDropdown({
         type="button"
         ref={btnRef}
         data-1p-ignore="true"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
         className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? "bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90" : isPill ? `h-10 px-5 rounded-full text-[10px] font-black uppercase tracking-widest ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]" : "glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"}` : `${className ? "h-full px-4 rounded-full" : "h-12 px-5 rounded-[12px]"} text-sm font-bold ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-[var(--radius)] text-[var(--accent)] shadow-md" : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] focus:border-[var(--accent)] transform-gpu"}`} ${buttonClassName || ""}`}
       >
         <span className="pr-4 flex-1 text-left flex items-center h-full capitalize overflow-hidden whitespace-nowrap text-ellipsis min-w-0">
@@ -377,7 +395,7 @@ export function GameVersionMultiSelect({
               <button
                 type="button"
                 onClick={() => toggleVersion(v)}
-                className="text-red-400 hover:text-red-300 flex items-center justify-center"
+                className="text-[var(--danger)] hover:brightness-125 flex items-center justify-center"
               >
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_close")}
@@ -454,7 +472,7 @@ export function GameVersionMultiSelect({
                     >
                       <span>{v.version}</span>
                       {selectedVersions.includes(v.version) && (
-                        <span className="text-emerald-400 flex items-center justify-center">
+                        <span className="text-[var(--success)] flex items-center justify-center">
                           <span className="material-symbols-outlined !text-[14px]">
                             {t("icon_check")}
                           </span>
@@ -471,7 +489,7 @@ export function GameVersionMultiSelect({
                         setQuery("");
                         setIsOpen(false);
                       }}
-                      className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-emerald-400 cursor-pointer"
+                      className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--success)] cursor-pointer"
                     >
                       + {t("cc_btn_add")} "{query}"
                     </button>

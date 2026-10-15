@@ -1,4 +1,4 @@
-import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from './components/universal/UniversalLayout';
+import { HubOverviewLanding, HubOverviewSection, SidePanelTitleInput, SidePanelPillToggle, UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from './components/universal/UniversalLayout';
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
@@ -15,22 +15,22 @@ const getRoleBadgeStyle = (role: string) => {
   const r = (role || 'citizen').toLowerCase();
   
   if (r === 'admin') {
-    return `${base} bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] group-hover:text-white`;
+    return `${base} bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] group-hover:text-[var(--text)]`;
   }
   if (r === 'keeper') {
-    return `${base} bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_70%,transparent)] border-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-cyan-400`;
+    return `${base} bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_70%,transparent)] border-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-[var(--accent)]`;
   }
   if (r === 'wayfinder' || r === 'oversight') {
-    return `${base} bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] text-[color-mix(in_srgb,var(--warning)_70%,transparent)] border-[color-mix(in_srgb,var(--warning)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] group-hover:text-amber-400`;
+    return `${base} bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] text-[color-mix(in_srgb,var(--warning)_70%,transparent)] border-[color-mix(in_srgb,var(--warning)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] group-hover:text-[var(--warning)]`;
   }
   if (r === 'architect') {
-    return `${base} bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_70%,transparent)] border-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-purple-400`;
+    return `${base} bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_70%,transparent)] border-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-[var(--accent)]`;
   }
   if (r === 'mason') {
-    return `${base} bg-[color-mix(in_srgb,var(--success)_5%,transparent)] text-[color-mix(in_srgb,var(--success)_70%,transparent)] border-[color-mix(in_srgb,var(--success)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)] group-hover:text-emerald-400`;
+    return `${base} bg-[color-mix(in_srgb,var(--success)_5%,transparent)] text-[color-mix(in_srgb,var(--success)_70%,transparent)] border-[color-mix(in_srgb,var(--success)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)] group-hover:text-[var(--success)]`;
   }
   if (r === 'core_dev') {
-    return `${base} bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_70%,transparent)] border-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-blue-400`;
+    return `${base} bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[color-mix(in_srgb,var(--accent)_70%,transparent)] border-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-[var(--accent)]`;
   }
   // citizen
   return `${base} bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-70 border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:opacity-100`;
@@ -38,14 +38,15 @@ const getRoleBadgeStyle = (role: string) => {
 
 
 export function CustomRoleSelect({ value, onChange, roles, isBlacklisted }: any) {
+  const { t } = useLexicon();
   const options = roles.map((r: string) => ({ id: r, label: r.replace(/_/g, ' ').toUpperCase() }));
   return (
-    <div className={`w-full ${isBlacklisted ? '[&_button]:!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] [&_button]:!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] [&_button]:!text-red-500' : ''}`}>
+    <div className={`w-full ${isBlacklisted ? '[&_button]:!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] [&_button]:!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] [&_button]:!text-[var(--danger)]' : ''}`}>
       <CustomDropdown disableTint={true}
         value={value}
         options={options}
         onChange={(v: string[]) => onChange(v[0])}
-        placeholder="Select Role"
+        placeholder={t("select_role") || "Select Role"}
       />
     </div>
   );
@@ -78,20 +79,20 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
   const handleUpdateRole = async () => {
     if (!profile) return;
     if (isEditingSelf && editRole !== profile.role) {
-      setStatus("Action denied: You cannot modify your own role.");
+      setStatus(t("err_self_role_modify") || "Action denied: You cannot modify your own role.");
       return;
     }
     if (isBanned && !editReason.trim()) {
-      setStatus("Reason is required for upload ban.");
+      setStatus(t("err_upload_ban_reason") || "Reason is required for upload ban.");
       return;
     }
     if (isCommBanned && !editCommReason.trim()) {
-      setStatus("Reason is required for comms ban.");
+      setStatus(t("err_comms_ban_reason") || "Reason is required for comms ban.");
       return;
     }
 
     setIsSubmitting(true);
-    setStatus(t("identities_updating"));
+    setStatus(t("identities_updating") || "Updating...");
 
     let data: any = null;
     let error: any = null;
@@ -125,11 +126,8 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     }
 
     if (error || !data || data.length === 0) {
-      setStatus(t("identities_failed_prefix") + " " + (error?.message || "Permission Denied."));
+      setStatus((t("identities_failed_prefix") || "Failed:") + " " + (error?.message || "Permission Denied."));
     } else {
-      const userRes = await supabase.auth.getUser();
-      const myId = userRes.data.user?.id;
-
       let auditReason = "Role Update";
       let auditAction = `Updated role to ${editRole}`;
       if (isBanned || isCommBanned) {
@@ -146,7 +144,7 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
         isKeepers
       );
 
-      setStatus(t("identities_updated"));
+      setStatus(t("identities_updated") || "Identity updated.");
       onUpdated();
       setTimeout(() => {
         onClose();
@@ -162,34 +160,32 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
     <SidePanel
       isOpen={!!profile}
       onClose={onClose}
-      title={t("edit_identity")}
-      icon={t("icon_group")}
+      title={t("edit_identity") || "Edit Identity"}
+      icon={t("icon_group") || "group"}
       subtitle={profile ? `UUID: ${profile.id}` : undefined}
       widthClass={isSkinny ? "w-[90vw] max-w-[475px]" : undefined}
       headerActions={
         <PanelHeaderGroup>
-          <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={onClose} disabled={isSubmitting} />
-          <PanelHeaderButton icon="check" variant="success" tooltip={isSubmitting ? t("identities_updating") : t("ui_btn_commit")} onClick={handleUpdateRole} disabled={isSubmitting || (isBanned && !editReason.trim()) || (isCommBanned && !editCommReason.trim()) || (!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(profile?.role))} />
+          <PanelHeaderButton icon="check" variant="success" tooltip={isSubmitting ? (t("identities_updating") || "Updating...") : (t("ui_btn_commit") || "Commit")} onClick={handleUpdateRole} disabled={isSubmitting || (isBanned && !editReason.trim()) || (isCommBanned && !editCommReason.trim()) || (!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(profile?.role))} />
         </PanelHeaderGroup>
       }
     >
-      <div className="p-6 flex flex-col h-full gap-8">
+      <div className="flex flex-col h-full gap-8">
         {status && (
-          <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full -mb-4">
-            <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
+          <div className="text-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full -mb-4">
+            <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') || status.toLowerCase().includes('denied') ? 'text-[var(--danger)]' : 'theme-text-accent'}`}>{status}</p>
           </div>
         )}
 
-        <div className="flex flex-col gap-3 shrink-0">
-          <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
-            {profile?.username || t("vlocal")}
-          </h2>
-        </div>
+        <SidePanelTitleInput
+          value={`@${profile?.username || (t("vlocal") || "Unknown")}`}
+          readOnly
+        />
 
-        <UniversalGroup title={t("identities_role_label")} icon={t("icon_settings")}>
+        <UniversalGroup title={t("identities_role_label") || "Assigned Role"} icon={t("icon_settings") || "settings"}>
           {(!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(profile?.role)) ? (
             <div className="flex flex-col gap-2 relative z-50 p-4 rounded-xl bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] w-full">
-              <p className="text-xs font-bold text-amber-500">{t("identities_wayfinder_locked")}</p>
+              <p className="text-xs font-bold text-[var(--warning)]">{t("identities_wayfinder_locked") || "Role locked by Wayfinder oversight."}</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2 relative z-50 w-full">
@@ -206,65 +202,57 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
         {(!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(profile?.role)) ? null : (
           <div className="flex flex-col gap-6">
             <UniversalGroup 
-              title={isWayfinder ? (t("identities_punitive_upload")) : (t("ui_network_blacklist"))} 
-              icon={t("icon_gavel")} 
-              headerColorClass={isBanned ? 'text-red-400' : undefined}
+              title={isWayfinder ? (t("identities_punitive_upload") || "Upload Restrictions") : (t("ui_network_blacklist") || "Network Blacklist")} 
+              icon={t("icon_gavel") || "gavel"} 
+              headerColorClass={isBanned ? 'text-[var(--danger)]' : undefined}
             >
-              <div className="relative z-10 w-full mb-2 mt-2">
-                <UniversalToggle
-                  label={t("identities_ban")}
-                  checked={isBanned}
-                  onChange={setIsBanned}
-                  layout="horizontal-reverse"
-                />
-              </div>
+              <SidePanelPillToggle
+                label={t("identities_ban") || "Restrict Identity"}
+                checked={isBanned}
+                onChange={setIsBanned}
+                icon={t("icon_gavel") || "gavel"}
+                variant="danger"
+              />
 
               {isBanned && (
                 <div className="animate-in fade-in slide-in-from-top-2 relative z-10 w-full mt-2">
                   <UniversalTextArea
-                    label={t("ban_reason_req")}
+                    label={t("ban_reason_req") || "Restriction Reason"}
                     value={editReason}
                     onChange={setEditReason}
-                    placeholder={t("id_reason_ban")}
-                    className="h-32 border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] focus:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] shadow-[inset_0_0_20px_rgba(255,0,0,0.1)] w-full text-red-100"
+                    placeholder={t("id_reason_ban") || "Enter reason for restriction..."}
+                    className="h-32 border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] focus:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] w-full text-[var(--danger)]"
                   />
                 </div>
               )}
             </UniversalGroup>
 
             {isWayfinder && (
-              <div className={`flex flex-col gap-6 p-6 glass-surface rounded-2xl border ${isCommBanned ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'} relative`}>
-                <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${isCommBanned ? 'from-red-500/10' : 'from-red-500/5'} to-transparent pointer-events-none  transition-colors`} />
-                <h4 className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 border-b ${isCommBanned ? 'border-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-red-400' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-80'} pb-4 mb-2 transition-colors`}>
-                  <span className="material-symbols-outlined !text-[14px]">{t("icon_gavel")}</span>
-                  {t("identities_punitive_comm")}
-                </h4>
-                <div className="flex items-center justify-start relative z-10">
-                  <label className="text-[10px] font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-2">
-                    {t("identities_ban")}
-                  </label>
-                  <button
-                    onClick={() => setIsCommBanned(!isCommBanned)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isCommBanned ? 'bg-red-500' : 'bg-gray-600'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCommBanned ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
+              <UniversalGroup
+                title={t("identities_punitive_comm") || "Communications Restriction"}
+                icon={t("icon_gavel") || "gavel"}
+                headerColorClass={isCommBanned ? 'text-[var(--danger)]' : undefined}
+              >
+                <SidePanelPillToggle
+                  label={t("identities_ban") || "Restrict Communications"}
+                  checked={isCommBanned}
+                  onChange={setIsCommBanned}
+                  icon={t("icon_gavel") || "gavel"}
+                  variant="danger"
+                />
 
                 {isCommBanned && (
-                  <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-10 mt-2">
-                    <label className="text-[9px] font-black text-red-400 capitalize tracking-widest ml-2 flex items-center gap-2">
-                      {t("ban_reason_req")}
-                    </label>
-                    <textarea
+                  <div className="animate-in fade-in slide-in-from-top-2 relative z-10 w-full mt-2">
+                    <UniversalTextArea
+                      label={t("ban_reason_req") || "Restriction Reason"}
                       value={editCommReason}
-                      onChange={e => setEditCommReason(e.target.value)}
-                      placeholder={t("id_reason_comm_ban")}
-                      className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] focus:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
+                      onChange={setEditCommReason}
+                      placeholder={t("id_reason_comm_ban") || "Enter reason for communications restriction..."}
+                      className="h-32 border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] focus:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] w-full text-[var(--danger)]"
                     />
                   </div>
                 )}
-              </div>
+              </UniversalGroup>
             )}
           </div>
         )}
@@ -273,13 +261,13 @@ export function SharedIdentityEditor({ profile, onClose, onUpdated, isWayfinder 
   );
 }
 
-export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initialFilterRole = "all" }: { isWayfinder?: boolean, isKeepers?: boolean, initialFilterRole?: string }) {
+export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initialFilterRole = "overview" }: { isWayfinder?: boolean, isKeepers?: boolean, initialFilterRole?: string }) {
   const { t } = useLexicon();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [blacklistedProfiles, setBlacklistedProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterRole, setFilterRole] = useState(initialFilterRole);
+  const [filterRole, setFilterRole] = useState(initialFilterRole === "all" ? "overview" : initialFilterRole);
 
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
 
@@ -303,7 +291,7 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
 
   const handleOpenPanel = (p: any) => {
     if (!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(p.role)) {
-      useStore.getState().pushStatus(t("auto_you_cannot_edit_45"));
+      useStore.getState().pushStatus(t("auto_you_cannot_edit_45") || "You cannot edit this identity.");
       return;
     }
     setSelectedProfile(p);
@@ -311,12 +299,17 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
 
   const filteredProfiles = profiles.filter(p => {
     const matchesSearch = p.username?.toLowerCase().includes(search.toLowerCase()) || p.id?.toLowerCase().includes(search.toLowerCase());
-    const matchesRole = filterRole === "all" || p.role === filterRole || (!p.role && filterRole === 'citizen');
+    const matchesRole = filterRole === "overview" || filterRole === "all" || p.role === filterRole || (!p.role && filterRole === 'citizen');
     return matchesSearch && matchesRole;
   });
 
   const tabs = [
-    { id: "all", label: t("landing_overview") || "Overview", icon: "dashboard" },
+    {
+      id: "overview",
+      label: t("landing_overview") || "Overview",
+      icon: "dashboard",
+      number: (profiles.length + blacklistedProfiles.length).toString()
+    },
     ...ROLES.filter(r => {
       if (isKeepers) return r === 'citizen';
       if (!isWayfinder) return !['oversight', 'wayfinder'].includes(r);
@@ -324,12 +317,98 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
     }).map(r => ({ 
       id: r, 
       label: r.replace(/_/g, ' ').toUpperCase(), 
-      icon: r === 'citizen' ? 'person' : r === 'mason' ? 'architecture' : r === 'architect' ? 'engineering' : 'admin_panel_settings' 
+      icon: r === 'citizen' ? 'person' : r === 'mason' ? 'architecture' : r === 'architect' ? 'engineering' : 'admin_panel_settings',
+      number: profiles.filter(p => p.role === r || (!p.role && r === 'citizen')).length.toString()
     })),
     ...(isKeepers ? [
-      { id: 'keeper', label: 'KEEPER', icon: "admin_panel_settings" }
+      {
+        id: 'keeper',
+        label: t("role_keeper") || 'KEEPER',
+        icon: "admin_panel_settings",
+        number: profiles.filter(p => p.role === 'keeper').length.toString()
+      }
     ] : [])
   ];
+
+  const renderIdentityCard = (p: any) => (
+    <UniversalCard
+      key={p.id}
+      onClick={() => handleOpenPanel(p)}
+      className={(!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(p.role)) ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
+      layout="horizontal"
+      icon="person"
+      title={p.username || t("vlocal") || "Unknown"}
+      subtitle={`${t("auto_id") || "ID:"} ${p.id.substring(0, 8)}`}
+      badges={[
+        <span key="role" className={getRoleBadgeStyle(p.role)}>
+          {t(`role_${(p.role || "citizen").toLowerCase()}`) || p.role || "CITIZEN"}
+        </span>
+      ]}
+    />
+  );
+
+  const renderBlacklistedCard = (p: any) => (
+    <UniversalCard
+      key={p.id}
+      onClick={() => handleOpenPanel(p)}
+      layout="horizontal"
+      icon="block"
+      statusColor="border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
+      className="!bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+      title={
+        <span className="text-[var(--danger)] transition-colors">
+          {p.username || t("vlocal") || "Unknown"}
+        </span>
+      }
+      subtitle={
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-mono text-[var(--danger)] opacity-60">{t("auto_id") || "ID:"} {p.id.substring(0, 8)}</span>
+          {p.is_banned && p.blacklist_reason && <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_upload") || "Upload: "}{p.blacklist_reason}"</span>}
+          {p.is_comm_banned && p.comm_blacklist_reason && <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_comms") || "Comms: "}{p.comm_blacklist_reason}"</span>}
+        </div>
+      }
+      badges={[
+        p.is_banned && (
+          <span key="upload" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+            {t("banned_upload") || "Upload Restricted"}
+          </span>
+        ),
+        p.is_comm_banned && (
+          <span key="comm" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+            {t("banned_comm") || "Comms Restricted"}
+          </span>
+        )
+      ]}
+    />
+  );
+
+  const renderLanding = () => (
+    <HubOverviewLanding>
+      <HubOverviewSection
+        icon="group"
+        iconColorClass="text-[var(--accent)]"
+        title={t("identities_active_title") || "Recent / Active Identities"}
+        isEmpty={profiles.length === 0}
+        emptyIcon={t("ui_icon_person_off") || "person_off"}
+        emptyTitle={t("no_profiles") || "No active profiles"}
+        gridClassName="grid grid-cols-1 gap-4"
+      >
+        {profiles.slice(0, 4).map((p: any) => renderIdentityCard(p))}
+      </HubOverviewSection>
+
+      <HubOverviewSection
+        icon="gavel"
+        iconColorClass="text-[var(--danger)]"
+        title={(t("banned_identities") || "Restricted / Blacklisted ({count})").replace("{count}", blacklistedProfiles.length.toString())}
+        isEmpty={blacklistedProfiles.length === 0}
+        emptyIcon="verified_user"
+        emptyTitle={t("no_issues") || "No restricted identities"}
+        gridClassName="grid grid-cols-1 gap-4"
+      >
+        {blacklistedProfiles.slice(0, 4).map((p: any) => renderBlacklistedCard(p))}
+      </HubOverviewSection>
+    </HubOverviewLanding>
+  );
 
   return (
     <ElevatedHubLayout
@@ -338,87 +417,24 @@ export function IdentityMatrix({ isWayfinder = false, isKeepers = false, initial
       headerIcon="group"
       search={search}
       onSearchChange={setSearch}
-      searchPlaceholder={t("identities_search") as string}
+      searchPlaceholder={(t("identities_search") || "Search identities...") as string}
+      hideSearch={filterRole === 'overview'}
       tabs={tabs}
       activeTab={filterRole}
       onTabChange={(id) => setFilterRole(id as string)}
-      
     >
-
-      <div className="p-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-8">
-        {loading ? (
-          <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("audit_fetching")}</div>
-        ) : (
-          <>
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                {filteredProfiles.length === 0 && <EmptyState icon={t("ui_icon_person_off")} title={t("no_profiles")} className="col-span-full py-16" />}
-                {filteredProfiles.map((p: any) => (
-                  <UniversalCard
-                    key={p.id}
-                    onClick={() => handleOpenPanel(p)}
-                    className={(!isWayfinder && !isKeepers && ['oversight', 'wayfinder'].includes(p.role)) ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
-                    layout="horizontal"
-                    icon="person"
-                    title={p.username || t("vlocal")}
-                    subtitle={`${t("auto_id")} ${p.id.substring(0, 8)}`}
-                    badges={[
-                      <span key="role" className={getRoleBadgeStyle(p.role)}>
-                        {t(`role_${(p.role || "citizen").toLowerCase()}`) || p.role || "CITIZEN"}
-                      </span>
-                    ]}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {blacklistedProfiles.length > 0 && !search && filterRole === 'all' && (
-              <div className="flex flex-col gap-4">
-                <h4 className="text-[10px] font-black text-red-500 capitalize tracking-widest flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_var(--danger)]"></span>
-                  {(t("banned_identities")).replace("{count}", blacklistedProfiles.length.toString())}
-                </h4>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                  {blacklistedProfiles.map((p: any) => (
-                    <UniversalCard
-                      key={p.id}
-                      onClick={() => handleOpenPanel(p)}
-                      layout="horizontal"
-                      icon="block"
-                      statusColor="border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
-                      className="!bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
-                      title={
-                        <span className="text-red-400 group-hover:text-red-300 transition-colors">
-                          {p.username || t("vlocal")}
-                        </span>
-                      }
-                      subtitle={
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-mono text-red-400 opacity-60">{t("auto_id")} {p.id.substring(0, 8)}</span>
-                          {p.is_banned && p.blacklist_reason && <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_upload")}{p.blacklist_reason}"</span>}
-                          {p.is_comm_banned && p.comm_blacklist_reason && <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-tight line-clamp-2 mt-2 italic flex-1">{t("auto_comms")}{p.comm_blacklist_reason}"</span>}
-                        </div>
-                      }
-                      badges={[
-                        p.is_banned && (
-                          <span key="upload" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-red-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
-                            {t("banned_upload")}
-                          </span>
-                        ),
-                        p.is_comm_banned && (
-                          <span key="comm" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-red-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
-                            {t("banned_comm")}
-                          </span>
-                        )
-                      ]}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {loading ? (
+        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("audit_fetching") || "Fetching identities..."}</div>
+      ) : filterRole === 'overview' ? (
+        renderLanding()
+      ) : (
+        <div className="flex flex-col gap-8 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+            {filteredProfiles.length === 0 && <EmptyState icon={t("ui_icon_person_off") || "person_off"} title={t("no_profiles") || "No profiles found"} className="col-span-full py-16" />}
+            {filteredProfiles.map((p: any) => renderIdentityCard(p))}
+          </div>
+        </div>
+      )}
       <SharedIdentityEditor profile={selectedProfile} onClose={() => setSelectedProfile(null)} onUpdated={fetchData} isWayfinder={isWayfinder} isKeepers={isKeepers} />
     </ElevatedHubLayout>
   );

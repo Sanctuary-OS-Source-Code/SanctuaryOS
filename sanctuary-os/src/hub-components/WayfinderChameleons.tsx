@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { SidePanel, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton } from '../shared';
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { supabase } from '../supabase';
@@ -161,26 +161,25 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
       activeTab={activeTab}
       onTabChange={setActiveTab}
       tabs={[
-        { id: 'overview', label: t("landing_overview") || "Overview", icon: "dashboard" },
-        { id: 'active', label: t("status_active") || "Active", icon: "check_circle" },
-        { id: 'inactive', label: t("status_inactive") || "Inactive", icon: "cancel" }
+        { id: 'overview', label: t("landing_overview") || "Overview", icon: "dashboard", number: Object.keys(cloudThemes).length.toString() },
+        { id: 'active', label: t("status_active") || "Active", icon: "check_circle", number: Object.values(cloudThemes).filter((th: any) => th.is_active !== false).length.toString() },
+        { id: 'inactive', label: t("status_inactive") || "Inactive", icon: "cancel", number: Object.values(cloudThemes).filter((th: any) => th.is_active === false).length.toString() }
       ]}
-      headerActions={
-        <div className="flex items-center gap-2">
-          <ActionButton
-            onClick={createNewTheme}
-            iconOnly={true}
-            icon="add"
-            label={t("auto_create")}
-          />
-          <ActionButton
-            onClick={fetchThemes}
-            iconOnly={true}
-            icon="refresh"
-            label={t("btn_refresh") || "Refresh"}
-            className={loading ? '*:animate-spin' : ''}
-          />
-        </div>
+      actions={
+        activeTab !== 'overview' ? [
+          {
+            id: "create",
+            icon: "add",
+            label: t("auto_create") || "Create",
+            onClick: createNewTheme
+          },
+          {
+            id: "refresh",
+            icon: "refresh",
+            label: t("btn_refresh") || "Refresh",
+            onClick: fetchThemes
+          }
+        ] : undefined
       }
     >
         {loading && Object.keys(cloudThemes).length === 0 ? (
@@ -188,13 +187,34 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
             <div className="w-12 h-12 border-4 border-[color-mix(in_srgb,var(--accent)_30%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
           </div>
         ) : activeTab === 'overview' ? (
-          <div className="flex flex-col items-center justify-center h-full opacity-50 py-20">
-            <span className="material-symbols-outlined text-6xl mb-4">palette</span>
-            <h2 className="text-xl font-black tracking-widest uppercase">{t("ui_chameleons") || "Chameleons"}</h2>
-            <p className="text-xs font-bold">{t("ui_chameleons_subtitle") || "Manage application themes"}</p>
-          </div>
+          <HubOverviewLanding>
+            <HubOverviewSection
+              icon="check_circle"
+              iconColorClass="text-[var(--success)]"
+              title={t("status_active") || "Active Themes"}
+              isEmpty={Object.entries(cloudThemes).filter(([, th]: any) => th.is_active !== false).length === 0}
+              emptyIcon="palette"
+              emptyTitle={t("no_themes") || "No Active Themes"}
+            >
+              {Object.entries(cloudThemes).filter(([, th]: any) => th.is_active !== false).slice(0, 4).map(([id, theme]: any) => (
+                <ThemeCard key={id} id={id} theme={theme} isCloud={true} onClick={() => openEditor(id)} />
+              ))}
+            </HubOverviewSection>
+            <HubOverviewSection
+              icon="cancel"
+              iconColorClass="text-[var(--warning)]"
+              title={t("status_inactive") || "Inactive Themes"}
+              isEmpty={Object.entries(cloudThemes).filter(([, th]: any) => th.is_active === false).length === 0}
+              emptyIcon="palette"
+              emptyTitle={t("no_themes") || "No Inactive Themes"}
+            >
+              {Object.entries(cloudThemes).filter(([, th]: any) => th.is_active === false).slice(0, 4).map(([id, theme]: any) => (
+                <ThemeCard key={id} id={id} theme={theme} isCloud={true} onClick={() => openEditor(id)} />
+              ))}
+            </HubOverviewSection>
+          </HubOverviewLanding>
         ) : Object.keys(cloudThemes).length === 0 ? (
-          <EmptyState icon="palette" title="No Cloud Themes" className="py-20" />
+          <EmptyState icon="palette" title={t("no_themes") || "No Cloud Themes"} className="py-20" />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
             {Object.entries(cloudThemes).filter(([id, theme]: any) => {

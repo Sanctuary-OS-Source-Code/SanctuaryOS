@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, GameVersionMultiSelect, CustomDatePicker, CustomComplianceDropdown, CustomClassificationDropdown, ActionButton, PanelHeaderGroup, PanelHeaderButton } from '../shared';
+import { SidePanelPillToggle } from '../components/universal/UniversalLayout';
 import { CustomStatusDropdown, CustomMasonDropdown } from '../ArchitectHub';
 
 export function SharedMetadataEditorSidePanel({
@@ -107,12 +108,6 @@ export function SharedMetadataEditorSidePanel({
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
-            icon="close"
-            tooltip={t("nav_cancel")}
-            disabled={isCommitting}
-            onClick={onClose}
-          />
-          <PanelHeaderButton
             icon="save"
             tooltip={isCommitting ? (t("dossier_btn_saving")) : (t("ui_btn_commit"))}
             variant="accent"
@@ -127,8 +122,8 @@ export function SharedMetadataEditorSidePanel({
           {t("ui_loading")}
         </div>
       ) : modForm._error ? (
-        <div className="flex flex-col items-center justify-center h-48 opacity-80 font-black tracking-widest text-red-400 text-[10px] capitalize gap-2 text-center">
-          <span className="material-symbols-outlined text-red-500">error</span>
+        <div className="flex flex-col items-center justify-center h-48 opacity-80 font-black tracking-widest text-[var(--danger)] text-[10px] capitalize gap-2 text-center">
+          <span className="material-symbols-outlined text-[var(--danger)]">error</span>
           <span>{t("err_load_meta")}</span>
           <span className="opacity-50 text-[8px] mt-2">ID: {modForm.id || "Unknown"}</span>
         </div>
@@ -199,29 +194,20 @@ export function SharedMetadataEditorSidePanel({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-            <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${modForm.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-              <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${modForm.is_paid ? 'text-yellow-500' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                <span className="material-symbols-outlined !text-[16px]">{t("icon_monetization_on")}</span>
-                {t("label_is_paid")}
-              </span>
-              <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${modForm.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_30%,transparent)] border border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${modForm.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
-                </div>
-              </div>
-              <input type="checkbox" checked={modForm.is_paid || false} onChange={e => setModForm({...modForm, is_paid: e.target.checked})} className="hidden" />
-            </label>
-
-            <label className={`w-full glass-panel rounded-2xl px-5 h-12 flex items-center justify-start cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${modForm.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-              <span className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${modForm.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                <span className="material-symbols-outlined !text-[16px]">{t("icon_science")}</span>
-                {t("label_is_early_access")}
-              </span>
-              <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${modForm.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${modForm.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
-                </div>
-              </div>
-              <input type="checkbox" checked={modForm.is_early_access || false} onChange={e => setModForm({...modForm, is_early_access: e.target.checked})} className="hidden" />
-            </label>
+            <SidePanelPillToggle
+              checked={modForm.is_paid || false}
+              onChange={(checked) => setModForm({ ...modForm, is_paid: checked })}
+              label={t("label_is_paid")}
+              icon={t("icon_monetization_on")}
+              variant="warning"
+            />
+            <SidePanelPillToggle
+              checked={modForm.is_early_access || false}
+              onChange={(checked) => setModForm({ ...modForm, is_early_access: checked })}
+              label={t("label_is_early_access")}
+              icon={t("icon_science")}
+              variant="accent"
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">

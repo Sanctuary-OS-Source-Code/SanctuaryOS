@@ -11,7 +11,7 @@ import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
 import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, ViewToggle, RadioCardGroup, RadioCard, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "../components/layouts/ElevatedHubLayout";
 import MasonPostCard from "../MasonPostCard";
 import MarkdownRenderer from "../MarkdownRenderer";
 import IconPicker from "../IconPicker";
@@ -55,7 +55,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
 
   const [filterAudience, setFilterAudience] = useState("All");
   const [filterCategory, setFilterCategory] = useState("All");
-  const [filterStatus, setFilterStatus] = useState("Active");
+  const [filterStatus, setFilterStatus] = useState("overview");
 
   const wayfinderDrafts = useStore(state => state.wayfinderDrafts);
   const setWayfinderDrafts = useStore(state => state.setWayfinderDrafts);
@@ -441,7 +441,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
         (p.message || p.content)?.toLowerCase().includes(searchTerm.toLowerCase());
       const audienceMatch = filterAudience === "All" || (p.target_audience && p.target_audience.includes(filterAudience));
       const categoryMatch = filterCategory === "All" || p.category === filterCategory;
-      const statusMatch = filterStatus === "All" || (filterStatus === "Active" ? p.is_active !== false : p.is_active === false);
+      const statusMatch = filterStatus === "overview" || filterStatus === "All" || (filterStatus === "Active" ? p.is_active !== false : p.is_active === false);
       return searchMatch && audienceMatch && categoryMatch && statusMatch;
     });
   }, [posts, searchTerm, filterAudience, filterCategory, filterStatus]);
@@ -489,18 +489,19 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
+      number: posts.length.toString(),
     },
     {
       id: "Active",
-      label: t("status_active"),
+      label: t("status_active") || "Active",
       icon: "cell_tower",
-      number: posts.filter(p => p.is_active !== false).length,
+      number: posts.filter(p => p.is_active !== false).length.toString(),
     },
     {
       id: "Inactive",
-      label: t("status_inactive"),
+      label: t("status_inactive") || "Inactive",
       icon: "portable_wifi_off",
-      number: posts.filter(p => p.is_active === false).length,
+      number: posts.filter(p => p.is_active === false).length.toString(),
     }
   ];
 
@@ -509,33 +510,29 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
     const inactivePosts = posts.filter(p => p.is_active === false);
 
     return (
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">cell_tower</span>
-              {t("recent_active_transmissions") || "Recent Active Transmissions"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {activePosts.slice(0, 10).map(renderPostCard)}
-            {activePosts.length === 0 && <EmptyState icon="feed" title={t("no_transmissions")} className="py-8" />}
-          </div>
-        </div>
+      <HubOverviewLanding>
+        <HubOverviewSection
+          icon="cell_tower"
+          iconColorClass="text-[var(--accent)]"
+          title={t("recent_active_transmissions") || "Recent Active Transmissions"}
+          isEmpty={activePosts.length === 0}
+          emptyIcon="feed"
+          emptyTitle={t("no_transmissions") || "No Transmissions"}
+        >
+          {activePosts.slice(0, 4).map(renderPostCard)}
+        </HubOverviewSection>
 
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)]">portable_wifi_off</span>
-              {t("recent_inactive_transmissions") || "Recent Inactive Transmissions"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {inactivePosts.slice(0, 10).map(renderPostCard)}
-            {inactivePosts.length === 0 && <EmptyState icon="feed" title={t("no_transmissions")} className="py-8" />}
-          </div>
-        </div>
-      </div>
+        <HubOverviewSection
+          icon="portable_wifi_off"
+          iconColorClass="text-[var(--subtext)]"
+          title={t("recent_inactive_transmissions") || "Recent Inactive Transmissions"}
+          isEmpty={inactivePosts.length === 0}
+          emptyIcon="feed"
+          emptyTitle={t("no_transmissions") || "No Transmissions"}
+        >
+          {inactivePosts.slice(0, 4).map(renderPostCard)}
+        </HubOverviewSection>
+      </HubOverviewLanding>
     );
   };
 
@@ -549,43 +546,49 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       search={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder={t("mason_search_placeholder")}
+      hideSearch={filterStatus === 'overview'}
       tabs={tabs}
       activeTab={filterStatus === 'overview' ? 'overview' : filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
-      headerActions={
-        <div className="flex items-center gap-2">
-            <CustomDropdown
-                flat={true}
-                variant="pill"
-                value={filterCategory}
-                onChange={(v: string[]) => setFilterCategory(v[0])}
-                options={[
+      primaryPopover={
+        filterStatus !== 'overview' ? {
+          icon: "tune",
+          label: t("filters") || "Filters",
+          content: (
+            <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "Category"}</span>
+                <CustomDropdown
+                  flat={true}
+                  variant="pill"
+                  disableTint={true}
+                  value={filterCategory}
+                  onChange={(v: string[]) => setFilterCategory(v[0])}
+                  options={[
                     { id: "All", label: t("all_classes") },
-                    ...(false ? [
-                        { id: "Game Issue", label: t("category_game_issue") },
-                        { id: "Mod Issue", label: t("category_mod_issue") },
-                        { id: "Game Version Alert", label: t("category_game_version_alert") },
-                        { id: "Malware Alert", label: t("category_malware_alert") },
-                        { id: "Artifact Alert", label: t("category_artifact_alert") }
-                    ] : [
-                        { id: "Update", label: t("comms_btn_update") },
-                        { id: "Info", label: t("category_info") },
-                        { id: "Event", label: t("category_event") },
-                        { id: "Alert", label: t("category_alert") },
-                        { id: "Game Version Alert", label: t("category_game_version_alert") },
-                        { id: "Malware Alert", label: t("category_malware_alert") },
-                        { id: "Artifact Alert", label: t("category_artifact_alert") }
-                    ])
-                ]}
-            />
-            <ActionButton
-                onClick={() => openEditor()}
-                iconOnly={true}
-                icon={t("icon_cell_tower")}
-                label={wayfinderDrafts['new'] ? t("action_unsaved_draft") : t("post_broadcast")}
-                variant={wayfinderDrafts['new'] ? "warning" : "default"}
-            />
-        </div>
+                    { id: "Update", label: t("comms_btn_update") },
+                    { id: "Info", label: t("category_info") },
+                    { id: "Event", label: t("category_event") },
+                    { id: "Alert", label: t("category_alert") },
+                    { id: "Game Version Alert", label: t("category_game_version_alert") },
+                    { id: "Malware Alert", label: t("category_malware_alert") },
+                    { id: "Artifact Alert", label: t("category_artifact_alert") }
+                  ]}
+                />
+              </div>
+            </div>
+          )
+        } : undefined
+      }
+      actions={
+        filterStatus !== 'overview' ? [
+          {
+            id: "post",
+            icon: t("icon_cell_tower") || "cell_tower",
+            label: wayfinderDrafts['new'] ? t("action_unsaved_draft") : t("post_broadcast"),
+            onClick: () => openEditor()
+          }
+        ] : undefined
       }
     >
       {filterStatus === 'overview' ? renderLanding() : (
@@ -631,7 +634,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                   isActive={isActive}
                 />
                 <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-2" />
-                {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? (
+                {Boolean((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
                   <PanelHeaderButton
                     onClick={handleDiscardChanges}
                     disabled={isSubmitting}
@@ -639,13 +642,6 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                     icon={confirmDiscard ? "warning" : "delete"}
                     variant="danger"
                     className={confirmDiscard ? "animate-pulse" : ""}
-                  />
-                ) : (
-                  <PanelHeaderButton
-                    onClick={closeEditor}
-                    disabled={isSubmitting}
-                    tooltip={t("nav_cancel")}
-                    icon="close"
                   />
                 )}
                 <PanelHeaderButton
@@ -662,35 +658,37 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
             <div className="flex flex-col gap-6">
 
               <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="flex flex-col gap-3 w-full mb-4">
-                  <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-70 ml-2">{t("trans_type")}</span>
+                <SidePanelTitleInput
+                  value={title}
+                  onChange={setTitle}
+                  placeholder={t("post_title") || "Title"}
+                />
+
+                <div className="flex flex-col gap-3 w-full mb-2">
+                  <span className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60 ml-2">{t("trans_type")}</span>
                   <RadioCardGroup>
                     <RadioCard
                       id="Dispatch"
                       activeValue={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
                       onChange={() => { setDeliveryMethod("Dispatch"); setIsUrgent(false); if (["System Alert", "Security Alert"].includes(category)) setCategory("Announcement"); }}
                       icon="feed"
-                      label="Dispatch"
+                      label={t("dispatch") || "Dispatch"}
                     />
                     <RadioCard
                       id="Alert"
                       activeValue={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
                       onChange={() => { setDeliveryMethod("Alert"); setIsUrgent(false); if (["Announcement", "Blog", "Press", "Update", "Maintenance"].includes(category)) setCategory("System Alert"); }}
                       icon="notifications"
-                      label="Standard Alert"
+                      label={t("standard_alert") || "Standard Alert"}
                     />
                     <RadioCard
                       id="UrgentAlert"
                       activeValue={deliveryMethod === "Dispatch" ? "Dispatch" : (isUrgent ? "UrgentAlert" : "Alert")}
                       onChange={() => { setDeliveryMethod("Alert"); setIsUrgent(true); if (["Announcement", "Blog", "Press", "Update", "Maintenance"].includes(category)) setCategory("System Alert"); }}
                       icon="notification_important"
-                      label="Urgent Alert"
+                      label={t("urgent_alert") || "Urgent Alert"}
                     />
                   </RadioCardGroup>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("post_title")}</label>
-                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
                 </div>
 
                 <div className="flex flex-col gap-2 w-full">
@@ -698,7 +696,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_description")}</label>
                     <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length} / 250</span>
                   </div>
-                  <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all w-full" />
+                  <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
 
                 <div className="flex gap-4 w-full">
@@ -714,11 +712,11 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                           true
                             ? communityOptions.map(name => ({ id: name, label: name }))
                             : [
-                              { id: "Citizens", label: "Citizens" },
-                              { id: "Masons", label: "Masons" },
-                              { id: "Architects", label: "Architects" },
-                              { id: "Oversight", label: "Oversight" },
-                              ...(!false ? [{ id: "Wayfinders", label: "Wayfinders" }] : [])
+                              { id: "Citizens", label: t("role_citizens") || "Citizens" },
+                              { id: "Masons", label: t("role_masons") || "Masons" },
+                              { id: "Architects", label: t("role_architects") || "Architects" },
+                              { id: "Oversight", label: t("role_oversight") || "Oversight" },
+                              ...(!false ? [{ id: "Wayfinders", label: t("role_wayfinders") || "Wayfinders" }] : [])
                             ]
                         }
                         placeholder={t("auto_select_audience")}
@@ -746,14 +744,14 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                             ]
                           ) : (
                             deliveryMethod === "Alert" ? [
-                              { id: "Alert", label: "Alert" },
+                              { id: "Alert", label: t("category_alert") || "Alert" },
                               { id: "Game Version Alert", label: t("category_game_version_alert") },
                               { id: "Malware Alert", label: t("category_malware_alert") },
                               { id: "Artifact Alert", label: t("category_artifact_alert") }
                             ] : [
-                              { id: "Update", label: "Update" },
-                              { id: "Info", label: "Info" },
-                              { id: "Event", label: "Event" }
+                              { id: "Update", label: t("comms_btn_update") || "Update" },
+                              { id: "Info", label: t("category_info") || "Info" },
+                              { id: "Event", label: t("category_event") || "Event" }
                             ]
                           )
                         }
@@ -765,7 +763,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("header_image_placeholder")}</label>
-                  <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
+                  <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
 
                 <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
@@ -813,7 +811,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                             }
                           }}
                           placeholder={t("image_url_placeholder")}
-                          className="flex-1 glass-surface rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] transition-all shadow-inner"
+                          className="flex-1 glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
                           autoFocus
                         />
                         <button
@@ -842,7 +840,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                           value={codeSnippet}
                           onChange={(e) => setCodeSnippet(e.target.value)}
                           placeholder={t("code_snippet_placeholder")}
-                          className="w-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-xl text-[var(--text)] p-4 text-xs font-mono placeholder-[var(--subtext)] outline-none h-48 custom-scrollbar focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)]"
+                          className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-xs font-mono placeholder-[var(--subtext)] focus:outline-none focus:theme-border-accent h-48 resize-none custom-scrollbar transition-all"
                           spellCheck={false}
                         />
                       </div>

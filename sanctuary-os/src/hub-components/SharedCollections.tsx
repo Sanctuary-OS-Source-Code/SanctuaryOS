@@ -7,7 +7,7 @@ import { EmptyState, SidePanel, CustomDropdown, CustomComplianceDropdown, standa
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction } from "../lib/audit";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "../components/layouts/ElevatedHubLayout";
 import { StatTileCarousel } from "../hub-components/SharedCommandScreenLayout";
 
 
@@ -78,9 +78,9 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
     fetchSets();
     setIsSaving(false);
     if (!error) {
-      useStore.getState().pushStatus(t("alert_saved"), "success");
+      useStore.getState().pushStatus(t("alert_saved") || "Saved", "success");
     } else {
-      useStore.getState().pushStatus(`${t("alert_error")} ${error.message}`, "error");
+      useStore.getState().pushStatus(`${t("alert_error") || "Error:"} ${error.message}`, "error");
     }
   };
 
@@ -105,9 +105,9 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
     fetchSets();
     setIsSaving(false);
     if (!err1 && !err2) {
-      useStore.getState().pushStatus(t("alert_deleted"), "success");
+      useStore.getState().pushStatus(t("alert_deleted") || "Deleted", "success");
     } else {
-      useStore.getState().pushStatus(`${t("alert_error")} ${err1?.message || err2?.message}`, "error");
+      useStore.getState().pushStatus(`${t("alert_error") || "Error:"} ${err1?.message || err2?.message}`, "error");
     }
   };
 
@@ -133,16 +133,16 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
   ];
 
   const renderLanding = () => {
+    const flaggedSets = sets.filter(s => s.status === 'corrupted' || s.status === 'unknown').slice(0, 4);
     return (
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--accent)]">history</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_activity") || "Recent Activity"}</h3>
-            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-          </div>
+      <HubOverviewLanding>
+        <HubOverviewSection
+          icon="history"
+          iconColorClass="text-[var(--accent)]"
+          title={t("title_recent_activity") || "Recent Activity"}
+        >
           {sets.length === 0 ? (
-            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent collections found</div>
+            <EmptyState icon="collections_bookmark" title={t("no_collections")} className="py-8" />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
               {sets.slice(0, 4).map(setItem => (
@@ -157,18 +157,17 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
               ))}
             </div>
           )}
-        </div>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--warning)]">warning</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_issues") || "Flags & Issues"}</h3>
-            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-          </div>
-          {sets.filter(s => s.status === 'corrupted' || s.status === 'unknown').length === 0 ? (
-            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No flagged collections found</div>
+        </HubOverviewSection>
+        <HubOverviewSection
+          icon="warning"
+          iconColorClass="text-[var(--warning)]"
+          title={t("title_issues") || "Flags & Issues"}
+        >
+          {flaggedSets.length === 0 ? (
+            <EmptyState icon="collections_bookmark" title={t("no_collections")} className="py-8" />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-              {sets.filter(s => s.status === 'corrupted' || s.status === 'unknown').slice(0, 4).map(setItem => (
+              {flaggedSets.map(setItem => (
                 <div key={setItem.id} className="w-full">
                   <VaultCard
                     setItem={setItem}
@@ -180,8 +179,8 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </HubOverviewSection>
+      </HubOverviewLanding>
     );
   };
 
@@ -189,7 +188,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
     return (
       <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 content-start pr-2">
-          {filteredSets.length === 0 && <EmptyState icon={t("icon_extension_off")} title={t("cc_no_sets")} className="col-span-full py-16" />}
+          {filteredSets.length === 0 && <EmptyState icon={t("icon_extension_off") || "extension_off"} title={t("cc_no_sets") || "No collections found"} className="col-span-full py-16" />}
           {filteredSets.map(setItem => (
             <div key={setItem.id} className="w-full max-w-[450px]">
               <VaultCard
@@ -211,7 +210,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
       headerIcon="collections_bookmark"
       search={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("search_ph") as string}
+      searchPlaceholder={(t("search_ph") || "Search collections...") as string}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
@@ -223,7 +222,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
           <div className="flex flex-col w-[300px] p-4 text-left">
             <div className="flex flex-col mb-5 w-full">
               <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                TIER
+                {t("registry_col_safety") || "TIER"}
               </div>
               <CustomDropdown disableTint={true} variant="pill" flat={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
             </div>
@@ -241,21 +240,19 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
         ] : undefined
       }
     >
-      <div className="h-full flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
-        {activeTab === 'overview' ? renderLanding() : renderList()}
-      </div>
+      {activeTab === 'overview' ? renderLanding() : renderList()}
 
       <SidePanel
         isOpen={isForgePanelOpen}
         onClose={() => setIsForgePanelOpen(false)}
-        title={t("forge_new_set")}
-        subtitle={t("create_subtitle")}
+        title={t("forge_new_set") || "New Collection"}
+        subtitle={t("create_subtitle") || "Create a new collection"}
         icon="add_circle"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon="add"
-              tooltip={t("forge_init_set")}
+              tooltip={t("forge_init_set") || "Create Collection"}
               onClick={handleCreateSet}
               disabled={!newSetName.trim()}
               variant="accent"
@@ -263,14 +260,17 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
           </PanelHeaderGroup>
         }
       >
-        <div className="flex flex-col h-full gap-8">
-          <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("forge_set_name")}</label>
-            <input value={newSetName} onChange={e => setNewSetName(e.target.value)} placeholder={t("forge_set_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+        <div className="flex flex-col h-full gap-6">
+          <div className="pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <SidePanelTitleInput
+              value={newSetName}
+              onChange={setNewSetName}
+              placeholder={t("forge_set_name") || "Collection Name"}
+            />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety") || "Compliance Tier"}</label>
             <CustomComplianceDropdown value={setTier} onChange={setSetTier} maxTier={4} />
           </div>
         </div>
@@ -279,21 +279,21 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
       <SidePanel
         isOpen={!!activeSet}
         onClose={() => setActiveSet(null)}
-        title={t("manage_collection")}
+        title={t("manage_collection") || "Manage Collection"}
         subtitle={`UUID: ${activeSet?.id}`}
         icon="library_books"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon="delete"
-              tooltip={t("btn_delete")}
+              tooltip={t("btn_delete") || "Delete"}
               onClick={handleDeleteSet}
               disabled={isSaving}
               variant="danger"
             />
             <PanelHeaderButton
               icon="save"
-              tooltip={isSaving ? (t("btn_saving")) : (t("cc_save_set"))}
+              tooltip={isSaving ? (t("btn_saving") || "Saving...") : (t("cc_save_set") || "Save")}
               onClick={handleSaveSetMeta}
               disabled={isSaving}
               variant="accent"
@@ -303,25 +303,24 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
       >
         {activeSet && (
           <div className="flex flex-col h-full gap-6">
-            <div className="flex flex-col gap-3 shrink-0 mb-4 mt-2">
-              <input
+            <div className="flex flex-col gap-3 shrink-0 mb-2 mt-2 pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+              <SidePanelTitleInput
                 value={activeSet.name || ""}
-                onChange={e => setActiveSet({ ...activeSet, name: e.target.value })}
-                placeholder={t("forge_set_name")}
-                className="bg-transparent text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] pb-1 w-full"
+                onChange={(val) => setActiveSet({ ...activeSet, name: val })}
+                placeholder={t("forge_set_name") || "Collection Name"}
               />
             </div>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url")}</label>
-                <input value={activeSet.image_url || ""} onChange={e => setActiveSet({ ...activeSet, image_url: e.target.value })} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url") || "Cover Image URL"}</label>
+                <input value={activeSet.image_url || ""} onChange={e => setActiveSet({ ...activeSet, image_url: e.target.value })} placeholder={t("cc_cover_url") || "Cover Image URL"} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
-                <input value={activeSet.url || ""} onChange={e => setActiveSet({ ...activeSet, url: e.target.value })} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url") || "External URL"}</label>
+                <input value={activeSet.url || ""} onChange={e => setActiveSet({ ...activeSet, url: e.target.value })} placeholder={t("external_url_placeholder") || "https://..."} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety") || "Compliance Tier"}</label>
                 <CustomComplianceDropdown value={activeSet.compliance_tier || 0} onChange={(val: number) => setActiveSet({ ...activeSet, compliance_tier: val })} maxTier={4} />
               </div>
               <div className="flex flex-col gap-2">
@@ -342,21 +341,21 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
             </div>
 
             <div className="flex flex-col gap-4 pb-12">
-              <h4 className="text-[11px] font-black theme-text-accent capitalize tracking-widest">{t("registry_assets_title")}</h4>
+              <h4 className="text-[11px] font-black theme-text-accent capitalize tracking-widest">{t("registry_assets_title") || "Included Assets"}</h4>
 
               <div className="relative z-[6000]">
-                <ActionPill searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchPlaceholder={t("link_search")} />
+                <ActionPill searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchPlaceholder={t("link_search") || "Search assets..."} />
 
                 {searchQuery.length >= 2 && (
                   <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
                     {myMods.filter(m => !members.some(mem => mem.mod_id === m.id) && m.name.toLowerCase().includes(searchQuery.toLowerCase())).map(m => (
                       <button type="button" key={m.id} onClick={() => { handleAddMod(m.id); setSearchQuery(""); }} className="w-full text-left px-5 py-3 hover:theme-panel-accent border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex justify-between items-center group transition-all shrink-0">
                         <span className="text-[10px] font-black text-[var(--text)] capitalize truncate">{m.name}</span>
-                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-0 group-hover:opacity-100 capitalize transition-all">{t("cc_btn_add")}</span>
+                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-0 group-hover:opacity-100 capitalize transition-all">{t("cc_btn_add") || "Add"}</span>
                       </button>
                     ))}
                     {myMods.filter(m => !members.some(mem => mem.mod_id === m.id) && m.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-                      <EmptyState icon={t("icon_search_off")} title={t("mason_cc_no_assets")} className="py-8" />
+                      <EmptyState icon={t("icon_search_off") || "search_off"} title={t("mason_cc_no_assets") || "No matching assets"} className="py-8" />
                     )}
                   </div>
                 )}
@@ -364,7 +363,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
 
               <div className="flex flex-col gap-2 mt-2">
                 <div className="flex items-center justify-between px-2">
-                  <span className="text-[9px] capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("cc_in_set")}</span>
+                  <span className="text-[9px] capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("cc_in_set") || "In Collection"}</span>
                   <span className="theme-text-accent font-black text-xs">{members.length}</span>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -381,7 +380,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
                     ))}
                   </div>
                   {members.length === 0 && (
-                    <EmptyState icon={t("icon_inventory_2")} title={t("cc_no_assets_in_set")} className="py-8" />
+                    <EmptyState icon={t("icon_inventory_2") || "inventory_2"} title={t("cc_no_assets_in_set") || "No assets in collection"} className="py-8" />
                   )}
                 </div>
               </div>
@@ -496,9 +495,9 @@ export function CollectionForge({ setStatus }: any) {
     if (!error) {
       logArchitectAction("Updated Collection Metadata", "collections", activeSet.name);
       await fetchSets();
-      if (setStatus) setStatus(`${t("icon_check_circle")} [${activeSet.name}] ${t("alert_saved")}`);
+      if (setStatus) setStatus(`${t("icon_check_circle") || "check_circle"} [${activeSet.name}] ${t("alert_saved") || "Saved"}`);
     } else {
-      if (setStatus) setStatus(`${t("icon_block")} ${t("alert_error")} ${t(error.message)}`);
+      if (setStatus) setStatus(`${t("icon_block") || "block"} ${t("alert_error") || "Error:"} ${t(error.message) || error.message}`);
     }
     setTimeout(() => setIsSaving(false), 500);
   };
@@ -557,6 +556,8 @@ export function CollectionForge({ setStatus }: any) {
     return s.name?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
+  const flaggedSets = sets.filter(s => s.status === 'corrupted' || s.status === 'unknown').slice(0, 4);
+
   return (
     <>
       <ElevatedHubLayout
@@ -566,7 +567,7 @@ export function CollectionForge({ setStatus }: any) {
       headerIconColorClass="theme-text-accent"
       search={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("search_queue")}
+      searchPlaceholder={(t("search_queue") || "Search collections...") as string}
       activeTab={filterTab}
       onTabChange={(tabId) => setFilterTab(tabId as any)}
       tabs={[
@@ -585,7 +586,7 @@ export function CollectionForge({ setStatus }: any) {
           <div className="flex flex-col w-[300px] p-4 text-left">
             <div className="flex flex-col mb-5 w-full">
               <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                TIER
+                {t("registry_col_safety") || "TIER"}
               </div>
               <CustomDropdown disableTint={true} variant="pill" flat={true} value={tierFilter} onChange={(v: string[]) => setTierFilter(v[0])} options={[{ id: "ALL", label: "ALL TIERS" }, { id: "0", label: "TIER 0" }, { id: "1", label: "TIER 1" }, { id: "2", label: "TIER 2" }]} />
             </div>
@@ -604,15 +605,14 @@ export function CollectionForge({ setStatus }: any) {
       }
     >
       {filterTab === 'overview' ? (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[var(--accent)]">history</span>
-              <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_activity") || "Recent Activity"}</h3>
-              <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-            </div>
+        <HubOverviewLanding>
+          <HubOverviewSection
+            icon="history"
+            iconColorClass="text-[var(--accent)]"
+            title={t("title_recent_activity") || "Recent Activity"}
+          >
             {sets.length === 0 ? (
-              <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent collections found</div>
+              <EmptyState icon="collections_bookmark" title={t("no_collections")} className="py-8" />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
                 {sets.slice(0, 4).map(setItem => (
@@ -627,18 +627,17 @@ export function CollectionForge({ setStatus }: any) {
                 ))}
               </div>
             )}
-          </div>
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[var(--warning)]">warning</span>
-              <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_issues") || "Flags & Issues"}</h3>
-              <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-            </div>
-            {sets.filter(s => s.status === 'corrupted' || s.status === 'unknown').length === 0 ? (
-              <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No flagged collections found</div>
+          </HubOverviewSection>
+          <HubOverviewSection
+            icon="warning"
+            iconColorClass="text-[var(--warning)]"
+            title={t("title_issues") || "Flags & Issues"}
+          >
+            {flaggedSets.length === 0 ? (
+              <EmptyState icon="collections_bookmark" title={t("no_collections")} className="py-8" />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                {sets.filter(s => s.status === 'corrupted' || s.status === 'unknown').slice(0, 4).map(setItem => (
+                {flaggedSets.map(setItem => (
                   <div key={setItem.id} className="w-full">
                     <VaultCard
                       setItem={setItem}
@@ -650,12 +649,12 @@ export function CollectionForge({ setStatus }: any) {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </HubOverviewSection>
+        </HubOverviewLanding>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 content-start">
           {filteredSets.length === 0 ? (
-            <EmptyState icon={searchTerm ? "search_off" : (t("icon_folder"))} title={searchTerm ? t("no_matches") : (t("no_vaults"))} className="col-span-full py-16" />
+            <EmptyState icon={searchTerm ? "search_off" : (t("icon_folder") || "folder")} title={searchTerm ? (t("no_matches") || "No matches") : (t("no_vaults") || "No collections")} className="col-span-full py-16" />
           ) : filteredSets.map(setItem => (
             <VaultCard
               key={setItem.id}
@@ -672,14 +671,14 @@ export function CollectionForge({ setStatus }: any) {
       <SidePanel
         isOpen={isForgePanelOpen}
         onClose={() => setIsForgePanelOpen(false)}
-        title={t("forge_new_set")}
-        subtitle={t("create_subtitle")}
+        title={t("forge_new_set") || "New Collection"}
+        subtitle={t("create_subtitle") || "Create a new collection"}
         icon="add_circle"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon="add"
-              tooltip={t("forge_init_set")}
+              tooltip={t("forge_init_set") || "Create Collection"}
               onClick={createSet}
               disabled={!setName.trim()}
               variant="accent"
@@ -687,32 +686,35 @@ export function CollectionForge({ setStatus }: any) {
           </PanelHeaderGroup>
         }
       >
-        <div className="flex flex-col h-full gap-8">
-          <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("forge_set_name")}</label>
-            <input value={setName} onChange={e => setSetName(e.target.value)} placeholder={t("forge_set_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+        <div className="flex flex-col h-full gap-6">
+          <div className="pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <SidePanelTitleInput
+              value={setName}
+              onChange={setSetName}
+              placeholder={t("forge_set_name") || "Collection Name"}
+            />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason") || "Mason"}</label>
             <div className="flex gap-2">
               <div className="flex-1">
                 <CustomMasonDropdown value={setMasonId} options={masonsList} onChange={setSetMasonId} />
               </div>
               <button onClick={() => setIsMasonPanelOpen(true)} className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px]">{t("icon_person_add")}</span>
+                <span className="material-symbols-outlined text-[18px]">{t("icon_person_add") || "person_add"}</span>
               </button>
             </div>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety") || "Compliance Tier"}</label>
             <CustomComplianceDropdown value={setTier} onChange={setSetTier} maxTier={4} />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
-            <input value={setSetUrl} onChange={e => setSetSetUrl(e.target.value)} placeholder={t("auto_https")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold opacity-80 focus:opacity-100 focus:outline-none focus:theme-border-accent transition-all" />
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url") || "External URL"}</label>
+            <input value={setSetUrl} onChange={e => setSetSetUrl(e.target.value)} placeholder={t("auto_https") || "https://..."} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold opacity-80 focus:opacity-100 focus:outline-none focus:theme-border-accent transition-all" />
           </div>
         </div>
       </SidePanel>
@@ -720,21 +722,21 @@ export function CollectionForge({ setStatus }: any) {
       <SidePanel
         isOpen={!!activeSet}
         onClose={() => setActiveSet(null)}
-        title={t("manage_collection")}
+        title={t("manage_collection") || "Manage Collection"}
         subtitle={`UUID: ${activeSet?.id}`}
         icon="library_books"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon="delete"
-              tooltip={t("btn_delete")}
+              tooltip={t("btn_delete") || "Delete"}
               onClick={handleDeleteSet}
               disabled={isSaving}
               variant="danger"
             />
             <PanelHeaderButton
               icon="save"
-              tooltip={isSaving ? (t("ui_loading")) : (t("cc_save_set"))}
+              tooltip={isSaving ? (t("ui_loading") || "Saving...") : (t("cc_save_set") || "Save")}
               onClick={saveSetMeta}
               disabled={isSaving}
               variant="accent"
@@ -744,31 +746,30 @@ export function CollectionForge({ setStatus }: any) {
       >
         {activeSet && (
           <div className="flex flex-col h-full gap-6">
-            <div className="flex flex-col gap-3 shrink-0 mb-4 mt-2">
-              <input
+            <div className="flex flex-col gap-3 shrink-0 mb-2 mt-2 pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+              <SidePanelTitleInput
                 value={activeSet.name || ""}
-                onChange={e => setActiveSet({ ...activeSet, name: e.target.value })}
-                placeholder={t("forge_set_name")}
-                className="bg-transparent text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] pb-1 w-full"
+                onChange={(val) => setActiveSet({ ...activeSet, name: val })}
+                placeholder={t("forge_set_name") || "Collection Name"}
               />
             </div>
             <div className="flex flex-col gap-4">
 
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason") || "Mason"}</label>
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <CustomMasonDropdown value={activeSet.mason_id || ""} options={masonsList} onChange={(val: string) => setActiveSet({ ...activeSet, mason_id: val })} />
                   </div>
                   <button onClick={() => setIsMasonPanelOpen(true)} className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-4 rounded-xl transition-colors shrink-0 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[18px]">{t("icon_person_add")}</span>
+                    <span className="material-symbols-outlined text-[18px]">{t("icon_person_add") || "person_add"}</span>
                   </button>
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_safety") || "Compliance Tier"}</label>
                 <CustomComplianceDropdown value={activeSet.compliance_tier || 0} onChange={(val: number) => setActiveSet({ ...activeSet, compliance_tier: val })} maxTier={4} />
               </div>
 
@@ -789,21 +790,21 @@ export function CollectionForge({ setStatus }: any) {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url")}</label>
-                <input value={activeSet.image_url || ""} onChange={e => setActiveSet({ ...activeSet, image_url: e.target.value })} placeholder={t("cc_cover_url")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url") || "Cover Image URL"}</label>
+                <input value={activeSet.image_url || ""} onChange={e => setActiveSet({ ...activeSet, image_url: e.target.value })} placeholder={t("cc_cover_url") || "Cover Image URL"} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
-                <input value={activeSet.url || ""} onChange={e => setActiveSet({ ...activeSet, url: e.target.value })} placeholder={t("external_url_placeholder")} className="w-full glass-surface rounded-xl px-4 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url") || "External URL"}</label>
+                <input value={activeSet.url || ""} onChange={e => setActiveSet({ ...activeSet, url: e.target.value })} placeholder={t("external_url_placeholder") || "https://..."} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
             </div>
 
             <div className="flex flex-col gap-4 pb-12">
-              <h4 className="text-[11px] font-black theme-text-accent capitalize tracking-widest">{t("registry_assets_title")}</h4>
+              <h4 className="text-[11px] font-black theme-text-accent capitalize tracking-widest">{t("registry_assets_title") || "Included Assets"}</h4>
 
               <div className="relative z-[6000]">
-                <ActionPill searchQuery={assetSearch} setSearchQuery={setAssetSearch} searchPlaceholder={t("forge_search_assets")} isLoading={isSearching} />
+                <ActionPill searchQuery={assetSearch} setSearchQuery={setAssetSearch} searchPlaceholder={t("forge_search_assets") || "Search assets..."} isLoading={isSearching} />
 
                 {assetSearch.length >= 2 && availableAssets.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
@@ -813,7 +814,7 @@ export function CollectionForge({ setStatus }: any) {
                           <span className="text-[10px] font-black text-[var(--text)] capitalize truncate">{asset.name}</span>
                           <span className="text-[8px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate">{asset.masons?.name || asset.master_author || "UNKNOWN"}</span>
                         </div>
-                        <span className="text-[9px] font-bold theme-text-accent opacity-0 group-hover:opacity-100 capitalize transition-all">{t("cc_btn_add")}</span>
+                        <span className="text-[9px] font-bold theme-text-accent opacity-0 group-hover:opacity-100 capitalize transition-all">{t("cc_btn_add") || "Add"}</span>
                       </button>
                     ))}
                   </div>
@@ -822,7 +823,7 @@ export function CollectionForge({ setStatus }: any) {
 
               <div className="flex flex-col gap-4 mt-2">
                 <div className="flex items-center justify-between px-2">
-                  <span className="text-[9px] capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("cc_in_set")}</span>
+                  <span className="text-[9px] capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("cc_in_set") || "In Collection"}</span>
                   <span className="theme-text-accent font-black text-xs">{manifestMembers.length}</span>
                 </div>
 
@@ -840,10 +841,7 @@ export function CollectionForge({ setStatus }: any) {
                 </div>
 
                 {manifestMembers.length === 0 && (
-                  <div className="w-full h-32 flex flex-col items-center justify-center opacity-40">
-                    <span className="text-3xl mb-2 grayscale"><span className="material-symbols-outlined shrink-0">{t("icon_science")}</span></span>
-                    <span className="text-[9px] font-black capitalize tracking-[0.2em]">{t("no_mods_found")}</span>
-                  </div>
+                  <EmptyState icon={t("icon_inventory_2") || "inventory_2"} title={t("no_mods_found") || "No assets in collection"} className="py-8" />
                 )}
               </div>
             </div>
@@ -854,23 +852,29 @@ export function CollectionForge({ setStatus }: any) {
       <SidePanel
         isOpen={isMasonPanelOpen}
         onClose={() => setIsMasonPanelOpen(false)}
-        title={t("create_title")}
+        title={t("create_title") || "Create Mason"}
         icon="person_add"
         widthClass="w-[450px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon="person_add"
-              tooltip={t("create_btn_create")}
+              tooltip={t("create_btn_create") || "Create Mason"}
               onClick={handleCreateMason}
+              disabled={!newMasonName.trim() || isCreatingMason}
               variant="accent"
             />
           </PanelHeaderGroup>
         }
       >
-        <div className="p-6">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason_name")}</label>
-          <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 h-12 mt-2 w-full text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+        <div className="flex flex-col gap-6">
+          <div className="pb-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <SidePanelTitleInput
+              value={newMasonName}
+              onChange={setNewMasonName}
+              placeholder={t("create_ph_name") || "Mason Name"}
+            />
+          </div>
         </div>
       </SidePanel>
 

@@ -506,18 +506,15 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as string)}
-      headerActions={
-        activeTab !== 'overview' ? (
-          <div className="flex items-center gap-2">
-            <ActionButton
-              onClick={() => openEditor()}
-              className="shrink-0 h-10 w-10 px-0"
-              icon={t("icon_cell_tower") || "cell_tower"}
-              iconOnly={true}
-              label={t("post_broadcast")}
-            />
-          </div>
-        ) : undefined
+      actions={
+        activeTab !== 'overview' ? [
+          {
+            id: "post",
+            icon: t("icon_cell_tower") || "cell_tower",
+            label: t("post_broadcast") || "Post Broadcast",
+            onClick: () => openEditor()
+          }
+        ] : undefined
       }
     >
       <div className="w-full flex flex-col gap-10 pb-32">

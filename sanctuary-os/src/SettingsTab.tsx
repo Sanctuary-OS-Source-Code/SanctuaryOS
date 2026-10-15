@@ -5,7 +5,8 @@ import { getVersion } from '@tauri-apps/api/app';
 import { open } from "@tauri-apps/plugin-dialog";
 import { useTheme } from "./ThemeContext";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, SidebarFooterButton } from './shared';
+import { ViewHeader, ActionButton, DashboardStatTile } from './shared';
+import { StatTileCarousel } from './hub-components/SharedCommandScreenLayout';
 import { useStore } from "./store";
 import { supabase } from "./supabase";
 
@@ -79,7 +80,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   const updateConfig = async (key: string, val: any) => {
     if (!config || !globalConfig) return;
-    const parsedVal = (key === 'engine_agency_level' || key === 'backup_preference' || key === 'defcon_backup_target' || key === 'engine_retention_cycles' || key === 'world_retention_cycles' || key === 'timeline_retention_copies' || key === 'timeline_retention_size_mb') ? parseInt(val) : val;
+    const parsedVal = (key === 'vault_capacity_gb' || key === 'engine_agency_level' || key === 'backup_preference' || key === 'defcon_backup_target' || key === 'engine_retention_cycles' || key === 'world_retention_cycles' || key === 'timeline_retention_copies' || key === 'timeline_retention_size_mb') ? parseInt(val) : val;
     
     const newConfig = { ...config, [key]: parsedVal };
     setConfig(newConfig);
@@ -117,23 +118,23 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     } catch (err) { useStore.getState().pushStatus(String(err), 'error'); }
   };
 
-  if (config === null) return <div className="p-12 font-black animate-pulse capitalize tracking-widest" style={{ color: currentTheme.accent }}>{t("booting")}</div>;
+  if (config === null) return <div className="p-12 font-black animate-pulse capitalize tracking-widest" style={{ color: currentTheme.accent }}>{t("booting") || "Booting..."}</div>;
 
   const pathMap = [
-    { rustKey: 'vault_path', label: t("vault_path"), value: config.vault_path, icon: t("icon_account_balance") },
-    { rustKey: 'mods_path', label: t("library_path"), value: config.mods_path, icon: t("icon_folder") },
-    { rustKey: 'live_path', label: t("setup_btn_bin"), value: config.live_path, icon: t("icon_push_pin") }
+    { rustKey: 'vault_path', label: t("vault_path") || "Vault Path", value: config.vault_path, icon: t("icon_account_balance") || "account_balance" },
+    { rustKey: 'mods_path', label: t("library_path") || "Library Path", value: config.mods_path, icon: t("icon_folder") || "folder" },
+    { rustKey: 'live_path', label: t("setup_btn_bin") || "Live Path", value: config.live_path, icon: t("icon_push_pin") || "push_pin" }
   ];
 
   let TABS = [
-    { id: 'CORE', icon: t("icon_account_circle"), label: t("tab_core") },
-    { id: 'ENGINE', icon: t("icon_history"), label: t("tab_engine") },
-    { id: 'CLIENT', icon: t("icon_tune"), label: t("tab_preferences") },
-    { id: 'NOTIFICATIONS', icon: t("icon_notifications"), label: t("tab_notifs") },
-    { id: 'AESTHETICS', icon: t("icon_format_paint"), label: t("tab_aesthetics") },
-    { id: 'LOGIC', icon: t("icon_flag"), label: t("tab_logic") }
+    { id: 'CORE', icon: t("icon_account_circle") || "account_circle", label: t("tab_core") || "Core" },
+    { id: 'ENGINE', icon: t("icon_history") || "history", label: t("tab_engine") || "Engine" },
+    { id: 'CLIENT', icon: t("icon_tune") || "tune", label: t("tab_preferences") || "Preferences" },
+    { id: 'NOTIFICATIONS', icon: t("icon_notifications") || "notifications", label: t("tab_notifs") || "Notifications" },
+    { id: 'AESTHETICS', icon: t("icon_format_paint") || "format_paint", label: t("tab_aesthetics") || "Aesthetics" },
+    { id: 'LOGIC', icon: t("icon_flag") || "flag", label: t("tab_logic") || "Logic" }
   ];
-  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull"), label: t("malware_btn") });
+  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull") || "skull", label: t("malware_btn") || "Nuclear Override" });
 
   if (!isDesktop()) {
     TABS = TABS.filter(t => ['CLIENT', 'AESTHETICS', 'NOTIFICATIONS', 'CORE'].includes(t.id));
@@ -144,53 +145,53 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
       <ViewHeader
-        title={t("settings_title")}
+        title={t("settings_title") || "Settings"}
+        breadcrumb={TABS.find(tab => tab.id === activeTab)?.label}
         icon="settings"
-        subtitle={t("settings_subtitle")}
+        subtitle={t("settings_subtitle") || "Configure system parameters and workspace preferences."}
         onSubtitleClick={() => setHackerClicks(prev => prev + 1)}
-      />
-
-      <HoverTabDrawer 
-        title={t("settings_title")} 
-        activeTab={activeTab} 
-        setTab={setActiveTab}
-        footer={
-          <>
-            <SidebarFooterButton
-              icon={t("icon_logout")}
-              label={t("btn_logout")}
-              variant="danger"
-              className="w-full"
-              onClick={async () => {
-                await supabase.auth.signOut();
-                window.location.reload();
-              }}
-            />
-            <div className="text-center text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50 mt-1">
-              {appVersion}
-            </div>
-          </>
-        }
       >
-        {TABS.map(tab => (
-          <VerticalTabButton
-            key={tab.id}
-            id={tab.id}
-            icon={tab.icon}
-            label={tab.label}
-            activeTab={activeTab}
-            setTab={setActiveTab}
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 px-3 py-1.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            {appVersion}
+          </span>
+          <ActionButton
+            icon={t("icon_logout") || "logout"}
+            label={t("btn_logout") || "Logout"}
+            variant="danger"
+            iconOnly={true}
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.reload();
+            }}
           />
-        ))}
-      </HoverTabDrawer>
+        </div>
+      </ViewHeader>
+
+      {TABS.length > 0 && (
+        <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+          <StatTileCarousel innerClassName="px-6 md:px-0">
+            {TABS.map(tab => (
+              <DashboardStatTile
+                key={tab.id}
+                variant="tab"
+                isActive={activeTab === tab.id}
+                icon={tab.icon}
+                label={tab.label}
+                onClick={() => setActiveTab(tab.id)}
+              />
+            ))}
+          </StatTileCarousel>
+        </div>
+      )}
 
       <div className="flex flex-col gap-4 relative">
         <div className="w-full relative">
           {activeTab === 'CORE' && <CoreTab config={config} updateConfig={updateConfig} pickPath={pickPath} pathMap={pathMap} />}
           {activeTab === 'ENGINE' && <EngineTab config={config} updateConfig={updateConfig} />}
           {activeTab === 'CLIENT' && <ClientTab />}
-          { activeTab === 'NOTIFICATIONS' && <NotificationsTab /> }
-          { activeTab === 'AESTHETICS' && <AestheticsTab config={config} /> }
+          {activeTab === 'NOTIFICATIONS' && <NotificationsTab />}
+          {activeTab === 'AESTHETICS' && <AestheticsTab config={config} />}
           {activeTab === 'LOGIC' && <LogicTab anarchyRules={anarchyRules} setAnarchyRules={setAnarchyRules} />}
           {activeTab === 'MALWARE' && <MalwareTab />}
         </div>

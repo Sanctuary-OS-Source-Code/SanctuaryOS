@@ -14,7 +14,7 @@ export default function EngineTab({ config, updateConfig }: any) {
         <SettingsGrid>
           <UniversalCard title={t("timeline_copies")} subtitle={t("timeline_copies_desc")} icon="content_copy">
             <CustomSettingsDropdown
-              value={config.timeline_retention_copies || 50}
+              value={config.timeline_retention_copies ?? 50}
               onChange={(val: any) => updateConfig('timeline_retention_copies', val)}
               options={[
                 { id: 10, label: t("timeline_10") },
@@ -26,7 +26,7 @@ export default function EngineTab({ config, updateConfig }: any) {
           </UniversalCard>
           <UniversalCard title={t("timeline_size")} subtitle={t("timeline_size_desc")} icon="hard_drive">
             <CustomSettingsDropdown
-              value={config.timeline_retention_size_mb || 100}
+              value={config.timeline_retention_size_mb ?? 100}
               onChange={(val: any) => updateConfig('timeline_retention_size_mb', val)}
               options={[
                 { id: 50, label: t("timeline_size_50") },
@@ -46,7 +46,7 @@ export default function EngineTab({ config, updateConfig }: any) {
         <SettingsGrid>
           <UniversalCard title={t("vault_capacity")} subtitle={t("vault_capacity_desc")} icon="inventory_2">
             <CustomSettingsDropdown
-              value={config.vault_capacity_gb || 0}
+              value={config.vault_capacity_gb ?? 0}
               onChange={(val: any) => updateConfig('vault_capacity_gb', val)}
               options={[
                 { id: 0, label: t("capacity_unlimited") },
@@ -59,7 +59,7 @@ export default function EngineTab({ config, updateConfig }: any) {
           </UniversalCard>
           <UniversalCard title={t("engine_agency")} subtitle={t("engine_agency_desc")} icon="memory">
             <CustomSettingsDropdown
-              value={config.engine_agency_level || 0}
+              value={config.engine_agency_level ?? 0}
               onChange={(val: any) => updateConfig('engine_agency_level', val)}
               options={[
                 { id: 0, label: t("agency_none") },
@@ -70,7 +70,7 @@ export default function EngineTab({ config, updateConfig }: any) {
           </UniversalCard>
           <UniversalCard title={t("defcon_target")} subtitle={t("defcon_target_desc")} icon="security">
             <CustomSettingsDropdown
-              value={config.defcon_backup_target || 0}
+              value={config.defcon_backup_target ?? 0}
               onChange={(val: any) => updateConfig('defcon_backup_target', val)}
               options={[
                 { id: 0, label: t("target_both") },
@@ -81,7 +81,7 @@ export default function EngineTab({ config, updateConfig }: any) {
           </UniversalCard>
           <UniversalCard title={t("engine_retention")} subtitle={t("engine_retention_desc")} icon="storage">
             <CustomSettingsDropdown
-              value={config.engine_retention_cycles || 5}
+              value={config.engine_retention_cycles ?? 5}
               onChange={(val: any) => updateConfig('engine_retention_cycles', val)}
               options={[
                 { id: 1, label: t("keep_1") },
@@ -94,7 +94,7 @@ export default function EngineTab({ config, updateConfig }: any) {
           </UniversalCard>
           <UniversalCard title={t("world_retention")} subtitle={t("world_retention_desc")} icon="public">
             <CustomSettingsDropdown
-              value={config.world_retention_cycles || 5}
+              value={config.world_retention_cycles ?? 5}
               onChange={(val: any) => updateConfig('world_retention_cycles', val)}
               options={[
                 { id: 1, label: t("keep_1") },

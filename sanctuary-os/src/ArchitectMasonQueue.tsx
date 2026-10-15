@@ -1,5 +1,6 @@
-import { ActionPill, FilterTabs, FilterTabButton, PillTabs, PillTabButton, HeaderActionPortal } from "./shared";
-import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
+import { ActionPill, FilterTabs, FilterTabButton, PillTabs, PillTabButton, HeaderActionPortal, PanelHeaderGroup, PanelHeaderButton } from "./shared";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "./components/layouts/ElevatedHubLayout";
+import { UniversalGroup } from "./components/universal/UniversalLayout";
 import React, { useState, useEffect } from "react";
 import { fetchAllPaginated } from "./shared";
 import { CustomClassificationDropdown } from "./hub-components/SharedRegistry";
@@ -92,14 +93,14 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
       setActiveMod(null);
       fetchData();
     } else {
-      if (setStatus) setStatus(`${t("icon_block")} ${t("err_save_failed")} ${t(error.message)}`);
+      if (setStatus) setStatus(`${t("icon_block") || "block"} ${t("err_save_failed") || "Save failed:"} ${t(error.message) || error.message}`);
     }
     setIsProcessing(false);
   };
 
   const handleReject = async () => {
     if (!activeMod) return;
-    const reason = prompt(t("prompt_reject_reason"));
+    const reason = prompt(t("prompt_reject_reason") || "Enter rejection reason:");
     if (reason === null) return;
     setIsProcessing(true);
 
@@ -113,7 +114,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
       setActiveMod(null);
       fetchData();
     } else {
-      if (setStatus) setStatus(`${t("icon_block")} ${t("err_save_failed")} ${t(error.message)}`);
+      if (setStatus) setStatus(`${t("icon_block") || "block"} ${t("err_save_failed") || "Save failed:"} ${t(error.message) || error.message}`);
     }
     setIsProcessing(false);
   };
@@ -122,7 +123,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     if (!s.mason_id) return false;
     if (filterTab === 'pending') return s.status === 'under_review';
     if (filterTab === 'completed') return s.status === 'verified' || s.status === 'unverified';
-    return true; // for overview, let's include all mason submissions
+    return true;
   });
   let filteredSubmissions = activeSubmissions.filter((s: any) => s.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -135,11 +136,15 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     return true;
   });
 
+  const pendingList = filteredSubmissions.filter(s => s.status === 'under_review');
+  const completedList = filteredSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified');
+
   const tabs = [
     {
       id: "overview",
       label: t("landing_overview") || "Overview",
-      icon: "dashboard"
+      icon: "dashboard",
+      number: submissions.filter(s => s.mason_id).length.toString()
     },
     {
       id: "pending",
@@ -155,6 +160,36 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     }
   ];
 
+  const renderLanding = () => (
+    <HubOverviewLanding>
+      <HubOverviewSection
+        icon="schedule"
+        iconColorClass="text-[var(--accent)]"
+        title={t("recent_pending") || "Recent Pending"}
+        isEmpty={pendingList.length === 0}
+        emptyIcon="check_circle"
+        emptyTitle={t("no_pending_masons") || "No pending submissions"}
+      >
+        {pendingList.slice(0, 4).map((mod: any) => (
+          <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view") || "View"} />
+        ))}
+      </HubOverviewSection>
+
+      <HubOverviewSection
+        icon="check_circle"
+        iconColorClass="text-[var(--success)]"
+        title={t("recent_completed") || "Recent Completed"}
+        isEmpty={completedList.length === 0}
+        emptyIcon="history"
+        emptyTitle={t("no_history") || "No history"}
+      >
+        {completedList.slice(0, 4).map((mod: any) => (
+          <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view") || "View"} />
+        ))}
+      </HubOverviewSection>
+    </HubOverviewLanding>
+  );
+
   return (
     <>
       <ElevatedHubLayout
@@ -164,50 +199,23 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
         headerIconColorClass="theme-text-accent"
         search={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={t("search_ph") as string}
+        searchPlaceholder={(t("search_ph") || "Search submissions...") as string}
         hideSearch={filterTab === 'overview'}
         activeTab={filterTab}
         onTabChange={(tabId: string) => setFilterTab(tabId as any)}
         tabs={tabs}
       >
         {loading ? (
-          <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("hub_loading")}</div>
+          <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("hub_loading") || "Loading..."}</div>
         ) : filterTab === 'overview' ? (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                <span className="material-symbols-outlined text-[var(--accent)]">schedule</span>
-                <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("recent_pending") || "Recent Pending"}</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                {filteredSubmissions.filter(s => s.status === 'under_review').slice(0, 4).length > 0 ? filteredSubmissions.filter(s => s.status === 'under_review').slice(0, 4).map((mod: any) => (
-                  <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view")} />
-                )) : (
-                  <EmptyState icon="check_circle" title={t("no_pending_masons") || "No pending submissions"} className="col-span-full py-8" />
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                <span className="material-symbols-outlined text-[var(--success)]">check_circle</span>
-                <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("recent_completed") || "Recent Completed"}</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                {filteredSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified').slice(0, 4).length > 0 ? filteredSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified').slice(0, 4).map((mod: any) => (
-                  <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view")} />
-                )) : (
-                  <EmptyState icon="history" title={t("no_history") || "No history"} className="col-span-full py-8" />
-                )}
-              </div>
-            </div>
-          </div>
+          renderLanding()
         ) : filteredSubmissions.length === 0 ? (
-          <EmptyState icon={t("icon_account_balance")} title={t("no_pending_masons")} className="col-span-full py-16" />
+          <EmptyState icon={t("icon_account_balance") || "account_balance"} title={t("no_pending_masons") || "No submissions found"} className="col-span-full py-16" />
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {filteredSubmissions.slice(0, visibleCount).map((mod: any) => (
-                <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view")} />
+                <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view") || "View"} />
               ))}
             </div>
             {filteredSubmissions.length > visibleCount && (
@@ -215,7 +223,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
                 onClick={() => setVisibleCount(v => v + 100)}
                 className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
               >
-                {t("ui_btn_load_more")} ({visibleCount} / {filteredSubmissions.length})
+                {t("ui_btn_load_more") || "Load More"} ({visibleCount} / {filteredSubmissions.length})
               </button>
             )}
           </div>
@@ -225,101 +233,93 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
       <SidePanel
         isOpen={!!activeMod}
         onClose={() => setActiveMod(null)}
-        title={t("registry_select_master")}
-        icon={t("icon_construction")}
+        title={t("registry_select_master") || "Review Submission"}
+        icon={t("icon_construction") || "construction"}
         subtitle={`UUID: ${activeMod?.id}`}
-        actions={
-          <>
-            <button onClick={handleReject} disabled={isProcessing} className={standardDangerButtonClass}>{t("registry_btn_sever")}</button>
-            <button onClick={handleApprove} disabled={isProcessing} className={standardSuccessButtonClass}>{isProcessing ? t("btn_saving") : t("ui_btn_approve")}</button>
-          </>
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="block"
+              variant="danger"
+              tooltip={t("registry_btn_sever") || "Reject"}
+              onClick={handleReject}
+              disabled={isProcessing}
+            />
+            <PanelHeaderButton
+              icon="check"
+              variant="success"
+              tooltip={isProcessing ? (t("btn_saving") || "Saving...") : (t("ui_btn_approve") || "Approve")}
+              onClick={handleApprove}
+              disabled={isProcessing}
+            />
+          </PanelHeaderGroup>
         }
       >
         {activeMod && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col h-full gap-8">
+            <SidePanelTitleInput
+              value={editForm.name || ""}
+              onChange={val => setEditForm({ ...editForm, name: val })}
+              placeholder={t("label_modname") || "Artifact Name"}
+              subtitle={t("label_modname") || "Artifact Name"}
+            />
 
-            <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
-              <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                {t("btn_view")}
-              </h4>
-
-              <div className="flex flex-col gap-2 relative z-10">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_modname")}</label>
-                <input value={editForm.name || ""} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+            <UniversalGroup title={t("btn_view") || "Classification"} icon={t("icon_info") || "info"}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason") || "Mason"}</label>
                   <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({ ...editForm, mason_id: id })} />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category") || "Category"}</label>
                   <CustomClassificationDropdown value={editForm.category_override} onChange={(newType: string) => setEditForm({ ...editForm, category_override: newType })} />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_file_ext")}</label>
-                  <input value={editForm.file_extension} onChange={e => setEditForm({ ...editForm, file_extension: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("ph_file_ext")} />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_file_ext") || "File Extension"}</label>
+                  <input value={editForm.file_extension} onChange={e => setEditForm({ ...editForm, file_extension: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext") || ".package"} />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_subcat")}</label>
-                  <input value={editForm.sub_type} onChange={e => setEditForm({ ...editForm, sub_type: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent bg-black/20" placeholder={t("auto_e_g_tuning_26")} />
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_subcat") || "Subcategory"}</label>
+                  <input value={editForm.sub_type} onChange={e => setEditForm({ ...editForm, sub_type: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26") || "e.g. Tuning"} />
                 </div>
               </div>
-            </div>
+            </UniversalGroup>
 
-            <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none " />
-              <h4 className="text-[10px] font-black text-emerald-400 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span>
-                {t("label_resources")}
-              </h4>
-
-              <div className="flex flex-col gap-2 relative z-10">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url")}</label>
-                <input value={editForm.url || ""} onChange={e => setEditForm({ ...editForm, url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--success)_50%,transparent)] bg-black/20" />
+            <UniversalGroup title={t("label_resources") || "Resources"} icon={t("icon_link") || "link"}>
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url") || "Source URL"}</label>
+                <input value={editForm.url || ""} onChange={e => setEditForm({ ...editForm, url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--success)_50%,transparent)]" />
               </div>
 
-              <div className="flex flex-col gap-2 relative z-10">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url")}</label>
-                <input value={editForm.image_url || ""} onChange={e => setEditForm({ ...editForm, image_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--success)_50%,transparent)] bg-black/20" />
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url") || "Cover Image URL"}</label>
+                <input value={editForm.image_url || ""} onChange={e => setEditForm({ ...editForm, image_url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--success)_50%,transparent)]" />
               </div>
 
-              <div className="flex flex-col gap-2 relative z-10">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc")}</label>
-                <textarea value={editForm.description || ""} onChange={e => setEditForm({ ...editForm, description: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-28 resize-none focus:outline-none focus:border-[color-mix(in_srgb,var(--success)_50%,transparent)] bg-black/20" />
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc") || "Description"}</label>
+                <textarea value={editForm.description || ""} onChange={e => setEditForm({ ...editForm, description: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-28 resize-none focus:outline-none focus:border-[color-mix(in_srgb,var(--success)_50%,transparent)] custom-scrollbar" />
               </div>
-            </div>
+            </UniversalGroup>
 
-            <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none " />
-              <h4 className="text-[10px] font-black text-purple-400 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                <span className="material-symbols-outlined !text-[14px]">{t("verified")}</span>
-                {t("compliance_tier")}
-              </h4>
-
-              <div className="flex flex-col gap-2 relative z-10">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("compliance_tier")}</label>
+            <UniversalGroup title={t("compliance_tier") || "Compliance & Compatibility"} icon={t("verified") || "verified"} className="pb-24">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("compliance_tier") || "Compliance Tier"}</label>
                 <CustomComplianceDropdown value={editForm.compliance_tier || 0} onChange={(val: number) => setEditForm({ ...editForm, compliance_tier: val })} maxTier={4} />
               </div>
 
-              <div className="flex flex-col gap-2 relative z-10">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_versions")}</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_versions") || "Compatible Game Versions"}</label>
                 <GameVersionMultiSelect selectedVersions={editForm.compatible_versions || []} onChange={(v: string[]) => setEditForm({ ...editForm, compatible_versions: v })} />
               </div>
-            </div>
-
+            </UniversalGroup>
           </div>
         )}
       </SidePanel>
     </>
-  )
+  );
 }
 
 

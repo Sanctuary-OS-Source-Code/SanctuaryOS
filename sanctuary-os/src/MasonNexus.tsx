@@ -10,7 +10,7 @@ import {
   HubTabButton, ModSearchDropdown, EmptyState,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton, formatOverviewMetric, PanelHeaderButton
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, LoadingScreen, ActionButton, formatOverviewMetric, PanelHeaderGroup, PanelHeaderButton
 } from "./shared";
 import { ArtifactCard, VaultCard } from "./Cards";
 import { UniversalCard } from "./components/universal/UniversalCard";
@@ -18,7 +18,7 @@ import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
 import { MasonStatusDropdown } from "./MasonHub";
 import { logArchitectAction } from "./lib/audit";
 
-import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "./components/layouts/ElevatedHubLayout";
 export function MasonNexus({ masonProfile }: { masonProfile: any }) {
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
@@ -257,39 +257,29 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
     };
 
     return (
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] text-[var(--success)] opacity-90 drop-shadow-lg">schedule</span>
-              </div>
-              {t("recent_assets")}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {recentAssets.length > 0 ? recentAssets.map(a => renderAssetCard(a, false)) : (
-              <EmptyState icon="storefront" title={t("market_no_assets")} className="py-8" />
-            )}
-          </div>
-        </div>
+      <HubOverviewLanding>
+        <HubOverviewSection
+          icon="schedule"
+          iconColorClass="text-[var(--success)]"
+          title={t("recent_assets") || "Recent Assets"}
+          isEmpty={recentAssets.length === 0}
+          emptyIcon="storefront"
+          emptyTitle={t("market_no_assets") || "No Assets Found"}
+        >
+          {recentAssets.map(a => renderAssetCard(a, false))}
+        </HubOverviewSection>
 
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--info)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px] text-[var(--info)] opacity-90 drop-shadow-lg">account_tree</span>
-              </div>
-              {t("recent_blueprints")}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {recentBlueprints.length > 0 ? recentBlueprints.map(a => renderAssetCard(a, true)) : (
-              <EmptyState icon="account_tree" title={t("market_no_blueprints")} className="py-8" />
-            )}
-          </div>
-        </div>
-      </div>
+        <HubOverviewSection
+          icon="account_tree"
+          iconColorClass="text-[var(--info)]"
+          title={t("recent_blueprints") || "Recent Blueprints"}
+          isEmpty={recentBlueprints.length === 0}
+          emptyIcon="account_tree"
+          emptyTitle={t("market_no_blueprints") || "No Blueprints Found"}
+        >
+          {recentBlueprints.map(a => renderAssetCard(a, true))}
+        </HubOverviewSection>
+      </HubOverviewLanding>
     );
   };
 
@@ -297,7 +287,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
     return (
       <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {filteredAssets.length === 0 ? (
-          <EmptyState icon={t("ui_icon_storefront")} title={t("market_no_assets")} className="col-span-full py-16" />
+          <EmptyState icon={t("ui_icon_storefront") || "storefront"} title={t("market_no_assets") || "No Assets Found"} className="col-span-full py-16" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {filteredAssets.map(asset => {
@@ -312,12 +302,12 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                   key={asset.id}
                   onClick={() => isBp ? null : handleEditAsset(asset)}
                   layout="horizontal"
-                  title={asset.name || "Untitled"}
+                  title={asset.name || (t("market_untitled") || "Untitled")}
                   statusColor={flagForAsset ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]"}
                   badges={[
                     flagForAsset ? (
                       <span key="badge-flag" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                        {t("flagged")}
+                        {t("flagged") || "Flagged"}
                       </span>
                     ) : null,
                     isHidden ? (
@@ -326,19 +316,19 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
                       </span>
                     ) : null,
                     <span key="type-badge" className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] rounded-md text-[8px] capitalize tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner shrink-0 font-black">
-                      {displayAssetType === 'chameleon' ? 'THEME' : displayAssetType === 'workbench_template' ? 'TEMPLATE' : displayAssetType === 'blueprint' ? 'BLUEPRINT' : 'LEXICON'}
+                      {displayAssetType === 'chameleon' ? (t("lex_theme") || 'THEME').toUpperCase() : displayAssetType === 'workbench_template' ? (t("lex_template") || 'TEMPLATE').toUpperCase() : displayAssetType === 'blueprint' ? (t("lex_blueprint") || 'BLUEPRINT').toUpperCase() : (t("lex_lexicon") || 'LEXICON').toUpperCase()}
                     </span>
                   ]}
                   icon={displayAssetType === 'chameleon' ? 'palette' : displayAssetType === 'workbench_template' ? 'draw' : displayAssetType === 'blueprint' ? 'account_tree' : 'translate'}
                   footer={
                     <div className="flex justify-start items-center w-full">
-                      <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_download")}</span> {asset.downloads || 0}</span>
+                      <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_download") || "download"}</span> {asset.downloads || 0}</span>
                     </div>
                   }
                 >
                   <div className="flex-1 mt-1">
                     <p className="text-[11px] font-mono text-[var(--subtext)] opacity-70 leading-relaxed whitespace-pre-wrap break-words line-clamp-2">
-                      {asset.description || "No description provided."}
+                      {asset.description || (t("market_no_desc") || "No description provided.")}
                     </p>
                   </div>
                 </UniversalCard>
@@ -356,7 +346,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
       headerIcon="hub"
       search={searchQuery}
       onSearchChange={setSearchQuery}
-      searchPlaceholder={(t("market_search")) as string}
+      searchPlaceholder={(t("market_search") || "Search...") as string}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
@@ -377,22 +367,22 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
         isOpen={uploadState.isOpen}
         onClose={() => setUploadState(s => ({ ...s, isOpen: false }))}
         title={uploadState.editId
-          ? (uploadState.assetType === 'blueprint' ? t("upload_blueprint_title") : t("upload_update_existing"))
+          ? (uploadState.assetType === 'blueprint' ? (t("upload_blueprint_title") || "Upload Blueprint") : (t("upload_update_existing") || "Update Asset"))
           : uploadState.assetType === 'lexicon'
-            ? (t("upload_lexicon_title"))
+            ? (t("upload_lexicon_title") || "Upload Lexicon")
             : uploadState.assetType === 'workbench_template'
-              ? (t("upload_template_title"))
-              : (t("upload_chameleon_title"))}
-        subtitle={uploadState.name || "Draft"}
+              ? (t("upload_template_title") || "Upload Template")
+              : (t("upload_chameleon_title") || "Upload Chameleon")}
+        subtitle={uploadState.name || (t("status_draft") || "Draft")}
         icon={uploadState.assetType === 'blueprint' ? "account_tree" : "cloud_upload"}
         headerActions={
-          <div className="flex items-center gap-2">
+          <PanelHeaderGroup>
             {uploadState.editId && uploadState.assetType !== 'blueprint' && (
               <PanelHeaderButton
                 icon={uploadState.isHidden ? "visibility" : "visibility_off"}
                 tooltip={uploadState.isHidden ? t("btn_show_asset") || "Publish Asset" : t("btn_hide_asset") || "Hide Asset"}
-                onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
-                  const newIsPublic = uploadState.isHidden; // if it's hidden, we want it to be public
+                onClick={async () => {
+                  const newIsPublic = uploadState.isHidden;
                   const { error } = await supabase.from('nexus_assets').update({ is_public: newIsPublic }).eq('id', uploadState.editId);
                   if (error) {
                     useStore.getState().pushStatus(`Failed to update asset visibility: ${error.message} ${error.details ? `(${error.details})` : ''}`, "error");
@@ -406,129 +396,121 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
             )}
             <PanelHeaderButton
               icon="cloud_upload"
-              tooltip={uploadState.editId ? (uploadState.isHidden ? (t("upload_btn_relink")) : (t("upload_btn_update"))) : (t("upload_btn_publish"))}
+              tooltip={uploadState.editId ? (uploadState.isHidden ? (t("upload_btn_relink") || "Relink") : (t("upload_btn_update") || "Update")) : (t("upload_btn_publish") || "Publish")}
               onClick={submitUpload}
               disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
               variant="accent"
             />
-          </div>
+          </PanelHeaderGroup>
         }
       >
         <div className="flex flex-col gap-6">
+          <SidePanelTitleInput
+            value={uploadState.name}
+            onChange={(val) => setUploadState(s => ({ ...s, name: val }))}
+            placeholder={
+              uploadState.assetType === 'lexicon'
+                ? (t("upload_lexicon_name") || "Lexicon Name")
+                : uploadState.assetType === 'workbench_template'
+                  ? (t("upload_template_name") || "Template Name")
+                  : uploadState.assetType === 'blueprint'
+                    ? (t("upload_blueprint_name") || "Blueprint Name")
+                    : (t("upload_chameleon_name") || "Chameleon Name")
+            }
+          />
+
           {uploadState.assetType !== 'workbench_template' && uploadState.assetType !== 'blueprint' && (
             <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_file")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_file") || "File"}</label>
               <div className="flex items-center gap-4">
-                <div className="flex-1 glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] truncate opacity-70">
-                  {uploadState.fileName || "No file selected"}
+                <div className="flex-1 glass-surface rounded-xl px-5 py-3 text-sm font-bold text-[var(--text)] truncate opacity-70">
+                  {uploadState.fileName || (t("no_file_selected") || "No file selected")}
                 </div>
-                {/* Replace button removed per OS flow restrictions */}
               </div>
             </div>
           )}
 
-          <div className="flex gap-4">
-            <div className="flex flex-col gap-2 flex-1">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                {uploadState.assetType === 'lexicon'
-                  ? (t("upload_lexicon_name"))
-                  : uploadState.assetType === 'workbench_template'
-                    ? (t("upload_template_name"))
-                    : uploadState.assetType === 'blueprint'
-                      ? (t("upload_blueprint_name"))
-                      : (t("upload_chameleon_name"))}
-              </label>
-              <input
-                type="text"
-                value={uploadState.name}
-                onChange={e => setUploadState(s => ({ ...s, name: e.target.value }))}
-                className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)]"
-              />
-            </div>
-            {uploadState.assetType !== 'blueprint' && (
-              <div className="flex flex-col gap-2 w-32 shrink-0">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_version")}</label>
+          {uploadState.assetType !== 'blueprint' && (
+            <>
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_version") || "Version"}</label>
                 <input
                   type="text"
                   value={uploadState.version}
                   onChange={e => setUploadState(s => ({ ...s, version: e.target.value }))}
-                  className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)] text-center"
+                  className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent"
                 />
               </div>
-            )}
-          </div>
 
-          {uploadState.assetType !== 'blueprint' && (
-            <>
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc") || "Description"}</label>
                 <textarea
                   value={uploadState.description}
                   onChange={e => setUploadState(s => ({ ...s, description: e.target.value }))}
-                  className="w-full glass-surface rounded-xl px-5 py-4 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[150px] text-[var(--text)] custom-scrollbar resize-none"
+                  className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent min-h-[150px] custom-scrollbar resize-none"
                 />
               </div>
 
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-2">
                   <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">campaign</span>
-                  {t("whats_new")}
+                  {t("whats_new") || "What's New"}
                 </label>
                 <textarea
                   value={uploadState.releaseNotes || ""}
                   onChange={e => setUploadState(s => ({ ...s, releaseNotes: e.target.value }))}
-                  placeholder={t("update_panel_no_notes")}
-                  className="w-full glass-surface rounded-xl px-5 py-4 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[100px] text-[var(--text)] custom-scrollbar resize-none"
+                  placeholder={t("update_panel_no_notes") || "Release notes..."}
+                  className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent min-h-[100px] custom-scrollbar resize-none"
                 />
               </div>
 
               {uploadState.assetType === 'workbench_template' && uploadState.fileContent && (
                 <div className="flex flex-col gap-4 p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] mt-2">
                   <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] flex items-center gap-2 mb-1">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                    {t("auto_detected_architecture")}
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_info") || "info"}</span>
+                    {t("auto_detected_architecture") || "Detected Architecture"}
                   </h4>
                   <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-[10px] font-mono">
                     {uploadState.fileContent.template_id && (
                       <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("auto_template_id")}</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_template_id") || "Template ID"}</span>
                         <span className="text-[var(--text)] font-black truncate">{uploadState.fileContent.template_id}</span>
                       </div>
                     )}
                     {uploadState.fileContent.schema_version && (
                       <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("auto_schema")}</span>
-                        <span className="text-[var(--text)] font-black">{t("auto_v")}{uploadState.fileContent.schema_version}</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_schema") || "Schema"}</span>
+                        <span className="text-[var(--text)] font-black">{t("auto_v") || "v"}{uploadState.fileContent.schema_version}</span>
                       </div>
                     )}
                     {uploadState.version && (
                       <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("update_version")}</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("update_version") || "Version"}</span>
                         <span className="text-[var(--text)] font-black">{uploadState.version}</span>
                       </div>
                     )}
                     {uploadState.fileContent.mod_author && (
                       <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("auto_mod_author")}</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_mod_author") || "Author"}</span>
                         <span className="text-[var(--text)] font-black truncate">{uploadState.fileContent.mod_author}</span>
                       </div>
                     )}
                     {uploadState.fileContent.parser_type && (
                       <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("auto_parser")}</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_parser") || "Parser"}</span>
                         <span className="text-[var(--text)] font-black capitalize">{uploadState.fileContent.parser_type}</span>
                       </div>
                     )}
                     {uploadState.fileContent.write_scope && (
                       <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("auto_write_scope")}</span>
+                        <span className="text-[var(--subtext)] opacity-60">{t("auto_write_scope") || "Write Scope"}</span>
                         <span className="text-[var(--text)] font-black capitalize truncate">{uploadState.fileContent.write_scope}</span>
                       </div>
                     )}
                   </div>
                   {uploadState.fileContent.supported_mod_versions && Array.isArray(uploadState.fileContent.supported_mod_versions) && uploadState.fileContent.supported_mod_versions.length > 0 && (
                     <div className="flex flex-col gap-2 mt-1 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                      <span className="text-[var(--subtext)] opacity-60 text-[9px] font-mono">{t("auto_supported_versions")}</span>
+                      <span className="text-[var(--subtext)] opacity-60 text-[9px] font-mono">{t("auto_supported_versions") || "Supported Versions"}</span>
                       <div className="flex flex-wrap gap-2">
                         {uploadState.fileContent.supported_mod_versions.map((v: string) => (
                           <span key={v} className="px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-md text-[9px] font-black text-[var(--text)]">{v}</span>
@@ -542,38 +524,36 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
               {uploadState.assetType === 'lexicon' && (
                 <>
                   <div className="flex flex-col gap-2 relative z-[60]">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("tab_lexicons")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("tab_lexicons") || "Lexicons"}</label>
                     <CustomDropdown disableTint={true}
                       value={uploadState.language}
                       onChange={(val: string[]) => setUploadState(s => ({ ...s, language: val[0] }))}
-
                       options={[
                         ...availableLanguages.map(l => ({ id: l, label: l })),
-                        { id: "add_new", label: t("upload_add_language") }
+                        { id: "add_new", label: t("upload_add_language") || "Add New Language" }
                       ]}
                     />
                   </div>
                   {uploadState.language === 'add_new' && (
                     <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_new_language")}</label>
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_new_language") || "New Language"}</label>
                       <input
                         type="text"
                         value={uploadState.newLanguage}
                         onChange={e => setUploadState(s => ({ ...s, newLanguage: e.target.value }))}
-                        className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
-                        placeholder={t("ph_language")}
+                        className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent"
+                        placeholder={t("ph_language") || "Language..."}
                       />
                     </div>
                   )}
                   <div className="flex flex-col gap-2 relative z-[50]">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("filter_type")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("filter_type") || "Type"}</label>
                     <CustomDropdown disableTint={true}
                       value={uploadState.lexiconType}
                       onChange={(val: string[]) => setUploadState(s => ({ ...s, lexiconType: val[0] }))}
-
                       options={[
-                        { id: "Theme", label: t("type_theme") },
-                        { id: "Default", label: t("type_default") }
+                        { id: "Theme", label: t("type_theme") || "Theme" },
+                        { id: "Default", label: t("type_default") || "Default" }
                       ]}
                     />
                   </div>
@@ -582,13 +562,13 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
 
               {uploadState.assetType === 'chameleon' && (
                 <div className="flex flex-col gap-2 relative z-[60]">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("filter_mode")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("filter_mode") || "Mode"}</label>
                   <CustomDropdown disableTint={true}
                     value={uploadState.themeMode}
                     onChange={(val: string[]) => setUploadState(s => ({ ...s, themeMode: val[0] }))}
                     options={[
-                      { id: "Dark", label: t("mode_dark") },
-                      { id: "Light", label: t("mode_light") }
+                      { id: "Dark", label: t("mode_dark") || "Dark" },
+                      { id: "Light", label: t("mode_light") || "Light" }
                     ]}
                   />
                 </div>

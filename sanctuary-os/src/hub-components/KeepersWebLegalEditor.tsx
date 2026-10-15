@@ -8,7 +8,7 @@ import { Markdown } from 'tiptap-markdown';
 import Link from '@tiptap/extension-link';
 import { SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton, HoverTooltip } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "../components/layouts/ElevatedHubLayout";
 import { logArchitectAction } from "../lib/audit";
 
 interface LegalDoc {
@@ -31,6 +31,7 @@ export default function KeepersWebLegalEditor() {
   // Editor State
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [docTitle, setDocTitle] = useState("");
   const [content, setContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const updateTimeoutRef = useRef<any>(null);
@@ -80,9 +81,17 @@ export default function KeepersWebLegalEditor() {
     fetchDocuments();
   }, []);
 
+  const getDefaultTitle = (category: string) => {
+    if (category === "EULA") return "End User License Agreement";
+    if (category === "Privacy") return "Privacy Policy";
+    if (category === "Terms") return "Terms of Service";
+    return category;
+  };
+
   const openEditor = (category: string) => {
     setActiveCategory(category);
     const existingDoc = docs[category];
+    setDocTitle(existingDoc?.title || getDefaultTitle(category));
     const text = existingDoc ? existingDoc.message : "";
     setContent(text);
     if (editor) {
@@ -94,6 +103,7 @@ export default function KeepersWebLegalEditor() {
   const closeEditor = () => {
     setIsEditorOpen(false);
     setActiveCategory(null);
+    setDocTitle("");
     setContent("");
     if (editor) editor.commands.setContent("");
   };
@@ -102,10 +112,7 @@ export default function KeepersWebLegalEditor() {
     if (!activeCategory || !content.trim()) return;
     setIsSaving(true);
     
-    let title = activeCategory;
-    if (activeCategory === "EULA") title = "End User License Agreement";
-    if (activeCategory === "Privacy") title = "Privacy Policy";
-    if (activeCategory === "Terms") title = "Terms of Service";
+    const title = docTitle.trim() || getDefaultTitle(activeCategory);
 
     const existingDoc = docs[activeCategory];
     const payload: any = {
@@ -120,13 +127,13 @@ export default function KeepersWebLegalEditor() {
       payload.id = existingDoc.id;
     }
 
-    const { data, error } = await supabaseAuth
+    const { error } = await supabaseAuth
       .from('keeper_system_broadcasts')
       .upsert(payload)
       .select();
 
     if (!error) {
-      useStore.getState().pushStatus("Legal Document Updated", 'success');
+      useStore.getState().pushStatus(t("legal_doc_updated") || "Legal Document Updated", 'success');
       await logArchitectAction("Updated Legal Doc", "keeper_system_broadcasts", title, undefined, "Keepers Core");
       fetchDocuments();
       closeEditor();
@@ -137,9 +144,9 @@ export default function KeepersWebLegalEditor() {
   };
 
   const docDefinitions = [
-    { id: 'EULA', label: 'EULA', icon: 'gavel', desc: t("desc_eula") || 'The legal contract between Sanctuary OS and the end user.' },
-    { id: 'Privacy', label: 'Privacy Policy', icon: 'policy', desc: t("desc_privacy") || 'Outlines how user data is collected, processed, and stored.' },
-    { id: 'Terms', label: 'Terms of Service', icon: 'description', desc: t("desc_terms") || 'The rules and regulations users must agree to in order to use the service.' }
+    { id: 'EULA', label: t("doc_eula") || 'EULA', icon: 'gavel', desc: t("desc_eula") || 'The legal contract between Sanctuary OS and the end user.' },
+    { id: 'Privacy', label: t("doc_privacy") || 'Privacy Policy', icon: 'policy', desc: t("desc_privacy") || 'Outlines how user data is collected, processed, and stored.' },
+    { id: 'Terms', label: t("doc_terms") || 'Terms of Service', icon: 'description', desc: t("desc_terms") || 'The rules and regulations users must agree to in order to use the service.' }
   ];
 
   const tabs = [
@@ -147,54 +154,84 @@ export default function KeepersWebLegalEditor() {
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
+      number: docDefinitions.length.toString(),
     }
   ];
 
   const [activeTab, setActiveTab] = useState<"overview">("overview");
+
+  const renderDocCard = (def: typeof docDefinitions[0]) => {
+    const doc = docs[def.id];
+    const lastUpdated = doc ? new Date(doc.created_at).toLocaleDateString() : (t("never") || 'Never');
+    return (
+      <UniversalCard
+        key={def.id}
+        title={doc?.title || def.label}
+        subtitle={`${t("last_updated") || "Last Updated"}: ${lastUpdated}`}
+        icon={def.icon}
+        isActive={!!doc}
+        onClick={() => openEditor(def.id)}
+        badges={[
+          <span
+            key="status"
+            className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest capitalize border ${
+              doc
+                ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_20%,transparent)]'
+                : 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]'
+            }`}
+          >
+            {doc ? (t("status_active") || "Published") : (t("status_tag_pending") || "Draft")}
+          </span>
+        ]}
+      >
+        <div className="text-sm opacity-70 leading-relaxed mt-2">
+          {def.desc}
+        </div>
+      </UniversalCard>
+    );
+  };
+
+  const renderLanding = () => {
+    const pendingDocs = docDefinitions.filter(def => !docs[def.id]);
+    return (
+      <HubOverviewLanding>
+        <HubOverviewSection
+          icon="gavel"
+          iconColorClass="text-[var(--accent)]"
+          title={t("legal_documents") || "Legal Documents"}
+          isEmpty={docDefinitions.length === 0}
+          emptyIcon="gavel"
+          emptyTitle={t("no_legal_docs") || "No Legal Documents"}
+        >
+          {docDefinitions.slice(0, 4).map(renderDocCard)}
+        </HubOverviewSection>
+
+        <HubOverviewSection
+          icon="warning"
+          iconColorClass="text-[var(--warning)]"
+          title={t("pending_legal_docs") || "Unconfigured / Draft Policies"}
+          isEmpty={pendingDocs.length === 0}
+          emptyIcon="check_circle"
+          emptyTitle={t("no_issues") || "All policies published"}
+        >
+          {pendingDocs.slice(0, 4).map(renderDocCard)}
+        </HubOverviewSection>
+      </HubOverviewLanding>
+    );
+  };
 
   return (
     <ElevatedHubLayout
       headerTitle={t("hub_legal_docs") || "Legal Documents"}
       headerSubtitle={t("hub_legal_docs_subtitle") || "Manage system-wide agreements and policies"}
       headerIcon="gavel"
-      headerIconColorClass="text-emerald-500"
+      headerIconColorClass="text-[var(--accent)]"
       hideSearch={activeTab === 'overview'}
-
       tabs={tabs}
-
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
     >
-      {activeTab === 'overview' && (
-        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">gavel</span>
-              {t("legal_documents") || "Legal Documents"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {docDefinitions.map(def => {
-              const doc = docs[def.id];
-              const lastUpdated = doc ? new Date(doc.created_at).toLocaleDateString() : 'Never';
-              return (
-                <UniversalCard
-                  key={def.id}
-                  title={def.label}
-                  subtitle={`Last Updated: ${lastUpdated}`}
-                  icon={def.icon}
-                  isActive={!!doc}
-                  onClick={() => openEditor(def.id)}
-                >
-                    <div className="text-sm opacity-70 leading-relaxed mt-2">
-                      {def.desc}
-                    </div>
-                </UniversalCard>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {activeTab === 'overview' && renderLanding()}
 
       <SidePanel
         isOpen={isEditorOpen}
@@ -207,7 +244,7 @@ export default function KeepersWebLegalEditor() {
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon="save"
-              label={isSaving ? (t("btn_saving") || "Saving...") : (t("btn_save_changes") || "Save Changes")}
+              tooltip={isSaving ? (t("btn_saving") || "Saving...") : (t("btn_save_changes") || "Save Changes")}
               onClick={handleSave}
               disabled={isSaving || !content.trim()}
               variant="accent"
@@ -215,8 +252,14 @@ export default function KeepersWebLegalEditor() {
           </PanelHeaderGroup>
         }
       >
-        <div className="h-full flex flex-col p-6 overflow-hidden">
-          <div className="flex-1 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden flex flex-col relative">
+        <div className="h-full flex flex-col gap-6 overflow-hidden">
+          <SidePanelTitleInput
+            value={docTitle}
+            onChange={setDocTitle}
+            placeholder={t("post_title") || "Document Title"}
+          />
+
+          <div className="flex-1 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden flex flex-col relative">
             <div className="shrink-0 sticky top-0 z-50 flex flex-col items-center p-3 bg-transparent pointer-events-none">
               <div className="relative flex flex-col items-center pointer-events-auto w-fit">
                 <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-[1.25rem] shadow-xl backdrop-blur-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]" style={{ backgroundColor: 'color-mix(in srgb, color-mix(in srgb, var(--text) 5%, var(--bg)) 85%, transparent)' }}>

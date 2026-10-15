@@ -4,9 +4,9 @@ import { useStore } from '../store';
 import { supabase } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { SidePanel, CustomDropdown, EmptyState, FilterTabs, FilterTabButton, HeaderActionPortal, ActionPill, DashboardStatTile } from "../shared";
+import { SidePanel, CustomDropdown, EmptyState } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { StatTileCarousel } from "./SharedCommandScreenLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
 
 interface Ticket {
   id: string;
@@ -255,202 +255,197 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     }
   };
 
+  const newCount = tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status).length;
+  const pendingCount = tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)).length;
+  const closedCount = tickets.filter(t => ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)).length;
+
   const tabs = [
     {
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
+      number: tickets.length.toString(),
     },
     {
       id: "new",
-      label: t("ui_tab_new"),
+      label: t("ui_tab_new") || "New",
       icon: "new_releases",
-      number: tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status)).length,
+      number: newCount.toString(),
+      colorClass: "text-[var(--danger)]",
     },
     {
       id: "pending",
-      label: t("ticket_tab_claimed") || t("pending"),
+      label: t("ticket_tab_claimed") || t("pending") || "Pending",
       icon: "pending_actions",
-      number: tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)).length,
+      number: pendingCount.toString(),
+      colorClass: "text-[var(--warning)]",
     },
     {
       id: "closed",
-      label: t("ui_tab_closed"),
+      label: t("ui_tab_closed") || "Closed",
       icon: "check_circle",
-      number: tickets.filter(t => ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)).length,
+      number: closedCount.toString(),
+      colorClass: "text-[var(--success)]",
     }
   ];
 
-  const renderTicketCard = (ticket: Ticket) => (
-    <UniversalCard
-      key={ticket.id}
-      onClick={() => setSelectedTicket(ticket)}
-      layout="vertical"
-      icon={ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'support_agent' : ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'done_all' : ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'warning' : ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' : 'bug_report'}
-      title={ticket.title}
-      statusColor={
-        ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'border-rose-500' :
-          ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'border-emerald-500' :
-            ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-amber-500' :
-              ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500' : undefined
-      }
-      badges={[
-        <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner transition-colors
-                    ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-rose-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : ''}
-                    ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-400 border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : ''}
-                    ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : ''}
-                    ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' : ''}
-                    ${!['new', 'open', 'closed', 'resolved', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
-                `}>
-          {(ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status.toLowerCase()}`) || ticket.status || "NEW")}
-        </span>,
-        (ticket.ticket_type || ticket.category) && (
-          <span key="category" className="px-2 py-1 rounded bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[color-mix(in_srgb,var(--text)_60%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-black capitalize tracking-widest whitespace-nowrap group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
-            {(ticket.ticket_type || ticket.category || "").replace(/_/g, ' ')}
-          </span>
-        )
-      ].filter(Boolean)}
-      footer={
-        <div className="flex justify-start items-center w-full">
-          <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
-            <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
-            {new Date(ticket.created_at).toLocaleDateString()}
-          </span>
-          <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
-            {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
-          </button>
-        </div>
-      }
-    >
-      <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity mt-4">
-        {ticket.description}
-      </p>
-    </UniversalCard>
-  );
-
-  const renderLanding = () => {
-    const newTickets = tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status));
-    const pendingTickets = tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status));
+  const renderTicketCard = (ticket: Ticket) => {
+    const statusLower = ticket.status?.toLowerCase() || 'new';
+    const isNew = statusLower === 'new' || statusLower === 'open';
+    const isClosed = statusLower === 'closed' || statusLower === 'resolved' || statusLower === 'rejected';
+    const isPending = statusLower === 'investigating' || statusLower === 'pending';
+    const isEscalated = statusLower === 'escalated';
 
     return (
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--danger)]">new_releases</span>
-              {t("recent_new_reports") || "Recent New"}
-            </h3>
+      <UniversalCard
+        key={ticket.id}
+        onClick={() => setSelectedTicket(ticket)}
+        layout="vertical"
+        icon={isNew ? 'support_agent' : isClosed ? 'done_all' : isPending ? 'warning' : isEscalated ? 'priority_high' : 'bug_report'}
+        title={ticket.title}
+        statusColor={
+          isNew ? 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)]' :
+            isClosed ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)]' :
+              isPending ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' :
+                isEscalated ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : undefined
+        }
+        badges={[
+          <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner transition-colors
+              ${isNew ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : ''}
+              ${isClosed ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : ''}
+              ${isPending ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : ''}
+              ${isEscalated ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
+              ${!isNew && !isClosed && !isPending && !isEscalated ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
+          `}>
+            {isNew ? (t("ui_tab_new") || "New") : (t(`ticket_status_${statusLower}`) || ticket.status || "NEW")}
+          </span>,
+          (ticket.ticket_type || ticket.category) && (
+            <span key="category" className="px-2 py-1 rounded bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[color-mix(in_srgb,var(--text)_60%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-black capitalize tracking-widest whitespace-nowrap group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
+              {(ticket.ticket_type || ticket.category || "").replace(/_/g, ' ')}
+            </span>
+          )
+        ].filter(Boolean)}
+        footer={
+          <div className="flex justify-between items-center w-full">
+            <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
+              <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
+              {new Date(ticket.created_at).toLocaleDateString()}
+            </span>
+            <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
+              {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
+            </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {newTickets.slice(0, 10).length > 0 ? newTickets.slice(0, 10).map(renderTicketCard) : (
-              <EmptyState icon="support_agent" title={t("no_bug_reports") || "No New Tickets"} className="py-8" />
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--warning)]">pending_actions</span>
-              {t("recent_pending") || "Recent Pending"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {pendingTickets.slice(0, 10).length > 0 ? pendingTickets.slice(0, 10).map(renderTicketCard) : (
-              <EmptyState icon="done_all" title={t("no_tickets") || "No Pending Tickets"} className="py-8" />
-            )}
-          </div>
-        </div>
-      </div>
+        }
+      >
+        <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity mt-4">
+          {ticket.description}
+        </p>
+      </UniversalCard>
     );
   };
 
+  const renderLanding = () => {
+    const newTickets = tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status);
+    const pendingTickets = tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status));
+
+    return (
+      <HubOverviewLanding>
+        <HubOverviewSection
+          title={t("recent_new_reports") || "Recent New"}
+          icon="new_releases"
+          iconColorClass="text-[var(--danger)]"
+          isEmpty={newTickets.length === 0}
+          emptyIcon="support_agent"
+          emptyTitle={t("no_bug_reports") || "No New Tickets"}
+        >
+          {newTickets.slice(0, 6).map(renderTicketCard)}
+        </HubOverviewSection>
+
+        <HubOverviewSection
+          title={t("recent_pending") || "Recent Pending"}
+          icon="pending_actions"
+          iconColorClass="text-[var(--warning)]"
+          isEmpty={pendingTickets.length === 0}
+          emptyIcon="done_all"
+          emptyTitle={t("no_tickets") || "No Pending Tickets"}
+        >
+          {pendingTickets.slice(0, 6).map(renderTicketCard)}
+        </HubOverviewSection>
+      </HubOverviewLanding>
+    );
+  };
+
+  const filteredTickets = tickets.filter(t => {
+    if (activeCategory !== "all") {
+      const tCat = t.ticket_type || t.category || "GENERAL";
+      if (tCat !== activeCategory) return false;
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!(t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q))) return false;
+    }
+
+    const isClaimedByMe = t.metadata?.claimed_by === currentUserId;
+    const isClaimedByOther = t.metadata?.claimed_by && !isClaimedByMe;
+
+    if (activeFilter === "new") {
+      if (!(['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status)) return false;
+      if (isClaimedByOther || isClaimedByMe) return false;
+    } else if (activeFilter === "pending") {
+      if (!(['NEW', 'OPEN', 'new', 'open', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status) || !t.status)) return false;
+      if (!isClaimedByMe && !['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)) return false;
+    } else if (activeFilter === "closed") {
+      if (!['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)) return false;
+    }
+
+    return true;
+  });
+
   return (
-    <div className="flex flex-col w-full relative h-full">
-      <HeaderActionPortal>
-        <ActionPill
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          searchPlaceholder={t("ui_placeholder_search") as string}
-          hideSearch={activeFilter === 'overview'}
-          primaryPopover={{
-            icon: "tune",
-            label: t("filters") || "Filters",
-            content: (
-              <div className="flex flex-col w-[300px] p-4 text-left">
-                <div className="flex flex-col mb-5 w-full">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                    CATEGORY
-                  </div>
-                  <CustomDropdown
-                    flat={true}
-                    variant="pill"
-                    value={activeCategory}
-                    onChange={(v: string[]) => setActiveCategory(v[0])}
-                    options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
-                    disableTint={true}
-                  />
-                </div>
+    <ElevatedHubLayout
+      search={searchQuery}
+      onSearchChange={setSearchQuery}
+      searchPlaceholder={t("ui_placeholder_search") as string}
+      hideSearch={activeFilter === 'overview'}
+      activeTab={activeFilter}
+      onTabChange={(id) => setActiveFilter(id as any)}
+      tabs={tabs}
+      primaryPopover={activeFilter !== 'overview' ? {
+        icon: "tune",
+        label: t("filters") || "Filters",
+        content: (
+          <div className="flex flex-col w-[300px] p-4 text-left">
+            <div className="flex flex-col mb-5 w-full">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                {t("category") || "Category"}
               </div>
-            )
-          }}
-        />
-      </HeaderActionPortal>
-
-      <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-        <StatTileCarousel innerClassName="px-6 md:px-0">
-          <DashboardStatTile variant="tab" isActive={activeFilter === 'overview'} icon="dashboard" label={t("landing_overview") || "Overview"} onClick={() => setActiveFilter('overview')} />
-          <DashboardStatTile variant="tab" isActive={activeFilter === 'new'} icon="new_releases" label={t("ui_tab_new") || "New"} number={tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status)).length} onClick={() => setActiveFilter('new')} />
-          <DashboardStatTile variant="tab" isActive={activeFilter === 'pending'} icon="pending_actions" label={t("ticket_tab_claimed") || t("pending")} number={tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)).length} onClick={() => setActiveFilter('pending')} />
-          <DashboardStatTile variant="tab" isActive={activeFilter === 'closed'} icon="check_circle" label={t("ui_tab_closed") || "Closed"} number={tickets.filter(t => ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)).length} onClick={() => setActiveFilter('closed')} />
-        </StatTileCarousel>
-      </div>
-
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 transition-all duration-500">
-        {activeFilter === 'overview' ? renderLanding() : (
-          <div className="flex flex-col gap-4">
-            {isLoading ? (
-              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting")}</div>
-            ) : (() => {
-              const filteredTickets = tickets.filter(t => {
-                if (activeCategory !== "all") {
-                  const tCat = t.ticket_type || t.category || "GENERAL";
-                  if (tCat !== activeCategory) return false;
-                }
-                if (searchQuery) {
-                  const q = searchQuery.toLowerCase();
-                  if (!(t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q))) return false;
-                }
-
-                const isClaimedByMe = t.metadata?.claimed_by === currentUserId;
-                const isClaimedByOther = t.metadata?.claimed_by && !isClaimedByMe;
-
-                if (activeFilter === "new") {
-                  if (!['NEW', 'OPEN', 'new', 'open'].includes(t.status)) return false;
-                  if (isClaimedByOther || isClaimedByMe) return false;
-                } else if (activeFilter === "pending") {
-                  if (!['NEW', 'OPEN', 'new', 'open', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)) return false;
-                  if (!isClaimedByMe) return false;
-                } else if (activeFilter === "closed") {
-                  if (!['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)) return false;
-                }
-
-                return true;
-              });
-
-              if (filteredTickets.length === 0) return (
-                <EmptyState icon={searchQuery ? "search_off" : t("icon_celebration")} title={searchQuery ? t("no_matches") : (activeFilter === 'new' ? t("no_bug_reports") : t("no_tickets"))} className="col-span-full py-16" />
-              );
-
-              return (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-                  {filteredTickets.map(renderTicketCard)}
-                </div>
-              );
-            })()}
+              <CustomDropdown
+                flat={true}
+                variant="pill"
+                value={activeCategory}
+                onChange={(v: string[]) => setActiveCategory(v[0])}
+                options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
+                disableTint={true}
+              />
+            </div>
           </div>
-        )}
-      </div>
+        )
+      } : undefined}
+    >
+      {isLoading ? (
+        <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting")}</div>
+      ) : activeFilter === 'overview' ? (
+        renderLanding()
+      ) : (
+        <HubListGrid
+          isEmpty={filteredTickets.length === 0}
+          emptyIcon={searchQuery ? "search_off" : t("icon_celebration")}
+          emptyTitle={searchQuery ? t("no_matches") : (activeFilter === 'new' ? t("no_bug_reports") : t("no_tickets"))}
+        >
+          {filteredTickets.map(renderTicketCard)}
+        </HubListGrid>
+      )}
+
       <TicketDossierSidePanel
         isOpen={!!selectedTicket}
         onClose={() => setSelectedTicket(null)}
@@ -467,7 +462,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
           fetchTickets();
         }}
       />
-    </div>
+    </ElevatedHubLayout>
   );
 }
 

@@ -204,18 +204,28 @@ export function AuditLogViewer({
         { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
         { id: "all", label: t("all_logs") || "All Logs", icon: "list", number: logs.length.toString() }
       ]}
-      headerActions={
-        filterAction !== 'overview' ? (
-          <div className="flex items-center gap-3 w-48 shrink-0 h-10 relative z-50">
-            <CustomDropdown disableTint={true} variant="pill"
-              value={filterAction === 'overview' ? 'ALL' : filterAction}
-              onChange={(v: string[]) => setFilterAction(v[0])}
-              options={filterOptions}
-              placeholder={t("auto_filter_logs") as string}
-              searchable={true}
-            />
-          </div>
-        ) : undefined
+      primaryPopover={
+        filterAction !== 'overview' ? {
+          icon: "tune",
+          label: t("filters") || "Filters",
+          content: (
+            <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("auto_filter_logs") || "Action Type"}</span>
+                <CustomDropdown
+                  flat={true}
+                  disableTint={true}
+                  variant="pill"
+                  value={filterAction === 'overview' ? 'ALL' : filterAction}
+                  onChange={(v: string[]) => setFilterAction(v[0])}
+                  options={filterOptions}
+                  placeholder={t("auto_filter_logs") as string}
+                  searchable={true}
+                />
+              </div>
+            </div>
+          )
+        } : undefined
       }
     >
       {filterAction === 'overview' ? (

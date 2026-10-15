@@ -11,7 +11,7 @@ import {
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
   fetchAllPaginated, CustomTierDropdown, loadDLCMap
 } from "../shared";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -172,41 +172,87 @@ export function GameManagementOversight() {
       searchPlaceholder={activeTab === 'versions' ? "Search Patches..." : "Search DLC..."}
       hideSearch={activeTab === 'overview'}
       tabs={[
-        { id: 'overview', label: t("landing_overview") || "Overview", icon: "dashboard" },
-        { id: 'versions', label: t("sa_game_versions") || "Game Versions", icon: "gamepad" },
-        { id: 'dlc', label: t("dlc_registry") || "DLC Registry", icon: "extension" }
+        { id: 'overview', label: t("landing_overview") || "Overview", icon: "dashboard", number: (versions.length + dlcs.length).toString() },
+        { id: 'versions', label: t("sa_game_versions") || "Game Versions", icon: "gamepad", number: versions.length.toString() },
+        { id: 'dlc', label: t("dlc_registry") || "DLC Registry", icon: "extension", number: dlcs.length.toString() }
       ]}
       activeTab={activeTab}
       onTabChange={setActiveTab as any}
-      headerActions={
-        <div className="flex items-center gap-2">
-          {activeTab === 'dlc' && (
-            <CustomDropdown
-              flat={true}
-              variant="pill"
-              disableTint={true}
-              value={dlcTypeFilter}
-              onChange={(v: string[]) => setDlcTypeFilter(v[0])}
-              options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? "ALL TYPES" : x }))}
-            />
-          )}
-          <ActionButton
-            onClick={() => openPanel(activeTab === 'versions' ? 'add_version' : 'add_dlc')}
-            iconOnly={true}
-            icon={t("icon_add")}
-            label={activeTab === 'versions' ? "REGISTER PATCH" : `REGISTER DLC`}
-          />
-        </div>
+      primaryPopover={
+        activeTab === 'dlc' ? {
+          icon: "tune",
+          label: t("filters") || "Filters",
+          content: (
+            <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "DLC Type"}</span>
+                <CustomDropdown
+                  flat={true}
+                  variant="pill"
+                  disableTint={true}
+                  value={dlcTypeFilter}
+                  onChange={(v: string[]) => setDlcTypeFilter(v[0])}
+                  options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? (t("ui_tab_all_types") || "All Types") : x }))}
+                />
+              </div>
+            </div>
+          )
+        } : undefined
+      }
+      actions={
+        activeTab !== 'overview' ? [
+          {
+            id: "register",
+            icon: t("icon_add") || "add",
+            label: activeTab === 'versions' ? (t("btn_register_patch_naked") || "Register Patch") : (t("panel_add_dlc") || "Register DLC"),
+            onClick: () => openPanel(activeTab === 'versions' ? 'add_version' : 'add_dlc')
+          }
+        ] : undefined
       }
     >
       <div className="flex flex-col gap-8">
 
         {activeTab === 'overview' && (
-          <div className="flex flex-col items-center justify-center h-full opacity-50 py-20">
-            <span className="material-symbols-outlined text-6xl mb-4">settings</span>
-            <h2 className="text-xl font-black tracking-widest uppercase">{t("tab_game_versions") || "Game Versions"}</h2>
-            <p className="text-xs font-bold">{t("game_management_subtitle") || "Manage patches, versions, and DLCs"}</p>
-          </div>
+          <HubOverviewLanding>
+            <HubOverviewSection
+              icon="gamepad"
+              iconColorClass="text-[var(--accent)]"
+              title={t("sa_game_versions") || "Game Versions"}
+              isEmpty={versions.length === 0}
+              emptyIcon="gamepad"
+              emptyTitle={t("no_versions") || "No Game Versions"}
+            >
+              {versions.slice(0, 4).map(v => (
+                <UniversalCard
+                  key={v.version}
+                  onClick={() => openPanel('edit_version', v.version)}
+                  layout="vertical"
+                  icon="gamepad"
+                  title={v.version}
+                  subtitle={t("patch_release")}
+                />
+              ))}
+            </HubOverviewSection>
+            <HubOverviewSection
+              icon="extension"
+              iconColorClass="text-[var(--success)]"
+              title={t("dlc_registry") || "DLC Registry"}
+              isEmpty={dlcs.length === 0}
+              emptyIcon="extension"
+              emptyTitle={t("no_dlc") || "No DLC Packs"}
+            >
+              {dlcs.slice(0, 4).map(d => (
+                <UniversalCard
+                  key={d.id}
+                  onClick={() => openPanel('edit_dlc', d)}
+                  layout="vertical"
+                  icon="extension"
+                  title={d.name}
+                  subtitle={d.id}
+                />
+              ))}
+            </HubOverviewSection>
+          </HubOverviewLanding>
         )}
 
         {activeTab === 'versions' && (

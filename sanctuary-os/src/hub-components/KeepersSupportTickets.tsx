@@ -6,7 +6,7 @@ import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
 import { SidePanel, CustomDropdown, standardAccentGlassButtonClass, EmptyState, FilterTabs, FilterTabButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 
 interface Ticket {
   id: string;
@@ -187,17 +187,17 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
       icon={ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'support_agent' : ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'done_all' : ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'warning' : ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' : 'bug_report'}
       title={ticket.title}
       statusColor={
-        ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'border-rose-500' :
-        ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'border-emerald-500' :
-        ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-amber-500' :
-        ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500' : undefined
+        ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'border-[var(--danger)]' :
+        ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'border-[var(--success)]' :
+        ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-[var(--warning)]' :
+        ticket.status?.toLowerCase() === 'escalated' ? 'border-[var(--accent)]' : undefined
       }
       badges={[
         <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner transition-colors
-                    ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-rose-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : ''}
-                    ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-400 border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : ''}
-                    ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : ''}
-                    ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' : ''}
+                    ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : ''}
+                    ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : ''}
+                    ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : ''}
+                    ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
                     ${!['new', 'open', 'closed', 'resolved', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
                 `}>
           {(ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status.toLowerCase()}`) || ticket.status || "NEW")}
@@ -227,39 +227,31 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
   );
 
   const renderLanding = () => {
-    const newTickets = tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status));
+    const newTickets = tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status);
     const pendingTickets = tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status));
 
     return (
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--danger)]">new_releases</span>
-              {t("recent_new_reports") || "Recent New"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {newTickets.slice(0, 10).length > 0 ? newTickets.slice(0, 10).map(renderTicketCard) : (
-              <EmptyState icon="support_agent" title={t("no_bug_reports") || "No New Tickets"} className="py-8" />
-            )}
-          </div>
-        </div>
+      <HubOverviewLanding>
+        <HubOverviewSection
+          title={t("recent_new_reports") || "Recent New"}
+          icon="new_releases"
+          iconColorClass="text-[var(--danger)]"
+          isEmpty={newTickets.length === 0}
+          emptyState={<EmptyState icon="support_agent" title={t("no_bug_reports") || "No New Tickets"} className="py-8" />}
+        >
+          {newTickets.slice(0, 4).map(renderTicketCard)}
+        </HubOverviewSection>
 
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--warning)]">pending_actions</span>
-              {t("recent_pending") || "Recent Pending"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {pendingTickets.slice(0, 10).length > 0 ? pendingTickets.slice(0, 10).map(renderTicketCard) : (
-              <EmptyState icon="done_all" title={t("no_tickets") || "No Pending Tickets"} className="py-8" />
-            )}
-          </div>
-        </div>
-      </div>
+        <HubOverviewSection
+          title={t("recent_pending") || "Recent Pending"}
+          icon="pending_actions"
+          iconColorClass="text-[var(--warning)]"
+          isEmpty={pendingTickets.length === 0}
+          emptyState={<EmptyState icon="done_all" title={t("no_tickets") || "No Pending Tickets"} className="py-8" />}
+        >
+          {pendingTickets.slice(0, 4).map(renderTicketCard)}
+        </HubOverviewSection>
+      </HubOverviewLanding>
     );
   };
 
@@ -268,24 +260,25 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
+      number: tickets.length.toString(),
     },
     {
       id: "new",
       label: t("ui_tab_new"),
       icon: "new_releases",
-      number: tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status)).length,
+      number: tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status).length.toString(),
     },
     {
       id: "pending",
       label: t("ticket_tab_claimed") || t("pending"),
       icon: "pending_actions",
-      number: tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)).length,
+      number: tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)).length.toString(),
     },
     {
       id: "closed",
       label: t("ui_tab_closed"),
       icon: "check_circle",
-      number: tickets.filter(t => ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)).length,
+      number: tickets.filter(t => ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)).length.toString(),
     }
   ];
 
@@ -294,7 +287,7 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
       headerTitle={t("hub_title_tickets") || "Support Tickets"}
       headerSubtitle={t("hub_subtitle_tickets") || "Manage and resolve citizen support requests."}
       headerIcon="support_agent"
-      headerIconColorClass="text-emerald-500"
+      headerIconColorClass="text-[var(--accent)]"
       search={searchQuery}
       onSearchChange={setSearchQuery}
       searchPlaceholder={t("ui_placeholder_search")}
@@ -303,17 +296,26 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
 
       activeTab={activeFilter}
       onTabChange={(id) => setActiveFilter(id as any)}
-      headerActions={
-        <div className="flex items-center gap-2">
-          <CustomDropdown
-            flat={true}
-            variant="pill"
-            value={activeCategory}
-            onChange={(v: string[]) => setActiveCategory(v[0])}
-            options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
-            disableTint={true}
-          />
-        </div>
+      primaryPopover={
+        activeFilter !== 'overview' ? {
+          icon: "tune",
+          label: t("filters") || "Filters",
+          content: (
+            <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "Category"}</span>
+                <CustomDropdown
+                  flat={true}
+                  variant="pill"
+                  value={activeCategory}
+                  onChange={(v: string[]) => setActiveCategory(v[0])}
+                  options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
+                  disableTint={true}
+                />
+              </div>
+            </div>
+          )
+        } : undefined
       }
     >
       {activeFilter === 'overview' ? renderLanding() : (

@@ -1,6 +1,17 @@
 import React from 'react';
 import { ActionPill, DashboardStatTile, useIsMobile, HeaderActionPortal } from '../../shared';
 import { StatTileCarousel } from '../../hub-components/SharedCommandScreenLayout';
+export {
+  HubOverviewLanding,
+  HubOverviewSection,
+  HubListGrid,
+  SidePanelTitleInput,
+  SidePanelPillToggle,
+  UniversalGroup,
+  UniversalInput,
+  UniversalTextArea,
+  UniversalToggle
+} from '../universal/UniversalLayout';
 
 export interface HubTab {
   id: string;
@@ -86,16 +97,17 @@ export function ElevatedHubLayout({
   actions
 }: ElevatedHubLayoutProps) {
   const isMobile = useIsMobile();
+  const isOverviewTab = activeTab === 'overview' || activeTab === 'LANDING';
 
   return (
     <div className={`flex flex-col gap-0 animate-in fade-in duration-700 w-full h-full relative overflow-hidden ${className} ${isHiddenTab ? 'hidden' : ''}`}>
-      {!isHiddenTab && !hideHeader && (
+      {!isHiddenTab && !hideHeader && !isOverviewTab && (
         <HeaderActionPortal>
           <ActionPill
             searchQuery={search || ""}
             setSearchQuery={onSearchChange || (() => {})}
-            searchPlaceholder={searchPlaceholder || "Search..."}
-            hideSearch={hideSearch}
+            searchPlaceholder={searchPlaceholder}
+            hideSearch={hideSearch || !onSearchChange}
             leftContent={leftContent}
             rightContent={headerActions}
             primaryPopover={primaryPopover}

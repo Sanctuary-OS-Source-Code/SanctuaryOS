@@ -32,6 +32,10 @@ export function PixelSnapper() {
         ".glass-panel, .glass-surface",
       );
       elements.forEach((el: any) => {
+        if (el.closest("#sa-portals")) return;
+        const computedPos = window.getComputedStyle(el).position;
+        if (computedPos === "fixed" || computedPos === "absolute") return;
+
         const rect = el.getBoundingClientRect();
         // Calculate the difference between the actual fractional position and the nearest integer
         const shiftX = Math.round(rect.x) - rect.x;

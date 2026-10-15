@@ -24,7 +24,7 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
   const removeAction = onRemove ? (
     <button
       onClick={handleRemove}
-      className={`w-8 h-8 rounded-2xl bg-black/50 backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg shadow-black/20 ${confirmDelete ? 'bg-[color-mix(in_srgb,var(--danger)_40%,transparent)] backdrop-blur-md border-[color-mix(in_srgb,var(--danger)_60%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_50%,transparent)] scale-110 text-white shadow-md' : 'hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-md'}`}
+      className={`w-8 h-8 rounded-2xl bg-[color-mix(in_srgb,var(--bg)_70%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] opacity-80 hover:opacity-100 transition-all shadow-lg ${confirmDelete ? 'bg-[color-mix(in_srgb,var(--danger)_40%,transparent)] backdrop-blur-md border-[color-mix(in_srgb,var(--danger)_60%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_50%,transparent)] scale-110 text-[var(--text)] shadow-md' : 'hover:bg-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-md'}`}
     >
       <span className="material-symbols-outlined !text-[16px]">{confirmDelete ? (t("icon_warning_amber")) : (t("icon_close"))}</span>
     </button>
@@ -34,11 +34,11 @@ export function ArtifactCard({ mod, activeModId, onClick, masonsList, overrideAc
     if (cleanStatus === 'stable') return 'bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_20%,transparent)]';
     if (cleanStatus === 'unstable') return 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]';
     if (cleanStatus === 'broken' || cleanStatus === 'corrupted' || cleanStatus === 'danger') return 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]';
-    if (cleanStatus === 'under review') return 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-cyan-400 border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
-    if (cleanStatus === 'pending') return 'bg-sky-500/20 text-sky-400 border-sky-500/20';
-    if (cleanStatus === 'early access') return 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-purple-400 border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
-    if (cleanStatus === 'paid') return 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)]';
-    return 'bg-slate-500/20 text-slate-400 border-slate-500/20';
+    if (cleanStatus === 'under review') return 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
+    if (cleanStatus === 'pending') return 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_25%,transparent)]';
+    if (cleanStatus === 'early access') return 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
+    if (cleanStatus === 'paid') return 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]';
+    return 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_15%,transparent)]';
   })();
 
   const imageOverlay = layout === 'vertical' ? (
@@ -107,7 +107,7 @@ export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonName
   const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("mason");
 
   const imageOverlay = (
-    <div className="absolute top-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-xl capitalize tracking-widest shadow-lg z-20 border bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
+    <div className="absolute top-4 right-4 text-[9px] font-black px-3 py-1 backdrop-blur-md rounded-xl capitalize tracking-widest shadow-lg z-20 border bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
       {t("stat_tier")} {setItem.compliance_tier || 0}
     </div>
   );
@@ -128,7 +128,7 @@ export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonName
       layout="vertical"
       isActive={activeSetId === setItem.id}
       onClick={onClick}
-      title={setItem.name || "UNNAMED COLLECTION"}
+      title={setItem.name || t("unnamed_artifact")}
       subtitle={setItem.id}
       image={showImages && setItem.image_url ? setItem.image_url : undefined}
       icon={t("icon_collections_bookmark")}

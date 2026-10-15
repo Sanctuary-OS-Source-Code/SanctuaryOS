@@ -349,12 +349,15 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
             onSearchChange={setSearchQuery}
             searchPlaceholder={t("ui_placeholder_search") as string}
             hideSearch={activeTab === 'LANDING'}
-            headerActions={
-                activeTab !== 'LANDING' ? (
-                    <div className="flex items-center gap-2">
-                        <ActionButton onClick={fetchBugReports} iconOnly={true} icon="refresh" label={t("hub_refresh") || "Refresh"} className="shrink-0 h-10 w-10 px-0" />
-                    </div>
-                ) : undefined
+            actions={
+                activeTab !== 'LANDING' ? [
+                    {
+                        id: "refresh",
+                        icon: "refresh",
+                        label: t("hub_refresh") || "Refresh",
+                        onClick: fetchBugReports
+                    }
+                ] : undefined
             }
             activeTab={activeTab}
             onTabChange={setActiveTab as any}

@@ -272,11 +272,11 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                             </div>
                         }
                         footer={
-                            <div className="flex items-center justify-start w-full mt-2">
+                            <div className="flex items-center justify-between w-full mt-2">
                                 <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
                                     <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(post.created_at).toLocaleDateString()}
                                 </span>
-                                <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+                                <span className="text-[10px] font-black capitalize tracking-widest opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
                                     {t("wayfinder_read_more")} <span className="material-symbols-outlined !text-sm">{t("icon_arrow_forward")}</span>
                                 </span>
                             </div>
@@ -313,7 +313,7 @@ export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColo
                     <span className={`material-symbols-outlined !text-[28px] opacity-80 group-hover:opacity-100 transition-all duration-300 ${isAlert ? 'animate-pulse drop-shadow-[0_0_10px_currentColor]' : 'group-hover:drop-shadow-[0_0_10px_currentColor]'}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
-                    <h3 className={`text-[11px] font-[900] uppercase tracking-widest transition-colors duration-500 truncate ${isAlert ? 'text-[var(--danger)] group-hover:text-red-400' : 'text-[var(--text)] group-hover:brightness-125'}`}>{title}</h3>
+                    <h3 className={`text-[11px] font-[900] uppercase tracking-widest transition-colors duration-500 truncate ${isAlert ? 'text-[var(--danger)] group-hover:brightness-125' : 'text-[var(--text)] group-hover:brightness-125'}`}>{title}</h3>
                     <span className={`text-[9px] capitalize font-bold opacity-70 group-hover:opacity-100 transition-opacity duration-500 tracking-widest flex items-center gap-2 truncate ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--subtext)]'}`}>{subtitle}</span>
                 </div>
             </div>

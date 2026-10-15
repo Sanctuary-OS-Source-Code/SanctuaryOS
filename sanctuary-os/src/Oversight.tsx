@@ -159,6 +159,11 @@ export default function Oversight({ userRole, activeGameSchema, onOpenMasonProfi
                 isMalwareOnly={activeTab === 'malware_oversight'}
             />
             {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId="oversight" onOpenMasonProfile={onOpenMasonProfile} />}
+            <SharedMetadataEditorSidePanel
+                isOpen={isMetadataEditorOpen}
+                onClose={() => setIsMetadataEditorOpen(false)}
+                initialModId={metadataEditorInitialId}
+            />
         </div>
     );
 }

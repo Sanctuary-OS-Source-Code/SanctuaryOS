@@ -57,13 +57,13 @@ export function ActionButton({
       break;
     case "world":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] !text-indigo-500 hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_20px_rgba(99,102,241,0.2)]";
-      customHoverColor = "rgba(99, 102, 241, 0.5)";
+        "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] !text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)]";
+      borderColorVar = "--accent";
       break;
     case "engine":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] !text-rose-500 hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:shadow-[0_0_20px_rgba(244,63,94,0.2)]";
-      customHoverColor = "rgba(244, 63, 94, 0.5)";
+        "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] !text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]";
+      borderColorVar = "--danger";
       break;
     case "danger":
       variantClasses =
@@ -237,9 +237,9 @@ export function HubActionButton({
       onClick={onClick}
       className={`glass-surface h-10 px-5 !rounded-full transition-all duration-300 flex items-center justify-center gap-2 shrink-0 font-black capitalize tracking-widest group ${
         isDanger
-          ? "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-red-500 hover:text-red-400"
+          ? "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:brightness-125"
           : isWarning
-            ? "!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-amber-500 hover:text-amber-400"
+            ? "!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:brightness-125"
             : "text-[var(--text)] hover:text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
       } ${className}`}
       style={
@@ -307,34 +307,40 @@ export function PanelHeaderButton({
   onClick,
   disabled = false,
   variant = "default",
+  isDestructive = false,
+  isAccent = false,
   isActive = false,
   tooltipAlign = "center",
   tooltipVariant,
   className = "",
 }: any) {
+  const resolvedVariant = isDestructive ? "danger" : isAccent ? "accent" : variant;
   let colorClass =
     "border border-transparent text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
 
   if (isActive) {
-    if (variant === "accent" || variant === "default")
+    if (resolvedVariant === "accent" || resolvedVariant === "default")
       colorClass =
         "!text-[var(--accent)] !opacity-100 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]";
-    else if (variant === "error" || variant === "danger")
+    else if (resolvedVariant === "error" || resolvedVariant === "danger")
       colorClass =
         "!text-[var(--danger)] !opacity-100 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--danger)_10%,transparent)]";
-    else if (variant === "success")
+    else if (resolvedVariant === "success")
       colorClass =
         "!text-[var(--success)] !opacity-100 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--success)_10%,transparent)]";
   } else {
-    if (variant === "error" || variant === "danger") {
+    if (resolvedVariant === "error" || resolvedVariant === "danger") {
       colorClass =
         "border border-transparent text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]";
-    } else if (variant === "success") {
+    } else if (resolvedVariant === "success") {
       colorClass =
         "border border-transparent text-[var(--success)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]";
-    } else if (variant === "warning") {
+    } else if (resolvedVariant === "warning") {
       colorClass =
         "border border-transparent text-[var(--warning)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]";
+    } else if (resolvedVariant === "accent") {
+      colorClass =
+        "border border-transparent text-[var(--accent)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]";
     }
   }
 
@@ -345,7 +351,7 @@ export function PanelHeaderButton({
 
   const tVariant =
     tooltipVariant ||
-    (variant === "default" || variant === "accent" ? "info" : variant);
+    (resolvedVariant === "default" || resolvedVariant === "accent" ? "info" : resolvedVariant);
 
   return (
     <div className={`relative group/btn shrink-0 ${className}`}>

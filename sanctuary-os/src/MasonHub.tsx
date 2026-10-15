@@ -91,38 +91,39 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader
-        title={t("mason_hub_title")}
-        subtitle={t("mason_hub_subtitle")}
-        icon={t("icon_construction")}
+        title={t("mason_hub_title") || "Mason Hub"}
+        subtitle={t("mason_hub_subtitle") || "Creator Studio & Asset Management"}
+        icon={t("icon_construction") || "construction"}
         iconColorClass="text-[var(--accent)]"
         breadcrumb={masonActiveTab !== "command_center" ? masonActiveTab.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
+        onTitleClick={() => setMasonActiveTab("command_center")}
       />
 
       <div className="md:hidden">
         <HoverTabDrawer
-          title="Mason Navigation"
+          title={t("mason_hub_title") || "Mason Navigation"}
           activeTab={masonActiveTab}
           setTab={setMasonActiveTab}
           hideMobilePills={true}
           footer={
             <>
               <ActionButton
-                icon={t("icon_visibility")}
-                label={t("btn_view_profile")}
+                icon={t("icon_visibility") || "visibility"}
+                label={t("btn_view_profile") || "View Profile"}
                 variant="glass"
                 className="w-full"
                 onClick={() => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)}
               />
               <ActionButton
-                icon={t("icon_description")}
-                label={t("ui_btn_notepad")}
+                icon={t("icon_description") || "description"}
+                label={t("ui_btn_notepad") || "Notepad"}
                 variant="glass"
                 className="w-full"
                 onClick={() => setIsNotepadOpen(true)}
               />
               <ActionButton
-                icon={t("icon_settings")}
-                label={t("wf_tab_support")}
+                icon={t("icon_settings") || "settings"}
+                label={t("wf_tab_support") || "Support"}
                 variant="glass"
                 className="w-full"
                 onClick={() => setIsSettingsOpen(true)}
@@ -130,27 +131,27 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
             </>
           }
         >
-          <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={(t("wf_tab_command")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="registry" icon={t("icon_deployed_code")} label={(t("items")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="nexus" icon={t("icon_hub")} label={(t("tab_nexus")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="command_center" icon={t("icon_desktop_windows") || "desktop_windows"} label={(t("wf_tab_command") || "Command Center").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="registry" icon={t("icon_deployed_code") || "deployed_code"} label={(t("items") || "Registry").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="nexus" icon={t("icon_hub") || "hub"} label={(t("tab_nexus") || "Nexus").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           {isDesktop() && (
             <>
-              <VerticalTabButton id="sandbox" icon={t("icon_handyman")} label={(t("filter_dev")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-              <VerticalTabButton id="chameleons" icon="palette" label={(t("tab_chameleons")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-              <VerticalTabButton id="ide" icon={t("icon_code")} label={(t("ide_tab")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+              <VerticalTabButton id="sandbox" icon={t("icon_handyman") || "handyman"} label={(t("filter_dev") || "Sandbox").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+              <VerticalTabButton id="chameleons" icon="palette" label={(t("tab_chameleons") || "Chameleons").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+              <VerticalTabButton id="ide" icon={t("icon_code") || "code"} label={(t("ide_tab") || "IDE").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
             </>
           )}
 
-          <VerticalTabButton id="collections" icon={t("icon_collections_bookmark")} label={(t("tab_cc")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="protocols" icon={t("icon_link")} label={(t("tab_protocols")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="structure" icon={t("icon_architecture")} label={(t("tab_structure")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="conflicts" icon={t("icon_security")} label={(t("tab_matrix")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="posts" icon={t("icon_edit_document")} label={(t("tab_posts")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="bug_reports" icon={t("icon_bug_report")} label={(t("stat_bugs")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="collections" icon={t("icon_collections_bookmark") || "collections_bookmark"} label={(t("tab_cc") || "Collections").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="protocols" icon={t("icon_link") || "link"} label={(t("tab_protocols") || "Protocols").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="structure" icon={t("icon_architecture") || "architecture"} label={(t("tab_structure") || "Structure").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="conflicts" icon={t("icon_security") || "security"} label={(t("tab_matrix") || "Conflicts").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="posts" icon={t("icon_edit_document") || "edit_document"} label={(t("tab_posts") || "Posts").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="bug_reports" icon={t("icon_bug_report") || "bug_report"} label={(t("stat_bugs") || "Bug Reports").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
         </HoverTabDrawer>
       </div>
 
-      <div className="w-full md:pr-4">
+      <div className="w-full flex-1 flex flex-col min-h-0">
         {masonActiveTab === "command_center" && <MasonCommandScreen 
           onNavigate={setMasonActiveTab} 
           masonId={masonProfile.id} 

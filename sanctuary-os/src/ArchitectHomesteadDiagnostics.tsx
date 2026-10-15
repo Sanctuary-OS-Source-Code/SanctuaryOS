@@ -1,5 +1,6 @@
 import { SidePanel, FilterTabs, FilterTabButton, ActionButton, CustomDropdown, ModSearchDropdown, EmptyState, ActionPill, PanelHeaderGroup, PanelHeaderButton, HeaderActionPortal } from "./shared";
-import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "./components/layouts/ElevatedHubLayout";
+import { UniversalGroup } from "./components/universal/UniversalLayout";
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { fetchAllPaginated, CustomTierDropdown, getExtensionRegex, cleanSearchName, } from "./shared";
@@ -388,7 +389,8 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
     {
       id: "overview",
       label: t("landing_overview") || "Overview",
-      icon: "dashboard"
+      icon: "dashboard",
+      number: filteredReports.length.toString()
     },
     {
       id: "pending",
@@ -404,6 +406,36 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
     }
   ];
 
+  const renderLanding = () => (
+    <HubOverviewLanding>
+      <HubOverviewSection
+        icon="schedule"
+        iconColorClass="text-[var(--accent)]"
+        title={t("recent_pending") || "Recent Pending"}
+        isEmpty={pendingReports.length === 0}
+        emptyIcon="check_circle"
+        emptyTitle={t("no_pending") || "No Pending Reports"}
+      >
+        {pendingReports.slice(0, 4).map((mod: any) => (
+          <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view") || "View"} />
+        ))}
+      </HubOverviewSection>
+
+      <HubOverviewSection
+        icon="check_circle"
+        iconColorClass="text-[var(--success)]"
+        title={t("recent_completed") || "Recent Completed"}
+        isEmpty={completedReports.length === 0}
+        emptyIcon="history"
+        emptyTitle={t("no_history") || "No History"}
+      >
+        {completedReports.slice(0, 4).map((mod: any) => (
+          <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view") || "View"} />
+        ))}
+      </HubOverviewSection>
+    </HubOverviewLanding>
+  );
+
   return (
     <>
       <ElevatedHubLayout
@@ -413,55 +445,21 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         headerIconColorClass="theme-text-accent"
         search={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={t("search_ph") as string}
+        searchPlaceholder={(t("search_ph") || "Search diagnostics...") as string}
         hideSearch={filterTab === 'overview'}
         activeTab={filterTab}
         onTabChange={(tabId: string) => setFilterTab(tabId as any)}
         tabs={tabs}
       >
-        {filterTab === 'overview' && (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">schedule</span>
-                  {t("recent_pending") || "Recent Pending"}
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                {pendingReports.slice(0, 10).length > 0 ? pendingReports.slice(0, 10).map((mod: any) => (
-                  <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view")} />
-                )) : (
-                  <EmptyState icon="check_circle" title={t("no_pending") || "No Pending Reports"} className="py-8" />
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[18px] text-[var(--success)]">check_circle</span>
-                  {t("recent_completed") || "Recent Completed"}
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                {completedReports.slice(0, 10).length > 0 ? completedReports.slice(0, 10).map((mod: any) => (
-                  <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view")} />
-                )) : (
-                  <EmptyState icon="history" title={t("no_history") || "No History"} className="py-8" />
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        {filterTab === 'overview' && renderLanding()}
 
         {filterTab === 'pending' && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
               {pendingReports.length === 0 ? (
-                <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart")} title={searchTerm ? t("no_matches") : t("no_diagnostics")} className="col-span-full py-16" />
+                <EmptyState icon={searchTerm ? "search_off" : (t("icon_monitor_heart") || "monitor_heart")} title={searchTerm ? (t("no_matches") || "No matches") : (t("no_diagnostics") || "No diagnostics")} className="col-span-full py-16" />
               ) : pendingReports.slice(0, visibleCount).map((mod: any) => (
-                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view")} />
+                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view") || "View"} />
               ))}
             </div>
             {pendingReports.length > visibleCount && (
@@ -469,20 +467,17 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                 onClick={() => setVisibleCount(v => v + 100)}
                 className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
               >
-                {t("ui_btn_load_more")} ({visibleCount} / {pendingReports.length})
+                {t("ui_btn_load_more") || "Load More"} ({visibleCount} / {pendingReports.length})
               </button>
             )}
           </div>
         )}
 
-
         {filterTab === 'completed' && completedReports.length > 0 && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-              {completedReports.length === 0 ? (
-                <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart")} title={searchTerm ? t("no_matches") : t("no_diagnostics")} className="col-span-full py-16" />
-              ) : completedReports.slice(0, visibleCount).map((mod: any) => (
-                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view")} />
+              {completedReports.slice(0, visibleCount).map((mod: any) => (
+                <ArtifactCard key={mod.id} mod={mod} onClick={() => setActiveReport(mod)} masonsList={allMasons} overrideActionLabel={t("btn_view") || "View"} />
               ))}
             </div>
             {completedReports.length > visibleCount && (
@@ -490,14 +485,14 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                 onClick={() => setVisibleCount(v => v + 100)}
                 className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
               >
-                {t("ui_btn_load_more")} ({visibleCount} / {completedReports.length})
+                {t("ui_btn_load_more") || "Load More"} ({visibleCount} / {completedReports.length})
               </button>
             )}
           </div>
         )}
 
         {filterTab === 'completed' && completedReports.length === 0 && (
-          <EmptyState icon={searchTerm ? "search_off" : t("icon_monitor_heart")} title={searchTerm ? t("no_matches") : t("no_completed_reports")} className="py-16 mt-10" />
+          <EmptyState icon={searchTerm ? "search_off" : (t("icon_monitor_heart") || "monitor_heart")} title={searchTerm ? (t("no_matches") || "No matches") : (t("no_completed_reports") || "No completed reports")} className="py-16 mt-10" />
         )}
       </ElevatedHubLayout>
 
@@ -505,184 +500,151 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         <SidePanel
           isOpen={!!activeReport}
           onClose={closePanel}
-          title={t("diagnostic_panel_title")}
+          title={t("diagnostic_panel_title") || "Homestead Diagnostics"}
           icon="monitor_heart"
-          footer={
-            (!testRun || isLoading) ? (
-              <div className="flex flex-col w-full gap-4">
-                {isLoading && (
-                  <div className="flex gap-4">
-                    <button onClick={() => concludeTest(true)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:theme-text-success transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]">
-                      {t("auto_conclude_pass")}
-                    </button>
-                    <button onClick={() => concludeTest(false)} className="flex-1 py-4 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:theme-text-danger transition-all shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)]">
-                      {t("auto_conclude_fail")}
-                    </button>
-                  </div>
-                )}
-
-                {!testRun && (
-                  <div className="w-full">
-                    {isLoading ? (
-                      <div className="flex flex-col items-center justify-center p-6 glass-surface rounded-xl gap-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]">
-                        <div className="w-8 h-8 border-4 border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
-                        <span className="text-[10px] font-black capitalize tracking-widest animate-pulse mt-1 theme-text-accent">{t("diagnostic_running")}</span>
-                      </div>
-                    ) : isModMissingLocally(activeReport.name) ? (
-                      <button
-                        onClick={() => setIsMissingArtifactPanelOpen(true)}
-                        className="w-full h-14 glass-panel border border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] font-black text-xs capitalize tracking-widest rounded-2xl hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--warning-rgb),0.15)] flex items-center justify-center gap-2"
-                      >
-                        <span className="material-symbols-outlined !text-[16px]">{t("icon_download")}</span>
-                        {t("missing_artifacts")}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={runSimulation}
-                        className="w-full h-14 glass-panel border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] font-black text-xs capitalize tracking-widest rounded-2xl hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] flex items-center justify-center gap-2"
-                      >
-                        <span className="material-symbols-outlined !text-[16px]">{t("icon_play_arrow")}</span>
-                        {t("btn_run_diagnostic")}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : undefined
+          subtitle={`UUID: ${activeReport.id}`}
+          headerActions={
+            <PanelHeaderGroup>
+              {isLoading ? (
+                <>
+                  <PanelHeaderButton
+                    icon="check"
+                    variant="success"
+                    tooltip={t("auto_conclude_pass") || "Conclude Pass"}
+                    onClick={() => concludeTest(true)}
+                  />
+                  <PanelHeaderButton
+                    icon="block"
+                    variant="danger"
+                    tooltip={t("auto_conclude_fail") || "Conclude Fail"}
+                    onClick={() => concludeTest(false)}
+                  />
+                </>
+              ) : !testRun ? (
+                isModMissingLocally(activeReport.name) ? (
+                  <PanelHeaderButton
+                    icon="download"
+                    variant="warning"
+                    tooltip={t("missing_artifacts") || "Missing Artifacts"}
+                    onClick={() => setIsMissingArtifactPanelOpen(true)}
+                  />
+                ) : (
+                  <PanelHeaderButton
+                    icon="play_arrow"
+                    variant="accent"
+                    tooltip={t("btn_run_diagnostic") || "Run Diagnostic"}
+                    onClick={runSimulation}
+                  />
+                )
+              ) : null}
+            </PanelHeaderGroup>
           }
         >
-          <div className="flex flex-col h-full overflow-hidden">
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
+          <div className="flex flex-col h-full gap-8">
+            <SidePanelTitleInput
+              value={activeReport?.name || ""}
+              readOnly
+              subtitle={t("target_artifact") || "Target Artifact"}
+            />
 
-              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
-                <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                  <span className="material-symbols-outlined !text-[14px]">{t("icon_my_location")}</span>
-                  {t("target_artifact")}
-                </h4>
-                <div className="flex flex-col gap-2 relative z-10">
-                  <span className="glass-surface rounded-xl px-5 h-12 flex items-center text-[var(--text)] text-sm font-bold bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">{activeReport?.name}</span>
-                </div>
+            {isLoading && (
+              <div className="flex flex-col items-center justify-center p-6 glass-surface rounded-xl gap-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
+                <div className="w-8 h-8 border-4 border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
+                <span className="text-[10px] font-black capitalize tracking-widest animate-pulse mt-1 theme-text-accent">{t("diagnostic_running") || "Diagnostic Running..."}</span>
               </div>
+            )}
 
-              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent pointer-events-none " />
-                <div className="flex flex-col gap-1 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                  <h4 className="text-[10px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-2">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_account_tree")}</span>
-                    {t("section_deps_title")}
-                  </h4>
-                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 capitalize tracking-widest">{t("diagnostic_dependencies_desc")}</p>
-                </div>
-
-                <div className="flex flex-col gap-4 relative z-10">
-                  <ModSearchDropdown
-                    selectedItem={null}
-                    onSelect={handleSelectDependency}
-                    onClear={() => { }}
-                    placeholder={t("search_dep_ph")}
-                    modList={allMods.filter(m => m.id !== activeReport.id && !dependencies.some(d => d.id === m.id))}
-                  />
-                  {dependencies.length > 0 && (
-                    <div className="flex flex-col gap-2 mt-2">
-                      {dependencies.map(d => (
-                        <div key={d.id} className="flex justify-start items-center px-5 h-12 glass-surface rounded-xl bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-sm font-bold">
-                          <span className="truncate pr-4">{d.name}</span>
-                          <button onClick={() => handleRemoveDependency(d.id)} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors">
-                            <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
-                          </button>
-                        </div>
-                      ))}
+            <UniversalGroup title={t("section_deps_title") || "Dependencies"} icon={t("icon_account_tree") || "account_tree"}>
+              <p className="text-[9px] text-[var(--subtext)] opacity-60 capitalize tracking-widest -mt-2">{t("diagnostic_dependencies_desc") || "Select dependencies required for testing"}</p>
+              <ModSearchDropdown
+                selectedItem={null}
+                onSelect={handleSelectDependency}
+                onClear={() => { }}
+                placeholder={t("search_dep_ph") || "Search dependency..."}
+                modList={allMods.filter(m => m.id !== activeReport.id && !dependencies.some(d => d.id === m.id))}
+              />
+              {dependencies.length > 0 && (
+                <div className="flex flex-col gap-2 mt-2">
+                  {dependencies.map(d => (
+                    <div key={d.id} className="flex justify-between items-center px-5 h-12 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-sm font-bold">
+                      <span className="truncate pr-4">{d.name}</span>
+                      <button onClick={() => handleRemoveDependency(d.id)} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors">
+                        <span className="material-symbols-outlined !text-[16px]">{t("icon_close") || "close"}</span>
+                      </button>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none " />
-                <div className="flex flex-col gap-1 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                  <h4 className="text-[10px] font-black text-[var(--warning)] capitalize tracking-widest flex items-center gap-2">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_warning")}</span>
-                    {t("diagnostic_conflict_target")}
-                  </h4>
-                  <p className="text-[9px] text-[var(--subtext)] opacity-60 ml-6 capitalize tracking-widest">{t("diagnostic_conflict_target_desc")}</p>
-                </div>
-
-                <div className="flex flex-col gap-4 relative z-10">
-                  {conflictTarget ? (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-start items-center px-5 h-16 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--text)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] shadow-[0_0_15px_rgba(var(--warning-rgb),0.1)]">
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[9px] font-black capitalize tracking-widest text-[var(--warning)] mb-0.5">{t("auto_testing_conflict_with")}</span>
-                          <span className="text-sm font-bold truncate">{conflictTarget.name}</span>
-                        </div>
-                        <button onClick={() => setConflictTarget(null)} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0 transition-colors">
-                          <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <ModSearchDropdown
-                      selectedItem={null}
-                      onSelect={(m: any) => setConflictTarget(m)}
-                      onClear={() => { }}
-                      placeholder={t("search_conflict_ph")}
-                      modList={allMods.filter(m => m.id !== activeReport.id && !dependencies.some(d => d.id === m.id))}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {testRun && (
-                <div className="flex flex-col gap-6 p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative animate-in slide-in-from-bottom-4">
-                  <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${testPassed ? 'from-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'from-[color-mix(in_srgb,var(--danger)_10%,transparent)]'} to-transparent pointer-events-none `} />
-                  <h4 className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2 ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_science")}</span>
-                    {t("diagnostic_results")}
-                  </h4>
-
-                  <div className="flex flex-col relative z-10">
-                    <div className={`p-5 glass-surface rounded-xl flex items-center gap-4 border ${testPassed ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] shadow-[0_0_20px_rgba(var(--success-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] shadow-[0_0_20px_rgba(var(--danger-rgb),0.1)]'}`}>
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${testPassed ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)] bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)]' : 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)]'}`}>
-                        <span className="material-symbols-outlined !text-[24px]">{testPassed ? 'check_circle' : 'error'}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className={`text-lg font-black capitalize tracking-widest ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                          {testPassed ? t("test_passed") : t("test_failed")}
-                        </span>
-                        <span className="text-[10px] font-bold capitalize tracking-widest text-[var(--text)] opacity-60">
-                          {t("injection_sim")}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 w-full glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono text-[10px] text-[var(--subtext)] max-h-48 overflow-y-auto custom-scrollbar whitespace-pre-wrap leading-relaxed">
-                      {testLog || "No logs generated."}
-                    </div>
-
-                    {!testPassed && conflictTarget && (
-                      <div className="mt-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] pt-6">
-                        <h3 className="text-sm font-black theme-text-accent capitalize tracking-widest">{t("btn_add_to_nexus")}</h3>
-                        <form onSubmit={submitToNexus} className="flex flex-col gap-4">
-                          <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("resolution_suggestion")}</label>
-                            <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder={t("auto_e_g_load_31")} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("severity")}</label>
-                            <CustomTierDropdown value={severity} onChange={(val: any) => setSeverity(val)} />
-                          </div>
-                          <button type="submit" disabled={isSubmitting} className="w-full py-4 theme-bg-success text-[var(--bg)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg disabled:opacity-50 mt-2">
-                            {isSubmitting ? "Saving..." : "Save Conflict Rule"}
-                          </button>
-                        </form>
-                      </div>
-                    )}
-                  </div>
+                  ))}
                 </div>
               )}
+            </UniversalGroup>
 
-            </div>
+            <UniversalGroup title={t("diagnostic_conflict_target") || "Conflict Target"} icon={t("icon_warning") || "warning"} headerColorClass="text-[var(--warning)]">
+              <p className="text-[9px] text-[var(--subtext)] opacity-60 capitalize tracking-widest -mt-2">{t("diagnostic_conflict_target_desc") || "Optional artifact to test against"}</p>
+              {conflictTarget ? (
+                <div className="flex justify-between items-center px-5 h-16 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--text)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)]">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[9px] font-black capitalize tracking-widest text-[var(--warning)] mb-0.5">{t("auto_testing_conflict_with") || "Testing Conflict With"}</span>
+                    <span className="text-sm font-bold truncate">{conflictTarget.name}</span>
+                  </div>
+                  <button onClick={() => setConflictTarget(null)} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0 transition-colors">
+                    <span className="material-symbols-outlined !text-[16px]">{t("icon_delete") || "delete"}</span>
+                  </button>
+                </div>
+              ) : (
+                <ModSearchDropdown
+                  selectedItem={null}
+                  onSelect={(m: any) => setConflictTarget(m)}
+                  onClear={() => { }}
+                  placeholder={t("search_conflict_ph") || "Search conflict target..."}
+                  modList={allMods.filter(m => m.id !== activeReport.id && !dependencies.some(d => d.id === m.id))}
+                />
+              )}
+            </UniversalGroup>
+
+            {testRun && (
+              <UniversalGroup
+                title={t("diagnostic_results") || "Diagnostic Results"}
+                icon={t("icon_science") || "science"}
+                headerColorClass={testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}
+                className="pb-24"
+              >
+                <div className={`p-5 glass-surface rounded-xl flex items-center gap-4 border ${testPassed ? 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]'}`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${testPassed ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)] bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)]' : 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)]'}`}>
+                    <span className="material-symbols-outlined !text-[24px]">{testPassed ? 'check_circle' : 'error'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className={`text-lg font-black capitalize tracking-widest ${testPassed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                      {testPassed ? (t("test_passed") || "Test Passed") : (t("test_failed") || "Test Failed")}
+                    </span>
+                    <span className="text-[10px] font-bold capitalize tracking-widest text-[var(--text)] opacity-60">
+                      {t("injection_sim") || "Injection Simulation"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-4 w-full glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono text-[10px] text-[var(--subtext)] max-h-48 overflow-y-auto custom-scrollbar whitespace-pre-wrap leading-relaxed">
+                  {testLog || (t("no_logs_generated") || "No logs generated.")}
+                </div>
+
+                {!testPassed && conflictTarget && (
+                  <div className="mt-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] pt-6">
+                    <h3 className="text-sm font-black theme-text-accent capitalize tracking-widest mb-4">{t("btn_add_to_nexus") || "Add Conflict Rule"}</h3>
+                    <form onSubmit={submitToNexus} className="flex flex-col gap-4">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("resolution_suggestion") || "Resolution Suggestion"}</label>
+                        <input required value={resolution} onChange={e => setResolution(e.target.value)} placeholder={t("auto_e_g_load_31") || "e.g. Load after..."} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("severity") || "Severity"}</label>
+                        <CustomTierDropdown value={severity} onChange={(val: any) => setSeverity(val)} />
+                      </div>
+                      <button type="submit" disabled={isSubmitting} className="w-full py-4 theme-bg-success text-[var(--bg)] font-black text-[10px] capitalize tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg disabled:opacity-50 mt-2">
+                        {isSubmitting ? (t("btn_saving") || "Saving...") : (t("btn_save_conflict_rule") || "Save Conflict Rule")}
+                      </button>
+                    </form>
+                  </div>
+                )}
+              </UniversalGroup>
+            )}
           </div>
         </SidePanel>
       )}
@@ -690,25 +652,27 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
       <SidePanel
         isOpen={isMissingArtifactPanelOpen}
         onClose={() => setIsMissingArtifactPanelOpen(false)}
-        title={t("missing_artifacts")}
+        title={t("missing_artifacts") || "Missing Artifacts"}
         icon="download"
         widthClass="w-[450px]"
         headerActions={
           <PanelHeaderGroup>
             {activeReport?.download_url ? (
-              <PanelHeaderButton icon="download" tooltip={t("download_source")} onClick={() => window.open(activeReport.download_url, "_blank")} />
+              <PanelHeaderButton icon="download" tooltip={t("download_source") || "Download Source"} onClick={() => window.open(activeReport.download_url, "_blank")} />
             ) : null}
-            <PanelHeaderButton icon="search" tooltip={t("search_web")} onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((useStore.getState().activeGameSchema?.display_name || "Mod") + ' ' + cleanSearchName(activeReport?.name || '', useStore.getState().activeGameSchema))}`, "_blank")} />
+            <PanelHeaderButton icon="search" tooltip={t("search_web") || "Search Web"} onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((useStore.getState().activeGameSchema?.display_name || "Mod") + ' ' + cleanSearchName(activeReport?.name || '', useStore.getState().activeGameSchema))}`, "_blank")} />
           </PanelHeaderGroup>
         }
       >
-        <div className="flex flex-col p-8 gap-6">
-          <div className="p-6 glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col items-center justify-center gap-4 text-center mt-8">
-            <span className="material-symbols-outlined !text-[48px] text-[var(--warning)] opacity-80">{t("icon_extension_off")}</span>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-black text-[var(--text)] capitalize tracking-widest">{activeReport?.name}</span>
-              <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("missing_dependency_desc")}</span>
-            </div>
+        <div className="flex flex-col h-full gap-8">
+          <SidePanelTitleInput
+            value={activeReport?.name || ""}
+            readOnly
+            subtitle={t("missing_dependency_desc") || "Missing Local Artifact"}
+          />
+          <div className="p-6 glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
+            <span className="material-symbols-outlined !text-[48px] text-[var(--warning)] opacity-80">{t("icon_extension_off") || "extension_off"}</span>
+            <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("missing_dependency_desc") || "Artifact is missing from local storage."}</span>
           </div>
         </div>
       </SidePanel>

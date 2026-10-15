@@ -1,13 +1,11 @@
-import { FilterTabs, FilterTabButton } from "../shared";
 import React, { useState, useEffect } from 'react';
-import { supabase, getActiveGameClient } from '../supabase';
+import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { CustomDropdown, CustomComplianceDropdown, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, ActionPill, HeaderActionPortal } from '../shared';
+import { CustomDropdown, CustomComplianceDropdown, SidePanel, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
-import { ElevatedHubLayout } from '../components/layouts/ElevatedHubLayout';
-import { StatTileCarousel } from "./SharedCommandScreenLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, UniversalGroup, UniversalTextArea } from '../components/layouts/ElevatedHubLayout';
 
 export default function SAComplianceOversight({ initialFilter, setInitialFilter, onOpenManualFlag }: any) {
   const { t } = useLexicon();
@@ -16,14 +14,13 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   const [masonsList, setMasonsList] = useState<any[]>([]);
   const [metadataMod, setMetadataMod] = useState<any>(null);
   const [filterTier, setFilterTier] = useState<number | null>(() => {
-    if (initialFilter === "nsfw") return null; // Show all compliance tiers by default when clicking the Adult/Sensitive tile
+    if (initialFilter === "nsfw") return null;
     if (initialFilter === "explicit") return null;
     return null;
   });
   const [filterStatus, setFilterStatus] = useState<string>(() => {
-    if (initialFilter === "quarantined") return "verified";
-    if (initialFilter === "all") return "all";
-    return "pending";
+    if (initialFilter === "quarantined") return "inactive";
+    return "overview";
   });
   const [search, setSearch] = useState("");
 
@@ -171,12 +168,12 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
   const getTierDetails = (tier: number) => {
     switch (tier) {
-      case 1: return { label: t("tier_1_label") || "Tier 1", color: 'text-amber-400', bg: 'bg-amber-400/10' };
-      case 2: return { label: t("tier_2_label") || "Tier 2", color: 'text-orange-500', bg: 'bg-orange-500/10' };
-      case 3: return { label: t("tier_3_label") || "Tier 3", color: 'text-red-400', bg: 'bg-red-400/10' };
-      case 4: return { label: t("tier_4_label") || "Tier 4", color: 'text-red-500', bg: 'bg-red-500/10' };
-      case 5: return { label: t("tier_5_label") || "Tier 5", color: 'text-rose-600', bg: 'bg-rose-600/10' };
-      default: return { label: t("tier_0_label") || "Tier 0", color: 'theme-text-success', bg: 'theme-bg-success' };
+      case 1: return { label: t("tier_1_label") || "Tier 1", color: 'text-[var(--warning)]', bg: 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]' };
+      case 2: return { label: t("tier_2_label") || "Tier 2", color: 'text-[var(--warning)]', bg: 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]' };
+      case 3: return { label: t("tier_3_label") || "Tier 3", color: 'text-[var(--danger)]', bg: 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' };
+      case 4: return { label: t("tier_4_label") || "Tier 4", color: 'text-[var(--danger)]', bg: 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)]' };
+      case 5: return { label: t("tier_5_label") || "Tier 5", color: 'text-[var(--danger)]', bg: 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' };
+      default: return { label: t("tier_0_label") || "Tier 0", color: 'text-[var(--success)]', bg: 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' };
     }
   };
 
@@ -189,8 +186,9 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
+      number: (pendingCount + activeCount + inactiveCount).toString(),
     },
-    { id: 'pending', label: t("pending"), icon: 'policy', number: pendingCount.toString(), colorClass: 'text-[var(--danger)]' },
+    { id: 'pending', label: t("pending") || "Pending", icon: 'policy', number: pendingCount.toString(), colorClass: 'text-[var(--danger)]' },
     { id: 'active', label: t("status_active") || "Active", icon: 'verified', number: activeCount.toString(), colorClass: 'text-[var(--success)]' },
     { id: 'inactive', label: t("status_inactive") || "Inactive", icon: 'block', number: inactiveCount.toString(), colorClass: 'text-[var(--warning)]' }
   ];
@@ -211,7 +209,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           </span>
         }
         badges={[
-          <span key="tier" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${td.color}`}>
+          <span key="tier" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner shrink-0 transition-colors ${td.bg} ${td.color}`}>
             {td.label}
           </span>
         ]}
@@ -234,46 +232,41 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     const inactiveMods = mods.filter(m => m.compliance_tier === 5 || ["blacklisted", "quarantined"].includes(m.status?.toLowerCase() || ""));
 
     return (
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--danger)]">policy</span>
-              {t("recent_pending") || "Recent Pending"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {pendingMods.slice(0, 10).map(renderModCard)}
-            {pendingMods.length === 0 && <EmptyState icon="policy" title={t("comp_no_alerts")} className="py-8" />}
-          </div>
-        </div>
+      <HubOverviewLanding>
+        <HubOverviewSection
+          title={t("recent_pending") || "Recent Pending"}
+          icon="policy"
+          iconColorClass="text-[var(--danger)]"
+          isEmpty={pendingMods.length === 0}
+          emptyIcon="policy"
+          emptyTitle={t("comp_no_alerts")}
+        >
+          {pendingMods.slice(0, 6).map(renderModCard)}
+        </HubOverviewSection>
 
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--success)]">verified</span>
-              {t("recent_live") || "Recent Active"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {activeMods.slice(0, 10).map(renderModCard)}
-            {activeMods.length === 0 && <EmptyState icon="verified" title={t("comp_no_alerts")} className="py-8" />}
-          </div>
-        </div>
-        
-        <div className="flex flex-col gap-6 col-span-1 2xl:col-span-2">
-          <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-            <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--warning)]">block</span>
-              {t("recent_inactive") || "Recent Inactive"}
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-            {inactiveMods.slice(0, 10).map(renderModCard)}
-            {inactiveMods.length === 0 && <EmptyState icon="block" title={t("comp_no_alerts")} className="py-8" />}
-          </div>
-        </div>
-      </div>
+        <HubOverviewSection
+          title={t("recent_live") || "Recent Active"}
+          icon="verified"
+          iconColorClass="text-[var(--success)]"
+          isEmpty={activeMods.length === 0}
+          emptyIcon="verified"
+          emptyTitle={t("comp_no_alerts")}
+        >
+          {activeMods.slice(0, 6).map(renderModCard)}
+        </HubOverviewSection>
+
+        <HubOverviewSection
+          title={t("recent_inactive") || "Recent Inactive"}
+          icon="block"
+          iconColorClass="text-[var(--warning)]"
+          className="col-span-1 xl:col-span-2"
+          isEmpty={inactiveMods.length === 0}
+          emptyIcon="block"
+          emptyTitle={t("comp_no_alerts")}
+        >
+          {inactiveMods.slice(0, 6).map(renderModCard)}
+        </HubOverviewSection>
+      </HubOverviewLanding>
     );
   };
 
@@ -282,7 +275,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       headerTitle={t("hub_compliance") || "Compliance Oversight"}
       headerSubtitle={t("hub_compliance_subtitle") || "Manage and review system compliance and artifact safety"}
       headerIcon="gavel"
-      headerIconColorClass="text-rose-500"
+      headerIconColorClass="text-[var(--danger)]"
       search={search}
       onSearchChange={setSearch}
       searchPlaceholder={t("search_ph")}
@@ -290,14 +283,14 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       activeTab={filterStatus === 'overview' ? 'overview' : filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
       tabs={tabs}
-      primaryPopover={{
+      primaryPopover={filterStatus !== 'overview' ? {
         icon: "tune",
         label: t("filters") || "Filters",
         content: (
           <div className="flex flex-col w-[300px] p-4 text-left">
             <div className="flex flex-col mb-5 w-full">
               <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                FILTER
+                {t("filters") || "Filter"}
               </div>
               <CustomDropdown
                 flat={true}
@@ -315,131 +308,121 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             </div>
           </div>
         )
-      }}
-      actions={[
-        {
-          id: "manual_flag",
-          icon: t("icon_flag") as string,
-          label: t("comp_btn_manual_flag") as string,
-          activeClassName: "bg-[var(--accent)] text-black",
-          onClick: () => onOpenManualFlag("")
-        }
-      ]}
-    >
-        {loading ? (
-          <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning")}</div>
-        ) : filterStatus === 'overview' ? renderLanding() : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-            {filteredMods.map(renderModCard)}
-            {filteredMods.length === 0 && (
-              <EmptyState icon={t("icon_warning_amber")} title={t("comp_no_alerts")} className="col-span-full py-16" />
-            )}
-          </div>
-        )}
-
-        <SidePanel
-          isOpen={!!selectedMod}
-          onClose={() => setSelectedMod(null)}
-          title={t("comp_edit_tier")}
-          icon={t("icon_policy")}
-          subtitle={selectedMod ? `UUID: ${selectedMod.id}` : undefined}
-          widthClass="w-[800px]"
-          headerActions={
-            <PanelHeaderGroup>
-              <PanelHeaderButton
-                icon="close"
-                tooltip={t("nav_cancel")}
-                onClick={() => setSelectedMod(null)}
-              />
-              {(selectedMod?.status === 'pending' || selectedMod?.status === 'under_review') ? (
-                <>
-                  <PanelHeaderButton
-                    icon="check_circle"
-                    tooltip={t("btn_clear_flag")}
-                    variant="success"
-                    disabled={isSubmitting || !editReason.trim()}
-                    onClick={(e: React.MouseEvent) => { e.preventDefault(); handleClearFlag(e, selectedMod); setSelectedMod(null); }}
-                  />
-                  <PanelHeaderButton
-                    icon="flag"
-                    tooltip={t("btn_set_flag")}
-                    variant="error"
-                    disabled={isSubmitting || !editReason.trim()}
-                    onClick={(e: React.MouseEvent) => { e.preventDefault(); handleSetFlag(e, selectedMod); setSelectedMod(null); }}
-                  />
-                </>
-              ) : (
-                <PanelHeaderButton
-                  icon="save"
-                  tooltip={isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
-                  variant="accent"
-                  disabled={isSubmitting || !editReason.trim()}
-                  onClick={handleSaveTier}
-                />
-              )}
-            </PanelHeaderGroup>
+      } : undefined}
+      actions={
+        filterStatus !== 'overview' ? [
+          {
+            id: "manual_flag",
+            icon: (t("icon_flag") as string) || "flag",
+            label: (t("comp_btn_manual_flag") as string) || "Manual Flag",
+            onClick: () => onOpenManualFlag("")
           }
+        ] : undefined
+      }
+    >
+      {loading ? (
+        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning")}</div>
+      ) : filterStatus === 'overview' ? renderLanding() : (
+        <HubListGrid
+          isEmpty={filteredMods.length === 0}
+          emptyIcon={t("icon_warning_amber")}
+          emptyTitle={t("comp_no_alerts")}
         >
-          <div className="p-6 flex flex-col h-full gap-8">
-            {status && (
-              <div className="text-center bg-black/20 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-                <p className={`text-[10px] font-black capitalize tracking-widest ${status.includes('Failed') || status.includes('required') ? 'text-red-400' : 'theme-text-accent'}`}>{status}</p>
-              </div>
+          {filteredMods.map(renderModCard)}
+        </HubListGrid>
+      )}
+
+      <SidePanel
+        isOpen={!!selectedMod}
+        onClose={() => setSelectedMod(null)}
+        title={t("comp_edit_tier")}
+        icon={t("icon_policy")}
+        subtitle={selectedMod ? `UUID: ${selectedMod.id}` : undefined}
+        widthClass="w-[800px]"
+        headerActions={
+          <PanelHeaderGroup>
+            {(selectedMod?.status === 'pending' || selectedMod?.status === 'under_review') ? (
+              <>
+                <PanelHeaderButton
+                  icon="check_circle"
+                  tooltip={t("btn_clear_flag")}
+                  variant="success"
+                  disabled={isSubmitting || !editReason.trim()}
+                  onClick={(e: React.MouseEvent) => { e.preventDefault(); handleClearFlag(e, selectedMod); setSelectedMod(null); }}
+                />
+                <PanelHeaderButton
+                  icon="flag"
+                  tooltip={t("btn_set_flag")}
+                  variant="error"
+                  disabled={isSubmitting || !editReason.trim()}
+                  onClick={(e: React.MouseEvent) => { e.preventDefault(); handleSetFlag(e, selectedMod); setSelectedMod(null); }}
+                />
+              </>
+            ) : (
+              <PanelHeaderButton
+                icon="save"
+                tooltip={isSubmitting ? t("identities_updating") : t("ui_btn_commit")}
+                variant="accent"
+                disabled={isSubmitting || !editReason.trim()}
+                onClick={handleSaveTier}
+              />
             )}
-
-            <div className="flex flex-col gap-3 shrink-0">
-              <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
-                {selectedMod?.name}
-              </h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setMetadataMod(selectedMod)}
-                  className="text-[10px] font-black capitalize tracking-widest theme-text-accent hover:text-[var(--text)] transition-colors flex items-center gap-1 w-max bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2 py-1 rounded"
-                >
-                  <span className="material-symbols-outlined !text-[12px]">{t("icon_edit")}</span>
-                  {t("ui_edit_metadata")}
-                </button>
-              </div>
+          </PanelHeaderGroup>
+        }
+      >
+        <div className="flex flex-col h-full gap-6">
+          {status && (
+            <div className="text-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] w-full">
+              <p className={`text-[10px] font-black capitalize tracking-widest ${status.includes('Failed') || status.includes('required') ? 'text-[var(--danger)]' : 'theme-text-accent'}`}>{status}</p>
             </div>
+          )}
 
-            <div className="flex flex-col gap-6 relative">
-              <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                <span className="material-symbols-outlined !text-[14px]">{t("icon_policy")}</span>
-                {t("comp_enforcement")}
-              </h4>
-
-              <div className="flex flex-col gap-2 relative z-50">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("assign_tier")}</label>
-                <CustomComplianceDropdown
-                  value={editTier}
-                  onChange={setEditTier}
-                  maxTier={5}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 relative z-40 mt-2">
-                <label className="text-[9px] font-black text-red-400 capitalize tracking-widest ml-2 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-md"></span>
-                  {t("tier_reason_req")}
-                </label>
-                <textarea
-                  value={editReason}
-                  onChange={e => setEditReason(e.target.value)}
-                  placeholder={t("comp_reason_placeholder")}
-                  className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] focus:border-[color-mix(in_srgb,var(--danger)_60%,transparent)] shadow-[inset_0_0_20px_rgba(255,0,0,0.1)]"
-                />
-              </div>
+          <div className="flex flex-col gap-3 shrink-0">
+            <SidePanelTitleInput
+              value={selectedMod?.name || ""}
+              readOnly
+              subtitle={`UUID: ${selectedMod?.id || ""}`}
+            />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMetadataMod(selectedMod)}
+                className="text-[10px] font-black capitalize tracking-widest theme-text-accent hover:text-[var(--text)] transition-colors flex items-center gap-1 w-max bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-2 py-1 rounded"
+              >
+                <span className="material-symbols-outlined !text-[12px]">{t("icon_edit")}</span>
+                {t("ui_edit_metadata")}
+              </button>
             </div>
           </div>
-        </SidePanel>
 
-        <SharedMetadataEditorSidePanel
-          isOpen={!!metadataMod}
-          onClose={() => setMetadataMod(null)}
-          activeMod={metadataMod}
-          masonsList={masonsList}
-          onModUpdated={fetchMods}
-        />
-      </ElevatedHubLayout>
+          <UniversalGroup title={t("comp_enforcement")} icon={t("icon_policy")}>
+            <div className="flex flex-col gap-2 relative z-50">
+              <label className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("assign_tier")}</label>
+              <CustomComplianceDropdown
+                value={editTier}
+                onChange={setEditTier}
+                maxTier={5}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 relative z-40 mt-2">
+              <UniversalTextArea
+                label={`${t("tier_reason_req")} *`}
+                value={editReason}
+                onChange={setEditReason}
+                placeholder={t("comp_reason_placeholder")}
+              />
+            </div>
+          </UniversalGroup>
+        </div>
+      </SidePanel>
+
+      <SharedMetadataEditorSidePanel
+        isOpen={!!metadataMod}
+        onClose={() => setMetadataMod(null)}
+        activeMod={metadataMod}
+        masonsList={masonsList}
+        onModUpdated={fetchMods}
+      />
+    </ElevatedHubLayout>
   );
 }

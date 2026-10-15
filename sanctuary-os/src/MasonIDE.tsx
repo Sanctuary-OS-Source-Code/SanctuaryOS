@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Editor from "@monaco-editor/react";
 import { useStore, getSafeSchema } from "./store";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip, FilterTabs, FilterTabButton, ActionButton } from "./shared";
+import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardGlassButtonClass, standardAccentGlassButtonClass, standardPrimaryButtonClass, EmptyState, HoverTooltip, FilterTabs, FilterTabButton, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "./shared";
 import { readDir, readTextFile, writeTextFile, exists, remove, rename } from '@tauri-apps/plugin-fs';
 import { open } from "@tauri-apps/plugin-dialog";
 import VersionTimeline from './VersionTimeline';
@@ -11,7 +11,7 @@ import enDefault from './lexicons/en-default.json';
 import { supabase } from "./supabase";
 import { MarketUploadPanel } from "./side-panels/NexusSidePanels";
 import MasonFileBrowser from "./hub-components/MasonFileBrowser";
-import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "./components/layouts/ElevatedHubLayout";
 import MasonEditorPanel from "./hub-components/MasonEditorPanel";
 import { deepCountKeys, deepCompare, createEmptyClone, deepAddMissing, deepPurgeDeprecated } from "./lib/MasonValidation";
 import { useMasonFiles } from "./hooks/useMasonFiles";
@@ -139,7 +139,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             newFiles[activeFileIndex].originalContent = updatedContent;
             setOpenFiles(newFiles);
             setActiveVersionTimestamp(null);
-            pushStatus(t("alert_saved"), "success");
+            pushStatus(t("alert_saved") || "Saved", "success");
          } else {
             const normalizedPath = file.path.replace(/\//g, '\\');
             await invoke('save_file_with_history', { path: normalizedPath, content: file.content });
@@ -147,10 +147,10 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             newFiles[activeFileIndex].originalContent = file.content;
             setOpenFiles(newFiles);
             setActiveVersionTimestamp(null);
-            pushStatus(t("alert_saved"), "success");
+            pushStatus(t("alert_saved") || "Saved", "success");
          }
       } catch (e) {
-         pushStatus(t("alert_error"), "error");
+         pushStatus(t("alert_error") || "Error", "error");
       }
    };
 
@@ -160,7 +160,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          const parsed = JSON.parse(content);
 
          if (!parsed._meta_name) {
-            pushStatus(t("alert_error"), "error");
+            pushStatus(t("alert_error") || "Error", "error");
             return;
          }
 
@@ -196,7 +196,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             themeMode: 'Dark'
          });
       } catch (e: any) {
-         pushStatus((t("alert_error")) + e.message, "error");
+         pushStatus((t("alert_error") || "Error: ") + e.message, "error");
       }
    };
 
@@ -421,7 +421,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             ]);
          }
       } catch (e) {
-         pushStatus(t("alert_error"), "error");
+         pushStatus(t("alert_error") || "Error", "error");
       }
    };
 
@@ -443,7 +443,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             editorRef.executeEdits("purge-deprecated", [{ range: fullRange, text: newContent, forceMoveMarkers: true }]);
          }
       } catch (e) {
-         pushStatus(t("alert_error"), "error");
+         pushStatus(t("alert_error") || "Error", "error");
       }
    };
 
@@ -464,15 +464,15 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
    };
 
    const cloudTabs = [
-      { id: "sanctuary_schemas", label: "Schemas", icon: "data_object", number: internalCloudTarget === 'sanctuary_schemas' ? files.length : undefined },
-      { id: "sanctuary_lexicons", label: "Lexicons", icon: "translate", number: internalCloudTarget === 'sanctuary_lexicons' ? files.length : undefined }
+      { id: "sanctuary_schemas", label: t("tab_schemas") || "Schemas", icon: "data_object", number: internalCloudTarget === 'sanctuary_schemas' ? files.length.toString() : undefined },
+      { id: "sanctuary_lexicons", label: t("tab_lexicons") || "Lexicons", icon: "translate", number: internalCloudTarget === 'sanctuary_lexicons' ? files.length.toString() : undefined }
    ];
 
    const localTabs = [
-      { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard", number: files?.length || 0 },
-      { id: "templates", label: t("upload_template_title") || "Templates", icon: "data_object", number: files?.filter((f: any) => f.name.toLowerCase().endsWith('.json') && !f.name.match(/^[a-z]{2}-.+\.json$/i)).length || 0 },
-      { id: "lexicon", label: t("tab_lexicons") || "Lexicons", icon: "translate", number: files?.filter((f: any) => f.name.match(/^[a-z]{2}-.+\.json$/i)).length || 0 },
-      { id: "settings", label: t("tab_configs") || "Configurations", icon: "settings", number: files?.filter((f: any) => f.name.toLowerCase().endsWith('.ini') || f.name.toLowerCase().endsWith('.cfg')).length || 0 }
+      { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard", number: (files?.length || 0).toString() },
+      { id: "templates", label: t("upload_template_title") || "Templates", icon: "data_object", number: (files?.filter((f: any) => f.name.toLowerCase().endsWith('.json') && !f.name.match(/^[a-z]{2}-.+\.json$/i)).length || 0).toString() },
+      { id: "lexicon", label: t("tab_lexicons") || "Lexicons", icon: "translate", number: (files?.filter((f: any) => f.name.match(/^[a-z]{2}-.+\.json$/i)).length || 0).toString() },
+      { id: "settings", label: t("tab_configs") || "Configurations", icon: "settings", number: (files?.filter((f: any) => f.name.toLowerCase().endsWith('.ini') || f.name.toLowerCase().endsWith('.cfg')).length || 0).toString() }
    ];
 
    const tabs = isCloudMode ? cloudTabs : localTabs;
@@ -484,7 +484,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          headerIcon="code"
          search={searchQuery}
          onSearchChange={setSearchQuery}
-         searchPlaceholder={t("search_files") as string}
+         searchPlaceholder={(t("search_files") || "Search files...") as string}
          tabs={tabs}
          activeTab={activeTab}
          onTabChange={(id) => {
@@ -522,13 +522,12 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          )}
 
          {fileTypeFilter === 'overview' && !isCloudMode ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-2 mb-2">
-                     <span className="material-symbols-outlined text-[var(--accent)]">history</span>
-                     <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("ide_recent_file") || "Recent Files"}</h3>
-                     <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-                  </div>
+            <HubOverviewLanding>
+               <HubOverviewSection
+                  icon="history"
+                  iconColorClass="text-[var(--accent)]"
+                  title={t("ide_recent_file") || "Recent Files"}
+               >
                   <MasonFileBrowser
                      t={t}
                      isCloudMode={isCloudMode}
@@ -551,13 +550,12 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                      handlePublishLexicon={handlePublishLexicon}
                      layout="list"
                   />
-               </div>
-               <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-2 mb-2">
-                     <span className="material-symbols-outlined text-[var(--warning)]">warning</span>
-                     <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("ide_unsaved_files") || "Unsaved Changes"}</h3>
-                     <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-                  </div>
+               </HubOverviewSection>
+               <HubOverviewSection
+                  icon="warning"
+                  iconColorClass="text-[var(--warning)]"
+                  title={t("ide_unsaved_files") || "Unsaved Changes"}
+               >
                   <MasonFileBrowser
                      t={t}
                      isCloudMode={isCloudMode}
@@ -580,8 +578,8 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                      handlePublishLexicon={handlePublishLexicon}
                      layout="list"
                   />
-               </div>
-            </div>
+               </HubOverviewSection>
+            </HubOverviewLanding>
          ) : (
             <MasonFileBrowser
                t={t}
@@ -650,61 +648,64 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
          <SidePanel
             isOpen={isCreatePanelOpen}
             onClose={() => setIsCreatePanelOpen(false)}
-            title={t("auto_create_file")}
-            subtitle={t("auto_create_file_sub")}
-            icon={t("icon_add")}
-            footer={
-               <div className="flex justify-center items-center gap-4 w-full">
-                  <ActionButton
-                     type="button"
-                     onClick={() => { setIsCreatePanelOpen(false); setCreateFileName(""); }} label={t("nav_cancel")}
-                  >
-
-                  </ActionButton>
-                  <ActionButton
+            title={t("auto_create_file") || "Create File"}
+            subtitle={t("auto_create_file_sub") || "Create a new file"}
+            icon={t("icon_add") || "add"}
+            headerActions={
+               <PanelHeaderGroup>
+                  <PanelHeaderButton
+                     icon="add"
+                     variant="accent"
                      onClick={handleCreateSubmit}
                      disabled={!createFileName.trim() || !createFileExt.trim()}
-                     className="shrink-0 h-12"
-                     label={t("auto_create")}
+                     tooltip={t("auto_create") || "Create"}
                   />
-               </div>
+               </PanelHeaderGroup>
             }
          >
-            <div className="p-6 flex flex-col gap-6 h-full">
+            <div className="flex flex-col gap-6">
+               <div className="pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                  <SidePanelTitleInput
+                     value={createFileName}
+                     onChange={setCreateFileName}
+                     placeholder={(!isCloudMode && createMode === "lexicon") || (isCloudMode && internalCloudTarget === 'sanctuary_lexicons') ? (t("label_lexicon_name") || "Lexicon Name") : (t("author_filename") || "File Name")}
+                  />
+               </div>
+
                {!isCloudMode && (
                   <div className="flex p-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner mb-2">
                      <button
                         onClick={() => setCreateMode("standard")}
                         className={`flex-1 py-3 text-[11px] font-black capitalize tracking-widest rounded-xl transition-all ${createMode === "standard" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
                      >
-                        {t("auto_standard_file")}
+                        {t("auto_standard_file") || "Standard File"}
                      </button>
                      <button
                         onClick={() => setCreateMode("lexicon")}
                         className={`flex-1 py-3 text-[11px] font-black capitalize tracking-widest rounded-xl transition-all ${createMode === "lexicon" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent'}`}
                      >
                         <span className="material-symbols-outlined !text-[14px] align-middle mr-2">translate</span>
-                        {t("auto_lexicon_pack")}
+                        {t("auto_lexicon_pack") || "Lexicon Pack"}
                      </button>
                   </div>
                )}
 
                {isCloudMode && (
                   <div className="text-center text-[var(--accent)] font-black text-[12px] tracking-widest capitalize mb-2">
-                     CREATING {internalCloudTarget === 'sanctuary_lexicons' ? 'MASTER LEXICON' : 'MASTER SCHEMA'}
+                     {internalCloudTarget === 'sanctuary_lexicons' ? (t("creating_master_lexicon") || "CREATING MASTER LEXICON") : (t("creating_master_schema") || "CREATING MASTER SCHEMA")}
                   </div>
                )}
 
                {(!isCloudMode && createMode === "lexicon") || (isCloudMode && internalCloudTarget === 'sanctuary_lexicons') ? (
                   <div className="flex gap-4">
-                     <div className="flex flex-col gap-2 w-30">
-                        <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-1">{t("label_lang_code")}</label>
+                     <div className="flex flex-col gap-2 w-32">
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_lang_code") || "Language Code"}</label>
                         <input
                            type="text"
                            value={lexiconLang}
                            onChange={e => setLexiconLang(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                            placeholder="es"
-                           className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono text-center"
+                           className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono text-center"
                            autoFocus
                            onKeyDown={(e) => {
                               if (e.key === 'Enter') handleCreateSubmit();
@@ -712,13 +713,13 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                         />
                      </div>
                      <div className="flex flex-col gap-2 flex-1">
-                        <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-1">{t("label_lexicon_name")}</label>
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_lexicon_name") || "Lexicon Name"}</label>
                         <input
                            type="text"
                            value={createFileName}
                            onChange={e => setCreateFileName(e.target.value)}
                            placeholder="default"
-                           className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
+                           className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
                            onKeyDown={(e) => {
                               if (e.key === 'Enter') handleCreateSubmit();
                            }}
@@ -728,13 +729,13 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                ) : (
                   <div className="flex gap-4">
                      <div className="flex flex-col gap-2 flex-1">
-                        <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-1">{t("author_filename")}</label>
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("author_filename") || "File Name"}</label>
                         <input
                            type="text"
                            value={createFileName}
                            onChange={e => setCreateFileName(e.target.value)}
                            placeholder="example"
-                           className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
+                           className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
                            autoFocus
                            onKeyDown={(e) => {
                               if (e.key === 'Enter') handleCreateSubmit();
@@ -742,13 +743,13 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                         />
                      </div>
                      <div className="flex flex-col gap-2 w-32">
-                        <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] ml-1">{t("auto_extension")}</label>
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("auto_extension") || "Extension"}</label>
                         <input
                            type="text"
                            value={createFileExt}
                            onChange={e => setCreateFileExt(e.target.value)}
                            placeholder=".json"
-                           className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
+                           className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
                            onKeyDown={(e) => {
                               if (e.key === 'Enter') handleCreateSubmit();
                            }}

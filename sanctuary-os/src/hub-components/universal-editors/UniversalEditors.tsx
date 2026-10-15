@@ -42,7 +42,7 @@ export const UniversalInjectableSearch = ({
         </HeaderActionPortal>
 
       {filtered.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 glass-panel rounded-full shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col w-full bg-black/20 max-h-64 overflow-y-auto custom-scrollbar">
+        <div className="absolute top-full left-0 right-0 mt-2 glass-panel rounded-2xl shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col w-full bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] max-h-64 overflow-y-auto custom-scrollbar">
           {filtered.slice(0, 20).map((art: any) => (
             <div 
               key={art.hash}
@@ -98,7 +98,7 @@ export const UniversalBucketEditor = ({
   (items.addons || []).forEach((h: string) => flatItems.push({ hash: h, type: 'addons', label: t('editor_addon'), colorVar: '--warning' }));
 
   return (
-  <div className="glass-panel rounded-full flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10">
+  <div className="glass-panel rounded-2xl overflow-hidden flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
       {flatItems.map((item) => {
         const art = dataset.find((m: any) => m.hash === item.hash) || { name: item.hash, hash: item.hash };
         
@@ -164,7 +164,7 @@ export const UniversalListEditor = ({
   const { t } = useLexicon();
 
   return (
-  <div className="glass-panel rounded-full flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10">
+  <div className="glass-panel rounded-2xl overflow-hidden flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
       {items.map((hash: string) => {
         const art = dataset.find((d: any) => d.hash === hash);
         if (!art) return null;
@@ -213,17 +213,18 @@ export const UniversalListPicker = ({
   emptyStateTitle,
   emptyStateIcon
 }: any) => {
+  const { t } = useLexicon();
   if (!items || items.length === 0) {
     return (
-      <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full glass-panel">
+      <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl glass-panel">
         <span className="material-symbols-outlined mb-2 opacity-50">{emptyStateIcon || 'inventory_2'}</span>
-        <span className="text-[10px] font-black capitalize tracking-widest">{emptyStateTitle || "EMPTY"}</span>
+        <span className="text-[10px] font-black capitalize tracking-widest">{emptyStateTitle || t("empty")}</span>
       </div>
     );
   }
 
   return (
-  <div className="glass-panel rounded-full flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10">
+  <div className="glass-panel rounded-2xl overflow-hidden flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
       {items.map((item: any) => (
         <div 
           key={item.id}
@@ -282,11 +283,12 @@ export const UniversalGridPicker = ({
   emptyStateTitle,
   emptyStateIcon
 }: any) => {
+  const { t } = useLexicon();
   if (!items || items.length === 0) {
     return (
-      <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full glass-panel col-span-full">
+      <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl glass-panel col-span-full">
         <span className="material-symbols-outlined mb-2 opacity-50">{emptyStateIcon || 'inventory_2'}</span>
-        <span className="text-[10px] font-black capitalize tracking-widest">{emptyStateTitle || "EMPTY"}</span>
+        <span className="text-[10px] font-black capitalize tracking-widest">{emptyStateTitle || t("empty")}</span>
       </div>
     );
   }
@@ -299,12 +301,12 @@ export const UniversalGridPicker = ({
           <div 
             key={item.id} 
             onClick={() => onSelect(item.id, item.originalItem || item)}
-            className={`glass-panel border transition-all duration-300 rounded-full p-4 flex flex-col cursor-pointer group
+            className={`glass-panel border transition-all duration-300 rounded-2xl p-4 flex flex-col cursor-pointer group
               ${isSelected 
                 ? 'border-[var(--accent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]' 
                 : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
           >
-            <div className="w-full aspect-square rounded-xl bg-black/20 flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden mb-3">
+            <div className="w-full aspect-square rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden mb-3">
               {item.imageUrl ? (
                 <img src={item.imageUrl} className="w-full h-full object-cover" />
               ) : (

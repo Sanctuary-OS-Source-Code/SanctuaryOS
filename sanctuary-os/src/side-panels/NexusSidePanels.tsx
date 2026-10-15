@@ -7,6 +7,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { SidePanelTitleInput } from "../components/universal/UniversalLayout";
 import { isDesktop } from "../utils/envUtils";
 
 export function MarketUploadPanel({
@@ -32,46 +33,48 @@ export function MarketUploadPanel({
         title={marketTab === 'LEXICONS' ? (t("upload_lexicon_title") || "Upload Lexicon") : marketTab === 'TEMPLATES' ? (t("upload_template_title") || "Upload Template") : (t("upload_chameleon_title") || "Upload Chameleon")}
         subtitle={t("auto_upload_new_asset") || "Upload your custom creation"}
         headerActions={
-          <>
-            <PanelHeaderGroup>
-              <PanelHeaderButton
-                icon={uploadState.editId ? "save" : "cloud_upload"}
-                tooltip={uploadState.editId ? (t("upload_btn_update") || "Update") : (t("upload_submit") || "Submit")}
-                onClick={submitUpload}
-                disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
-                variant="accent"
-              />
-            </PanelHeaderGroup>
-          </>
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={uploadState.editId ? "save" : "cloud_upload"}
+              tooltip={uploadState.editId ? (t("upload_btn_update") || "Update") : (t("upload_submit") || "Submit")}
+              onClick={submitUpload}
+              disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
+              variant="accent"
+            />
+          </PanelHeaderGroup>
         }
       >
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-6 flex flex-col gap-6 relative z-10">
-          <div className="flex flex-col gap-8 pb-8 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-            <div className="flex items-start justify-between gap-6 relative z-10 w-full">
-              <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-full">
-                <h1 className="text-3xl font-black capitalize tracking-tight text-[var(--text)] drop-shadow-md break-words break-all" style={{ overflowWrap: 'anywhere' }}>
-                  {uploadState.name || t("new_upload") || "New Upload"}
-                </h1>
-                <div className="flex items-center gap-3 flex-wrap mt-2">
-                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
-                    <span className="material-symbols-outlined !text-[16px] shrink-0">draft</span>
-                    <span className="truncate">{marketTab}</span>
-                  </span>
-                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
-                    <span className="material-symbols-outlined !text-[16px] shrink-0">new_releases</span>
-                    <span className="truncate">{uploadState.version || "1.0.0"}</span>
-                  </span>
-                </div>
-              </div>
+        <div className="flex flex-col gap-6 relative z-10">
+          <div className="flex flex-col gap-4 pb-6 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+            <SidePanelTitleInput
+              value={uploadState.name}
+              onChange={(val) => setUploadState((s: any) => ({ ...s, name: val }))}
+              placeholder={
+                marketTab === 'LEXICONS'
+                  ? (t("upload_lexicon_name") || "Lexicon Name")
+                  : marketTab === 'TEMPLATES'
+                    ? (t("upload_template_name") || "Template Name")
+                    : (t("upload_chameleon_name") || "Chameleon Name")
+              }
+            />
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
+                <span className="material-symbols-outlined !text-[16px] shrink-0">draft</span>
+                <span className="truncate">{marketTab}</span>
+              </span>
+              <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
+                <span className="material-symbols-outlined !text-[16px] shrink-0">new_releases</span>
+                <span className="truncate">{uploadState.version || "1.0.0"}</span>
+              </span>
             </div>
           </div>
 
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
-              <label className="text-xs font-bold text-[var(--subtext)] capitalize tracking-widest">{t("upload_file")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_file") || "File"}</label>
               <div className="flex items-center gap-4">
-                <div className={`flex-1 glass-surface rounded-xl px-4 py-3 text-sm font-bold truncate transition-all ${uploadState.fileName ? 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--subtext)] opacity-60 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-dashed'}`}>
-                  {uploadState.fileName || "No file selected"}
+                <div className={`flex-1 glass-surface rounded-xl px-5 py-3 text-sm font-bold truncate transition-all ${uploadState.fileName ? 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-[var(--subtext)] opacity-60 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-dashed'}`}>
+                  {uploadState.fileName || (t("no_file_selected") || "No file selected")}
                 </div>
                 {!(uploadState.id && ['TEMPLATES', 'templates', 'CHAMELEONS', 'chameleons'].includes(marketTab)) && marketTab !== 'LEXICONS' && marketTab !== 'lexicons' && marketTab !== 'CHAMELEONS' && marketTab !== 'TEMPLATES' && (
                   <button onClick={async () => {
@@ -89,10 +92,10 @@ export function MarketUploadPanel({
                       else if (parsed._meta_version) newVersion = parsed._meta_version;
                       setUploadState((s: any) => ({ ...s, fileContent: parsed, fileName: selected as string, name: s.name || parsed.name || 'Unknown', version: newVersion }));
                     } catch (err: any) {
-                      useStore.getState().pushStatus(`${t("alert_import_failed")} ${err.message || err}`);
+                      useStore.getState().pushStatus(`${t("alert_import_failed") || "Import failed:"} ${err.message || err}`);
                     }
                   }} className={`px-6 py-3 font-black text-[10px] capitalize tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg whitespace-nowrap ${standardAccentGlassButtonClass}`}>
-                    {uploadState.fileName ? (t("ui_btn_replace")) : (t("btn_import"))}
+                    {uploadState.fileName ? (t("ui_btn_replace") || "Replace") : (t("btn_import") || "Import")}
                   </button>
                 )}
               </div>
@@ -101,81 +104,81 @@ export function MarketUploadPanel({
               <div className="flex flex-col gap-2 flex-1">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
                   {marketTab === 'LEXICONS'
-                    ? (t("upload_lexicon_name"))
+                    ? (t("upload_lexicon_name") || "Lexicon Name")
                     : marketTab === 'TEMPLATES'
-                      ? (t("upload_template_name"))
-                      : (t("upload_chameleon_name"))}
+                      ? (t("upload_template_name") || "Template Name")
+                      : (t("upload_chameleon_name") || "Chameleon Name")}
                 </label>
                 <input
                   type="text"
                   value={uploadState.name}
                   onChange={e => setUploadState((s: any) => ({ ...s, name: e.target.value }))}
-                  className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)]"
+                  className="w-full glass-surface rounded-xl px-5 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)]"
                 />
               </div>
               <div className="flex flex-col gap-2 w-32 shrink-0">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_version")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_version") || "Version"}</label>
                 <input
                   type="text"
                   value={uploadState.version}
                   onChange={e => setUploadState((s: any) => ({ ...s, version: e.target.value }))}
-                  className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)] text-center"
+                  className="w-full glass-surface rounded-xl px-5 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all text-[var(--text)] text-center"
                 />
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc") || "Description"}</label>
               <textarea
                 value={uploadState.description}
                 onChange={e => setUploadState((s: any) => ({ ...s, description: e.target.value }))}
-                className="w-full glass-surface rounded-xl px-5 py-4 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[100px] text-[var(--text)]"
+                className="w-full glass-surface rounded-xl px-5 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all min-h-[100px] text-[var(--text)]"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("whats_new")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("whats_new") || "What's New"}</label>
               <textarea
                 value={uploadState.releaseNotes || ""}
                 onChange={e => setUploadState((s: any) => ({ ...s, releaseNotes: e.target.value }))}
-                placeholder={t("update_panel_no_notes")}
-                className="w-full glass-surface rounded-xl px-5 py-4 text-sm focus:outline-none focus:theme-border-accent transition-all min-h-[80px] text-[var(--text)]"
+                placeholder={t("update_panel_no_notes") || "Release notes..."}
+                className="w-full glass-surface rounded-xl px-5 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all min-h-[80px] text-[var(--text)]"
               />
             </div>
 
             {marketTab === 'LEXICONS' && (
               <>
                 <div className="flex flex-col gap-2 relative z-[60]">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("tab_lexicons")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("tab_lexicons") || "Language"}</label>
                   <CustomDropdown disableTint={true}
                     value={uploadState.language}
                     onChange={(val: string[]) => setUploadState((s: any) => ({ ...s, language: val[0] }))}
                     options={[
                       ...(uploadState.language && uploadState.language !== 'add_new' && !availableLanguages.includes(uploadState.language) ? [{ id: uploadState.language, label: uploadState.language.toUpperCase() }] : []),
                       ...availableLanguages.map((l: any) => ({ id: l, label: l })),
-                      { id: "add_new", label: t("upload_add_language") }
+                      { id: "add_new", label: t("upload_add_language") || "Add Language" }
                     ]}
                   />
                 </div>
                 {uploadState.language === 'add_new' && (
                   <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_new_language")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_new_language") || "New Language"}</label>
                     <input
                       type="text"
                       value={uploadState.newLanguage}
                       onChange={e => setUploadState((s: any) => ({ ...s, newLanguage: e.target.value }))}
-                      className="w-full glass-surface rounded-xl px-5 py-4 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
-                      placeholder={t("ph_language")}
+                      className="w-full glass-surface rounded-xl px-5 py-3 text-sm font-bold focus:outline-none focus:theme-border-accent transition-all border-l-4 border-l-[var(--accent)] text-[var(--text)]"
+                      placeholder={t("ph_language") || "Language name..."}
                     />
                   </div>
                 )}
                 <div className="flex flex-col gap-2 relative z-[50]">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("filter_type")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("filter_type") || "Type"}</label>
                   <CustomDropdown disableTint={true}
                     value={uploadState.lexiconType}
                     onChange={(val: string[]) => setUploadState((s: any) => ({ ...s, lexiconType: val[0] }))}
                     options={[
-                      { id: "Theme", label: t("type_theme") },
-                      { id: "Default", label: t("type_default") }
+                      { id: "Theme", label: t("type_theme") || "Theme" },
+                      { id: "Default", label: t("type_default") || "Default" }
                     ]}
                   />
                 </div>
@@ -184,13 +187,13 @@ export function MarketUploadPanel({
 
             {marketTab === 'CHAMELEONS' && (
               <div className="flex flex-col gap-2 relative z-[60]">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("filter_mode")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("filter_mode") || "Mode"}</label>
                 <CustomDropdown disableTint={true}
                   value={uploadState.themeMode}
                   onChange={(val: string[]) => setUploadState((s: any) => ({ ...s, themeMode: val[0] }))}
                   options={[
-                    { id: "Dark", label: t("mode_dark") },
-                    { id: "Light", label: t("mode_light") }
+                    { id: "Dark", label: t("mode_dark") || "Dark" },
+                    { id: "Light", label: t("mode_light") || "Light" }
                   ]}
                 />
               </div>
@@ -222,26 +225,21 @@ export function MarketReportPanel({
         title={t("report_title") || "Report Content"}
         subtitle={t("report_desc") || "Please describe the issue"}
         headerActions={
-          <>
-            <PanelHeaderGroup>
-              <PanelHeaderButton
-                icon="flag"
-                tooltip={t("report_submit") || "Submit Report"}
-                onClick={() => handleReportSubmit({ preventDefault: () => { } } as any)}
-                variant="danger"
-              />
-            </PanelHeaderGroup>
-          </>
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon="flag"
+              tooltip={t("report_submit") || "Submit Report"}
+              onClick={() => handleReportSubmit({ preventDefault: () => { } } as any)}
+              variant="danger"
+            />
+          </PanelHeaderGroup>
         }
       >
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col relative z-10 pt-6">
-          <div className="flex flex-col gap-8 pb-8 px-6 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-            <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none" style={{ transform: 'translate(20%, -20%)' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '300px' }}>flag</span>
-            </div>
+        <div className="flex flex-col gap-6 relative z-10">
+          <div className="flex flex-col gap-6 pb-6 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
             <div className="flex items-start justify-between gap-6 relative z-10 w-full">
               <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-full">
-                <h1 className="text-4xl font-black capitalize tracking-tight text-[var(--text)] drop-shadow-md break-words break-all" style={{ overflowWrap: 'anywhere' }}>
+                <h1 className="text-3xl font-black capitalize tracking-tight text-[var(--text)] drop-shadow-md break-words break-all" style={{ overflowWrap: 'anywhere' }}>
                   {t("report_content") || "Report Content"}
                 </h1>
                 <div className="flex items-center gap-3 flex-wrap mt-2">
@@ -263,18 +261,16 @@ export function MarketReportPanel({
               </div>
             </div>
           </div>
-          <div className="p-6 flex flex-col gap-6 flex-1">
-            <div className="flex flex-col gap-2">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("reason")}</label>
-              <textarea
-                required
-                value={reportState.reason}
-                placeholder={t("report_placeholder")}
-                title={t("report_placeholder")}
-                onChange={(e) => setReportState({ ...reportState, reason: e.target.value })}
-                className="h-48 glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold resize-none focus:outline-none focus:theme-border-accent"
-              />
-            </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("reason") || "Reason"}</label>
+            <textarea
+              required
+              value={reportState.reason}
+              placeholder={t("report_placeholder") || "Describe the issue..."}
+              title={t("report_placeholder") || "Describe the issue..."}
+              onChange={(e) => setReportState({ ...reportState, reason: e.target.value })}
+              className="h-48 glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold resize-none focus:outline-none focus:theme-border-accent"
+            />
           </div>
         </div>
       </SidePanel>
@@ -462,31 +458,29 @@ export function MarketBlueprintPanel({
         noPadding={true}
         noScroll={true}
         icon="map"
-        title={t("blueprint_inspector")}
-        subtitle={t("blueprint_desc")}
+        title={t("blueprint_inspector") || "Blueprint Inspector"}
+        subtitle={t("blueprint_desc") || "Inspect included artifacts"}
         headerActions={
-          <>
-            <PanelHeaderGroup>
-              {isDesktop() && (
-                <PanelHeaderButton
-                  icon={isSyncing ? "sync" : "download"}
-                  tooltip={playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? (t("btn_install_copy") || "Install Copy") : (t("update_panel_install") || "Install")}
-                  onClick={async () => {
-                    if (playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code)) {
-                      setIsSyncing(true);
-                      await syncBlueprintByCode(selectedBlueprint.json_data.code);
-                      setIsSyncing(false);
-                    } else {
-                      onDownloadSuccess?.();
-                    }
-                    setSelectedBlueprint(null);
-                  }}
-                  variant="accent"
-                  spinIcon={isSyncing}
-                />
-              )}
-            </PanelHeaderGroup>
-          </>
+          <PanelHeaderGroup>
+            {isDesktop() && (
+              <PanelHeaderButton
+                icon={isSyncing ? "sync" : "download"}
+                tooltip={playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code) ? (t("btn_install_copy") || "Install Copy") : (t("update_panel_install") || "Install")}
+                onClick={async () => {
+                  if (playSets.some((p: any) => p.code && selectedBlueprint?.json_data?.code && p.code === selectedBlueprint.json_data.code)) {
+                    setIsSyncing(true);
+                    await syncBlueprintByCode(selectedBlueprint.json_data.code);
+                    setIsSyncing(false);
+                  } else {
+                    onDownloadSuccess?.();
+                  }
+                  setSelectedBlueprint(null);
+                }}
+                variant="accent"
+                spinIcon={isSyncing}
+              />
+            )}
+          </PanelHeaderGroup>
         }
       >
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col relative z-10 px-10 py-6">
@@ -501,7 +495,7 @@ export function MarketBlueprintPanel({
                     <span className="material-symbols-outlined !text-[14px] md:!text-[16px] shrink-0">person</span>
                     <span className="truncate">{enrichedBlueprint.creator_name || enrichedBlueprint.master_author || enrichedBlueprint.author || t("role_citizen") || "Citizen"}</span>
                   </span>
-                  {enrichedBlueprint.is_paid && <div className="px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] text-[#fef08a] text-[10px] md:text-xs font-black tracking-widest uppercase flex items-center gap-1.5 md:gap-2 shadow-sm backdrop-blur-sm shrink-0"><span className="material-symbols-outlined !text-[14px] md:!text-[16px]">monetization_on</span> {t("badge_premium") || "Premium"}</div>}
+                  {enrichedBlueprint.is_paid && <div className="px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] text-[10px] md:text-xs font-black tracking-widest uppercase flex items-center gap-1.5 md:gap-2 shadow-sm backdrop-blur-sm shrink-0"><span className="material-symbols-outlined !text-[14px] md:!text-[16px]">monetization_on</span> {t("badge_premium") || "Premium"}</div>}
                 </div>
               </div>
 
@@ -569,12 +563,12 @@ export function MarketBlueprintPanel({
                       </div>
                       <div className="flex gap-1.5 flex-wrap justify-end">
                         {mod.is_early_access && (
-                          <div className="w-6 h-6 rounded-md bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] flex items-center justify-center text-[#d8b4fe]" title={t("badge_early_access") || "Early Access"}>
+                          <div className="w-6 h-6 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)]" title={t("badge_early_access") || "Early Access"}>
                             <span className="material-symbols-outlined !text-[12px]">science</span>
                           </div>
                         )}
                         {mod.is_paid && (
-                          <div className="w-6 h-6 rounded-md bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] flex items-center justify-center text-[#fef08a]" title={t("badge_paid") || "Paid"}>
+                          <div className="w-6 h-6 rounded-md bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center justify-center text-[var(--warning)]" title={t("badge_paid") || "Paid"}>
                             <span className="material-symbols-outlined !text-[12px]">monetization_on</span>
                           </div>
                         )}
@@ -602,13 +596,13 @@ export function MarketBlueprintPanel({
                     <div className="flex flex-col gap-4">
                       <div className="flex items-center justify-between pb-2 border-b border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-yellow-500 flex items-center justify-center shadow-inner">
+                          <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] flex items-center justify-center shadow-inner">
                             <span className="material-symbols-outlined !text-[16px]">workspace_premium</span>
                           </div>
-                          <span className="text-[11px] font-black text-yellow-500 capitalize tracking-widest">{t("premium_artifacts") || "Premium Artifacts"}</span>
+                          <span className="text-[11px] font-black text-[var(--warning)] capitalize tracking-widest">{t("premium_artifacts") || "Premium Artifacts"}</span>
                         </div>
                         <span className="text-[9px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-60">
-                          {premiumMods.length} Items
+                          {premiumMods.length} {t("items_count") || "Items"}
                         </span>
                       </div>
 
@@ -628,7 +622,7 @@ export function MarketBlueprintPanel({
                           <span className="text-[11px] font-black text-[var(--text)] capitalize tracking-widest">{t("standard_artifacts") || "Standard Artifacts"}</span>
                         </div>
                         <span className="text-[9px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-60">
-                          {standardMods.length} Items
+                          {standardMods.length} {t("items_count") || "Items"}
                         </span>
                       </div>
 
@@ -643,10 +637,10 @@ export function MarketBlueprintPanel({
             {displayArtifacts.length > visibleCount && (
               <button
                 onClick={() => setVisibleCount((prev: number) => prev + 100)}
-                className="w-full py-4 mt-2 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all flex items-center justify-center gap-2 shadow-md active:scale-[0.99]"
+                className="w-full py-4 mt-2 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all flex items-center justify-center gap-2 shadow-md active:scale-[0.99]"
               >
                 <span className="material-symbols-outlined !text-[16px]">expand_more</span>
-                Load More Artifacts ({displayArtifacts.length - visibleCount} Remaining)
+                {t("load_more_artifacts") || "Load More Artifacts"} ({displayArtifacts.length - visibleCount})
               </button>
             )}
           </div>

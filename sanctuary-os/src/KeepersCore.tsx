@@ -23,28 +23,28 @@ export default function KeepersCore() {
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader 
-        title="KEEPERS CORE" 
-        subtitle="CORE OS OVERSIGHT & INFRASTRUCTURE" 
+        title={t("keepers_core") || "KEEPERS CORE"} 
+        subtitle={t("keepers_core_subtitle") || "CORE OS OVERSIGHT & INFRASTRUCTURE"} 
         icon="admin_panel_settings" 
-        iconColorClass="text-purple-400"
+        iconColorClass="text-[var(--accent)]"
         breadcrumb={activeTab !== "command_center" ? activeTab.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
         onTitleClick={() => setActiveTab("command_center")}
       >
       </ViewHeader>
 
       <div className="md:hidden">
-        <HoverTabDrawer title="Keepers Navigation" activeTab={activeTab} setTab={setActiveTab} hideMobilePills={true}>
+        <HoverTabDrawer title={t("keepers_navigation") || "Keepers Navigation"} activeTab={activeTab} setTab={setActiveTab} hideMobilePills={true}>
           <VerticalTabButton id="command_center" icon={t("icon_desktop_windows")} label={t("wf_tab_command")} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="keepers_comms" icon={t("icon_satellite_alt")} label={t("wf_tab_dispatch")} activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="web_directives" icon="folder_special" label="System Directives" activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="web_news" icon="public" label="Website News" activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="web_legal" icon="gavel" label="Legal Documents" activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="active_games" icon="dns" label="Active Workspaces" activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="identities" icon="group" label="Citizen Oversight" activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="support" icon={t("icon_support_agent")} label="Support Center" activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="web_directives" icon="folder_special" label={t("web_directives") || "System Directives"} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="web_news" icon="public" label={t("web_news") || "Website News"} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="web_legal" icon="gavel" label={t("hub_legal_docs") || "Legal Documents"} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="active_games" icon="dns" label={t("ui_active_games") || "Active Workspaces"} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="identities" icon="group" label={t("citizen_oversight") || "Citizen Oversight"} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="support" icon={t("icon_support_agent")} label={t("hub_title_tickets") || "Support Center"} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="support_settings" icon={t("icon_support_agent")} label={t("wf_tab_support")} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="audit_logs" icon={t("icon_history")} label={t("audit_title")} activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="ide" icon="code" label="Keepers IDE" activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="ide" icon="code" label={t("keepers_ide") || "Keepers IDE"} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="chameleons" icon="palette" label={t("wf_master_themes")} activeTab={activeTab} setTab={setActiveTab} />
         </HoverTabDrawer>
       </div>
@@ -59,7 +59,7 @@ export default function KeepersCore() {
         {activeTab === "identities" && <IdentityMatrix isWayfinder={false} isKeepers={true} />}
         {activeTab === "support" && <KeepersSupportTickets />}
         {activeTab === "support_settings" && <KeeperSupportSettings />}
-        {activeTab === "audit_logs" && <AuditLogViewer />}
+        {activeTab === "audit_logs" && <AuditLogViewer isKeepers={true} />}
         {activeTab === "ide" && <MasonIDE isCloudMode={true} cloudTarget="sanctuary_lexicons" isKeepers={true} />}
         {activeTab === "chameleons" && <WayfinderChameleons isKeepers={true} />}
       </div>

@@ -10,7 +10,7 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
 import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, FilterTabs, FilterTabButton, ActionButton, ViewToggle, RadioCardGroup, RadioCard, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel, ActionPill } from "../shared";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import MasonPostCard from "../MasonPostCard";
 import MarkdownRenderer from "../MarkdownRenderer";
@@ -56,7 +56,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
 
   const [filterAudience, setFilterAudience] = useState("All");
   const [filterCategory, setFilterCategory] = useState("All");
-  const [filterStatus, setFilterStatus] = useState("Active");
+  const [filterStatus, setFilterStatus] = useState("overview");
 
   const wayfinderDrafts = useStore(state => state.wayfinderDrafts);
   const setWayfinderDrafts = useStore(state => state.setWayfinderDrafts);
@@ -468,50 +468,79 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
         (p.message || p.content)?.toLowerCase().includes(searchTerm.toLowerCase());
       const audienceMatch = filterAudience === "All" || (p.target_audience && p.target_audience.includes(filterAudience));
       const categoryMatch = filterCategory === "All" || p.category === filterCategory;
-      const statusMatch = filterStatus === "All" || (filterStatus === "Active" ? p.is_active !== false : p.is_active === false);
+      const statusMatch = filterStatus === "All" || filterStatus === "overview" || (filterStatus === "Active" ? p.is_active !== false : p.is_active === false);
       return searchMatch && audienceMatch && categoryMatch && statusMatch;
     });
   }, [posts, searchTerm, filterAudience, filterCategory, filterStatus]);
 
-
-
   const draftKeysStr = useMemo(() => Object.keys(wayfinderDrafts).sort().join(','), [wayfinderDrafts]);
 
-  const postCards = useMemo(() => {
+  const renderPostCard = (post: any) => {
     const draftSet = new Set(draftKeysStr.split(','));
-    return filteredPosts.map(post => {
-      const hasUnsavedEdits = draftSet.has(post.id);
-      return (
-        <MasonPostCard
-          key={post.id}
-          post={post}
-          index={0}
-          onPostClick={() => openEditor(post)}
-          onToggleLike={() => { }}
-          hasUnsavedEdits={hasUnsavedEdits}
-          actions={
-            <div className={`flex items-center gap-2 w-full transition-opacity duration-300 relative z-20 ${confirmDelete === post.id ? 'justify-center' : 'justify-end opacity-0 group-hover:opacity-100'}`}>
-              {confirmDelete === post.id ? (
-                <>
-                  <span className="text-[10px] font-black text-[var(--danger)] capitalize tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
-                    <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
-                  </span>
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("nav_cancel")}</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-md transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
-                </>
-              ) : (
-                <>
-                  <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("btn_view")}</button>
-                  <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
-                </>
-              )}
-            </div>
-          }
-        />
-      );
-    });
+    const hasUnsavedEdits = draftSet.has(post.id);
+    return (
+      <MasonPostCard
+        key={post.id}
+        post={post}
+        index={0}
+        onPostClick={() => openEditor(post)}
+        onToggleLike={() => { }}
+        hasUnsavedEdits={hasUnsavedEdits}
+        actions={
+          <div className={`flex items-center gap-2 w-full transition-opacity duration-300 relative z-20 ${confirmDelete === post.id ? 'justify-center' : 'justify-end opacity-0 group-hover:opacity-100'}`}>
+            {confirmDelete === post.id ? (
+              <>
+                <span className="text-[10px] font-black text-[var(--danger)] capitalize tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
+                  <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
+                </span>
+                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("nav_cancel")}</button>
+                <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-md transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
+              </>
+            ) : (
+              <>
+                <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("btn_view")}</button>
+                <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
+                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
+              </>
+            )}
+          </div>
+        }
+      />
+    );
+  };
+
+  const postCards = useMemo(() => {
+    return filteredPosts.map(renderPostCard);
   }, [filteredPosts, draftKeysStr, confirmDelete, t]);
+
+  const renderLanding = () => {
+    const activePosts = posts.filter(p => p.is_active !== false);
+    const inactivePosts = posts.filter(p => p.is_active === false);
+    return (
+      <HubOverviewLanding>
+        <HubOverviewSection
+          icon="check_circle"
+          iconColorClass="text-[var(--success)]"
+          title={t("status_active") || "Active Dispatches"}
+          isEmpty={activePosts.length === 0}
+          emptyIcon="cell_tower"
+          emptyTitle={t("no_transmissions") || "No Active Dispatches"}
+        >
+          {activePosts.slice(0, 4).map(renderPostCard)}
+        </HubOverviewSection>
+        <HubOverviewSection
+          icon="cancel"
+          iconColorClass="text-[var(--warning)]"
+          title={t("status_inactive") || "Inactive Dispatches"}
+          isEmpty={inactivePosts.length === 0}
+          emptyIcon="cell_tower"
+          emptyTitle={t("no_transmissions") || "No Inactive Dispatches"}
+        >
+          {inactivePosts.slice(0, 4).map(renderPostCard)}
+        </HubOverviewSection>
+      </HubOverviewLanding>
+    );
+  };
 
   const contentBlock = (
     <ElevatedHubLayout
@@ -525,54 +554,70 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       searchPlaceholder={t("mason_search_placeholder") as string}
       hideSearch={filterStatus === 'overview'}
       tabs={[
-        { id: "Active", label: t("status_active") || "Active" },
-        { id: "Inactive", label: t("status_inactive") || "Inactive" }
+        { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard", number: posts.length.toString() },
+        { id: "Active", label: t("status_active") || "Active", icon: "check_circle", number: posts.filter(p => p.is_active !== false).length.toString() },
+        { id: "Inactive", label: t("status_inactive") || "Inactive", icon: "cancel", number: posts.filter(p => p.is_active === false).length.toString() }
       ]}
-
       activeTab={filterStatus}
       onTabChange={setFilterStatus as any}
-      headerActions={
-        <div className="flex items-center gap-2">
-          <CustomDropdown
-            flat={true}
-            variant="pill"
-            disableTint={true}
-            value={filterCategory}
-            onChange={(v: string[]) => setFilterCategory(v[0])}
-            options={[
-              { id: "All", label: t("all_classes") },
-              ...(isOversight ? [
-                { id: "Game Issue", label: t("category_game_issue") },
-                { id: "Mod Issue", label: t("category_mod_issue") },
-                { id: "Game Version Alert", label: t("category_game_version_alert") },
-                { id: "Malware Alert", label: t("category_malware_alert") },
-                { id: "Artifact Alert", label: t("category_artifact_alert") }
-              ] : [
-                { id: "Update", label: t("comms_btn_update") },
-                { id: "Info", label: t("category_info") },
-                { id: "Event", label: t("category_event") },
-                { id: "Alert", label: t("category_alert") },
-                { id: "Game Version Alert", label: t("category_game_version_alert") },
-                { id: "Malware Alert", label: t("category_malware_alert") },
-                { id: "Artifact Alert", label: t("category_artifact_alert") }
-              ])
-            ]}
-          />
-          <ActionButton
-            onClick={() => openEditor()}
-            iconOnly={true}
-            icon={t("icon_cell_tower") || "cell_tower"}
-            label={wayfinderDrafts['new'] ? t("action_unsaved_draft") : t("post_broadcast")}
-            variant={wayfinderDrafts['new'] ? "warning" : "default"}
-          />
-        </div>
+      primaryPopover={
+        filterStatus !== 'overview' ? {
+          icon: "tune",
+          label: t("filters") || "Filters",
+          content: (
+            <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "Category"}</span>
+                <CustomDropdown
+                  flat={true}
+                  variant="pill"
+                  disableTint={true}
+                  value={filterCategory}
+                  onChange={(v: string[]) => setFilterCategory(v[0])}
+                  options={[
+                    { id: "All", label: t("all_classes") },
+                    ...(isOversight ? [
+                      { id: "Game Issue", label: t("category_game_issue") },
+                      { id: "Mod Issue", label: t("category_mod_issue") },
+                      { id: "Game Version Alert", label: t("category_game_version_alert") },
+                      { id: "Malware Alert", label: t("category_malware_alert") },
+                      { id: "Artifact Alert", label: t("category_artifact_alert") }
+                    ] : [
+                      { id: "Update", label: t("comms_btn_update") },
+                      { id: "Info", label: t("category_info") },
+                      { id: "Event", label: t("category_event") },
+                      { id: "Alert", label: t("category_alert") },
+                      { id: "Game Version Alert", label: t("category_game_version_alert") },
+                      { id: "Malware Alert", label: t("category_malware_alert") },
+                      { id: "Artifact Alert", label: t("category_artifact_alert") }
+                    ])
+                  ]}
+                />
+              </div>
+            </div>
+          )
+        } : undefined
+      }
+      actions={
+        filterStatus !== 'overview' ? [
+          {
+            id: "post",
+            icon: t("icon_cell_tower") || "cell_tower",
+            label: wayfinderDrafts['new'] ? t("action_unsaved_draft") : t("post_broadcast"),
+            onClick: () => openEditor()
+          }
+        ] : undefined
       }
     >
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
-        {postCards}
-      </div>
-      {filteredPosts.length === 0 && (
-        <EmptyState icon={t("icon_cell_tower")} title={t("no_transmissions")} className="py-16" />
+      {filterStatus === 'overview' ? renderLanding() : (
+        <>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
+            {postCards}
+          </div>
+          {filteredPosts.length === 0 && (
+            <EmptyState icon={t("icon_cell_tower")} title={t("no_transmissions")} className="py-16" />
+          )}
+        </>
       )}
     </ElevatedHubLayout>
   );

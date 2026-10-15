@@ -1,39 +1,14 @@
-import { useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { useLexicon } from '../LexiconContext';
+import { CustomDropdown } from '../shared';
 
 export function CustomSettingsDropdown({ value, options, onChange }: any) {
-  const { t } = useLexicon();
-  const [isOpen, setIsOpen] = useState(false);
-  const selected = options.find((o: any) => o.id == value) || options[0];
-  const btnRef = useRef<HTMLButtonElement>(null);
-
   return (
     <div className="relative w-full z-10">
-   <button ref={btnRef} onClick={() => setIsOpen(!isOpen)} className="w-full p-5 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] outline-none transition-all shadow-xl flex justify-start items-center text-[10px] font-black capitalize tracking-widest text-[var(--text)] focus:theme-border-accent group hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-2xl hover:scale-[1.02] active:scale-95 backdrop-blur-3xl relative ">
-        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-        <span className="relative z-10">{selected?.label}</span>
-        <span className="text-[var(--subtext)] opacity-60 text-[10px] group-hover:text-[var(--text)] group-hover:theme-text-accent transition-colors relative z-10 material-symbols-outlined !text-[18px]">{isOpen ? 'expand_less' : 'expand_more'}</span>
-      </button>
-      {isOpen && createPortal(
-        <>
-          <div className="fixed inset-0 z-[50000]" onClick={() => setIsOpen(false)} />
-     <div className="fixed mt-3 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[50001] animate-in fade-in zoom-in-95 slide-in-from-top-2 backdrop-blur-3xl"
-            style={{
-              top: btnRef.current?.getBoundingClientRect().bottom,
-              left: btnRef.current?.getBoundingClientRect().left,
-              width: btnRef.current?.getBoundingClientRect().width,
-            }}
-          >
-            {options.map((opt: any) => (
-              <button key={opt.id} onClick={() => { onChange(opt.id); setIsOpen(false); }} className={`w-full text-left px-5 py-4 text-[10px] font-black capitalize tracking-widest transition-all border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center justify-start group/opt hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:pl-7 ${opt.id === value ? 'theme-text-accent bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--text)]'}`}>
-                {opt.label}
-                {opt.id === value && <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_check")}</span>}
-              </button>
-            ))}
-          </div>
-        </>, document.body
-      )}
+      <CustomDropdown
+        value={value}
+        options={options}
+        onChange={(vals: any) => onChange(Array.isArray(vals) ? vals[0] : vals)}
+        disableTint={true}
+      />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
 import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { logArchitectAction } from "../lib/audit";
 
@@ -137,31 +137,76 @@ export default function SASupportSettings() {
             activeTab={activeTab}
             onTabChange={setActiveTab as any}
             tabs={[
-                { id: 'overview', label: t("landing_overview") || "Overview", icon: "dashboard" },
-                { id: 'active_categories', label: t("active_categories") || "Active Categories", icon: "category" },
-                { id: 'active_log_sources', label: t("active_log_sources") || "Active Log Sources", icon: "description" },
-                { id: 'inactive_categories', label: t("inactive_categories") || "Inactive Categories", icon: "block" },
-                { id: 'inactive_log_sources', label: t("inactive_log_sources") || "Inactive Log Sources", icon: "cancel" }
+                { id: 'overview', label: t("landing_overview") || "Overview", icon: "dashboard", number: (categories.length + telemetrySources.length).toString() },
+                { id: 'active_categories', label: t("active_categories") || "Active Categories", icon: "category", number: categories.filter(c => c.is_active).length.toString() },
+                { id: 'active_log_sources', label: t("active_log_sources") || "Active Log Sources", icon: "description", number: telemetrySources.filter(s => s.is_active).length.toString() },
+                { id: 'inactive_categories', label: t("inactive_categories") || "Inactive Categories", icon: "block", number: categories.filter(c => !c.is_active).length.toString() },
+                { id: 'inactive_log_sources', label: t("inactive_log_sources") || "Inactive Log Sources", icon: "cancel", number: telemetrySources.filter(s => !s.is_active).length.toString() }
             ]}
-            headerActions={
-                activeTab !== 'overview' && (
-                    <div className="flex items-center gap-2">
-                        <ActionButton
-                            onClick={() => activeTab.includes('categories') ? openEditor() : openSourceEditor()}
-                            iconOnly={true}
-                            icon={t("icon_add")}
-                            label={activeTab.includes('categories') ? (t("support_add_cat")) : (t("telemetry_add_source"))}
-                        />
-                    </div>
-                )
+            actions={
+                activeTab !== 'overview' ? [
+                    {
+                        id: "add",
+                        icon: t("icon_add") || "add",
+                        label: activeTab.includes('categories') ? (t("support_add_cat") || "Add Category") : (t("telemetry_add_source") || "Add Source"),
+                        onClick: () => activeTab.includes('categories') ? openEditor() : openSourceEditor()
+                    }
+                ] : undefined
             }
         >
             {activeTab === 'overview' && (
-                <div className="flex flex-col items-center justify-center h-full opacity-50 py-20">
-                    <span className="material-symbols-outlined text-6xl mb-4">support_agent</span>
-                    <h2 className="text-xl font-black tracking-widest uppercase">{t("support_hub") || "Support Settings"}</h2>
-                    <p className="text-xs font-bold">{t("support_subtitle") || "Configure support categories and telemetry"}</p>
-                </div>
+                <HubOverviewLanding>
+                    <HubOverviewSection
+                        icon="category"
+                        iconColorClass="text-[var(--accent)]"
+                        title={t("active_categories") || "Active Categories"}
+                        isEmpty={categories.filter(c => c.is_active).length === 0}
+                        emptyIcon="category"
+                        emptyTitle={t("support_no_cats") || "No Active Categories"}
+                    >
+                        {categories.filter(c => c.is_active).slice(0, 4).map(cat => (
+                            <UniversalCard
+                                key={cat.id || cat.category_code}
+                                onClick={() => openEditor(cat)}
+                                layout="vertical"
+                                icon="category"
+                                title={cat.category_name}
+                                subtitle={cat.category_code}
+                            >
+                                {cat.description && (
+                                    <p className="text-xs text-[var(--subtext)] line-clamp-2 leading-relaxed font-bold opacity-70 mt-2">
+                                        {cat.description}
+                                    </p>
+                                )}
+                            </UniversalCard>
+                        ))}
+                    </HubOverviewSection>
+                    <HubOverviewSection
+                        icon="description"
+                        iconColorClass="text-[var(--success)]"
+                        title={t("active_log_sources") || "Active Log Sources"}
+                        isEmpty={telemetrySources.filter(s => s.is_active).length === 0}
+                        emptyIcon="description"
+                        emptyTitle={t("telemetry_no_sources") || "No Active Log Sources"}
+                    >
+                        {telemetrySources.filter(s => s.is_active).slice(0, 4).map(source => (
+                            <UniversalCard
+                                key={source.id}
+                                onClick={() => openSourceEditor(source)}
+                                layout="vertical"
+                                icon={source.type === 'OS' ? "memory" : "description"}
+                                title={source.label}
+                                subtitle={source.type}
+                            >
+                                {(source.description || source.file_pattern) && (
+                                    <p className="text-xs text-[var(--subtext)] line-clamp-2 leading-relaxed font-bold opacity-70 mt-2">
+                                        {source.description || source.file_pattern}
+                                    </p>
+                                )}
+                            </UniversalCard>
+                        ))}
+                    </HubOverviewSection>
+                </HubOverviewLanding>
             )}
 
             {activeTab.includes('categories') && (

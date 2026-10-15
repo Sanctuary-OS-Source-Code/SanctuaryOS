@@ -1,21 +1,18 @@
-import { ActionPill } from "./shared";
+import { ActionPill, EmptyState, SidePanel, standardButtonClass, standardAccentGlassButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "./shared";
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { SidePanel } from './shared';
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeTextFile, readFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from './LexiconContext';
 import { useTheme } from './ThemeContext';
 import { useStore } from './store';
 import { MarketUploadPanel } from "./side-panels/NexusSidePanels";
-import { standardButtonClass, standardAccentGlassButtonClass, ActionButton } from './shared';
 import { CommandScreenSectionHeading } from './hub-components/SharedCommandScreenLayout';
-import { ElevatedHubLayout } from './components/layouts/ElevatedHubLayout';
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from './components/layouts/ElevatedHubLayout';
 
 import { ThemeCard } from './chameleon-components/ThemeCard';
 import { ChameleonControlDashboard } from './chameleon-components/ChameleonControlDashboard';
 import { ChameleonSandboxPreview } from './chameleon-components/ChameleonSandboxPreview';
-import { PanelHeaderGroup, PanelHeaderButton } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
 
 function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes }: any) {
@@ -28,23 +25,23 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
         widthClass="w-[800px] max-w-[95vw]"
         backdropZ="z-[15000]"
         panelZ="z-[15001]"
-        title={t("theme_select_base")}
-        subtitle={t("theme_choose_blueprint")}
+        title={t("theme_select_base") || "Select Base Theme"}
+        subtitle={t("theme_choose_blueprint") || "Choose a starting theme"}
         icon="palette"
       >
         <div className="flex flex-col gap-8">
           <UniversalCard
             layout="horizontal"
             icon="add"
-            title={t("theme_blank")}
+            title={t("theme_blank") || "Blank Theme"}
             onClick={() => onSelect(null)}
             className="w-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-[1.01] transition-all cursor-pointer shadow-sm group"
           >
-            <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1">{t("theme_scratch_desc")}</p>
+            <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1">{t("theme_scratch_desc") || "Start from scratch"}</p>
           </UniversalCard>
 
           <div>
-            <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mb-4 ml-2">{t("theme_core_arch")}</h4>
+            <h4 className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest mb-4 ml-2">{t("theme_core_arch") || "Core Themes"}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.entries(CORE_THEMES).map(([id, theme]: any) => (
                 <UniversalCard
@@ -52,19 +49,19 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
                   layout="horizontal"
                   title={theme.name}
                   customIcon={
-                    <div className="w-10 h-10 rounded-xl shrink-0 shadow-sm" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
+                    <div className="w-10 h-10 rounded-xl shrink-0 shadow-sm" style={{ backgroundColor: theme.bg || 'var(--bg)', border: `1px solid ${theme.accent || 'var(--accent)'}` }} />
                   }
                   onClick={() => onSelect(theme)}
                   className="w-full cursor-pointer hover:scale-[1.02] transition-all group"
                 >
-                  <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate mt-1">{t("theme_core_os")}</p>
+                  <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate mt-1">{t("theme_core_os") || "Core Theme"}</p>
                 </UniversalCard>
               ))}
             </div>
           </div>
 
           <div>
-            <h4 className="text-[10px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-widest mb-4 ml-2">{t("theme_personal")}</h4>
+            <h4 className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest mb-4 ml-2">{t("theme_personal") || "Personal Themes"}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.entries(customThemes).map(([id, theme]: any) => (
                 <UniversalCard
@@ -72,12 +69,12 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
                   layout="horizontal"
                   title={theme.name}
                   customIcon={
-                    <div className="w-10 h-10 rounded-xl shrink-0 shadow-sm" style={{ backgroundColor: theme.bg || '#000', border: `1px solid ${theme.accent || '#fff'}` }} />
+                    <div className="w-10 h-10 rounded-xl shrink-0 shadow-sm" style={{ backgroundColor: theme.bg || 'var(--bg)', border: `1px solid ${theme.accent || 'var(--accent)'}` }} />
                   }
                   onClick={() => onSelect(theme)}
                   className="w-full cursor-pointer hover:scale-[1.02] transition-all group"
                 >
-                  <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate mt-1">{t("theme_custom")}</p>
+                  <p className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate mt-1">{t("theme_custom") || "Custom Theme"}</p>
                 </UniversalCard>
               ))}
             </div>
@@ -233,13 +230,13 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
       id: "local",
       label: t("chameleon_local") || "Local",
       icon: "palette",
-      number: unpublishedCustomThemes.length + Object.keys(devThemes).length
+      number: (unpublishedCustomThemes.length + Object.keys(devThemes).length).toString()
     },
     {
       id: "synced",
       label: t("synced_badge") || "Synced",
       icon: "cloud_done",
-      number: syncedThemes.length
+      number: syncedThemes.length.toString()
     }
   ];
 
@@ -247,17 +244,15 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
     const recentSynced = [...syncedThemes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 4);
     const flaggedThemes = syncedThemes.filter(st => flags.some(f => f.asset_id === st.id)).slice(0, 4);
 
-
     return (
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--accent)]">schedule</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("theme_recent")}</h3>
-            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-          </div>
+      <HubOverviewLanding>
+        <HubOverviewSection
+          icon="schedule"
+          iconColorClass="text-[var(--accent)]"
+          title={t("theme_recent") || "Recent Themes"}
+        >
           {recentSynced.length === 0 ? (
-            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">{t("theme_recent_empty")}</div>
+            <EmptyState icon="palette" title={t("no_themes")} className="py-8" />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {recentSynced.map((pt: any) => {
@@ -274,20 +269,19 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                     setConfirmDelete={setConfirmDelete}
                     isCloud={true}
                   />
-                )
+                );
               })}
             </div>
           )}
-        </div>
+        </HubOverviewSection>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--warning)]">warning</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_issues") || "Flags & Issues"}</h3>
-            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-          </div>
+        <HubOverviewSection
+          icon="warning"
+          iconColorClass="text-[var(--warning)]"
+          title={t("title_issues") || "Flags & Issues"}
+        >
           {flaggedThemes.length === 0 ? (
-            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">{t("theme_flagged_empty")}</div>
+            <EmptyState icon="palette" title={t("no_themes")} className="py-8" />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {flaggedThemes.map((pt: any) => {
@@ -304,12 +298,12 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                     setConfirmDelete={setConfirmDelete}
                     isCloud={true}
                   />
-                )
+                );
               })}
             </div>
           )}
-        </div>
-      </div>
+        </HubOverviewSection>
+      </HubOverviewLanding>
     );
   };
 
@@ -393,19 +387,19 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
         ] : undefined
       }
     >
-      <div className="h-full flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-10">
-        {activeTab === 'overview' ? renderLanding() : renderList()}
-      </div>
+      {activeTab === 'overview' ? renderLanding() : renderList()}
 
       <SidePanel
         isOpen={!!editingThemeId}
         onClose={() => { setEditingThemeId(null); setActiveThemeId(originalThemeId); }}
-        title={t("ui_theme_editor")}
-        subtitle={typeof editingThemeId === 'string' && editingThemeId.startsWith('dev_') ? (t("ui_dev_matrix")) : (t("ui_system_theme"))}
+        title={t("ui_theme_editor") || "Theme Editor"}
+        subtitle={typeof editingThemeId === 'string' && editingThemeId.startsWith('dev_') ? (t("ui_dev_matrix") || "Dev Matrix") : (t("ui_system_theme") || "System Theme")}
         icon="palette"
         iconColorClass="theme-text-accent"
         isResizable={true}
         defaultWidth={1400}
+        noPadding={true}
+        noScroll={true}
         headerActions={
           typeof editingThemeId === 'string' ? (
             <PanelHeaderGroup>

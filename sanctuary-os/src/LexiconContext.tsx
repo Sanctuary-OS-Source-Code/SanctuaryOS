@@ -67,8 +67,9 @@ export const LexiconProvider = ({ children }: any) => {
     const loadLang = () => {
       let baseDict: any = enSanctuary;
       if (activeLangState === 'en-default') baseDict = enDefault;
+      if (activeLangState === 'en-sims') baseDict = enSims;
       if (registry[activeLangState]) {
-        setDictionary({ ...baseDict, ...registry[activeLangState] });
+        setDictionary({ ...registry[activeLangState], ...baseDict });
       } else {
         setDictionary(baseDict);
       }
@@ -142,8 +143,8 @@ export const LexiconProvider = ({ children }: any) => {
         const mergedData = [...(gameRes.data || []), ...(osRes.data || [])];
         const data = Array.from(new Map(mergedData.map(item => [item.id, item])).values());
 
-        // --- TEMP: Force inject missing keys to cloud ---
-        if (data && hasOSAccess) {
+        // --- Force inject missing keys to cloud ---
+        if (data) {
           for (let row of data) {
             let localData: any = {};
             if (row.id === 'en-default') localData = enDefault;
@@ -158,7 +159,7 @@ export const LexiconProvider = ({ children }: any) => {
                   hasMissingKeys = true;
                 }
               }
-              if (hasMissingKeys) {
+              if (hasMissingKeys && hasOSAccess) {
                 const token = useStore.getState().session?.access_token;
                 if (token) {
                   await supabase.rpc('secure_upsert_cloud_file', { p_token: token, p_target: 'sanctuary_lexicons', p_payload: row });
@@ -208,8 +209,8 @@ export const LexiconProvider = ({ children }: any) => {
 
   const emojiRegex = /[\u{1F300}-\u{1F5FF}\u{1F900}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F191}-\u{1F251}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}\u{2935}\u{2B05}\u{2B06}\u{2B07}\u{2B1B}\u{2B1C}\u{2B50}\u{2B55}\u{231A}\u{231B}\u{2328}\u{23CF}\u{23E9}-\u{23F3}\u{23F8}-\u{23FA}\u{24C2}]/u;
 
-  const t = (key: string) => {
-    if (!key) return "";
+  const t = (key: string, fallback?: string) => {
+    if (!key) return fallback || "";
     let val = dictionary[key];
 
     if (val === undefined || val === "") {
@@ -217,6 +218,9 @@ export const LexiconProvider = ({ children }: any) => {
     }
     if (val === undefined || val === "") {
       val = (enDefault as any)[key];
+    }
+    if (val === undefined || val === "") {
+      val = (enSims as any)[key];
     }
 
     if (val !== undefined && val !== "") {
@@ -226,7 +230,7 @@ export const LexiconProvider = ({ children }: any) => {
       return val;
     }
     if (key.includes('icon') || key.startsWith('emote_')) return "";
-    return `[${key}]`;
+    return fallback || `[${key}]`;
   };
 
   const importLexicon = (json: any, langCode: string) => {

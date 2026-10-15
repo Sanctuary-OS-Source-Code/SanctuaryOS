@@ -11,7 +11,7 @@ import {
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
   fetchAllPaginated, CustomTierDropdown, ActionButton,
 } from "../shared";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -193,7 +193,7 @@ export function MassUpdateOversight() {
           id: "toggleSelected",
           icon: "checklist",
           label: showOnlySelected ? "SHOWING SELECTED" : "SELECTED ONLY",
-          activeClassName: showOnlySelected ? "bg-[var(--accent)] text-white" : "",
+          activeClassName: showOnlySelected ? "bg-[var(--accent)] text-black" : "",
           onClick: () => setShowOnlySelected(!showOnlySelected)
         },
         {
@@ -206,41 +206,82 @@ export function MassUpdateOversight() {
           id: "applyMassUpdate",
           icon: "tune",
           label: `${t("mass_update_apply")} (${selectedIds.size})`,
-          activeClassName: "bg-[var(--accent)] text-white",
+          activeClassName: "bg-[var(--accent)] text-black",
           onClick: () => setIsActionPanelOpen(true)
         }] : [])
-      ] : []}
-      headerActions={activeTab === 'mass_select' ? (
-        <div className="flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)]">
-          <div className="px-2">
-            <CustomDropdown disableTint={true}
-              flat={true} variant="pill"
-              value={filterCategory}
-              onChange={(v: string[]) => setFilterCategory(v[0])}
-              options={[
-                { id: "", label: "ALL CATEGORIES" },
-                ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
-                  id: cat.id,
-                  label: (t(cat.lexicon_key) || cat.id).toUpperCase()
-                })) || [])
-              ]}
-            />
+      ] : undefined}
+      primaryPopover={activeTab === 'mass_select' ? {
+        icon: "tune",
+        label: t("filters") || "Filters",
+        content: (
+          <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "Category"}</span>
+              <CustomDropdown disableTint={true}
+                flat={true} variant="pill"
+                value={filterCategory}
+                onChange={(v: string[]) => setFilterCategory(v[0])}
+                options={[
+                  { id: "", label: t("ql_all") || "All Categories" },
+                  ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                    id: cat.id,
+                    label: (t(cat.lexicon_key) || cat.id)
+                  })) || [])
+                ]}
+              />
+            </div>
+            <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sa_game_versions") || "Game Versions"}</span>
+              <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} variant="pill" />
+            </div>
           </div>
-          <div className="px-2">
-            <GameVersionMultiSelect selectedVersions={filterGameVersions} onChange={setFilterGameVersions} variant="pill" />
-          </div>
-        </div>
-      ) : undefined}
+        )
+      } : undefined}
     >
       <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
         {loading ? (
           <div className="py-20 text-center font-black opacity-50 capitalize tracking-widest animate-pulse">{t("loading_registry")}</div>
         ) : activeTab === 'overview' ? (
-          <div className="flex flex-col items-center justify-center h-full opacity-50">
-            <span className="material-symbols-outlined text-6xl mb-4">batch_prediction</span>
-            <h2 className="text-xl font-black tracking-widest uppercase">{t("mass_update_apply") || "Mass Update"}</h2>
-            <p className="text-xs font-bold">{t("mass_update_subtitle") || "Select artifacts to perform batch operations"}</p>
-          </div>
+          <HubOverviewLanding>
+            <HubOverviewSection
+              icon="inventory_2"
+              iconColorClass="text-[var(--accent)]"
+              title={t("items") || "Artifact Registry"}
+              isEmpty={mods.length === 0}
+              emptyIcon="inventory_2"
+              emptyTitle={t("no_artifacts") || "No Artifacts"}
+            >
+              {mods.slice(0, 4).map(mod => (
+                <UniversalCard
+                  key={mod.id}
+                  onClick={() => setActiveTab('mass_select')}
+                  layout="vertical"
+                  icon="inventory_2"
+                  title={mod.name}
+                  subtitle={mod.master_author || mod.category_override || "Artifact"}
+                />
+              ))}
+            </HubOverviewSection>
+            <HubOverviewSection
+              icon="history"
+              iconColorClass="text-[var(--success)]"
+              title={t("recent_activity") || "Recent Batch Updates"}
+              isEmpty={recentChanges.length === 0}
+              emptyIcon="history"
+              emptyTitle={t("no_logs") || "No Recent Updates"}
+            >
+              {recentChanges.slice(0, 4).map(log => (
+                <UniversalCard
+                  key={log.id}
+                  layout="vertical"
+                  icon="history"
+                  title={log.action}
+                  subtitle={new Date(log.created_at).toLocaleString()}
+                />
+              ))}
+            </HubOverviewSection>
+          </HubOverviewLanding>
         ) : activeTab === 'recent' ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
             {recentChanges.map(log => (

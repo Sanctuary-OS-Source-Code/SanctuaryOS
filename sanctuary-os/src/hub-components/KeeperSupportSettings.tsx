@@ -5,7 +5,7 @@ import { supabase } from "../supabase";
 import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalInput, UniversalTextArea, UniversalToggle } from "../components/universal/UniversalLayout";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput, SidePanelPillToggle } from "../components/layouts/ElevatedHubLayout";
 
 interface CustomField {
     id: string;
@@ -38,7 +38,7 @@ export default function KeeperSupportSettings() {
     const [categories, setCategories] = useState<SupportCategory[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [filter, setFilter] = useState("ALL");
+    const [filter, setFilter] = useState("overview");
     const [editingCat, setEditingCat] = useState<SupportCategory | null>(null);
 
     const fetchData = async () => {
@@ -79,18 +79,19 @@ export default function KeeperSupportSettings() {
             id: "overview",
             label: t("landing_overview") || "Overview",
             icon: "dashboard",
+            number: categories.length.toString(),
         },
         {
             id: "ACTIVE",
             label: t("support_active_only") || "Active",
             icon: "category",
-            number: categories.filter(c => c.is_active).length,
+            number: categories.filter(c => c.is_active).length.toString(),
         },
         {
             id: "INACTIVE",
             label: t("support_inactive_only") || "Inactive",
             icon: "block",
-            number: categories.filter(c => !c.is_active).length,
+            number: categories.filter(c => !c.is_active).length.toString(),
         }
     ];
 
@@ -109,25 +110,25 @@ export default function KeeperSupportSettings() {
             icon={cat.is_active ? "category" : "block"}
             title={cat.category_name}
             subtitle={cat.category_code}
-            statusColor={cat.is_active ? undefined : "border-red-500"}
+            statusColor={cat.is_active ? undefined : "border-[var(--danger)]"}
             badges={[
                 <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors
-                    ${cat.is_active ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-red-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}
+                    ${cat.is_active ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}
                 `}>
                     {cat.is_active ? (t("status_active")) : (t("status_inactive"))}
                 </span>
             ]}
             footer={
                 <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                    <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-emerald-400 rounded-full bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-[inset_0_0_10px_rgba(16,185,129,0.1)]">{cat.ticket_destination?.replace('_', ' ') || 'ARCHITECT'}</span>
-                    <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-orange-400 rounded-full bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] shadow-[inset_0_0_10px_rgba(249,115,22,0.1)]">{cat.escalation_path || 'STANDARD'}</span>
+                    <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] rounded-full bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-inner">{cat.ticket_destination?.replace('_', ' ') || 'ARCHITECT'}</span>
+                    <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] rounded-full bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] shadow-inner">{cat.escalation_path || 'STANDARD'}</span>
                     {(cat.requires_target_mod || cat.requires_target_user) && (
-                        <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-indigo-400 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[inset_0_0_10px_rgba(99,102,241,0.1)]">
+                        <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-inner">
                             {cat.requires_target_mod && cat.requires_target_user ? "MOD+USER" : cat.requires_target_mod ? "MOD" : "USER"}
                         </span>
                     )}
                     {cat.custom_fields && cat.custom_fields.length > 0 && (
-                        <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-[inset_0_0_10px_rgba(255,255,255,0.05)]">
+                        <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
                             {cat.custom_fields.length} {t("support_custom_fields_count")}
                         </span>
                     )}
@@ -147,33 +148,27 @@ export default function KeeperSupportSettings() {
         const inactiveCats = categories.filter(c => !c.is_active);
 
         return (
-            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                        <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-                            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">category</span>
-                            {t("recent_active_categories") || "Recent Active"}
-                        </h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                        {activeCats.slice(0, 10).map(renderCategoryCard)}
-                        {activeCats.length === 0 && <EmptyState icon="category" title="No Active Categories" className="py-8" />}
-                    </div>
-                </div>
+            <HubOverviewLanding>
+                <HubOverviewSection
+                    title={t("recent_active_categories") || "Recent Active"}
+                    icon="category"
+                    iconColorClass="text-[var(--accent)]"
+                    isEmpty={activeCats.length === 0}
+                    emptyState={<EmptyState icon="category" title={t("support_no_cats") || "No Active Categories"} className="py-8" />}
+                >
+                    {activeCats.slice(0, 4).map(renderCategoryCard)}
+                </HubOverviewSection>
 
-                <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                        <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-                            <span className="material-symbols-outlined !text-[18px] text-[var(--danger)]">block</span>
-                            {t("recent_inactive_categories") || "Recent Inactive"}
-                        </h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                        {inactiveCats.slice(0, 10).map(renderCategoryCard)}
-                        {inactiveCats.length === 0 && <EmptyState icon="block" title="No Inactive Categories" className="py-8" />}
-                    </div>
-                </div>
-            </div>
+                <HubOverviewSection
+                    title={t("recent_inactive_categories") || "Recent Inactive"}
+                    icon="block"
+                    iconColorClass="text-[var(--danger)]"
+                    isEmpty={inactiveCats.length === 0}
+                    emptyState={<EmptyState icon="block" title={t("support_no_cats") || "No Inactive Categories"} className="py-8" />}
+                >
+                    {inactiveCats.slice(0, 4).map(renderCategoryCard)}
+                </HubOverviewSection>
+            </HubOverviewLanding>
         );
     };
 
@@ -191,28 +186,41 @@ export default function KeeperSupportSettings() {
             tabs={tabs}
 
             activeTab={filter === "ALL" ? "overview" : filter}
-            onTabChange={(id) => setFilter(id === "overview" ? "ALL" : id)}
-            headerActions={
-                <div className="flex items-center gap-2">
-                    <CustomDropdown
-                        flat={true}
-                        variant="pill"
-                        disableTint={true}
-                        value={filter === "overview" ? "ALL" : filter}
-                        onChange={(v: string[]) => setFilter(v[0] === "ALL" ? "overview" : v[0])}
-                        options={[
-                            { id: "ALL", label: t("all_classes") },
-                            { id: "ACTIVE", label: t("support_active_only") },
-                            { id: "INACTIVE", label: t("support_inactive_only") }
-                        ]}
-                    />
-                    <ActionButton
-                        onClick={() => openEditor()}
-                        iconOnly={true}
-                        icon={t("icon_add")}
-                        label={t("support_add_cat")}
-                    />
-                </div>
+            onTabChange={(id) => setFilter(id)}
+            primaryPopover={
+                filter !== 'overview' && filter !== 'ALL' ? {
+                    icon: "tune",
+                    label: t("filters") || "Filters",
+                    content: (
+                        <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                            <div className="flex flex-col gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("registry_label_status") || "Status"}</span>
+                                <CustomDropdown
+                                    flat={true}
+                                    variant="pill"
+                                    disableTint={true}
+                                    value={filter === "overview" ? "ALL" : filter}
+                                    onChange={(v: string[]) => setFilter(v[0] === "ALL" ? "overview" : v[0])}
+                                    options={[
+                                        { id: "ALL", label: t("all_classes") },
+                                        { id: "ACTIVE", label: t("support_active_only") },
+                                        { id: "INACTIVE", label: t("support_inactive_only") }
+                                    ]}
+                                />
+                            </div>
+                        </div>
+                    )
+                } : undefined
+            }
+            actions={
+                filter !== 'overview' && filter !== 'ALL' ? [
+                    {
+                        id: "add",
+                        icon: t("icon_add") || "add",
+                        label: t("support_add_cat") || "Add Category",
+                        onClick: () => openEditor()
+                    }
+                ] : undefined
             }
         >
             {filter === 'overview' || filter === 'ALL' ? renderLanding() : (
@@ -321,15 +329,19 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
             }
         >
             <div className="flex flex-col gap-6">
+                <SidePanelTitleInput
+                    label={t("registry_label_name")}
+                    value={draft.category_name}
+                    onChange={(val) => setDraft({ ...draft, category_name: val })}
+                    placeholder={t("support_name_ph")}
+                />
 
-                <div className="flex items-center justify-start glass-panel p-4 rounded-[1.5rem] border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                    <UniversalToggle
-                        checked={draft.is_active}
-                        onChange={(checked) => setDraft({ ...draft, is_active: checked })}
-                        label={t("support_active_status")}
-                        layout="horizontal-reverse"
-                    />
-                </div>
+                <SidePanelPillToggle
+                    label={t("support_active_status")}
+                    icon="category"
+                    checked={draft.is_active}
+                    onChange={(checked) => setDraft({ ...draft, is_active: checked })}
+                />
 
                 <UniversalInput
                     label={t("support_system_code")}
@@ -337,13 +349,6 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                     onChange={(val) => setDraft({ ...draft, category_code: val })}
                     placeholder={t("support_code_ph")}
                     className="font-mono"
-                />
-
-                <UniversalInput
-                    label={t("registry_label_name")}
-                    value={draft.category_name}
-                    onChange={(val) => setDraft({ ...draft, category_name: val })}
-                    placeholder={t("support_name_ph")}
                 />
 
                 <div className="flex gap-4 w-full">
@@ -376,7 +381,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                 />
 
                 <div className="flex flex-col gap-4 mt-4">
-                    <div className="flex items-center justify-start border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
+                    <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
                         <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_custom_fields")}</span>
                         <button onClick={addField} className="text-[9px] font-black capitalize tracking-widest text-[var(--accent)] hover:opacity-80">+ {t("support_add_field")}</button>
                     </div>
@@ -408,7 +413,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                                         />
                                     </div>
                                     <button onClick={() => updateField(idx, { required: !field.required })} className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all border ${field.required ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-md' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>{t("req_short")}</button>
-                                    <button onClick={() => removeField(idx)} className="text-[color-mix(in_srgb,var(--danger)_70%,transparent)] hover:text-red-500 font-bold p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-lg transition-all"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close")}</span></button>
+                                    <button onClick={() => removeField(idx)} className="text-[color-mix(in_srgb,var(--danger)_70%,transparent)] hover:text-[var(--danger)] font-bold p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-lg transition-all"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close")}</span></button>
                                 </div>
                                 {(field.type === "CHECKBOX" || field.type === "DROPDOWN") && (
                                     <div className="flex flex-col gap-2 pl-6 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-2">
@@ -428,7 +433,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                                                 <button onClick={() => {
                                                     const newOpts = (field.options || []).filter((_, i) => i !== oIdx);
                                                     updateField(idx, { options: newOpts });
-                                                }} className="text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-red-500 p-1"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close")}</span></button>
+                                                }} className="text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] p-1"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close")}</span></button>
                                             </div>
                                         ))}
                                         <button onClick={() => updateField(idx, { options: [...(field.options || []), ""] })} className="w-full glass-surface rounded-md py-1.5 text-[9px] font-black text-center opacity-60 hover:opacity-100 capitalize tracking-widest mt-1">{t("support_add_option")}</button>
@@ -450,53 +455,42 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.requires_target_mod ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">extension</span>
-                            {t("support_req_target_mod")}
-                        </span>
-                        <UniversalToggle checked={draft.requires_target_mod || false} onChange={val => setDraft({...draft, requires_target_mod: val})} />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.requires_target_user ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">person</span>
-                            {t("support_req_target_user")}
-                        </span>
-                        <UniversalToggle checked={draft.requires_target_user || false} onChange={val => setDraft({...draft, requires_target_user: val})} />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_title_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">title</span>
-                            {t("support_show_title")}
-                        </span>
-                        <UniversalToggle checked={draft.show_title_box || false} onChange={val => setDraft({...draft, show_title_box: val})} />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_description_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">description</span>
-                            {t("support_show_desc")}
-                        </span>
-                        <UniversalToggle checked={draft.show_description_box || false} onChange={val => setDraft({...draft, show_description_box: val})} />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_logs_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">history</span>
-                            {t("support_show_logs")}
-                        </span>
-                        <UniversalToggle checked={draft.show_logs_box || false} onChange={val => setDraft({...draft, show_logs_box: val})} />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.attach_blueprints ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">architecture</span>
-                            {t("support_attach_blueprints")}
-                        </span>
-                        <UniversalToggle checked={draft.attach_blueprints || false} onChange={val => setDraft({...draft, attach_blueprints: val})} />
-                    </div>
+                    <SidePanelPillToggle
+                        label={t("support_req_target_mod")}
+                        icon="extension"
+                        checked={draft.requires_target_mod || false}
+                        onChange={val => setDraft({...draft, requires_target_mod: val})}
+                    />
+                    <SidePanelPillToggle
+                        label={t("support_req_target_user")}
+                        icon="person"
+                        checked={draft.requires_target_user || false}
+                        onChange={val => setDraft({...draft, requires_target_user: val})}
+                    />
+                    <SidePanelPillToggle
+                        label={t("support_show_title")}
+                        icon="title"
+                        checked={draft.show_title_box || false}
+                        onChange={val => setDraft({...draft, show_title_box: val})}
+                    />
+                    <SidePanelPillToggle
+                        label={t("support_show_desc")}
+                        icon="description"
+                        checked={draft.show_description_box || false}
+                        onChange={val => setDraft({...draft, show_description_box: val})}
+                    />
+                    <SidePanelPillToggle
+                        label={t("support_show_logs")}
+                        icon="history"
+                        checked={draft.show_logs_box || false}
+                        onChange={val => setDraft({...draft, show_logs_box: val})}
+                    />
+                    <SidePanelPillToggle
+                        label={t("support_attach_blueprints")}
+                        icon="architecture"
+                        checked={draft.attach_blueprints || false}
+                        onChange={val => setDraft({...draft, attach_blueprints: val})}
+                    />
                 </div>
             </div>
         </SidePanel>

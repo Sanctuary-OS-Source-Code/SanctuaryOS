@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabaseServices } from "../lib/supabase-services";
 import { useLexicon } from "../LexiconContext";
-import { standardPrimaryButtonClass, standardButtonClass, standardSuccessButtonClass, SidePanel, CustomDropdown, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill, HeaderActionPortal, DashboardStatTile } from "../shared";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { StatTileCarousel } from "./SharedCommandScreenLayout";
 import TemplatePreviewer from "../TemplatePreviewer";
 import { supabase } from "../supabase";
-import { exists, mkdir, writeTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
 
 export default function ArchitectTemplateOversight() {
     const { t } = useLexicon();
-    const vaultPath = useStore(state => state.vaultPath);
     const incrementCommunityDefaultsRefreshTrigger = useStore(state => state.incrementCommunityDefaultsRefreshTrigger);
     const [trackedFiles, setTrackedFiles] = useState<any[]>([]);
     const [templates, setTemplates] = useState<any[]>([]);
@@ -81,10 +78,9 @@ export default function ArchitectTemplateOversight() {
     const handleSetDefault = async (tmpl: any) => {
         setIsSettingDefault(tmpl.id);
         const res = await supabaseServices.setCommunityDefaultTemplate(tmpl.id, tmpl.targetFile);
-        console.log("Set Default Result:", res);
         if (res.error) {
             console.error("Failed to set default:", res.error);
-            alert("Failed to set default: " + res.error.message);
+            alert((t("identities_failed_prefix") || "Failed to set default:") + " " + res.error.message);
         } else {
             incrementCommunityDefaultsRefreshTrigger();
         }
@@ -129,26 +125,29 @@ export default function ArchitectTemplateOversight() {
         });
     }, [templates, selectedFileGroup, tmplSearch, tmplSort, activeFilterTab, flaggedTemplateIds]);
 
+    const flaggedFiles = trackedFiles.filter(f => {
+        const fileTemplates = templates.filter(t => t.targetFile === f.file_name);
+        return fileTemplates.some(t => flaggedTemplateIds.includes(t.id));
+    });
+
     const tabs = [
         {
             id: "overview",
             label: t("landing_overview") || "Overview",
             icon: "dashboard",
+            number: trackedFiles.length.toString(),
         },
         {
             id: "active",
-            label: t("status_active"),
+            label: t("status_active") || "Active",
             icon: "description",
-            number: trackedFiles.length,
+            number: trackedFiles.length.toString(),
         },
         {
             id: "flagged",
-            label: t("oversight_tab_flagged"),
+            label: t("oversight_tab_flagged") || "Flagged",
             icon: "flag",
-            number: trackedFiles.filter(f => {
-                const fileTemplates = templates.filter(t => t.targetFile === f.file_name);
-                return fileTemplates.some(t => flaggedTemplateIds.includes(t.id));
-            }).length,
+            number: flaggedFiles.length.toString(),
         }
     ];
 
@@ -163,103 +162,91 @@ export default function ArchitectTemplateOversight() {
                 layout="vertical"
                 icon="description"
                 title={tf.file_name}
-                subtitle={`${groupTemplates.length} ${groupTemplates.length === 1 ? 'Template' : 'Templates'} Available`}
-                statusColor={defaultTmpl ? "border-emerald-500" : undefined}
+                subtitle={`${groupTemplates.length} ${groupTemplates.length === 1 ? (t("template_singular") || 'Template') : (t("template_plural") || 'Templates')} ${t("available") || 'Available'}`}
+                statusColor={defaultTmpl ? "border-[var(--success)]" : undefined}
                 badges={defaultTmpl ? [
-                    <span key="verified" className="material-symbols-outlined text-emerald-400 opacity-80 !text-[16px]" title="Has Community Default">{t("template_icon_verified")}</span>
+                    <span key="verified" className="material-symbols-outlined text-[var(--success)] opacity-80 !text-[16px]" title={t("active_default") || "Has Community Default"}>{t("template_icon_verified") || "verified"}</span>
                 ] : undefined}
             />
         );
     };
 
-    const renderLanding = () => {
-        const activeFiles = trackedFiles;
-        const flaggedFiles = trackedFiles.filter(f => {
-            const fileTemplates = templates.filter(t => t.targetFile === f.file_name);
-            return fileTemplates.some(t => flaggedTemplateIds.includes(t.id));
-        });
+    const renderLanding = () => (
+        <HubOverviewLanding>
+            <HubOverviewSection
+                icon="description"
+                iconColorClass="text-[var(--accent)]"
+                title={t("recent_active_files") || "Recent Active"}
+                isEmpty={trackedFiles.length === 0}
+                emptyIcon="description"
+                emptyTitle={t("no_tracked_files") || "No Active Files"}
+            >
+                {trackedFiles.slice(0, 4).map(renderTrackedFileCard)}
+            </HubOverviewSection>
 
-        return (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
-                <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                        <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-                            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">description</span>
-                            {t("recent_active_files") || "Recent Active"}
-                        </h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                        {activeFiles.slice(0, 10).map(renderTrackedFileCard)}
-                        {activeFiles.length === 0 && <EmptyState icon="description" title="No Active Files" className="py-8" />}
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                        <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase flex items-center gap-2">
-                            <span className="material-symbols-outlined !text-[18px] text-[var(--warning)]">flag</span>
-                            {t("recent_flagged_files") || "Recent Flagged"}
-                        </h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                        {flaggedFiles.slice(0, 10).map(renderTrackedFileCard)}
-                        {flaggedFiles.length === 0 && <EmptyState icon="flag" title="No Flagged Files" className="py-8" />}
-                    </div>
-                </div>
-            </div>
-        );
-    };
+            <HubOverviewSection
+                icon="flag"
+                iconColorClass="text-[var(--warning)]"
+                title={t("recent_flagged_files") || "Recent Flagged"}
+                isEmpty={flaggedFiles.length === 0}
+                emptyIcon="flag"
+                emptyTitle={t("no_issues") || "No Flagged Files"}
+            >
+                {flaggedFiles.slice(0, 4).map(renderTrackedFileCard)}
+            </HubOverviewSection>
+        </HubOverviewLanding>
+    );
 
     return (
         <>
-        <ElevatedHubLayout
-            headerTitle={t("architect_templates") || "Template Oversight"}
-            headerSubtitle={t("architect_templates_desc") || "Manage and review configuration templates."}
-            headerIcon="description"
-            headerIconColorClass="theme-text-accent"
-            search={fileSearch}
-            onSearchChange={setFileSearch}
-            searchPlaceholder={t("template_search_files") as string}
-            tabs={tabs}
-            activeTab={activeFilterTab}
-            onTabChange={(tabId: string) => setActiveFilterTab(tabId as any)}
-            hideSearch={activeFilterTab === 'overview'}
-            primaryPopover={activeFilterTab !== 'overview' ? {
-                icon: "tune",
-                label: t("filters") || "Filters",
-                content: (
-                    <div className="flex flex-col w-[300px] p-4 text-left">
-                        <div className="flex flex-col mb-5 w-full">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                                SORT BY
+            <ElevatedHubLayout
+                headerTitle={t("architect_templates") || "Template Oversight"}
+                headerSubtitle={t("architect_templates_desc") || "Manage and review configuration templates."}
+                headerIcon="description"
+                headerIconColorClass="theme-text-accent"
+                search={fileSearch}
+                onSearchChange={setFileSearch}
+                searchPlaceholder={(t("template_search_files") || "Search tracked files...") as string}
+                tabs={tabs}
+                activeTab={activeFilterTab}
+                onTabChange={(tabId: string) => setActiveFilterTab(tabId as any)}
+                hideSearch={activeFilterTab === 'overview'}
+                primaryPopover={activeFilterTab !== 'overview' ? {
+                    icon: "tune",
+                    label: t("filters") || "Filters",
+                    content: (
+                        <div className="flex flex-col w-[300px] p-4 text-left">
+                            <div className="flex flex-col mb-5 w-full">
+                                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                                    {t("sort_by") || "SORT BY"}
+                                </div>
+                                <CustomDropdown
+                                    flat={true}
+                                    variant="pill"
+                                    disableTint={true}
+                                    value={fileSort}
+                                    options={[{ id: "date", label: t("template_sort_date") || "Date" }, { id: "name", label: t("sort_name") || "Name" }]}
+                                    onChange={(val: string[]) => setFileSort(val[0])}
+                                />
                             </div>
-                            <CustomDropdown
-                                flat={true}
-                                variant="pill"
-                                disableTint={true}
-                                value={fileSort}
-                                options={[{ id: "date", label: t("template_sort_date") }, { id: "name", label: t("sort_name") }]}
-                                onChange={(val: string[]) => setFileSort(val[0])}
-                            />
                         </div>
-                    </div>
-                )
-            } : undefined}
-            actions={activeFilterTab !== 'overview' ? [
-                {
-                    id: "add",
-                    icon: "add",
-                    label: t("auto_create") || "Add",
-                    onClick: () => setIsAddPanelOpen(true)
-                }
-            ] : undefined}
-        >
+                    )
+                } : undefined}
+                actions={activeFilterTab !== 'overview' ? [
+                    {
+                        id: "add",
+                        icon: "add",
+                        label: t("auto_create") || "Add",
+                        onClick: () => setIsAddPanelOpen(true)
+                    }
+                ] : undefined}
+            >
                 {activeFilterTab === 'overview' ? renderLanding() : (
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         {isLoading ? (
-                            <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting")}</div>
+                            <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting") || "Intercepting..."}</div>
                         ) : processedFiles.length === 0 ? (
-                            <EmptyState icon={t("icon_architecture")} title={t("no_tracked_files")} className="col-span-full py-16" />
+                            <EmptyState icon={t("icon_architecture") || "architecture"} title={t("no_tracked_files") || "No tracked files"} className="col-span-full py-16" />
                         ) : (
                             <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                 {processedFiles.map(renderTrackedFileCard)}
@@ -272,60 +259,56 @@ export default function ArchitectTemplateOversight() {
             <SidePanel
                 isOpen={isAddPanelOpen}
                 onClose={() => setIsAddPanelOpen(false)}
-                title="Add Target File"
-                subtitle="Track a new configuration file"
+                title={t("add_target_file") || "Add Target File"}
+                subtitle={t("desc_file_name") || "Track a new configuration file"}
                 icon="add"
                 iconColorClass="text-[var(--accent)]"
-                actions={
-                    <>
-                        <button onClick={() => setIsAddPanelOpen(false)} className={standardButtonClass}>
-                            {t("nav_cancel")}
-                        </button>
-                        <button onClick={handleAddSubmit} disabled={!newFileName.trim()} className={standardSuccessButtonClass}>
-                            Save File
-                        </button>
-                    </>
+                headerActions={
+                    <PanelHeaderGroup>
+                        <PanelHeaderButton
+                            icon="check"
+                            variant="success"
+                            tooltip={t("save_meta") || "Save File"}
+                            disabled={!newFileName.trim()}
+                            onClick={handleAddSubmit}
+                        />
+                    </PanelHeaderGroup>
                 }
             >
-                <div className="p-6 flex flex-col gap-6">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-xs font-black capitalize tracking-widest text-[var(--subtext)]">{t("label_file_name")}</label>
-                        <input
-                            type="text"
-                            placeholder="e.g. mc_settings.cfg"
-                            value={newFileName}
-                            onChange={(e) => setNewFileName(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddSubmit()}
-                            className="h-12 w-full px-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
-                            autoFocus
-                        />
-                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">{t("desc_file_name")}</span>
-                    </div>
+                <div className="flex flex-col h-full gap-8">
+                    <SidePanelTitleInput
+                        value={newFileName}
+                        onChange={setNewFileName}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddSubmit()}
+                        placeholder={t("ph_file_name") || "e.g. mc_settings.cfg"}
+                        subtitle={t("label_file_name") || "Target File Name"}
+                        autoFocus
+                    />
+                    <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">{t("desc_file_name") || "Specify the exact configuration filename to track."}</span>
                 </div>
             </SidePanel>
 
             <SidePanel
                 isOpen={!!selectedFileGroup}
                 onClose={() => setSelectedFileGroup(null)}
-                title={t("ui_template_config")}
-                subtitle="Manage community defaults"
+                title={t("ui_template_config") || "Template Configuration"}
+                subtitle={t("manage_community_defaults") || "Manage community defaults"}
                 icon="description"
                 iconColorClass="text-[var(--accent)]"
                 isResizable={false}
                 widthClass="w-[900px]"
             >
-                <div className="flex flex-col gap-8 p-6 overflow-y-auto custom-scrollbar h-full">
-                    <div className="flex flex-col gap-3 shrink-0">
-                        <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
-                            {selectedFileGroup}
-                        </h2>
-                    </div>
+                <div className="flex flex-col gap-8 h-full">
+                    <SidePanelTitleInput
+                        value={selectedFileGroup || ""}
+                        readOnly
+                    />
 
                     {processedTemplates.find(t => t.is_community_default) && (
                         <div className="flex flex-col gap-3">
                             <h3 className="text-xs font-black capitalize tracking-widest text-[var(--success)] flex items-center gap-2">
-                                <span className="material-symbols-outlined !text-[16px]">{t("template_icon_verified")}</span>
-                                Active Sanctuary Default
+                                <span className="material-symbols-outlined !text-[16px]">{t("template_icon_verified") || "verified"}</span>
+                                {t("active_default") || "Active Sanctuary Default"}
                             </h3>
                             {(() => {
                                 const defaultTmpl = processedTemplates.find(t => t.is_community_default)!;
@@ -335,12 +318,12 @@ export default function ArchitectTemplateOversight() {
                                         layout="vertical"
                                         icon="data_object"
                                         title={defaultTmpl.name || defaultTmpl.targetFile}
-                                        statusColor="border-emerald-500"
+                                        statusColor="border-[var(--success)]"
                                         badges={[
-                                            <span key="author" className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[12px]">{t("icon_person")}</span> {defaultTmpl.author || (t("vlocal"))}</span>
+                                            <span key="author" className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[12px]">{t("icon_person") || "person"}</span> {defaultTmpl.author || (t("vlocal") || "Unknown")}</span>
                                         ]}
                                     >
-                                        <span className="text-xs text-[var(--subtext)] line-clamp-2 leading-relaxed">{defaultTmpl.description || "No description provided."}</span>
+                                        <span className="text-xs text-[var(--subtext)] line-clamp-2 leading-relaxed">{defaultTmpl.description || (t("no_desc") || "No description provided.")}</span>
                                     </UniversalCard>
                                 );
                             })()}
@@ -348,17 +331,17 @@ export default function ArchitectTemplateOversight() {
                     )}
 
                     <div className="flex flex-col gap-4 mt-2">
-                        <h3 className="text-xs font-black capitalize tracking-widest text-[var(--subtext)]">{t("available")}</h3>
+                        <h3 className="text-xs font-black capitalize tracking-widest text-[var(--subtext)]">{t("available") || "Available Templates"}</h3>
 
                         <div className="flex items-center gap-4">
                             <div className="flex-1 relative">
                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] !text-[16px]">search</span>
                                 <input
                                     type="text"
-                                    placeholder={t("search_tmpl")}
+                                    placeholder={t("search_tmpl") || "Search templates..."}
                                     value={tmplSearch}
                                     onChange={(e) => setTmplSearch(e.target.value)}
-                                    className="w-full h-12 pl-10 pr-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-black/20 text-[12px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
+                                    className="w-full h-12 pl-10 pr-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[12px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
                                 />
                             </div>
                             <div className="shrink-0 flex items-center gap-2 w-max min-w-[192px] max-w-xs">
@@ -366,9 +349,9 @@ export default function ArchitectTemplateOversight() {
                                     disableTint={true}
                                     value={tmplSort}
                                     options={[
-                                        { id: "date", label: t("template_sort_newest") },
-                                        { id: "name", label: t("sort_name") },
-                                        { id: "downloads", label: t("sort_downloads") }
+                                        { id: "date", label: t("template_sort_newest") || "Newest" },
+                                        { id: "name", label: t("sort_name") || "Name" },
+                                        { id: "downloads", label: t("sort_downloads") || "Downloads" }
                                     ]}
                                     onChange={(val: string[]) => setTmplSort(val[0])}
                                 />
@@ -377,7 +360,7 @@ export default function ArchitectTemplateOversight() {
 
                         <div className="grid grid-cols-2 gap-4 pb-12">
                             {processedTemplates.filter(t => !t.is_community_default).length === 0 ? (
-                                <EmptyState icon={t("icon_folder_open")} title={t("no_additional")} className="col-span-2 py-8" />
+                                <EmptyState icon={t("icon_folder_open") || "folder_open"} title={t("no_additional") || "No additional templates"} className="col-span-2 py-8" />
                             ) : processedTemplates.filter(t => !t.is_community_default).map((tmpl) => (
                                 <UniversalCard
                                     key={tmpl.id}
@@ -387,8 +370,8 @@ export default function ArchitectTemplateOversight() {
                                     title={tmpl.name || tmpl.targetFile}
                                     footer={
                                         <div className="flex flex-col gap-2 text-[9px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 mt-1">
-                                            <span className="flex items-center gap-1.5 truncate"><span className="material-symbols-outlined !text-[12px]">{t("icon_person")}</span> {tmpl.author || (t("vlocal"))}</span>
-                                            <span className="flex items-center gap-1.5 shrink-0"><span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(tmpl.created_at).toLocaleDateString()}</span>
+                                            <span className="flex items-center gap-1.5 truncate"><span className="material-symbols-outlined !text-[12px]">{t("icon_person") || "person"}</span> {tmpl.author || (t("vlocal") || "Unknown")}</span>
+                                            <span className="flex items-center gap-1.5 shrink-0"><span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today") || "calendar_today"}</span> {new Date(tmpl.created_at).toLocaleDateString()}</span>
                                         </div>
                                     }
                                 />
@@ -401,8 +384,8 @@ export default function ArchitectTemplateOversight() {
             <SidePanel
                 isOpen={!!selectedTemplateForPreview}
                 onClose={() => setSelectedTemplateForPreview(null)}
-                title={selectedTemplateForPreview?.name || selectedTemplateForPreview?.targetFile || t("preview_title")}
-                subtitle={t("preview_subtitle")}
+                title={selectedTemplateForPreview?.name || selectedTemplateForPreview?.targetFile || (t("preview_title") || "Preview")}
+                subtitle={t("preview_subtitle") || "Template Preview"}
                 icon="visibility"
                 iconColorClass="text-[var(--accent)]"
                 isResizable={false}
@@ -413,30 +396,31 @@ export default function ArchitectTemplateOversight() {
                 headerActions={
                     selectedTemplateForPreview ? (
                         <PanelHeaderGroup>
-                            <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={() => setSelectedTemplateForPreview(null)} />
                             {selectedTemplateForPreview.is_community_default ? (
-                                <PanelHeaderButton icon="verified" variant="success" tooltip={t("active_default")} disabled={true} />
+                                <PanelHeaderButton icon="verified" variant="success" tooltip={t("active_default") || "Active Default"} disabled={true} />
                             ) : (
-                                <PanelHeaderButton icon="check" variant="success" tooltip={isSettingDefault === selectedTemplateForPreview.id ? t("setting") : t("set_default")} disabled={isSettingDefault === selectedTemplateForPreview.id} onClick={() => handleSetDefault(selectedTemplateForPreview)} />
+                                <PanelHeaderButton icon="check" variant="success" tooltip={isSettingDefault === selectedTemplateForPreview.id ? (t("setting") || "Setting...") : (t("set_default") || "Set Default")} disabled={isSettingDefault === selectedTemplateForPreview.id} onClick={() => handleSetDefault(selectedTemplateForPreview)} />
                             )}
                         </PanelHeaderGroup>
                     ) : null
                 }
             >
                 {selectedTemplateForPreview && (
-                    <div className="flex flex-col h-full w-full overflow-hidden">
-                        <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar h-full">
+                    <div className="flex flex-col h-full w-full gap-6">
+                        <SidePanelTitleInput
+                            value={selectedTemplateForPreview.name || selectedTemplateForPreview.targetFile || ""}
+                            readOnly
+                        />
 
-                            {selectedTemplateForPreview.is_community_default && (
-                                <div className="px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] text-xs font-black capitalize tracking-widest flex items-center gap-3 shrink-0">
-                                    <span className="material-symbols-outlined !text-[18px]">{t("template_icon_verified")}</span>
-                                    {t("active_default_msg")}
-                                </div>
-                            )}
-
-                            <div className="flex-1 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/10 p-6 overflow-y-auto custom-scrollbar min-h-[400px]">
-                                <TemplatePreviewer templateData={selectedTemplateForPreview.parsedData} />
+                        {selectedTemplateForPreview.is_community_default && (
+                            <div className="px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] text-xs font-black capitalize tracking-widest flex items-center gap-3 shrink-0">
+                                <span className="material-symbols-outlined !text-[18px]">{t("template_icon_verified") || "verified"}</span>
+                                {t("active_default_msg") || "This template is the active community default."}
                             </div>
+                        )}
+
+                        <div className="flex-1 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] p-6 overflow-y-auto custom-scrollbar min-h-[400px]">
+                            <TemplatePreviewer templateData={selectedTemplateForPreview.parsedData} />
                         </div>
                     </div>
                 )}
