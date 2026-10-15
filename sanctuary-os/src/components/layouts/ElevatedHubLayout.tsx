@@ -98,10 +98,11 @@ export function ElevatedHubLayout({
 }: ElevatedHubLayoutProps) {
   const isMobile = useIsMobile();
   const isOverviewTab = activeTab === 'overview' || activeTab === 'LANDING';
+  const hasActionPillContent = (!hideSearch && !!onSearchChange) || !!leftContent || !!headerActions || !!primaryPopover || Boolean(actions && actions.length > 0);
 
   return (
     <div className={`flex flex-col gap-0 animate-in fade-in duration-700 w-full h-full relative overflow-hidden ${className} ${isHiddenTab ? 'hidden' : ''}`}>
-      {!isHiddenTab && !hideHeader && !isOverviewTab && (
+      {!isHiddenTab && !hideHeader && !isOverviewTab && hasActionPillContent && (
         <HeaderActionPortal>
           <ActionPill
             searchQuery={search || ""}
@@ -134,6 +135,23 @@ export function ElevatedHubLayout({
                 />
               ))}
             </StatTileCarousel>
+          </div>
+        )}
+
+        {/* Inline ActionPill when rendered inside a SidePanel (hideHeader=true) */}
+        {!isHiddenTab && hideHeader && !isOverviewTab && hasActionPillContent && (
+          <div className="w-full shrink-0 mb-6 relative z-20">
+            <ActionPill
+              className="!max-w-none !w-full"
+              searchQuery={search || ""}
+              setSearchQuery={onSearchChange || (() => {})}
+              searchPlaceholder={searchPlaceholder}
+              hideSearch={hideSearch || !onSearchChange}
+              leftContent={leftContent}
+              rightContent={headerActions}
+              primaryPopover={primaryPopover}
+              actions={actions}
+            />
           </div>
         )}
 

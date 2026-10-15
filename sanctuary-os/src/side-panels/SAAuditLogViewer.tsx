@@ -190,6 +190,7 @@ export function AuditLogViewer({
 
   const content = (
     <ElevatedHubLayout
+      hideHeader={isSidePanel}
       headerTitle={t("audit_logs") || "Audit Logs"}
       headerSubtitle={t("audit_logs_desc") || "System and user activity logs"}
       headerIcon="history"
@@ -200,7 +201,7 @@ export function AuditLogViewer({
       hideSearch={filterAction === 'overview'}
       activeTab={filterAction === 'overview' ? 'overview' : 'all'}
       onTabChange={(tabId: string) => setFilterAction(tabId === 'overview' ? 'overview' : 'ALL')}
-      tabs={[
+      tabs={isSidePanel ? [] : [
         { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
         { id: "all", label: t("all_logs") || "All Logs", icon: "list", number: logs.length.toString() }
       ]}

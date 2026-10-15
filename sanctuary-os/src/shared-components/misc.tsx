@@ -181,7 +181,7 @@ export function FilterPopover({
               />
               <div
                 ref={popoverRef}
-                className={`!fixed backdrop-blur-[24px] backdrop-saturate-[140%] border ${effectiveVariant === "panel" ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)]" : "border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"} shadow-[0_30px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(var(--accent-rgb),0.15)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col
+                className={`!fixed glass-panel portal-glass-fix backdrop-blur-[var(--glassBlur)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[0_24px_48px_rgba(0,0,0,0.45)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col
                   min-w-[200px] p-2 gap-1 !rounded-xl w-max max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto custom-scrollbar`}
                 style={{
                   zIndex: 200001,
@@ -190,8 +190,6 @@ export function FilterPopover({
                   margin: 0,
                   bottom: "auto",
                   transition: "none",
-                  background:
-                    "linear-gradient(135deg, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.15) 0%, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.02) 100%)",
                 }}
               >
                 {children

@@ -85,6 +85,7 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
     <div className="flex flex-col w-full text-[var(--text)] min-h-full">
       <div className="w-full px-6 md:px-8 pt-4 md:pt-6 shrink-0 mb-6">
         <ActionPill
+          className="w-full !max-w-none"
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           searchPlaceholder={t("ph_search_tickets") || "Search Tickets..."}

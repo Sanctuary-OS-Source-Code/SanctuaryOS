@@ -10,6 +10,7 @@ import { supabase } from '../supabase';
 import { UniversalCard } from '../components/universal/UniversalCard';
 
 import { FilterPopover } from "./misc";
+import { SidePanelContext } from "./layout";
 export function LoadingScreen({
   title,
   subtitle,
@@ -338,6 +339,7 @@ export function ActionPill({
   isLoading,
 }: ActionPillProps) {
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
+  const isInsideSidePanel = React.useContext(SidePanelContext);
 
   const hasSearch = !hideSearch && !!setSearchQuery;
   const hasActions = (actions && actions.length > 0) || !!primaryPopover || !!rightContent;
@@ -345,9 +347,15 @@ export function ActionPill({
 
   if (!hasContent) return null;
 
+  const widthClasses = !hasSearch
+    ? "w-[fit-content] md:max-w-[fit-content]"
+    : isInsideSidePanel
+      ? "w-full max-w-full"
+      : "w-full md:max-w-md lg:max-w-lg";
+
   return (
     <div
-      className={`flex items-center w-[fit-content] md:max-w-md lg:max-w-lg h-13 glass-panel rounded-full shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className} ${!hasSearch ? 'md:max-w-[fit-content]' : 'w-full'}`}
+      className={`flex items-center ${widthClasses} h-13 glass-panel rounded-full shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className}`}
     >
       {/* Integrated Search or Left Content */}
       {leftContent ? (
