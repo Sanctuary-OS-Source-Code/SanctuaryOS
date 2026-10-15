@@ -5,7 +5,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { open } from "@tauri-apps/plugin-dialog";
 import { useTheme } from "./ThemeContext";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, ActionButton, DashboardStatTile } from './shared';
+import { ViewHeader, DashboardStatTile, ActionPill } from './shared';
 import { StatTileCarousel } from './hub-components/SharedCommandScreenLayout';
 import { useStore } from "./store";
 import { supabase } from "./supabase";
@@ -151,25 +151,32 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         subtitle={t("settings_subtitle") || "Configure system parameters and workspace preferences."}
         onSubtitleClick={() => setHackerClicks(prev => prev + 1)}
       >
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 px-3 py-1.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            {appVersion}
-          </span>
-          <ActionButton
-            icon={t("icon_logout") || "logout"}
-            label={t("btn_logout") || "Logout"}
-            variant="danger"
-            iconOnly={true}
-            onClick={async () => {
-              await supabase.auth.signOut();
-              window.location.reload();
-            }}
-          />
-        </div>
+        <ActionPill
+          searchQuery=""
+          setSearchQuery={() => {}}
+          hideSearch={true}
+          leftContent={
+            <span className="text-[11px] font-semibold tracking-wider text-[var(--subtext)] px-1 whitespace-nowrap">
+              {appVersion}
+            </span>
+          }
+          actions={[
+            {
+              id: "logout",
+              icon: t("icon_logout") || "logout",
+              label: t("btn_logout") || "Logout",
+              onClick: async () => {
+                await supabase.auth.signOut();
+                window.location.reload();
+              },
+              activeClassName: "!text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]",
+            },
+          ]}
+        />
       </ViewHeader>
 
       {TABS.length > 0 && (
-        <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+        <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:left-0 gap-3 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
           <StatTileCarousel innerClassName="px-6 md:px-0">
             {TABS.map(tab => (
               <DashboardStatTile

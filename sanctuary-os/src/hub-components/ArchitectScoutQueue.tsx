@@ -416,7 +416,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               </div>
             </UniversalGroup>
 
-            <UniversalGroup title={t("compliance_tier") || "Compliance & Compatibility"} icon={t("verified") || "verified"} className="pb-24">
+            <UniversalGroup title={t("compliance_tier") || "Compliance & Compatibility"} icon={t("icon_verified") || "verified"} className="pb-24">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("compliance_tier") || "Compliance Tier"}</label>

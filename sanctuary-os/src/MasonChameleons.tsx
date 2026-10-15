@@ -252,7 +252,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
           title={t("theme_recent") || "Recent Themes"}
         >
           {recentSynced.length === 0 ? (
-            <EmptyState icon="palette" title={t("no_themes")} className="py-8" />
+            <EmptyState icon="palette" title={t("registry_no_mods")} className="py-8" />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {recentSynced.map((pt: any) => {
@@ -281,7 +281,7 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
           title={t("title_issues") || "Flags & Issues"}
         >
           {flaggedThemes.length === 0 ? (
-            <EmptyState icon="palette" title={t("no_themes")} className="py-8" />
+            <EmptyState icon="palette" title={t("registry_no_mods")} className="py-8" />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {flaggedThemes.map((pt: any) => {

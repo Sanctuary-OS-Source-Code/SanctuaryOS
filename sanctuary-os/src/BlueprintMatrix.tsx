@@ -77,7 +77,7 @@ export default function BlueprintMatrix({ isOpen, onClose, playSet, modList, onU
       useStore.getState().pushStatus(t("matrix_uplink_success"), "success");
       navigator.clipboard.writeText(code).catch(() => { });
     } else {
-      setUploadError(t("matrix_uplink_failed"));
+      setUploadError(t("err_save_failed"));
     }
     setIsUploading(false);
   };

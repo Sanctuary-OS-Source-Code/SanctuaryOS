@@ -82,7 +82,7 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
       }
       return hasMalware;
     } catch (err) {
-      setStatus(`${t("status_link_failed")}${err}`);
+      setStatus(`${t("err_save_failed")}${err}`);
       return hasMalware;
     }
   };

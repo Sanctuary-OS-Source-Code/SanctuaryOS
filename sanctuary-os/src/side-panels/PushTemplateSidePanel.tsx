@@ -408,7 +408,7 @@ export function PushTemplateSidePanel({
 
         <div className="flex flex-col gap-3 relative z-[60]">
           <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("auto_extension")}</span>
+            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_extension")}</span>
             {t("upload_attach_mod")}
           </label>
             <CustomDropdown

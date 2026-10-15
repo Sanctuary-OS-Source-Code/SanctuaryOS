@@ -42,7 +42,7 @@ export function DefconPanel() {
 
   const triggerDefcon = async () => {
     const newLevel = defconLevel === 1 ? 5 : 1;
-    const msg = newLevel === 1 ? t("defcon_msg_emergency") : t("defcon_msg_normal");
+    const msg = newLevel === 1 ? t("defcon_patch_detected") : t("defcon_msg_normal");
     const statusMsg = newLevel === 1 ? "Global DEFCON 1 override active. Patch imminent." : "Network Secure. All systems nominal.";
 
     setDefconLevel(newLevel);
@@ -67,7 +67,7 @@ export function DefconPanel() {
 
   return (
     <ElevatedHubLayout
-      headerTitle={t("defcon_override_title") || "Global DEFCON Override"}
+      headerTitle={t("defcon_title") || "Global DEFCON Override"}
       headerSubtitle={t("defcon_override_desc") || "Emergency global override to lock down all active nodes and enforce a maintenance mode. This overrides all other permissions."}
       headerIcon="warning"
       headerIconColorClass={defconLevel === 1 ? "text-amber-500 animate-pulse" : "text-amber-400"}
@@ -88,9 +88,9 @@ export function DefconPanel() {
               </div>
 
               <div className="flex flex-col gap-2 relative z-10">
-                <h3 className={`text-xl font-black capitalize tracking-tighter drop-shadow-md ${defconLevel === 1 ? 'text-amber-400' : 'text-[var(--text)]'}`}>{t("defcon_override_title")}</h3>
+                <h3 className={`text-xl font-black capitalize tracking-tighter drop-shadow-md ${defconLevel === 1 ? 'text-amber-400' : 'text-[var(--text)]'}`}>{defconLevel === 1 ? t("defcon_active") : t("defcon_normal")}</h3>
                 <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest leading-relaxed">
-                  {t("defcon_override_desc")}
+                  {defconLevel === 1 ? t("defcon_active_sub") : t("defcon_normal_sub")}
                 </p>
               </div>
 
@@ -101,7 +101,7 @@ export function DefconPanel() {
                   : 'border border-amber-900/50 text-amber-400 hover:border-amber-500 hover:text-amber-400 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]'
                   }`}
               >
-                {defconLevel === 1 ? t("defcon_stand_down") : t("defcon_initiate")}
+                {defconLevel === 1 ? t("defcon_stand_down") : t("btn_execute_defcon")}
               </button>      {showDefconConfirmModal && createPortal(
                 <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] backdrop-blur-md animate-in fade-in duration-300 p-8">
              <div className="relative w-full max-w-4xl glass-panel border-2 border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl p-12 shadow-2xl flex flex-col gap-8 ">
@@ -120,7 +120,7 @@ export function DefconPanel() {
                       </div>
                       <div className="flex flex-col gap-4 pt-2 flex-1">
                         <h2 className={`text-5xl font-black capitalize tracking-tighter drop-shadow-md leading-none ${defconLevel === 5 ? 'text-amber-400' : 'text-[var(--text)]'}`}>
-                          {t("defcon_confirm_title")}
+                          {defconLevel === 5 ? t("defcon_initiate") : t("defcon_stand_down")}
                         </h2>
                         <div className={`w-full h-px my-2 ${defconLevel === 5 ? 'bg-gradient-to-r from-amber-500/50 to-transparent' : 'bg-gradient-to-r from-white/10 to-transparent'}`}></div>
                         <p className={`text-xs font-bold capitalize tracking-[0.2em] leading-relaxed max-w-2xl whitespace-pre-line ${defconLevel === 5 ? 'text-amber-200/80' : 'text-[color-mix(in_srgb,var(--text)_80%,transparent)]'}`}>
@@ -139,7 +139,7 @@ export function DefconPanel() {
                           : 'border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
                           }`}
                       >
-                        {defconLevel === 1 ? t("btn_confirm_stand_down") : t("btn_execute_defcon")}
+                        {defconLevel === 1 ? t("defcon_stand_down") : t("btn_execute_defcon")}
                       </button>
                       <button
                         onClick={() => setShowDefconConfirmModal(false)}
@@ -316,7 +316,7 @@ export function DefconSidePanel({ isOpen, onClose }: { isOpen: boolean, onClose:
                   </div>
                   <div className="w-px h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"></div>
                   <div className="flex flex-col items-center gap-1">
-                    <span className="text-[8px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("tab_vaults")}</span>
+                    <span className="text-[8px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("ui_library")}</span>
                     <span className={`text-[10px] font-mono font-bold ${status?.defcon_level === 1 ? 'text-red-400' : 'theme-text-success'}`}>{status?.defcon_level === 1 ? 'SEALED' : 'ONLINE'}</span>
                   </div>
                 </div>

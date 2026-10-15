@@ -17,7 +17,7 @@ export function VaultStats({
       <DashboardStatTile
         icon={<span className="material-symbols-outlined">{t("icon_inventory_2")}</span>}
         number={displayModList.length}
-        label={t("filter_all")}
+        label={t("vault_title")}
         colorClass="text-[var(--text)]"
         onClick={() => { setActiveCategory("all"); setFilterStatus("ALL"); setEquipFilter("ALL"); }}
       />
@@ -41,7 +41,7 @@ export function VaultStats({
       <DashboardStatTile
         icon={<span className="material-symbols-outlined">{t("icon_account_tree")}</span>}
         number={localFolderCount}
-        label={t("filter_local")}
+        label={t("local_folders")}
         colorClass="text-purple-500"
         onClick={() => setLocalFolderModal(true)}
       />

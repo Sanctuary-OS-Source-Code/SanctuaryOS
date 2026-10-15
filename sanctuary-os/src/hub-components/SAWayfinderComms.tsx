@@ -135,7 +135,7 @@ export function WayfinderComms() {
                 actions={currentUserId === msg.sender_id ? (
                   <div className="flex gap-2">
                     <ActionButton onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} iconOnly={true} icon="edit" label={t("emote_edit")} />
-                    <ActionButton onClick={() => deleteComm(msg.id)} iconOnly={true} icon="delete" label={t("_")} variant="danger" />
+                    <ActionButton onClick={() => deleteComm(msg.id)} iconOnly={true} icon="delete" label={t("btn_delete")} variant="danger" />
                   </div>
                 ) : null}
                 className="animate-in fade-in slide-in-from-bottom-4"

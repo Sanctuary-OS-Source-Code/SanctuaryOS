@@ -164,7 +164,7 @@ export function HoverTooltip({
     explicitVAlign,
     content,
   });
-  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep ref in sync and update store if currently hovered and already shown
   React.useEffect(() => {
@@ -347,7 +347,7 @@ export function ActionPill({
 
   return (
     <div
-      className={`flex items-center w-[fit-content] md:max-w-md lg:max-w-lg h-13 glass-panel rounded-full shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className} ${!hasSearch && !leftContent ? 'md:max-w-[fit-content]' : 'w-full'}`}
+      className={`flex items-center w-[fit-content] md:max-w-md lg:max-w-lg h-13 glass-panel rounded-full shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className} ${!hasSearch ? 'md:max-w-[fit-content]' : 'w-full'}`}
     >
       {/* Integrated Search or Left Content */}
       {leftContent ? (

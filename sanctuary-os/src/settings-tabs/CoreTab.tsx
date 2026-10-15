@@ -155,7 +155,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
     return (
       <UniversalCard key={dir.rustKey} title={dir.label} subtitle={obfuscatePath(dir.value)} icon="folder" onClick={() => pickPath(dir.rustKey, dir.label)}>
         <ActionButton 
-          variant="accent" 
+          variant="glass" 
           icon={t("icon_sync")} 
           label={t("btn_calibrate")} 
           className="w-full pointer-events-none mt-2" 

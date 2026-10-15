@@ -62,7 +62,7 @@ export function EdgeOverrideSidePanel({
         <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
             <h3 className="text-[10px] font-black uppercase tracking-widest theme-text-accent mb-2 flex items-center gap-1.5">
               <span className="material-symbols-outlined !text-[14px]">person</span>
-              {t("title_mason_author") || "Mason"}
+              {t("role_mason") || "Mason"}
             </h3>
             <div className="text-base font-bold text-[var(--text)] truncate">
               {masonName || data.mason_id || "Unknown"}

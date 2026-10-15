@@ -27,7 +27,7 @@ export const BlueprintRadarCard = ({
   const actionsNode = (
     <div onClick={(e) => e.stopPropagation()}>
       <ActionButton 
-        label={isScanning ? t("radar_status_scanning") : t("btn_sweep_card")} 
+        label={isScanning ? t("scanning") : t("btn_refresh")} 
         onClick={onSweep} 
         disabled={isScanning} 
         className="!px-4 !py-1.5 !text-[9px] !rounded-xl" 
@@ -45,11 +45,11 @@ export const BlueprintRadarCard = ({
     <div className="grid grid-cols-4 gap-2 mt-2 w-full">
       <div onClick={(e) => { e.stopPropagation(); onTabNavigate('fatal'); }} className="flex flex-col items-center p-2 rounded-lg bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:scale-105 transition-all cursor-pointer">
         <span className="text-red-500 font-black text-lg">{cache.fatal?.length || 0}</span>
-        <span className="text-[9px] font-bold capitalize tracking-widest text-[color-mix(in_srgb,var(--danger)_70%,transparent)]">{t("radar_label_fatal")}</span>
+        <span className="text-[9px] font-bold capitalize tracking-widest text-[color-mix(in_srgb,var(--danger)_70%,transparent)]">{t("fatal")}</span>
       </div>
       <div onClick={(e) => { e.stopPropagation(); onTabNavigate('tuning'); }} className="flex flex-col items-center p-2 rounded-lg bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] hover:scale-105 transition-all cursor-pointer">
         <span className="text-orange-500 font-black text-lg">{cache.tuning?.length || 0}</span>
-        <span className="text-[9px] font-bold capitalize tracking-widest text-[color-mix(in_srgb,var(--warning)_70%,transparent)]">{t("radar_label_tuning")}</span>
+        <span className="text-[9px] font-bold capitalize tracking-widest text-[color-mix(in_srgb,var(--warning)_70%,transparent)]">{t("class_dd_tuning")}</span>
       </div>
       <div onClick={(e) => { e.stopPropagation(); onTabNavigate('clones'); }} className="flex flex-col items-center p-2 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-500/50 hover:scale-105 transition-all cursor-pointer">
         <span className="text-fuchsia-500 font-black text-lg">{cache.clones?.length || 0}</span>
@@ -77,7 +77,7 @@ export const BlueprintRadarCard = ({
              : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
          } disabled:opacity-50 disabled:cursor-not-allowed`}
        >
-          {t("btn_access_telemetry")}
+          {t("view_details")}
        </button>
     </div>
   );
@@ -88,7 +88,7 @@ export const BlueprintRadarCard = ({
       isActive={isActive}
       onClick={onClick}
       title={playSet.name}
-      subtitle={isScanning ? t("radar_status_scanning") : `${pkgCount} ${t("stat_artifacts")}`}
+      subtitle={isScanning ? t("scanning") : `${pkgCount} ${t("tab_mods")}`}
       customIcon={customIcon}
       actions={actionsNode}
       className="p-2"

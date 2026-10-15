@@ -59,7 +59,7 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
                 <span className="material-symbols-outlined text-[16px]">chevron_left</span>
             </button>
         )}
-        <div ref={scrollRef} className={`flex w-full overflow-x-auto gap-4 md:gap-6 py-4 items-center snap-x scroll-smooth hide-scrollbar ${innerClassName}`}>
+        <div ref={scrollRef} className={`flex w-full overflow-x-auto gap-4 md:gap-6 py-4 items-stretch snap-x scroll-smooth hide-scrollbar ${innerClassName}`}>
           {children}
         </div>
         {canScrollRight && (
@@ -99,17 +99,17 @@ export function CommandScreenSectionHeading({
   title, subtitle, icon, actions, rightContent, onBack, breadcrumb,
   className = "", shape = "circle", 
   colorClass = "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]", 
-  iconColorClass = "theme-text-accent" 
+  iconColorClass = "text-[var(--text)] opacity-85" 
 }: any) {
   const { t } = useLexicon();
   const shapeClass = shape === "square" ? "rounded-xl" : "rounded-2xl";
   
   return (
-    <div className={`flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 w-full mb-8 relative z-10 min-w-0 ${className}`}>
-      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
+    <div className={`flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_12%,transparent)] pb-6 w-full mb-8 relative z-10 min-w-0 ${className}`}>
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_22%,transparent)] via-[color-mix(in_srgb,var(--text)_8%,transparent)] to-transparent" />
       <div className="flex items-center gap-4 flex-1 min-w-0">
         {icon && (
-     <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 border glass-panel relative group shadow-md`}>
+          <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 glass-surface relative group shadow-md`}>
             <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className={`material-symbols-outlined !text-[24px] relative z-10 ${iconColorClass}`}>{icon}</span>
           </div>

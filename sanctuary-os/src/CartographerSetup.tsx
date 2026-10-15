@@ -55,7 +55,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
 
   async function lockCoordinates() {
     if (!livePath || !modsPath || (!isGlobalVaultSet && !vaultPath)) {
-      alert(t("alert_select_paths"));
+      alert(t("ui_fdw_severed"));
       return;
     }
     const globalConfig: any = await invoke("get_global_config");
@@ -160,9 +160,9 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
   return (
     <>
       <CommandScreenSectionHeading
-        title={t("workspace_select_title")}
+        title={t("sys_coords")}
         breadcrumb={`${t("setup_title")} ${preselectedGame?.name || ''}`}
-        subtitle={t("status_cartographer_init")}
+        subtitle={t("setup_title")}
         icon="build"
         shape="square"
         onBack={onCancel}
@@ -186,7 +186,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
               >
                 <span className="material-symbols-outlined !text-[20px] opacity-80 group-hover:opacity-100 transition-transform group-hover:scale-110">{t("icon_lock") || "lock"}</span>
               </button>
-              <HoverTooltip title={(!livePath || !modsPath || (!isGlobalVaultSet && !vaultPath)) ? t("alert_lock_requires_paths") : t("setup_btn_lock")} noIcon={true} variant={(!livePath || !modsPath || (!isGlobalVaultSet && !vaultPath)) ? "warning" : "accent"} className="!hidden group-hover/lock:!flex !top-[calc(100%+8px)] !right-0 !translate-x-0 z-[200]" />
+              <HoverTooltip title={(!livePath || !modsPath || (!isGlobalVaultSet && !vaultPath)) ? t("fill_required_fields") : t("setup_btn_lock")} noIcon={true} variant={(!livePath || !modsPath || (!isGlobalVaultSet && !vaultPath)) ? "warning" : "accent"} className="!hidden group-hover/lock:!flex !top-[calc(100%+8px)] !right-0 !translate-x-0 z-[200]" />
             </div>
           </div>
         }
@@ -206,14 +206,14 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
               {!livePath && (
                 <div className="mt-4 px-3 py-2 rounded-lg bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] text-xs font-bold flex items-center gap-2">
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_warning") || "warning"}</span>
-                  {t("alert_select_paths")}
+                  {t("action_required")}
                 </div>
               )}
             </UniversalCard>
 
             {/* Mods Path */}
             <UniversalCard
-              title={t("tab_mods_folder")}
+              title={t("library_path")}
               subtitle={obfuscatePath(modsPath)}
               icon={t("icon_folder") || "folder"}
               onClick={pickModsPath}
@@ -223,7 +223,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
               {!modsPath && (
                 <div className="mt-4 px-3 py-2 rounded-lg bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] text-xs font-bold flex items-center gap-2">
                   <span className="material-symbols-outlined !text-[14px]">{t("icon_warning") || "warning"}</span>
-                  {t("alert_select_paths")}
+                  {t("action_required")}
                 </div>
               )}
             </UniversalCard>
@@ -231,7 +231,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
             {/* Vault Path (Only if not set globally) */}
             {!isGlobalVaultSet && (
               <UniversalCard
-                title={t("tab_vault_folder")}
+                title={t("vault_path")}
                 subtitle={obfuscatePath(vaultPath)}
                 icon={t("icon_dns") || "dns"}
                 onClick={pickVaultPath}
@@ -247,7 +247,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
 
             {/* Lexicon Dropdown */}
             <UniversalCard
-              title={t("setup_lexicons")}
+              title={t("settings_tab_lexicons")}
               subtitle={t("settings_tab_lexicons_desc")}
               icon={t("icon_translate") || "translate"}
               layout="vertical"
@@ -265,8 +265,8 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
 
             {/* Theme Dropdown */}
             <UniversalCard
-              title={t("settings_tab_themes")}
-              subtitle={t("settings_tab_themes_desc")}
+              title={t("ui_chameleons")}
+              subtitle={t("ui_chameleons_subtitle")}
               icon={t("icon_palette") || "palette"}
               onClick={() => setIsThemePreviewOpen(true)}
               layout="vertical"
@@ -278,7 +278,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
                     <div key={id} className={`w-8 h-8 rounded-full border-2 border-[var(--panelTint)] shadow-sm ${activeThemeId === id ? 'scale-110 z-10 border-[var(--accent)]' : ''}`} style={{ backgroundColor: theme.accent }} />
                   ))}
                 </div>
-                <span className="text-[10px] font-bold text-[var(--subtext)]">{t("status_click_to_configure") || "Click to browse themes"}</span>
+                <span className="text-[10px] font-bold text-[var(--subtext)]">{t("click_to_browse") || "Click to browse themes"}</span>
               </div>
             </UniversalCard>
           </div>
@@ -288,7 +288,7 @@ export function CartographerSetup({ preselectedGame, onCancel }: { preselectedGa
       <SidePanel
         isOpen={isThemePreviewOpen}
         onClose={() => setIsThemePreviewOpen(false)}
-        title={t("settings_tab_themes")}
+        title={t("chameleon_title")}
         icon="palette"
       >
         <div className="flex flex-col gap-6 p-6">

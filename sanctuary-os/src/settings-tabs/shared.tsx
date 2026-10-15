@@ -14,12 +14,15 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
 }
 
 export const TabContainer = ({ title, icon, actions, children }: any) => (
-  <div className="flex flex-col gap-10 animate-in slide-in-from-right-8 duration-500 w-full relative">
-    <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--accent)] opacity-[0.02] blur-[100px] pointer-events-none rounded-full" />
-    <div className="flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4 relative z-10">
-      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent" />
-      <h2 className="text-2xl font-semibold text-[var(--text)] tracking-tight flex items-center gap-3 drop-shadow-md">
-        {icon && <span className="material-symbols-outlined !text-3xl opacity-50 theme-text-accent">{icon}</span>}
+  <div className="flex flex-col gap-10 animate-in fade-in duration-500 w-full relative">
+    <div className="flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_12%,transparent)] pb-4 relative z-10">
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_22%,transparent)] via-[color-mix(in_srgb,var(--text)_8%,transparent)] to-transparent" />
+      <h2 className="text-2xl font-semibold text-[var(--text)] tracking-tight flex items-center gap-3.5 drop-shadow-sm">
+        {icon && (
+          <span className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 text-[var(--text)] opacity-85 shadow-sm">
+            <span className="material-symbols-outlined !text-[22px]">{icon}</span>
+          </span>
+        )}
         {title}
       </h2>
       {actions && <div className="absolute right-0 bottom-4 flex gap-3 z-10">{actions}</div>}

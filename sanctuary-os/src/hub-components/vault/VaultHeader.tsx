@@ -23,14 +23,14 @@ export function VaultHeader({
     <>
       <CommandScreenStats>
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined ">{t("icon_inventory_2")}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_account_balance")}</span>}
           number={modList.length}
-          label={t("title_artifacts")}
+          label={t("vault_title")}
           colorClass="text-[var(--text)] cursor-pointer"
           onClick={() => { setViewMode("grid"); setEquipFilter("ALL"); setFilterStatus("ALL"); }}
         />
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined ">{t("icon_check_circle")}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_account_balance")}</span>}
           number={equippedDisplayMods.length}
           label={t("filter_equipped")}
           colorClass="text-[var(--success)] cursor-pointer"
@@ -39,7 +39,7 @@ export function VaultHeader({
         <DashboardStatTile
           icon={<span className="material-symbols-outlined ">{t("icon_help_outline")}</span>}
           number={unverifiedCount}
-          label={t("unverified")}
+          label={t("status_unverified")}
           colorClass="text-[var(--warning)] cursor-pointer"
           onClick={() => { setViewMode("grid"); setEquipFilter("ALL"); setFilterStatus("UNVERIFIED"); }}
         />
@@ -56,7 +56,7 @@ export function VaultHeader({
         <div className="flex flex-col gap-4">
           <CommandScreenQuickLink
             icon={t("icon_checklist")}
-            title={t("ui_btn_bulk")}
+            title={t("ql_bulk_actions")}
             subtitle={t("ui_btn_bulk_desc")}
             onClick={() => { setViewMode("grid"); setIsBulkMode(true); }}
             textColorClass="text-emerald-500"
@@ -66,7 +66,7 @@ export function VaultHeader({
           />
           <CommandScreenQuickLink
             icon={t("icon_account_tree")}
-            title={t("ui_btn_edit_folder")}
+            title={t("local_folders")}
             subtitle={t("ui_btn_edit_folder_desc")}
             onClick={() => setLocalFolderModal(true)}
             textColorClass="text-purple-500"
@@ -76,7 +76,7 @@ export function VaultHeader({
           />
           <CommandScreenQuickLink
             icon={t("icon_delete_sweep")}
-            title={t("btn_purge_archives")}
+            title={t("purge_archives")}
             subtitle={t("purge_archives_desc")}
             onClick={() => {
               const allFilesToPurge = new Map<string, string>();
@@ -125,7 +125,7 @@ export function VaultHeader({
           <CommandScreenQuickLink
             icon={t("icon_auto_awesome")}
             title={t("tab_nexus")}
-            subtitle={t("hub_title_market")}
+            subtitle={t("nexus_core")}
             onClick={() => useStore.getState().setView("nexus")}
             textColorClass="text-amber-500"
             hoverTextColorClass="group-hover:text-amber-400"

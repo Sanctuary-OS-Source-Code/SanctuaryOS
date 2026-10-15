@@ -14,9 +14,66 @@ export const LexiconProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const wsId = activeWorkspaceId || 'default';
 
+  const BUILTIN_LEXICON_IDS = new Set(['en-default', 'en-sanctuary', 'en-sims', 'Simlish']);
+
+  const readRegistryFromStorage = (workspaceId: string) => {
+    try {
+      const raw = localStorage.getItem(`sanctuary_${workspaceId}_lexicon_registry`);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      let hadBuiltins = false;
+      for (const id of BUILTIN_LEXICON_IDS) {
+        if (id in parsed) {
+          delete parsed[id];
+          hadBuiltins = true;
+        }
+      }
+      if (hadBuiltins) {
+        try {
+          localStorage.setItem(`sanctuary_${workspaceId}_lexicon_registry`, JSON.stringify(parsed));
+        } catch {}
+      }
+      return parsed;
+    } catch {
+      return {};
+    }
+  };
+
+  const saveRegistryToStorage = (workspaceId: string, reg: Record<string, any>) => {
+    const customOnly: Record<string, any> = {};
+    for (const [k, v] of Object.entries(reg || {})) {
+      if (!BUILTIN_LEXICON_IDS.has(k)) {
+        customOnly[k] = v;
+      }
+    }
+    const serialized = JSON.stringify(customOnly);
+    try {
+      localStorage.setItem(`sanctuary_${workspaceId}_lexicon_registry`, serialized);
+    } catch (e) {
+      // Free up space from any legacy bloated lexicon_registry keys across workspaces
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (key && key.endsWith('_lexicon_registry')) {
+            localStorage.removeItem(key);
+          }
+        }
+        localStorage.setItem(`sanctuary_${workspaceId}_lexicon_registry`, serialized);
+      } catch (err) {
+        console.warn('Could not persist custom lexicon registry to localStorage:', err);
+      }
+    }
+  };
+
   const [useGlobalLexiconState, setUseGlobalLexiconState] = useState(() => localStorage.getItem('sanctuary_use_global_lexicon') === 'true');
-  const [registry, setRegistry] = useState(() => JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_registry`) || "{}"));
-  const [lexiconMeta, setLexiconMeta] = useState<any[]>(() => JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_meta`) || "[]"));
+  const [registry, setRegistry] = useState(() => readRegistryFromStorage(wsId));
+  const [lexiconMeta, setLexiconMeta] = useState<any[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_meta`) || "[]");
+    } catch {
+      return [];
+    }
+  });
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const [activeLangState, setActiveLangState] = useState(() => {
     let defaultLang = "en-sanctuary";
@@ -33,7 +90,7 @@ export const LexiconProvider = ({ children }: any) => {
 
   const setUseGlobalLexicon = (val: boolean) => {
     setUseGlobalLexiconState(val);
-    localStorage.setItem('sanctuary_use_global_lexicon', String(val));
+    try { localStorage.setItem('sanctuary_use_global_lexicon', String(val)); } catch {}
     if (val) {
       setActiveLangState(localStorage.getItem('sanctuary_global_lang') || "en-sanctuary");
     } else {
@@ -43,17 +100,23 @@ export const LexiconProvider = ({ children }: any) => {
 
   const setActiveLang = (lang: string) => {
     setActiveLangState(lang);
-    if (useGlobalLexiconState) {
-      localStorage.setItem('sanctuary_global_lang', lang);
-    } else {
-      localStorage.setItem(`sanctuary_${wsId}_lang`, lang);
-    }
+    try {
+      if (useGlobalLexiconState) {
+        localStorage.setItem('sanctuary_global_lang', lang);
+      } else {
+        localStorage.setItem(`sanctuary_${wsId}_lang`, lang);
+      }
+    } catch {}
   };
 
   // When workspace changes, hydrate from local storage
   useEffect(() => {
-    setRegistry(JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_registry`) || "{}"));
-    setLexiconMeta(JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_meta`) || "[]"));
+    setRegistry(readRegistryFromStorage(wsId));
+    try {
+      setLexiconMeta(JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_meta`) || "[]"));
+    } catch {
+      setLexiconMeta([]);
+    }
     if (!useGlobalLexiconState) {
       let defaultLang = "en-sanctuary";
       if (activeGameSchema?.id?.toLowerCase().includes("sims") || activeGameSchema?.name?.toLowerCase().includes("sims")) {
@@ -67,7 +130,7 @@ export const LexiconProvider = ({ children }: any) => {
     const loadLang = () => {
       let baseDict: any = enSanctuary;
       if (activeLangState === 'en-default') baseDict = enDefault;
-      if (activeLangState === 'en-sims') baseDict = enSims;
+      if (activeLangState === 'en-sims' || activeLangState === 'Simlish') baseDict = enSims;
       if (registry[activeLangState]) {
         setDictionary({ ...registry[activeLangState], ...baseDict });
       } else {
@@ -106,7 +169,7 @@ export const LexiconProvider = ({ children }: any) => {
         if (hasLocalUpdates) {
           setRegistry((prev: any) => {
             const newReg = { ...prev, ...localUpdates };
-            localStorage.setItem(`sanctuary_${wsId}_lexicon_registry`, JSON.stringify(newReg));
+            saveRegistryToStorage(wsId, newReg);
             return newReg;
           });
         }
@@ -143,50 +206,58 @@ export const LexiconProvider = ({ children }: any) => {
         const mergedData = [...(gameRes.data || []), ...(osRes.data || [])];
         const data = Array.from(new Map(mergedData.map(item => [item.id, item])).values());
 
-        // --- Force inject missing keys to cloud ---
+        // --- Force sync missing/updated keys to cloud ---
         if (data) {
           for (let row of data) {
             let localData: any = {};
             if (row.id === 'en-default') localData = enDefault;
             if (row.id === 'en-sanctuary') localData = enSanctuary;
-            if (row.id === 'en-sims') localData = enSims;
+            if (row.id === 'en-sims' || row.id === 'Simlish') localData = enSims;
 
             if (Object.keys(localData).length > 0) {
-              let hasMissingKeys = false;
+              let hasChanges = false;
+              if (!row.lexicon_data) row.lexicon_data = {};
               for (const key in localData) {
                 if (row.lexicon_data[key] !== localData[key]) {
                   row.lexicon_data[key] = localData[key];
-                  hasMissingKeys = true;
+                  hasChanges = true;
                 }
               }
-              if (hasMissingKeys && hasOSAccess) {
-                const token = useStore.getState().session?.access_token;
-                if (token) {
-                  await supabase.rpc('secure_upsert_cloud_file', { p_token: token, p_target: 'sanctuary_lexicons', p_payload: row });
-                } else {
-                  await supabase.from('sanctuary_lexicons').update({ lexicon_data: row.lexicon_data }).eq('id', row.id);
+
+              if (hasChanges) {
+                if (hasOSAccess) {
+                  const token = useStore.getState().session?.access_token;
+                  if (token) {
+                    await supabase.rpc('secure_upsert_cloud_file', { p_token: token, p_target: 'sanctuary_lexicons', p_payload: row });
+                  } else {
+                    await supabase.from('sanctuary_lexicons').update({ lexicon_data: row.lexicon_data }).eq('id', row.id);
+                  }
                 }
               }
             }
           }
         }
-        // --- END TEMP ---
+        // --- END SYNC ---
 
         if (data && data.length > 0) {
           let cloudUpdates: any = {};
           for (const row of data) {
-            cloudUpdates[row.id] = row.lexicon_data;
+            if (!BUILTIN_LEXICON_IDS.has(row.id)) {
+              cloudUpdates[row.id] = row.lexicon_data;
+            }
           }
 
           setRegistry((prev: any) => {
             const newReg = { ...prev, ...cloudUpdates };
-            localStorage.setItem(`sanctuary_${wsId}_lexicon_registry`, JSON.stringify(newReg));
+            saveRegistryToStorage(wsId, newReg);
             return newReg;
           });
 
           // Cache metadata like badges and names
           const meta = data.map(d => ({ id: d.id, name: d.name, badge: d.badge, version: d.version, lang: d.lexicon_data?._meta_lang || 'English' }));
-          localStorage.setItem(`sanctuary_${wsId}_lexicon_meta`, JSON.stringify(meta));
+          try {
+            localStorage.setItem(`sanctuary_${wsId}_lexicon_meta`, JSON.stringify(meta));
+          } catch {}
           setLexiconMeta(meta);
 
           // If in local development, automatically sync cloud lexicons back to the source code files
@@ -236,7 +307,7 @@ export const LexiconProvider = ({ children }: any) => {
   const importLexicon = (json: any, langCode: string) => {
     const updated = { ...registry, [langCode]: json };
     setRegistry(updated);
-    localStorage.setItem(`sanctuary_${wsId}_lexicon_registry`, JSON.stringify(updated));
+    saveRegistryToStorage(wsId, updated);
     setActiveLang(langCode);
 
     (async () => {
@@ -255,7 +326,7 @@ export const LexiconProvider = ({ children }: any) => {
   const deleteLexicon = (langCode: string) => {
     const { [langCode]: removed, ...remaining } = registry;
     setRegistry(remaining);
-    localStorage.setItem(`sanctuary_${wsId}_lexicon_registry`, JSON.stringify(remaining));
+    saveRegistryToStorage(wsId, remaining);
     if (activeLangState === langCode) setActiveLang("en-sanctuary");
 
     (async () => {

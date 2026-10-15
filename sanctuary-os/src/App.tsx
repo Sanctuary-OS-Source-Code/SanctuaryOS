@@ -2312,7 +2312,6 @@ function App() {
       className={`flex flex-col ${isDesktop() ? 'h-screen' : 'h-[100dvh]'} w-screen overflow-hidden relative ${currentTheme?.animated !== false ? 'animated-fluid-bg' : ''}`}
       style={{ color: "var(--text)" } as React.CSSProperties}
     >
-      <div id="sa-portals" className="fixed inset-0 z-[99999] pointer-events-none [&>*]:pointer-events-auto"></div>
       <SystemBackground />
 
       <div className="relative z-10 flex flex-col h-full w-full overflow-hidden py-6 pl-6 pr-0 gap-6 max-md:p-0 max-md:gap-0">

@@ -84,19 +84,19 @@ export function ActionButton({
     case "primary":
     case "default":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] !text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)]";
+        "!border-[color-mix(in_srgb,var(--accent)_35%,rgba(var(--text-rgb,255,255,255),0.18))] !bg-[color-mix(in_srgb,var(--accent)_10%,rgba(var(--text-rgb,255,255,255),0.05))] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--accent)_55%,rgba(var(--text-rgb,255,255,255),0.25))] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,rgba(var(--text-rgb,255,255,255),0.08))] shadow-[0_8px_20px_-4px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.22)]";
       borderColorVar = "--accent";
       break;
     case "glass":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--text)_15%,transparent)] !bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:!bg-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--text)_10%,transparent)]";
+        "!border-[rgba(var(--text-rgb,255,255,255),0.16)] !bg-[color-mix(in_srgb,var(--text)_7%,transparent)] !text-[var(--text)] hover:!border-[rgba(var(--text-rgb,255,255,255),0.28)] hover:!bg-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[0_8px_20px_-4px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.22)]";
       borderColorVar = "--text";
       break;
   }
 
   const basePadding = iconOnly
     ? "w-10 h-10 rounded-full !p-0 shrink-0"
-    : "px-8 py-4 rounded-[var(--radius)]";
+    : "px-6 py-3.5 rounded-[var(--radius)]";
 
   return (
     <div className={`relative ${iconOnly ? "inline-block" : ""}`}>
@@ -106,7 +106,7 @@ export function ActionButton({
         onClick={onClick}
         onDoubleClick={onDoubleClick}
         disabled={disabled}
-        className={`${variant === "solid" ? "shadow-md border" : "relative overflow-hidden shadow-lg border hover:shadow-xl"} ${basePadding} text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group ${variantClasses} ${className}`}
+        className={`${variant === "solid" ? "shadow-md border" : "relative overflow-hidden border backdrop-blur-md hover:shadow-xl"} ${basePadding} text-[11px] font-semibold capitalize tracking-wider transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none group ${variantClasses} ${className}`}
         style={
           !disabled
             ? ({
@@ -119,7 +119,7 @@ export function ActionButton({
       >
         {variant !== "solid" && (
           <>
-            <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,white_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,white_8%,transparent)] to-transparent opacity-60 group-hover:opacity-100 transition-opacity pointer-events-none" />
             <div
               className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none"
               style={{ backgroundColor: `var(${borderColorVar})` }}

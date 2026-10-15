@@ -127,7 +127,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
 
         {!selectedGameConfig && (
           <HoverTabDrawer title={t("quick_actions")}>
-            <VerticalTabButton id="configured" icon="storage" label={t("workspace_configured")} activeTab={filterTab} setTab={setFilterTab} />
+            <VerticalTabButton id="configured" icon="storage" label={t("tab_workspace")} activeTab={filterTab} setTab={setFilterTab} />
             <VerticalTabButton id="unconfigured" icon="add_circle" label={t("workspace_unconfigured")} activeTab={filterTab} setTab={setFilterTab} />
           </HoverTabDrawer>
         )}
@@ -140,7 +140,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
           ) : (
             <>
               <CommandScreenSectionHeading
-                title={t("workspace_select_title")}
+                title={t("workspace_sidebar")}
                 subtitle={t("workspace_select_subtitle")}
                 icon="dns"
                 shape="circle"
@@ -149,7 +149,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
                     <ActionPill
                       searchQuery={searchQuery}
                       setSearchQuery={setSearchQuery}
-                      searchPlaceholder={t("workspace_search")}
+                      searchPlaceholder={t("search_ph")}
                     />
                   </div>
                 }
@@ -186,12 +186,12 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
                             {isSelecting === ws.id ? (
                               <span className="text-[11px] font-bold text-[var(--accent)] opacity-90 mt-1 flex items-center gap-2 truncate animate-pulse">
                                 <span className="material-symbols-outlined !text-[14px] shrink-0 animate-spin">sync</span>
-                                <span className="truncate">{t("status_establishing_connection")}</span>
+                                <span className="truncate">{t("workspace_loading")}</span>
                               </span>
                             ) : (
                               <span className="text-[11px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-2 truncate">
                                 <span className="material-symbols-outlined !text-[14px] shrink-0">check_circle</span>
-                                <span className="truncate">{t("workspace_configured")}</span>
+                                <span className="truncate">{t("tab_workspace")}</span>
                               </span>
                             )}
                           </div>
@@ -243,7 +243,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
                     })}
 
                     {filteredCards.length === 0 && (
-                      <EmptyState icon="search" title={t("no_matches")} className="col-span-full py-16" />
+                      <EmptyState icon="search" title={t("no_assets")} className="col-span-full py-16" />
                     )}
                   </div>
                 </CommandScreenMain>

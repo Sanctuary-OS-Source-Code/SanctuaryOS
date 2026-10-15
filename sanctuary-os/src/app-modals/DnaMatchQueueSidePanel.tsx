@@ -26,7 +26,7 @@ export function DnaMatchQueueSidePanel({
   const [selectedOverrideHash, setSelectedOverrideHash] = React.useState<string>("");
 
   React.useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     
     if (dnaMatchQueue?.length === 0 && prevQueueLength.current > 0) {
       if (isResolvingRef.current) {
@@ -218,7 +218,7 @@ export function DnaMatchQueueSidePanel({
                       onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleEdgeResolve([match], "replace"); }}
                       className="flex-1 h-8 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all text-[9px] font-black tracking-widest uppercase px-1"
                     >
-                      <span className="truncate">{t("btn_accept") || "Authorize"}</span>
+                      <span className="truncate">{t("ui_btn_approve") || "Authorize"}</span>
                     </button>
                   </div>
                 }

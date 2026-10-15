@@ -343,8 +343,8 @@ export function MasonRegistry({ masonId, initialActiveMod, onClearActiveMod, isA
               <SidePanelPillToggle
                 checked={activeMod.is_paid || false}
                 onChange={(checked) => setActiveMod({ ...activeMod, is_paid: checked })}
-                label={t("label_is_paid")}
-                icon={t("icon_monetization_on")}
+                label={t("label_is_early_access")}
+                icon={t("icon_science")}
                 variant="warning"
               />
               <SidePanelPillToggle
@@ -850,8 +850,8 @@ export function ArchitectRegistry({ isActiveTab = true, initialSearch = "", onCl
               <SidePanelPillToggle
                 checked={activeMod.is_paid || false}
                 onChange={(checked) => setActiveMod({ ...activeMod, is_paid: checked })}
-                label={t("label_is_paid")}
-                icon={t("icon_monetization_on")}
+                label={t("label_is_early_access")}
+                icon={t("icon_science")}
                 variant="warning"
               />
               <SidePanelPillToggle

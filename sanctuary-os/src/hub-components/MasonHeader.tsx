@@ -19,7 +19,7 @@ export default function MasonHeader({
          <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("search_files") as string}
+            searchPlaceholder={t("search_ph") as string}
             leftContent={
                <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-10 border-r border-[color-mix(in_srgb,var(--text)_6%,transparent)] pr-4 mr-4 flex items-center">
                   {isCloudMode ? (
@@ -45,7 +45,7 @@ export default function MasonHeader({
                         ]}
                         value={fileTypeFilter}
                         onChange={(val: string[]) => setFileTypeFilter(val[0])}
-                        placeholder={t("auto_file_type")}
+                        placeholder={t("filter_all")}
                         triggerClassName="!border-none !shadow-none !bg-transparent !px-0"
                      />
                   )}
@@ -60,14 +60,14 @@ export default function MasonHeader({
                            className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] relative group"
                         >
                            <span className="material-symbols-outlined !text-[18px]">{t("icon_add")}</span>
-                           <HoverTooltip title={t("auto_create_file") as string} />
+                           <HoverTooltip title={t("ql_add") as string} />
                         </button>
                         <button
                            onClick={handleImport}
                            className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] relative group"
                         >
-                           <span className="material-symbols-outlined !text-[18px]">{t("icon_upload")}</span>
-                           <HoverTooltip title={t("import_file") as string} />
+                           <span className="material-symbols-outlined !text-[18px]">{t("icon_upload_file")}</span>
+                           <HoverTooltip title={t("btn_import") as string} />
                         </button>
                      </>
                   )}

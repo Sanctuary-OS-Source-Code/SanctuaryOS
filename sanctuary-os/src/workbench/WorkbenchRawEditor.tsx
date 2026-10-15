@@ -25,7 +25,7 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
 }) => {
    const { t } = useLexicon();
    const [editorRef, setEditorRef] = useState<any>(null);
-   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
    // Actively inject backdrop-filter directly onto Monaco's floating widgets
    useEffect(() => {

@@ -96,17 +96,17 @@ export function UniversalCard({
 
   const cleanStatusColor = statusColor ? statusColor.split(' ').filter((c: string) => !c.startsWith('border-') && !c.startsWith('theme-border-')).join(' ') : "";
   const activeClasses = isActive
-    ? "border border-[var(--accent)] scale-[1.02] z-10"
-    : cleanStatusColor;
+    ? "border border-[color-mix(in_srgb,var(--accent)_45%,rgba(var(--text-rgb),0.25))] shadow-[0_12px_32px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(var(--text-rgb),0.25)] z-10"
+    : `${cleanStatusColor} hover:border-[rgba(var(--text-rgb,255,255,255),0.26)]`;
 
   // For ghosted or disabled states
   const opacityClasses = isGhosted ? "opacity-50 grayscale-[0.8]" : isDisabled ? "opacity-50 cursor-not-allowed grayscale" : "";
 
   // The hover effect should only apply if the card is interactive
   const isInteractive = !!onClick || !!onContextMenu;
-  const hoverClasses = !isDisabled && isInteractive ? "group-hover/card:shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]" : "transition-all duration-500";
+  const hoverClasses = !isDisabled && isInteractive ? "group-hover/card:shadow-[0_16px_44px_rgba(0,0,0,0.4)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]" : "transition-all duration-500";
 
-  const containerClasses = `glass-panel rounded-[inherit] relative flex group group/card shrink-0 ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
+  const containerClasses = `glass-panel rounded-[var(--radius)] relative flex group group/card shrink-0 ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
 
   const renderMedia = () => {
     if (!image && !icon && !customIcon) return null;
@@ -155,11 +155,13 @@ export function UniversalCard({
             }}
           />
         ) : (
-          <div className="absolute inset-0 rounded-[inherit] bg-transparent flex items-center justify-center transition-colors duration-500 overflow-hidden">
+          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_6%,transparent)] to-transparent border-b border-[color-mix(in_srgb,var(--text)_7%,transparent)] flex items-center justify-center transition-colors duration-500 overflow-hidden">
             {customIcon ? customIcon : (
-              <span className={`material-symbols-outlined opacity-60 group-hover:opacity-100 theme-text-accent transition-all duration-500 drop-shadow-lg group-hover:scale-110 relative z-10 ${layout === 'horizontal' ? '!text-[36px]' : layout === 'vertical-compact' ? '!text-[48px]' : '!text-[72px]'}`}>
-                {icon || "folder"}
-              </span>
+              <div className={`rounded-2xl bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.2),0_8px_20px_rgba(0,0,0,0.2)] flex items-center justify-center transition-all duration-500 group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(var(--text-rgb,255,255,255),0.2))] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,rgba(var(--text-rgb,255,255,255),0.06))] ${layout === 'horizontal' ? 'w-12 h-12' : layout === 'vertical-compact' ? 'w-14 h-14' : 'w-16 h-16'}`}>
+                <span className={`material-symbols-outlined text-[var(--text)] opacity-75 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm relative z-10 ${layout === 'horizontal' ? '!text-[24px]' : layout === 'vertical-compact' ? '!text-[28px]' : '!text-[34px]'}`}>
+                  {icon || "folder"}
+                </span>
+              </div>
             )}
           </div>
         )}

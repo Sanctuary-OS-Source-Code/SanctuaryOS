@@ -642,15 +642,16 @@ export function DashboardStatTile({
       : "";
 
   const strVal = String(displayValue);
+  const hasValue = displayValue !== undefined && displayValue !== "";
   const isSpecial = variant === "tab" || variant === "filter";
   const isFilter = variant === "filter";
 
   let sizeClass = "text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
   const activeStyles = isActive
     ? isSpecial
-      ? "border border-[var(--accent)] scale-[1.02] z-10"
-      : "border border-[currentColor] shadow-[0_0_30px_-5px_currentColor,inset_0_0_20px_-5px_currentColor] scale-[1.02] z-10"
-    : "border border-transparent hover:brightness-125";
+      ? "border border-[color-mix(in_srgb,var(--accent)_50%,rgba(var(--text-rgb),0.25))] z-10"
+      : "border border-[currentColor] z-10"
+    : "hover:border-[rgba(var(--text-rgb,255,255,255),0.28)] hover:brightness-110";
 
   if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
   else if (strVal.length > 10) sizeClass = "text-lg xl:text-xl";
@@ -658,20 +659,20 @@ export function DashboardStatTile({
 
   const paddingClass =
     variant === "tab" || variant === "filter"
-      ? "py-2 px-3 md:py-3 md:px-5"
+      ? "py-3 px-4 md:py-4 md:px-5"
       : "py-3 px-4 md:py-4 md:px-5 lg:p-5";
   const iconSizeClass = isFilter
     ? "w-8 h-8 md:w-10 md:h-10"
-    : "w-6 h-6 md:w-14 md:h-14";
+    : "w-8 h-8 md:w-14 md:h-14";
   const iconTextClass = isFilter
     ? "!text-[20px] md:!text-[24px]"
-    : "!text-[18px] md:!text-[32px]";
-  const shadowClass = isSpecial ? "!shadow-none" : "shadow-xl";
+    : "!text-[20px] md:!text-[32px]";
+  const shadowClass = "[--tw-shadow:0_0_#0000]";
   const activeTint = isActive && isSpecial ? "var(--accent)" : "currentColor";
 
   const sizeConstraintClass = isSpecial
-    ? "w-[calc(50vw-1.5rem)] md:w-[260px] shrink-0"
-    : "flex-1 min-w-0";
+    ? "w-[calc(50vw-1.5rem)] md:w-[260px] min-h-[68px] md:min-h-[88px] shrink-0"
+    : "flex-1 min-w-0 min-h-[68px] md:min-h-[88px]";
 
   return (
     <div
@@ -679,39 +680,39 @@ export function DashboardStatTile({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={style}
-      className={`${sizeConstraintClass} h-auto flex flex-row items-center justify-start text-left ${paddingClass} gap-2 md:gap-4 rounded-3xl glass-panel ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer hover:shadow-[0_10px_40px_rgba(0,0,0,0.3)] hover:-translate-y-1" : ""} ${activeStyles} ${className}`}
+      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-3xl glass-panel ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
     >
       <div
         className="absolute inset-0 rounded-[inherit] pointer-events-none"
         style={{
-          backgroundColor: isActive
-            ? `color-mix(in srgb, ${activeTint} 20%, transparent)`
-            : `color-mix(in srgb, ${activeTint} 10%, transparent)`,
+          background: isActive
+            ? `linear-gradient(135deg, color-mix(in srgb, ${activeTint} 16%, rgba(var(--text-rgb, 255, 255, 255), 0.08)) 0%, color-mix(in srgb, ${activeTint} 4%, transparent) 100%)`
+            : `linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.05) 0%, transparent 100%)`,
         }}
       />
       <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[inherit]" />
 
       {icon && (
         <div
-          className={`${iconSizeClass} rounded-2xl flex items-center justify-center shrink-0 relative transition-all duration-500 group-hover:scale-110`}
+          className={`${iconSizeClass} rounded-2xl flex items-center justify-center shrink-0 relative transition-all duration-500`}
         >
           <span
-            className={`material-symbols-outlined ${iconTextClass} transition-opacity [text-shadow:0_4px_12px_rgba(0,0,0,0.5)]`}
+            className={`material-symbols-outlined ${iconTextClass} transition-opacity`}
           >
             {icon}
           </span>
         </div>
       )}
 
-      <div className="flex flex-col flex-1 min-w-0 relative z-10 py-1 items-start">
+      <div className={`flex flex-col flex-1 min-w-0 relative z-10 py-1 items-start justify-center`}>
         <span
-          className={`text-[9px] md:text-xs uppercase tracking-widest font-black group-hover:text-current transition-colors duration-500 mb-0 md:mb-1 truncate w-full pr-2 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : "text-[var(--subtext)]"}`}
+          className={`${hasValue ? "text-[9px] md:text-xs mb-0 md:mb-1" : "text-xs md:text-sm"} uppercase tracking-widest font-black group-hover:text-current transition-colors duration-500 truncate w-full pr-2 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : hasValue ? "text-[var(--subtext)]" : "text-[var(--text)] opacity-90"}`}
         >
           {label}
         </span>
-        {displayValue !== undefined && displayValue !== "" && (
+        {hasValue && (
           <span
-            className={`${sizeClass} font-black tracking-tighter pr-2 md:pr-1 [text-shadow:0_2px_4px_rgba(0,0,0,0.2)] leading-none`}
+            className={`${sizeClass} font-black tracking-tighter pr-2 md:pr-1 leading-none`}
           >
             {displayValue}
           </span>

@@ -33,8 +33,8 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("create_title")}
-      subtitle={t("create_subtitle")}
+      title={t("verify_panel_title")}
+      subtitle={t("auth_user_id_desc")}
       widthClass="w-[320px]"
       panelZ="z-[15001]"
       backdropZ="z-[15000]"
@@ -42,12 +42,12 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
         <PanelHeaderGroup>
           <PanelHeaderButton
             icon="close"
-            tooltip={t("nav_cancel")}
+            tooltip={t("btn_cancel")}
             onClick={onClose}
           />
           <PanelHeaderButton
             icon="add"
-            tooltip={isCreating ? t("create_btn_creating") : t("create_btn_create")}
+            tooltip={isCreating ? t("btn_saving") : t("ql_add")}
             variant="accent"
             disabled={isCreating || !newMasonName.trim()}
             onClick={handleCreate}
@@ -56,8 +56,8 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
       }
     >
       <div className="flex flex-col gap-6 w-full">
-        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason_name")}</label>
-        <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("create_ph_name")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full" />
+        <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("resolution_suggestion")}</label>
+        <input value={newMasonName} onChange={e => setNewMasonName(e.target.value)} placeholder={t("auto_e_g_load_31")} className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full" />
       </div>
     </SidePanel>
   );

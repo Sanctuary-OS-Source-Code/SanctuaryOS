@@ -515,29 +515,40 @@ body,
 }
 
 @layer base {
-  .glass-panel,
+  .glass-panel {
+    position: relative;
+    z-index: 1;
+    background-color: transparent;
+    border: 1px solid rgba(var(--text-rgb, 255, 255, 255), var(--glassBorderOpacityDecimal, 0.12));
+    border-top-color: rgba(var(--text-rgb, 255, 255, 255), calc(var(--glassBorderOpacityDecimal, 0.12) * 1.8));
+    border-left-color: rgba(var(--text-rgb, 255, 255, 255), calc(var(--glassBorderOpacityDecimal, 0.12) * 1.3));
+  }
+
   .glass-surface {
     position: relative;
     z-index: 1;
+    background-color: transparent;
+    border: 1px solid rgba(var(--text-rgb, 255, 255, 255), var(--glassBorderOpacitySurfaceDecimal, 0.08));
+    border-top-color: rgba(var(--text-rgb, 255, 255, 255), calc(var(--glassBorderOpacitySurfaceDecimal, 0.08) * 2));
+    border-left-color: rgba(var(--text-rgb, 255, 255, 255), calc(var(--glassBorderOpacitySurfaceDecimal, 0.08) * 1.4));
   }
 }
 
 .glass-panel {
+  border-radius: var(--radius, 1.5rem);
   overflow: hidden;
   color: var(--text);
-  border-radius: var(--radius, 1.5rem);
   background-image: linear-gradient(135deg,
-      rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(var(--glassOpacityDecimal, 0.12) * 1.2)) 0%,
-      rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(var(--glassOpacityDecimal, 0.12) * 0.7)) 100%);
-  background-color: transparent;
+      rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(max(var(--glassOpacityDecimal, 0.12), 0.09) * 1.35)) 0%,
+      rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(max(var(--glassOpacityDecimal, 0.12), 0.09) * 0.65)) 100%);
   transition-property: color, background-color, border-color, box-shadow;
   transition-duration: 300ms;
-  border: 1px solid transparent;
   box-shadow:
-    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000),
-    0 24px 48px -12px var(--shadowColor, rgba(0, 0, 0, 0.4)),
-    inset 0 1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.1),
-    inset 0 -1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.02);
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow, 0 24px 48px -12px var(--shadowColor, rgba(0, 0, 0, 0.4))),
+    inset 0 1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.22),
+    inset 1px 0 1px rgba(var(--text-rgb, 255, 255, 255), 0.08),
+    inset 0 -1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.04);
 }
 
 /* Layer 1: PURE BLUR */
@@ -554,9 +565,8 @@ body,
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: var(--glassFilter, blur(var(--glassBlur, 24px)) saturate(140%));
-  opacity: 1;
-  transform: scale(1.01);
+  filter: var(--glassFilter, blur(var(--glassBlur, 32px)) saturate(130%));
+  opacity: 0.9;
 }
 
 /* Layer 2: FROSTED NOISE TEXTURE (Kills the plastic wrap look) */
@@ -568,25 +578,24 @@ body,
   z-index: -1;
   pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-  opacity: 0.08;
+  opacity: 0.07;
 }
 
 .glass-surface {
+  border-radius: max(0px, calc(var(--radius) - 6px));
   overflow: hidden;
   color: var(--text);
-  border-radius: max(0px, calc(var(--radius) - 6px));
   background-image: linear-gradient(135deg,
-      rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(var(--glassOpacitySurfaceDecimal, 0.08) * 1.5)) 0%,
-      rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(var(--glassOpacitySurfaceDecimal, 0.08) * 0.3)) 100%);
-  background-color: transparent;
+      rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(max(var(--glassOpacitySurfaceDecimal, 0.08), 0.06) * 1.5)) 0%,
+      rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(max(var(--glassOpacitySurfaceDecimal, 0.08), 0.06) * 0.45)) 100%);
   transition-property: color, background-color, border-color, box-shadow, opacity;
   transition-duration: 300ms;
-  border: 1px solid transparent;
   box-shadow:
-    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000),
-    0 16px 32px -8px var(--shadowColor, rgba(0, 0, 0, 0.3)),
-    inset 0 1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.06),
-    inset 0 -1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.01);
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow, 0 16px 32px -8px var(--shadowColor, rgba(0, 0, 0, 0.3))),
+    inset 0 1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.16),
+    inset 1px 0 1px rgba(var(--text-rgb, 255, 255, 255), 0.06),
+    inset 0 -1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.02);
 }
 
 .glass-surface::before {
@@ -602,9 +611,8 @@ body,
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: var(--glassFilterSurface, blur(calc(var(--glassBlur, 24px) * 0.7)) saturate(120%));
-  opacity: 1;
-  transform: scale(1.01);
+  filter: var(--glassFilterSurface, blur(calc(var(--glassBlur, 32px) * 0.75)) saturate(120%));
+  opacity: 0.85;
 }
 
 /* 
@@ -625,6 +633,23 @@ body,
   display: none !important;
 }
 
+#sa-portals .portal-glass-fix::before,
+#sa-portals .portal-glass-fix .glass-surface::before,
+#sa-portals .portal-glass-fix .glass-panel::before,
+.glass-panel .portal-glass-fix::before,
+.glass-surface .portal-glass-fix::before,
+.portal-glass-fix::before {
+  display: block !important;
+  inset: -48px !important;
+  background-color: var(--bg) !important;
+  background-image: var(--bgGradient, var(--glassBgImage)) !important;
+  background-attachment: scroll !important;
+  background-size: cover !important;
+  background-position: center !important;
+  filter: var(--glassFilter, blur(var(--glassBlur, 36px)) saturate(140%)) !important;
+  opacity: 0.96 !important;
+}
+
 .glass-surface::after {
   content: '';
   position: absolute;
@@ -632,7 +657,8 @@ body,
   border-radius: inherit;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.05;
 }
 
 /* Mobile Performance Optimizations */
@@ -646,13 +672,13 @@ body,
      We keep the high-fidelity Desktop fake blur (`::before`) to give the user the frosted glass they want, but we forcefully override it to `background-attachment: scroll` on mobile viewports. The heavy 24px blur hides the fact that the inner background scrolls slightly out of sync with the main wallpaper, resulting in visually identical, buttery smooth 60fps frosted glass!
   */
 
-  .glass-panel {
-    /* Inherit Desktop settings, but ensure native backdrop-filter is disabled to avoid conflicting GPU passes */
+  #root .glass-panel:not(.glass-panel .glass-panel):not(.glass-surface .glass-panel) {
+    /* Inherit Desktop settings, but ensure native backdrop-filter is disabled to avoid conflicting GPU passes on root cards that use ::before */
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
 
-  .glass-surface {
+  #root .glass-surface:not(.glass-panel .glass-surface):not(.glass-surface .glass-surface) {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }

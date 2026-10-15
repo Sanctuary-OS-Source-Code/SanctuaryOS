@@ -83,9 +83,10 @@ html, body {
 
 
 #sa-portals {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
   pointer-events: none;
   z-index: 999999;
 }

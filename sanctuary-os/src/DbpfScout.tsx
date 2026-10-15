@@ -412,7 +412,7 @@ export const DbpfScout = () => {
                             <ActionPill
                                 searchQuery={conflictSearch}
                                 setSearchQuery={setConflictSearch}
-                                searchPlaceholder={t("radar_search_conflicts") as string}
+                                searchPlaceholder={t("search_ph") as string}
                                 rightContent={
                                     <div className="flex items-center border-l border-[color-mix(in_srgb,var(--text)_6%,transparent)] pl-2 h-full pr-2">
                                         <button onClick={() => setIsSidePanelOpen(true)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--subtext)] hover:text-[var(--text)]">
@@ -428,7 +428,7 @@ export const DbpfScout = () => {
                             <ActionPill
                                 searchQuery={overrideSearch}
                                 setSearchQuery={setOverrideSearch}
-                                searchPlaceholder={t("radar_search_overrides") as string}
+                                searchPlaceholder={t("search_ph") as string}
                                 rightContent={
                                     <div className="flex items-center border-l border-[color-mix(in_srgb,var(--text)_6%,transparent)] pl-2 h-full pr-2">
                                         <button onClick={() => setIsSidePanelOpen(true)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--subtext)] hover:text-[var(--text)]">

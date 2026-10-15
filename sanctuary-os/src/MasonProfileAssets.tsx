@@ -184,7 +184,7 @@ export default function MasonProfileAssets({
     });
     return (
       <>
-        {filteredChameleons.length === 0 && <EmptyState icon={t("icon_palette")} title={t("no_chameleons")} minHeightClass="min-h-[400px]" />}
+        {filteredChameleons.length === 0 && <EmptyState icon={t("icon_palette")} title={t("no_themes")} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredChameleons.map((asset: any) => (
             <UniversalCard
@@ -197,7 +197,7 @@ export default function MasonProfileAssets({
               onClick={() => setActiveAsset({ type: 'chameleon', id: asset.id })}
               imageOverlay={
                 <div className="absolute top-4 right-4 flex gap-2 z-30">
-                  <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] capitalize tracking-widest">{t("type_theme")}</span>
+                  <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] capitalize tracking-widest">{t("masonhub_asset_type_chameleon")}</span>
                 </div>
               }
               className="w-full h-full"
@@ -254,7 +254,7 @@ export default function MasonProfileAssets({
               onClick={() => setActiveAsset({ type: 'workbench_template', id: asset.id })}
               imageOverlay={
                 <div className="absolute top-4 right-4 flex gap-2 z-30">
-                  <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] capitalize tracking-widest">{t("type_template")}</span>
+                  <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] capitalize tracking-widest">{t("masonhub_asset_type_workbench_template")}</span>
                 </div>
               }
               className="w-full h-full"

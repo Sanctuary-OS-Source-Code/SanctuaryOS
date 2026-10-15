@@ -44,7 +44,7 @@ export default function SystemBroadcastsFeed({ audience, noCardWrapper, gridCols
       {loading ? (
         <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading")}</div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest col-span-2">{t("system_no_broadcasts")}</div>
+        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest col-span-2">{t("comm_link_quiet")}</div>
       ) : (
         posts.map((p, index) => {
           const isFeatured = index === 0 && posts.length !== 2;

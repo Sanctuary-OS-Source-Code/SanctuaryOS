@@ -24,7 +24,7 @@ export function VaultSidebar({
             <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">{t("icon_checklist")}</span>
           </div>
           <div>
-            <div className={`text-[10px] font-black capitalize tracking-widest mb-1 transition-colors ${isBulkMode ? 'text-emerald-400' : 'text-emerald-500 group-hover:text-emerald-400'}`}>{t("ui_btn_bulk")}</div>
+            <div className={`text-[10px] font-black capitalize tracking-widest mb-1 transition-colors ${isBulkMode ? 'text-emerald-400' : 'text-emerald-500 group-hover:text-emerald-400'}`}>{t("ql_bulk_actions")}</div>
             <div className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-70 leading-relaxed">{t("ui_btn_bulk_desc")}</div>
           </div>
         </button>
@@ -34,7 +34,7 @@ export function VaultSidebar({
             <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">{t("icon_account_tree")}</span>
           </div>
           <div>
-            <div className="text-[10px] font-black capitalize tracking-widest mb-1 transition-colors text-purple-500 group-hover:text-purple-400">{t("ui_btn_edit_folder")}</div>
+            <div className="text-[10px] font-black capitalize tracking-widest mb-1 transition-colors text-purple-500 group-hover:text-purple-400">{t("local_folders")}</div>
             <div className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-70 leading-relaxed">{t("ui_btn_edit_folder_desc")}</div>
           </div>
         </button>
@@ -80,7 +80,7 @@ export function VaultSidebar({
             <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 drop-shadow-md">{t("icon_delete_sweep")}</span>
           </div>
           <div>
-            <div className="text-[10px] font-black capitalize tracking-widest mb-1 transition-colors text-rose-500 group-hover:text-rose-400">{t("btn_purge_archives")}</div>
+            <div className="text-[10px] font-black capitalize tracking-widest mb-1 transition-colors text-rose-500 group-hover:text-rose-400">{t("purge_archives")}</div>
             <div className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-70 leading-relaxed text-rose-500">{t("purge_archives_desc")}</div>
           </div>
         </button>
@@ -91,7 +91,7 @@ export function VaultSidebar({
           </div>
           <div>
             <div className="text-[10px] font-black capitalize tracking-widest mb-1 transition-colors text-amber-500 group-hover:text-amber-400">{t("tab_nexus")}</div>
-            <div className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-70 leading-relaxed text-amber-500">{t("hub_title_market")}</div>
+            <div className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-70 leading-relaxed text-amber-500">{t("nexus_core")}</div>
           </div>
         </button>
       </div>

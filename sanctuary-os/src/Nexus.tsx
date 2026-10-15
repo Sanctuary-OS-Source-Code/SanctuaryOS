@@ -1361,7 +1361,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           className="mt-4 px-8 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]  active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black capitalize tracking-widest group"
         >
           <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">refresh</span>
-          {t("offline_mode_refresh")}
+          {t("loading")}
         </button>
       </div>
     );

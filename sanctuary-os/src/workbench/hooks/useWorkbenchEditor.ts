@@ -68,8 +68,8 @@ export function useWorkbenchEditor() {
    const [editorRef, setEditorRef] = useState<any>(null);
    const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
 
-   const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-   const rawUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   const rawUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
    const monacoDecorationsRef = useRef<string[]>([]);
    
    // This jump ref is also used by scroll sync, so we might need to expose it or move it.

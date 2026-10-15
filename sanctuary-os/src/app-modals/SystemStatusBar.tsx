@@ -58,7 +58,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const showToast = (!isStandby && status) || isErrorStatus || isSuccessStatus || isScanning;
 
   const [isDockHovered, setIsDockHovered] = useState(false);
-  const dockTimeout = useRef<NodeJS.Timeout | null>(null);
+  const dockTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleDockEnter = () => {
     if (dockTimeout.current) clearTimeout(dockTimeout.current);

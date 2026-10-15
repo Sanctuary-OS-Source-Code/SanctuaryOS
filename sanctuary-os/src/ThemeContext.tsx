@@ -13,7 +13,7 @@ const DEFAULT_CORE_THEMES: any = {
     name: "Architect", bg: "#000000", sidebar: "#000000", sidebartext: "#f8fafc", accent: "#38bdf8",
     text: "#ffffff", subtext: "#94a3b8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
     panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "5%", glassBlur: "24px", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.3)",
+    glassOpacity: "10%", glassBlur: "36px", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.3)",
     bgGradient: "transparent",
     bgImage: "/themes/architect.png",
     animated: true, ambientOrb: false, ambientNoise: true,

@@ -68,6 +68,8 @@ export function GlobalTooltip() {
     finalLeft = window.innerWidth - size.width - padding;
   }
 
+  const portalRoot = document.getElementById("sa-portals") || document.body;
+
   return createPortal(
     <div className="fixed inset-0 z-[999999] pointer-events-none">
       <div 
@@ -85,17 +87,14 @@ export function GlobalTooltip() {
         ) : (
           <div 
             ref={tooltipRef}
-            className={`glass-panel flex flex-col items-start justify-center px-5 py-4 max-w-[420px] w-max shadow-2xl animate-in fade-in zoom-in-95 !rounded-xl relative overflow-hidden ${borderShadowClass}`}
+            className={`glass-panel portal-glass-fix backdrop-blur-[var(--glassBlur)] flex flex-col items-start justify-center px-4 py-3 max-w-[420px] w-max border border-[color-mix(in_srgb,var(--text)_16%,transparent)] shadow-[0_16px_36px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 !rounded-xl relative overflow-hidden ${borderShadowClass}`}
           >
-            {/* Extra Pure Blur Layer (No Solid Colors!) */}
-            <div className="absolute inset-0 rounded-[inherit] backdrop-blur-[32px] z-[-1] pointer-events-none" />
-
             {/* Premium Glass Glare & Light Leaks */}
-            <div className="absolute inset-0 rounded-[inherit] bg-radial from-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent z-[-1] pointer-events-none" />
-            <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0_0_30px_color-mix(in_srgb,var(--text)_2%,transparent)] z-[-1] pointer-events-none" />
+            <div className="absolute inset-0 rounded-[inherit] bg-radial from-[color-mix(in_srgb,var(--text)_6%,transparent)] to-transparent z-[-1] pointer-events-none" />
+            <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0_0_30px_color-mix(in_srgb,var(--text)_3%,transparent)] z-[-1] pointer-events-none" />
 
             {/* 3D Glass Inner Top Highlight */}
-            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-60 pointer-events-none z-0" />
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_28%,transparent)] to-transparent opacity-80 pointer-events-none z-0" />
             
             {/* Ultra-faint Noise Texture for Glass Material realism */}
             <div className="absolute inset-0 rounded-[inherit] z-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
@@ -112,7 +111,7 @@ export function GlobalTooltip() {
           </div>
         )}
       </div>
-    </div>, document.body
+    </div>, portalRoot
   );
 }
 

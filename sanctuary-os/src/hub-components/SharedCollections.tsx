@@ -142,7 +142,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
           title={t("title_recent_activity") || "Recent Activity"}
         >
           {sets.length === 0 ? (
-            <EmptyState icon="collections_bookmark" title={t("no_collections")} className="py-8" />
+            <EmptyState icon="collections_bookmark" title={t("cc_no_sets")} className="py-8" />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
               {sets.slice(0, 4).map(setItem => (
@@ -164,7 +164,7 @@ export function MasonCollectionBuilder({ masonId, masonName }: { masonId: string
           title={t("title_issues") || "Flags & Issues"}
         >
           {flaggedSets.length === 0 ? (
-            <EmptyState icon="collections_bookmark" title={t("no_collections")} className="py-8" />
+            <EmptyState icon="collections_bookmark" title={t("cc_no_sets")} className="py-8" />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
               {flaggedSets.map(setItem => (
@@ -612,7 +612,7 @@ export function CollectionForge({ setStatus }: any) {
             title={t("title_recent_activity") || "Recent Activity"}
           >
             {sets.length === 0 ? (
-              <EmptyState icon="collections_bookmark" title={t("no_collections")} className="py-8" />
+              <EmptyState icon="collections_bookmark" title={t("cc_no_sets")} className="py-8" />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
                 {sets.slice(0, 4).map(setItem => (
@@ -634,7 +634,7 @@ export function CollectionForge({ setStatus }: any) {
             title={t("title_issues") || "Flags & Issues"}
           >
             {flaggedSets.length === 0 ? (
-              <EmptyState icon="collections_bookmark" title={t("no_collections")} className="py-8" />
+              <EmptyState icon="collections_bookmark" title={t("cc_no_sets")} className="py-8" />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
                 {flaggedSets.map(setItem => (

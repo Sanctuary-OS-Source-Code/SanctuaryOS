@@ -62,8 +62,8 @@ export function ImportTemplateSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("btn_import")}
-      subtitle={t("upload_import_subtitle")}
+      title={t("template_title")}
+      subtitle={t("ql_templates_desc")}
       icon="drive_folder_upload"
       iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
       widthClass="w-[600px]"
@@ -77,7 +77,7 @@ export function ImportTemplateSidePanel({
             </div>
             <input 
               type="text" 
-              placeholder={t("workbench_search_placeholder")}
+              placeholder={t("ui_search_templates")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-transparent border-none px-4 py-4 text-sm font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-50 tracking-wider"
@@ -88,8 +88,8 @@ export function ImportTemplateSidePanel({
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 pb-8">
           {isLoading ? (
              <div className="flex flex-col items-center justify-center p-12 opacity-40 glass-panel rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-               <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)] animate-spin">{t("icon_refresh")}</span>
-               <p className="text-sm font-black capitalize tracking-widest">{t("loading_templates")}</p>
+               <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)] animate-spin">{t("icon_sync")}</span>
+               <p className="text-sm font-black capitalize tracking-widest">{t("ui_loading")}</p>
              </div>
           ) : filteredTemplates.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 opacity-40 glass-panel rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
@@ -122,18 +122,18 @@ export function ImportTemplateSidePanel({
                        {template.mod_author && (
                          <div className="flex items-center gap-2">
                            <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">{t("icon_person")}</span>
-                           <span className="text-[10px] capitalize font-bold tracking-widest text-[var(--text)] opacity-80">{t("author_author_label")} <span className="text-[var(--accent)]">{template.mod_author}</span></span>
+                           <span className="text-[10px] capitalize font-bold tracking-widest text-[var(--text)] opacity-80">{t("role_mason")} <span className="text-[var(--accent)]">{template.mod_author}</span></span>
                          </div>
                        )}
                        {template.template_version && (
                          <div className="flex items-center gap-2">
                            <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">{t("icon_tag")}</span>
-                           <span className="text-[10px] capitalize font-bold tracking-widest text-[var(--text)] opacity-80">{t("author_version_label")} <span className="text-[var(--accent)]">{template.template_version}</span></span>
+                           <span className="text-[10px] capitalize font-bold tracking-widest text-[var(--text)] opacity-80">{t("label_version")} <span className="text-[var(--accent)]">{template.template_version}</span></span>
                          </div>
                        )}
                    </div>
                    <div className="flex items-center gap-2 text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 duration-300">
-                     <span className="text-[9px] font-black capitalize tracking-widest">{t("author_import_to_editor")}</span>
+                     <span className="text-[9px] font-black capitalize tracking-widest">{t("btn_import")}</span>
                      <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_forward")}</span>
                    </div>
                 </div>
