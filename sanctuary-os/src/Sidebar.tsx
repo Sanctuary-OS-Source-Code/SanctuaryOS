@@ -6,7 +6,7 @@ import { useModalStore } from './store/modalStore';
 import { CustomDropdown, HoverTooltip, useIsMobile } from './shared';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from "./utils/envUtils";
-import { isRootDomain } from "./utils/routingUtils";
+import { isRootDomain, scrollToLandingSection } from "./utils/routingUtils";
 
 function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false, setHoveredTooltip }: any) {
   const isActive = active;
@@ -72,6 +72,7 @@ export function Sidebar({
   const [globalGames, setGlobalGames] = React.useState<any[]>([]);
   const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = React.useState(false);
   const [hoveredTooltip, setHoveredTooltip] = React.useState<{ label: string, top: number } | null>(null);
+  const [activeLandingSection, setActiveLandingSection] = React.useState<string>('workspaces');
 
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const workspaces = useStore((state) => state.workspaces);
@@ -87,6 +88,32 @@ export function Sidebar({
       });
     });
   }, []);
+
+  React.useEffect(() => {
+    if (!(!isConfigured || (!isDesktop() && isRootDomain()))) return;
+    const container = document.getElementById('sanctuary-main-scroll');
+    if (!container) return;
+    const handleScroll = () => {
+      const sectionIds = ['workspaces', 'news', 'system_directives', 'download', 'eula'];
+      const containerTop = container.getBoundingClientRect().top;
+      let current = 'workspaces';
+      for (const id of sectionIds) {
+        const el = document.getElementById(id);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top - containerTop <= 180) {
+            current = id;
+          }
+        }
+      }
+      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 40) {
+        current = 'eula';
+      }
+      setActiveLandingSection(current);
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [isConfigured, view]);
 
   return (
     <nav
@@ -158,13 +185,14 @@ export function Sidebar({
           {(!isConfigured || (!isDesktop() && isRootDomain())) ? (
             <>
               <NavButton
-                active={false}
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'workspaces'}
                 onClick={() => {
+                  setActiveLandingSection('workspaces');
                   setView("landing");
                   setTimeout(() => {
-                    if (isDesktop() || isRootDomain()) document.getElementById('workspaces')?.scrollIntoView({ behavior: 'smooth' });
-                    else window.location.href = `${window.location.protocol}//${window.location.host.substring(window.location.host.indexOf('.') + 1)}#workspaces`;
-                  }, 100);
+                    if (isDesktop() || isRootDomain()) scrollToLandingSection('workspaces');
+                    else window.location.href = `/#workspaces`;
+                  }, 80);
                 }}
                 icon="public"
                 label={t("landing_workspaces")}
@@ -173,13 +201,14 @@ export function Sidebar({
                 setHoveredTooltip={setHoveredTooltip}
               />
               <NavButton
-                active={false}
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'news'}
                 onClick={() => {
+                  setActiveLandingSection('news');
                   setView("landing");
                   setTimeout(() => {
-                    if (isDesktop() || isRootDomain()) document.getElementById('news')?.scrollIntoView({ behavior: 'smooth' });
-                    else window.location.href = `${window.location.protocol}//${window.location.host.substring(window.location.host.indexOf('.') + 1)}#news`;
-                  }, 100);
+                    if (isDesktop() || isRootDomain()) scrollToLandingSection('news');
+                    else window.location.href = `/#news`;
+                  }, 80);
                 }}
                 icon="newspaper"
                 label={t("landing_news")}
@@ -188,13 +217,14 @@ export function Sidebar({
                 setHoveredTooltip={setHoveredTooltip}
               />
               <NavButton
-                active={false}
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'system_directives'}
                 onClick={() => {
+                  setActiveLandingSection('system_directives');
                   setView("landing");
                   setTimeout(() => {
-                    if (isDesktop() || isRootDomain()) document.getElementById('system_directives')?.scrollIntoView({ behavior: 'smooth' });
-                    else window.location.href = `${window.location.protocol}//${window.location.host.substring(window.location.host.indexOf('.') + 1)}#system_directives`;
-                  }, 100);
+                    if (isDesktop() || isRootDomain()) scrollToLandingSection('system_directives');
+                    else window.location.href = `/#system_directives`;
+                  }, 80);
                 }}
                 icon="folder_special"
                 label={t("landing_system_directives") || "System Directives"}
@@ -204,13 +234,14 @@ export function Sidebar({
               />
               {!isDesktop() && (
                 <NavButton
-                  active={false}
+                  active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'download'}
                   onClick={() => {
+                    setActiveLandingSection('download');
                     setView("landing");
                     setTimeout(() => {
-                      if (isRootDomain()) document.getElementById('download')?.scrollIntoView({ behavior: 'smooth' });
-                      else window.location.href = `${window.location.protocol}//${window.location.host.substring(window.location.host.indexOf('.') + 1)}#download`;
-                    }, 100);
+                      if (isRootDomain()) scrollToLandingSection('download');
+                      else window.location.href = `/#download`;
+                    }, 80);
                   }}
                   icon="download"
                   label={t("landing_download_sidebar")}
@@ -220,13 +251,14 @@ export function Sidebar({
                 />
               )}
               <NavButton
-                active={false}
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'eula'}
                 onClick={() => {
+                  setActiveLandingSection('eula');
                   setView("landing");
                   setTimeout(() => {
-                    if (isDesktop() || isRootDomain()) document.getElementById('eula')?.scrollIntoView({ behavior: 'smooth' });
-                    else window.location.href = `${window.location.protocol}//${window.location.host.substring(window.location.host.indexOf('.') + 1)}#eula`;
-                  }, 100);
+                    if (isDesktop() || isRootDomain()) scrollToLandingSection('eula');
+                    else window.location.href = `/#eula`;
+                  }, 80);
                 }}
                 icon="gavel"
                 label={t("landing_eula")}

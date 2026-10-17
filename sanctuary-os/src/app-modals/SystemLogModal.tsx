@@ -14,16 +14,16 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
   return createPortal(
     <div
       ref={logModalRef}
-      className="!fixed bottom-4 right-4 w-[420px] max-w-[calc(100vw-2rem)] max-h-[60vh] glass-panel portal-glass-fix portal-glass-modal pointer-events-auto border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-[0_24px_60px_rgba(0,0,0,0.7),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-2xl z-[99999] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300"
+      className="!fixed bottom-4 right-4 w-[420px] max-w-[calc(100vw-2rem)] max-h-[60vh] glass-panel portal-glass-fix pointer-events-auto border border-[rgba(var(--text-rgb,255,255,255),0.14)] shadow-[0_24px_60px_rgba(0,0,0,0.45)] rounded-2xl z-[99999] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300"
     >
       <div
-        className="flex items-center justify-between p-5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] shrink-0 relative z-10 cursor-move"
+        className="flex items-center justify-between p-5 border-b border-[rgba(var(--text-rgb,255,255,255),0.08)] bg-transparent shrink-0 relative z-10 cursor-move"
         onPointerDown={handleLogPointerDown}
         onPointerMove={handleLogPointerMove}
         onPointerUp={handleLogPointerUp}
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shadow-inner">
+          <div className="w-8 h-8 rounded-xl glass-surface border border-[rgba(var(--text-rgb,255,255,255),0.1)] flex items-center justify-center shadow-inner">
             <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_receipt_long")}</span>
           </div>
           <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--text)] drop-shadow-md">
@@ -39,7 +39,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
           </button>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2 relative z-10">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2.5 relative z-10">
         {statusLog.map((log: any) => {
           const match = log.message.match(/^([a-z_0-9]+)\s+(.*)$/);
           const knownIcons = ['check_circle', 'warning', 'error', 'info', 'sync', 'flight_takeoff', 'radar', 'terminal', 'bug_report', 'extension', 'block', 'update', 'done', 'download', 'delete', 'close', 'add', 'verified', 'new_releases', 'local_fire_department', 'health_and_safety', 'folder_open', 'inventory_2', 'account_tree', 'priority_high'];
@@ -86,7 +86,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
                         useStore.getState().setMasonActiveTab('ide');
                       }
                       setIsLogExpanded(false);
-                    }} className="px-2 py-0.5 bg-black/20 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-md transition-all capitalize tracking-widest cursor-pointer">
+                    }} className="px-2 py-0.5 glass-surface border border-[rgba(var(--text-rgb,255,255,255),0.1)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] rounded-md transition-all capitalize tracking-widest cursor-pointer">
                       {f.replace(/\.wayfinder$/i, '').replace(/\.masonhub$/i, '')}
                     </button>
                     {idx < fileNames.length - 1 && <span className="opacity-50">,</span>}
@@ -103,11 +103,11 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
           const isWarn = log.type === 'warning' || logIcon === 'warning' || logIcon === 'priority_high';
 
           const logColor = isErr ? 'text-red-400 drop-shadow-md' : isSucc ? 'text-emerald-400 drop-shadow-md' : isWarn ? 'text-amber-400 drop-shadow-md' : 'text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]';
-          const bgHover = isErr ? 'hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : isSucc ? 'hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_20%,transparent)]' : isWarn ? 'hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
+          const bgHover = isErr ? 'hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_25%,transparent)]' : isSucc ? 'hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_25%,transparent)]' : isWarn ? 'hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_25%,transparent)]' : 'hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_25%,transparent)]';
           const iconBg = isErr ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : isSucc ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)]' : isWarn ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
 
           return (
-            <div key={log.id} className={`flex items-start gap-4 p-4 rounded-[1rem] border border-transparent transition-all duration-300 group ${bgHover}`}>
+            <div key={log.id} className={`flex items-start gap-4 p-4 rounded-[1rem] glass-surface border border-[rgba(var(--text-rgb,255,255,255),0.08)] transition-all duration-300 group ${bgHover}`}>
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-inner ${iconBg}`}>
                 <span className={`material-symbols-outlined !text-[18px] ${logColor}`}>{logIcon}</span>
               </div>

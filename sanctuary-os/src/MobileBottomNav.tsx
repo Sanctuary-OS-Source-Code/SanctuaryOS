@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from './store';
 import { useLexicon } from './LexiconContext';
 import { useTheme } from './ThemeContext';
-import { isRootDomain } from './utils/routingUtils';
+import { isRootDomain, scrollToLandingSection } from './utils/routingUtils';
 import { isDesktop } from './utils/envUtils';
 import { usePwaInstall, PwaInstallPrompt } from './utils/pwaManager';
 
@@ -25,7 +25,31 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHubNavOpen, setIsHubNavOpen] = useState(false);
+  const [activeLandingSection, setActiveLandingSection] = useState<string>('workspaces');
   const { isStandalone, triggerInstall } = usePwaInstall();
+
+  useEffect(() => {
+    if (!isRootDomain()) return;
+    const container = document.getElementById('sanctuary-main-scroll');
+    if (!container) return;
+    const handleScroll = () => {
+      const sectionIds = ['workspaces', 'news', 'system_directives', 'download'];
+      const containerTop = container.getBoundingClientRect().top;
+      let current = 'workspaces';
+      for (const id of sectionIds) {
+        const el = document.getElementById(id);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top - containerTop <= 180) {
+            current = id;
+          }
+        }
+      }
+      setActiveLandingSection(current);
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [view]);
 
   const tabs = [];
 
@@ -35,7 +59,8 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   if (isRootDomain()) {
     tabs.push({ id: 'workspaces', icon: 'public', label: t("landing_workspaces") || 'Workspaces' });
     tabs.push({ id: 'news', icon: 'newspaper', label: t("landing_news") || 'News' });
-    tabs.push({ id: 'download', icon: 'download', label: t("landing_download_sidebar") || 'Download' });
+    tabs.push({ id: 'system_directives', icon: 'folder_special', label: t("landing_system_directives") || 'Directives' });
+    tabs.push({ id: 'download', icon: t("icon_install_mobile", "install_mobile"), label: t("landing_install_pwa_short", "Install PWA") });
     tabs.push({ id: 'menu', icon: 'menu', label: t("ui_btn_more") || 'More' });
   } else {
     tabs.push({ id: 'dashboard', icon: t("icon_desktop_windows") || "desktop_windows", label: t("center_title") || 'Dashboard' });
@@ -66,18 +91,13 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
       setIsHubNavOpen(!isHubNavOpen);
       setIsMenuOpen(false);
     } else if (isRootDomain()) {
-      if (tabId === 'workspaces') {
+      setIsMenuOpen(false);
+      setIsHubNavOpen(false);
+      if (['workspaces', 'news', 'system_directives', 'download', 'eula'].includes(tabId)) {
+        setActiveLandingSection(tabId);
         setView('landing');
-        setTimeout(() => document.getElementById('workspaces')?.scrollIntoView({ behavior: 'smooth' }), 100);
-      } else if (tabId === 'news') {
-        setView('landing');
-        setTimeout(() => document.getElementById('news')?.scrollIntoView({ behavior: 'smooth' }), 100);
-      } else if (tabId === 'download') {
-        setView('landing');
-        setTimeout(() => document.getElementById('download')?.scrollIntoView({ behavior: 'smooth' }), 100);
+        setTimeout(() => scrollToLandingSection(tabId), 80);
       } else {
-        setIsMenuOpen(false);
-        setIsHubNavOpen(false);
         setView(tabId);
       }
     } else {
@@ -92,7 +112,11 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
       <PwaInstallPrompt />
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-[80px] z-[999999] flex items-center justify-around px-2 glass-panel !rounded-none !border-x-0 !border-b-0 pb-[env(safe-area-inset-bottom)]">
         {tabs.map(tab => {
-          const isActive = view === tab.id || (tab.id === 'menu' && isMenuOpen) || (tab.id === 'hub_nav' && (isHubNavOpen || ["MasonHub", "ArchitectHub", "Oversight", "WayfinderHub", "KeepersCore"].includes(view)));
+          const isLandingView = isRootDomain() && view !== 'settings' && view !== 'KeepersCore';
+          const isActive =
+            (tab.id === 'menu' && isMenuOpen) ||
+            (tab.id === 'hub_nav' && (isHubNavOpen || ["MasonHub", "ArchitectHub", "Oversight", "WayfinderHub", "KeepersCore"].includes(view))) ||
+            (isLandingView && !isMenuOpen ? activeLandingSection === tab.id : view === tab.id);
           return (
             <button
               key={tab.id}
@@ -105,7 +129,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
               <span className={`material-symbols-outlined relative z-10 transition-all duration-500 ${isActive ? 'text-[24px] -translate-y-3 drop-shadow-[0_0_8px_var(--accent)]' : 'text-[20px] translate-y-0'}`}>
                 {tab.icon}
               </span>
-              <span className={`text-[9px] font-black w-full text-center px-1 leading-[1.1] uppercase tracking-[0.2em] transition-all duration-500 absolute bottom-2 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <span className={`text-[9px] font-black w-full text-center px-1 leading-[1.1] uppercase tracking-[0.2em] transition-all duration-500 absolute bottom-2 truncate ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                 {tab.label}
               </span>
             </button>
@@ -126,12 +150,12 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                 setIsMenuOpen(false);
                 triggerInstall();
               }}
-              className="p-4 rounded-xl flex items-center gap-4 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-all"
+              className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all"
             >
               <span className="material-symbols-outlined text-[var(--accent)] text-[20px]">
                 {t("icon_add_to_home_screen", "add_to_home_screen")}
               </span>
-              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--accent)]">
+              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">
                 {t("pwa_btn_install", "Install App")}
               </span>
             </button>

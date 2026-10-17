@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { getSubdomain } from './utils/routingUtils';
+import { getSubdomain, scrollToLandingSection } from './utils/routingUtils';
 import WebNewsFeed from './WebNewsFeed';
 import WebDocumentFeed from './WebDocumentFeed';
 import WebLegalViewer from './WebLegalViewer';
@@ -27,6 +27,18 @@ export default function WebLandingPage() {
       setLoading(false);
     };
     fetchGames();
+  }, []);
+
+  useEffect(() => {
+    const handleInitialHash = () => {
+      const hash = window.location.hash.replace('#', '').toLowerCase();
+      if (['workspaces', 'news', 'sanctuary_foundry_news', 'system_directives', 'download'].includes(hash)) {
+        setTimeout(() => scrollToLandingSection(hash), 150);
+      }
+    };
+    handleInitialHash();
+    window.addEventListener('hashchange', handleInitialHash);
+    return () => window.removeEventListener('hashchange', handleInitialHash);
   }, []);
 
   const navigateToGame = async (gameId: string) => {
@@ -113,7 +125,8 @@ export default function WebLandingPage() {
             </div>
           </section>
 
-          <section id="sanctuary_foundry_news" className="flex flex-col gap-6 scroll-mt-24 mt-8">
+          <section id="news" className="flex flex-col gap-6 scroll-mt-24 mt-8">
+            <div id="sanctuary_foundry_news" className="hidden" />
             <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
               <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
                 <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in srgb, var(--accent) 20%, transparent)]">
@@ -144,12 +157,24 @@ export default function WebLandingPage() {
         </section>
 
         {!isDesktop() && (
-          <section id="download" className="w-full mt-12 mb-12 scroll-mt-24 z-10 relative">
+          <section id="download" className="w-full flex flex-col gap-6 mt-12 mb-12 scroll-mt-24 z-10 relative">
 
-            <div className="flex items-center gap-4 mb-4 px-2">
-              <span className="material-symbols-outlined text-[var(--text)] opacity-80 !text-[24px]">system_update_alt</span>
-              <h2 className="text-sm md:text-base font-black uppercase tracking-widest text-[var(--text)] drop-shadow-md">
-                {t("landing_download") || "DOWNLOAD DESKTOP CLIENT"}
+            <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
+                <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in srgb, var(--accent) 20%, transparent)]">
+                  <span className="material-symbols-outlined text-[var(--accent)] md:hidden">
+                    {t("icon_install_mobile", "install_mobile")}
+                  </span>
+                  <span className="material-symbols-outlined text-[var(--accent)] hidden md:inline">
+                    system_update_alt
+                  </span>
+                </div>
+                <span className="md:hidden">
+                  {t("landing_install_pwa", "Install the PWA")}
+                </span>
+                <span className="hidden md:inline">
+                  {t("landing_download") || "DOWNLOAD DESKTOP CLIENT"}
+                </span>
               </h2>
             </div>
 
@@ -165,13 +190,13 @@ export default function WebLandingPage() {
                     </span>
                   }
                   subtitle={
-                    <span className="text-[10px] font-mono tracking-widest text-[var(--accent)]">
+                    <span className="text-[10px] font-mono tracking-widest">
                       {t("pwa_install_subtitle", "Progressive Web App (iOS / Android / Web)")}
                     </span>
                   }
-                  className="h-full bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:border-[var(--accent)] hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] transition-all duration-500 hover:-translate-y-1"
+                  className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all duration-500 hover:-translate-y-1"
                   footer={
-                    <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest">
+                    <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--accent)] uppercase tracking-widest transition-all">
                       <span>{t("pwa_badge_standalone", "STANDALONE PWA")}</span>
                       <span className="flex items-center gap-1.5">
                         <span className="material-symbols-outlined !text-[14px]">
@@ -186,7 +211,7 @@ export default function WebLandingPage() {
                     </div>
                   }
                 >
-                  <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-90 line-clamp-3">
+                  <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
                     {t(
                       "pwa_install_desc",
                       "Install Sanctuary OS directly to your home screen or app drawer for a full-screen standalone experience with instant workspace access."
@@ -241,7 +266,7 @@ export default function WebLandingPage() {
 
       </main>
 
-      <footer className="w-full py-12 mt-8 flex flex-col md:flex-row items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 max-md:pb-[100px] gap-6">
+      <footer id="eula" className="w-full py-12 mt-8 flex flex-col md:flex-row items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 max-md:pb-[100px] gap-6 scroll-mt-24">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
             <span className="material-symbols-outlined text-[20px] text-[var(--text)] opacity-80">shield</span>
@@ -266,3 +291,4 @@ export default function WebLandingPage() {
     </div>
   );
 }
+

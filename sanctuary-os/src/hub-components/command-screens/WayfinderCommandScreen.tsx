@@ -127,12 +127,12 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
 
       const { count: flaggedQueueCount } = await supabase.from('mods')
         .select('*', { count: 'exact', head: true })
-        .in('compliance_tier', [1, 2, 3])
+        .in('compliance_tier', [1, 2, 3, 4])
         .gte('created_at', isoDate);
 
       const { count: quarantinedCount } = await supabase.from('mods')
         .select('*', { count: 'exact', head: true })
-        .eq('compliance_tier', 3);
+        .eq('compliance_tier', 5);
 
       const { count: oversightQueueCount } = await supabase.from('malware_reports')
         .select('*', { count: 'exact', head: true })

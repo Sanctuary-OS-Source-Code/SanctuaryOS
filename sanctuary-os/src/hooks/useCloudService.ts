@@ -4,6 +4,7 @@ import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
 import { logUserAction } from "../lib/audit";
+import { packageBlueprintLoadOrder, unpackBlueprintLoadOrder } from "./usePlaySetLogic";
 
 export function useCloudService(activeMasonProfileId: string | null, tier2Hashes: string[]) {
   const { t } = useLexicon();
@@ -76,15 +77,34 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       code = Math.random().toString(36).substr(2, 6).toUpperCase();
     }
 
-    const modsToUpload = allowedMods ? allowedMods.map(m => ({ name: m.name, hash: m.hash, url: m.url, author: m.author })) : targetSet.mods.map((modName: string) => {
-        const mod = modList.find(m => m.name === modName);
-        return { name: modName, hash: mod?.hash || "", url: mod?.url || "", author: mod?.author || "Unknown", compliance_tier: mod?.compliance_tier || 0, isVirtual: mod?.isVirtual };
+    const packagedLO = packageBlueprintLoadOrder(targetSet, activeGameSchema, modList);
+
+    const rawModsToUpload = allowedMods ? allowedMods.map(m => ({ name: m.name, hash: m.hash, url: m.url, author: m.author })) : (() => {
+      const byExact = new Map<string, any>();
+      const byCleanLower = new Map<string, any>();
+      for (let i = 0; i < modList.length; i++) {
+        const m = modList[i];
+        if (!m || !m.name) continue;
+        if (!byExact.has(m.name)) byExact.set(m.name, m);
+        const lastSlash = Math.max(m.name.lastIndexOf("/"), m.name.lastIndexOf("\\"));
+        const clean = (lastSlash >= 0 ? m.name.slice(lastSlash + 1) : m.name).toLowerCase();
+        if (!byCleanLower.has(clean)) byCleanLower.set(clean, m);
+      }
+      return targetSet.mods.map((rawMod: any) => {
+        const modName = typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
+        const lastSlash = Math.max(modName.lastIndexOf("/"), modName.lastIndexOf("\\"));
+        const cleanName = lastSlash >= 0 ? modName.slice(lastSlash + 1) || modName : modName;
+        const mod = byExact.get(modName) || byCleanLower.get(cleanName.toLowerCase());
+        return { name: modName, hash: mod?.hash || targetSet.modHashes?.[modName] || targetSet.modHashes?.[cleanName] || "", url: mod?.url || targetSet.modMeta?.[modName]?.url || "", author: mod?.author || targetSet.modMeta?.[modName]?.author || "Unknown", compliance_tier: mod?.compliance_tier || 0, isVirtual: mod?.isVirtual };
       }).filter((m: any) => {
         if (m.isVirtual || m.name.startsWith("FOLDER_") || m.name.startsWith("SET_") || m.name.startsWith("LOCAL_SET_")) return false;
         const lower = m.name.toLowerCase();
         if (lower.includes("customchallenge_")) return true;
         return !lower.includes("merged") && !lower.includes("simmatticly") && !lower.includes("batch fix") && !lower.includes("batch_fix") && m.compliance_tier !== 1 && m.compliance_tier !== 2;
       }).map((m: any) => ({ name: m.name, hash: m.hash, url: m.url, author: m.author }));
+    })();
+
+    const modsToUpload = packagedLO.enrichAndSortArtifacts(rawModsToUpload);
 
     const blueprintData = {
       name: targetSet.name,
@@ -92,9 +112,10 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       code: code
     };
     
-    const hasTier2 = blueprintData.mods.some((m: any) => tier2Hashes.includes(m.hash));
+    const tier2Set = new Set(tier2Hashes);
+    const hasTier2 = blueprintData.mods.some((m: any) => m.hash && tier2Set.has(m.hash));
     if (hasTier2) {
-      useStore.getState().pushStatus(t("status_explicit_signature"));
+      useStore.getState().pushStatus(t("status_explicit_signature", "Explicit signature detected."));
       return;
     }
 
@@ -146,7 +167,6 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         copyIndex++;
       }
 
-      const parsed = { sanctuary_profile: true, name: finalName, mods: data.artifacts, code: finalCode };
       const extRegex = getExtensionRegex(activeGameSchema);
       const modMap = new Map();
       const hashToMod = new Map();
@@ -154,31 +174,76 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       
       modList.forEach((local: any) => {
          modMap.set(local.name, local);
+         const cleanLocal = local.name.split(/[\\/]/).pop() || local.name;
+         modMap.set(cleanLocal, local);
          if (local.hash) hashToMod.set(local.hash, local);
-         const mBase = local.name.split(/[\\/]/).pop()?.replace(extRegex, '');
+         const mBase = cleanLocal.replace(extRegex, '');
          if (mBase) baseToMod.set(mBase, local);
       });
 
       const missing: any[] = [];
-      parsed.mods.forEach((m: any) => {
+      const rawAvailableMods: string[] = [];
+      const nextModHashes: Record<string, string> = {};
+      const nextModMeta: Record<string, { url?: string; author?: string }> = {};
+      const nameRemap = new Map<string, string>();
+      const rawArtifacts = Array.isArray(data.artifacts) ? data.artifacts : [];
+
+      rawArtifacts.forEach((m: any) => {
          let found = null;
-         if (m.hash) found = hashToMod.get(m.hash);
+         const rawNameToCheck = typeof m === 'string' ? m : (m.name || m.path || '');
+         const cleanArtifactFile = rawNameToCheck.split(/[\\/]/).pop() || rawNameToCheck;
+
+         if (m && typeof m !== 'string' && m.hash) found = hashToMod.get(m.hash);
          if (!found) {
-            const nameToCheck = typeof m === 'string' ? m : (m.name || m.path || '');
-            found = modMap.get(nameToCheck);
+            found = modMap.get(rawNameToCheck) || modMap.get(cleanArtifactFile);
             if (!found) {
-               const targetBase = nameToCheck.split(/[\\/]/).pop()?.replace(extRegex, '');
+               const targetBase = cleanArtifactFile.replace(extRegex, '');
                if (targetBase) found = baseToMod.get(targetBase);
             }
          }
-         if (!found) missing.push(m);
+         if (found) {
+            const resolvedClean = found.name.split(/[\\/]/).pop() || found.name;
+            if (cleanArtifactFile) {
+               nameRemap.set(cleanArtifactFile.toLowerCase(), resolvedClean);
+            }
+            rawAvailableMods.push(found.name);
+            if (found.hash) nextModHashes[found.name] = found.hash;
+            else if (typeof m !== 'string' && m.hash) nextModHashes[found.name] = m.hash;
+         } else {
+            missing.push(m);
+            if (typeof m !== 'string') {
+               if (m.hash) nextModHashes[rawNameToCheck] = m.hash;
+               if (m.url || m.author) {
+                  nextModMeta[rawNameToCheck] = { url: m.url, author: m.author };
+               }
+            }
+         }
       });
 
-      setPendingImportSet(parsed);
+      const { loadRules, modTiers, loadOrder, formatModWithTier } = unpackBlueprintLoadOrder(
+        { mods: rawArtifacts, ...data },
+        nameRemap,
+        activeGameSchema
+      );
+      const availableMods = rawAvailableMods.map((mName) => formatModWithTier(mName));
+
+      const readySet = {
+        name: finalName,
+        mods: availableMods,
+        code: finalCode,
+        modHashes: nextModHashes,
+        modMeta: nextModMeta,
+        loadRules,
+        modTiers,
+        loadOrder,
+        ignoredGhosts: [],
+      };
+
+      setPendingImportSet(readySet);
       if (missing.length > 0) {
         setMissingImportMods(missing);
       } else {
-        const updatedSets = [...playSets, { name: parsed.name, mods: parsed.mods.map((m: any) => m.name), code: parsed.code }];
+        const updatedSets = [...playSets, readySet];
         setPlaySets(updatedSets);
 
         setStatus(`${t("icon_check_circle")} ${t("status_blueprint_synced")}`);

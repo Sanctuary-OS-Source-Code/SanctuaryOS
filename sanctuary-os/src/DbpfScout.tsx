@@ -124,19 +124,24 @@ export const DbpfScout = () => {
 
     const filteredQueue = useMemo(() => {
         const q = loadOrderSearch ? loadOrderSearch.toLowerCase() : "";
-        return compiledOrder.items.filter((it) => {
-            const keyLower = it.cleanName.toLowerCase();
-            const hasRule = ruleLinkedSet.has(keyLower) || it.autoPromoted;
-            if (loadOrderSubFilter === "OVERRIDES" && !it.tierFolder) return false;
-            if (loadOrderSubFilter === "CUSTOM" && !it.tierFolder && !hasRule) return false;
-            if (!q) return true;
-            return (
-                keyLower.includes(q) ||
-                it.displayName.toLowerCase().includes(q) ||
-                (it.tierFolder && it.tierFolder.toLowerCase().includes(q))
-            );
-        });
-    }, [compiledOrder.items, ruleLinkedSet, loadOrderSubFilter, loadOrderSearch]);
+        return compiledOrder.items
+            .filter((it) => {
+                const keyLower = it.cleanName.toLowerCase();
+                const hasRule = ruleLinkedSet.has(keyLower) || it.autoPromoted;
+                if (loadOrderSubFilter === "OVERRIDES" && !it.tierFolder) return false;
+                if (loadOrderSubFilter === "CUSTOM" && !it.tierFolder && !hasRule) return false;
+                if (!q) return true;
+                return (
+                    keyLower.includes(q) ||
+                    it.displayName.toLowerCase().includes(q) ||
+                    (it.tierFolder && it.tierFolder.toLowerCase().includes(q))
+                );
+            })
+            .map((it) => ({
+                ...it,
+                extLabel: getFileLabel(it.cleanName, activeGameSchema),
+            }));
+    }, [compiledOrder.items, ruleLinkedSet, loadOrderSubFilter, loadOrderSearch, activeGameSchema]);
 
     const openLoadOrderInspector = (modCleanName?: string) => {
         const clean = modCleanName || "";
@@ -542,12 +547,7 @@ export const DbpfScout = () => {
 
     return (
         <>
-            <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 flex items-center justify-center">
-                <div className="absolute top-1/4 left-1/4 w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] blur-[150px] rounded-full" />
-                <div className="absolute bottom-1/4 right-1/4 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] blur-[150px] rounded-full" />
-            </div>
-
-            <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 w-full relative z-10">
+            <div className="flex flex-col gap-0 pb-32 w-full relative z-10">
                 <ViewHeader
                     title={t("radar_title")}
                     subtitle={t("radar_subtitle")}
@@ -1464,14 +1464,14 @@ export const DbpfScout = () => {
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => flipLoadOrderRule(scanScope, rule.id)}
-                                                                            className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all"
+                                                                            className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors"
                                                                         >
                                                                             <span className="material-symbols-outlined !text-[15px]">{t("icon_swap_vert", "swap_vert")}</span>
                                                                         </button>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => removeLoadOrderRule(scanScope, rule.id)}
-                                                                            className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all"
+                                                                            className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] flex items-center justify-center transition-colors"
                                                                         >
                                                                             <span className="material-symbols-outlined !text-[15px]">close</span>
                                                                         </button>
@@ -1537,7 +1537,7 @@ export const DbpfScout = () => {
                                                                         <div
                                                                             key={item.cleanName}
                                                                             onClick={() => openLoadOrderInspector(item.cleanName)}
-                                                                            className={`p-4 rounded-2xl glass-panel border transition-all cursor-pointer flex items-center justify-between gap-3 group ${
+                                                                            className={`p-4 rounded-2xl glass-panel border transition-colors cursor-pointer flex items-center justify-between gap-3 group ${
                                                                                 isSelected
                                                                                     ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] shadow-[0_0_25px_rgba(var(--accent-rgb),0.15)]"
                                                                                     : item.tierFolder
@@ -1546,7 +1546,7 @@ export const DbpfScout = () => {
                                                                             }`}
                                                                         >
                                                                             <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                                                                                <div className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] font-mono text-xs font-black text-[var(--accent)] shrink-0">
+                                                                                <div className="px-2.5 py-1.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] font-mono text-xs font-black text-[var(--accent)] shrink-0">
                                                                                     #{String(item.index + 1).padStart(3, "0")}
                                                                                 </div>
                                                                                 <div className="flex flex-col min-w-0 flex-1 gap-1.5">
@@ -1554,14 +1554,14 @@ export const DbpfScout = () => {
                                                                                         {item.displayName}
                                                                                     </span>
                                                                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                                                                        <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]">
-                                                                                            {getFileLabel(item.cleanName, activeGameSchema)}
+                                                                                        <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]">
+                                                                                            {item.extLabel}
                                                                                         </span>
                                                                                         <span
                                                                                             className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${
                                                                                                 item.tierFolder
                                                                                                     ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                                                                                                    : "glass-surface text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-80"
+                                                                                                    : "bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-80"
                                                                                             }`}
                                                                                         >
                                                                                             {tierLabel}
@@ -1579,14 +1579,14 @@ export const DbpfScout = () => {
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => moveModInLoadOrder(scanScope, item.cleanName, "up")}
-                                                                                    className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all"
+                                                                                    className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors"
                                                                                 >
                                                                                     <span className="material-symbols-outlined !text-[16px]">keyboard_arrow_up</span>
                                                                                 </button>
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => moveModInLoadOrder(scanScope, item.cleanName, "down")}
-                                                                                    className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all"
+                                                                                    className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors"
                                                                                 >
                                                                                     <span className="material-symbols-outlined !text-[16px]">keyboard_arrow_down</span>
                                                                                 </button>
@@ -1655,6 +1655,18 @@ export const DbpfScout = () => {
                       )
                     : activeBlueprintRules;
 
+                const normalizedRuleModA = Array.isArray(ruleModA) ? String(ruleModA[0] || "") : String(ruleModA || "");
+                const normalizedRuleModB = Array.isArray(ruleModB) ? String(ruleModB[0] || "") : String(ruleModB || "");
+
+                const sourceDropdownOptions = modDropdownOptions.filter(
+                    (opt) => !normalizedRuleModB || opt.id.toLowerCase() !== normalizedRuleModB.toLowerCase()
+                );
+                const targetDropdownOptions = modDropdownOptions.filter(
+                    (opt) =>
+                        (!normalizedRuleModA || opt.id.toLowerCase() !== normalizedRuleModA.toLowerCase()) &&
+                        (!selectedItem || opt.id.toLowerCase() !== selectedItem.cleanName.toLowerCase() || normalizedRuleModA.toLowerCase() !== selectedItem.cleanName.toLowerCase())
+                );
+
                 return (
                     <SidePanel
                         isOpen={isLoadOrderPanelOpen}
@@ -1671,7 +1683,7 @@ export const DbpfScout = () => {
                         }
                         icon={t("icon_low_priority", "low_priority")}
                     >
-                        <div className="flex flex-col gap-6 p-6">
+                        <div className="flex flex-col gap-6 px-2">
                             {selectedItem && (
                                 <UniversalGroup
                                     title={t("lo_priority_tier", "Priority Tier")}
@@ -1689,10 +1701,10 @@ export const DbpfScout = () => {
                                                     key={pt.id}
                                                     type="button"
                                                     onClick={() => setModPriorityTier(scanScope, selectedItem.cleanName, pt.folder)}
-                                                    className={`p-3.5 rounded-2xl text-left transition-all glass-panel border flex flex-col gap-1 ${
+                                                    className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col gap-1 backdrop-blur-md ${
                                                         isActiveTier
-                                                            ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-sm"
-                                                            : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]"
+                                                            ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]"
+                                                            : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
                                                     }`}
                                                 >
                                                     <div className="flex items-center justify-between w-full gap-2">
@@ -1719,27 +1731,27 @@ export const DbpfScout = () => {
                                     <p className="text-[11px] font-bold text-[var(--subtext)] opacity-80 mb-1">
                                         {t("lo_sequence_desc", "Step this mod earlier or later within its current priority tier.")}
                                     </p>
-                                    <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                                        <div className="flex items-center gap-3">
-                                            <span className="px-3 py-1.5 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] font-mono text-xs font-black text-[var(--accent)]">
+                                    <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-md">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <span className="px-3 py-1.5 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] font-mono text-xs font-black text-[var(--accent)] shrink-0">
                                                 #{String(selectedItem.index + 1).padStart(3, "0")}
                                             </span>
                                             <span className="text-xs font-bold text-[var(--subtext)] truncate max-w-[180px]">
                                                 {selectedItem.previewPath}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-1.5">
+                                        <div className="flex items-center gap-1.5 shrink-0">
                                             <button
                                                 type="button"
                                                 onClick={() => moveModInLoadOrder(scanScope, selectedItem.cleanName, "up")}
-                                                className="w-9 h-9 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all"
+                                                className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all"
                                             >
                                                 <span className="material-symbols-outlined !text-[18px]">keyboard_arrow_up</span>
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => moveModInLoadOrder(scanScope, selectedItem.cleanName, "down")}
-                                                className="w-9 h-9 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all"
+                                                className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all"
                                             >
                                                 <span className="material-symbols-outlined !text-[18px]">keyboard_arrow_down</span>
                                             </button>
@@ -1757,18 +1769,26 @@ export const DbpfScout = () => {
                                 </p>
                                 <div className="flex flex-col gap-3">
                                     <CustomDropdown
-                                        value={ruleModA}
-                                        onChange={(val: string) => setRuleModA(val)}
+                                        value={normalizedRuleModA}
+                                        onChange={(val: any) => {
+                                            const nextVal = Array.isArray(val) ? String(val[0] || "") : String(val || "");
+                                            setRuleModA(nextVal);
+                                            if (nextVal && normalizedRuleModB && nextVal.toLowerCase() === normalizedRuleModB.toLowerCase()) {
+                                                setRuleModB("");
+                                            }
+                                        }}
                                         searchable={true}
+                                        disableTint={true}
+                                        buttonClassName="!bg-[color-mix(in_srgb,var(--text)_3%,transparent)] !bg-none border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_40%,transparent)] backdrop-blur-md"
                                         options={[
                                             { id: "", label: t("lo_select_mod_a", "Select Mod A...") },
-                                            ...modDropdownOptions,
+                                            ...sourceDropdownOptions,
                                         ]}
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setRuleDirection((d) => (d === "after" ? "before" : "after"))}
-                                        className="w-full py-2.5 px-4 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:brightness-110 transition-all"
+                                        className="w-full py-2.5 px-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all backdrop-blur-md"
                                     >
                                         <span className="material-symbols-outlined !text-[15px]">{t("icon_swap_vert", "swap_vert")}</span>
                                         {ruleDirection === "after"
@@ -1776,24 +1796,29 @@ export const DbpfScout = () => {
                                             : t("lo_rule_must_load_before", "Must Load Before (Yields)")}
                                     </button>
                                     <CustomDropdown
-                                        value={ruleModB}
-                                        onChange={(val: string) => setRuleModB(val)}
+                                        value={normalizedRuleModB}
+                                        onChange={(val: any) => {
+                                            const nextVal = Array.isArray(val) ? String(val[0] || "") : String(val || "");
+                                            setRuleModB(nextVal);
+                                        }}
                                         searchable={true}
+                                        disableTint={true}
+                                        buttonClassName="!bg-[color-mix(in_srgb,var(--text)_3%,transparent)] !bg-none border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_40%,transparent)] backdrop-blur-md"
                                         options={[
                                             { id: "", label: t("lo_select_mod_b", "Select Target Mod B...") },
-                                            ...modDropdownOptions,
+                                            ...targetDropdownOptions,
                                         ]}
                                     />
                                     <button
                                         type="button"
-                                        disabled={!ruleModA || !ruleModB || ruleModA === ruleModB}
+                                        disabled={!normalizedRuleModA || !normalizedRuleModB || normalizedRuleModA.toLowerCase() === normalizedRuleModB.toLowerCase()}
                                         onClick={() => {
-                                            if (ruleModA && ruleModB && ruleModA !== ruleModB) {
-                                                addLoadOrderRule(scanScope, ruleModA, ruleModB, ruleDirection);
+                                            if (normalizedRuleModA && normalizedRuleModB && normalizedRuleModA.toLowerCase() !== normalizedRuleModB.toLowerCase()) {
+                                                addLoadOrderRule(scanScope, normalizedRuleModA, normalizedRuleModB, ruleDirection);
                                                 setRuleModB("");
                                             }
                                         }}
-                                        className="w-full py-3 rounded-xl bg-[var(--accent)] text-black font-black text-[10px] uppercase tracking-widest disabled:opacity-30 disabled:pointer-events-none hover:brightness-110 transition-all"
+                                        className="w-full py-3 rounded-xl bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_12%,transparent)] font-black text-[10px] uppercase tracking-widest disabled:opacity-30 disabled:pointer-events-none transition-all backdrop-blur-md"
                                     >
                                         + {t("lo_add_rule", "Add Load Rule")}
                                     </button>
@@ -1809,13 +1834,13 @@ export const DbpfScout = () => {
                                         {activeModRules.map((rule) => (
                                             <div
                                                 key={rule.id}
-                                                className="p-3 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between gap-2"
+                                                className="p-3 rounded-2xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between gap-2 backdrop-blur-md"
                                             >
                                                 <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
                                                     <span className="text-[11px] font-black text-[var(--text)] truncate max-w-[120px]">
                                                         {formatDisplayName(rule.modA, undefined, activeGameSchema)}
                                                     </span>
-                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]">
+                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]">
                                                         {rule.type === "after"
                                                             ? t("lo_loads_after", "LOADS AFTER")
                                                             : t("lo_loads_before", "LOADS BEFORE")}
@@ -1828,14 +1853,14 @@ export const DbpfScout = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => flipLoadOrderRule(scanScope, rule.id)}
-                                                        className="w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all"
+                                                        className="w-7 h-7 rounded-lg bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[var(--accent)] flex items-center justify-center transition-all"
                                                     >
                                                         <span className="material-symbols-outlined !text-[14px]">{t("icon_swap_vert", "swap_vert")}</span>
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => removeLoadOrderRule(scanScope, rule.id)}
-                                                        className="w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all"
+                                                        className="w-7 h-7 rounded-lg bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center transition-all"
                                                     >
                                                         <span className="material-symbols-outlined !text-[14px]">close</span>
                                                     </button>
@@ -1856,7 +1881,7 @@ export const DbpfScout = () => {
                 title={t("radar_settings") || "Radar Settings"}
                 icon="tune"
             >
-                <div className="flex flex-col gap-8 p-6">
+                <div className="flex flex-col gap-8 px-2">
                     <div className="flex flex-col gap-4">
                         <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-2">
                             <span className="material-symbols-outlined !text-[18px]">map</span>
@@ -1867,7 +1892,7 @@ export const DbpfScout = () => {
                                 <button
                                     key={s.name}
                                     onClick={() => { setScanScope(s.name); runRadar(s.name); setIsSidePanelOpen(false); }}
-                                    className={`p-4 rounded-xl flex flex-col items-start gap-2 text-left transition-all relative overflow-hidden group glass-panel border ${scanScope === s.name ? '!bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[var(--accent)] text-[var(--accent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.2)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--text)] text-[var(--subtext)] hover:text-[var(--text)]'}`}
+                                    className={`p-4 rounded-xl flex flex-col items-start gap-2 text-left transition-all relative overflow-hidden group border backdrop-blur-md ${scanScope === s.name ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.15)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'}`}
                                 >
                                     <span className="material-symbols-outlined !text-[20px] opacity-70 group-hover:opacity-100 transition-opacity">folder_open</span>
                                     <span className="font-black text-[10px] uppercase tracking-widest break-all line-clamp-2 w-full">{s.name}</span>
@@ -1895,24 +1920,28 @@ export const DbpfScout = () => {
                                     label: t("lo_strategy_folder", "Folder Priority (Resource.cfg)"),
                                     desc: t("lo_strategy_folder_desc", "Uses priority override folders and packed directory depth"),
                                     manifest: "Resource.cfg",
+                                    badge: t("lo_badge_resource_cfg", "Resource.cfg"),
                                 },
                                 {
                                     id: "manifest_list",
                                     label: t("lo_strategy_manifest", "Manifest List (loadorder.txt)"),
                                     desc: t("lo_strategy_manifest_desc", "Writes an ordered plain-text manifest file on deployment"),
                                     manifest: "loadorder.txt",
+                                    badge: t("lo_badge_loadorder_txt", "loadorder.txt"),
                                 },
                                 {
                                     id: "numeric_prefix",
                                     label: t("lo_strategy_prefix", "Numeric Prefix (001_)"),
                                     desc: t("lo_strategy_prefix_desc", "Prefixes deployed filenames with their load sequence index"),
                                     manifest: "loadorder.txt",
+                                    badge: t("lo_badge_numeric_prefix", "001_<file>"),
                                 },
                                 {
                                     id: "timestamp",
                                     label: t("lo_strategy_timestamp", "Timestamp Order"),
                                     desc: t("lo_strategy_timestamp_desc", "Staggers file modification timestamps by load sequence"),
                                     manifest: "Resource.cfg",
+                                    badge: t("lo_badge_mtime", "mtime"),
                                 },
                             ].map((strat) => {
                                 const isActive = compiledOrder.strategy === strat.id;
@@ -1926,15 +1955,15 @@ export const DbpfScout = () => {
                                                 manifest_file: strat.manifest,
                                             })
                                         }
-                                        className={`p-3.5 rounded-2xl text-left transition-all glass-panel border flex flex-col gap-1 ${
+                                        className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col gap-1 backdrop-blur-md ${
                                             isActive
-                                                ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]"
-                                                : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                                                ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]"
+                                                : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
                                         }`}
                                     >
                                         <div className="flex items-center justify-between w-full">
                                             <span className="text-xs font-black tracking-wider uppercase">{strat.label}</span>
-                                            <span className="text-[9px] font-mono opacity-75">{strat.manifest}</span>
+                                            <span className="text-[9px] font-mono opacity-75">{strat.badge}</span>
                                         </div>
                                         <span className="text-[10px] font-bold opacity-75 text-[var(--subtext)]">{strat.desc}</span>
                                     </button>

@@ -468,10 +468,18 @@ pub fn compute_signatures_version(signatures: &[HeuristicSignature]) -> u64 {
 }
 
 #[derive(Clone)]
-pub struct CompiledContentSig {
-    pub original: String,
+pub struct CompiledClause {
+    pub rule_idx: usize,
+    pub clause_bit: u32,
     pub lower_bytes: Vec<u8>,
     pub pyc_tokens: Vec<Vec<u8>>,
+    pub requires_leading_boundary: bool,
+}
+
+#[derive(Clone)]
+pub struct CompiledContentRule {
+    pub original: String,
+    pub required_mask: u32,
 }
 
 #[derive(Clone, Default)]
@@ -481,8 +489,13 @@ pub struct CompiledSignatures {
     pub file_name_contains: Vec<(String, String)>,
     pub archive_entry_exact: Vec<(String, String)>,
     pub archive_entry_contains: Vec<(String, String)>,
-    pub content_sigs: Vec<CompiledContentSig>,
+    pub content_rules: Vec<CompiledContentRule>,
+    pub clauses: Vec<CompiledClause>,
     pub by_first_byte: Vec<Vec<usize>>,
+}
+
+fn is_ident_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
 }
 
 impl CompiledSignatures {
@@ -493,12 +506,16 @@ impl CompiledSignatures {
             file_name_contains: Vec::new(),
             archive_entry_exact: Vec::new(),
             archive_entry_contains: Vec::new(),
-            content_sigs: Vec::new(),
+            content_rules: Vec::new(),
+            clauses: Vec::new(),
             by_first_byte: vec![Vec::new(); 256],
         };
 
         for sig in signatures {
-            if !sig.enabled || sig.signature.is_empty() {
+            if !sig.enabled
+                || sig.signature.is_empty()
+                || !sig.severity.trim().eq_ignore_ascii_case("malware")
+            {
                 continue;
             }
             compiled.is_empty = false;
@@ -525,25 +542,60 @@ impl CompiledSignatures {
                         .push((sig_lower, sig.signature.clone()));
                 }
                 "file_content_contains" => {
-                    let lower_bytes = sig_lower.as_bytes().to_vec();
-                    if !lower_bytes.is_empty() {
+                    // Support compound heuristic rules joined by " + " or " && "
+                    let raw_parts: Vec<&str> = sig_lower
+                        .split(" + ")
+                        .flat_map(|p| p.split(" && "))
+                        .map(|p| p.trim())
+                        .filter(|p| !p.is_empty())
+                        .take(32)
+                        .collect();
+
+                    if raw_parts.is_empty() {
+                        continue;
+                    }
+
+                    let rule_idx = compiled.content_rules.len();
+                    let mut required_mask: u32 = 0;
+
+                    for (part_idx, part) in raw_parts.iter().enumerate() {
+                        let lower_bytes = part.as_bytes().to_vec();
+                        if lower_bytes.is_empty() {
+                            continue;
+                        }
+                        let clause_bit = 1u32 << part_idx;
+                        required_mask |= clause_bit;
+
                         let pyc_tokens: Vec<Vec<u8>> =
-                            if sig_lower.contains('.') || sig_lower.contains('(') {
-                                sig_lower
-                                    .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+                            if part.contains('.') || part.contains('(') || part.contains('/') || part.contains('\\') {
+                                part.split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
                                     .filter(|t| t.len() >= 2)
                                     .map(|t| t.as_bytes().to_vec())
                                     .collect()
                             } else {
                                 Vec::new()
                             };
-                        let idx = compiled.content_sigs.len();
+
+                        let requires_leading_boundary = is_ident_byte(lower_bytes[0])
+                            && lower_bytes.ends_with(b"(")
+                            && !lower_bytes.contains(&b'.');
+
+                        let clause_idx = compiled.clauses.len();
                         let first_b = lower_bytes[0] as usize;
-                        compiled.by_first_byte[first_b].push(idx);
-                        compiled.content_sigs.push(CompiledContentSig {
-                            original: sig.signature.clone(),
+                        compiled.by_first_byte[first_b].push(clause_idx);
+                        compiled.clauses.push(CompiledClause {
+                            rule_idx,
+                            clause_bit,
                             lower_bytes,
                             pyc_tokens,
+                            requires_leading_boundary,
+                        });
+                    }
+
+                    if required_mask != 0 {
+                        compiled.content_rules.push(CompiledContentRule {
+                            original: sig.signature.clone(),
+                            required_mask,
                         });
                     }
                 }
@@ -560,11 +612,12 @@ fn scan_buffer_for_compiled_content_sigs(
     entry_name_lower: &str,
     compiled: &CompiledSignatures,
 ) -> Option<String> {
-    if buffer.is_empty() || compiled.content_sigs.is_empty() {
+    if buffer.is_empty() || compiled.clauses.is_empty() {
         return None;
     }
 
     let buf_len = buffer.len();
+    let mut rule_masks: Vec<u32> = vec![0; compiled.content_rules.len()];
 
     // 1 & 2. Single-pass zero-allocation ASCII/UTF-8 + UTF-16LE wide-string scan
     for i in 0..buf_len {
@@ -576,14 +629,20 @@ fn scan_buffer_for_compiled_content_sigs(
 
         let is_wide_candidate = i + 1 < buf_len && buffer[i + 1] == 0;
 
-        for &sig_idx in candidates {
-            let cs = &compiled.content_sigs[sig_idx];
-            let sb = &cs.lower_bytes;
+        for &clause_idx in candidates {
+            let clause = &compiled.clauses[clause_idx];
+            if (rule_masks[clause.rule_idx] & clause.clause_bit) != 0 {
+                continue;
+            }
+            let sb = &clause.lower_bytes;
             let slen = sb.len();
 
             // Check standard ASCII / UTF-8 match in-place
             if i + slen <= buf_len
                 && buffer[i + slen - 1].to_ascii_lowercase() == sb[slen - 1]
+                && (!clause.requires_leading_boundary
+                    || i == 0
+                    || (!is_ident_byte(buffer[i - 1]) && buffer[i - 1] != b'.'))
             {
                 let mut matched = true;
                 for k in 1..(slen.saturating_sub(1)) {
@@ -593,12 +652,22 @@ fn scan_buffer_for_compiled_content_sigs(
                     }
                 }
                 if matched {
-                    return Some(cs.original.clone());
+                    rule_masks[clause.rule_idx] |= clause.clause_bit;
+                    let rule = &compiled.content_rules[clause.rule_idx];
+                    if rule_masks[clause.rule_idx] == rule.required_mask {
+                        return Some(rule.original.clone());
+                    }
+                    continue;
                 }
             }
 
             // Check UTF-16LE wide-string match in-place (0 heap allocations)
-            if is_wide_candidate && i + slen * 2 <= buf_len {
+            if is_wide_candidate
+                && i + slen * 2 <= buf_len
+                && (!clause.requires_leading_boundary
+                    || i < 2
+                    || (!is_ident_byte(buffer[i - 2]) && buffer[i - 2] != b'.'))
+            {
                 let last_pos = i + (slen - 1) * 2;
                 if buffer[last_pos].to_ascii_lowercase() == sb[slen - 1]
                     && buffer[last_pos + 1] == 0
@@ -612,7 +681,11 @@ fn scan_buffer_for_compiled_content_sigs(
                         }
                     }
                     if wide_matched {
-                        return Some(cs.original.clone());
+                        rule_masks[clause.rule_idx] |= clause.clause_bit;
+                        let rule = &compiled.content_rules[clause.rule_idx];
+                        if rule_masks[clause.rule_idx] == rule.required_mask {
+                            return Some(rule.original.clone());
+                        }
                     }
                 }
             }
@@ -620,37 +693,64 @@ fn scan_buffer_for_compiled_content_sigs(
     }
 
     // 3. Compiled Python bytecode (.pyc / .pyo) symbol-chain inspection
+    // Requires tokens in a dotted/call chain (e.g. os.system, subprocess.Popen)
+    // to appear as standalone identifiers in sequential order within a tight proximity window
+    // (<= 64 bytes apart in the marshalled co_names/co_consts table).
     if entry_name_lower.ends_with(".pyc") || entry_name_lower.ends_with(".pyo") {
         let lower_buf: Vec<u8> = buffer.iter().map(|b| b.to_ascii_lowercase()).collect();
-        let mut ident_set: std::collections::HashSet<&[u8]> = std::collections::HashSet::new();
+        let mut tokens_with_pos: Vec<(&[u8], usize, usize)> = Vec::new();
         let mut start = None;
         for (idx, &b) in lower_buf.iter().enumerate() {
-            let is_ident = b.is_ascii_alphanumeric() || b == b'_';
-            if is_ident {
+            if is_ident_byte(b) {
                 if start.is_none() {
                     start = Some(idx);
                 }
             } else if let Some(s) = start {
                 if idx - s >= 2 {
-                    ident_set.insert(&lower_buf[s..idx]);
+                    tokens_with_pos.push((&lower_buf[s..idx], s, idx));
                 }
                 start = None;
             }
         }
         if let Some(s) = start {
             if lower_buf.len() - s >= 2 {
-                ident_set.insert(&lower_buf[s..]);
+                tokens_with_pos.push((&lower_buf[s..], s, lower_buf.len()));
             }
         }
 
-        for cs in &compiled.content_sigs {
-            if cs.pyc_tokens.len() >= 2
-                && cs
-                    .pyc_tokens
-                    .iter()
-                    .all(|t| ident_set.contains(t.as_slice()))
-            {
-                return Some(cs.original.clone());
+        for clause in &compiled.clauses {
+            if (rule_masks[clause.rule_idx] & clause.clause_bit) != 0 {
+                continue;
+            }
+            if clause.pyc_tokens.len() >= 2 {
+                let first_tok = clause.pyc_tokens[0].as_slice();
+                for (i, &(tok, _, end_pos)) in tokens_with_pos.iter().enumerate() {
+                    if tok != first_tok {
+                        continue;
+                    }
+                    let mut prev_end = end_pos;
+                    let mut chain_idx = 1;
+                    for &(next_tok, next_start, next_end) in &tokens_with_pos[(i + 1)..] {
+                        if next_start.saturating_sub(prev_end) > 64 {
+                            break;
+                        }
+                        if next_tok == clause.pyc_tokens[chain_idx].as_slice() {
+                            chain_idx += 1;
+                            prev_end = next_end;
+                            if chain_idx == clause.pyc_tokens.len() {
+                                rule_masks[clause.rule_idx] |= clause.clause_bit;
+                                let rule = &compiled.content_rules[clause.rule_idx];
+                                if rule_masks[clause.rule_idx] == rule.required_mask {
+                                    return Some(rule.original.clone());
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    if (rule_masks[clause.rule_idx] & clause.clause_bit) != 0 {
+                        break;
+                    }
+                }
             }
         }
     }
@@ -683,7 +783,7 @@ pub fn check_heuristic_malware_compiled(
         }
     }
 
-    let has_content_sigs = !compiled.content_sigs.is_empty();
+    let has_content_sigs = !compiled.clauses.is_empty();
     let has_archive_sigs = !compiled.archive_entry_exact.is_empty()
         || !compiled.archive_entry_contains.is_empty()
         || !compiled.file_name_exact.is_empty()

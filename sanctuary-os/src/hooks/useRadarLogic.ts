@@ -122,15 +122,21 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         }
 
         try {
+          const cachedVerified: string[] = JSON.parse(localStorage.getItem("sanctuary_verified_hashes") || "[]");
+          let malwareHashes: string[] = JSON.parse(localStorage.getItem("sanctuary_malware_hashes") || "[]");
           if (navigator.onLine && localStorage.getItem("sanctuary_local_only") !== "true") {
             const { data: malwareData } = await supabase
               .from("mod_versions")
               .select("dna_hash, mods!inner(compliance_tier)")
               .eq("mods.compliance_tier", 5);
-            if (malwareData && malwareData.length > 0) {
-              const malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
-              await invoke("sync_security_definitions", { malware: malwareHashes, tier2: [] });
+            if (malwareData) {
+              malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
+              localStorage.setItem("sanctuary_malware_hashes", JSON.stringify(malwareHashes));
             }
+          }
+          await invoke("sync_security_definitions", { malware: malwareHashes, tier2: cachedVerified });
+
+          if (navigator.onLine && localStorage.getItem("sanctuary_local_only") !== "true") {
 
             const [{ data: coreHeuristics }, { data: spokeHeuristics }] = await Promise.all([
               supabaseAuth.from("keeper_heuristic_signatures").select("*"),
@@ -275,6 +281,23 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       
       const getDbMod = (sig: any) =>
         Array.isArray(sig?.mods) ? sig.mods[0] : sig?.mods;
+      try {
+        const verifiedCloudHashes = allCloudData
+          .filter((c) => {
+            const dbMod = getDbMod(c);
+            return c?.dna_hash && dbMod && Number(dbMod.compliance_tier ?? 0) !== 5;
+          })
+          .map((c) => c.dna_hash);
+        if (verifiedCloudHashes.length > 0) {
+          const prevVerified: string[] = JSON.parse(localStorage.getItem("sanctuary_verified_hashes") || "[]");
+          const mergedVerified = Array.from(new Set([...prevVerified, ...verifiedCloudHashes]));
+          localStorage.setItem("sanctuary_verified_hashes", JSON.stringify(mergedVerified));
+          const cachedMalware: string[] = JSON.parse(localStorage.getItem("sanctuary_malware_hashes") || "[]");
+          await invoke("sync_security_definitions", { malware: cachedMalware, tier2: mergedVerified });
+        }
+      } catch (e) {
+        console.warn("Failed to sync verified Registry hashes:", e);
+      }
       const identifiedIds = [...new Set(allCloudData
         .map((c) => getDbMod(c)?.id)
         .filter(Boolean))];

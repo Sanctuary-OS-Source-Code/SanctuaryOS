@@ -3669,5 +3669,20 @@
   "pwa_status_installed": "Sanctuary OS added to your home screen!",
   "icon_install_mobile": "install_mobile",
   "icon_add_to_home_screen": "add_to_home_screen",
-  "icon_ios_share": "ios_share"
+  "icon_ios_share": "ios_share",
+  "lo_badge_resource_cfg": "Resource.cfg",
+  "lo_badge_loadorder_txt": "loadorder.txt",
+  "lo_badge_numeric_prefix": "001_<file>",
+  "lo_badge_mtime": "mtime",
+  "landing_install_pwa": "Install the PWA",
+  "landing_install_pwa_short": "Install PWA",
+  "label_static_manifest_url": "Creator Manifest Link (manifest.json)",
+  "placeholder_static_manifest_url": "https://your-site.com/manifest.json",
+  "desc_static_manifest_url": "Link this CC/Mod and its older versions to a creator-hosted manifest.json for automatic updates and mod rules!",
+  "label_static_manifest_linked": "Creator Update Feed Linked",
+  "btn_poll_manifest": "Check for Updates",
+  "label_initial_edge_release": "Creator Site Release",
+  "msg_export_release_success": "Exported manifest.json, override.json, and release .zip to your mod folder!",
+  "label_unknown_mod": "Unknown CC / Mod",
+  "label_unknown_author": "Unknown Creator"
 }

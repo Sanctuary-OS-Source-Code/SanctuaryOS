@@ -41,12 +41,18 @@ export function compileLoadOrder(
   modTiers: Record<string, string> = {},
   explicitOrder: string[] = [],
   schema: any = null,
-  modList: any[] = []
+  modList: any[] = [],
+  skipDisplayFormat: boolean = false
 ): LoadOrderCompilationResult {
   const loadOrderCfg = schema?.load_order || {};
   const strategy = loadOrderCfg.strategy || "folder_priority";
   const direction = loadOrderCfg.direction || "higher_wins";
-  const manifestFile = loadOrderCfg.manifest_file || "Resource.cfg";
+  const manifestFile =
+    strategy === "numeric_prefix"
+      ? "001_<file>"
+      : strategy === "timestamp"
+      ? "mtime"
+      : loadOrderCfg.manifest_file || (strategy === "manifest_list" ? "loadorder.txt" : "Resource.cfg");
   const prefixFormat = loadOrderCfg.prefix_format || "{index:03}_";
   const priorityTiers: { id: string; label: string; folder: string; priority: number }[] =
     Array.isArray(loadOrderCfg.priority_tiers) && loadOrderCfg.priority_tiers.length > 0
@@ -63,14 +69,19 @@ export function compileLoadOrder(
     folderToTierIndex.set((tier.folder || "").toLowerCase(), idx);
   });
 
-  const extRegex = getExtensionRegex(schema);
+  const hasRules = Array.isArray(loadRules) && loadRules.length > 0;
+  const extRegex = hasRules ? getExtensionRegex(schema) : null;
   const modDisplayMap = new Map<string, string>();
-  for (let i = 0; i < modList.length; i++) {
-    const m = modList[i];
-    if (m?.displayName) {
-      const clean = (m.name || "").split(/[\\/]/).pop() || m.name || "";
-      if (clean) {
-        modDisplayMap.set(clean.toLowerCase(), m.displayName);
+  if (!skipDisplayFormat && modList.length > 0) {
+    for (let i = 0; i < modList.length; i++) {
+      const m = modList[i];
+      if (m?.displayName) {
+        const rawN = m.name || "";
+        const lastSlash = Math.max(rawN.lastIndexOf("/"), rawN.lastIndexOf("\\"));
+        const clean = lastSlash >= 0 ? rawN.slice(lastSlash + 1) : rawN;
+        if (clean) {
+          modDisplayMap.set(clean.toLowerCase(), m.displayName);
+        }
       }
     }
   }
@@ -81,18 +92,22 @@ export function compileLoadOrder(
   >();
 
   const explicitOrderMap = new Map<string, number>();
-  explicitOrder.forEach((n, i) => {
-    const clean = (n.split(/[\\/]/).pop() || n).toLowerCase();
+  for (let i = 0; i < explicitOrder.length; i++) {
+    const n = explicitOrder[i];
+    if (!n) continue;
+    const lastSlash = Math.max(n.lastIndexOf("/"), n.lastIndexOf("\\"));
+    const clean = (lastSlash >= 0 ? n.slice(lastSlash + 1) : n).toLowerCase();
     if (!explicitOrderMap.has(clean)) explicitOrderMap.set(clean, i);
-  });
+  }
 
   const noExtMap = new Map<string, string>();
 
-  rawMods.forEach((m: any, idx: number) => {
+  for (let idx = 0; idx < rawMods.length; idx++) {
+    const m = rawMods[idx];
     const rawStr = typeof m === "string" ? m : String(m?.name || m?.path || "");
-    if (!rawStr) return;
-    const parts = rawStr.split(/[\\/]/);
-    const cleanName = parts[parts.length - 1] || rawStr;
+    if (!rawStr) continue;
+    const lastSlash = Math.max(rawStr.lastIndexOf("/"), rawStr.lastIndexOf("\\"));
+    const cleanName = lastSlash >= 0 ? rawStr.slice(lastSlash + 1) || rawStr : rawStr;
     const key = cleanName.toLowerCase();
 
     let detectedFolder = "";
@@ -100,10 +115,19 @@ export function compileLoadOrder(
       detectedFolder = modTiers[cleanName];
     } else if (modTiers[key] !== undefined) {
       detectedFolder = modTiers[key];
-    } else if (parts.length > 1) {
-      const firstSeg = parts[0];
-      if (folderToTierIndex.has(firstSeg.toLowerCase())) {
-        detectedFolder = priorityTiers[folderToTierIndex.get(firstSeg.toLowerCase())!]?.folder || "";
+    } else if (lastSlash > 0) {
+      const firstSlash = rawStr.indexOf("/");
+      const firstBackslash = rawStr.indexOf("\\");
+      const firstSep =
+        firstSlash >= 0 && firstBackslash >= 0
+          ? Math.min(firstSlash, firstBackslash)
+          : Math.max(firstSlash, firstBackslash);
+      if (firstSep > 0) {
+        const firstSegLow = rawStr.slice(0, firstSep).toLowerCase();
+        const tierIdx = folderToTierIndex.get(firstSegLow);
+        if (tierIdx !== undefined) {
+          detectedFolder = priorityTiers[tierIdx]?.folder || "";
+        }
       }
     }
 
@@ -114,9 +138,11 @@ export function compileLoadOrder(
     const existing = entryMap.get(key);
     if (!existing || baseTierIdx > existing.baseTierIdx) {
       entryMap.set(key, { rawMod: rawStr, cleanName, key, baseTierIdx, explicitPos });
-      noExtMap.set(key.replace(extRegex, ""), key);
+      if (hasRules && extRegex) {
+        noExtMap.set(key.replace(extRegex, ""), key);
+      }
     }
-  });
+  }
 
   const keys = Array.from(entryMap.keys());
   const effectiveTierIdx = new Map<string, number>();
@@ -126,7 +152,7 @@ export function compileLoadOrder(
   const cycles: { ruleIds: string[]; chain: string[] }[] = [];
   let sortedKeys: string[] = [];
 
-  if (!loadRules || loadRules.length === 0) {
+  if (!hasRules) {
     sortedKeys = [...keys].sort((a, b) => {
       const eA = entryMap.get(a)!;
       const eB = entryMap.get(b)!;
@@ -136,8 +162,10 @@ export function compileLoadOrder(
   } else {
     const resolveModKey = (name: string): string | null => {
       if (!name) return null;
-      const clean = (name.split(/[\\/]/).pop() || name).toLowerCase();
+      const lastSlash = Math.max(name.lastIndexOf("/"), name.lastIndexOf("\\"));
+      const clean = (lastSlash >= 0 ? name.slice(lastSlash + 1) : name).toLowerCase();
       if (entryMap.has(clean)) return clean;
+      if (!extRegex) return null;
       const noExt = clean.replace(extRegex, "");
       return noExtMap.get(noExt) || null;
     };
@@ -286,7 +314,9 @@ export function compileLoadOrder(
     return {
       rawMod: entry.rawMod,
       cleanName: entry.cleanName,
-      displayName: modDisplayMap.get(k) || formatDisplayName(entry.cleanName, undefined, schema),
+      displayName: skipDisplayFormat
+        ? entry.cleanName
+        : modDisplayMap.get(k) || formatDisplayName(entry.cleanName, undefined, schema),
       index: idx,
       tierFolder,
       tierId: tier?.id || "default",
@@ -304,6 +334,244 @@ export function compileLoadOrder(
     manifestFile,
     direction,
     priorityTiers,
+  };
+}
+
+export function packageBlueprintLoadOrder(
+  targetSet: any,
+  schema: any = null,
+  _modList: any[] = []
+) {
+  const compiled = compileLoadOrder(
+    targetSet?.mods || [],
+    targetSet?.loadRules || [],
+    targetSet?.modTiers || {},
+    targetSet?.loadOrder || [],
+    schema,
+    [],
+    true
+  );
+
+  const itemByCleanKey = new Map<string, CompiledLoadOrderItem>();
+  compiled.items.forEach((it) => {
+    itemByCleanKey.set(it.cleanName.toLowerCase(), it);
+  });
+
+  const rules: LoadOrderRule[] = Array.isArray(targetSet?.loadRules) ? targetSet.loadRules : [];
+  const rulesByModA = new Map<string, LoadOrderRule[]>();
+  rules.forEach((r) => {
+    if (!r?.modA || !r?.modB) return;
+    const strA = String(r.modA);
+    const strB = String(r.modB);
+    const lastA = Math.max(strA.lastIndexOf("/"), strA.lastIndexOf("\\"));
+    const lastB = Math.max(strB.lastIndexOf("/"), strB.lastIndexOf("\\"));
+    const baseA = lastA >= 0 ? strA.slice(lastA + 1) || strA : strA;
+    const baseB = lastB >= 0 ? strB.slice(lastB + 1) || strB : strB;
+    const cleanA = baseA.toLowerCase();
+    const list = rulesByModA.get(cleanA) || [];
+    list.push({
+      id: r.id || `rule_${cleanA}_${r.type}_${r.modB}`,
+      modA: baseA,
+      modB: baseB,
+      type: r.type === "before" ? "before" : "after",
+    });
+    rulesByModA.set(cleanA, list);
+  });
+
+  const enrichAndSortArtifacts = (rawModObjects: any[]) => {
+    const enriched = rawModObjects.map((m: any, idx: number) => {
+      const rawName = typeof m === "string" ? m : String(m?.name || m?.path || "");
+      const lastSlash = Math.max(rawName.lastIndexOf("/"), rawName.lastIndexOf("\\"));
+      const cleanName = lastSlash >= 0 ? rawName.slice(lastSlash + 1) || rawName : rawName;
+      const key = cleanName.toLowerCase();
+      const compiledItem = itemByCleanKey.get(key);
+      const tierFolder = compiledItem?.tierFolder || "";
+      const modRules = rulesByModA.get(key);
+      const packagedName = tierFolder ? `${tierFolder}/${cleanName}` : cleanName;
+
+      const out: any = {
+        ...(typeof m === "object" && m !== null ? m : {}),
+        name: packagedName,
+        load_order_index: compiledItem ? compiledItem.index : 10000 + idx,
+      };
+      if (tierFolder) {
+        out.priority_tier = tierFolder;
+      }
+      if (modRules && modRules.length > 0) {
+        out.load_rules = modRules;
+      }
+      return out;
+    });
+
+    enriched.sort((a, b) => (a.load_order_index ?? 0) - (b.load_order_index ?? 0));
+    for (let i = 0; i < enriched.length; i++) {
+      enriched[i].load_order_index = i;
+    }
+    return enriched;
+  };
+
+  const modTiersOut: Record<string, string> = {};
+  compiled.items.forEach((it) => {
+    if (it.tierFolder) {
+      modTiersOut[it.cleanName] = it.tierFolder;
+    }
+  });
+
+  return {
+    compiled,
+    load_order_strategy: compiled.strategy,
+    load_rules: rules,
+    mod_tiers: modTiersOut,
+    load_order: compiled.items.map((it) => it.cleanName),
+    enrichAndSortArtifacts,
+  };
+}
+
+export function unpackBlueprintLoadOrder(
+  rawPayload: any,
+  nameRemap?: Map<string, string>,
+  schema: any = null
+) {
+  const schemaTiers = Array.isArray(schema?.load_order?.priority_tiers)
+    ? schema.load_order.priority_tiers
+    : [];
+  const knownTierMap = new Map<string, string>([
+    ["sanctuary", "Sanctuary"],
+    ["sanctuary2", "Sanctuary2"],
+    ["sanctuary3", "Sanctuary3"],
+  ]);
+  schemaTiers.forEach((pt: any) => {
+    if (pt?.folder) {
+      knownTierMap.set(String(pt.folder).toLowerCase(), String(pt.folder));
+    }
+  });
+
+  const remapCleanName = (rawName: string): string => {
+    const clean = String(rawName || "").split(/[\\/]/).pop() || String(rawName || "");
+    if (!clean) return "";
+    return nameRemap?.get(clean.toLowerCase()) || clean;
+  };
+
+  const modTiers: Record<string, string> = {};
+  const topTiers = rawPayload?.mod_tiers || rawPayload?.modTiers;
+  if (topTiers && typeof topTiers === "object") {
+    Object.entries(topTiers).forEach(([k, v]) => {
+      if (typeof v === "string" && v.trim()) {
+        const remappedKey = remapCleanName(k);
+        if (remappedKey) modTiers[remappedKey] = v.trim();
+      }
+    });
+  }
+
+  const rawList: any[] = Array.isArray(rawPayload?.mods)
+    ? rawPayload.mods
+    : Array.isArray(rawPayload?.artifacts)
+    ? rawPayload.artifacts
+    : [];
+
+  const ruleMap = new Map<string, LoadOrderRule>();
+  const addRule = (r: any) => {
+    if (!r?.modA || !r?.modB) return;
+    const modA = remapCleanName(r.modA);
+    const modB = remapCleanName(r.modB);
+    if (!modA || !modB || modA.toLowerCase() === modB.toLowerCase()) return;
+    const type: "after" | "before" = r.type === "before" ? "before" : "after";
+    const dedupKey = `${modA.toLowerCase()}::${type}::${modB.toLowerCase()}`;
+    if (!ruleMap.has(dedupKey)) {
+      ruleMap.set(dedupKey, {
+        id: r.id || `rule_${modA}_${type}_${modB}_${ruleMap.size}`,
+        modA,
+        modB,
+        type,
+      });
+    }
+  };
+
+  const topRules = rawPayload?.load_rules || rawPayload?.loadRules;
+  if (Array.isArray(topRules)) {
+    topRules.forEach(addRule);
+  }
+
+  const indexedItems: { cleanName: string; index: number }[] = [];
+  rawList.forEach((item: any, idx: number) => {
+    const rawStr = typeof item === "string" ? item : String(item?.name || item?.path || "");
+    if (!rawStr) return;
+    const parts = rawStr.replace(/\\/g, "/").split("/");
+    const remappedClean = remapCleanName(rawStr);
+
+    let detectedTier = "";
+    if (typeof item === "object" && item !== null) {
+      const explicitTier = item.priority_tier || item.priorityTier || item.tierFolder;
+      if (typeof explicitTier === "string" && explicitTier.trim()) {
+        detectedTier = explicitTier.trim();
+      }
+      const itemRules = item.load_rules || item.loadRules;
+      if (Array.isArray(itemRules)) {
+        itemRules.forEach(addRule);
+      }
+    }
+    if (!detectedTier && parts.length > 1) {
+      const firstSegLower = parts[0].toLowerCase();
+      if (knownTierMap.has(firstSegLower)) {
+        detectedTier = knownTierMap.get(firstSegLower)!;
+      }
+    }
+    if (detectedTier && remappedClean) {
+      modTiers[remappedClean] = detectedTier;
+    }
+
+    const orderIdx =
+      typeof item === "object" && item !== null && typeof item.load_order_index === "number"
+        ? item.load_order_index
+        : idx;
+    if (remappedClean) {
+      indexedItems.push({ cleanName: remappedClean, index: orderIdx });
+    }
+  });
+
+  let loadOrder: string[] = [];
+  const topOrder = rawPayload?.load_order || rawPayload?.loadOrder;
+  if (Array.isArray(topOrder) && topOrder.length > 0) {
+    const seen = new Set<string>();
+    topOrder.forEach((n: string) => {
+      const clean = remapCleanName(n);
+      const low = clean.toLowerCase();
+      if (clean && !seen.has(low)) {
+        seen.add(low);
+        loadOrder.push(clean);
+      }
+    });
+  } else if (indexedItems.length > 0) {
+    indexedItems.sort((a, b) => a.index - b.index);
+    const seen = new Set<string>();
+    indexedItems.forEach((it) => {
+      const low = it.cleanName.toLowerCase();
+      if (!seen.has(low)) {
+        seen.add(low);
+        loadOrder.push(it.cleanName);
+      }
+    });
+  }
+
+  const tierByLower = new Map<string, string>();
+  Object.entries(modTiers).forEach(([k, v]) => {
+    if (v) tierByLower.set(k.toLowerCase(), v);
+  });
+
+  const formatModWithTier = (localModName: string): string => {
+    const clean = String(localModName || "").split(/[\\/]/).pop() || String(localModName || "");
+    const tier = tierByLower.get(clean.toLowerCase());
+    if (tier) {
+      return `${tier}/${clean}`;
+    }
+    return localModName;
+  };
+
+  return {
+    loadRules: Array.from(ruleMap.values()),
+    modTiers,
+    loadOrder,
+    formatModWithTier,
   };
 }
 
@@ -892,39 +1160,55 @@ export function usePlaySetLogic() {
         return;
       }
       const missing: any[] = [];
-      const availableMods: string[] = [];
+      const rawAvailableMods: string[] = [];
       const nextModHashes: Record<string, string> = {};
       const nextModMeta: Record<string, { url?: string, author?: string }> = {};
-      parsed.mods.forEach((importedMod: any) => {
+      const nameRemap = new Map<string, string>();
+      const extRegex = getExtensionRegex(activeGameSchema);
+
+      (parsed.mods || []).forEach((importedMod: any) => {
           let found = null;
-          if (importedMod.hash) {
+          const rawNameToCheck = typeof importedMod === 'string' ? importedMod : (importedMod.name || importedMod.path || '');
+          const cleanImportedFile = rawNameToCheck.split(/[\\/]/).pop() || rawNameToCheck;
+
+          if (importedMod && typeof importedMod !== 'string' && importedMod.hash) {
               found = hashToMod.get(importedMod.hash);
           }
           if (!found) {
-              const nameToCheck = typeof importedMod === 'string' ? importedMod : (importedMod.name || importedMod.path || '');
-              found = modMap.get(nameToCheck);
+              found = modMap.get(rawNameToCheck) || modMap.get(cleanImportedFile);
               if (!found) {
-                  const targetBase = nameToCheck.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
+                  const targetBase = cleanImportedFile.replace(extRegex, '');
                   if (targetBase) found = baseToMod.get(targetBase);
               }
           }
 
           if (found) {
-              availableMods.push(found.name);
+              const resolvedClean = found.name.split(/[\\/]/).pop() || found.name;
+              if (cleanImportedFile) {
+                  nameRemap.set(cleanImportedFile.toLowerCase(), resolvedClean);
+              }
+              rawAvailableMods.push(found.name);
               if (found.hash) nextModHashes[found.name] = found.hash;
               else if (typeof importedMod !== 'string' && importedMod.hash) nextModHashes[found.name] = importedMod.hash;
           }
           else {
               missing.push(importedMod);
-              const nameToCheck = typeof importedMod === 'string' ? importedMod : (importedMod.name || importedMod.path || '');
               if (typeof importedMod !== 'string') {
-                  if (importedMod.hash) nextModHashes[nameToCheck] = importedMod.hash;
+                  if (importedMod.hash) nextModHashes[rawNameToCheck] = importedMod.hash;
                   if (importedMod.url || importedMod.author) {
-                      nextModMeta[nameToCheck] = { url: importedMod.url, author: importedMod.author };
+                      nextModMeta[rawNameToCheck] = { url: importedMod.url, author: importedMod.author };
                   }
               }
           }
       });
+
+      const { loadRules, modTiers, loadOrder, formatModWithTier } = unpackBlueprintLoadOrder(
+        parsed,
+        nameRemap,
+        activeGameSchema
+      );
+      const availableMods = rawAvailableMods.map((mName) => formatModWithTier(mName));
+
       let baseName = `${parsed.name} (Imported)`;
       let newName = baseName;
       let counter = 1;
@@ -934,7 +1218,16 @@ export function usePlaySetLogic() {
         newName = `${baseName} (${counter})`;
         counter++;
       }
-      const readySet = { name: newName, mods: availableMods, modHashes: nextModHashes, modMeta: nextModMeta, ignoredGhosts: [] };
+      const readySet = {
+        name: newName,
+        mods: availableMods,
+        modHashes: nextModHashes,
+        modMeta: nextModMeta,
+        loadRules,
+        modTiers,
+        loadOrder,
+        ignoredGhosts: [],
+      };
       if (missing.length > 0) {
         setPendingImportSet(readySet);
         setMissingImportMods(missing);
@@ -1426,12 +1719,14 @@ export function usePlaySetLogic() {
   };
 
   const setModPriorityTier = useCallback(
-    (setName: string, modName: string, tierFolder: string) => {
+    (setName: string, modName: string | string[], tierFolder: string) => {
+      const rawModName = Array.isArray(modName) ? String(modName[0] || "") : String(modName || "");
+      if (!rawModName) return;
       const schemaTiers = activeGameSchema?.load_order?.priority_tiers || [];
       const knownFoldersLower = new Set(
         ["sanctuary", "sanctuary2", "sanctuary3", ...schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase())].filter(Boolean)
       );
-      const cleanTarget = (modName.split(/[\\/]/).pop() || modName).toLowerCase();
+      const cleanTarget = (rawModName.split(/[\\/]/).pop() || rawModName).toLowerCase();
 
       setPlaySets((prevSets: any[]) => {
         const idx = prevSets.findIndex((p: any) => p.name.toLowerCase() === setName.toLowerCase());
@@ -1441,7 +1736,7 @@ export function usePlaySetLogic() {
         const nextMods = [...(currentSet.mods || [])];
         const nextModTiers = { ...(currentSet.modTiers || {}) };
 
-        let canonicalFile = modName.split(/[\\/]/).pop() || modName;
+        let canonicalFile = rawModName.split(/[\\/]/).pop() || rawModName;
 
         for (let i = 0; i < nextMods.length; i++) {
           const strM = typeof nextMods[i] === "string" ? nextMods[i] : nextMods[i]?.name || nextMods[i]?.path || "";
@@ -1479,9 +1774,11 @@ export function usePlaySetLogic() {
   );
 
   const addLoadOrderRule = useCallback(
-    (setName: string, modA: string, modB: string, type: "after" | "before" = "after") => {
-      const cleanA = modA.split(/[\\/]/).pop() || modA;
-      const cleanB = modB.split(/[\\/]/).pop() || modB;
+    (setName: string, modA: string | string[], modB: string | string[], type: "after" | "before" = "after") => {
+      const rawA = Array.isArray(modA) ? String(modA[0] || "") : String(modA || "");
+      const rawB = Array.isArray(modB) ? String(modB[0] || "") : String(modB || "");
+      const cleanA = rawA.split(/[\\/]/).pop() || rawA;
+      const cleanB = rawB.split(/[\\/]/).pop() || rawB;
       if (!cleanA || !cleanB || cleanA.toLowerCase() === cleanB.toLowerCase()) return;
 
       setPlaySets((prevSets: any[]) => {

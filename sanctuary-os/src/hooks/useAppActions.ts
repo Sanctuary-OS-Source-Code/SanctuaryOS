@@ -4,6 +4,7 @@ import { supabase } from "../supabase";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
+import { packageBlueprintLoadOrder } from "./usePlaySetLogic";
 
 export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, activeMasonProfileId: string | null, tier2Hashes: string[], fetchBackups: () => void) {
   const { t } = useLexicon();
@@ -57,9 +58,17 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     if (!setName) { setSnapshotModal(false); return; }
     if (playSets.some((s) => s.name.toLowerCase() === setName.toLowerCase())) { setStatus(t("status_blueprint_exists")); return; }
     const activeSet = playSets[activePlaySetIndex];
-    const currentMods = activeSet && activeSet.mods ?[...activeSet.mods] :[];
-    const newSet = { name: setName, mods: currentMods };
-    const updatedSets =[...playSets, newSet];
+    const currentMods = activeSet && activeSet.mods ? [...activeSet.mods] : [];
+    const newSet = {
+      name: setName,
+      mods: currentMods,
+      modHashes: activeSet?.modHashes ? { ...activeSet.modHashes } : undefined,
+      modMeta: activeSet?.modMeta ? { ...activeSet.modMeta } : undefined,
+      loadRules: Array.isArray(activeSet?.loadRules) ? activeSet.loadRules.map((r: any) => ({ ...r })) : undefined,
+      modTiers: activeSet?.modTiers ? { ...activeSet.modTiers } : undefined,
+      loadOrder: Array.isArray(activeSet?.loadOrder) ? [...activeSet.loadOrder] : undefined,
+    };
+    const updatedSets = [...playSets, newSet];
     setPlaySets(updatedSets); 
  
     setSnapshotModal(false); setSnapshotName("");
@@ -75,26 +84,35 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     } catch(e) {}
 
     const activeGameSchema = useStore.getState().activeGameSchema;
+    const packagedLO = packageBlueprintLoadOrder(targetSet, activeGameSchema, modList);
+
+    const rawModObjects = targetSet.mods.map((rawMod: any) => {
+      const modName = typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
+      const cleanName = modName.split(/[\\/]/).pop() || modName;
+      const mod = modList.find((m) => m.name === modName || (m.name.split(/[\\/]/).pop() || m.name).toLowerCase() === cleanName.toLowerCase());
+      const hash = mod?.hash || targetSet.modHashes?.[modName] || targetSet.modHashes?.[cleanName] || "";
+      const override = localOverrides[hash];
+      const meta = targetSet.modMeta?.[modName] || targetSet.modMeta?.[cleanName];
+
+      return { 
+        name: modName, 
+        hash: hash, 
+        url: override?.url || meta?.url || mod?.url || "", 
+        author: override?.author || meta?.author || mod?.author || "Unknown", 
+        isVirtual: mod?.isVirtual 
+      };
+    }).filter((m: any) => !m.isVirtual && !m.name.startsWith("FOLDER_") && !m.name.startsWith("SET_") && !m.name.startsWith("LOCAL_SET_")).map((m: any) => ({ name: m.name, hash: m.hash, url: m.url, author: m.author }));
 
     const exportData = {
       sanctuary_profile: true,
       name: targetSet.name,
       game_id: activeGameSchema?.id || "",
       game_name: activeGameSchema?.display_name || "",
-      mods: targetSet.mods.map((modName: string) => {
-        const mod = modList.find(m => m.name === modName);
-        const hash = mod?.hash || targetSet.modHashes?.[modName] || "";
-        const override = localOverrides[hash];
-        const meta = targetSet.modMeta?.[modName];
-
-        return { 
-          name: modName, 
-          hash: hash, 
-          url: override?.url || meta?.url || mod?.url || "", 
-          author: override?.author || meta?.author || mod?.author || "Unknown", 
-          isVirtual: mod?.isVirtual 
-        };
-      }).filter((m: any) => !m.isVirtual && !m.name.startsWith("FOLDER_") && !m.name.startsWith("SET_") && !m.name.startsWith("LOCAL_SET_")).map((m: any) => ({ name: m.name, hash: m.hash, url: m.url, author: m.author }))
+      load_order_strategy: packagedLO.load_order_strategy,
+      load_rules: packagedLO.load_rules,
+      mod_tiers: packagedLO.mod_tiers,
+      load_order: packagedLO.load_order,
+      mods: packagedLO.enrichAndSortArtifacts(rawModObjects),
     };
     try {
       const config: any = await invoke("get_saved_coordinates");

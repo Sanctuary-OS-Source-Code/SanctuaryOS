@@ -585,7 +585,18 @@ export default function Blueprints({
                       newName = `${activeSet.name} (Copy) (${copyIndex})`;
                       copyIndex++;
                     }
-                    const updatedSets = [...playSets, { name: newName, mods: [...activeSet.mods] }];
+                    const updatedSets = [
+                      ...playSets,
+                      {
+                        name: newName,
+                        mods: [...activeSet.mods],
+                        modHashes: activeSet.modHashes ? { ...activeSet.modHashes } : undefined,
+                        modMeta: activeSet.modMeta ? { ...activeSet.modMeta } : undefined,
+                        loadRules: Array.isArray(activeSet.loadRules) ? activeSet.loadRules.map((r: any) => ({ ...r })) : undefined,
+                        modTiers: activeSet.modTiers ? { ...activeSet.modTiers } : undefined,
+                        loadOrder: Array.isArray(activeSet.loadOrder) ? [...activeSet.loadOrder] : undefined,
+                      },
+                    ];
                     setPlaySets(updatedSets);
                     window.dispatchEvent(new Event("storage"));
                     if (setActivePlaySetIndex) setActivePlaySetIndex(updatedSets.length - 1);
@@ -838,15 +849,31 @@ export default function Blueprints({
                 {filteredArtifacts.slice(0, uplinkArtifactsLimit).map((m: any, idx: number) => {
                   const rawName = m.name || m;
                   const displayName = typeof rawName === 'string' ? (rawName.split('/').pop()?.replace(/\.[^/.]+$/, "") || rawName) : rawName;
+                  const seqNum = typeof m?.load_order_index === "number" ? m.load_order_index + 1 : idx + 1;
+                  const priorityTier = typeof m === "object" && m?.priority_tier ? m.priority_tier : (typeof rawName === "string" && rawName.includes("/") ? rawName.split("/")[0] : "");
+                  const hasRules = Array.isArray(m?.load_rules) && m.load_rules.length > 0;
                   return (
                     <div key={idx} className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-4 hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-colors group/mod flex flex-col items-center justify-center text-center gap-3 shadow-sm h-full min-h-[140px] relative overflow-hidden">
-                      <div className="w-12 h-12 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0">
+                      <span className="absolute top-2.5 left-2.5 px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] font-mono text-[9px] font-black text-[var(--accent)]">
+                        #{String(seqNum).padStart(3, "0")}
+                      </span>
+                      {priorityTier && (
+                        <span className="absolute top-2.5 right-2.5 px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[8px] font-black uppercase tracking-wider text-[var(--accent)]">
+                          {priorityTier}
+                        </span>
+                      )}
+                      <div className="w-12 h-12 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 mt-2">
                         <span className="material-symbols-outlined !text-[24px] text-[var(--subtext)] group-hover/mod:text-[var(--accent)] transition-colors">extension</span>
                       </div>
                       <div className="flex flex-col min-w-0 w-full items-center justify-center relative group/title">
                         <span className="text-xs font-bold text-[var(--text)] group-hover/mod:theme-text-accent transition-colors line-clamp-2 break-all">{displayName}</span>
                         <HoverTooltip title={displayName} variant="default" className="!hidden group-hover/title:!flex z-[200]" align="center" vAlign="top" />
                         {m.author && <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest mt-1 line-clamp-1 break-all w-full">{t("mason")}: {m.author}</span>}
+                        {hasRules && (
+                          <span className="mt-1 px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[8px] font-black uppercase tracking-widest text-[var(--warning)]">
+                            {m.load_rules.length} {t("lo_rule_badge", "Rule")}
+                          </span>
+                        )}
                       </div>
                     </div>
                   );

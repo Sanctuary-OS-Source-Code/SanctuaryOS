@@ -3669,5 +3669,20 @@
   "pwa_status_installed": "Sanctuary OS installed to your device!",
   "icon_install_mobile": "install_mobile",
   "icon_add_to_home_screen": "add_to_home_screen",
-  "icon_ios_share": "ios_share"
+  "icon_ios_share": "ios_share",
+  "lo_badge_resource_cfg": "Resource.cfg",
+  "lo_badge_loadorder_txt": "loadorder.txt",
+  "lo_badge_numeric_prefix": "001_<file>",
+  "lo_badge_mtime": "mtime",
+  "landing_install_pwa": "Install the PWA",
+  "landing_install_pwa_short": "Install PWA",
+  "label_static_manifest_url": "Static Edge Manifest URL (manifest.json)",
+  "placeholder_static_manifest_url": "https://your-domain.com/manifest.json",
+  "desc_static_manifest_url": "Point this local mod hash and its family to a hosted static manifest.json for automatic background updates and atomic logic.",
+  "label_static_manifest_linked": "Static Edge Manifest Linked",
+  "btn_poll_manifest": "Poll Manifest",
+  "label_initial_edge_release": "Static Edge Release",
+  "msg_export_release_success": "Exported manifest.json, override.json, and release .zip to mod folder!",
+  "label_unknown_mod": "Unknown Mod",
+  "label_unknown_author": "Unknown Author"
 }

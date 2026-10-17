@@ -33,16 +33,8 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
     React.useEffect(() => {
         const el = scrollRef.current;
         if (!el) return;
-        const handleWheel = (e: WheelEvent) => {
-            if (e.deltaY !== 0) {
-                e.preventDefault();
-                el.scrollLeft += e.deltaY;
-            }
-        };
-        el.addEventListener('wheel', handleWheel, { passive: false });
-        el.addEventListener('scroll', checkScroll);
+        el.addEventListener('scroll', checkScroll, { passive: true });
         return () => {
-            el.removeEventListener('wheel', handleWheel);
             el.removeEventListener('scroll', checkScroll);
         }
     }, []);

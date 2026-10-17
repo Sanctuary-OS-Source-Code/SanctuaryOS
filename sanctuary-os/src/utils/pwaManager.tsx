@@ -196,9 +196,9 @@ export function PwaInstallPrompt() {
     <>
       {showFloatingBanner && (
         <div className="md:hidden fixed bottom-[90px] left-4 right-4 z-[999990] animate-in fade-in slide-in-from-bottom-4 duration-500 pointer-events-auto">
-          <div className="p-3.5 rounded-2xl glass-panel portal-glass-fix portal-glass-modal border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.65),0_0_25px_rgba(var(--accent-rgb),0.15)] flex items-center justify-between gap-3">
+          <div className="p-3.5 rounded-2xl glass-panel portal-glass-fix border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.65)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
                 <img src="/pwa-192x192.png" alt="" className="w-7 h-7 object-contain drop-shadow-md" />
               </div>
               <div className="flex flex-col min-w-0">
@@ -214,9 +214,9 @@ export function PwaInstallPrompt() {
               <button
                 type="button"
                 onClick={triggerInstall}
-                className="px-3.5 py-2 rounded-xl bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer"
+                className="px-3.5 py-2 rounded-xl glass-surface bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_14%,transparent)] border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                <span className="material-symbols-outlined !text-[15px]">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                   {t("icon_add_to_home_screen", "add_to_home_screen")}
                 </span>
                 {t("pwa_btn_add_short", "Add App")}
@@ -244,8 +244,8 @@ export function PwaInstallPrompt() {
         widthClass="w-full md:w-[520px]"
       >
         <div className="flex flex-col gap-6 p-6">
-          <div className="p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0">
+          <div className="p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
               <img src="/pwa-192x192.png" alt="" className="w-10 h-10 object-contain drop-shadow-md" />
             </div>
             <div className="flex flex-col gap-1 min-w-0">
@@ -265,9 +265,9 @@ export function PwaInstallPrompt() {
             <button
               type="button"
               onClick={triggerInstall}
-              className="w-full py-4 px-5 rounded-2xl glass-panel border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(var(--accent-rgb),0.2)] transition-all cursor-pointer"
+              className="w-full py-4 px-5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2.5 transition-all cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[20px]">
+              <span className="material-symbols-outlined !text-[20px] text-[var(--accent)]">
                 {t("icon_add_to_home_screen", "add_to_home_screen")}
               </span>
               {t("pwa_btn_install", "Install App")}

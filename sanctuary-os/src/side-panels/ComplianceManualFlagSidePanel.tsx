@@ -179,7 +179,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       useStore.getState().pushStatus(t("comp_manual_alert_success") || "Flagged successfully");
       onClose();
       if (onSuccess) onSuccess();
-      if (manualTier === 3) {
+      if (manualTier === 5) {
          window.dispatchEvent(new CustomEvent('force-radar-sweep'));
       }
     } catch (err: any) {

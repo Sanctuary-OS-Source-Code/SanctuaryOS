@@ -326,6 +326,7 @@ export const ThemeProvider = ({ children }: any) => {
     if (currentTheme.bgImage) {
       root.style.setProperty(`--bgGradient`, `url("${currentTheme.bgImage}")`);
       root.style.setProperty(`--glassBgImage`, `url("${currentTheme.bgImage}")`);
+      root.style.setProperty(`--glassBeforeDisplay`, `block`);
       root.style.setProperty(`--glassFilter`, `blur(var(--glassBlur, 24px)) saturate(140%)`);
       root.style.setProperty(`--glassFilterSurface`, `blur(calc(var(--glassBlur, 24px) * 0.7)) saturate(120%)`);
     } else if (currentTheme.bgGradient && currentTheme.bgGradient !== 'transparent' && currentTheme.bgGradient !== 'none' && currentTheme.bgGradient !== currentTheme.bg) {
@@ -334,11 +335,13 @@ export const ThemeProvider = ({ children }: any) => {
       // But gradients are already smooth, so we don't need to blur them!
       // We just use 'none' and let the native gradient shine through.
       root.style.setProperty(`--glassBgImage`, `none`);
+      root.style.setProperty(`--glassBeforeDisplay`, `none`);
       root.style.setProperty(`--glassFilter`, `none`);
       root.style.setProperty(`--glassFilterSurface`, `none`);
     } else {
       root.style.setProperty(`--bgGradient`, `none`);
       root.style.setProperty(`--glassBgImage`, `none`);
+      root.style.setProperty(`--glassBeforeDisplay`, `none`);
       root.style.setProperty(`--glassFilter`, `none`);
       root.style.setProperty(`--glassFilterSurface`, `none`);
     }

@@ -48,12 +48,18 @@ export const cleanSearchName = (raw: string, schema?: any) => {
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .trim();
 };
+const RE_EXT_SUFFIX = /\.[^.]+$/;
+const RE_SCRIPTS_SUFFIX = /_script(s)?$/i;
+const RE_NON_ALPHANUM = /[^a-z0-9]/gi;
+
 export const getNormalizedArtifactName = (name: string): string => {
   if (!name) return "";
-  let clean = String(name).split(/[\\/]/).pop() || "";
-  clean = clean.replace(/\.[^.]+$/, "");
-  clean = clean.replace(/_SCRIPT(S)?$/i, "");
-  clean = clean.replace(/[^a-z0-9]/gi, "");
+  const str = String(name);
+  const lastSlash = Math.max(str.lastIndexOf("/"), str.lastIndexOf("\\"));
+  let clean = lastSlash >= 0 ? str.slice(lastSlash + 1) : str;
+  clean = clean.replace(RE_EXT_SUFFIX, "");
+  clean = clean.replace(RE_SCRIPTS_SUFFIX, "");
+  clean = clean.replace(RE_NON_ALPHANUM, "");
   return clean.toLowerCase();
 };
 export const parseStringArray = (

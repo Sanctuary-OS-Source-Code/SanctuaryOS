@@ -39,6 +39,12 @@ pub async fn scan_bunker(
         } else {
             std::collections::HashSet::new()
         };
+    let verified_hashes_set: std::collections::HashSet<String> =
+        if let Ok(v) = state.tier2_hashes.lock() {
+            v.iter().cloned().collect()
+        } else {
+            std::collections::HashSet::new()
+        };
 
     let (tx, rx) = std::sync::mpsc::channel::<Result<Vec<ModData>, String>>();
 
@@ -227,7 +233,7 @@ pub async fn scan_bunker(
                         is_malware = true;
                     }
 
-                    if !is_malware {
+                    if !is_malware && !verified_hashes_set.contains(&dna_hash) {
                         if let Some(cached_sig_opt) = cached_heuristic_sig {
                             if let Some(sig) = cached_sig_opt {
                                 is_malware = true;
@@ -735,7 +741,12 @@ pub fn ingest_dropped_file(
                                     } else {
                                         false
                                     };
-                                    if !is_malware {
+                                    let is_verified = state
+                                        .tier2_hashes
+                                        .lock()
+                                        .map(|v| v.contains(&extracted_hash))
+                                        .unwrap_or(false);
+                                    if !is_malware && !is_verified {
                                         if let Some(sig) =
                                             check_heuristic_malware(&extract_target, &heuristic_sigs)
                                                 .or_else(|| check_heuristic_malware(source, &heuristic_sigs))
@@ -1005,7 +1016,12 @@ pub fn ingest_dropped_file(
                                 } else {
                                     false
                                 };
-                                if !is_malware {
+                                let is_verified = state
+                                    .tier2_hashes
+                                    .lock()
+                                    .map(|v| v.contains(&extracted_hash))
+                                    .unwrap_or(false);
+                                if !is_malware && !is_verified {
                                     if let Some(sig) =
                                         check_heuristic_malware(&extract_target, &heuristic_sigs)
                                     {
@@ -1152,7 +1168,12 @@ pub fn ingest_dropped_file(
             } else {
                 false
             };
-            if !is_malware {
+            let is_verified = state
+                .tier2_hashes
+                .lock()
+                .map(|v| v.contains(&file_hash))
+                .unwrap_or(false);
+            if !is_malware && !is_verified {
                 if let Some(sig) = check_heuristic_malware(source, &heuristic_sigs) {
                     is_malware = true;
                     matched_sig = sig;

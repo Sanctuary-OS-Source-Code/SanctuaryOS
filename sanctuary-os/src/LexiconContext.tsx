@@ -311,7 +311,7 @@ export const LexiconProvider = ({ children }: any) => {
       }
       return val;
     }
-    if (key.includes('icon') || key.startsWith('emote_')) return "";
+    if (key.includes('icon') || key.startsWith('emote_')) return fallback && !emojiRegex.test(fallback) ? fallback : "";
     return fallback || `[${key}]`;
   };
 
