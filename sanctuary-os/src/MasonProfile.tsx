@@ -573,18 +573,6 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         />
       </StatTileCarousel>
 
-      <div className="md:hidden">
-        <HoverTabDrawer title={t("mason_navigation", "Mason Navigation")} activeTab={activeView} setTab={setActiveView as any}>
-          <VerticalTabButton id="OVERVIEW" icon={t("icon_home", "home")} label={t("tab_overview", "Overview")} activeTab={activeView} setTab={setActiveView as any} />
-          <VerticalTabButton id="COMM-LINK" icon={t("icon_satellite_alt", "satellite_alt")} label={t("tab_commlink", "Comm-Link")} activeTab={activeView} setTab={setActiveView as any} />
-          <VerticalTabButton id="MODS" icon={t("icon_account_balance", "account_balance")} label={t("items", "Artifacts")} activeTab={activeView} setTab={setActiveView as any} />
-          <VerticalTabButton id="BLUEPRINTS" icon={t("icon_map", "map")} label={t("playsets_title", "Blueprints")} activeTab={activeView} setTab={setActiveView as any} />
-          <VerticalTabButton id="LEXICONS" icon={t("icon_translate", "translate")} label={t("tab_lexicons", "Lexicons")} activeTab={activeView} setTab={setActiveView as any} />
-          <VerticalTabButton id="CHAMELEONS" icon={t("icon_palette", "palette")} label={t("type_theme", "Chameleon")} activeTab={activeView} setTab={setActiveView as any} />
-          <VerticalTabButton id="TEMPLATES" icon={t("icon_draw", "draw")} label={t("ql_templates", "Templates")} activeTab={activeView} setTab={setActiveView as any} />
-        </HoverTabDrawer>
-      </div>
-
       <div className="flex-1 flex flex-col min-h-0 w-full mt-2">
         {activeView === 'OVERVIEW' ? (
           <MasonProfileOverview posts={posts} mods={mods} marketAssets={marketAssets} mason={mason} setActiveView={setActiveView} setModCategory={setModCategory} setModSearch={setModSearch} setActiveAsset={setActiveAsset} setSelectedBlueprint={setSelectedBlueprint} onModClick={onModClick} activeGameSchema={activeGameSchema} handlePostClick={handlePostClick} handleToggleLike={handleToggleLike} isOwner={isOwner} onEditShowcase={() => setIsPinPanelOpen(true)} t={t} />

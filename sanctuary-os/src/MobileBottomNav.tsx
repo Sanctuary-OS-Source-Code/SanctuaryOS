@@ -57,30 +57,30 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   let hubNavIcon = "";
 
   if (isRootDomain()) {
-    tabs.push({ id: 'workspaces', icon: 'public', label: t("landing_workspaces") || 'Workspaces' });
-    tabs.push({ id: 'news', icon: 'newspaper', label: t("landing_news") || 'News' });
-    tabs.push({ id: 'system_directives', icon: 'folder_special', label: t("landing_system_directives") || 'Directives' });
+    tabs.push({ id: 'workspaces', icon: t("icon_public", "public"), label: t("landing_workspaces_short", "Workspaces") });
+    tabs.push({ id: 'news', icon: t("icon_newspaper", "newspaper"), label: t("landing_news_short", "News") });
+    tabs.push({ id: 'system_directives', icon: t("icon_folder_special", "folder_special"), label: t("landing_directives_short", "Directives") });
     tabs.push({ id: 'download', icon: t("icon_install_mobile", "install_mobile"), label: t("landing_install_pwa_short", "Install PWA") });
-    tabs.push({ id: 'menu', icon: 'menu', label: t("ui_btn_more") || 'More' });
+    tabs.push({ id: 'menu', icon: t("icon_menu", "menu"), label: t("ui_btn_more", "More") });
   } else {
-    tabs.push({ id: 'dashboard', icon: t("icon_desktop_windows") || "desktop_windows", label: t("center_title") || 'Dashboard' });
+    tabs.push({ id: 'dashboard', icon: t("icon_desktop_windows", "desktop_windows"), label: t("center_title", "Dashboard") });
     if (localStorage.getItem("sanctuary_blacklisted") !== "true") {
-      tabs.push({ id: 'nexus', icon: t("icon_hub") || "hub", label: t("market_title") || 'Nexus' });
-      tabs.push({ id: 'GlobalFeed', icon: t("icon_satellite_alt") || "satellite_alt", label: t("feed_title") || 'Feed' });
+      tabs.push({ id: 'nexus', icon: t("icon_hub", "hub"), label: t("market_title", "Nexus") });
+      tabs.push({ id: 'GlobalFeed', icon: t("icon_satellite_alt", "satellite_alt"), label: t("feed_title", "Feed") });
     }
 
-    if (view === "MasonHub") { hubNavLabel = t("sidebar_mason_hub") || 'Mason Workshop'; hubNavIcon = 'construction'; }
-    else if (view === "ArchitectHub") { hubNavLabel = t("sidebar_architect_hub") || 'Architect Hub'; hubNavIcon = 'analytics'; }
-    else if (view === "Oversight") { hubNavLabel = t("wf_tab_command") || 'Oversight'; hubNavIcon = 'security'; }
-    else if (view === "WayfinderHub") { hubNavLabel = t("ui_btn_operations") || 'Wayfinder Tools'; hubNavIcon = 'terminal'; }
-    else if (view === "KeepersCore") { hubNavLabel = t("sidebar_keepers_core") || 'Keepers Core'; hubNavIcon = 'terminal'; }
+    if (view === "MasonHub") { hubNavLabel = t("sidebar_mason_hub", "Workshop"); hubNavIcon = t("icon_construction", "construction"); }
+    else if (view === "ArchitectHub") { hubNavLabel = t("sidebar_architect_hub", "Console"); hubNavIcon = t("icon_analytics", "analytics"); }
+    else if (view === "Oversight") { hubNavLabel = t("wf_tab_command", "Command"); hubNavIcon = t("icon_security", "security"); }
+    else if (view === "WayfinderHub") { hubNavLabel = t("ui_btn_operations", "Operations"); hubNavIcon = t("icon_terminal", "terminal"); }
+    else if (view === "KeepersCore") { hubNavLabel = t("sidebar_keepers_core", "Keepers Core"); hubNavIcon = t("icon_terminal", "terminal"); }
 
     if (hubNavLabel) {
       tabs.push({ id: 'hub_nav', icon: hubNavIcon, label: hubNavLabel });
     }
 
     // Everyone gets the "More" menu
-    tabs.push({ id: 'menu', icon: 'menu', label: t("ui_btn_more") || 'More' });
+    tabs.push({ id: 'menu', icon: t("icon_menu", "menu"), label: t("ui_btn_more", "More") });
   }
 
   const handleTabClick = (tabId: string) => {
@@ -110,7 +110,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   return (
     <>
       <PwaInstallPrompt />
-      <div className="md:hidden fixed bottom-0 left-0 right-0 h-[80px] z-[999999] flex items-center justify-around px-2 glass-panel !rounded-none !border-x-0 !border-b-0 pb-[env(safe-area-inset-bottom)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 min-h-[76px] h-[calc(72px+env(safe-area-inset-bottom,0px))] z-[999999] flex items-center justify-around px-2 glass-panel !rounded-none !border-x-0 !border-b-0 pb-[env(safe-area-inset-bottom,0px)]">
         {tabs.map(tab => {
           const isLandingView = isRootDomain() && view !== 'settings' && view !== 'KeepersCore';
           const isActive =
@@ -121,24 +121,26 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             <button
               key={tab.id}
               onClick={() => handleTabClick(tab.id)}
-              className={`flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-500 relative ${isActive ? 'text-[var(--accent)] opacity-100' : 'text-[var(--text)] opacity-50 hover:opacity-80'}`}
+              className={`flex flex-col items-center justify-center flex-1 h-full px-1 py-1.5 gap-1 transition-all duration-300 relative min-w-0 ${isActive ? 'text-[var(--accent)] opacity-100' : 'text-[var(--text)] opacity-50 hover:opacity-80'}`}
             >
               {isActive && (
-                <div className="absolute inset-0 top-1/2 -translate-y-1/2 w-12 h-12 mx-auto bg-[var(--accent)] blur-[20px] opacity-20 rounded-full pointer-events-none" />
+                <div className="absolute inset-0 m-auto w-12 h-12 bg-[var(--accent)] blur-[20px] opacity-20 rounded-full pointer-events-none" />
               )}
-              <span className={`material-symbols-outlined relative z-10 transition-all duration-500 ${isActive ? 'text-[24px] -translate-y-3 drop-shadow-[0_0_8px_var(--accent)]' : 'text-[20px] translate-y-0'}`}>
+              <span className={`material-symbols-outlined relative z-10 leading-none shrink-0 transition-all duration-300 ${isActive ? '!text-[22px] drop-shadow-[0_0_8px_var(--accent)]' : '!text-[20px]'}`}>
                 {tab.icon}
               </span>
-              <span className={`text-[9px] font-black w-full text-center px-1 leading-[1.1] uppercase tracking-[0.2em] transition-all duration-500 absolute bottom-2 truncate ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                {tab.label}
-              </span>
+              {isActive && (
+                <span className="text-[8.5px] font-black w-full text-center px-0.5 leading-[1.15] uppercase tracking-[0.06em] whitespace-normal break-words line-clamp-2 relative z-10">
+                  {tab.label}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
 
       <div
-        className={`md:hidden fixed inset-x-0 bottom-[80px] z-[999998] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none'}`}
+        className={`md:hidden fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom,0px))] z-[999998] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none'}`}
       >
         <div className="mx-4 mb-4 p-4 glass-panel !rounded-3xl shadow-2xl flex flex-col gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
           <div className="w-12 h-1 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-auto mb-2 shrink-0" />
@@ -231,7 +233,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
       {/* Hub Navigation Drawer */}
       <div
-        className={`md:hidden fixed inset-x-0 bottom-[80px] z-[999998] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isHubNavOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none'}`}
+        className={`md:hidden fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom,0px))] z-[999998] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isHubNavOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none'}`}
       >
         <div className="mx-4 mb-4 p-4 glass-panel !rounded-3xl shadow-2xl flex flex-col gap-2 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar">
           <div className="w-12 h-1 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-auto mb-4 shrink-0" />

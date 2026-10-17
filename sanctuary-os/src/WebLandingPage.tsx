@@ -162,11 +162,11 @@ export default function WebLandingPage() {
             <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
               <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
                 <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in srgb, var(--accent) 20%, transparent)]">
-                  <span className="material-symbols-outlined text-[var(--accent)] md:hidden">
+                  <span className="material-symbols-outlined text-[var(--accent)] md:!hidden">
                     {t("icon_install_mobile", "install_mobile")}
                   </span>
-                  <span className="material-symbols-outlined text-[var(--accent)] hidden md:inline">
-                    system_update_alt
+                  <span className="material-symbols-outlined text-[var(--accent)] !hidden md:!inline-block">
+                    {t("icon_system_update_alt", "system_update_alt")}
                   </span>
                 </div>
                 <span className="md:hidden">

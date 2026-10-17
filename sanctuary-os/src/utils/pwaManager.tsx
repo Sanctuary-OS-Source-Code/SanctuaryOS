@@ -195,7 +195,7 @@ export function PwaInstallPrompt() {
   return (
     <>
       {showFloatingBanner && (
-        <div className="md:hidden fixed bottom-[90px] left-4 right-4 z-[999990] animate-in fade-in slide-in-from-bottom-4 duration-500 pointer-events-auto">
+        <div className="md:hidden fixed bottom-[calc(86px+env(safe-area-inset-bottom,0px))] left-4 right-4 z-[999990] animate-in fade-in slide-in-from-bottom-4 duration-500 pointer-events-auto">
           <div className="p-3.5 rounded-2xl glass-panel portal-glass-fix border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.65)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">

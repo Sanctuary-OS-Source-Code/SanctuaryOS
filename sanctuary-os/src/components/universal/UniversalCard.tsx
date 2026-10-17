@@ -114,7 +114,7 @@ export function UniversalCard({
     // Render banner for vertical layouts, using the icon if image is missing
 
     // For compact, we don't have the big abstract background
-    if (layout === "compact") {
+    if (layout === "compact" || layout === "horizontal") {
       return (
         <div className={`relative flex items-center justify-center glass-surface ${imageContainerClasses}`}>
           {(image && !imageError) ? (
@@ -122,8 +122,11 @@ export function UniversalCard({
           ) : customIcon ? (
             customIcon
           ) : (
-            <span className="material-symbols-outlined text-[20px] text-[var(--subtext)] opacity-70 group-hover:text-[var(--accent)] transition-colors">{icon}</span>
+            <span className={`material-symbols-outlined ${layout === "horizontal" ? "!text-[24px] text-[var(--text)] opacity-80" : "text-[20px] text-[var(--subtext)] opacity-70"} group-hover:opacity-100 group-hover:text-[var(--accent)] transition-colors`}>
+              {icon || t("icon_folder", "folder")}
+            </span>
           )}
+          {imageOverlay}
         </div>
       );
     }
@@ -142,7 +145,8 @@ export function UniversalCard({
       <div
         className={`relative flex flex-col items-center justify-center shrink-0 overflow-hidden ${imageContainerClasses}`}
         style={{
-          ...(layout === 'horizontal' ? { borderTopLeftRadius: 'inherit', borderBottomLeftRadius: 'inherit' } : { borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' })
+          borderTopLeftRadius: 'inherit',
+          borderTopRightRadius: 'inherit'
         }}
       >
         {(image && !imageError) ? (
@@ -151,15 +155,16 @@ export function UniversalCard({
             onError={() => setImageError(true)}
             className={`w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700`}
             style={{
-              ...(layout === 'horizontal' ? { borderTopLeftRadius: 'inherit', borderBottomLeftRadius: 'inherit' } : { borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' })
+              borderTopLeftRadius: 'inherit',
+              borderTopRightRadius: 'inherit'
             }}
           />
         ) : (
           <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_6%,transparent)] to-transparent border-b border-[color-mix(in_srgb,var(--text)_7%,transparent)] flex items-center justify-center transition-colors duration-500 overflow-hidden">
             {customIcon ? customIcon : (
-              <div className={`rounded-2xl bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.2),0_8px_20px_rgba(0,0,0,0.2)] flex items-center justify-center transition-all duration-500 group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(var(--text-rgb,255,255,255),0.2))] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,rgba(var(--text-rgb,255,255,255),0.06))] ${layout === 'horizontal' ? 'w-12 h-12' : layout === 'vertical-compact' ? 'w-14 h-14' : 'w-16 h-16'}`}>
-                <span className={`material-symbols-outlined text-[var(--text)] opacity-75 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm relative z-10 ${layout === 'horizontal' ? '!text-[24px]' : layout === 'vertical-compact' ? '!text-[28px]' : '!text-[34px]'}`}>
-                  {icon || "folder"}
+              <div className={`rounded-2xl bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.2),0_8px_20px_rgba(0,0,0,0.2)] flex items-center justify-center transition-all duration-500 group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(var(--text-rgb,255,255,255),0.2))] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,rgba(var(--text-rgb,255,255,255),0.06))] ${layout === 'vertical-compact' ? 'w-14 h-14' : 'w-16 h-16'}`}>
+                <span className={`material-symbols-outlined text-[var(--text)] opacity-75 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm relative z-10 ${layout === 'vertical-compact' ? '!text-[28px]' : '!text-[34px]'}`}>
+                  {icon || t("icon_folder", "folder")}
                 </span>
               </div>
             )}

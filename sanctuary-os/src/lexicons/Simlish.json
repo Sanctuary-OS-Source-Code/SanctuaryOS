@@ -3689,5 +3689,9 @@
   "status_edge_overrides_rejected_prefix": "Skipped",
   "status_edge_overrides_rejected_suffix": "Creator Override(s).",
   "masonhub_asset_type_workbench_template": "Template",
-  "modal_community_group_name_placeholder": "Designation..."
+  "modal_community_group_name_placeholder": "Designation...",
+  "landing_workspaces_short": "Workspaces",
+  "landing_news_short": "News",
+  "landing_directives_short": "Directives",
+  "icon_newspaper": "newspaper"
 }

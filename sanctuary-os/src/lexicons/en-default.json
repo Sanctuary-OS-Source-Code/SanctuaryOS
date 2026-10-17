@@ -3684,5 +3684,9 @@
   "label_initial_edge_release": "Static Edge Release",
   "msg_export_release_success": "Exported manifest.json, override.json, and release .zip to mod folder!",
   "label_unknown_mod": "Unknown Mod",
-  "label_unknown_author": "Unknown Author"
+  "label_unknown_author": "Unknown Author",
+  "landing_workspaces_short": "Workspaces",
+  "landing_news_short": "News",
+  "landing_directives_short": "Documents",
+  "icon_newspaper": "newspaper"
 }
