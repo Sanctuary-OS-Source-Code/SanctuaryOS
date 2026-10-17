@@ -629,25 +629,38 @@ body,
 .glass-panel .glass-panel::before,
 .glass-panel .glass-surface::before,
 .glass-surface .glass-panel::before,
-.glass-surface .glass-surface::before {
-  display: none !important;
-}
-
+.glass-surface .glass-surface::before,
 #sa-portals .portal-glass-fix::before,
-#sa-portals .portal-glass-fix .glass-surface::before,
-#sa-portals .portal-glass-fix .glass-panel::before,
 .glass-panel .portal-glass-fix::before,
 .glass-surface .portal-glass-fix::before,
 .portal-glass-fix::before {
-  display: block !important;
-  inset: -48px !important;
-  background-color: var(--bg) !important;
-  background-image: var(--bgGradient, var(--glassBgImage)) !important;
-  background-attachment: scroll !important;
-  background-size: cover !important;
-  background-position: center !important;
-  filter: var(--glassFilter, blur(var(--glassBlur, 36px)) saturate(140%)) !important;
-  opacity: 0.96 !important;
+  display: none !important;
+}
+
+#root .portal-glass-fix,
+#sa-portals .portal-glass-fix,
+.portal-glass-fix {
+  background-color: rgba(var(--bg-rgb, 0, 0, 0), 0.18) !important;
+  background-image: linear-gradient(
+    135deg,
+    rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(max(var(--glassOpacityDecimal, 0.12), 0.09) * 1.45)) 0%,
+    rgb(var(--panelTint-rgb-spaces, 255 255 255) / calc(max(var(--glassOpacityDecimal, 0.12), 0.09) * 0.65)) 100%
+  ) !important;
+  -webkit-backdrop-filter: blur(max(var(--glassBlur, 36px), 40px)) saturate(150%) !important;
+  backdrop-filter: blur(max(var(--glassBlur, 36px), 40px)) saturate(150%) !important;
+  box-shadow:
+    0 24px 48px -12px var(--shadowColor, rgba(0, 0, 0, 0.5)),
+    inset 0 1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.22),
+    inset 1px 0 1px rgba(var(--text-rgb, 255, 255, 255), 0.08),
+    inset 0 -1px 1px rgba(var(--text-rgb, 255, 255, 255), 0.04) !important;
+}
+
+#root .portal-glass-fix.portal-glass-modal,
+#sa-portals .portal-glass-fix.portal-glass-modal,
+.portal-glass-fix.portal-glass-modal {
+  background-color: color-mix(in srgb, var(--sidebar, var(--bg)) 84%, transparent) !important;
+  -webkit-backdrop-filter: blur(max(var(--glassBlur, 36px), 48px)) saturate(160%) !important;
+  backdrop-filter: blur(max(var(--glassBlur, 36px), 48px)) saturate(160%) !important;
 }
 
 .glass-surface::after {

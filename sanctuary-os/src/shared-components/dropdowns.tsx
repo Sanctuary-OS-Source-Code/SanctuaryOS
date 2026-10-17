@@ -30,6 +30,7 @@ export function CustomDropdown({
   const multiSelect = multiSelectProp ?? allowMultiSelect;
   const effectiveValue = value !== undefined ? value : selectedValuesProp;
   const [isOpen, setIsOpen] = useState(false);
+  const instanceId = React.useId();
   const [query, setQuery] = useState("");
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const [coords, setCoords] = useState({
@@ -38,6 +39,19 @@ export function CustomDropdown({
     width: 0,
     isRight: false,
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    window.dispatchEvent(
+      new CustomEvent("sa-close-popovers", { detail: instanceId }),
+    );
+    const onOtherOpen = (e: any) => {
+      if (e.detail !== instanceId) setIsOpen(false);
+    };
+    window.addEventListener("sa-close-popovers", onOtherOpen);
+    return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
+  }, [isOpen, instanceId]);
+
   const rawSelectedValues = Array.isArray(effectiveValue)
     ? effectiveValue
     : effectiveValue !== undefined &&
@@ -143,7 +157,7 @@ export function CustomDropdown({
           />
           <div
             onClick={(e) => e.stopPropagation()}
-            className="!fixed pointer-events-auto glass-panel portal-glass-fix backdrop-blur-[var(--glassBlur)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[0_24px_48px_rgba(0,0,0,0.45)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 max-h-60 overflow-hidden flex flex-col"
+            className="!fixed pointer-events-auto glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 duration-150 max-h-64 overflow-hidden flex flex-col text-[var(--text)]"
             style={{
               zIndex: 100000001,
               top: (coords as any).isDropUp ? "auto" : coords.top,
@@ -158,9 +172,9 @@ export function CustomDropdown({
             }}
           >
             {searchable && (
-              <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] z-10 shrink-0 flex items-center px-4">
-                <span className="material-symbols-outlined !text-[16px] opacity-50 mr-2">
-                  search
+              <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] z-10 shrink-0 flex items-center px-3.5">
+                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70 mr-2">
+                  {t("icon_search") || "search"}
                 </span>
                 <input
                   type="text"
@@ -169,23 +183,23 @@ export function CustomDropdown({
                   placeholder={t("shared_search") || "Search..."}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="w-full bg-transparent border-none py-3 text-[11px] font-black capitalize focus:outline-none text-[var(--text)] placeholder:opacity-40"
+                  className="w-full bg-transparent border-none py-2.5 text-xs font-semibold focus:outline-none text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50"
                 />
               </div>
             )}
             {multiSelect && options && options.length > 0 && (
-              <div className="flex items-center justify-between px-4 py-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] z-[5]">
-                <span className="text-[9px] font-black text-[var(--subtext)] opacity-80 tracking-widest uppercase">
+              <div className="flex items-center justify-between px-3.5 py-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] z-[5]">
+                <span className="text-[10px] font-bold text-[var(--subtext)] tracking-wider uppercase">
                   {selectedValues.length} {t("shared_selected") || "Selected"}
                 </span>
-                <div className="flex gap-2">
+                <div className="flex gap-2.5">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onChange(options.map((o: any) => String(o.id)));
                     }}
-                    className="text-[9px] font-black text-[var(--accent)] hover:text-[var(--text)] transition-colors uppercase tracking-widest"
+                    className="text-[10px] font-bold text-[var(--accent)] hover:text-[var(--text)] transition-colors uppercase tracking-wider"
                   >
                     {t("shared_select_all") || "Select All"}
                   </button>
@@ -195,14 +209,14 @@ export function CustomDropdown({
                       e.stopPropagation();
                       onChange([]);
                     }}
-                    className="text-[9px] font-black text-[var(--subtext)] hover:text-[var(--danger)] transition-colors uppercase tracking-widest"
+                    className="text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--danger)] transition-colors uppercase tracking-wider"
                   >
                     {t("shared_clear") || "Clear"}
                   </button>
                 </div>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-1.5 flex flex-col gap-0.5">
               {(options || [])
                 .filter((opt: any) => {
                   if (!searchable || !query) return true;
@@ -216,6 +230,7 @@ export function CustomDropdown({
                     .toLowerCase()
                     .includes(query.toLowerCase());
                 })
+                .slice(0, 100)
                 .map((opt: any) => {
                   const isSelected = multiSelect
                     ? selectedValues.some(
@@ -231,28 +246,28 @@ export function CustomDropdown({
                         e.stopPropagation();
                         handleSelect(opt.id);
                       }}
-                      className={`w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg text-[11px] font-black capitalize flex items-center gap-2 group transition-all ${isSelected ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]" : "text-[var(--text)]"}`}
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide capitalize flex items-center gap-2.5 group transition-colors ${isSelected ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] font-bold" : "text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]"}`}
                     >
                       {multiSelect && (
                         <div
-                          className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${isSelected ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]" : "border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]"}`}
+                          className={`w-4 h-4 rounded-[5px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${isSelected ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]" : "border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]"}`}
                         >
                           {isSelected && (
                             <span className="material-symbols-outlined !text-[12px] font-bold">
-                              check
+                              {t("icon_check") || "check"}
                             </span>
                           )}
                         </div>
                       )}
                       {opt.icon && (
-                        <span className="material-symbols-outlined !text-[16px] opacity-70 shrink-0">
+                        <span className="material-symbols-outlined !text-[16px] opacity-75 shrink-0">
                           {opt.icon}
                         </span>
                       )}
-                      <span className="flex-1">{opt.label}</span>
+                      <span className="flex-1 truncate">{opt.label}</span>
                       {isSelected && !multiSelect && (
-                        <span className="material-symbols-outlined !text-[16px] shrink-0">
-                          check
+                        <span className="material-symbols-outlined !text-[16px] shrink-0 text-[var(--accent)]">
+                          {t("icon_check") || "check"}
                         </span>
                       )}
                     </button>
@@ -272,8 +287,8 @@ export function CustomDropdown({
                     .includes(query.toLowerCase());
                 }).length === 0 &&
                 !allowCustom && (
-                  <div className="p-4 text-center text-xs font-bold text-[var(--subtext)] opacity-60">
-                    {t("shared_no_options")}
+                  <div className="p-4 text-center text-xs font-semibold text-[var(--subtext)] opacity-70">
+                    {t("shared_no_options") || "No options found"}
                   </div>
                 )}
               {searchable &&
@@ -291,13 +306,13 @@ export function CustomDropdown({
                       e.stopPropagation();
                       handleSelect(query);
                     }}
-                    className="w-full text-left px-4 py-3 text-sm font-bold transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] flex items-center gap-2"
+                    className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[var(--accent)] flex items-center gap-2"
                   >
-                    <span className="material-symbols-outlined !text-[16px] opacity-60">
-                      add
+                    <span className="material-symbols-outlined !text-[16px]">
+                      {t("icon_add") || "add"}
                     </span>
-                    <span className="text-[11px] font-black capitalize w-full">
-                      Create "{query}"
+                    <span className="truncate w-full">
+                      {t("cc_btn_add") || "Create"} "{query}"
                     </span>
                   </button>
                 )}
@@ -322,7 +337,7 @@ export function CustomDropdown({
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? "bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90" : isPill ? `h-10 px-5 rounded-full text-[10px] font-black uppercase tracking-widest ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]" : "glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"}` : `${className ? "h-full px-4 rounded-full" : "h-12 px-5 rounded-[12px]"} text-sm font-bold ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-[var(--radius)] text-[var(--accent)] shadow-md" : "bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[rgba(var(--text-rgb,255,255,255),0.14)] shadow-[inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.14)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[rgba(var(--text-rgb,255,255,255),0.24)] text-[var(--text)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"}`} ${buttonClassName || ""}`}
+        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? "bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90" : isPill ? `h-10 px-5 rounded-full text-[10px] font-black uppercase tracking-widest ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]" : "glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"}` : `${className?.includes("h-") ? "h-full px-4" : "h-12 px-5"} rounded-[var(--radius)] text-sm font-bold ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] shadow-md" : "glass-surface shadow-inner hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"}`} ${buttonClassName || ""}`}
       >
         <span className="pr-4 flex-1 text-left flex items-center h-full capitalize overflow-hidden whitespace-nowrap text-ellipsis min-w-0">
           {getSelectedLabel()}
@@ -333,7 +348,7 @@ export function CustomDropdown({
           <span
             className={`material-symbols-outlined ${flat ? "!text-[16px]" : "!text-[20px]"}`}
           >
-            {isOpen ? "expand_less" : "expand_more"}
+            {isOpen ? (t("icon_expand_less") || "expand_less") : (t("icon_expand_more") || "expand_more")}
           </span>
         </span>
       </button>
@@ -459,13 +474,13 @@ export function GameVersionMultiSelect({
           <>
             <div
               className="fixed inset-0 pointer-events-auto"
-              style={{ zIndex: 200000 }}
+              style={{ zIndex: 100000000 }}
               onClick={() => setIsOpen(false)}
             />
             <div
               className="fixed pointer-events-none"
               style={{
-                zIndex: 200001,
+                zIndex: 100000001,
                 top: rect ? (dropUp ? undefined : rect.bottom) : 0,
                 bottom: rect ? (dropUp ? window.innerHeight - rect.top : undefined) : undefined,
                 left: rect ? (isRightHalf ? undefined : rect.left) : 0,
@@ -477,15 +492,8 @@ export function GameVersionMultiSelect({
                 width: rect ? rect.width : "max-content",
               }}
             >
-              <div className={`absolute ${dropUp ? 'bottom-0' : 'top-0'} left-0 w-full pointer-events-auto ${dropUp ? 'mb-2' : 'mt-2'} glass-panel portal-glass-fix border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-[var(--radius)] shadow-2xl animate-in fade-in ${dropUp ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2'} flex flex-col`}>
-                <style>{`
-                  #sa-portals .portal-glass-fix::before,
-                  #sa-portals .portal-glass-fix .glass-surface::before,
-                  #sa-portals .portal-glass-fix .glass-panel::before {
-                    display: block !important;
-                  }
-                `}</style>
-                <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
+              <div className={`absolute ${dropUp ? 'bottom-0' : 'top-0'} left-0 w-full pointer-events-auto ${dropUp ? 'mb-2' : 'mt-2'} glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 duration-150 flex flex-col text-[var(--text)]`}>
+                <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-0.5">
                   {filtered.map((v) => (
                     <button
                       key={v.version}
@@ -496,13 +504,13 @@ export function GameVersionMultiSelect({
                         setQuery("");
                         setIsOpen(false);
                       }}
-                      className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--text)] flex justify-between items-center cursor-pointer"
+                      className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-semibold capitalize text-[var(--text)] flex justify-between items-center cursor-pointer transition-colors"
                     >
                       <span>{v.version}</span>
                       {selectedVersions.includes(v.version) && (
                         <span className="text-[var(--success)] flex items-center justify-center">
-                          <span className="material-symbols-outlined !text-[14px]">
-                            {t("icon_check")}
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_check") || "check"}
                           </span>
                         </span>
                       )}
@@ -517,9 +525,9 @@ export function GameVersionMultiSelect({
                         setQuery("");
                         setIsOpen(false);
                       }}
-                      className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 text-[11px] font-black capitalize text-[var(--success)] cursor-pointer"
+                      className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-semibold capitalize text-[var(--success)] cursor-pointer transition-colors"
                     >
-                      + {t("cc_btn_add")} "{query}"
+                      + {t("cc_btn_add") || "Add"} "{query}"
                     </button>
                   )}
                 </div>
@@ -544,18 +552,41 @@ export function CustomDatePicker({
   className?: string;
   flat?: boolean;
 }) {
+  const { t } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
+  const instanceId = React.useId();
   const btnRef = React.useRef<HTMLButtonElement>(null);
-  const [coords, setCoords] = useState({ top: 0, left: 0, isRight: false });
+  const [coords, setCoords] = useState({
+    top: 0,
+    left: 0,
+    isRight: false,
+    isDropUp: false,
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    window.dispatchEvent(
+      new CustomEvent("sa-close-popovers", { detail: instanceId }),
+    );
+    const onOtherOpen = (e: any) => {
+      if (e.detail !== instanceId) setIsOpen(false);
+    };
+    window.addEventListener("sa-close-popovers", onOtherOpen);
+    return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
+  }, [isOpen, instanceId]);
+
   React.useLayoutEffect(() => {
     if (!isOpen) return;
     const updatePosition = () => {
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const shouldDropUp = spaceBelow < 320 && rect.top > 320;
         setCoords({
-          top: rect.bottom,
+          top: shouldDropUp ? rect.top : rect.bottom,
           left: rect.left >= window.innerWidth / 2 ? rect.right : rect.left,
           isRight: rect.left >= window.innerWidth / 2,
+          isDropUp: shouldDropUp,
         });
       }
     };
@@ -588,22 +619,14 @@ export function CustomDatePicker({
     setIsOpen(false);
   };
 
-  const isInsideSidePanel = React.useContext(SidePanelContext);
-
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
+  const monthLabel = new Date(year, month, 1).toLocaleString(undefined, {
+    month: "long",
+  });
+  const weekdayHeaders = Array.from({ length: 7 }, (_, i) =>
+    new Date(2023, 0, i + 1)
+      .toLocaleString(undefined, { weekday: "short" })
+      .slice(0, 2),
+  );
 
   return (
     <div className={`relative w-full ${className}`}>
@@ -614,30 +637,32 @@ export function CustomDatePicker({
           e.preventDefault();
           setIsOpen(!isOpen);
         }}
-        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all group ${flat ? "bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90" : "h-12 px-5 rounded-[var(--radius)] glass-surface shadow-inner text-sm font-bold text-[var(--text)] focus:theme-border-accent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
+        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all group ${flat ? "bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90" : "h-12 px-5 rounded-[var(--radius)] glass-surface shadow-inner text-sm font-bold text-[var(--text)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
       >
         <span
-          className={`flex-1 text-left flex items-center h-full overflow-hidden ${flat ? "" : "truncate pr-4"}`}
+          className={`flex-1 text-left flex items-center h-full overflow-hidden ${flat ? "" : "truncate pr-4"} ${!value ? "text-[var(--subtext)] opacity-75" : "text-[var(--text)]"}`}
         >
           {value
             ? new Date(value).toLocaleDateString()
-            : placeholder || "Select Date..."}
+            : placeholder || t("shared_select_date") || "Select Date..."}
         </span>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {value && (
             <span
               onClick={(e) => {
                 e.stopPropagation();
                 onChange(null);
               }}
-              className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-60 hover:opacity-100 transition-all cursor-pointer rounded-full hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] p-0.5"
+              className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-70 hover:opacity-100 transition-all cursor-pointer rounded-full hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] p-0.5"
             >
-              close
+              {t("icon_close") || "close"}
             </span>
           )}
           <span className="text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)] transition-colors flex items-center justify-center">
-            <span className="material-symbols-outlined !text-[20px]">
-              {isOpen ? "expand_less" : "expand_more"}
+            <span className="material-symbols-outlined !text-[18px]">
+              {isOpen
+                ? t("icon_expand_less") || "expand_less"
+                : t("icon_calendar_month") || "calendar_month"}
             </span>
           </span>
         </div>
@@ -647,14 +672,17 @@ export function CustomDatePicker({
           <>
             <div
               className="!fixed inset-0 pointer-events-auto"
-              style={{ zIndex: 200000 }}
+              style={{ zIndex: 100000000 }}
               onClick={() => setIsOpen(false)}
             />
             <div
               className="!fixed pointer-events-none"
               style={{
-                zIndex: 200001,
-                top: coords.top,
+                zIndex: 100000001,
+                top: coords.isDropUp ? undefined : coords.top,
+                bottom: coords.isDropUp
+                  ? window.innerHeight - coords.top
+                  : undefined,
                 left: coords.isRight ? undefined : coords.left,
                 right: coords.isRight
                   ? window.innerWidth - coords.left
@@ -663,30 +691,36 @@ export function CustomDatePicker({
               }}
             >
               <div
-                className={`!absolute top-0 ${coords.isRight ? "right-0" : "left-0"} mt-2 pointer-events-auto backdrop-blur-2xl bg-[color-mix(in_srgb,var(--panelTint)_15%,transparent)] border ${isInsideSidePanel ? "border-[rgba(var(--text-rgb),0.1)]" : "border-[rgba(var(--text-rgb),0.2)]"} shadow-[0_30px_60px_rgba(0,0,0,0.6)] rounded-[var(--radius)] animate-in fade-in slide-in-from-top-2 p-4 w-64`}
+                className={`!absolute ${coords.isDropUp ? "bottom-0 mb-2" : "top-0 mt-2"} ${coords.isRight ? "right-0" : "left-0"} pointer-events-auto glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 duration-150 p-4 w-72 text-[var(--text)]`}
               >
-                <div className="flex justify-start items-center mb-4">
+                <div className="flex justify-between items-center mb-3 pb-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <button
+                    type="button"
                     onClick={() => setViewDate(new Date(year, month - 1, 1))}
-                    className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors"
                   >
-                    {"<"}
+                    <span className="material-symbols-outlined !text-[18px]">
+                      {t("icon_chevron_left") || "chevron_left"}
+                    </span>
                   </button>
-                  <div className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">
-                    {monthNames[month]} {year}
+                  <div className="text-xs font-extrabold capitalize tracking-wide text-[var(--text)]">
+                    {monthLabel} {year}
                   </div>
                   <button
+                    type="button"
                     onClick={() => setViewDate(new Date(year, month + 1, 1))}
-                    className="text-[var(--subtext)] hover:text-[var(--text)] px-2 py-1"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors"
                   >
-                    {">"}
+                    <span className="material-symbols-outlined !text-[18px]">
+                      {t("icon_chevron_right") || "chevron_right"}
+                    </span>
                   </button>
                 </div>
-                <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+                  {weekdayHeaders.map((d, idx) => (
                     <div
-                      key={d}
-                      className="text-[8px] font-bold text-[var(--subtext)] opacity-60"
+                      key={`${d}-${idx}`}
+                      className="text-[10px] font-bold text-[var(--subtext)] opacity-70 uppercase py-1"
                     >
                       {d}
                     </div>
@@ -694,7 +728,7 @@ export function CustomDatePicker({
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-center">
                   {blanks.map((b) => (
-                    <div key={`blank-${b}`} className="p-1" />
+                    <div key={`blank-${b}`} className="h-8 w-8 mx-auto" />
                   ))}
                   {days.map((d) => {
                     const isSelected =
@@ -709,8 +743,15 @@ export function CustomDatePicker({
                     return (
                       <button
                         key={d}
+                        type="button"
                         onClick={() => handleSelect(d)}
-                        className={`p-1.5 text-[10px] rounded-lg transition-all ${isSelected ? "bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-black shadow-md backdrop-blur-sm scale-[1.05] relative z-10" : isToday ? "border border-[color-mix(in_srgb,var(--text)_20%,transparent)] font-bold" : "border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
+                        className={`h-8 w-8 mx-auto flex items-center justify-center text-xs rounded-lg transition-all ${
+                          isSelected
+                            ? "bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] font-extrabold shadow-sm"
+                            : isToday
+                              ? "border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-bold bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
+                              : "border border-transparent text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] font-semibold"
+                        }`}
                       >
                         {d}
                       </button>
@@ -735,8 +776,8 @@ export function ModSearchDropdown({
   className,
 }: any) {
   const { t } = useLexicon();
-  const isInsideSidePanel = React.useContext(SidePanelContext);
   const [isOpen, setIsOpen] = useState(false);
+  const instanceId = React.useId();
   const [query, setQuery] = useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [coords, setCoords] = useState({
@@ -745,6 +786,18 @@ export function ModSearchDropdown({
     width: 0,
     isDropUp: false,
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    window.dispatchEvent(
+      new CustomEvent("sa-close-popovers", { detail: instanceId }),
+    );
+    const onOtherOpen = (e: any) => {
+      if (e.detail !== instanceId) setIsOpen(false);
+    };
+    window.addEventListener("sa-close-popovers", onOtherOpen);
+    return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
+  }, [isOpen, instanceId]);
 
   React.useLayoutEffect(() => {
     if (!isOpen) return;
@@ -802,25 +855,29 @@ export function ModSearchDropdown({
           readOnly={!!selectedItem}
           className={
             className ||
-            "w-full h-12 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 text-[var(--text)] text-[11px] font-black capitalize tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all relative"
+            "w-full h-12 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-[var(--radius)] px-5 text-[var(--text)] text-xs font-bold capitalize tracking-wide focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all relative"
           }
         />
         {selectedItem ? (
           <button
+            type="button"
             className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold flex items-center justify-center"
             onClick={onClear}
           >
             <span className="material-symbols-outlined !text-[18px]">
-              {t("icon_close")}
+              {t("icon_close") || "close"}
             </span>
           </button>
         ) : (
           <button
+            type="button"
             className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 flex items-center justify-center"
             onClick={() => setIsOpen(!isOpen)}
           >
             <span className="material-symbols-outlined !text-[20px]">
-              {isOpen ? "expand_less" : "expand_more"}
+              {isOpen
+                ? t("icon_expand_less") || "expand_less"
+                : t("icon_expand_more") || "expand_more"}
             </span>
           </button>
         )}
@@ -834,60 +891,54 @@ export function ModSearchDropdown({
             <>
               <div
                 className="!fixed inset-0 pointer-events-auto"
-                style={{ zIndex: 300000 }}
+                style={{ zIndex: 100000000 }}
                 onClick={() => setIsOpen(false)}
               />
               <div
-                className={`!fixed glass-panel portal-glass-fix ${isInsideSidePanel ? "!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-[0_0_40px_rgba(0,0,0,0.5)]" : "border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl"} rounded-[var(--radius)] pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col`}
+                className="!fixed glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-0.5 text-[var(--text)] animate-in fade-in zoom-in-95 duration-150"
                 style={{
-                  zIndex: 300001,
+                  zIndex: 100000001,
                   top: coords.isDropUp ? undefined : coords.top,
                   bottom: coords.isDropUp ? coords.top : undefined,
                   left: coords.left,
                   width: coords.width,
                 }}
               >
-                <style>{`
-                  #sa-portals .portal-glass-fix::before,
-                  #sa-portals .portal-glass-fix .glass-surface::before,
-                  #sa-portals .portal-glass-fix .glass-panel::before {
-                    display: block !important;
-                  }
-                `}</style>
                 {results.map((m: any, idx: number) => (
                   <button
                     key={`${m.hash || m.name}-${idx}`}
+                    type="button"
                     onClick={() => {
                       onSelect(m);
                       setQuery("");
                       setIsOpen(false);
                     }}
-                    className="w-full text-left px-5 py-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col gap-0.5"
+                    className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-colors flex flex-col gap-0.5"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-black text-[var(--text)] capitalize">
+                      <span className="text-xs font-bold text-[var(--text)] capitalize">
                         {m.displayName || m.name.split("/").pop()}
                       </span>
                       {m.file_extension && (
-                        <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-mono opacity-80 capitalize border border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
+                        <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-mono opacity-80 capitalize border border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
                           {m.file_extension}
                         </span>
                       )}
                     </div>
-                    <span className="text-[8px] font-mono text-[var(--subtext)] opacity-60">
+                    <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70">
                       {m.version_label
-                        ? `Version(s): ${m.version_label}`
+                        ? `${t("shared_versions_prefix") || "Version(s):"} ${m.version_label}`
                         : m.master_author ||
                           m.author ||
                           (m.created_at
-                            ? `Created: ${new Date(m.created_at).toLocaleDateString()}`
-                            : `ID: ${m.id?.substring(0, 8).toUpperCase()}`)}
+                            ? `${t("shared_created_prefix") || "Created:"} ${new Date(m.created_at).toLocaleDateString()}`
+                            : `${t("auto_id") || "ID:"} ${m.id?.substring(0, 8).toUpperCase()}`)}
                     </span>
                   </button>
                 ))}
                 {results.length === 0 && (
-                  <div className="p-5 text-center text-[10px] text-[var(--subtext)] font-bold capitalize">
-                    {t("shared_no_signatures")}
+                  <div className="p-4 text-center text-xs text-[var(--subtext)] font-semibold capitalize opacity-70">
+                    {t("shared_no_signatures") || "No matching mods found"}
                   </div>
                 )}
               </div>
@@ -925,7 +976,7 @@ export function CustomComplianceDropdown({
         value={value}
         options={options}
         onChange={(v: number[]) => onChange(v[0])}
-        placeholder={t("shared_select_compliance")}
+        placeholder={t("shared_select_compliance") || "Select Compliance Tier"}
         disableTint={true}
       />
     </div>
@@ -960,7 +1011,7 @@ export function CustomClassificationDropdown({
         value={value}
         options={options}
         onChange={(v: string[]) => onChange(v[0])}
-        placeholder={t("shared_select_classification")}
+        placeholder={t("shared_select_classification") || "Select Classification"}
         disableTint={true}
         className={className}
         buttonClassName={buttonClassName}
@@ -969,10 +1020,10 @@ export function CustomClassificationDropdown({
     </div>
   );
 }
-export function CustomTierDropdown({ value, onChange, className }: any) {
+export function CustomTierDropdown({ value, onChange }: any) {
   const { t } = useLexicon();
-  const isInsideSidePanel = React.useContext(SidePanelContext);
   const [isOpen, setIsOpen] = useState(false);
+  const instanceId = React.useId();
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({
     top: 0,
@@ -980,6 +1031,18 @@ export function CustomTierDropdown({ value, onChange, className }: any) {
     width: 0,
     isDropUp: false,
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    window.dispatchEvent(
+      new CustomEvent("sa-close-popovers", { detail: instanceId }),
+    );
+    const onOtherOpen = (e: any) => {
+      if (e.detail !== instanceId) setIsOpen(false);
+    };
+    window.addEventListener("sa-close-popovers", onOtherOpen);
+    return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
+  }, [isOpen, instanceId]);
 
   React.useLayoutEffect(() => {
     if (!isOpen) return;
@@ -1010,19 +1073,19 @@ export function CustomTierDropdown({ value, onChange, className }: any) {
   const options = [
     {
       id: 4,
-      label: t("tier4"),
+      label: t("tier4") || "Severity 4: Fatal Collision",
       color: "theme-text-danger",
       glow: "theme-bg-danger",
       activeBg:
-        "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]",
+        "bg-[color-mix(in_srgb,var(--danger)_14%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]",
     },
     {
       id: 3,
-      label: t("tier3"),
+      label: t("tier3") || "Severity 3: Tuning Overlap",
       color: "theme-text-warning",
       glow: "theme-bg-warning",
       activeBg:
-        "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]",
+        "bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]",
     },
   ];
 
@@ -1036,7 +1099,7 @@ export function CustomTierDropdown({ value, onChange, className }: any) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-12 glass-surface rounded-xl px-5 text-[11px] font-black capitalize tracking-widest focus:outline-none flex justify-start items-center transition-all ${selected.color}`}
+        className={`w-full h-12 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] px-5 text-xs font-bold capitalize tracking-wide focus:outline-none flex justify-start items-center transition-all ${selected.color}`}
       >
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${selected.glow}`} />
@@ -1044,7 +1107,9 @@ export function CustomTierDropdown({ value, onChange, className }: any) {
         </div>
         <span className="transition-colors shrink-0 flex items-center justify-center text-[var(--subtext)] opacity-60 ml-auto">
           <span className="material-symbols-outlined !text-[20px]">
-            {isOpen ? "expand_less" : "expand_more"}
+            {isOpen
+              ? t("icon_expand_less") || "expand_less"
+              : t("icon_expand_more") || "expand_more"}
           </span>
         </span>
       </button>
@@ -1054,13 +1119,13 @@ export function CustomTierDropdown({ value, onChange, className }: any) {
           <>
             <div
               className="fixed inset-0 pointer-events-auto"
-              style={{ zIndex: 500000 }}
+              style={{ zIndex: 100000000 }}
               onClick={() => setIsOpen(false)}
             />
             <div
               className="fixed pointer-events-none"
               style={{
-                zIndex: 500001,
+                zIndex: 100000001,
                 top: coords.isDropUp ? undefined : coords.top,
                 bottom: coords.isDropUp ? coords.top : undefined,
                 left: coords.left,
@@ -1069,16 +1134,9 @@ export function CustomTierDropdown({ value, onChange, className }: any) {
               }}
             >
               <div
-                className={`absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel portal-glass-fix ${isInsideSidePanel ? "!border-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md shadow-[0_0_40px_rgba(0,0,0,0.5)]" : "border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl"} rounded-[var(--radius)] animate-in fade-in slide-in-from-top-2 flex flex-col`}
+                className="absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 duration-150 flex flex-col p-1.5 gap-0.5"
               >
-                <style>{`
-                #sa-portals .portal-glass-fix::before,
-                #sa-portals .portal-glass-fix .glass-surface::before,
-                #sa-portals .portal-glass-fix .glass-panel::before {
-                  display: block !important;
-                }
-              `}</style>
-                <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col">
+                <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-0.5">
                   {options.map((opt) => (
                     <button
                       key={opt.id}
@@ -1087,12 +1145,12 @@ export function CustomTierDropdown({ value, onChange, className }: any) {
                         onChange(opt.id);
                         setIsOpen(false);
                       }}
-                      className={`w-full text-left px-5 py-4 transition-colors border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex items-center gap-3 ${value === opt.id ? opt.activeBg + " " + opt.color : "text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-70 hover:opacity-100"}`}
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-colors flex items-center gap-3 ${value === opt.id ? opt.activeBg + " " + opt.color : "text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] opacity-85 hover:opacity-100"}`}
                     >
                       <div
                         className={`w-2 h-2 rounded-full ${opt.glow} ${value === opt.id ? "animate-pulse" : ""}`}
                       />
-                      <span className="text-[11px] font-black capitalize tracking-widest">
+                      <span className="text-xs font-semibold capitalize tracking-wide">
                         {opt.label}
                       </span>
                     </button>
@@ -1114,6 +1172,7 @@ export function HubTabDropdown({
   setTab,
   variant = "default",
 }: any) {
+  const { t } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -1153,7 +1212,9 @@ export function HubTabDropdown({
         )}
         {displayLabel}
         <span className="material-symbols-outlined !text-md ml-1 opacity-50">
-          {isOpen ? "expand_less" : "expand_more"}
+          {isOpen
+            ? t("icon_expand_less") || "expand_less"
+            : t("icon_expand_more") || "expand_more"}
         </span>
       </button>
 
@@ -1166,7 +1227,7 @@ export function HubTabDropdown({
           />
           <div
             ref={menuRef}
-            className={`absolute mt-2 min-w-[200px] glass-panel border ${variant === "panel" ? "!border-transparent" : "border-[color-mix(in_srgb,var(--accent)_20%,transparent)]"} rounded-[var(--radius)] shadow-xl pointer-events-auto flex flex-col p-1 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md`}
+            className={`absolute mt-2 min-w-[200px] glass-panel portal-glass-fix border ${variant === "panel" ? "border-[rgba(var(--text-rgb,255,255,255),0.12)]" : "border-[color-mix(in_srgb,var(--accent)_25%,transparent)]"} rounded-[var(--radius)] pointer-events-auto flex flex-col p-1.5 gap-0.5 animate-in fade-in zoom-in-95 duration-150`}
             style={{
               zIndex: 200001,
               top: "calc(100% + 4px)",
@@ -1186,7 +1247,7 @@ export function HubTabDropdown({
               ),
             }}
           >
-            <div className="px-3 py-2 text-[12px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-1">
+            <div className="px-3.5 py-2 text-[11px] font-bold capitalize tracking-wider text-[var(--subtext)] opacity-60 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] mb-0.5">
               {label}
             </div>
             {options.map((opt: any) => (
@@ -1196,18 +1257,23 @@ export function HubTabDropdown({
                   setTab(opt.id);
                   setIsOpen(false);
                 }}
-                className={`px-4 py-3 w-full flex items-center gap-3 rounded-lg text-[12px] font-black capitalize tracking-widest transition-all text-left group relative overflow-hidden ${
+                className={`px-3.5 py-2.5 w-full flex items-center gap-3 rounded-xl text-xs font-semibold capitalize tracking-wide transition-all text-left group relative overflow-hidden ${
                   activeTab === opt.id
-                    ? "bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] shadow-[inset_0_0_15px_rgba(0,0,0,0.1)] border-l-[3px] border-[var(--accent)] pl-3"
-                    : "text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)] border-l-[3px] border-transparent"
+                    ? "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)] font-bold"
+                    : "text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]"
                 }`}
               >
                 {opt.icon && (
-                  <span className="material-symbols-outlined !text-md opacity-80">
+                  <span className="material-symbols-outlined !text-[16px] opacity-80">
                     {opt.icon}
                   </span>
                 )}
-                {opt.label}
+                <span className="flex-1 truncate">{opt.label}</span>
+                {activeTab === opt.id && (
+                  <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                    {t("icon_check") || "check"}
+                  </span>
+                )}
               </button>
             ))}
           </div>

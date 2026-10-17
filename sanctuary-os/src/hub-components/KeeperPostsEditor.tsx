@@ -17,6 +17,7 @@ import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import { logArchitectAction } from "../lib/audit";
+import { extractDispatchMetadata, DispatchMetadataHeader, DispatchPollBuilder, DispatchPollViewer, DispatchPollData } from "../components/universal/DispatchPollAndMeta";
 
 export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfinderProfile, isOversight, isSidePanel, isOpen, onClose }: { authorId: string, authorProfileId: string, handleOpenWayfinderProfile?: (authorId: string, postId?: string) => void, isOversight?: boolean, isSidePanel?: boolean, isOpen?: boolean, onClose?: () => void }) {
   if (isSidePanel && !isOpen) return null;
@@ -51,6 +52,8 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
   const [deliveryMethod, setDeliveryMethod] = useState<"Dispatch" | "Alert">("Dispatch");
   const [isUrgent, setIsUrgent] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [actionRequired, setActionRequired] = useState<string>("");
+  const [pollData, setPollData] = useState<DispatchPollData | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const [filterAudience, setFilterAudience] = useState("All");
@@ -75,15 +78,18 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
             rawContent = rawContent.substring(endIdx + 1).trim();
           }
         }
+        const parsedMeta = extractDispatchMetadata(editingPost, rawContent);
 
         isUnchanged =
           title === editingPost.title &&
-          content === rawContent &&
+          content === parsedMeta.cleanContent &&
           targetAudience.join(',') === (editingPost.target_audience || "All") &&
           category === (editingPost.category || "Update") &&
           codeSnippet === (editingPost.code_snippet || "") &&
           deliveryMethod === (editingPost.category?.includes("Alert") || isPostPinned(editingPost) ? "Alert" : "Dispatch") &&
-          isUrgent === isPostPinned(editingPost);
+          isUrgent === isPostPinned(editingPost) &&
+          actionRequired === (editingPost.action_required || parsedMeta.actionRequired || "") &&
+          JSON.stringify(pollData || null) === JSON.stringify(editingPost.poll_data || null);
       } else {
         isUnchanged = title === "" &&
           description === "" &&
@@ -94,7 +100,9 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
           codeSnippet === "" &&
           deliveryMethod === "Dispatch" &&
           isUrgent === false &&
-          isActive === true;
+          isActive === true &&
+          actionRequired === "" &&
+          pollData === null;
       }
 
       if (isUnchanged) {
@@ -107,11 +115,11 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       } else {
         setWayfinderDrafts(prev => ({
           ...prev,
-          [draftId]: { title, description, content, targetAudience, category, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive }
+          [draftId]: { title, description, content, targetAudience, category, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive, actionRequired, pollData }
         }));
       }
     }
-  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive]);
+  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive, actionRequired, pollData]);
 
   const updateTimeoutRef = useRef<any>(null);
 
@@ -194,6 +202,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
 
   const openEditor = (post?: any) => {
     setViewMode('edit');
+    setConfirmDelete(null);
     const draftId = post ? post.id : 'new';
     const draft = useStore.getState().wayfinderDrafts[draftId];
 
@@ -209,24 +218,29 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
         rawContent = rawContent.replace(new RegExp(`<img[^>]+src=["']${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>\\s*`, 'i'), '');
       }
       rawContent = rawContent.replace(/\[IMG:.*?\]\s*/, '').trim();
+      const parsedMeta = extractDispatchMetadata(post, rawContent);
 
       setTitle(draft?.title ?? post.title);
       setDescription(draft?.description ?? (post.description || ""));
       setTargetAudience(draft?.targetAudience ?? (post.target_audience ? post.target_audience.split(',') : ["All"]));
-      setCategory(draft?.category ?? (post.category || "Update"));
+      const rawCat = draft?.category ?? (post.category || "Update");
+      setCategory(rawCat === "Info" ? "Information" : rawCat);
       setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
       setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
-      setDeliveryMethod(draft?.deliveryMethod ?? (editingPost?.category?.includes("Alert") || isPostPinned(editingPost) ? "Alert" : "Dispatch"));
+      setDeliveryMethod(draft?.deliveryMethod ?? (post?.category?.includes("Alert") || isPostPinned(post) ? "Alert" : "Dispatch"));
       setIsUrgent(draft?.isUrgent ?? isPostPinned(post));
       setIsActive(draft?.isActive ?? (post.is_active !== false));
+      setActionRequired(draft?.actionRequired ?? (post.action_required || parsedMeta.actionRequired || ""));
+      setPollData(draft?.pollData !== undefined ? draft.pollData : (post.poll_data || null));
 
-      const contentToSet = draft?.content ?? rawContent;
+      const contentToSet = draft?.content ?? parsedMeta.cleanContent;
       setContent(contentToSet);
       if (editor) {
         editor.commands.setContent(contentToSet);
       }
       setImageUrl(draft?.imageUrl ?? parsedImage);
     } else {
+      setEditingPostId(null);
       setEditingPost(null);
       setTitle(draft?.title ?? "");
       setDescription(draft?.description ?? "");
@@ -244,12 +258,15 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       setDeliveryMethod(draft?.deliveryMethod ?? "Dispatch");
       setIsUrgent(draft?.isUrgent ?? false);
       setIsActive(draft?.isActive ?? true);
+      setActionRequired(draft?.actionRequired ?? "");
+      setPollData(draft?.pollData ?? null);
     }
     setIsEditorOpen(true);
   };
 
   const closeEditor = () => {
     setIsEditorOpen(false);
+    setConfirmDelete(null);
     if (editingPostId) {
       const post = posts.find(p => p.id === editingPostId);
       if (post) {
@@ -282,6 +299,8 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
     setDeliveryMethod("Dispatch");
     setIsUrgent(false);
     setIsActive(true);
+    setActionRequired("");
+    setPollData(null);
   };
 
   const handleDiscardChanges = () => {
@@ -311,11 +330,23 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
     
     if (!title.trim() || !finalContent.trim()) return;
 
+    if (pollData && (!pollData.question?.trim() || pollData.options?.filter(o => o.label?.trim()).length < 2)) {
+      alert(t("poll_err_incomplete", "Please enter a poll question and at least 2 options, or remove the poll before posting."));
+      return;
+    }
+
     setIsSubmitting(true);
     let finalCategory = category;
-    if (deliveryMethod === "Alert") finalCategory = "Alert";
+    if (deliveryMethod === "Alert" && !category.toLowerCase().includes("alert")) finalCategory = "Alert";
     let isPinned = deliveryMethod === "Alert" && isUrgent;
-    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: finalCategory, target_audience: targetAudience.join(','), code_snippet: codeSnippet.trim() || null, is_pinned: isPinned, is_active: isActive };
+    let validPollData = pollData && pollData.question?.trim() && pollData.options?.filter(o => o.label?.trim()).length >= 2
+      ? {
+          ...pollData,
+          question: pollData.question.trim(),
+          options: pollData.options.filter(o => o.label?.trim()).map(o => ({ ...o, label: o.label.trim() }))
+        }
+      : null;
+    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: finalCategory, target_audience: targetAudience.join(','), code_snippet: codeSnippet.trim() || null, is_pinned: isPinned, is_active: isActive, action_required: actionRequired.trim() || null, poll_data: validPollData };
     if (imageUrl.trim()) payload.message = `[IMG:${imageUrl.trim()}]\n\n` + payload.message;
 
     let error = null;
@@ -391,7 +422,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
       const searchMatch = p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.message || p.content)?.toLowerCase().includes(searchTerm.toLowerCase());
       const audienceMatch = filterAudience === "All" || (p.target_audience && p.target_audience.includes(filterAudience));
-      const categoryMatch = filterCategory === "All" || p.category === filterCategory;
+      const categoryMatch = filterCategory === "All" || p.category === filterCategory || ((filterCategory === "Info" || filterCategory === "Information") && (p.category === "Info" || p.category === "Information"));
       const statusMatch = filterStatus === "All" || filterStatus === "overview" || (filterStatus === "Active" ? p.is_active !== false : p.is_active === false);
       return searchMatch && audienceMatch && categoryMatch && statusMatch;
     });
@@ -415,27 +446,9 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
           badges={[
               <span key="date" className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{new Date(post.created_at).toLocaleDateString()}</span>,
               isPostPinned(post) ? <span key="urgent" className="text-[9px] font-black capitalize tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] px-2 py-0.5 rounded-md flex items-center gap-1 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md"><span className="material-symbols-outlined !text-[10px]">warning_amber</span>{t("urgent_alert")}</span> : null,
+              post.poll_data && post.poll_data.question ? <span key="poll" className="text-[9px] font-black capitalize tracking-widest text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2 py-0.5 rounded-md flex items-center gap-1 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] backdrop-blur-md"><span className="material-symbols-outlined !text-[10px]">{t("icon_poll", "poll")}</span>{t("poll_badge", "Poll")}</span> : null,
               hasUnsavedEdits ? <span key="unsaved" className="text-[9px] font-black capitalize tracking-widest text-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] px-2 py-0.5 rounded-md flex items-center gap-1 border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] backdrop-blur-xl"><span className="material-symbols-outlined !text-[10px]">edit_note</span>{t("ph_unsaved_changes")}</span> : null
           ].filter(Boolean)}
-          footer={
-            <div className={`mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex gap-2 transition-opacity duration-300 relative z-20 ${confirmDelete === post.id ? 'justify-center w-full' : 'justify-end'}`}>
-                {confirmDelete === post.id ? (
-                    <>
-                        <span className="text-[10px] font-black text-[var(--danger)] capitalize tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
-                            <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
-                        </span>
-                        <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("nav_cancel")}</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-md transition-all duration-300 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
-                    </>
-                ) : (
-                    <>
-                        <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("btn_view")}</button>
-                        <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
-                        <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
-                    </>
-                )}
-            </div>
-          }
         >
           {extractPostImage(post) && (
             <div className="w-full h-32 rounded-xl overflow-hidden mb-3 relative group">
@@ -532,7 +545,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                   options={[
                     { id: "All", label: t("all_classes") },
                     { id: "Update", label: t("category_update") },
-                    { id: "Info", label: t("category_info") },
+                    { id: "Information", label: t("category_info") },
                     { id: "Alert", label: t("category_alert") }
                   ]}
                 />
@@ -587,6 +600,27 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
             subtitle={editingPostId ? (t("editing_record")) : (t("composing_broadcast"))}
             headerActions={
               <PanelHeaderGroup>
+                {editingPostId && (
+                  <>
+                    {confirmDelete === editingPostId ? (
+                      <PanelHeaderButton
+                        onClick={() => { handleDelete(editingPostId); setConfirmDelete(null); closeEditor(); }}
+                        tooltip={t("btn_confirm_delete", "Click again to permanently delete")}
+                        icon="delete_forever"
+                        variant="danger"
+                        className="animate-pulse"
+                      />
+                    ) : (
+                      <PanelHeaderButton
+                        onClick={() => setConfirmDelete(editingPostId)}
+                        tooltip={t("purge", "Delete Post")}
+                        icon="delete"
+                        variant="danger"
+                      />
+                    )}
+                    <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-2" />
+                  </>
+                )}
                 {((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
                   <PanelHeaderButton icon={confirmDiscard ? "warning" : "close"} variant={confirmDiscard ? "danger" : "default"} tooltip={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))} onClick={handleDiscardChanges} disabled={isSubmitting} />
                 )}
@@ -639,14 +673,14 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                       />
                       <RadioCard
                         active={deliveryMethod === "Alert" && !isUrgent}
-                        onClick={() => { setDeliveryMethod("Alert"); setIsUrgent(false); if (["Update", "Info"].includes(category)) setCategory("Alert"); }}
+                        onClick={() => { setDeliveryMethod("Alert"); setIsUrgent(false); if (["Update", "Info", "Information"].includes(category)) setCategory("Alert"); }}
                         icon="notifications"
                         label="Standard Alert"
                         desc="High visibility notice"
                       />
                       <RadioCard
                         active={deliveryMethod === "Alert" && isUrgent}
-                        onClick={() => { setDeliveryMethod("Alert"); setIsUrgent(true); if (["Update", "Info"].includes(category)) setCategory("Alert"); }}
+                        onClick={() => { setDeliveryMethod("Alert"); setIsUrgent(true); if (["Update", "Info", "Information"].includes(category)) setCategory("Alert"); }}
                         icon="notification_important"
                         label="Urgent Alert"
                         desc="Critical system banner"
@@ -694,7 +728,7 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                               { id: "Alert", label: t("category_alert") }
                             ] : [
                               { id: "Update", label: t("category_update") },
-                              { id: "Info", label: t("category_info") }
+                              { id: "Information", label: t("category_info", "Information") }
                             ]
                           }
                           placeholder={t("auto_select_category")}
@@ -702,6 +736,40 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                       </div>
                     </div>
                   </div>
+
+                  <div className="flex flex-col gap-2 w-full">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_action_required", "Action Required")}</label>
+                    <div className="h-14">
+                      <CustomDropdown
+                        disableTint={true}
+                        searchable={true}
+                        allowCustom={true}
+                        value={actionRequired || "No Action Required"}
+                        onChange={(v: string[]) => setActionRequired(v[0] === "No Action Required" ? "" : (v[0] || ""))}
+                        options={[
+                          { id: "No Action Required", label: t("dispatch_action_none", "No Action Required") },
+                          { id: "Review Required", label: t("dispatch_action_review", "Review Required") },
+                          { id: "Review Prior to Updating", label: t("dispatch_action_review_update", "Review Prior to Updating") },
+                          { id: "Update Required", label: t("dispatch_action_update", "Update Required") },
+                          { id: "Global Alerts - Elevated Malware Risk", label: t("dispatch_action_malware", "Global Alerts - Elevated Malware Risk") },
+                          { id: "Clarify with Oversight & Architect Teams", label: t("dispatch_action_clarify", "Clarify with Oversight & Architect Teams") },
+                          ...(actionRequired && !["No Action Required", "Review Required", "Review Prior to Updating", "Update Required", "Global Alerts - Elevated Malware Risk", "Clarify with Oversight & Architect Teams"].includes(actionRequired)
+                            ? [{ id: actionRequired, label: actionRequired }]
+                            : [])
+                        ]}
+                        placeholder={t("dispatch_action_ph", "Select or enter custom action required...")}
+                      />
+                    </div>
+                  </div>
+
+                  <DispatchMetadataHeader
+                    categoryOverride={category || "Dispatch"}
+                    audienceOverride={targetAudience}
+                    availableTargets={["Keeper Core", ...partnerDatabases.map(db => db.name)]}
+                    deliveryMethodOverride={deliveryMethod}
+                    isUrgentOverride={isUrgent}
+                    actionRequiredOverride={actionRequired}
+                  />
 
                   <div className="flex flex-col gap-2">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("header_image_placeholder")}</label>
@@ -801,6 +869,11 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                       </div>
                     </div>
                   </div>
+
+                  <DispatchPollBuilder
+                    pollData={pollData}
+                    onChange={setPollData}
+                  />
                 </div>
               ) : (
                 <div className="flex flex-col gap-6 mt-4">
@@ -817,9 +890,31 @@ export function KeeperPostsEditor({ authorId, authorProfileId, handleOpenWayfind
                     <h1 className="text-3xl font-black text-[var(--text)] capitalize tracking-tight">{title || (t("untitled"))}</h1>
                   </div>
 
+                  <DispatchMetadataHeader
+                    categoryOverride={category || "Dispatch"}
+                    audienceOverride={targetAudience}
+                    availableTargets={["Keeper Core", ...partnerDatabases.map(db => db.name)]}
+                    deliveryMethodOverride={deliveryMethod}
+                    isUrgentOverride={isUrgent}
+                    actionRequiredOverride={actionRequired}
+                  />
+
                   <div className="markdown-body p-6 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shadow-inner relative z-20">
                     {content ? <MarkdownRenderer content={content} onAssetClick={(type: string, id: string) => setActiveAsset({ type, id })} /> : <p className="text-[var(--subtext)] opacity-50 italic">{t("no_content_preview")}</p>}
                   </div>
+
+                  {pollData && (
+                    <DispatchPollViewer
+                      post={{ id: editingPostId || "preview", poll_data: pollData, _sourceTable: "keeper_system_broadcasts" }}
+                      userId={null}
+                    />
+                  )}
+
+                  {pollData && (
+                    <DispatchPollViewer
+                      post={{ id: editingPostId || "preview", poll_data: pollData, _sourceTable: "keeper_system_broadcasts" }}
+                    />
+                  )}
                 </div>
               )}
             </div>

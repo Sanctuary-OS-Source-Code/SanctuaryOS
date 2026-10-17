@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { supabase, getActiveGameClient } from "../supabase";
+import { supabase, supabaseAuth, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown, ActionButton, FilterTabs, FilterTabButton, ViewToggle, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile } from "../shared";
 import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from '../components/universal/UniversalLayout';
 import { useStore } from '../store';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
+import { isDesktop } from '../utils/envUtils';
 
 export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initialQuery = "", initialHeuristicEdit = null, sourceHub = "Oversight", isMalwareOnly = false, onSuccess }: any) {
   const { t } = useLexicon();
@@ -27,23 +28,31 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
   const [notes, setNotes] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const loadSignatures = async () => {
     try {
-      const config = await invoke<any>('get_saved_coordinates');
-      const vaultPath = config.vault_path;
-      const sigs = await invoke<any[]>('get_heuristic_signatures', { vaultPath });
-      setSignatures(sigs);
-      
-      const { data } = await supabase.from('heuristic_signatures').select('*');
-      if (data && data.length > 0) {
-        const mergedMap = new Map<string, any>();
-        sigs.forEach(s => mergedMap.set(s.id, s));
-        data.forEach(s => mergedMap.set(s.id, s));
-        const merged = Array.from(mergedMap.values());
-        
-        await invoke('save_heuristic_signatures', { vaultPath, signatures: merged });
-        setSignatures(merged);
+      const [{ data: coreData }, { data: spokeData }] = await Promise.all([
+        supabaseAuth.from('keeper_heuristic_signatures').select('*'),
+        supabase.from('heuristic_signatures').select('*')
+      ]);
+
+      const mergedMap = new Map<string, any>();
+      if (coreData) {
+        coreData.forEach(s => mergedMap.set(`core_${s.id}`, { ...s, tier_scope: 'core_os' }));
+      }
+      if (spokeData) {
+        spokeData.forEach(s => mergedMap.set(`spoke_${s.id}`, { ...s, tier_scope: 'spoke' }));
+      }
+      const merged = Array.from(mergedMap.values());
+      setSignatures(merged);
+
+      if (isDesktop() && merged.length > 0) {
+        const config = await invoke<any>('get_saved_coordinates');
+        const vaultPath = config.vault_path;
+        if (vaultPath) {
+          await invoke('save_heuristic_signatures', { vaultPath, signatures: merged });
+        }
       }
     } catch (e: any) {
       console.error("Failed to load signatures:", e);
@@ -57,6 +66,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     setNotes(sigObj.notes || "");
     setEnabled(sigObj.enabled);
     setEditingId(sigObj.id);
+    setConfirmDelete(false);
   };
 
   useEffect(() => {
@@ -64,6 +74,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       setManualSearchQuery(initialQuery);
       setManualSelectedMod(null);
       setManualTier(isMalwareOnly ? 5 : 5);
+      setConfirmDelete(false);
       loadSignatures();
       
       if (initialHeuristicEdit) {
@@ -71,6 +82,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         startEditHeuristic(initialHeuristicEdit);
       } else if (!initialQuery) {
         setActiveTab("registry");
+        setEditingId(null);
       }
     }
   }, [isOpen, initialQuery, initialHeuristicEdit]);
@@ -115,7 +127,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
 
   const handleManualFlag = async () => {
     if ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim()) {
-      useStore.getState().pushStatus(t("comp_manual_alert_req"));
+      useStore.getState().pushStatus(t("comp_manual_alert_req") || "Required fields missing");
       return;
     }
     setIsSubmitting(true);
@@ -164,14 +176,14 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
          reason: registryReason.trim()
       }});
 
-      useStore.getState().pushStatus(t("comp_manual_alert_success"));
+      useStore.getState().pushStatus(t("comp_manual_alert_success") || "Flagged successfully");
       onClose();
       if (onSuccess) onSuccess();
       if (manualTier === 3) {
          window.dispatchEvent(new CustomEvent('force-radar-sweep'));
       }
     } catch (err: any) {
-      useStore.getState().pushStatus((t("comp_manual_alert_fail")) + " " + err.message);
+      useStore.getState().pushStatus((t("comp_manual_alert_fail") || "Failed:") + " " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -208,18 +220,12 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
          reason: "Manual addition/edit via Oversight"
       }});
 
-      const updated = editingId 
-        ? signatures.map(s => s.id === id ? newObj : s)
-        : [...signatures.filter(s => s.id !== id), newObj];
-        
-      const config = await invoke<any>('get_saved_coordinates');
-      const vaultPath = config.vault_path;
-      await invoke('save_heuristic_signatures', { vaultPath, signatures: updated });
-      setSignatures(updated);
+      await loadSignatures();
       
       resetHeuristicForm();
-      useStore.getState().pushStatus(t("auto_heuristic_signature_saved"));
+      useStore.getState().pushStatus(t("auto_heuristic_signature_saved") || "Heuristic signature saved");
       window.dispatchEvent(new CustomEvent('force-heuristics-refresh'));
+      onClose();
       if (onSuccess) onSuccess();
     } catch (e: any) {
       useStore.getState().pushStatus("Error: " + e.message);
@@ -234,12 +240,14 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     setNotes("");
     setEnabled(true);
     setEditingId(null);
+    setConfirmDelete(false);
     setRegistryReason("");
     setManualSearchQuery("");
     setManualSelectedMod(null);
   };
 
   const handleRemoveHeuristic = async (id: string) => {
+    setIsSubmitting(true);
     try {
       await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'heuristic_signatures', p_id: id });
       
@@ -252,14 +260,16 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
          reason: "Manual removal via Oversight"
       }});
 
-      const updated = signatures.filter(s => s.id !== id);
-      const config = await invoke<any>('get_saved_coordinates');
-      const vaultPath = config.vault_path;
-      await invoke('save_heuristic_signatures', { vaultPath, signatures: updated });
-      setSignatures(updated);
+      await loadSignatures();
+      resetHeuristicForm();
+      useStore.getState().pushStatus(t("btn_delete") || "Deleted");
       window.dispatchEvent(new CustomEvent('force-heuristics-refresh'));
+      onClose();
+      if (onSuccess) onSuccess();
     } catch (e: any) {
       console.error(e);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -267,15 +277,30 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("comp_manual_title")}
-      subtitle={t("comp_manual_subtitle")}
-      icon={t("icon_flag")}
+      title={t("comp_manual_title") || "Manual Flag"}
+      subtitle={t("comp_manual_subtitle") || "Oversight Intervention"}
+      icon={t("icon_flag") || "flag"}
       iconColorClass={isMalwareOnly ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" : "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"}
       headerActions={
         <PanelHeaderGroup>
+          {activeTab === 'heuristic' && editingId && (
+            <PanelHeaderButton
+              icon={confirmDelete ? (t("icon_warning") || "warning") : (t("icon_delete") || "delete")}
+              tooltip={confirmDelete ? (t("btn_confirm_delete") || "Confirm Delete") : (t("btn_delete") || "Delete")}
+              variant="danger"
+              disabled={isSubmitting}
+              onClick={() => {
+                if (!confirmDelete) {
+                  setConfirmDelete(true);
+                  return;
+                }
+                handleRemoveHeuristic(editingId);
+              }}
+            />
+          )}
           <PanelHeaderButton
-            icon="flag"
-            tooltip={isSubmitting ? (t("btn_submitting")) : (t("comp_manual_btn_insert"))}
+            icon={t("icon_flag") || "flag"}
+            tooltip={isSubmitting ? (t("btn_submitting") || "Submitting...") : (t("comp_manual_btn_insert") || "Save")}
             disabled={isSubmitting || (activeTab === 'registry' && ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())) || (activeTab === 'heuristic' && (!newSig.trim() || !notes.trim()))}
             onClick={activeTab === 'registry' ? handleManualFlag : handleAddHeuristic}
           />

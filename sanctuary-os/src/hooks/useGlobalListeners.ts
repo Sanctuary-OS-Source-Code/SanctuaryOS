@@ -21,14 +21,41 @@ export function useGlobalListeners(
     let accumulatedPaths: Set<string> = new Set();
 
     tauriBridge.listenToVaultChanges((path?: string) => {
+      const modalState = useModalStore.getState();
+      if (modalState.isScanning || modalState.isSilentScanning) {
+        return;
+      }
+
       if (path) {
-        accumulatedPaths.add(path.replace(/\\/g, '/'));
+        const normalized = path.replace(/\\/g, '/');
+        const lower = normalized.toLowerCase();
+        if (
+          lower.endsWith('.json') ||
+          lower.endsWith('.db') ||
+          lower.endsWith('.db-journal') ||
+          lower.endsWith('.db-wal') ||
+          lower.endsWith('.db-shm') ||
+          lower.includes('/blueprints/') ||
+          lower.includes('/quarantine/') ||
+          lower.includes('/.sanctuary_quarantine/') ||
+          lower.includes('/data/') ||
+          lower.includes('/backups/')
+        ) {
+          return;
+        }
+        accumulatedPaths.add(normalized);
       }
 
       if (vaultTimeout) {
         clearTimeout(vaultTimeout);
       }
       vaultTimeout = setTimeout(() => {
+        const currentModalState = useModalStore.getState();
+        if (currentModalState.isScanning || currentModalState.isSilentScanning) {
+          accumulatedPaths.clear();
+          return;
+        }
+
         if (accumulatedPaths.size > 0) {
           const pathsToUpdate = new Set(accumulatedPaths);
           accumulatedPaths.clear();
@@ -46,7 +73,7 @@ export function useGlobalListeners(
 
         fetchBackups();
         window.dispatchEvent(new Event('force-radar-sweep'));
-      }, 200);
+      }, 800);
     }).then(u => { unlisten = u; });
 
     return () => {
@@ -58,10 +85,21 @@ export function useGlobalListeners(
   useEffect(() => {
     let unlisten: any = null;
     tauriBridge.listenToScanProgress((payload: any) => {
-      if (payload && payload.total) {
-        payload.total = payload.total * 2;
+      if (!payload) return;
+      if (useModalStore.getState().isSilentScanning) return;
+      const pct =
+        payload.total > 0
+          ? Math.min(50, Math.max(1, Math.round((payload.current / payload.total) * 50)))
+          : 1;
+      const prev = useStore.getState().scanProgress;
+      if (prev && prev.current > pct && prev.current < 100) {
+        return;
       }
-      setScanProgress(payload);
+      setScanProgress({
+        current: pct,
+        total: 100,
+        message: payload.message || prev?.message || "",
+      });
     }).then(u => { unlisten = u; });
 
     return () => {

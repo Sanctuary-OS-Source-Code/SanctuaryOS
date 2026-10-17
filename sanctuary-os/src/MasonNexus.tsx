@@ -19,7 +19,7 @@ import { MasonStatusDropdown } from "./MasonHub";
 import { logArchitectAction } from "./lib/audit";
 
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "./components/layouts/ElevatedHubLayout";
-export function MasonNexus({ masonProfile }: { masonProfile: any }) {
+export function MasonNexus({ masonProfile, isVerifiedMason = true }: { masonProfile: any, isVerifiedMason?: boolean }) {
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
   const [assets, setAssets] = useState<any[]>([]);
@@ -352,7 +352,7 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
       onTabChange={(id) => setActiveTab(id as any)}
       hideSearch={activeTab === 'overview'}
       actions={
-        activeTab !== 'overview' && activeTab !== 'blueprint' ? [
+        isVerifiedMason && activeTab !== 'overview' && activeTab !== 'blueprint' ? [
           {
             id: 'add_new',
             icon: <span className="material-symbols-outlined !text-[20px]">add</span>,
@@ -376,32 +376,34 @@ export function MasonNexus({ masonProfile }: { masonProfile: any }) {
         subtitle={uploadState.name || (t("status_draft") || "Draft")}
         icon={uploadState.assetType === 'blueprint' ? "account_tree" : "cloud_upload"}
         headerActions={
-          <PanelHeaderGroup>
-            {uploadState.editId && uploadState.assetType !== 'blueprint' && (
+          isVerifiedMason ? (
+            <PanelHeaderGroup>
+              {uploadState.editId && uploadState.assetType !== 'blueprint' && (
+                <PanelHeaderButton
+                  icon={uploadState.isHidden ? "visibility" : "visibility_off"}
+                  tooltip={uploadState.isHidden ? t("btn_show_asset") || "Publish Asset" : t("btn_hide_asset") || "Hide Asset"}
+                  onClick={async () => {
+                    const newIsPublic = uploadState.isHidden;
+                    const { error } = await supabase.from('nexus_assets').update({ is_public: newIsPublic }).eq('id', uploadState.editId);
+                    if (error) {
+                      useStore.getState().pushStatus(`Failed to update asset visibility: ${error.message} ${error.details ? `(${error.details})` : ''}`, "error");
+                    } else {
+                      useStore.getState().pushStatus(newIsPublic ? "Asset is now public." : "Asset is now hidden.", "success");
+                      setUploadState(s => ({ ...s, isHidden: !newIsPublic }));
+                      fetchAssets();
+                    }
+                  }}
+                />
+              )}
               <PanelHeaderButton
-                icon={uploadState.isHidden ? "visibility" : "visibility_off"}
-                tooltip={uploadState.isHidden ? t("btn_show_asset") || "Publish Asset" : t("btn_hide_asset") || "Hide Asset"}
-                onClick={async () => {
-                  const newIsPublic = uploadState.isHidden;
-                  const { error } = await supabase.from('nexus_assets').update({ is_public: newIsPublic }).eq('id', uploadState.editId);
-                  if (error) {
-                    useStore.getState().pushStatus(`Failed to update asset visibility: ${error.message} ${error.details ? `(${error.details})` : ''}`, "error");
-                  } else {
-                    useStore.getState().pushStatus(newIsPublic ? "Asset is now public." : "Asset is now hidden.", "success");
-                    setUploadState(s => ({ ...s, isHidden: !newIsPublic }));
-                    fetchAssets();
-                  }
-                }}
+                icon="cloud_upload"
+                tooltip={uploadState.editId ? (uploadState.isHidden ? (t("upload_btn_relink") || "Relink") : (t("upload_btn_update") || "Update")) : (t("upload_btn_publish") || "Publish")}
+                onClick={submitUpload}
+                disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
+                variant="accent"
               />
-            )}
-            <PanelHeaderButton
-              icon="cloud_upload"
-              tooltip={uploadState.editId ? (uploadState.isHidden ? (t("upload_btn_relink") || "Relink") : (t("upload_btn_update") || "Update")) : (t("upload_btn_publish") || "Publish")}
-              onClick={submitUpload}
-              disabled={!uploadState.name || (uploadState.language === 'add_new' && !uploadState.newLanguage)}
-              variant="accent"
-            />
-          </PanelHeaderGroup>
+            </PanelHeaderGroup>
+          ) : undefined
         }
       >
         <div className="flex flex-col gap-6">

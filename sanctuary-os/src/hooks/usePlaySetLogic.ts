@@ -6,6 +6,307 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getExtensionRegex, formatDisplayName } from "../shared";
 
+export interface LoadOrderRule {
+  id: string;
+  modA: string;
+  modB: string;
+  type: "after" | "before";
+}
+
+export interface CompiledLoadOrderItem {
+  rawMod: string;
+  cleanName: string;
+  displayName: string;
+  index: number;
+  tierFolder: string;
+  tierId: string;
+  tierLabel: string;
+  tierPriority: number;
+  previewPath: string;
+  autoPromoted?: boolean;
+}
+
+export interface LoadOrderCompilationResult {
+  items: CompiledLoadOrderItem[];
+  cycles: { ruleIds: string[]; chain: string[] }[];
+  strategy: string;
+  manifestFile: string;
+  direction: string;
+  priorityTiers: { id: string; label: string; folder: string; priority: number }[];
+}
+
+export function compileLoadOrder(
+  rawMods: any[] = [],
+  loadRules: LoadOrderRule[] = [],
+  modTiers: Record<string, string> = {},
+  explicitOrder: string[] = [],
+  schema: any = null,
+  modList: any[] = []
+): LoadOrderCompilationResult {
+  const loadOrderCfg = schema?.load_order || {};
+  const strategy = loadOrderCfg.strategy || "folder_priority";
+  const direction = loadOrderCfg.direction || "higher_wins";
+  const manifestFile = loadOrderCfg.manifest_file || "Resource.cfg";
+  const prefixFormat = loadOrderCfg.prefix_format || "{index:03}_";
+  const priorityTiers: { id: string; label: string; folder: string; priority: number }[] =
+    Array.isArray(loadOrderCfg.priority_tiers) && loadOrderCfg.priority_tiers.length > 0
+      ? [...loadOrderCfg.priority_tiers].sort((a, b) => (a.priority || 0) - (b.priority || 0))
+      : [
+          { id: "default", label: "Base Tier", folder: "", priority: 500 },
+          { id: "tier_1", label: "Priority Tier 1", folder: "Sanctuary", priority: 1000 },
+          { id: "tier_2", label: "Priority Tier 2", folder: "Sanctuary2", priority: 2000 },
+          { id: "tier_3", label: "Priority Tier 3", folder: "Sanctuary3", priority: 3000 },
+        ];
+
+  const folderToTierIndex = new Map<string, number>();
+  priorityTiers.forEach((tier, idx) => {
+    folderToTierIndex.set((tier.folder || "").toLowerCase(), idx);
+  });
+
+  const extRegex = getExtensionRegex(schema);
+  const modDisplayMap = new Map<string, string>();
+  for (let i = 0; i < modList.length; i++) {
+    const m = modList[i];
+    if (m?.displayName) {
+      const clean = (m.name || "").split(/[\\/]/).pop() || m.name || "";
+      if (clean) {
+        modDisplayMap.set(clean.toLowerCase(), m.displayName);
+      }
+    }
+  }
+
+  const entryMap = new Map<
+    string,
+    { rawMod: string; cleanName: string; key: string; baseTierIdx: number; explicitPos: number }
+  >();
+
+  const explicitOrderMap = new Map<string, number>();
+  explicitOrder.forEach((n, i) => {
+    const clean = (n.split(/[\\/]/).pop() || n).toLowerCase();
+    if (!explicitOrderMap.has(clean)) explicitOrderMap.set(clean, i);
+  });
+
+  const noExtMap = new Map<string, string>();
+
+  rawMods.forEach((m: any, idx: number) => {
+    const rawStr = typeof m === "string" ? m : String(m?.name || m?.path || "");
+    if (!rawStr) return;
+    const parts = rawStr.split(/[\\/]/);
+    const cleanName = parts[parts.length - 1] || rawStr;
+    const key = cleanName.toLowerCase();
+
+    let detectedFolder = "";
+    if (modTiers[cleanName] !== undefined) {
+      detectedFolder = modTiers[cleanName];
+    } else if (modTiers[key] !== undefined) {
+      detectedFolder = modTiers[key];
+    } else if (parts.length > 1) {
+      const firstSeg = parts[0];
+      if (folderToTierIndex.has(firstSeg.toLowerCase())) {
+        detectedFolder = priorityTiers[folderToTierIndex.get(firstSeg.toLowerCase())!]?.folder || "";
+      }
+    }
+
+    const baseTierIdx = folderToTierIndex.get(detectedFolder.toLowerCase()) ?? 0;
+    const expIdx = explicitOrderMap.get(key);
+    const explicitPos = expIdx !== undefined ? expIdx : 10000 + idx;
+
+    const existing = entryMap.get(key);
+    if (!existing || baseTierIdx > existing.baseTierIdx) {
+      entryMap.set(key, { rawMod: rawStr, cleanName, key, baseTierIdx, explicitPos });
+      noExtMap.set(key.replace(extRegex, ""), key);
+    }
+  });
+
+  const keys = Array.from(entryMap.keys());
+  const effectiveTierIdx = new Map<string, number>();
+  const autoPromotedSet = new Set<string>();
+  keys.forEach((k) => effectiveTierIdx.set(k, entryMap.get(k)!.baseTierIdx));
+
+  const cycles: { ruleIds: string[]; chain: string[] }[] = [];
+  let sortedKeys: string[] = [];
+
+  if (!loadRules || loadRules.length === 0) {
+    sortedKeys = [...keys].sort((a, b) => {
+      const eA = entryMap.get(a)!;
+      const eB = entryMap.get(b)!;
+      if (eA.baseTierIdx !== eB.baseTierIdx) return eA.baseTierIdx - eB.baseTierIdx;
+      return eA.explicitPos - eB.explicitPos;
+    });
+  } else {
+    const resolveModKey = (name: string): string | null => {
+      if (!name) return null;
+      const clean = (name.split(/[\\/]/).pop() || name).toLowerCase();
+      if (entryMap.has(clean)) return clean;
+      const noExt = clean.replace(extRegex, "");
+      return noExtMap.get(noExt) || null;
+    };
+
+    // Build directed graph where edge U -> V means U loads BEFORE V (V loads AFTER U)
+    const adj = new Map<string, { to: string; ruleId: string }[]>();
+    keys.forEach((k) => adj.set(k, []));
+
+    loadRules.forEach((r) => {
+      const kA = resolveModKey(r.modA);
+      const kB = resolveModKey(r.modB);
+      if (!kA || !kB || kA === kB) return;
+      if (r.type === "after") {
+        // modA loads AFTER modB => kB -> kA
+        adj.get(kB)?.push({ to: kA, ruleId: r.id });
+      } else {
+        // modA loads BEFORE modB => kA -> kB
+        adj.get(kA)?.push({ to: kB, ruleId: r.id });
+      }
+    });
+
+    // Detect cycles via DFS & identify back-edges to skip so topological sort always succeeds
+    const visited = new Map<string, number>(); // 0=unvisited, 1=visiting, 2=done
+    const parentNode = new Map<string, string>();
+    const parentRule = new Map<string, string>();
+    const skippedRuleIds = new Set<string>();
+
+    const dfs = (u: string) => {
+      visited.set(u, 1);
+      const edges = adj.get(u) || [];
+      for (const edge of edges) {
+        const v = edge.to;
+        const state = visited.get(v) || 0;
+        if (state === 0) {
+          parentNode.set(v, u);
+          parentRule.set(v, edge.ruleId);
+          dfs(v);
+        } else if (state === 1) {
+          skippedRuleIds.add(edge.ruleId);
+          const chain: string[] = [entryMap.get(v)?.cleanName || v];
+          const ruleIds: string[] = [edge.ruleId];
+          let curr = u;
+          let guard = 0;
+          while (curr && curr !== v && guard < 50) {
+            chain.push(entryMap.get(curr)?.cleanName || curr);
+            const pRule = parentRule.get(curr);
+            if (pRule) ruleIds.push(pRule);
+            curr = parentNode.get(curr) || "";
+            guard++;
+          }
+          chain.push(entryMap.get(v)?.cleanName || v);
+          chain.reverse();
+          cycles.push({ ruleIds, chain });
+        }
+      }
+      visited.set(u, 2);
+    };
+
+    keys.forEach((k) => {
+      if ((visited.get(k) || 0) === 0 && (adj.get(k)?.length || 0) > 0) dfs(k);
+    });
+
+    // Topological sort (Kahn's algorithm) weighted by baseTierIdx and explicitPos
+    const inDegree = new Map<string, number>();
+    const dagAdj = new Map<string, string[]>();
+    keys.forEach((k) => {
+      inDegree.set(k, 0);
+      dagAdj.set(k, []);
+    });
+
+    keys.forEach((u) => {
+      for (const edge of adj.get(u) || []) {
+        if (skippedRuleIds.has(edge.ruleId)) continue;
+        dagAdj.get(u)?.push(edge.to);
+        inDegree.set(edge.to, (inDegree.get(edge.to) || 0) + 1);
+      }
+    });
+
+    const compareKeys = (a: string, b: string) => {
+      const eA = entryMap.get(a)!;
+      const eB = entryMap.get(b)!;
+      const tA = effectiveTierIdx.get(a) ?? eA.baseTierIdx;
+      const tB = effectiveTierIdx.get(b) ?? eB.baseTierIdx;
+      if (tA !== tB) return tA - tB;
+      return eA.explicitPos - eB.explicitPos;
+    };
+
+    let ready: string[] = keys.filter((k) => (inDegree.get(k) || 0) === 0).sort(compareKeys);
+    let headIdx = 0;
+
+    while (headIdx < ready.length) {
+      const u = ready[headIdx++];
+      sortedKeys.push(u);
+      const uTier = effectiveTierIdx.get(u) || 0;
+      const neighbors = dagAdj.get(u) || [];
+      let addedNew = false;
+      for (const v of neighbors) {
+        const curVTier = effectiveTierIdx.get(v) || 0;
+        const maxTierIdx = priorityTiers.length - 1;
+        if (strategy === "folder_priority" && curVTier <= uTier && maxTierIdx > 0) {
+          const promoted = Math.min(uTier + 1, maxTierIdx);
+          if (promoted > curVTier) {
+            effectiveTierIdx.set(v, promoted);
+            autoPromotedSet.add(v);
+          }
+        }
+        const nextIn = (inDegree.get(v) || 1) - 1;
+        inDegree.set(v, nextIn);
+        if (nextIn === 0) {
+          ready.push(v);
+          addedNew = true;
+        }
+      }
+      if (addedNew) {
+        ready = ready.slice(headIdx).sort(compareKeys);
+        headIdx = 0;
+      }
+    }
+
+    if (sortedKeys.length < keys.length) {
+      const seen = new Set(sortedKeys);
+      keys.forEach((k) => {
+        if (!seen.has(k)) sortedKeys.push(k);
+      });
+    }
+  }
+
+  // Also ensure final sequence is grouped by effectiveTierIdx when folder_priority is active and no rule is violated
+  const items: CompiledLoadOrderItem[] = sortedKeys.map((k, idx) => {
+    const entry = entryMap.get(k)!;
+    const tierIdx = effectiveTierIdx.get(k) ?? entry.baseTierIdx;
+    const tier = priorityTiers[tierIdx] || priorityTiers[0];
+    const tierFolder = tier?.folder || "";
+    const displayNum = String(idx + 1).padStart(3, "0");
+
+    let previewPath = entry.cleanName;
+    if (strategy === "numeric_prefix") {
+      const prefix = prefixFormat.replace("{index:03}", displayNum).replace("{index}", String(idx + 1));
+      previewPath = `${prefix}${entry.cleanName}`;
+    } else if (strategy === "manifest_list") {
+      previewPath = `${manifestFile} #${displayNum} ➔ ${entry.cleanName}`;
+    } else {
+      previewPath = tierFolder ? `${tierFolder}/${entry.cleanName}` : entry.cleanName;
+    }
+
+    return {
+      rawMod: entry.rawMod,
+      cleanName: entry.cleanName,
+      displayName: modDisplayMap.get(k) || formatDisplayName(entry.cleanName, undefined, schema),
+      index: idx,
+      tierFolder,
+      tierId: tier?.id || "default",
+      tierLabel: tier?.label || "Base Tier",
+      tierPriority: tier?.priority || 500,
+      previewPath,
+      autoPromoted: autoPromotedSet.has(k),
+    };
+  });
+
+  return {
+    items,
+    cycles,
+    strategy,
+    manifestFile,
+    direction,
+    priorityTiers,
+  };
+}
+
 export function usePlaySetLogic() {
   const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, activeSetName, setActiveSetName, anarchyRules, modList, activeGameSchema, setStatus, ownedDLC, maskedDLC, ignoredGlobal, setIgnoredGlobal } = useStore();
   const { t } = useLexicon();
@@ -855,6 +1156,43 @@ export function usePlaySetLogic() {
            }
         });
 
+        const compiledOrder = compileLoadOrder(
+          targetSet.mods || [],
+          targetSet.loadRules || [],
+          targetSet.modTiers || {},
+          targetSet.loadOrder || [],
+          activeGameSchema,
+          modList
+        );
+        const compiledByClean = new Map<string, CompiledLoadOrderItem>();
+        compiledOrder.items.forEach((item) => {
+          compiledByClean.set(item.cleanName.toLowerCase(), item);
+        });
+        const knownTierFoldersLower = new Set(
+          compiledOrder.priorityTiers.map((pt) => (pt.folder || "").toLowerCase()).filter(Boolean)
+        );
+
+        deployPayload.forEach((dp) => {
+          const flatFileName = dp.path.split(/[\\/]/).pop() || dp.path;
+          const compiled = compiledByClean.get(flatFileName.toLowerCase());
+          if (compiled) {
+            dp.load_order_index = compiled.index;
+            if (compiled.tierFolder) {
+              dp.priority_tier = compiled.tierFolder;
+              const currentTarget = (dp.target_path || flatFileName).replace(/\\/g, "/");
+              const segs = currentTarget.split("/");
+              if (segs.length > 1 && knownTierFoldersLower.has(segs[0].toLowerCase())) {
+                segs[0] = compiled.tierFolder;
+                dp.target_path = segs.join("/");
+              } else {
+                dp.target_path = `${compiled.tierFolder}/${currentTarget}`;
+              }
+            }
+          }
+        });
+
+        deployPayload.sort((a, b) => (a.load_order_index ?? 999999) - (b.load_order_index ?? 999999));
+
       console.timeEnd("equipPlaySet_JS_overhead");
       const msg = await invoke("deploy_playset_bulk", {
         mods: deployPayload,
@@ -977,37 +1315,95 @@ export function usePlaySetLogic() {
     });
   };
 
-  const applyConflictOverride = (winnerName: string, modPair: string, currentScopeName: string) => {
-    console.log('[DEBUG] applyConflictOverride CALLED', {winnerName, modPair, currentScopeName});
-    console.log('[DEBUG] current ignored conflicts:', localStorage.getItem('sanctuary_ignored_conflicts'));
+  const applyConflictOverride = (
+    winnerName: string,
+    modPair: string,
+    currentScopeName: string,
+    targetTierFolder?: string,
+    loserName?: string
+  ) => {
     try {
+      const schemaTiers = activeGameSchema?.load_order?.priority_tiers || [];
+      const firstOverrideTier =
+        targetTierFolder ||
+        schemaTiers.find((pt: any) => pt.folder && pt.folder.length > 0)?.folder ||
+        "Sanctuary";
+      const knownFoldersLower = new Set(
+        ["sanctuary", "sanctuary2", "sanctuary3", ...schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase())].filter(Boolean)
+      );
+
       setPlaySets((prevSets: any[]) => {
         const playSetIndex = prevSets.findIndex((p: any) => p.name.toLowerCase() === currentScopeName.toLowerCase());
         if (playSetIndex !== -1) {
-           const updatedSets = [...prevSets];
-           const currentSet = { ...updatedSets[playSetIndex] };
-           const newMods = [...currentSet.mods];
-           const cleanWinner = typeof winnerName === 'string' ? winnerName.replace(getExtensionRegex(activeGameSchema), "").toLowerCase().replace(/\\/g, '/') : '';
-           const index = newMods.findIndex((m: any) => {
-              const strM = typeof m === 'string' ? m : (m.name || m.path || '');
-              const cleanM = strM.replace(getExtensionRegex(activeGameSchema), "").toLowerCase().replace(/\\/g, '/');
-              return cleanM === cleanWinner || cleanM.endsWith(`/${cleanWinner}`);
-           });
-           if (index !== -1) {
-              const strM = typeof newMods[index] === 'string' ? newMods[index] : (newMods[index].name || newMods[index].path || '');
-              if (!strM.startsWith("Sanctuary/") && !strM.startsWith("Sanctuary\\")) {
-                 if (typeof newMods[index] === 'string') {
-                     newMods[index] = `Sanctuary/${strM}`;
-                 } else {
-                     newMods[index] = { ...newMods[index], name: `Sanctuary/${strM}`, path: `Sanctuary/${strM}` };
-                 }
-              }
-           } else {
-              newMods.push(`Sanctuary/${typeof winnerName === 'string' ? winnerName : (winnerName as any)?.name || ''}`);
-           }
-           currentSet.mods = newMods;
-           updatedSets[playSetIndex] = currentSet;
-           return updatedSets;
+          const updatedSets = [...prevSets];
+          const currentSet = { ...updatedSets[playSetIndex] };
+          const newMods = [...currentSet.mods];
+          const rawWinnerStr = typeof winnerName === "string" ? winnerName : (winnerName as any)?.name || "";
+          const cleanWinnerFile = rawWinnerStr.split(/[\\/]/).pop() || rawWinnerStr;
+          const cleanWinner = cleanWinnerFile.replace(getExtensionRegex(activeGameSchema), "").toLowerCase();
+
+          const index = newMods.findIndex((m: any) => {
+            const strM = typeof m === "string" ? m : m.name || m.path || "";
+            const cleanM = (strM.split(/[\\/]/).pop() || strM)
+              .replace(getExtensionRegex(activeGameSchema), "")
+              .toLowerCase();
+            return cleanM === cleanWinner;
+          });
+
+          if (index !== -1) {
+            const strM = typeof newMods[index] === "string" ? newMods[index] : newMods[index].name || newMods[index].path || "";
+            const segs = strM.replace(/\\/g, "/").split("/");
+            if (segs.length > 1 && knownFoldersLower.has(segs[0].toLowerCase())) {
+              segs.shift();
+            }
+            const baseRel = segs.join("/");
+            const nextPath = firstOverrideTier ? `${firstOverrideTier}/${baseRel}` : baseRel;
+            if (typeof newMods[index] === "string") {
+              newMods[index] = nextPath;
+            } else {
+              newMods[index] = { ...newMods[index], name: nextPath, path: nextPath };
+            }
+          } else if (cleanWinnerFile) {
+            newMods.push(firstOverrideTier ? `${firstOverrideTier}/${cleanWinnerFile}` : cleanWinnerFile);
+          }
+
+          const nextModTiers = { ...(currentSet.modTiers || {}) };
+          if (cleanWinnerFile) {
+            nextModTiers[cleanWinnerFile] = firstOverrideTier;
+          }
+
+          let nextLoadRules: LoadOrderRule[] = Array.isArray(currentSet.loadRules) ? [...currentSet.loadRules] : [];
+          const resolvedLoser =
+            loserName ||
+            (modPair && modPair.includes("::")
+              ? modPair
+                  .split("::")
+                  .find((part) => !cleanWinner.includes(part.toLowerCase()) && !part.toLowerCase().includes(cleanWinner))
+              : undefined);
+          if (cleanWinnerFile && resolvedLoser) {
+            const cleanLoserFile = resolvedLoser.split(/[\\/]/).pop() || resolvedLoser;
+            const wLow = cleanWinnerFile.toLowerCase();
+            const lLow = cleanLoserFile.toLowerCase();
+            nextLoadRules = nextLoadRules.filter(
+              (r) =>
+                !(
+                  (r.modA.toLowerCase() === wLow && r.modB.toLowerCase() === lLow) ||
+                  (r.modA.toLowerCase() === lLow && r.modB.toLowerCase() === wLow)
+                )
+            );
+            nextLoadRules.push({
+              id: `rule_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              modA: cleanWinnerFile,
+              modB: cleanLoserFile,
+              type: "after",
+            });
+          }
+
+          currentSet.mods = newMods;
+          currentSet.modTiers = nextModTiers;
+          currentSet.loadRules = nextLoadRules;
+          updatedSets[playSetIndex] = currentSet;
+          return updatedSets;
         }
         return prevSets;
       });
@@ -1029,5 +1425,206 @@ export function usePlaySetLogic() {
     }
   };
 
-  return { toggleInActiveSet, applyConflictOverride, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet, getMissingStrings, ignoreMissingString, purgeMissingString };
+  const setModPriorityTier = useCallback(
+    (setName: string, modName: string, tierFolder: string) => {
+      const schemaTiers = activeGameSchema?.load_order?.priority_tiers || [];
+      const knownFoldersLower = new Set(
+        ["sanctuary", "sanctuary2", "sanctuary3", ...schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase())].filter(Boolean)
+      );
+      const cleanTarget = (modName.split(/[\\/]/).pop() || modName).toLowerCase();
+
+      setPlaySets((prevSets: any[]) => {
+        const idx = prevSets.findIndex((p: any) => p.name.toLowerCase() === setName.toLowerCase());
+        if (idx === -1) return prevSets;
+        const updatedSets = [...prevSets];
+        const currentSet = { ...updatedSets[idx] };
+        const nextMods = [...(currentSet.mods || [])];
+        const nextModTiers = { ...(currentSet.modTiers || {}) };
+
+        let canonicalFile = modName.split(/[\\/]/).pop() || modName;
+
+        for (let i = 0; i < nextMods.length; i++) {
+          const strM = typeof nextMods[i] === "string" ? nextMods[i] : nextMods[i]?.name || nextMods[i]?.path || "";
+          const fileM = strM.split(/[\\/]/).pop() || strM;
+          if (fileM.toLowerCase() === cleanTarget) {
+            canonicalFile = fileM;
+            const segs = strM.replace(/\\/g, "/").split("/");
+            if (segs.length > 1 && knownFoldersLower.has(segs[0].toLowerCase())) {
+              segs.shift();
+            }
+            const baseRel = segs.join("/");
+            const nextPath = tierFolder ? `${tierFolder}/${baseRel}` : baseRel;
+            if (typeof nextMods[i] === "string") {
+              nextMods[i] = nextPath;
+            } else {
+              nextMods[i] = { ...nextMods[i], name: nextPath, path: nextPath };
+            }
+          }
+        }
+
+        if (tierFolder) {
+          nextModTiers[canonicalFile] = tierFolder;
+        } else {
+          delete nextModTiers[canonicalFile];
+          delete nextModTiers[canonicalFile.toLowerCase()];
+        }
+
+        currentSet.mods = nextMods;
+        currentSet.modTiers = nextModTiers;
+        updatedSets[idx] = currentSet;
+        return updatedSets;
+      });
+    },
+    [activeGameSchema, setPlaySets]
+  );
+
+  const addLoadOrderRule = useCallback(
+    (setName: string, modA: string, modB: string, type: "after" | "before" = "after") => {
+      const cleanA = modA.split(/[\\/]/).pop() || modA;
+      const cleanB = modB.split(/[\\/]/).pop() || modB;
+      if (!cleanA || !cleanB || cleanA.toLowerCase() === cleanB.toLowerCase()) return;
+
+      setPlaySets((prevSets: any[]) => {
+        const idx = prevSets.findIndex((p: any) => p.name.toLowerCase() === setName.toLowerCase());
+        if (idx === -1) return prevSets;
+        const updatedSets = [...prevSets];
+        const currentSet = { ...updatedSets[idx] };
+        const aLow = cleanA.toLowerCase();
+        const bLow = cleanB.toLowerCase();
+
+        const filtered = (currentSet.loadRules || []).filter(
+          (r: LoadOrderRule) =>
+            !(
+              (r.modA.toLowerCase() === aLow && r.modB.toLowerCase() === bLow) ||
+              (r.modA.toLowerCase() === bLow && r.modB.toLowerCase() === aLow)
+            )
+        );
+
+        filtered.push({
+          id: `rule_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          modA: cleanA,
+          modB: cleanB,
+          type,
+        });
+
+        currentSet.loadRules = filtered;
+        updatedSets[idx] = currentSet;
+        return updatedSets;
+      });
+    },
+    [setPlaySets]
+  );
+
+  const removeLoadOrderRule = useCallback(
+    (setName: string, ruleId: string) => {
+      setPlaySets((prevSets: any[]) => {
+        const idx = prevSets.findIndex((p: any) => p.name.toLowerCase() === setName.toLowerCase());
+        if (idx === -1) return prevSets;
+        const updatedSets = [...prevSets];
+        const currentSet = { ...updatedSets[idx] };
+        currentSet.loadRules = (currentSet.loadRules || []).filter((r: LoadOrderRule) => r.id !== ruleId);
+        updatedSets[idx] = currentSet;
+        return updatedSets;
+      });
+    },
+    [setPlaySets]
+  );
+
+  const flipLoadOrderRule = useCallback(
+    (setName: string, ruleId: string) => {
+      setPlaySets((prevSets: any[]) => {
+        const idx = prevSets.findIndex((p: any) => p.name.toLowerCase() === setName.toLowerCase());
+        if (idx === -1) return prevSets;
+        const updatedSets = [...prevSets];
+        const currentSet = { ...updatedSets[idx] };
+        currentSet.loadRules = (currentSet.loadRules || []).map((r: LoadOrderRule) =>
+          r.id === ruleId ? { ...r, type: r.type === "after" ? "before" : "after" } : r
+        );
+        updatedSets[idx] = currentSet;
+        return updatedSets;
+      });
+    },
+    [setPlaySets]
+  );
+
+  const moveModInLoadOrder = useCallback(
+    (setName: string, modCleanName: string, direction: "up" | "down" | "top" | "bottom") => {
+      setPlaySets((prevSets: any[]) => {
+        const idx = prevSets.findIndex((p: any) => p.name.toLowerCase() === setName.toLowerCase());
+        if (idx === -1) return prevSets;
+        const updatedSets = [...prevSets];
+        const currentSet = { ...updatedSets[idx] };
+        const compiled = compileLoadOrder(
+          currentSet.mods || [],
+          currentSet.loadRules || [],
+          currentSet.modTiers || {},
+          currentSet.loadOrder || [],
+          activeGameSchema,
+          []
+        );
+        const order = compiled.items.map((it) => it.cleanName);
+        const pos = order.findIndex((n) => n.toLowerCase() === modCleanName.toLowerCase());
+        if (pos === -1) return prevSets;
+
+        const [item] = order.splice(pos, 1);
+        if (direction === "up") {
+          order.splice(Math.max(0, pos - 1), 0, item);
+        } else if (direction === "down") {
+          order.splice(Math.min(order.length, pos + 1), 0, item);
+        } else if (direction === "top") {
+          order.unshift(item);
+        } else if (direction === "bottom") {
+          order.push(item);
+        }
+
+        currentSet.loadOrder = order;
+        updatedSets[idx] = currentSet;
+        return updatedSets;
+      });
+    },
+    [activeGameSchema, setPlaySets]
+  );
+
+  const autoSortBlueprintLoadOrder = useCallback(
+    (setName: string) => {
+      setPlaySets((prevSets: any[]) => {
+        const idx = prevSets.findIndex((p: any) => p.name.toLowerCase() === setName.toLowerCase());
+        if (idx === -1) return prevSets;
+        const updatedSets = [...prevSets];
+        const currentSet = { ...updatedSets[idx] };
+        const compiled = compileLoadOrder(
+          currentSet.mods || [],
+          currentSet.loadRules || [],
+          currentSet.modTiers || {},
+          currentSet.loadOrder || [],
+          activeGameSchema,
+          []
+        );
+        currentSet.loadOrder = compiled.items.map((it) => it.cleanName);
+        updatedSets[idx] = currentSet;
+        return updatedSets;
+      });
+      setStatus(`${t("icon_check_circle")} ${t("lo_status_sorted", "Load order topologically sorted by active rules.")}`);
+    },
+    [activeGameSchema, setPlaySets, setStatus, t]
+  );
+
+  return {
+    toggleInActiveSet,
+    applyConflictOverride,
+    setModPriorityTier,
+    addLoadOrderRule,
+    removeLoadOrderRule,
+    flipLoadOrderRule,
+    moveModInLoadOrder,
+    autoSortBlueprintLoadOrder,
+    deletePlaySet,
+    renamePlaySet,
+    importPlaySet,
+    finalizeImport,
+    equipPlaySet,
+    getMissingStrings,
+    ignoreMissingString,
+    purgeMissingString,
+  };
 }

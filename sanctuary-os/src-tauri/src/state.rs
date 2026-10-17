@@ -62,12 +62,16 @@ pub struct StructureNode {
     pub children: Option<Vec<StructureNode>>,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, Clone)]
 pub struct DeployMod {
     pub path: String,
     pub allow_write: bool,
     pub target_path: Option<String>,
     pub folder_structure: Option<serde_json::Value>,
+    #[serde(default)]
+    pub load_order_index: Option<usize>,
+    #[serde(default)]
+    pub priority_tier: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]

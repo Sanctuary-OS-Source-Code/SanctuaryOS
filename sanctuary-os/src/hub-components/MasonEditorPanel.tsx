@@ -138,7 +138,7 @@ export default function MasonEditorPanel({
                         onClick={saveFile}
                         isActive={isDirty}
                      />
-                     {activeFile && activeFile.name.match(/^[a-z]{2}-.+\.json$/i) && !isCloudMode && (
+                     {activeFile && activeFile.name.match(/^[a-z]{2}-.+\.json$/i) && !isCloudMode && handlePublishLexicon && (
                         <PanelHeaderButton
                            icon={t("icon_upload")}
                            tooltip={isSyncDisabled ? syncTooltip : "SYNC SCHEMA"}

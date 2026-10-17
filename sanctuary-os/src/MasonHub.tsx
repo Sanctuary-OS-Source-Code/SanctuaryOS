@@ -43,6 +43,7 @@ import { MasonNexus } from "./MasonNexus";
 import { MasonChameleons } from "./MasonChameleons";
 export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handleOpenMasonProfile }: { sandboxMod?: any, clearSandboxMod?: () => void, vaultPath?: string, handleOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
   const { t } = useLexicon();
+  const userRole = useStore((state) => state.userRole);
   const session = useStore((state) => state.session);
   const masonActiveTab = useStore((state) => state.masonActiveTab);
   const setMasonActiveTab = useStore((state) => state.setMasonActiveTab);
@@ -69,7 +70,16 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const { data, error } = await supabase.from('masons').select('*').eq('profile_id', session.user.id).single();
-        if (!error && data) setMasonProfile(data);
+        if (!error && data) {
+          setMasonProfile(data);
+        } else {
+          setMasonProfile({
+            id: session.user.id,
+            profile_id: session.user.id,
+            name: session.user.user_metadata?.mason_name || session.user.user_metadata?.username || session.user.email?.split('@')[0] || (t("citizen_creator") || "Citizen Creator"),
+            isUnverifiedLocal: true
+          });
+        }
       }
       setLoading(false);
     }
@@ -88,6 +98,8 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
     </div>
   );
 
+  const isVerifiedMason = !masonProfile?.isUnverifiedLocal && ["mason", "architect", "oversight", "wayfinder", "admin"].includes(userRole);
+
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader
@@ -97,6 +109,26 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         iconColorClass="text-[var(--accent)]"
         breadcrumb={masonActiveTab !== "command_center" ? masonActiveTab.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
         onTitleClick={() => setMasonActiveTab("command_center")}
+        hubActions={[
+          ...(isVerifiedMason ? [{
+            id: "mason_view_profile",
+            icon: t("icon_visibility") || "visibility",
+            label: t("btn_view_profile") || "View Profile",
+            onClick: () => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)
+          }] : []),
+          {
+            id: "mason_notepad",
+            icon: t("icon_description") || "description",
+            label: t("ui_btn_notepad") || "Notepad",
+            onClick: () => setIsNotepadOpen(true)
+          },
+          ...(isVerifiedMason ? [{
+            id: "mason_settings",
+            icon: t("icon_settings") || "settings",
+            label: t("masonhub_settings_title") || "Mason Settings",
+            onClick: () => setIsSettingsOpen(true)
+          }] : [])
+        ]}
       />
 
       <div className="md:hidden">
@@ -107,13 +139,15 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           hideMobilePills={true}
           footer={
             <>
-              <ActionButton
-                icon={t("icon_visibility") || "visibility"}
-                label={t("btn_view_profile") || "View Profile"}
-                variant="glass"
-                className="w-full"
-                onClick={() => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)}
-              />
+              {isVerifiedMason && (
+                <ActionButton
+                  icon={t("icon_visibility") || "visibility"}
+                  label={t("btn_view_profile") || "View Profile"}
+                  variant="glass"
+                  className="w-full"
+                  onClick={() => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)}
+                />
+              )}
               <ActionButton
                 icon={t("icon_description") || "description"}
                 label={t("ui_btn_notepad") || "Notepad"}
@@ -121,13 +155,15 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
                 className="w-full"
                 onClick={() => setIsNotepadOpen(true)}
               />
-              <ActionButton
-                icon={t("icon_settings") || "settings"}
-                label={t("wf_tab_support") || "Support"}
-                variant="glass"
-                className="w-full"
-                onClick={() => setIsSettingsOpen(true)}
-              />
+              {isVerifiedMason && (
+                <ActionButton
+                  icon={t("icon_settings") || "settings"}
+                  label={t("masonhub_settings_title") || "Mason Settings"}
+                  variant="glass"
+                  className="w-full"
+                  onClick={() => setIsSettingsOpen(true)}
+                />
+              )}
             </>
           }
         >
@@ -168,22 +204,24 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           setMetadataEditorInitialId(hash);
           setIsMetadataEditorOpen(true);
         }} />}
-        {masonActiveTab === "nexus" && <MasonNexus masonProfile={masonProfile} />}
+        {masonActiveTab === "nexus" && <MasonNexus masonProfile={masonProfile} isVerifiedMason={isVerifiedMason} />}
         {masonActiveTab === "protocols" && <ProtocolVisualizer masonId={masonProfile.id} isArchitect={false} />}
         {masonActiveTab === "structure" && <StructureVisualizer masonId={masonProfile.id} isArchitect={false} />}
         {masonActiveTab === "posts" && <MasonPostsEditor masonId={masonProfile.id} masonProfileId={masonProfile.profile_id} handleOpenMasonProfile={handleOpenMasonProfile} />}
-        {isDesktop() && masonActiveTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} vaultPath={vaultPath} />}
+        {isDesktop() && masonActiveTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} masonName={masonProfile.name} isVerifiedMason={isVerifiedMason} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} vaultPath={vaultPath} />}
         {masonActiveTab === "conflicts" && <MasonConflictsManager masonId={masonProfile.id} />}
-        {isDesktop() && masonActiveTab === "ide" && <MasonIDE vaultPath={vaultPath} />}
-        {isDesktop() && masonActiveTab === "chameleons" && <MasonChameleons masonProfile={masonProfile} />}
+        {isDesktop() && masonActiveTab === "ide" && <MasonIDE vaultPath={vaultPath} isVerifiedMason={isVerifiedMason} />}
+        {isDesktop() && masonActiveTab === "chameleons" && <MasonChameleons masonProfile={masonProfile} isVerifiedMason={isVerifiedMason} />}
       </div>
 
-      <MasonSettingsSidePanel
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        profile={masonProfile}
-        onUpdate={setMasonProfile}
-      />
+      {isVerifiedMason && (
+        <MasonSettingsSidePanel
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          profile={masonProfile}
+          onUpdate={setMasonProfile}
+        />
+      )}
 
       <MasonNotepadSidePanel isOpen={isNotepadOpen} onClose={() => setIsNotepadOpen(false)} />
       <MasonRecentRepliesSidePanel

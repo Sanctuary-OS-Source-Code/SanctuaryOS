@@ -214,6 +214,7 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
   };
 
   const openEditor = (post?: any) => {
+    setConfirmDelete(null);
     const draftId = post ? post.id : 'new';
     const draft = useStore.getState().wayfinderDrafts[draftId];
 
@@ -247,6 +248,7 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
       }
       setImageUrl(draft?.imageUrl ?? parsedImage);
     } else {
+      setEditingPostId(null);
       setEditingPost(null);
       setTitle(draft?.title ?? "");
       setDescription(draft?.description ?? "");
@@ -270,6 +272,7 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
 
   const closeEditor = () => {
     setIsEditorOpen(false);
+    setConfirmDelete(null);
     if (editingPostId) {
       const post = posts.find(p => p.id === editingPostId);
       if (post) {
@@ -464,25 +467,6 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
         onPostClick={() => openEditor(post)}
         onToggleLike={() => { }}
         hasUnsavedEdits={hasUnsavedEdits}
-        actions={
-          <div className={`flex items-center gap-2 w-full transition-opacity duration-300 relative z-20 ${confirmDelete === post.id ? 'justify-center' : 'justify-end opacity-0 group-hover:opacity-100'}`}>
-            {confirmDelete === post.id ? (
-              <>
-                <span className="text-[10px] font-black text-[var(--danger)] capitalize tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
-                  <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
-                </span>
-                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("nav_cancel")}</button>
-                <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-md transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
-              </>
-            ) : (
-              <>
-                <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("btn_view")}</button>
-                <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
-                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
-              </>
-            )}
-          </div>
-        }
       />
     );
   };
@@ -645,6 +629,27 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
             subtitle={editingPostId ? (t("editing_record")) : (t("composing_broadcast"))}
             headerActions={
               <PanelHeaderGroup>
+                {editingPostId && (
+                  <>
+                    {confirmDelete === editingPostId ? (
+                      <PanelHeaderButton
+                        onClick={() => { handleDelete(editingPostId); setConfirmDelete(null); closeEditor(); }}
+                        tooltip={t("btn_confirm_delete", "Click again to permanently delete")}
+                        icon="delete_forever"
+                        variant="danger"
+                        className="animate-pulse"
+                      />
+                    ) : (
+                      <PanelHeaderButton
+                        onClick={() => setConfirmDelete(editingPostId)}
+                        tooltip={t("purge", "Delete Post")}
+                        icon="delete"
+                        variant="danger"
+                      />
+                    )}
+                    <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-2" />
+                  </>
+                )}
                 <PanelHeaderButton
                   onClick={() => setIsActive(!isActive)}
                   tooltip={isActive ? t("active", "Active") : t("filter_inactive", "Inactive")}
@@ -658,7 +663,7 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
                     onClick={handleDiscardChanges}
                     disabled={isSubmitting}
                     tooltip={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))}
-                    icon={confirmDiscard ? "warning" : "delete"}
+                    icon={confirmDiscard ? "warning" : "close"}
                     variant="danger"
                     className={confirmDiscard ? "animate-pulse" : ""}
                   />

@@ -26,9 +26,19 @@ use tauri::{Emitter, Manager};
 #[tauri::command]
 pub async fn sanitize_vault(
     vault_path: String,
-    _state: tauri::State<'_, AppState>,
+    state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    let is_deploying = state.inner().is_deploying.clone();
     tauri::async_runtime::spawn_blocking(move || {
+        struct SanitizeGuard(Arc<std::sync::atomic::AtomicBool>);
+        impl Drop for SanitizeGuard {
+            fn drop(&mut self) {
+                self.0.store(false, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+        is_deploying.store(true, std::sync::atomic::Ordering::SeqCst);
+        let _guard = SanitizeGuard(is_deploying);
+
         let vault_root = PathBuf::from(&vault_path);
         let backups_dir = vault_root.join("Backups");
         let backups_world = backups_dir.join("World");

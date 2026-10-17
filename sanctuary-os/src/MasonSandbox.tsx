@@ -22,7 +22,7 @@ import { logArchitectAction } from "./lib/audit";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 
 
-export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }: { masonId: string, initialSandboxMod: any, onClear: any, vaultPath?: string }) {
+export function MasonSandbox({ masonId, masonName, isVerifiedMason = true, initialSandboxMod, onClear, vaultPath }: { masonId: string, masonName?: string, isVerifiedMason?: boolean, initialSandboxMod: any, onClear: any, vaultPath?: string }) {
   const { t } = useLexicon();
   const [activeMod, setActiveMod] = useState<any>(initialSandboxMod || null);
   const [sandboxMods, setSandboxMods] = useState<any[]>([]);
@@ -41,6 +41,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
   const [isEditorOpen, setIsEditorOpen] = useState(!!initialSandboxMod);
 
   const fetchExistingMods = async () => {
+    if (!isVerifiedMason) return;
     const { data } = await supabase.from('mods').select('id, name, mod_versions(dna_hash)').eq('mason_id', masonId).order('name');
     if (data) {
       setExistingMods(data);
@@ -58,7 +59,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
 
   useEffect(() => {
     fetchExistingMods();
-  }, [masonId]);
+  }, [masonId, isVerifiedMason]);
 
   const handleLinkToExisting = async (modId: string) => {
     if (!activeMod || !activeMod.hash) return;
@@ -140,6 +141,12 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
     }
   };
 
+  const parseCsvList = (val: any): string[] => {
+    if (Array.isArray(val)) return val.map(v => String(v).trim()).filter(Boolean);
+    if (typeof val === "string") return val.split(",").map(v => v.trim()).filter(Boolean);
+    return [];
+  };
+
   const handleExportRelease = async () => {
     if (!activeMod) {
       useStore.getState().pushStatus(t("auto_no_valid_sandbox_45") || "No valid sandbox mod", "error");
@@ -147,53 +154,102 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
     }
     setIsCommitting(true);
     try {
-      let previousHashes: string[] = [];
+      let previousHashes: string[] = parseCsvList(activeMod.previous_hashes_str);
       if (activeMod.id) {
-         try {
-             const { data: verData } = await supabase.from('mod_versions').select('dna_hash').eq('mod_id', activeMod.id);
-             if (verData) previousHashes = verData.map((v: any) => v.dna_hash).filter(Boolean);
-         } catch(e) {}
+        try {
+          const { data: verData } = await supabase.from('mod_versions').select('dna_hash').eq('mod_id', activeMod.id);
+          if (verData) {
+            const dbHashes = verData.map((v: any) => v.dna_hash).filter(Boolean);
+            previousHashes = Array.from(new Set([...previousHashes, ...dbHashes]));
+          }
+        } catch (e) {}
       }
+
+      const safeNameSlug = (activeMod.name || "mod").replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const versionStr = (activeMod.latest_version || "1.0.0").trim();
+      const customManifestUrl = (activeMod.manifest_url || "").trim();
+      const customDownloadUrl = (activeMod.download_url || "").trim() || (
+        customManifestUrl
+          ? customManifestUrl.replace(/\/manifest\.json$/i, `/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`)
+          : `https://example.com/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`
+      );
+
+      const changelogLines = typeof activeMod.changelog_cache === "string" && activeMod.changelog_cache.trim()
+        ? activeMod.changelog_cache.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean)
+        : [t("edge_initial_release") || "Initial Release"];
 
       const manifest = {
         schema_version: "1.0",
         artifact: {
-          id: activeMod.id || activeMod.name || "unknown",
+          id: activeMod.id || safeNameSlug || "unknown",
           name: activeMod.name || "Unknown Mod",
-          author: masonId || "Unknown Author",
-          version: activeMod.latest_version || "1.0.0",
+          author: masonName || masonId || "Unknown Author",
+          version: versionStr,
           game_version: activeMod.compatible_versions?.[0] || "",
           release_date: new Date().toISOString(),
-          game_id: useStore.getState().activeGameSchema?.id || "unknown"
+          game_id: useStore.getState().activeGameSchema?.id || "sims4"
         },
         payload: {
-          download_url: "https://example.com/" + (activeMod.name || "mod") + ".zip",
+          download_url: customDownloadUrl,
           sha256: activeMod.hash || "",
           archive_type: "zip"
         },
         atomic_logic: {
-          required_dlc: [],
-          dependencies: [],
-          twins: [],
-          addons: [],
-          conflicts: [],
+          required_dlc: parseCsvList(activeMod.required_dlc_str),
+          dependencies: parseCsvList(activeMod.dependencies_str),
+          twins: parseCsvList(activeMod.twins_str),
+          addons: parseCsvList(activeMod.addons_str),
+          conflicts: parseCsvList(activeMod.conflicts_str),
           flavors: []
         },
         virtual_filesystem: {
           overrides: [],
           injected_folders: []
         },
-        changelog: activeMod.changelog_cache ? [activeMod.changelog_cache] : ["Initial Release"],
+        changelog: changelogLines,
         previous_hashes: previousHashes
       };
 
-      await invoke("export_edge_release", { 
+      const releaseDir = await invoke<string>("export_edge_release", { 
         vaultPath, 
         sandboxModName: activeMod.name, 
         manifest,
-        customUrl: ""
+        customUrl: customManifestUrl
       });
-      useStore.getState().pushStatus("Successfully exported Edge Manifests to your sandbox folder!", "success");
+
+      if (customManifestUrl && activeMod.hash && vaultPath) {
+        try {
+          await invoke("register_edge_override", {
+            vaultPath,
+            artifactId: manifest.artifact.id,
+            masonId: manifest.artifact.author,
+            manifestUrl: customManifestUrl,
+            targetHash: activeMod.hash,
+            archiveHashes: previousHashes,
+            gameId: manifest.artifact.game_id
+          });
+          const savedOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+          const allHashes = Array.from(new Set([activeMod.hash, ...previousHashes]));
+          for (const h of allHashes) {
+            savedOverrides[h] = {
+              ...(savedOverrides[h] || {}),
+              name: manifest.artifact.name,
+              author: manifest.artifact.author,
+              version: manifest.artifact.version,
+              manifest_url: customManifestUrl,
+              url: activeMod.url || customManifestUrl
+            };
+          }
+          localStorage.setItem("sanctuary_local_overrides", JSON.stringify(savedOverrides));
+        } catch (regErr) {
+          console.warn("Failed to auto-register exported manifest locally:", regErr);
+        }
+      }
+
+      useStore.getState().pushStatus(
+        `${t("edge_export_release_success") || "Exported manifest.json, override.json, and release .zip to:"} ${releaseDir}`,
+        "success"
+      );
     } catch (err: any) {
       console.error(err);
       useStore.getState().pushStatus(`Failed to export release: ${err.message || String(err)}`, "error");
@@ -208,6 +264,30 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
     }
     setIsCommitting(true);
     try {
+      if (!isVerifiedMason) {
+        // Unverified Mason / Citizen Creator -> Route through Scout Suggestions Firewall (gated by min_scout_submissions)
+        const sessionUser = useStore.getState().session?.user;
+        const { error: scoutErr } = await supabase.from("scout_suggestions").insert([{
+          dna_hash: activeMod.hash,
+          suggested_name: activeMod.name || "Unknown Sandbox Mod",
+          suggested_author: masonName || sessionUser?.user_metadata?.username || (t("citizen_creator") || "Citizen Creator"),
+          source_url: activeMod.url || activeMod.manifest_url || "",
+          notes: activeMod.description || "",
+          submitted_by: sessionUser?.id || null,
+          status: "pending"
+        }]);
+        if (scoutErr) throw scoutErr;
+
+        useStore.getState().pushStatus(
+          t("sandbox_routed_to_scout_firewall") || "Submitted to Scout Community Firewall! Once this artifact hits the minimum citizen submission threshold, it will enter Architect review.",
+          "success"
+        );
+        setIsEditorOpen(false);
+        if (onClear) onClear();
+        setIsCommitting(false);
+        return;
+      }
+
       const { data: newMod, error: insertError } = await supabase.from('mods').insert([{
         name: activeMod.name || "Unknown Sandbox Mod",
         mason_id: masonId,
@@ -442,7 +522,7 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                   icon="sync" 
                   onClick={handleSyncToNetwork} 
                   disabled={isCommitting} 
-                  tooltip={isCommitting ? (t("btn_syncing") || "Syncing...") : (t("sandbox_btn_sync") || "Sync to Network")} 
+                  tooltip={isCommitting ? (t("btn_syncing") || "Syncing...") : (isVerifiedMason ? (t("sandbox_btn_sync") || "Sync to Network") : (t("sandbox_btn_submit_scout") || "Submit to Scout Queue"))} 
                   variant="accent"
                 />
               </PanelHeaderGroup>
@@ -533,6 +613,113 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_versions") || "Game Versions"}</label>
                   <GameVersionMultiSelect selectedVersions={activeMod.compatible_versions || []} onChange={(v) => setActiveMod({ ...activeMod, compatible_versions: v })} />
                 </div>
+
+                <div className="col-span-full pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-6">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">{t("icon_cloud_sync") || "cloud_sync"}</span>
+                    <h4 className="text-xs font-black capitalize tracking-widest text-[var(--text)]">
+                      {t("edge_static_release_config") || "Static Edge Release & Atomic Logic"}
+                    </h4>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                      {t("edge_manifest_url_label") || "Static Edge Manifest URL (manifest.json)"}
+                    </label>
+                    <input
+                      value={activeMod.manifest_url || ""}
+                      onChange={e => setActiveMod({ ...activeMod, manifest_url: e.target.value })}
+                      placeholder={t("edge_manifest_url_ph") || "https://your-site.com/mods/manifest.json"}
+                      className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold font-mono focus:outline-none focus:theme-border-accent"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                      {t("edge_download_url_label") || "Release Archive Download URL (.zip)"}
+                    </label>
+                    <input
+                      value={activeMod.download_url || ""}
+                      onChange={e => setActiveMod({ ...activeMod, download_url: e.target.value })}
+                      placeholder={t("edge_download_url_ph") || "https://your-site.com/mods/mod_v1.0.0.zip"}
+                      className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold font-mono focus:outline-none focus:theme-border-accent"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                      {t("edge_changelog_label") || "Release Changelog (One Entry Per Line)"}
+                    </label>
+                    <textarea
+                      value={activeMod.changelog_cache || ""}
+                      onChange={e => setActiveMod({ ...activeMod, changelog_cache: e.target.value })}
+                      placeholder={t("edge_changelog_ph") || "Initial release\nAdded compatibility for latest patch"}
+                      className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold min-h-[90px] custom-scrollbar resize-none focus:outline-none focus:theme-border-accent"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                        {t("edge_required_dlc_label") || "Required DLC (Comma-Separated)"}
+                      </label>
+                      <input
+                        value={activeMod.required_dlc_str || ""}
+                        onChange={e => setActiveMod({ ...activeMod, required_dlc_str: e.target.value })}
+                        placeholder={t("edge_required_dlc_ph") || "EP01, GP04"}
+                        className="glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold font-mono focus:outline-none focus:theme-border-accent"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                        {t("edge_dependencies_label") || "Dependencies (Hashes / Names)"}
+                      </label>
+                      <input
+                        value={activeMod.dependencies_str || ""}
+                        onChange={e => setActiveMod({ ...activeMod, dependencies_str: e.target.value })}
+                        placeholder={t("edge_dependencies_ph") || "XML Injector, Core Library"}
+                        className="glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold font-mono focus:outline-none focus:theme-border-accent"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                        {t("edge_conflicts_label") || "Conflicts (Hashes / Names)"}
+                      </label>
+                      <input
+                        value={activeMod.conflicts_str || ""}
+                        onChange={e => setActiveMod({ ...activeMod, conflicts_str: e.target.value })}
+                        placeholder={t("edge_conflicts_ph") || "Conflicting Mod Name or Hash"}
+                        className="glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold font-mono focus:outline-none focus:theme-border-accent"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                        {t("edge_twins_addons_label") || "Companion / Addon Hashes"}
+                      </label>
+                      <input
+                        value={activeMod.twins_str || ""}
+                        onChange={e => setActiveMod({ ...activeMod, twins_str: e.target.value })}
+                        placeholder={t("edge_twins_addons_ph") || "Required companion hash or name"}
+                        className="glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold font-mono focus:outline-none focus:theme-border-accent"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2 xl:col-span-2">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                        {t("edge_previous_hashes_label") || "Previous Version SHA-256 Hashes (Comma-Separated Lineage)"}
+                      </label>
+                      <input
+                        value={activeMod.previous_hashes_str || ""}
+                        onChange={e => setActiveMod({ ...activeMod, previous_hashes_str: e.target.value })}
+                        placeholder={t("edge_previous_hashes_ph") || "Older SHA-256 hashes to link to this manifest family"}
+                        className="glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold font-mono focus:outline-none focus:theme-border-accent"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="mt-auto shrink-0 pt-8 pb-4 flex flex-col gap-4">
@@ -542,11 +729,13 @@ export function MasonSandbox({ masonId, initialSandboxMod, onClear, vaultPath }:
                     <p className="text-[10px] text-[var(--subtext)] mt-1 font-bold">{t("already_synced_desc") || "This artifact hash is already linked to the network."}</p>
                   </div>
                 )}
-                <div className="flex justify-end gap-4 mt-2">
-                  <button onClick={() => setIsLinkModalOpen(true)} disabled={isCommitting} className="flex-1 py-4 font-black text-xs capitalize tracking-widest rounded-2xl transition-all duration-300 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] disabled:opacity-50 flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_link") || "link"}</span> {t("btn_link_existing") || "Link Existing"}
-                  </button>
-                </div>
+                {isVerifiedMason && (
+                  <div className="flex justify-end gap-4 mt-2">
+                    <button onClick={() => setIsLinkModalOpen(true)} disabled={isCommitting} className="flex-1 py-4 font-black text-xs capitalize tracking-widest rounded-2xl transition-all duration-300 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)] disabled:opacity-50 flex items-center justify-center gap-2">
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_link") || "link"}</span> {t("btn_link_existing") || "Link Existing"}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </SidePanel>

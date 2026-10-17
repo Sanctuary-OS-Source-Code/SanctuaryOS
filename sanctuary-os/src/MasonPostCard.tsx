@@ -3,18 +3,23 @@ import { useLexicon } from "./LexiconContext";
 import { stripMarkdown, renderTextWithIcons } from "./shared";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { extractDispatchMetadata } from "./components/universal/DispatchPollAndMeta";
 
 export default function MasonPostCard({ post, index, onPostClick, onToggleLike, onOpenMasonProfile, isFeatured, isCompact, layout, actions, hasUnsavedEdits }: any) {
   const { t } = useLexicon();
 
   const parsePostContent = (p: any) => {
-    let content = p.content || '';
+    let content = p.content || p.message || '';
     let description = p.description || '';
     let imageUrl = p.image_url || '';
     const imgMatch = content.match(/\[IMG:(.*?)\]/);
     if (imgMatch && imgMatch[1]) {
       imageUrl = imgMatch[1];
       content = content.replace(/\[IMG:.*?\]\s*/, '').trim();
+    }
+    if (p.mason_id === 'system' || p.category) {
+      const meta = extractDispatchMetadata(p, content);
+      content = meta.cleanContent;
     }
     return { content, description, imageUrl };
   };
@@ -107,13 +112,19 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
           if (badgeType === 'pinned') {
             return (
               <div className="bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] px-2.5 py-1 text-[9px] font-black capitalize tracking-widest shadow-lg flex items-center gap-1 rounded-full">
-                <span className="material-symbols-outlined !text-[12px]">{t("icon_keep")}</span>
-                {t("pinned")}
+                <span className="material-symbols-outlined !text-[12px]">{t("icon_keep", "keep")}</span>
+                {t("pinned", "Pinned")}
               </div>
             );
           }
           return null;
         })()}
+        {Boolean(post.poll_data?.question) && (
+          <div className="bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] px-2.5 py-1 text-[9px] font-black capitalize tracking-widest shadow-lg flex items-center gap-1 rounded-full">
+            <span className="material-symbols-outlined !text-[12px]">{t("icon_poll", "poll")}</span>
+            {t("poll_badge_active", "Poll")}
+          </div>
+        )}
       </div>
     </>
   );

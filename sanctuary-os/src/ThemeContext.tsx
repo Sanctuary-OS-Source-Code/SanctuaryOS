@@ -343,7 +343,8 @@ export const ThemeProvider = ({ children }: any) => {
       root.style.setProperty(`--glassFilterSurface`, `none`);
     }
 
-    const bgHex = (currentTheme.bg || '#000000').replace('#', '');
+    const rawBg = currentTheme.bg && currentTheme.bg !== 'transparent' ? currentTheme.bg : '#0a0d14';
+    const bgHex = rawBg.replace('#', '');
     if (bgHex.length === 6) {
       const r = parseInt(bgHex.substring(0, 2), 16);
       const g = parseInt(bgHex.substring(2, 4), 16);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { useStore, syncGameDatabases } from '../store';
 import { SidePanel, ActionButton, EmptyState, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { useLexicon } from '../LexiconContext';
 import { logArchitectAction } from '../lib/audit';
@@ -15,7 +16,25 @@ export default function KeepersActiveGames() {
 
   const [filter, setFilter] = useState<'overview' | 'all' | 'active' | 'inactive' | 'urgent'>('overview');
   const [sidePanelMode, setSidePanelMode] = useState<'add' | 'edit' | null>(null);
-  const [formData, setFormData] = useState({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "", is_active: true });
+  const [formData, setFormData] = useState({
+    id: "",
+    name: "",
+    schema_id: "",
+    supabase_url: "",
+    supabase_anon_key: "",
+    supabase_service_key: "",
+    icon: "",
+    is_active: true,
+    founder_identifier: ""
+  });
+  const [bundleInput, setBundleInput] = useState("");
+  const [verifyingHandshake, setVerifyingHandshake] = useState(false);
+  const [handshakeStatus, setHandshakeStatus] = useState<{
+    ok: boolean;
+    message: string;
+    latency?: number;
+    wayfinder?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     fetchGames();
@@ -30,20 +49,127 @@ export default function KeepersActiveGames() {
     setLoading(false);
   };
 
+  const handleParseBundle = (raw: string) => {
+    setBundleInput(raw);
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+
+    try {
+      let jsonStr = trimmed;
+      if (trimmed.startsWith("SANCTUARY-UPLINK://")) {
+        jsonStr = atob(trimmed.replace("SANCTUARY-UPLINK://", "").trim());
+      }
+      if (jsonStr.startsWith("{")) {
+        const parsed = JSON.parse(jsonStr);
+        setFormData(prev => ({
+          ...prev,
+          name: parsed.name || prev.name,
+          schema_id: (parsed.schema_id || prev.schema_id || "").toUpperCase(),
+          supabase_url: parsed.supabase_url || prev.supabase_url,
+          supabase_anon_key: parsed.supabase_anon_key || prev.supabase_anon_key,
+          supabase_service_key: parsed.supabase_service_key || prev.supabase_service_key,
+          founder_identifier: parsed.founder_identifier || prev.founder_identifier
+        }));
+        setBundleInput("");
+        setHandshakeStatus(null);
+        useStore.getState().pushStatus(t("spoke_bundle_parsed_toast", "Uplink bundle parsed and fields populated."), "success");
+        return;
+      }
+    } catch (e) {}
+
+    // Fallback: extract URL and keys from raw text / .env paste
+    const urlMatch = trimmed.match(/https:\/\/[a-z0-9-]+\.supabase\.co/i);
+    const keys = trimmed.match(/(?:eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|sb_(?:publishable|secret)_[A-Za-z0-9_-]+)/g) || [];
+    if (urlMatch || keys.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        supabase_url: urlMatch ? urlMatch[0] : prev.supabase_url,
+        supabase_anon_key: keys[0] || prev.supabase_anon_key,
+        supabase_service_key: keys[1] || prev.supabase_service_key
+      }));
+      setBundleInput("");
+      setHandshakeStatus(null);
+      useStore.getState().pushStatus(t("spoke_bundle_parsed_toast", "Uplink bundle parsed and fields populated."), "success");
+    }
+  };
+
+  const handleCopyUplinkBundle = () => {
+    const payload = {
+      name: formData.name,
+      schema_id: formData.schema_id,
+      supabase_url: formData.supabase_url,
+      supabase_anon_key: formData.supabase_anon_key,
+      supabase_service_key: formData.supabase_service_key,
+      founder_identifier: formData.founder_identifier || undefined
+    };
+    const token = "SANCTUARY-UPLINK://" + btoa(JSON.stringify(payload));
+    navigator.clipboard.writeText(token);
+    useStore.getState().pushStatus(t("spoke_uplink_bundle_copied", "Spoke Uplink Bundle copied to clipboard!"), "success");
+  };
+
+  const handleVerifyHandshake = async () => {
+    if (!formData.supabase_url || (!formData.supabase_anon_key && !formData.supabase_service_key)) {
+      alert(t("fill_required_fields", "Please fill all required fields"));
+      return null;
+    }
+    setVerifyingHandshake(true);
+    setHandshakeStatus(null);
+    try {
+      const res: any = await supabase.rpc('secure_verify_and_bootstrap_spoke', {
+        p_payload: {
+          supabase_url: formData.supabase_url.trim(),
+          supabase_anon_key: formData.supabase_anon_key.trim(),
+          supabase_service_key: formData.supabase_service_key?.trim() || "",
+          founder_identifier: formData.founder_identifier?.trim() || ""
+        }
+      });
+      const data = res?.data;
+      if (res?.error || data?.error) {
+        const errMsg = res?.error?.message || data?.error;
+        setHandshakeStatus({ ok: false, message: errMsg });
+        return { ok: false };
+      }
+      if (data?.missing_tables && data.missing_tables.length > 0) {
+        setHandshakeStatus({
+          ok: false,
+          message: `${t("spoke_handshake_missing_tables", "Missing tables (run schema.sql on Spoke): ")}${data.missing_tables.join(", ")}`,
+          latency: data.latency_ms
+        });
+        return { ok: false };
+      }
+      setHandshakeStatus({
+        ok: true,
+        message: t("spoke_handshake_ok", "Spoke Schema Verified & Ready"),
+        latency: data?.latency_ms,
+        wayfinder: data?.wayfinder_provisioned
+      });
+      return { ok: true, data };
+    } catch (err: any) {
+      setHandshakeStatus({ ok: false, message: err.message });
+      return { ok: false };
+    } finally {
+      setVerifyingHandshake(false);
+    }
+  };
+
   const handleSaveGame = async () => {
     if (!formData.name || !formData.schema_id || !formData.supabase_url || !formData.supabase_anon_key) {
-      alert(t("fill_required_fields") || "Please fill all required fields");
+      alert(t("fill_required_fields", "Please fill all required fields"));
       return;
+    }
+
+    if (formData.supabase_service_key) {
+      await handleVerifyHandshake();
     }
 
     let result;
     if (sidePanelMode === 'add') {
       result = await supabase.from('sanctuary_games').insert([{
-        name: formData.name,
-        schema_id: formData.schema_id,
-        supabase_url: formData.supabase_url,
-        supabase_anon_key: formData.supabase_anon_key,
-        supabase_service_key: formData.supabase_service_key,
+        name: formData.name.trim(),
+        schema_id: formData.schema_id.trim().toUpperCase(),
+        supabase_url: formData.supabase_url.trim(),
+        supabase_anon_key: formData.supabase_anon_key.trim(),
+        supabase_service_key: formData.supabase_service_key?.trim() || null,
         icon: formData.icon,
         is_active: formData.is_active
       }]);
@@ -52,11 +178,11 @@ export default function KeepersActiveGames() {
       }
     } else if (sidePanelMode === 'edit') {
       result = await supabase.from('sanctuary_games').update({
-        name: formData.name,
-        schema_id: formData.schema_id,
-        supabase_url: formData.supabase_url,
-        supabase_anon_key: formData.supabase_anon_key,
-        supabase_service_key: formData.supabase_service_key,
+        name: formData.name.trim(),
+        schema_id: formData.schema_id.trim().toUpperCase(),
+        supabase_url: formData.supabase_url.trim(),
+        supabase_anon_key: formData.supabase_anon_key.trim(),
+        supabase_service_key: formData.supabase_service_key?.trim() || null,
         icon: formData.icon,
         is_active: formData.is_active
       }).eq('id', formData.id);
@@ -67,20 +193,23 @@ export default function KeepersActiveGames() {
 
     if (!result?.error) {
       setSidePanelMode(null);
-      setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "", is_active: true });
-      fetchGames();
+      setHandshakeStatus(null);
+      setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "", is_active: true, founder_identifier: "" });
+      await fetchGames();
+      await syncGameDatabases();
     } else {
       alert(`Error saving game: ${result.error.message}`);
     }
   };
 
   const handleDeleteGame = async (id: string, name: string) => {
-    if (!window.confirm(t("ui_confirm_deprecate_game"))) return;
+    if (!window.confirm(t("ui_confirm_deprecate_game", "Deprecate and remove this Game Database?"))) return;
     const { error } = await supabase.from('sanctuary_games').delete().eq('id', id);
     if (!error) {
       logArchitectAction(`Deprecated Game Database`, 'sanctuary_games', name, undefined, 'Keeper Hub', true);
     }
-    fetchGames();
+    await fetchGames();
+    await syncGameDatabases();
   };
 
   const handleToggleActive = async (id: string, name: string, currentStatus: boolean) => {
@@ -88,34 +217,41 @@ export default function KeepersActiveGames() {
     if (!error) {
       logArchitectAction(`${!currentStatus ? 'Activated' : 'Deactivated'} Game Database`, 'sanctuary_games', name, undefined, 'Keeper Hub', true);
     }
-    fetchGames();
+    await fetchGames();
+    await syncGameDatabases();
   };
 
-  const handleSeverFDW = async (schema_id: string, name: string) => {
-    if (!window.confirm(t("ui_confirm_sever_fdw"))) return;
+  const handleSeverFDW = async (schema_id: string, name: string, id: string) => {
+    if (!window.confirm(t("ui_confirm_sever_fdw", "Cut the cord and sever this Spoke connection? This deactivates the workspace and scrubs its service key from the Hub."))) return;
     try {
-      await supabase.rpc('sever_fdw', { target_schema: schema_id });
-      logArchitectAction(`Severed FDW Connection`, 'sanctuary_games', name, undefined, 'Keeper Hub', true);
+      await supabase.rpc('secure_sever_spoke_cord', {
+        p_game_id: id || schema_id,
+        p_payload: { reason: "Keeper Executed Severance Protocol" }
+      });
+      await supabase.from('sanctuary_games').update({ is_active: false, supabase_service_key: null }).eq('id', id);
+      logArchitectAction(`Severed Spoke Uplink (Cut the Cord)`, 'sanctuary_games', name, undefined, 'Keeper Hub', true);
+      useStore.getState().pushStatus(t("ui_fdw_severed", "Spoke uplink severed."), "info");
     } catch (e) { }
-    alert(t("ui_fdw_severed"));
+    await fetchGames();
+    await syncGameDatabases();
   };
 
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview") || "Overview",
+      label: t("landing_overview", "Overview"),
       icon: "dashboard",
       number: games.length.toString(),
     },
     {
       id: "active",
-      label: t("filter_active") || "Active",
+      label: t("filter_active", "Active"),
       icon: "toggle_on",
       number: games.filter(g => g.is_active !== false).length.toString(),
     },
     {
       id: "inactive",
-      label: t("filter_inactive") || "Inactive",
+      label: t("filter_inactive", "Inactive"),
       icon: "toggle_off",
       number: games.filter(g => g.is_active === false).length.toString(),
     }
@@ -134,7 +270,21 @@ export default function KeepersActiveGames() {
   const renderGameCard = (game: any) => (
       <UniversalCard
         key={game.id}
-        onClick={() => { setFormData({ id: game.id, name: game.name || "", schema_id: game.schema_id || "", supabase_url: game.supabase_url || "", supabase_anon_key: game.supabase_anon_key || "", supabase_service_key: game.supabase_service_key || "", icon: game.icon || "", is_active: game.is_active !== false }); setSidePanelMode('edit'); }}
+        onClick={() => {
+          setHandshakeStatus(null);
+          setFormData({
+            id: game.id,
+            name: game.name || "",
+            schema_id: game.schema_id || "",
+            supabase_url: game.supabase_url || "",
+            supabase_anon_key: game.supabase_anon_key || "",
+            supabase_service_key: game.supabase_service_key || "",
+            icon: game.icon || "",
+            is_active: game.is_active !== false,
+            founder_identifier: ""
+          });
+          setSidePanelMode('edit');
+        }}
         layout="vertical"
         isGhosted={game.is_active === false}
         image={game.icon || undefined}
@@ -142,24 +292,24 @@ export default function KeepersActiveGames() {
         title={
           <span className="flex items-center gap-2">
             {game.name}
-            {game.is_active === false && <span className="text-[9px] font-black capitalize bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] px-2 py-0.5 rounded-full">{t("filter_inactive")}</span>}
+            {game.is_active === false && <span className="text-[9px] font-black capitalize bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] px-2 py-0.5 rounded-full">{t("filter_inactive", "Inactive")}</span>}
           </span>
         }
         subtitle={game.schema_id}
         actions={
           <div className="flex gap-2">
             <button onClick={(e) => { e.stopPropagation(); handleToggleActive(game.id, game.name, game.is_active); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-110 group"><span className="material-symbols-outlined !text-[14px]">{game.is_active === false ? 'toggle_off' : 'toggle_on'}</span></button>
-            <button onClick={(e) => { e.stopPropagation(); handleSeverFDW(game.schema_id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:scale-110 group"><span className="material-symbols-outlined !text-[14px]">link_off</span></button>
+            <button onClick={(e) => { e.stopPropagation(); handleSeverFDW(game.schema_id, game.name, game.id); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:scale-110 group"><span className="material-symbols-outlined !text-[14px]">link_off</span></button>
             <button onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:scale-110 group"><span className="material-symbols-outlined !text-[14px]">delete</span></button>
           </div>
         }
       >
         <div className="flex flex-col gap-2 mt-4">
           <div className="text-[10px] text-[var(--text)] opacity-70 break-all font-mono bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-2 rounded-lg">
-            {t("ui_url")}: {game.supabase_url}
+            {t("ui_url", "URL")}: {game.supabase_url}
           </div>
           <div className="text-[10px] text-[var(--text)] opacity-70 break-all font-mono bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-2 rounded-lg">
-            {t("ui_key")}: {game.supabase_anon_key?.substring(0, 20)}...
+            {t("ui_key", "Key")}: {game.supabase_anon_key?.substring(0, 20)}...
           </div>
         </div>
       </UniversalCard>
@@ -174,10 +324,10 @@ export default function KeepersActiveGames() {
         <HubOverviewSection
           icon="toggle_on"
           iconColorClass="text-[var(--success)]"
-          title={t("recent_active_games") || "Active Schema Engines"}
+          title={t("recent_active_games", "Active Schema Engines")}
           isEmpty={activeGames.length === 0}
           emptyIcon="dns"
-          emptyTitle={t("ui_no_games_registered") || "No Active Schema Engines"}
+          emptyTitle={t("ui_no_games_registered", "No Active Schema Engines")}
         >
           {activeGames.slice(0, 4).map(renderGameCard)}
         </HubOverviewSection>
@@ -185,10 +335,10 @@ export default function KeepersActiveGames() {
         <HubOverviewSection
           icon="toggle_off"
           iconColorClass="text-[var(--warning)]"
-          title={t("recent_inactive_games") || "Pending / Draft Engines"}
+          title={t("recent_inactive_games", "Pending / Draft Engines")}
           isEmpty={inactiveGames.length === 0}
           emptyIcon="check_circle"
-          emptyTitle={t("no_inactive_games") || "No Pending / Draft Engines"}
+          emptyTitle={t("no_inactive_games", "No Pending / Draft Engines")}
         >
           {inactiveGames.slice(0, 4).map(renderGameCard)}
         </HubOverviewSection>
@@ -200,82 +350,141 @@ export default function KeepersActiveGames() {
 
   return (
     <ElevatedHubLayout
-      headerTitle={t("ui_active_games") || "Game Databases"}
-      headerSubtitle={t("ui_active_games_subtitle") || "Manage Sanctuary game databases and FDW connections."}
+      headerTitle={t("ui_active_games", "Game Databases")}
+      headerSubtitle={t("ui_active_games_subtitle", "Manage Sanctuary game databases and FDW connections.")}
       headerIcon="dns"
       headerIconColorClass="text-[var(--accent)]"
       search={searchQuery}
       onSearchChange={setSearchQuery}
-      searchPlaceholder={t("search_ph") as string}
+      searchPlaceholder={t("search_ph", "Search...") as string}
       hideSearch={activeTab === 'overview'}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(v) => setFilter(v as any)}
-      actions={
-        activeTab !== 'overview' ? [
-          {
-            id: "add",
-            icon: "add",
-            label: t("ui_register_game_db") || "Register Game Database",
-            onClick: () => {
-              setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "", is_active: true });
-              setSidePanelMode('add');
-            }
+      actions={[
+        {
+          id: "add",
+          icon: "add",
+          label: t("ui_register_game_db", "Register Game Database"),
+          onClick: () => {
+            setHandshakeStatus(null);
+            setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "", is_active: true, founder_identifier: "" });
+            setSidePanelMode('add');
           }
-        ] : undefined
-      }
+        }
+      ]}
     >
       <SidePanel
         isOpen={sidePanelMode !== null}
         onClose={() => setSidePanelMode(null)}
-        title={sidePanelMode === 'edit' ? (t("edit_db_node") || "EDIT DATABASE NODE") : (t("ui_register_game_db"))}
-        subtitle={sidePanelMode === 'edit' ? (t("update_config") || "UPDATE CONFIGURATION") : (t("ui_add_network_node"))}
+        title={sidePanelMode === 'edit' ? t("edit_db_node", "EDIT DATABASE NODE") : t("ui_register_game_db", "Register Game Database")}
+        subtitle={sidePanelMode === 'edit' ? t("update_config", "UPDATE CONFIGURATION") : t("ui_add_network_node", "Add Network Node")}
         icon="dns"
         headerActions={
           <PanelHeaderGroup>
-            <PanelHeaderButton icon="save" variant="accent" tooltip={t("btn_save")} onClick={handleSaveGame} />
+            <PanelHeaderButton icon="content_copy" tooltip={t("spoke_copy_uplink_bundle", "Copy Uplink Bundle")} onClick={handleCopyUplinkBundle} />
+            <PanelHeaderButton icon="network_check" tooltip={t("spoke_btn_verify_handshake", "Test Handshake & Verify Schema")} onClick={handleVerifyHandshake} />
+            <PanelHeaderButton icon="save" variant="accent" tooltip={t("btn_save", "Save")} onClick={handleSaveGame} />
           </PanelHeaderGroup>
         }
       >
         <div className="flex flex-col gap-6 w-full">
+          <UniversalGroup label={t("spoke_quick_bundle_label", "Quick-Paste Uplink Bundle / Credentials")}>
+            <UniversalInput
+              type="text"
+              value={bundleInput}
+              onChange={handleParseBundle}
+              placeholder={t("spoke_quick_bundle_ph", "Paste a SANCTUARY-UPLINK:// token, JSON bundle, or raw Supabase URL & keys...")}
+            />
+          </UniversalGroup>
+
+          {handshakeStatus && (
+            <div className={`glass-panel rounded-2xl p-4 border flex items-center justify-between gap-3 ${handshakeStatus.ok ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'theme-panel-danger border-[color-mix(in_srgb,var(--danger)_40%,transparent)]'}`}>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className={`material-symbols-outlined !text-[20px] ${handshakeStatus.ok ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                  {handshakeStatus.ok ? 'verified' : 'error'}
+                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className={`text-xs font-black tracking-wide ${handshakeStatus.ok ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                    {handshakeStatus.message}
+                  </span>
+                  {handshakeStatus.wayfinder && (
+                    <span className="text-[10px] font-bold text-[var(--subtext)]">
+                      {t("spoke_wayfinder_provisioned", "Wayfinder role provisioned for: ")}{handshakeStatus.wayfinder}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {handshakeStatus.latency !== undefined && (
+                <span className="text-[10px] font-mono font-black text-[var(--subtext)] shrink-0">
+                  {handshakeStatus.latency} {t("icon_ms", "ms")}
+                </span>
+              )}
+            </div>
+          )}
+
           <SidePanelTitleInput
             value={formData.name}
             onChange={val => setFormData({ ...formData, name: val })}
-            placeholder={t("ui_game_name") || "e.g. The Sims 4"}
+            placeholder={t("ui_game_name", "e.g. The Sims 4")}
           />
 
           <SidePanelPillToggle
             checked={formData.is_active !== false}
             onChange={checked => setFormData({ ...formData, is_active: checked })}
-            label={t("filter_active") || "Active Schema Engine"}
+            label={t("filter_active", "Active Schema Engine")}
             icon="dns"
             variant="success"
           />
 
-          <UniversalGroup label={t("ui_schema_id") || "Schema ID"}>
+          <UniversalGroup label={t("ui_schema_id", "Schema ID")}>
             <UniversalInput type="text" value={formData.schema_id} onChange={val => setFormData({ ...formData, schema_id: val })} placeholder="e.g. SIMS4" />
           </UniversalGroup>
-          <UniversalGroup label={t("ui_supabase_url") || "Supabase Project URL"}>
+          <UniversalGroup label={t("ui_supabase_url", "Supabase Project URL")}>
             <UniversalInput type="text" value={formData.supabase_url} onChange={val => setFormData({ ...formData, supabase_url: val })} placeholder="https://xyz.supabase.co" />
           </UniversalGroup>
-          <UniversalGroup label={t("ui_supabase_key") || "Supabase Anon Key"}>
+          <UniversalGroup label={t("ui_supabase_key", "Supabase Anon Key")}>
             <UniversalInput type="text" value={formData.supabase_anon_key} onChange={val => setFormData({ ...formData, supabase_anon_key: val })} placeholder="ey..." />
           </UniversalGroup>
-          <UniversalGroup label={t("ui_supabase_service_key") || "Supabase Service Key"}>
+          <UniversalGroup label={t("ui_supabase_service_key", "Supabase Service Key")}>
             <UniversalInput type="password" value={formData.supabase_service_key || ''} onChange={val => setFormData({ ...formData, supabase_service_key: val })} placeholder="secret..." />
           </UniversalGroup>
+          <UniversalGroup label={t("spoke_founder_label", "Founding Community Manager (Username or UUID)")}>
+            <UniversalInput
+              type="text"
+              value={formData.founder_identifier}
+              onChange={val => setFormData({ ...formData, founder_identifier: val })}
+              placeholder={t("spoke_founder_ph", "Optional: Hub username or UUID to auto-promote to Wayfinder")}
+            />
+          </UniversalGroup>
+
+          <button
+            type="button"
+            onClick={handleVerifyHandshake}
+            disabled={verifyingHandshake}
+            className="w-full glass-panel rounded-2xl px-5 py-3.5 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] transition-all flex items-center justify-center gap-2 text-xs font-black tracking-widest text-[var(--text)]"
+          >
+            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+              {verifyingHandshake ? 'sync' : 'network_check'}
+            </span>
+            <span>
+              {verifyingHandshake
+                ? t("spoke_verifying_handshake", "Testing Spoke Handshake...")
+                : t("spoke_btn_verify_handshake", "Test Handshake & Verify Schema")}
+            </span>
+          </button>
         </div>
       </SidePanel>
 
       {activeTab === 'overview' ? renderLanding() : (
           <div className="flex flex-col gap-4">
             {loading ? (
-              <div className="p-12 font-black animate-pulse capitalize tracking-widest text-[var(--accent)]">{t("ui_fetching_nodes")}</div>
+              <div className="p-12 font-black animate-pulse capitalize tracking-widest text-[var(--accent)]">{t("ui_fetching_nodes", "Fetching Nodes...")}</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredGames.map(renderGameCard)}
                 {filteredGames.length === 0 && sidePanelMode === null && (
-                  <EmptyState icon="dns" title={t("ui_no_games_registered")} className="col-span-full py-16" />
+                  <EmptyState icon="dns" title={t("ui_no_games_registered", "No Active Schema Engines")} className="col-span-full py-16" />
                 )}
               </div>
             )}

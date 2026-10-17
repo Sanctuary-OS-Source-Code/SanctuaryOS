@@ -89,6 +89,7 @@ html, body {
   height: 100vh;
   pointer-events: none;
   z-index: 999999;
+  color: var(--text);
 }
 
 

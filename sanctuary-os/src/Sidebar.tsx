@@ -341,7 +341,7 @@ export function Sidebar({
                   setHoveredTooltip={setHoveredTooltip}
                 />
               )}
-              {session && !(!isDesktop() && isRootDomain()) && schemaFeatures.has_cc && ["mason", "architect", "oversight", "wayfinder", "admin"].includes(userRole) && (
+              {session && !(!isDesktop() && isRootDomain()) && schemaFeatures.has_cc && (
                 <div className={`mt-3 mb-1 pt-3 relative ${isSidebarCollapsed ? 'px-0' : ''}`}>
                   <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_5%,transparent)] via-[color-mix(in_srgb,var(--text)_15%,transparent)] to-transparent" />
                   {!isSidebarCollapsed && (
@@ -520,6 +520,7 @@ export function Sidebar({
                       <NavButton active={useStore.getState().keepersActiveTab === "web_legal"} onClick={() => useStore.getState().setKeepersActiveTab("web_legal")} icon="gavel" label="Legal" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "web_legal"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().keepersActiveTab === "active_games"} onClick={() => useStore.getState().setKeepersActiveTab("active_games")} icon="dns" label="Workspaces" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "active_games"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().keepersActiveTab === "identities"} onClick={() => useStore.getState().setKeepersActiveTab("identities")} icon="group" label="Oversight" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "identities"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().keepersActiveTab === "heuristics"} onClick={() => useStore.getState().setKeepersActiveTab("heuristics")} icon={t("icon_shield_lock") || "shield_lock"} label={t("core_heuristics_tab") || "Core Heuristics"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "heuristics"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().keepersActiveTab === "support"} onClick={() => useStore.getState().setKeepersActiveTab("support")} icon={t("icon_support_agent") as string} label="Support" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "support"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().keepersActiveTab === "support_settings"} onClick={() => useStore.getState().setKeepersActiveTab("support_settings")} icon={t("icon_support_agent") as string} label={t("wf_tab_support")?.replace(/^[^\w]*/, '').trim() || "Settings"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "support_settings"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().keepersActiveTab === "audit_logs"} onClick={() => useStore.getState().setKeepersActiveTab("audit_logs")} icon={t("icon_history") as string} label={t("audit_title")?.replace(/^[^\w]*/, '').trim() || "Audit"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "audit_logs"} setHoveredTooltip={setHoveredTooltip} />
@@ -613,21 +614,15 @@ export function Sidebar({
           style={{ top: hoveredTooltip.top, transform: 'translateY(-50%)' }}
         >
           <div
-            className="flex flex-col items-start justify-center px-5 py-3 max-w-[320px] w-max  border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl overflow-hidden bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-md animate-in fade-in slide-in-from-left-2"
+            className="glass-panel portal-glass-fix flex flex-col items-start justify-center px-3.5 py-2 max-w-[320px] w-max border border-[rgba(var(--text-rgb,255,255,255),0.16)] !rounded-xl overflow-hidden animate-in fade-in slide-in-from-left-2 duration-150"
           >
-            {/* 3D Glass Inner Top Highlight */}
-            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-60 pointer-events-none z-0" />
-
-            {/* Ultra-faint Noise Texture for Glass Material realism */}
-            <div className="absolute inset-0 rounded-[inherit] z-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
-
             <div className="relative z-10 flex flex-col items-start gap-1 w-full">
-              <div className="text-[10px] font-black capitalize tracking-[0.2em] flex items-start text-left gap-2 whitespace-pre-line text-[var(--text)]">
+              <div className="text-xs font-bold capitalize tracking-wide flex items-start text-left gap-2 whitespace-pre-line text-[var(--text)]">
                 <span>{hoveredTooltip.label}</span>
               </div>
             </div>
           </div>
-        </div>, document.body
+        </div>, document.getElementById("sa-portals") || document.body
       )}
     </nav >
   );

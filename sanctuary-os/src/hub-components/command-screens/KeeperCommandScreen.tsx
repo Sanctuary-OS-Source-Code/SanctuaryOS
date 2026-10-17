@@ -24,6 +24,7 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
     activeThemes: 0,
     lexicons: 0,
     activeBroadcasts: 0,
+    coreHeuristics: 0,
     networkLatency: 0 as number | null,
     networkStatus: "ONLINE",
     urgentBroadcast: null as any
@@ -57,6 +58,7 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
       const { count: themesCount } = await supabase.from('sanctuary_themes').select('*', { count: 'exact', head: true });
       const { count: lexiconsCount } = await supabase.from('sanctuary_lexicons').select('*', { count: 'exact', head: true });
       const { count: broadcastsCount } = await supabase.from('keeper_system_broadcasts').select('*', { count: 'exact', head: true }).eq('is_active', true);
+      const { count: heuristicsCount } = await supabase.from('keeper_heuristic_signatures').select('*', { count: 'exact', head: true }).eq('enabled', true);
 
       const { data: urgentDataRaw } = await supabase.from('keeper_system_broadcasts')
         .select('*')
@@ -84,6 +86,7 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
         activeThemes: themesCount || 0,
         lexicons: lexiconsCount || 0,
         activeBroadcasts: broadcastsCount || 0,
+        coreHeuristics: heuristicsCount || 0,
         networkLatency: latency,
         networkStatus: latency > 5000 ? "DEGRADED" : "ONLINE",
         urgentBroadcast: finalUrgent
@@ -103,13 +106,13 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
   return (
     <CommandScreenLayout>
       <CommandScreenStats>
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_dns")}</span>} number={stats.networkLatency ? `${stats.networkLatency}` : "---"} label={stats.networkStatus === "ONLINE" ? "CORE OS NOMINAL" : "CORE OS DEGRADED"} colorClass={stats.networkStatus === "ONLINE" ? "border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-emerald-500 hover:border-emerald-500 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]" : "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-yellow-500 hover:border-yellow-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]"} onClick={() => setHealthOpen(true)} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">view_quilt</span>} number={stats.activeGames} label="Active Workspaces" colorClass="text-emerald-500" onClick={() => setTab("active_games")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_dns") || "dns"}</span>} number={stats.networkLatency ? `${stats.networkLatency}` : "---"} label={stats.networkStatus === "ONLINE" ? "CORE OS NOMINAL" : "CORE OS DEGRADED"} colorClass={stats.networkStatus === "ONLINE" ? "border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-emerald-500 hover:border-emerald-500 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]" : "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-yellow-500 hover:border-yellow-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]"} onClick={() => setHealthOpen(true)} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">view_quilt</span>} number={stats.activeGames} label={t("ui_active_games") || "Active Workspaces"} colorClass="text-emerald-500" onClick={() => setTab("active_games")} />
 
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_shield_lock") || "shield_lock"}</span>} number={stats.coreHeuristics} label={t("core_heuristics_tab") || "Core Heuristics"} colorClass="text-red-500" onClick={() => setTab("heuristics")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">local_activity</span>} number={stats.tickets} label="Support Queue" colorClass="text-purple-500" onClick={() => setTab("support")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">campaign</span>} number={stats.activeBroadcasts} label="Active Broadcasts" colorClass="text-amber-500" onClick={() => setIsAlertsOpen(true)} />
 
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">group</span>} number={stats.citizens} label="Citizen Oversight" colorClass="text-blue-500" onClick={() => setTab("identities")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">group</span>} number={stats.citizens} label={t("citizen_oversight") || "Citizen Oversight"} colorClass="text-blue-500" onClick={() => setTab("identities")} />
       </CommandScreenStats>
 
 
@@ -166,8 +169,9 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
             />
           )}
 
-          <CommandScreenQuickLink icon="dns" title="Active Workspaces" subtitle="Manage Game Servers" onClick={() => setTab("active_games")} textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400" />
-          <CommandScreenQuickLink icon="group" title="Citizen Oversight" subtitle="Manage Identities" onClick={() => setTab("identities")} textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400" />
+          <CommandScreenQuickLink icon="dns" title={t("ui_active_games") || "Active Workspaces"} subtitle="Manage Game Servers" onClick={() => setTab("active_games")} textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400" />
+          <CommandScreenQuickLink icon={t("icon_shield_lock") || "shield_lock"} title={t("core_heuristics_tab") || "Core Heuristics"} subtitle={t("keepers_heuristics_subtitle") || "System-Wide Threat Definitions"} onClick={() => setTab("heuristics")} textColorClass="text-red-400" hoverTextColorClass="group-hover:text-red-300" dotColorClass="bg-red-400" />
+          <CommandScreenQuickLink icon="group" title={t("citizen_oversight") || "Citizen Oversight"} subtitle="Manage Identities" onClick={() => setTab("identities")} textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400" />
           <CommandScreenQuickLink icon="local_activity" title="Support Tickets" subtitle="View Support Queue" onClick={() => setTab("support")} textColorClass="text-purple-400" hoverTextColorClass="group-hover:text-purple-300" dotColorClass="bg-purple-400" />
           <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history")} title={t("audit_title")} subtitle={t("ql_system_history")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-md" />
 

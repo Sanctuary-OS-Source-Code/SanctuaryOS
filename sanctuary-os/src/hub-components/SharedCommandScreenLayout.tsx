@@ -2,6 +2,7 @@ import React from 'react';
 import { useLexicon } from '../LexiconContext';
 import { extractPostImage, stripMarkdown, DashboardStatTile } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
+import { formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
 
 export { DashboardStatTile };
 
@@ -267,7 +268,7 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                         className="w-full"
                         imageOverlay={
                             <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{post.category || t("comms_btn_update") || "UPDATE"}</span>
+                                <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{formatDispatchCategory(post.category, t)}</span>
                                 <span className="px-2 py-0.5 glass-surface text-[var(--text)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("category_system")}</span>
                             </div>
                         }

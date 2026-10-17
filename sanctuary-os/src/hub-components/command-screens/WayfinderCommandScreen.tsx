@@ -168,7 +168,7 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
       const { data: broadcastsData, error: bErr } = await supabase.from('keeper_system_broadcasts')
         .select('*')
         .or(`target_audience.ilike.%All%,target_audience.ilike.%${audienceStr.replace(/ /g, '_')}%`)
-        .in('category', ['Update', 'Info', 'Event', 'System'])
+        .in('category', ['Update', 'Information', 'Event', 'System'])
         .order('created_at', { ascending: false })
         .limit(3);
       if (bErr) console.error("Broadcast Fetch Error", bErr);
@@ -373,6 +373,8 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
           <CommandScreenQuickLink onClick={() => setIsKeeperSupportOpen(true)} icon={t("icon_admin_panel_settings")} title={t("wf_keeper_support_title")} subtitle={t("wf_keeper_support_subtitle")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-teal-400" hoverTextColorClass="group-hover:text-teal-300" dotColorClass="bg-teal-400 shadow-md" />
 
           <CommandScreenQuickLink onClick={() => setTab("support_settings")} icon={t("icon_support_agent")} title={t("tab_support")} subtitle={t("wf_link_support_sub")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-amber-400" hoverTextColorClass="group-hover:text-amber-300" dotColorClass="bg-amber-400 shadow-md" />
+
+          <CommandScreenQuickLink onClick={() => setHealthOpen(true)} icon="settings_ethernet" title={t("wf_uplink_quicklink_title", "Spoke Uplink & Sovereignty")} subtitle={t("wf_uplink_quicklink_sub", "Node Telemetry, Key Rotation & Cut the Cord")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400 shadow-md" />
 
           <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history")} title={t("audit_title")} subtitle={t("link_audit_sub")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400 shadow-md" />
 

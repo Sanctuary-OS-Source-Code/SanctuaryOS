@@ -97,6 +97,75 @@ serve(async (req) => {
       })
     }
 
+    // Special Hub-wide action: test Spoke connection, verify schema.sql tables, seed network status, and bootstrap Founding Wayfinder
+    if (action === 'verify_and_bootstrap_spoke') {
+      const { supabase_url, supabase_anon_key, supabase_service_key, founder_identifier } = payload || {}
+      const targetKey = supabase_service_key || supabase_anon_key
+      if (!supabase_url || !targetKey) {
+        throw new Error('Missing Spoke Supabase URL or Key')
+      }
+
+      const startPing = Date.now()
+      const testDb = createClient(supabase_url, targetKey)
+      const requiredTables = ['mods', 'profiles', 'system_broadcasts', 'dispatch_poll_votes', 'global_network_status', 'audit_logs']
+      const missingTables: string[] = []
+
+      for (const tbl of requiredTables) {
+        const { error: tblErr } = await testDb.from(tbl).select('*', { count: 'exact', head: true }).limit(1)
+        if (tblErr && (tblErr.code === '42P01' || tblErr.message?.includes('does not exist') || tblErr.message?.includes('schema cache'))) {
+          missingTables.push(tbl)
+        }
+      }
+
+      const latencyMs = Date.now() - startPing
+
+      if (missingTables.length === 0 && supabase_service_key) {
+        // Ensure global_network_status row 1 exists
+        await testDb.from('global_network_status').upsert({
+          id: 1,
+          defcon_level: 5,
+          status_message: 'Network Secure. All systems nominal.'
+        }, { onConflict: 'id' })
+      }
+
+      let wayfinderProvisioned: string | null = null
+      if (founder_identifier && String(founder_identifier).trim() && supabase_service_key && hubRole === 'keeper' && missingTables.length === 0) {
+        const cleanFounder = String(founder_identifier).trim()
+        let founderQuery = supabaseAdmin
+          .from('profiles')
+          .select('id, username, is_banned, blacklist_reason')
+        if (UUID_REGEX.test(cleanFounder)) {
+          founderQuery = founderQuery.eq('id', cleanFounder)
+        } else {
+          founderQuery = founderQuery.or(`username.ilike.${cleanFounder},email.ilike.${cleanFounder}`)
+        }
+        const { data: founderHub } = await founderQuery.maybeSingle()
+        if (founderHub) {
+          const { error: wfErr } = await testDb.from('profiles').upsert({
+            id: founderHub.id,
+            username: founderHub.username || ('Wayfinder_' + founderHub.id.substring(0, 6)),
+            role: 'wayfinder',
+            is_banned: founderHub.is_banned ?? false,
+            blacklist_reason: founderHub.blacklist_reason ?? null
+          }, { onConflict: 'id' })
+          if (!wfErr) {
+            wayfinderProvisioned = founderHub.username || founderHub.id
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({
+        success: missingTables.length === 0,
+        schema_ready: missingTables.length === 0,
+        missing_tables: missingTables,
+        wayfinder_provisioned: wayfinderProvisioned,
+        latency_ms: latencyMs
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
     if (!game_id) {
       throw new Error('Missing game_id')
     }
@@ -104,7 +173,7 @@ serve(async (req) => {
     // 4. Resolve Target Spoke DB Configuration (by UUID id or schema_id)
     let gameQuery = supabaseAdmin
       .from('sanctuary_games')
-      .select('id, schema_id, supabase_url, supabase_service_key')
+      .select('id, name, schema_id, supabase_url, supabase_anon_key, supabase_service_key, is_active')
 
     if (UUID_REGEX.test(game_id)) {
       gameQuery = gameQuery.eq('id', game_id)
@@ -115,7 +184,27 @@ serve(async (req) => {
     const { data: game, error: gameError } = await gameQuery.maybeSingle()
 
     if (gameError || !game) throw new Error('Game DB not found: ' + (gameError?.message || 'No row') + ' | ID was: ' + game_id)
-    if (!game.supabase_service_key) throw new Error('Game DB service key not configured - connection rejected')
+    if (!game.supabase_service_key) {
+      if (action === 'sever_spoke_cord' && hubRole === 'keeper') {
+        await supabaseAdmin
+          .from('sanctuary_games')
+          .update({ is_active: false, supabase_service_key: null })
+          .eq('id', game.id)
+        await supabaseAdmin.from('audit_logs').insert({
+          action: 'Keeper Severed Spoke Uplink (Cut the Cord)',
+          target_table: 'sanctuary_games',
+          target_name: game.name || game.schema_id,
+          actor_id: v_user_id,
+          reason: payload?.reason || 'Keeper Severance Protocol',
+          game_name: 'Keeper Hub'
+        })
+        return new Response(JSON.stringify({ success: true, severed_by: 'keeper', schema_id: game.schema_id }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        })
+      }
+      throw new Error('Game DB service key not configured - connection rejected')
+    }
 
     // 5. Initialize Spoke DB Client with Service Role Key
     const gameDb = createClient(game.supabase_url, game.supabase_service_key)
@@ -387,6 +476,102 @@ serve(async (req) => {
           .eq('user_id', v_user_id);
         if (error) throw error;
         resultData = { success: true };
+        break;
+      }
+      case 'sever_spoke_cord': {
+        if (hubRole !== 'keeper' && callerSpokeRole !== 'wayfinder') {
+          throw new Error('Forbidden: Only the Spoke Wayfinder or a Core OS Keeper can sever the uplink cord.')
+        }
+        const severReason = payload?.reason?.trim() || (callerSpokeRole === 'wayfinder' ? 'Community Executed Cut the Cord (Bilateral Sovereignty Severance)' : 'Keeper Severed Spoke Uplink')
+        const actionTitle = callerSpokeRole === 'wayfinder' ? 'Community Executed Cut the Cord (Severed Uplink)' : 'Keeper Severed Spoke Uplink'
+
+        // 1. Log in Spoke audit_logs before scrubbing the service key
+        try {
+          await gameDb.from('audit_logs').insert({
+            action: actionTitle,
+            target_table: 'sanctuary_games',
+            target_name: game.name || game.schema_id,
+            actor_id: v_user_id,
+            reason: severReason
+          })
+        } catch (e) {
+          console.warn('Spoke audit log insert warning on sever:', e)
+        }
+
+        // 2. Log in Hub audit_logs
+        try {
+          await supabaseAdmin.from('audit_logs').insert({
+            action: actionTitle,
+            target_table: 'sanctuary_games',
+            target_name: game.name || game.schema_id,
+            actor_id: v_user_id,
+            reason: severReason,
+            game_name: game.name || game.schema_id
+          })
+        } catch (e) {
+          console.warn('Hub audit log insert warning on sever:', e)
+        }
+
+        // 3. Deactivate Spoke and scrub service key on Hub
+        const { error: severErr } = await supabaseAdmin
+          .from('sanctuary_games')
+          .update({
+            is_active: false,
+            supabase_service_key: null
+          })
+          .eq('id', game.id)
+
+        if (severErr) throw severErr
+
+        resultData = {
+          success: true,
+          severed_by: callerSpokeRole === 'wayfinder' ? 'wayfinder' : 'keeper',
+          schema_id: game.schema_id
+        }
+        break;
+      }
+      case 'update_spoke_uplink': {
+        if (hubRole !== 'keeper' && callerSpokeRole !== 'wayfinder') {
+          throw new Error('Forbidden: Only the Spoke Wayfinder or a Core OS Keeper can update Spoke uplink keys.')
+        }
+        const newUrl = payload?.supabase_url?.trim() || game.supabase_url
+        const newAnonKey = payload?.supabase_anon_key?.trim() || game.supabase_anon_key
+        const newServiceKey = payload?.supabase_service_key?.trim() || game.supabase_service_key
+
+        if (!newUrl || !newAnonKey || !newServiceKey) {
+          throw new Error('Missing required Spoke URL, Anon Key, or Service Key.')
+        }
+
+        // Verify the new credentials can reach the Spoke profiles table
+        const verifyClient = createClient(newUrl, newServiceKey)
+        const { error: pingErr } = await verifyClient.from('profiles').select('id', { head: true, count: 'exact' }).limit(1)
+        if (pingErr) {
+          throw new Error('Spoke handshake failed with new credentials: ' + pingErr.message)
+        }
+
+        const { error: updErr } = await supabaseAdmin
+          .from('sanctuary_games')
+          .update({
+            supabase_url: newUrl,
+            supabase_anon_key: newAnonKey,
+            supabase_service_key: newServiceKey,
+            is_active: true
+          })
+          .eq('id', game.id)
+
+        if (updErr) throw updErr
+
+        try {
+          await gameDb.from('audit_logs').insert({
+            action: 'Rotated Spoke Uplink Credentials',
+            target_table: 'sanctuary_games',
+            target_name: game.name || game.schema_id,
+            actor_id: v_user_id,
+            reason: 'Wayfinder / Keeper Uplink Key Rotation'
+          })
+        } catch (e) {}
+
+        resultData = { success: true, schema_id: game.schema_id }
         break;
       }
       default:

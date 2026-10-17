@@ -45,37 +45,37 @@ export function EdgeOverrideSidePanel({
       panelZ="z-[125001]"
       title={t("title_edge_override_details") || "Override Manifest Details"}
       subtitle={t("desc_edge_override_details") || "Review the incoming network override settings."}
-      icon="network_wifi"
+      icon={t("icon_network_wifi") || "network_wifi"}
       widthClass="w-[500px]"
     >
       <div className="flex flex-col gap-4 p-5">
         <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
             <h3 className="text-[10px] font-black uppercase tracking-widest theme-text-accent mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[14px]">extension</span>
+              <span className="material-symbols-outlined !text-[14px]">{t("icon_extension") || "extension"}</span>
               {t("label_target_mod") || "Target Artifact"}
             </h3>
             <div className="text-base font-bold text-[var(--text)]">
-              {data.artifact_id || "Unknown"}
+              {data.artifact_id || (t("unknown_label") || "Unknown")}
             </div>
         </div>
 
         <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
             <h3 className="text-[10px] font-black uppercase tracking-widest theme-text-accent mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[14px]">person</span>
+              <span className="material-symbols-outlined !text-[14px]">{t("icon_person") || "person"}</span>
               {t("role_mason") || "Mason"}
             </h3>
             <div className="text-base font-bold text-[var(--text)] truncate">
-              {masonName || data.mason_id || "Unknown"}
+              {masonName || data.mason_id || (t("unknown_label") || "Unknown")}
             </div>
         </div>
         
         <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
             <h3 className="text-[10px] font-black uppercase tracking-widest theme-text-accent mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[14px]">link</span>
+              <span className="material-symbols-outlined !text-[14px]">{t("icon_link") || "link"}</span>
               {t("label_manifest_source") || "Manifest Source"}
             </h3>
             <div className="text-xs opacity-80 break-all bg-[var(--bg-tertiary)] p-3 rounded-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono">
-              {data.manifest_url || "N/A"}
+              {data.manifest_url || (t("not_available") || "N/A")}
             </div>
             {(modHash || data.target_hash) && (
                 <div className="flex flex-col gap-1 mt-3">
@@ -93,7 +93,7 @@ export function EdgeOverrideSidePanel({
         </div>
 
         <div className="p-4 rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] text-[var(--warning)] flex items-start gap-3">
-            <span className="material-symbols-outlined !text-[18px] shrink-0 mt-0.5">warning</span>
+            <span className="material-symbols-outlined !text-[18px] shrink-0 mt-0.5">{t("icon_warning") || "warning"}</span>
             <div className="text-[10px] leading-relaxed">
               {t("desc_override_warning") || "Importing this override will replace locally maintained metadata and atomic logic for this artifact family with data from the linked Edge Manifest. The override can be removed and the Local Dossier restored at any time."}
             </div>
@@ -101,7 +101,7 @@ export function EdgeOverrideSidePanel({
 
         <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
             <h3 className="text-[10px] font-black uppercase tracking-widest theme-text-accent mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[14px]">fingerprint</span>
+              <span className="material-symbols-outlined !text-[14px]">{t("icon_fingerprint") || "fingerprint"}</span>
               {t("label_hashes_affected") || "Hashes Affected"}
             </h3>
             <div className="bg-[var(--bg-tertiary)] rounded-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] max-h-[200px] overflow-y-auto custom-scrollbar">

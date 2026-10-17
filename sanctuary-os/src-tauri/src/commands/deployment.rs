@@ -152,15 +152,8 @@ pub async fn deploy_playset_bulk(
         crate::game_logic::generate_manifest_if_needed(&game_schema, &mods_dir);
 
         let mut vault_index = std::collections::HashMap::new();
-        let folders_to_check = vec![
-            "",
-            "!Sanctuary",
-            "!Sanctuary2",
-            "!Sanctuary3",
-            "Sanctuary",
-            "Sanctuary2",
-            "Sanctuary3",
-        ];
+        let priority_folders = crate::game_logic::get_priority_folders(&game_schema);
+        let load_strategy = crate::game_logic::get_load_order_strategy(&game_schema);
 
         fn populate_vault_index(
             dir: &PathBuf,
@@ -180,7 +173,7 @@ pub async fn deploy_playset_bulk(
             }
         }
 
-        for f in folders_to_check.iter().rev() {
+        for f in priority_folders.iter().rev() {
             let dir_path = if f.is_empty() {
                 vault_mods_lane.clone()
             } else {
@@ -189,22 +182,18 @@ pub async fn deploy_playset_bulk(
             populate_vault_index(&dir_path, &mut vault_index);
         }
 
+        let mods_for_manifest = mods.clone();
+
         use rayon::prelude::*;
         let count: usize = mods
             .into_par_iter()
             .map(|m| {
+                let folders_to_check: Vec<&str> =
+                    priority_folders.iter().map(|s| s.as_str()).collect();
+
                 if let Some(structure_val) = &m.folder_structure {
                     match serde_json::from_value::<Vec<StructureNode>>(structure_val.clone()) {
                         Ok(nodes) => {
-                            let folders_to_check = vec![
-                                "",
-                                "!Sanctuary",
-                                "!Sanctuary2",
-                                "!Sanctuary3",
-                                "Sanctuary",
-                                "Sanctuary2",
-                                "Sanctuary3",
-                            ];
                             process_structure_nodes(
                                 &game_schema,
                                 &nodes,
@@ -221,16 +210,29 @@ pub async fn deploy_playset_bulk(
                 }
 
                 let mut search_name = Path::new(&m.path);
+                let mut detected_tier_folder: Option<String> = m
+                    .priority_tier
+                    .clone()
+                    .filter(|s| !s.is_empty() && s != "default");
+
                 loop {
-                    if let Ok(stripped) = search_name.strip_prefix("Sanctuary") {
-                        search_name = stripped;
-                        continue;
+                    let mut stripped_any = false;
+                    for pf in &priority_folders {
+                        if !pf.is_empty() {
+                            if let Ok(stripped) = search_name.strip_prefix(pf) {
+                                if detected_tier_folder.is_none() {
+                                    detected_tier_folder =
+                                        Some(pf.trim_start_matches('!').to_string());
+                                }
+                                search_name = stripped;
+                                stripped_any = true;
+                                break;
+                            }
+                        }
                     }
-                    if let Ok(stripped) = search_name.strip_prefix("!Sanctuary") {
-                        search_name = stripped;
-                        continue;
+                    if !stripped_any {
+                        break;
                     }
-                    break;
                 }
 
                 let mut source = vault_mods_lane.join(search_name);
@@ -262,15 +264,6 @@ pub async fn deploy_playset_bulk(
                 }
 
                 if !found {
-                    let folders_to_check = vec![
-                        "",
-                        "!Sanctuary",
-                        "!Sanctuary2",
-                        "!Sanctuary3",
-                        "Sanctuary",
-                        "Sanctuary2",
-                        "Sanctuary3",
-                    ];
                     for f in &folders_to_check {
                         let base_test = if f.is_empty() {
                             vault_mods_lane.join(search_name)
@@ -350,23 +343,38 @@ pub async fn deploy_playset_bulk(
                     mods_dir.join(search_name)
                 };
 
-                if m.path.starts_with("Sanctuary/") || m.path.starts_with("Sanctuary\\") {
-                    if let Some(ref t_path) = m.target_path {
-                        let mut clean_t = Path::new(t_path);
-                        loop {
-                            if let Ok(stripped) = clean_t.strip_prefix("Sanctuary") {
-                                clean_t = stripped;
-                                continue;
+                if load_strategy == "folder_priority" {
+                    if let Some(ref tier_folder) = detected_tier_folder {
+                        if !tier_folder.is_empty() {
+                            if let Some(ref t_path) = m.target_path {
+                                let mut clean_t = Path::new(t_path);
+                                loop {
+                                    let mut stripped_any = false;
+                                    for pf in &priority_folders {
+                                        if !pf.is_empty() {
+                                            if let Ok(stripped) = clean_t.strip_prefix(pf) {
+                                                clean_t = stripped;
+                                                stripped_any = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if !stripped_any {
+                                        break;
+                                    }
+                                }
+                                target = mods_dir.join(tier_folder).join(clean_t);
+                            } else {
+                                target = mods_dir.join(tier_folder).join(search_name);
                             }
-                            if let Ok(stripped) = clean_t.strip_prefix("!Sanctuary") {
-                                clean_t = stripped;
-                                continue;
-                            }
-                            break;
                         }
-                        target = mods_dir.join("Sanctuary").join(clean_t);
-                    } else {
-                        target = mods_dir.join("Sanctuary").join(search_name);
+                    }
+                } else if load_strategy == "numeric_prefix" {
+                    if let Some(order_idx) = m.load_order_index {
+                        if let Some(fname) = target.file_name().and_then(|n| n.to_str()) {
+                            let prefixed_name = format!("{:03}_{}", order_idx + 1, fname);
+                            target = target.with_file_name(prefixed_name);
+                        }
                     }
                 }
 
@@ -420,15 +428,6 @@ pub async fn deploy_playset_bulk(
                 if let Some(source_parent) = source.parent() {
                     if let Some(target_parent) = target.parent() {
                         let mut is_top_level = source_parent == vault_mods_lane.as_path();
-                        let folders_to_check = vec![
-                            "",
-                            "!Sanctuary",
-                            "!Sanctuary2",
-                            "!Sanctuary3",
-                            "Sanctuary",
-                            "Sanctuary2",
-                            "Sanctuary3",
-                        ];
                         for f in &folders_to_check {
                             if !f.is_empty() {
                                 let f_path = vault_mods_lane.join(f);
@@ -488,6 +487,26 @@ pub async fn deploy_playset_bulk(
                 1
             })
             .sum();
+
+        if load_strategy == "manifest_list" {
+            let mut sorted_mods = mods_for_manifest;
+            sorted_mods.sort_by_key(|m| m.load_order_index.unwrap_or(0));
+            let ordered_files: Vec<String> = sorted_mods
+                .into_iter()
+                .map(|m| {
+                    m.target_path
+                        .unwrap_or_else(|| {
+                            Path::new(&m.path)
+                                .file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_string()
+                        })
+                        .replace("\\", "/")
+                })
+                .collect();
+            crate::game_logic::write_load_order_manifest(&game_schema, &mods_dir, &ordered_files);
+        }
 
         if let Ok(entries) = std::fs::read_dir(&vault_mods_lane) {
             for entry in entries.flatten() {

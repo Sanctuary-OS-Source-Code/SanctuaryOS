@@ -30,6 +30,24 @@ pub struct VersionExtraction {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PriorityTier {
+    pub id: String,
+    pub label: String,
+    pub priority: i32,
+    pub folder: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LoadOrderConfig {
+    pub strategy: Option<String>,
+    pub direction: Option<String>,
+    pub manifest_file: Option<String>,
+    pub prefix_format: Option<String>,
+    pub line_template: Option<String>,
+    pub priority_tiers: Option<Vec<PriorityTier>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GameSchema {
     pub schema_version: u32,
     pub game_id: String,
@@ -46,6 +64,7 @@ pub struct GameSchema {
 
     pub magic_bytes: Option<std::collections::HashMap<String, String>>,
     pub manifest_content: Option<String>,
+    pub load_order: Option<LoadOrderConfig>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

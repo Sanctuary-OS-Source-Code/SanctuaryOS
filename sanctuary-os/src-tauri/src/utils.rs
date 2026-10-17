@@ -123,8 +123,16 @@ pub fn get_db_conn(vault_path: &str) -> Connection {
             explicitly_local INTEGER NOT NULL,
             quarantined INTEGER NOT NULL,
             heuristic_malware_sig TEXT,
-            heuristic_sigs_mtime INTEGER NOT NULL
+            heuristic_sigs_mtime INTEGER NOT NULL DEFAULT 0
         )",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE cache ADD COLUMN heuristic_malware_sig TEXT",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE cache ADD COLUMN heuristic_sigs_mtime INTEGER NOT NULL DEFAULT 0",
         [],
     );
     let _ = conn.execute(
@@ -132,12 +140,18 @@ pub fn get_db_conn(vault_path: &str) -> Connection {
             artifact_id TEXT PRIMARY KEY,
             mason_id TEXT NOT NULL,
             manifest_url TEXT NOT NULL,
+            target_hash TEXT DEFAULT '',
+            archive_hashes TEXT DEFAULT '[]',
+            game_id TEXT DEFAULT '',
             last_fetched_hash TEXT,
             last_fetched_metadata TEXT,
             created_at INTEGER NOT NULL
         )",
         [],
     );
+    let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN target_hash TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN archive_hashes TEXT DEFAULT '[]'", []);
+    let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN game_id TEXT DEFAULT ''", []);
     let _ = conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache (dna_hash)",
         [],
@@ -147,35 +161,37 @@ pub fn get_db_conn(vault_path: &str) -> Connection {
 
 pub fn load_cache(vault_path: &str) -> BunkerCache {
     let conn = get_db_conn(vault_path);
-    let mut stmt = conn.prepare("SELECT path, mtime, dna_hash, explicitly_local, quarantined, heuristic_malware_sig, heuristic_sigs_mtime FROM cache").unwrap_or_else(|_| panic!("Failed to prepare select statement"));
-    let cache_iter = stmt
-        .query_map([], |row| {
-            let path: String = row.get(0)?;
-            let mtime: u64 = row.get(1)?;
-            let dna_hash: String = row.get(2)?;
-            let explicitly_local_int: i32 = row.get(3)?;
-            let quarantined_int: i32 = row.get(4)?;
-            let heuristic_malware_sig: Option<String> = row.get(5)?;
-            let heuristic_sigs_mtime: u64 = row.get(6)?;
-            Ok((
-                path,
-                CacheEntry {
-                    mtime,
-                    dna_hash,
-                    explicitly_local: explicitly_local_int != 0,
-                    quarantined: quarantined_int != 0,
-                    heuristic_malware_sig,
-                    heuristic_sigs_mtime,
-                },
-            ))
-        })
-        .unwrap();
+    let mut stmt = match conn.prepare("SELECT path, mtime, dna_hash, explicitly_local, quarantined, heuristic_malware_sig, heuristic_sigs_mtime FROM cache") {
+        Ok(s) => s,
+        Err(_) => return HashMap::new(),
+    };
+    let cache_iter = match stmt.query_map([], |row| {
+        let path: String = row.get(0)?;
+        let mtime: u64 = row.get::<_, i64>(1).unwrap_or(0).max(0) as u64;
+        let dna_hash: String = row.get(2).unwrap_or_default();
+        let explicitly_local_int: i32 = row.get(3).unwrap_or(0);
+        let quarantined_int: i32 = row.get(4).unwrap_or(0);
+        let heuristic_malware_sig: Option<String> = row.get(5).ok().flatten();
+        let heuristic_sigs_mtime: u64 = row.get::<_, i64>(6).unwrap_or(0).max(0) as u64;
+        Ok((
+            path,
+            CacheEntry {
+                mtime,
+                dna_hash,
+                explicitly_local: explicitly_local_int != 0,
+                quarantined: quarantined_int != 0,
+                heuristic_malware_sig,
+                heuristic_sigs_mtime,
+            },
+        ))
+    }) {
+        Ok(iter) => iter,
+        Err(_) => return HashMap::new(),
+    };
 
     let mut cache = HashMap::new();
-    for entry in cache_iter {
-        if let Ok((path, e)) = entry {
-            cache.insert(path, e);
-        }
+    for entry in cache_iter.flatten() {
+        cache.insert(entry.0, entry.1);
     }
     cache
 }
@@ -195,12 +211,12 @@ pub fn upsert_cache_entry(conn: &Connection, path: &str, entry: &CacheEntry) {
             heuristic_sigs_mtime=excluded.heuristic_sigs_mtime",
         params![
             path,
-            entry.mtime,
+            entry.mtime as i64,
             entry.dna_hash,
             explicitly_local_int,
             quarantined_int,
             entry.heuristic_malware_sig,
-            entry.heuristic_sigs_mtime
+            entry.heuristic_sigs_mtime as i64
         ]
     );
 }
@@ -422,8 +438,231 @@ pub fn obscure_username(path: &str) -> String {
     path.to_string()
 }
 
-pub fn check_heuristic_malware(path: &Path, signatures: &[HeuristicSignature]) -> Option<String> {
-    if signatures.is_empty() {
+pub fn compute_signatures_version(signatures: &[HeuristicSignature]) -> u64 {
+    let mut enabled_rules: Vec<String> = signatures
+        .iter()
+        .filter(|s| s.enabled)
+        .map(|s| {
+            format!(
+                "{}|{}|{}|{}",
+                s.id.trim().to_lowercase(),
+                s.match_type.trim().to_lowercase(),
+                s.severity.trim().to_lowercase(),
+                s.signature.trim().to_lowercase()
+            )
+        })
+        .collect();
+    if enabled_rules.is_empty() {
+        return 1;
+    }
+    enabled_rules.sort();
+    let mut hasher = Sha256::new();
+    for rule in &enabled_rules {
+        hasher.update(rule.as_bytes());
+        hasher.update(b"\n");
+    }
+    let digest = hasher.finalize();
+    let mut bytes = [0u8; 8];
+    bytes.copy_from_slice(&digest[..8]);
+    ((u64::from_le_bytes(bytes)) & 0x0000_FFFF_FFFF_FFFF).max(1)
+}
+
+#[derive(Clone)]
+pub struct CompiledContentSig {
+    pub original: String,
+    pub lower_bytes: Vec<u8>,
+    pub pyc_tokens: Vec<Vec<u8>>,
+}
+
+#[derive(Clone, Default)]
+pub struct CompiledSignatures {
+    pub is_empty: bool,
+    pub file_name_exact: Vec<(String, String)>,
+    pub file_name_contains: Vec<(String, String)>,
+    pub archive_entry_exact: Vec<(String, String)>,
+    pub archive_entry_contains: Vec<(String, String)>,
+    pub content_sigs: Vec<CompiledContentSig>,
+    pub by_first_byte: Vec<Vec<usize>>,
+}
+
+impl CompiledSignatures {
+    pub fn new(signatures: &[HeuristicSignature]) -> Self {
+        let mut compiled = CompiledSignatures {
+            is_empty: true,
+            file_name_exact: Vec::new(),
+            file_name_contains: Vec::new(),
+            archive_entry_exact: Vec::new(),
+            archive_entry_contains: Vec::new(),
+            content_sigs: Vec::new(),
+            by_first_byte: vec![Vec::new(); 256],
+        };
+
+        for sig in signatures {
+            if !sig.enabled || sig.signature.is_empty() {
+                continue;
+            }
+            compiled.is_empty = false;
+            let sig_lower = sig.signature.to_lowercase();
+            match sig.match_type.as_str() {
+                "file_name_exact" => {
+                    compiled
+                        .file_name_exact
+                        .push((sig_lower, sig.signature.clone()));
+                }
+                "file_name_contains" => {
+                    compiled
+                        .file_name_contains
+                        .push((sig_lower, sig.signature.clone()));
+                }
+                "archive_entry_exact" => {
+                    compiled
+                        .archive_entry_exact
+                        .push((sig_lower, sig.signature.clone()));
+                }
+                "archive_entry_contains" => {
+                    compiled
+                        .archive_entry_contains
+                        .push((sig_lower, sig.signature.clone()));
+                }
+                "file_content_contains" => {
+                    let lower_bytes = sig_lower.as_bytes().to_vec();
+                    if !lower_bytes.is_empty() {
+                        let pyc_tokens: Vec<Vec<u8>> =
+                            if sig_lower.contains('.') || sig_lower.contains('(') {
+                                sig_lower
+                                    .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+                                    .filter(|t| t.len() >= 2)
+                                    .map(|t| t.as_bytes().to_vec())
+                                    .collect()
+                            } else {
+                                Vec::new()
+                            };
+                        let idx = compiled.content_sigs.len();
+                        let first_b = lower_bytes[0] as usize;
+                        compiled.by_first_byte[first_b].push(idx);
+                        compiled.content_sigs.push(CompiledContentSig {
+                            original: sig.signature.clone(),
+                            lower_bytes,
+                            pyc_tokens,
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        compiled
+    }
+}
+
+fn scan_buffer_for_compiled_content_sigs(
+    buffer: &[u8],
+    entry_name_lower: &str,
+    compiled: &CompiledSignatures,
+) -> Option<String> {
+    if buffer.is_empty() || compiled.content_sigs.is_empty() {
+        return None;
+    }
+
+    let buf_len = buffer.len();
+
+    // 1 & 2. Single-pass zero-allocation ASCII/UTF-8 + UTF-16LE wide-string scan
+    for i in 0..buf_len {
+        let b0_lower = buffer[i].to_ascii_lowercase();
+        let candidates = &compiled.by_first_byte[b0_lower as usize];
+        if candidates.is_empty() {
+            continue;
+        }
+
+        let is_wide_candidate = i + 1 < buf_len && buffer[i + 1] == 0;
+
+        for &sig_idx in candidates {
+            let cs = &compiled.content_sigs[sig_idx];
+            let sb = &cs.lower_bytes;
+            let slen = sb.len();
+
+            // Check standard ASCII / UTF-8 match in-place
+            if i + slen <= buf_len
+                && buffer[i + slen - 1].to_ascii_lowercase() == sb[slen - 1]
+            {
+                let mut matched = true;
+                for k in 1..(slen.saturating_sub(1)) {
+                    if buffer[i + k].to_ascii_lowercase() != sb[k] {
+                        matched = false;
+                        break;
+                    }
+                }
+                if matched {
+                    return Some(cs.original.clone());
+                }
+            }
+
+            // Check UTF-16LE wide-string match in-place (0 heap allocations)
+            if is_wide_candidate && i + slen * 2 <= buf_len {
+                let last_pos = i + (slen - 1) * 2;
+                if buffer[last_pos].to_ascii_lowercase() == sb[slen - 1]
+                    && buffer[last_pos + 1] == 0
+                {
+                    let mut wide_matched = true;
+                    for k in 1..(slen.saturating_sub(1)) {
+                        let pos = i + k * 2;
+                        if buffer[pos].to_ascii_lowercase() != sb[k] || buffer[pos + 1] != 0 {
+                            wide_matched = false;
+                            break;
+                        }
+                    }
+                    if wide_matched {
+                        return Some(cs.original.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Compiled Python bytecode (.pyc / .pyo) symbol-chain inspection
+    if entry_name_lower.ends_with(".pyc") || entry_name_lower.ends_with(".pyo") {
+        let lower_buf: Vec<u8> = buffer.iter().map(|b| b.to_ascii_lowercase()).collect();
+        let mut ident_set: std::collections::HashSet<&[u8]> = std::collections::HashSet::new();
+        let mut start = None;
+        for (idx, &b) in lower_buf.iter().enumerate() {
+            let is_ident = b.is_ascii_alphanumeric() || b == b'_';
+            if is_ident {
+                if start.is_none() {
+                    start = Some(idx);
+                }
+            } else if let Some(s) = start {
+                if idx - s >= 2 {
+                    ident_set.insert(&lower_buf[s..idx]);
+                }
+                start = None;
+            }
+        }
+        if let Some(s) = start {
+            if lower_buf.len() - s >= 2 {
+                ident_set.insert(&lower_buf[s..]);
+            }
+        }
+
+        for cs in &compiled.content_sigs {
+            if cs.pyc_tokens.len() >= 2
+                && cs
+                    .pyc_tokens
+                    .iter()
+                    .all(|t| ident_set.contains(t.as_slice()))
+            {
+                return Some(cs.original.clone());
+            }
+        }
+    }
+
+    None
+}
+
+pub fn check_heuristic_malware_compiled(
+    path: &Path,
+    compiled: &CompiledSignatures,
+) -> Option<String> {
+    if compiled.is_empty {
         return None;
     }
 
@@ -433,79 +672,122 @@ pub fn check_heuristic_malware(path: &Path, signatures: &[HeuristicSignature]) -
         .to_string_lossy()
         .to_lowercase();
 
-    for sig in signatures {
-        if !sig.enabled {
-            continue;
+    for (sig_lower, orig) in &compiled.file_name_exact {
+        if &file_name == sig_lower {
+            return Some(orig.clone());
         }
-        let sig_lower = sig.signature.to_lowercase();
-        if sig.match_type == "file_name_exact" && file_name == sig_lower {
-            return Some(sig.signature.clone());
-        }
-        if sig.match_type == "file_name_contains" && file_name.contains(&sig_lower) {
-            return Some(sig.signature.clone());
+    }
+    for (sig_lower, orig) in &compiled.file_name_contains {
+        if file_name.contains(sig_lower.as_str()) {
+            return Some(orig.clone());
         }
     }
 
-    let has_content_sigs = signatures
-        .iter()
-        .any(|s| s.enabled && s.match_type == "file_content_contains");
-    let content_sigs: Vec<_> = signatures
-        .iter()
-        .filter(|s| s.enabled && s.match_type == "file_content_contains")
-        .collect();
+    let has_content_sigs = !compiled.content_sigs.is_empty();
+    let has_archive_sigs = !compiled.archive_entry_exact.is_empty()
+        || !compiled.archive_entry_contains.is_empty()
+        || !compiled.file_name_exact.is_empty()
+        || !compiled.file_name_contains.is_empty();
 
-    if let Ok(file) = std::fs::File::open(path) {
-        if let Ok(mut archive) = zip::ZipArchive::new(file) {
-            for i in 0..archive.len() {
-                if let Ok(mut file) = archive.by_index(i) {
-                    let entry_name = file.name().to_lowercase();
-                    for sig in signatures {
-                        if !sig.enabled {
-                            continue;
-                        }
-                        let sig_lower = sig.signature.to_lowercase();
-                        if sig.match_type == "archive_entry_exact" && entry_name == sig_lower {
-                            return Some(sig.signature.clone());
-                        }
-                        if sig.match_type == "archive_entry_contains"
-                            && entry_name.contains(&sig_lower)
-                        {
-                            return Some(sig.signature.clone());
-                        }
-                    }
+    if !has_content_sigs && !has_archive_sigs {
+        return None;
+    }
 
-                    if has_content_sigs && file.size() < 5 * 1024 * 1024 {
-                        use std::io::Read;
-                        let mut buffer = Vec::new();
-                        if file.read_to_end(&mut buffer).is_ok() {
-                            let content = String::from_utf8_lossy(&buffer);
-                            for sig in &content_sigs {
-                                if content.contains(&sig.signature) {
-                                    return Some(sig.signature.clone());
+    if let Ok(mut file) = std::fs::File::open(path) {
+        use std::io::{Read, Seek, SeekFrom};
+        let mut magic = [0u8; 4];
+        let is_zip_container = file.read_exact(&mut magic).is_ok()
+            && (magic == [0x50, 0x4B, 0x03, 0x04]
+                || magic == [0x50, 0x4B, 0x05, 0x06]
+                || magic == [0x50, 0x4B, 0x07, 0x08]);
+        let _ = file.seek(SeekFrom::Start(0));
+
+        if is_zip_container {
+            if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                for i in 0..archive.len() {
+                    if let Ok(mut entry) = archive.by_index(i) {
+                        let entry_name = entry.name().replace('\\', "/").to_lowercase();
+                        let entry_base = entry_name
+                            .rsplit('/')
+                            .next()
+                            .unwrap_or(&entry_name);
+
+                        for (sig_lower, orig) in &compiled.archive_entry_exact {
+                            if &entry_name == sig_lower || entry_base == sig_lower {
+                                return Some(orig.clone());
+                            }
+                        }
+                        for (sig_lower, orig) in &compiled.archive_entry_contains {
+                            if entry_name.contains(sig_lower.as_str()) {
+                                return Some(orig.clone());
+                            }
+                        }
+                        for (sig_lower, orig) in &compiled.file_name_exact {
+                            if entry_base == sig_lower {
+                                return Some(orig.clone());
+                            }
+                        }
+                        for (sig_lower, orig) in &compiled.file_name_contains {
+                            if entry_base.contains(sig_lower.as_str()) {
+                                return Some(orig.clone());
+                            }
+                        }
+
+                        if has_content_sigs && entry.size() <= 16 * 1024 * 1024 {
+                            let mut buffer = Vec::with_capacity(entry.size() as usize);
+                            if entry.read_to_end(&mut buffer).is_ok() {
+                                if let Some(matched) = scan_buffer_for_compiled_content_sigs(
+                                    &buffer,
+                                    &entry_name,
+                                    compiled,
+                                ) {
+                                    return Some(matched);
                                 }
                             }
                         }
                     }
                 }
+                return None;
             }
-            return None;
-        }
-    }
+        } else if has_content_sigs {
+            if let Ok(metadata) = file.metadata() {
+                if metadata.is_file() {
+                    let file_len = metadata.len();
+                    let max_full_read: u64 = 4 * 1024 * 1024;
+                    let mut buffer = Vec::new();
 
-    if has_content_sigs {
-        if let Ok(metadata) = std::fs::metadata(path) {
-            if metadata.is_file() && metadata.len() < 5 * 1024 * 1024 {
-                if let Ok(content) = std::fs::read_to_string(path) {
-                    for sig in &content_sigs {
-                        if content.contains(&sig.signature) {
-                            return Some(sig.signature.clone());
+                    if file_len <= max_full_read {
+                        let _ = file.read_to_end(&mut buffer);
+                    } else {
+                        // For large binary packages (>4MB), scan the first 2MB (headers/index/scripts)
+                        // and the last 1MB (appended payloads/string tables) to keep disk I/O fast and non-blocking.
+                        let head_size = 2 * 1024 * 1024;
+                        let tail_size = 1 * 1024 * 1024;
+                        buffer.resize(head_size + tail_size, 0);
+                        let _ = file.read_exact(&mut buffer[..head_size]);
+                        if file.seek(SeekFrom::End(-(tail_size as i64))).is_ok() {
+                            let _ = file.read_exact(&mut buffer[head_size..]);
                         }
+                    }
+
+                    if let Some(matched) =
+                        scan_buffer_for_compiled_content_sigs(&buffer, &file_name, compiled)
+                    {
+                        return Some(matched);
                     }
                 }
             }
         }
     }
     None
+}
+
+pub fn check_heuristic_malware(path: &Path, signatures: &[HeuristicSignature]) -> Option<String> {
+    if signatures.is_empty() {
+        return None;
+    }
+    let compiled = CompiledSignatures::new(signatures);
+    check_heuristic_malware_compiled(path, &compiled)
 }
 
 pub fn check_is_explicitly_local(

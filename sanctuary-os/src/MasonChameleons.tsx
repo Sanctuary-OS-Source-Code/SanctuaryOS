@@ -84,7 +84,7 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
     </>
   );
 }
-export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
+export function MasonChameleons({ masonProfile, isVerifiedMason = true }: { masonProfile: any, isVerifiedMason?: boolean }) {
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
   const { currentTheme: osTheme, activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, devThemes, updateTheme, renameTheme, createNewDevTheme, exportDevThemeToCustom, importTheme, deleteTheme } = useTheme();
@@ -436,12 +436,14 @@ export function MasonChameleons({ masonProfile }: { masonProfile: any }) {
                   />
                 </>
               )}
-              <PanelHeaderButton
-                icon="cloud_upload"
-                tooltip={t("btn_publish")}
-                onClick={publishThemeToNexus}
-                variant="primary"
-              />
+              {isVerifiedMason && (
+                <PanelHeaderButton
+                  icon="cloud_upload"
+                  tooltip={t("btn_publish")}
+                  onClick={publishThemeToNexus}
+                  variant="primary"
+                />
+              )}
               {editingThemeId.startsWith('dev_') && (
                 <PanelHeaderButton
                   icon="save"

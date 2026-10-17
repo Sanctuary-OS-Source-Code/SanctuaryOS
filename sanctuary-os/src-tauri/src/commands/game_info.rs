@@ -402,6 +402,19 @@ pub fn save_heuristic_signatures(
     let p = std::path::Path::new(&vault_path)
         .join("Data")
         .join(".malware_signatures.json");
+    if p.exists() {
+        if let Ok(existing_str) = std::fs::read_to_string(&p) {
+            if let Ok(existing_sigs) = serde_json::from_str::<Vec<HeuristicSignature>>(&existing_str)
+            {
+                if existing_sigs.len() == signatures.len()
+                    && compute_signatures_version(&existing_sigs)
+                        == compute_signatures_version(&signatures)
+                {
+                    return Ok(());
+                }
+            }
+        }
+    }
     if let Some(parent) = p.parent() {
         let _ = std::fs::create_dir_all(parent);
     }

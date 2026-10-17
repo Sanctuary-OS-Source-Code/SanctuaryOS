@@ -200,6 +200,8 @@ pub async fn repopulate_from_shelter(state: tauri::State<'_, AppState>) -> Resul
             allow_write: false,
             target_path: None,
             folder_structure: None,
+            load_order_index: None,
+            priority_tier: None,
         })
         .collect();
 

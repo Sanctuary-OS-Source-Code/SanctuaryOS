@@ -96,7 +96,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
       try {
         if (isOfflineMode) {
-          const cachedToken = localStorage.getItem('sb-chphhvpcgcpnyvshsudh-auth-token');
+          const cachedToken = localStorage.getItem('sanctuary-os-auth-token') || localStorage.getItem('sb-chphhvpcgcpnyvshsudh-auth-token');
           if (cachedToken) {
             try {
               const parsed = JSON.parse(cachedToken);

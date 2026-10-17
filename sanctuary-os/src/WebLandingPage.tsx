@@ -12,11 +12,13 @@ import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './utils/envUtils';
 import packageJson from '../package.json';
 import { UniversalCard } from './components/universal/UniversalCard';
+import { usePwaInstall } from './utils/pwaManager';
 
 export default function WebLandingPage() {
   const { t } = useLexicon();
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isStandalone, triggerInstall } = usePwaInstall();
 
   useEffect(() => {
     const fetchGames = async () => {
@@ -151,24 +153,44 @@ export default function WebLandingPage() {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
 
-              <div className="col-span-full md:hidden flex flex-col">
+              <div className="flex flex-col group cursor-pointer" onClick={() => { if (!isStandalone) triggerInstall(); }}>
                 <UniversalCard
                   layout="vertical"
-                  icon="desktop_windows"
-                  title={<span className="text-[var(--text)]">{t("landing_desktop_only_title") || "Desktop Application"}</span>}
-                  subtitle={<span className="text-[10px] font-mono tracking-widest text-[var(--text)]">{t("landing_desktop_only_footer") || "UNSUPPORTED DEVICE"}</span>}
-                  className="h-full bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
+                  icon={t("icon_install_mobile", "install_mobile")}
+                  title={
+                    <span className="group-hover:text-[var(--accent)] transition-colors">
+                      {t("pwa_install_title", "Install Sanctuary Web App")}
+                    </span>
+                  }
+                  subtitle={
+                    <span className="text-[10px] font-mono tracking-widest text-[var(--accent)]">
+                      {t("pwa_install_subtitle", "Progressive Web App (iOS / Android / Web)")}
+                    </span>
+                  }
+                  className="h-full bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:border-[var(--accent)] hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] transition-all duration-500 hover:-translate-y-1"
                   footer={
-                    <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--text)] opacity-80 uppercase tracking-widest">
-                      <span></span>
-                      <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">warning</span> {t("landing_desktop_only_footer") || "UNSUPPORTED DEVICE"}</span>
+                    <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest">
+                      <span>{t("pwa_badge_standalone", "STANDALONE PWA")}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[14px]">
+                          {isStandalone
+                            ? t("icon_check_circle", "check_circle")
+                            : t("icon_add_to_home_screen", "add_to_home_screen")}
+                        </span>
+                        {isStandalone
+                          ? t("pwa_btn_installed", "App Installed")
+                          : t("pwa_btn_install", "Install App")}
+                      </span>
                     </div>
                   }
                 >
-                  <p className="text-[11px] text-[var(--text)] leading-relaxed mt-2 opacity-80">
-                    {t("landing_desktop_only_desc") || "Sanctuary OS is a native desktop client. Please visit this page on a PC or Mac to install the application."}
+                  <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-90 line-clamp-3">
+                    {t(
+                      "pwa_install_desc",
+                      "Install Sanctuary OS directly to your home screen or app drawer for a full-screen standalone experience with instant workspace access."
+                    )}
                   </p>
                 </UniversalCard>
               </div>

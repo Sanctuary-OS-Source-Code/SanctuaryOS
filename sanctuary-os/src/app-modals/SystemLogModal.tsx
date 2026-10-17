@@ -14,10 +14,10 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
   return createPortal(
     <div
       ref={logModalRef}
-      className="!fixed bottom-0 right-0 w-[420px] max-h-[60vh] glass-panel pointer-events-auto border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-2xl z-[99999] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/5 after:to-transparent after:pointer-events-none"
+      className="!fixed bottom-4 right-4 w-[420px] max-w-[calc(100vw-2rem)] max-h-[60vh] glass-panel portal-glass-fix portal-glass-modal pointer-events-auto border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-[0_24px_60px_rgba(0,0,0,0.7),0_0_30px_rgba(var(--accent-rgb),0.15)] rounded-2xl z-[99999] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300"
     >
       <div
-        className="flex items-center justify-between p-5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0 relative z-10 cursor-move"
+        className="flex items-center justify-between p-5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] shrink-0 relative z-10 cursor-move"
         onPointerDown={handleLogPointerDown}
         onPointerMove={handleLogPointerMove}
         onPointerUp={handleLogPointerUp}

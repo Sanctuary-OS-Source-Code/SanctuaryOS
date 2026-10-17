@@ -3,6 +3,8 @@ import { useStore } from './store';
 import { useLexicon } from './LexiconContext';
 import { useTheme } from './ThemeContext';
 import { isRootDomain } from './utils/routingUtils';
+import { isDesktop } from './utils/envUtils';
+import { usePwaInstall, PwaInstallPrompt } from './utils/pwaManager';
 
 export function MobileBottomNav({ view, setView }: { view: string, setView: (v: string) => void }) {
   const { t } = useLexicon();
@@ -23,6 +25,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHubNavOpen, setIsHubNavOpen] = useState(false);
+  const { isStandalone, triggerInstall } = usePwaInstall();
 
   const tabs = [];
 
@@ -86,6 +89,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
   return (
     <>
+      <PwaInstallPrompt />
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-[80px] z-[999999] flex items-center justify-around px-2 glass-panel !rounded-none !border-x-0 !border-b-0 pb-[env(safe-area-inset-bottom)]">
         {tabs.map(tab => {
           const isActive = view === tab.id || (tab.id === 'menu' && isMenuOpen) || (tab.id === 'hub_nav' && (isHubNavOpen || ["MasonHub", "ArchitectHub", "Oversight", "WayfinderHub", "KeepersCore"].includes(view)));
@@ -116,6 +120,23 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
           <div className="w-12 h-1 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-auto mb-2 shrink-0" />
 
           {/* System Navigation */}
+          {!isDesktop() && !isStandalone && (
+            <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                triggerInstall();
+              }}
+              className="p-4 rounded-xl flex items-center gap-4 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-all"
+            >
+              <span className="material-symbols-outlined text-[var(--accent)] text-[20px]">
+                {t("icon_add_to_home_screen", "add_to_home_screen")}
+              </span>
+              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--accent)]">
+                {t("pwa_btn_install", "Install App")}
+              </span>
+            </button>
+          )}
+
           {!isRootDomain() && (
             <button onClick={() => {
               const parts = window.location.host.split('.');
@@ -147,7 +168,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
           <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent my-1" />
 
-          {["mason", "architect", "oversight", "wayfinder", "admin"].includes(userRole) && !isRootDomain() && (
+          {!isRootDomain() && (
             <button onClick={() => handleTabClick('MasonHub')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
               <span className="material-symbols-outlined text-orange-400 text-[20px]">{t("icon_construction") || "construction"}</span>
               <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("mason_hub_title") || "Mason Workshop"}</span>
@@ -311,6 +332,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
               { id: "web_legal", icon: "gavel", label: "Legal Documents" },
               { id: "active_games", icon: "dns", label: "Active Workspaces" },
               { id: "identities", icon: "group", label: "Citizen Oversight" },
+              { id: "heuristics", icon: t("icon_shield_lock") || "shield_lock", label: t("core_heuristics_tab") || "Core Heuristics" },
               { id: "support", icon: t("icon_support_agent") || "support_agent", label: "Support Center" },
               { id: "support_settings", icon: t("icon_support_agent") || "support_agent", label: (t("wf_tab_support") || "Support Settings").replace(/^[^\w]*/, '').trim() },
               { id: "audit_logs", icon: t("icon_history") || "history", label: (t("audit_title") || "Audit").replace(/^[^\w]*/, '').trim() },

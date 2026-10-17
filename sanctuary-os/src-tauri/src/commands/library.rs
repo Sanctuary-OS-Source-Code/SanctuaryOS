@@ -32,6 +32,7 @@ pub async fn scan_bunker(
     app_state: tauri::State<'_, AppState>,
 ) -> Result<Vec<ModData>, String> {
     let game_schema = app_state.active_schema.lock().unwrap().clone();
+    let is_deploying = app_state.inner().is_deploying.clone();
     let malware_hashes_set: std::collections::HashSet<String> =
         if let Ok(m) = state.malware_hashes.lock() {
             m.iter().cloned().collect()
@@ -39,297 +40,355 @@ pub async fn scan_bunker(
             std::collections::HashSet::new()
         };
 
-    tauri::async_runtime::spawn_blocking(move || {
-        let heuristic_sigs =
-            get_heuristic_signatures(vault_path.clone()).unwrap_or_else(|_| vec![]);
+    let (tx, rx) = std::sync::mpsc::channel::<Result<Vec<ModData>, String>>();
 
-        let sigs_path = PathBuf::from(&vault_path)
-            .join("Data")
-            .join(".malware_signatures.json");
-        let current_sigs_mtime = std::fs::metadata(&sigs_path)
-            .and_then(|m| m.modified())
-            .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+    let spawn_res = std::thread::Builder::new()
+        .name("sanctuary-malware-scanner".to_string())
+        .spawn(move || {
+            struct ScanDeployGuard(Arc<std::sync::atomic::AtomicBool>);
+            impl Drop for ScanDeployGuard {
+                fn drop(&mut self) {
+                    self.0.store(false, std::sync::atomic::Ordering::SeqCst);
+                }
+            }
+            is_deploying.store(true, std::sync::atomic::Ordering::SeqCst);
+            let _guard = ScanDeployGuard(is_deploying);
 
-        let vault_dir = PathBuf::from(&vault_path);
-        let mods_lane = if crate::utils::is_mods_dir(&vault_dir) {
-            vault_dir.clone()
-        } else {
-            vault_dir.join("Mods")
-        };
+            let res: Result<Vec<ModData>, String> = (|| {
+                let heuristic_sigs =
+                    get_heuristic_signatures(vault_path.clone()).unwrap_or_else(|_| vec![]);
+                let compiled_sigs = CompiledSignatures::new(&heuristic_sigs);
+                let current_sigs_version = compute_signatures_version(&heuristic_sigs);
 
-        let mut cache = load_cache(&vault_path);
-        let mut cache_updated = false;
-        if !mods_lane.exists() {
-            let _ = fs::create_dir_all(&mods_lane);
-            return Ok(vec![]);
-        }
+                let sigs_path = PathBuf::from(&vault_path)
+                    .join("Data")
+                    .join(".malware_signatures.json");
+                let legacy_sigs_mtime = std::fs::metadata(&sigs_path)
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
 
-        if let Ok(entries) = std::fs::read_dir(&mods_lane) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                        let ext_lower = ext.to_lowercase();
-                        let supported = crate::game_logic::get_supported_extensions(&game_schema);
-                        if supported.contains(&ext_lower) {
-                            if let Some(file_stem) = path.file_stem() {
-                                let folder_name = file_stem.to_string_lossy().to_string();
-                                let target_dir = mods_lane.join(&folder_name);
-                                let _ = std::fs::create_dir_all(&target_dir);
+                let vault_dir = PathBuf::from(&vault_path);
+                let mods_lane = if crate::utils::is_mods_dir(&vault_dir) {
+                    vault_dir.clone()
+                } else {
+                    vault_dir.join("Mods")
+                };
 
-                                let target_path = target_dir.join(path.file_name().unwrap());
-                                let _ = std::fs::rename(&path, &target_path);
+                let mut cache = load_cache(&vault_path);
+                let mut cache_updated = false;
+                let mut uncached_scans_since_save: usize = 0;
+
+                if !mods_lane.exists() {
+                    let _ = fs::create_dir_all(&mods_lane);
+                    return Ok(vec![]);
+                }
+
+                if let Ok(entries) = std::fs::read_dir(&mods_lane) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_file() {
+                            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                                let ext_lower = ext.to_lowercase();
+                                let supported =
+                                    crate::game_logic::get_supported_extensions(&game_schema);
+                                if supported.contains(&ext_lower) {
+                                    if let Some(file_stem) = path.file_stem() {
+                                        let folder_name = file_stem.to_string_lossy().to_string();
+                                        let target_dir = mods_lane.join(&folder_name);
+                                        let _ = std::fs::create_dir_all(&target_dir);
+
+                                        let target_path =
+                                            target_dir.join(path.file_name().unwrap());
+                                        let _ = std::fs::rename(&path, &target_path);
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
 
-        let mut paths = Vec::new();
-        walk_packages(&game_schema, &mods_lane, &mut paths);
+                let mut paths = Vec::new();
+                walk_packages(&game_schema, &mods_lane, &mut paths);
 
-        let quarantine_dir = vault_dir.join("Quarantine");
-        if quarantine_dir.exists() {
-            walk_packages(&game_schema, &quarantine_dir, &mut paths);
-        }
-        let total = paths.len();
+                // Deterministic ordering so progress numbers and file scanning order are always consistent
+                paths.sort();
 
-        let progress_counter = Arc::new(AtomicUsize::new(0));
-        let mut results = Vec::new();
-        let mut last_emit = std::time::Instant::now();
+                let total = paths.len();
+                let mut results = Vec::with_capacity(total);
+                let mut last_emit = std::time::Instant::now();
 
-        for path in paths {
-            let path_str = path.to_string_lossy().to_string();
-            let rel = path
-                .strip_prefix(&mods_lane)
-                .unwrap_or(&path)
-                .to_string_lossy()
-                .to_string();
+                for (idx, path) in paths.into_iter().enumerate() {
+                    let current = idx + 1;
+                    let path_str = path.to_string_lossy().to_string();
+                    let rel = path
+                        .strip_prefix(&mods_lane)
+                        .unwrap_or(&path)
+                        .to_string_lossy()
+                        .to_string();
 
-            let current = progress_counter.fetch_add(1, Ordering::SeqCst) + 1;
-            if last_emit.elapsed() > std::time::Duration::from_millis(200) || current == total {
-                let _ = app.emit(
-                    "scan-progress",
-                    serde_json::json!({
-                        "current": current,
-                        "total": total,
-                        "message": format!("ANALYZING DNA: {}/{}", current, total)
-                    }),
-                );
-                last_emit = std::time::Instant::now();
-            }
+                    // Step 1: Fast mtime check first (stat metadata only, no file open)
+                    let mtime = fs::metadata(&path)
+                        .and_then(|m| m.modified())
+                        .unwrap_or(SystemTime::UNIX_EPOCH)
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
 
-            let mtime = fs::metadata(&path)
-                .and_then(|m| m.modified())
-                .unwrap_or(SystemTime::UNIX_EPOCH)
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
+                    let is_script = path.extension().map_or(false, |ext| {
+                        crate::game_logic::get_file_label(&game_schema, &ext.to_string_lossy())
+                            == "SCRIPT"
+                    });
 
-            let is_script = path.extension().map_or(false, |ext| {
-                crate::game_logic::get_file_label(&game_schema, &ext.to_string_lossy()) == "SCRIPT"
-            });
+                    let mut did_disk_scan = false;
 
-            let (dna_hash, explicitly_local, mut cached_heuristic_sig) =
-                if let Some(cached) = cache.get(&path_str) {
-                    if cached.mtime == mtime {
-                        let heuristic_sig = if cached.heuristic_sigs_mtime == current_sigs_mtime {
-                            Some(cached.heuristic_malware_sig.clone())
+                    let (dna_hash, explicitly_local, cached_heuristic_sig) =
+                        if let Some(cached) = cache.get_mut(&path_str) {
+                            if cached.mtime == mtime && !cached.dna_hash.is_empty() {
+                                let sigs_valid = cached.heuristic_sigs_mtime == 0
+                                    || cached.heuristic_sigs_mtime == current_sigs_version
+                                    || (legacy_sigs_mtime > 0
+                                        && cached.heuristic_sigs_mtime == legacy_sigs_mtime);
+                                if sigs_valid && cached.heuristic_sigs_mtime != current_sigs_version
+                                {
+                                    cached.heuristic_sigs_mtime = current_sigs_version;
+                                    cache_updated = true;
+                                }
+                                let heuristic_sig = if sigs_valid {
+                                    Some(cached.heuristic_malware_sig.clone())
+                                } else {
+                                    None
+                                };
+                                (
+                                    cached.dna_hash.clone(),
+                                    cached.explicitly_local,
+                                    heuristic_sig,
+                                )
+                            } else {
+                                did_disk_scan = true;
+                                let is_dev_folder = path_str.to_lowercase().contains("/dev/")
+                                    || path_str.to_lowercase().contains("\\dev\\");
+                                let hash = if is_dev_folder {
+                                    format!(
+                                        "dev_vault_{}",
+                                        path.file_name().unwrap_or_default().to_string_lossy()
+                                    )
+                                } else {
+                                    calculate_hash(&path).unwrap_or_default()
+                                };
+                                let explicit =
+                                    check_is_explicitly_local(&path, is_script, &game_schema);
+                                *cached = CacheEntry {
+                                    mtime,
+                                    dna_hash: hash.clone(),
+                                    explicitly_local: explicit,
+                                    quarantined: false,
+                                    heuristic_malware_sig: None,
+                                    heuristic_sigs_mtime: 0,
+                                };
+                                cache_updated = true;
+                                (hash, explicit, None)
+                            }
                         } else {
-                            None
+                            did_disk_scan = true;
+                            let is_dev_folder = path_str.to_lowercase().contains("/dev/")
+                                || path_str.to_lowercase().contains("\\dev\\");
+                            let hash = if is_dev_folder {
+                                format!(
+                                    "dev_vault_{}",
+                                    path.file_name().unwrap_or_default().to_string_lossy()
+                                )
+                            } else {
+                                calculate_hash(&path).unwrap_or_default()
+                            };
+                            let explicit =
+                                check_is_explicitly_local(&path, is_script, &game_schema);
+                            cache.insert(
+                                path_str.clone(),
+                                CacheEntry {
+                                    mtime,
+                                    dna_hash: hash.clone(),
+                                    explicitly_local: explicit,
+                                    quarantined: false,
+                                    heuristic_malware_sig: None,
+                                    heuristic_sigs_mtime: 0,
+                                },
+                            );
+                            cache_updated = true;
+                            (hash, explicit, None)
                         };
-                        (
-                            cached.dna_hash.clone(),
-                            cached.explicitly_local,
-                            heuristic_sig,
-                        )
-                    } else {
-                        let is_dev_folder = path_str.to_lowercase().contains("/dev/")
-                            || path_str.to_lowercase().contains("\\dev\\");
-                        let hash = if is_dev_folder {
-                            format!(
-                                "dev_vault_{}",
-                                path.file_name().unwrap_or_default().to_string_lossy()
-                            )
+
+                    let mut is_malware = false;
+                    let mut signature_name = "NO SIGNATURE MATCH".to_string();
+
+                    if malware_hashes_set.contains(&dna_hash) {
+                        is_malware = true;
+                    }
+
+                    if !is_malware {
+                        if let Some(cached_sig_opt) = cached_heuristic_sig {
+                            if let Some(sig) = cached_sig_opt {
+                                is_malware = true;
+                                signature_name = sig;
+                            }
                         } else {
-                            calculate_hash(&path).unwrap_or_default()
+                            did_disk_scan = true;
+                            let sig_opt = check_heuristic_malware_compiled(&path, &compiled_sigs);
+                            if let Some(sig) = sig_opt.clone() {
+                                is_malware = true;
+                                signature_name = sig;
+                            }
+                            if let Some(entry) = cache.get_mut(&path_str) {
+                                entry.heuristic_malware_sig = sig_opt;
+                                entry.heuristic_sigs_mtime = current_sigs_version;
+                                cache_updated = true;
+                            }
+                        }
+                    }
+
+                    if did_disk_scan {
+                        if uncached_scans_since_save == 0
+                            || current == total
+                            || last_emit.elapsed() >= std::time::Duration::from_millis(80)
+                        {
+                            let _ = app.emit(
+                                "scan-progress",
+                                serde_json::json!({
+                                    "current": current,
+                                    "total": total,
+                                    "message": format!("ANALYZING DNA: {}/{}", current, total)
+                                }),
+                            );
+                            last_emit = std::time::Instant::now();
+                        }
+                        uncached_scans_since_save += 1;
+                        if uncached_scans_since_save >= 75 {
+                            save_cache(&vault_path, &cache);
+                            cache_updated = false;
+                            uncached_scans_since_save = 0;
+                        }
+                        // Yield briefly on uncached disk I/O so the OS & WebView2 UI thread stay 100% responsive
+                        std::thread::sleep(std::time::Duration::from_millis(2));
+                    }
+
+                    if is_malware {
+                        let reports_dir = vault_dir.join("Quarantine");
+                        let malware_dir = vault_dir.join(".sanctuary_quarantine");
+                        let _ = fs::create_dir_all(&reports_dir);
+                        let _ = fs::create_dir_all(&malware_dir);
+                        let target = malware_dir.join(path.file_name().unwrap_or_default());
+                        let _ = fs::rename(&path, &target);
+
+                        let manifest = QuarantineManifest {
+                            artifact_name: path
+                                .file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_string(),
+                            detected_hash: dna_hash.clone(),
+                            signature: signature_name.clone(),
+                            quarantine_path: obscure_username(&target.to_string_lossy()),
+                            original_path: None,
+                            original_hash_at_import: None,
+                            original_exists: false,
+                            original_shredded: false,
+                            quarantined_file_shredded: false,
+                            detected_at: chrono::Local::now().to_rfc3339(),
                         };
-                        let explicit = check_is_explicitly_local(&path, is_script, &game_schema);
+                        let manifest_path = reports_dir.join(format!(
+                            "{}.manifest.json",
+                            target.file_name().unwrap_or_default().to_string_lossy()
+                        ));
+                        if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                            let _ = fs::write(manifest_path, json);
+                        }
+
+                        let _ = app.emit(
+                            "malware_detected",
+                            serde_json::json!({
+                                "path": target.to_string_lossy().to_string(),
+                                "name": path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                                "hash": dna_hash,
+                                "status": "QUARANTINED",
+                                "isLocalOverride": false,
+                                "isVirtual": false,
+                                "compliance_tier": 5,
+                                "original_exists": manifest.original_exists,
+                                "original_shredded": manifest.original_shredded,
+                                "original_path": manifest.original_path,
+                                "quarantine_path": manifest.quarantine_path,
+                                "matched_signature": manifest.signature
+                            }),
+                        );
+
+                        cache.remove(&path_str);
+                        let target_str = target.to_string_lossy().to_string();
                         cache.insert(
-                            path_str.clone(),
+                            target_str.clone(),
                             CacheEntry {
                                 mtime,
-                                dna_hash: hash.clone(),
-                                explicitly_local: explicit,
-                                quarantined: false,
-                                heuristic_malware_sig: None,
-                                heuristic_sigs_mtime: 0,
+                                dna_hash: dna_hash.clone(),
+                                explicitly_local: false,
+                                quarantined: true,
+                                heuristic_malware_sig: Some(signature_name.clone()),
+                                heuristic_sigs_mtime: current_sigs_version,
                             },
                         );
                         cache_updated = true;
-                        (hash, explicit, None)
-                    }
-                } else {
-                    let is_dev_folder = path_str.to_lowercase().contains("/dev/")
-                        || path_str.to_lowercase().contains("\\dev\\");
-                    let hash = if is_dev_folder {
-                        format!(
-                            "dev_vault_{}",
-                            path.file_name().unwrap_or_default().to_string_lossy()
-                        )
-                    } else {
-                        calculate_hash(&path).unwrap_or_default()
-                    };
-                    let explicit = check_is_explicitly_local(&path, is_script, &game_schema);
-                    cache.insert(
-                        path_str.clone(),
-                        CacheEntry {
+
+                        results.push(ModData {
+                            name: rel.replace("\\", "/"),
+                            hash: dna_hash,
+                            status: "QUARANTINED".to_string(),
+                            color: "var(--danger)".to_string(),
+                            is_script: path.extension().map_or(false, |ext| {
+                                crate::game_logic::get_file_label(
+                                    &game_schema,
+                                    &ext.to_string_lossy(),
+                                ) == "SCRIPT"
+                            }),
                             mtime,
-                            dna_hash: hash.clone(),
-                            explicitly_local: explicit,
-                            quarantined: false,
-                            heuristic_malware_sig: None,
-                            heuristic_sigs_mtime: 0,
-                        },
-                    );
-                    cache_updated = true;
-                    (hash, explicit, None)
-                };
-
-            let mut is_malware = false;
-            let mut signature_name = "NO SIGNATURE MATCH".to_string();
-
-            if malware_hashes_set.contains(&dna_hash) {
-                is_malware = true;
-            }
-
-            if !is_malware && is_script {
-                if let Some(cached_sig_opt) = cached_heuristic_sig {
-                    if let Some(sig) = cached_sig_opt {
-                        is_malware = true;
-                        signature_name = sig;
+                        });
+                        continue;
                     }
-                } else {
-                    let sig_opt = check_heuristic_malware(&path, &heuristic_sigs);
-                    if let Some(sig) = sig_opt.clone() {
-                        is_malware = true;
-                        signature_name = sig;
-                    }
-                    if let Some(entry) = cache.get_mut(&path_str) {
-                        entry.heuristic_malware_sig = sig_opt;
-                        entry.heuristic_sigs_mtime = current_sigs_mtime;
-                        cache_updated = true;
-                    }
-                }
-            }
 
-            if is_malware {
-                let reports_dir = vault_dir.join("Quarantine");
-                let malware_dir = vault_dir.join(".sanctuary_quarantine");
-                let _ = fs::create_dir_all(&reports_dir);
-                let _ = fs::create_dir_all(&malware_dir);
-                let target = malware_dir.join(path.file_name().unwrap_or_default());
-                let _ = fs::rename(&path, &target);
+                    let status_string = if explicitly_local {
+                        "EXPLICIT LOCAL".to_string()
+                    } else {
+                        "LOCAL_ONLY".to_string()
+                    };
 
-                let manifest = QuarantineManifest {
-                    artifact_name: path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string(),
-                    detected_hash: dna_hash.clone(),
-                    signature: signature_name.clone(),
-                    quarantine_path: obscure_username(&target.to_string_lossy()),
-                    original_path: None,
-                    original_hash_at_import: None,
-                    original_exists: false,
-                    original_shredded: false,
-                    quarantined_file_shredded: false,
-                    detected_at: chrono::Local::now().to_rfc3339(),
-                };
-                let manifest_path = reports_dir.join(format!(
-                    "{}.manifest.json",
-                    target.file_name().unwrap_or_default().to_string_lossy()
-                ));
-                if let Ok(json) = serde_json::to_string_pretty(&manifest) {
-                    let _ = fs::write(manifest_path, json);
-                }
-
-                let _ = app.emit(
-                    "malware_detected",
-                    serde_json::json!({
-                        "path": target.to_string_lossy().to_string(),
-                        "name": path.file_name().unwrap_or_default().to_string_lossy().to_string(),
-                        "hash": dna_hash,
-                        "status": "QUARANTINED",
-                        "isLocalOverride": false,
-                        "isVirtual": false,
-                        "compliance_tier": 5,
-                        "original_exists": manifest.original_exists,
-                        "original_shredded": manifest.original_shredded,
-                        "original_path": manifest.original_path,
-                        "quarantine_path": manifest.quarantine_path,
-                        "matched_signature": manifest.signature
-                    }),
-                );
-
-                cache.remove(&path_str);
-                let target_str = target.to_string_lossy().to_string();
-                cache.insert(
-                    target_str.clone(),
-                    CacheEntry {
+                    results.push(ModData {
+                        name: rel.replace("\\", "/"),
+                        hash: dna_hash,
+                        status: status_string,
+                        color: "var(--text-sub)".to_string(),
+                        is_script,
                         mtime,
-                        dna_hash: dna_hash.clone(),
-                        explicitly_local: false,
-                        quarantined: true,
-                        heuristic_malware_sig: Some(signature_name.clone()),
-                        heuristic_sigs_mtime: current_sigs_mtime,
-                    },
-                );
-                cache_updated = true;
+                    });
+                }
 
-                results.push(ModData {
-                    name: rel.replace("\\", "/"),
-                    hash: dna_hash,
-                    status: "QUARANTINED".to_string(),
-                    color: "var(--danger)".to_string(),
-                    is_script: path.extension().map_or(false, |ext| {
-                        crate::game_logic::get_file_label(&game_schema, &ext.to_string_lossy())
-                            == "SCRIPT"
-                    }),
-                    mtime,
-                });
-                continue;
-            }
+                if cache_updated {
+                    save_cache(&vault_path, &cache);
+                }
 
-            let status_string = if explicitly_local {
-                "EXPLICIT LOCAL".to_string()
-            } else {
-                "LOCAL_ONLY".to_string()
-            };
+                Ok(results)
+            })();
+            let _ = tx.send(res);
+        });
 
-            results.push(ModData {
-                name: rel.replace("\\", "/"),
-                hash: dna_hash,
-                status: status_string,
-                color: "var(--text-sub)".to_string(),
-                is_script,
-                mtime,
-            });
-        }
+    if let Err(e) = spawn_res {
+        return Err(format!("Failed to spawn background scanner: {}", e));
+    }
 
-        if cache_updated {
-            save_cache(&vault_path, &cache);
-        }
-
-        Ok(results)
+    tauri::async_runtime::spawn_blocking(move || {
+        rx.recv()
+            .map_err(|e| format!("Scanner channel closed: {}", e))?
     })
     .await
-    .map_err(|e| format!("Task panicked: {}", e))?
+    .map_err(|e| format!("Scanner join error: {}", e))?
 }
 
 #[tauri::command]
@@ -667,11 +726,24 @@ pub fn ingest_dropped_file(
 
                                     let extracted_hash =
                                         calculate_hash(&extract_target).unwrap_or_default();
-                                    let is_malware = if let Ok(m) = state.malware_hashes.lock() {
+                                    let heuristic_sigs =
+                                        get_heuristic_signatures(config.vault_path.clone())
+                                            .unwrap_or_else(|_| vec![]);
+                                    let mut matched_sig = "NO SIGNATURE MATCH".to_string();
+                                    let mut is_malware = if let Ok(m) = state.malware_hashes.lock() {
                                         m.contains(&extracted_hash)
                                     } else {
                                         false
                                     };
+                                    if !is_malware {
+                                        if let Some(sig) =
+                                            check_heuristic_malware(&extract_target, &heuristic_sigs)
+                                                .or_else(|| check_heuristic_malware(source, &heuristic_sigs))
+                                        {
+                                            is_malware = true;
+                                            matched_sig = sig;
+                                        }
+                                    }
 
                                     if is_malware {
                                         let q_dir = Path::new(&config.vault_path)
@@ -689,7 +761,7 @@ pub fn ingest_dropped_file(
                                                 .to_string_lossy()
                                                 .to_string(),
                                             detected_hash: extracted_hash.clone(),
-                                            signature: "N/A".to_string(),
+                                            signature: matched_sig,
                                             quarantine_path: obscure_username(
                                                 &q_target.to_string_lossy(),
                                             ),
@@ -856,7 +928,7 @@ pub fn ingest_dropped_file(
                         .and_then(|e| e.to_str())
                         .unwrap_or("")
                         .to_lowercase();
-                    if vault_visible_exts.contains(&zf_ext) {
+                    if vault_visible_exts.contains(&zf_ext) || p.file_name().unwrap_or_default().to_string_lossy().to_lowercase().contains("override") && zf_ext == "json" {
                         if let Some(zf_file_name) = p.file_name() {
                             let file_name_str = zf_file_name.to_string_lossy().to_string();
                             let rel_path = p.strip_prefix(&tmp_extract).unwrap_or(p);
@@ -924,11 +996,23 @@ pub fn ingest_dropped_file(
 
                                 let extracted_hash =
                                     calculate_hash(&extract_target).unwrap_or_default();
-                                let is_malware = if let Ok(m) = state.malware_hashes.lock() {
+                                let heuristic_sigs =
+                                    get_heuristic_signatures(config.vault_path.clone())
+                                        .unwrap_or_else(|_| vec![]);
+                                let mut matched_sig = "NO SIGNATURE MATCH".to_string();
+                                let mut is_malware = if let Ok(m) = state.malware_hashes.lock() {
                                     m.contains(&extracted_hash)
                                 } else {
                                     false
                                 };
+                                if !is_malware {
+                                    if let Some(sig) =
+                                        check_heuristic_malware(&extract_target, &heuristic_sigs)
+                                    {
+                                        is_malware = true;
+                                        matched_sig = sig;
+                                    }
+                                }
 
                                 if is_malware {
                                     let q_dir =
@@ -944,7 +1028,7 @@ pub fn ingest_dropped_file(
                                     let manifest = QuarantineManifest {
                                         artifact_name: zf_file_name.to_string_lossy().to_string(),
                                         detected_hash: extracted_hash.clone(),
-                                        signature: "N/A".to_string(),
+                                        signature: matched_sig,
                                         quarantine_path: obscure_username(
                                             &q_target.to_string_lossy(),
                                         ),
@@ -1060,11 +1144,20 @@ pub fn ingest_dropped_file(
             return Ok(serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()));
         } else if crate::game_logic::get_supported_extensions(&game_schema).contains(&ext) || file_name.to_string_lossy().to_string().to_lowercase() == "override.json" {
             let file_hash = calculate_hash(&source).unwrap_or_default();
-            let is_malware = if let Ok(m) = state.malware_hashes.lock() {
+            let heuristic_sigs =
+                get_heuristic_signatures(config.vault_path.clone()).unwrap_or_else(|_| vec![]);
+            let mut matched_sig = "NO SIGNATURE MATCH".to_string();
+            let mut is_malware = if let Ok(m) = state.malware_hashes.lock() {
                 m.contains(&file_hash)
             } else {
                 false
             };
+            if !is_malware {
+                if let Some(sig) = check_heuristic_malware(source, &heuristic_sigs) {
+                    is_malware = true;
+                    matched_sig = sig;
+                }
+            }
 
             if is_malware {
                 let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
@@ -1077,7 +1170,7 @@ pub fn ingest_dropped_file(
                 let manifest = QuarantineManifest {
                     artifact_name: file_name.to_string_lossy().to_string(),
                     detected_hash: file_hash.clone(),
-                    signature: "NO SIGNATURE MATCH".to_string(),
+                    signature: matched_sig,
                     quarantine_path: obscure_username(&q_target.to_string_lossy()),
                     original_path: Some(obscure_username(&source.to_string_lossy())),
                     original_hash_at_import: Some(file_hash.clone()),

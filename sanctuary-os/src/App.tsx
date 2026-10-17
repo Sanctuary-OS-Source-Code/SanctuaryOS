@@ -24,7 +24,7 @@ import { useCloudService } from "./hooks/useCloudService";
 import { useStore, syncMasterSchemas, syncGameDatabases, getSafeSchema } from "./store";
 import { useGlobalListeners } from "./hooks/useGlobalListeners";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { supabase, supabaseAuth, getActiveGameClient } from "./supabase";
+import { supabase, supabaseAuth, getActiveGameClient, isStandaloneFork, RESOLVED_SANCTUARY_CONFIG } from "./supabase";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -410,6 +410,7 @@ function App() {
   const [metaStatusMsgInput, setMetaStatusMsgInput] = useState("");
   const [metaStatusInput, setMetaStatusInput] = useState("unverified");
   const [metaVersionInput, setMetaVersionInput] = useState("");
+  const [metaManifestUrlInput, setMetaManifestUrlInput] = useState("");
   const [metaIsPaidInput, setMetaIsPaidInput] = useState(false);
   const [metaIsEarlyAccessInput, setMetaIsEarlyAccessInput] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
@@ -589,27 +590,140 @@ function App() {
     return () => clearTimeout(debounceTimeout);
   }, [playSets, playsetsLoaded, activeWorkspaceId]);
 
+  useEffect(() => {
+    if (!activeDossier) {
+      setMetaManifestUrlInput("");
+      return;
+    }
+    try {
+      const localOvr = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+      const edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+      const h = activeDossier.hash;
+      const existingUrl =
+        (activeDossier as any).manifest_url ||
+        (h && localOvr[h]?.manifest_url) ||
+        (h && edgeLogic[h]?.manifest_url) ||
+        "";
+      setMetaManifestUrlInput(existingUrl);
+    } catch (e) {
+      setMetaManifestUrlInput((activeDossier as any).manifest_url || "");
+    }
+  }, [activeDossier]);
+
   const saveLocalMetadata = async (extraOverrides?: any) => {
     if (!activeDossier) return;
     setStatus(t("status_syncing_metadata"));
     try {
       const localOvr = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+      const edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+      const cleanManifestUrl = (extraOverrides?.manifest_url ?? metaManifestUrlInput ?? "").trim();
+
       if (activeDossier.hash) {
+        const familyHashes = Array.from(
+          new Set(
+            [
+              activeDossier.hash,
+              ...(Array.isArray(activeDossier.flavors)
+                ? activeDossier.flavors.map((f: any) => f.hash)
+                : []),
+            ].filter(Boolean),
+          ),
+        );
+
+        let fetchedManifest: any = null;
+        if (cleanManifestUrl && /^https?:\/\//i.test(cleanManifestUrl)) {
+          const artifactId =
+            metaNameInput.trim() ||
+            activeDossier.displayName ||
+            activeDossier.name ||
+            activeDossier.hash;
+          const masonId = metaAuthorInput.trim() || activeDossier.author || "Local";
+          if (isDesktop() && vaultPath) {
+            try {
+              await invoke("register_edge_override", {
+                vaultPath,
+                overrideData: {
+                  artifact_id: artifactId,
+                  mason_id: masonId,
+                  game_id: activeWorkspaceId || "",
+                  manifest_url: cleanManifestUrl,
+                  target_hash: activeDossier.hash,
+                  archive_hashes: familyHashes.filter((h) => h !== activeDossier.hash),
+                },
+              });
+              fetchedManifest = await invoke("fetch_and_sync_edge_manifest", {
+                vaultPath,
+                artifactId,
+              });
+            } catch (err) {
+              console.warn("Edge manifest Tauri sync fallback to fetch:", err);
+            }
+          }
+          if (!fetchedManifest) {
+            try {
+              const resp = await fetch(cleanManifestUrl);
+              if (resp.ok) fetchedManifest = await resp.json();
+            } catch (fetchErr) {
+              console.warn("Direct edge manifest fetch failed:", fetchErr);
+            }
+          }
+          if (fetchedManifest) {
+            if (fetchedManifest.payload?.sha256) familyHashes.push(fetchedManifest.payload.sha256);
+            if (Array.isArray(fetchedManifest.previous_hashes)) {
+              fetchedManifest.previous_hashes.forEach((ph: string) => {
+                if (ph && !familyHashes.includes(ph)) familyHashes.push(ph);
+              });
+            }
+          }
+        }
+
         const overrides = {
-          displayName: metaNameInput.trim(),
-          author: metaAuthorInput.trim() || undefined,
+          displayName: metaNameInput.trim() || fetchedManifest?.artifact?.name || activeDossier.displayName,
+          author: metaAuthorInput.trim() || fetchedManifest?.artifact?.author || undefined,
           image_url: metaImageInput.trim() === "" ? "" : metaImageInput.trim(),
           imageUrl: metaImageInput.trim() === "" ? "" : metaImageInput.trim(),
-          url: metaUrlInput?.trim() || undefined,
-          version: metaVersionInput?.trim() || undefined,
+          url: metaUrlInput?.trim() || fetchedManifest?.payload?.download_url || undefined,
+          manifest_url: cleanManifestUrl || undefined,
+          version: metaVersionInput?.trim() || fetchedManifest?.artifact?.version || undefined,
           description: metaDescInput?.trim() || undefined,
           allow_write: metaAllowWriteInput || false,
           is_paid: metaIsPaidInput || false,
           is_early_access: metaIsEarlyAccessInput || false,
-          ...(extraOverrides || {})
+          requiredDLC: fetchedManifest?.atomic_logic?.required_dlc || extraOverrides?.requiredDLC || (activeDossier as any).requiredDLC,
+          ...(extraOverrides || {}),
         };
-        localOvr[activeDossier.hash] = overrides;
+
+        for (const h of familyHashes) {
+          localOvr[h] = {
+            ...(localOvr[h] || {}),
+            ...(h === activeDossier.hash
+              ? overrides
+              : {
+                  manifest_url: cleanManifestUrl || undefined,
+                  author: overrides.author,
+                  version: overrides.version,
+                  url: overrides.url,
+                  requiredDLC: overrides.requiredDLC,
+                }),
+          };
+          if (fetchedManifest?.atomic_logic) {
+            edgeLogic[h] = {
+              ...fetchedManifest.atomic_logic,
+              manifest_url: cleanManifestUrl,
+              artifact_id: fetchedManifest.artifact?.id || overrides.displayName,
+              version: fetchedManifest.artifact?.version,
+              game_version: fetchedManifest.artifact?.game_version,
+              download_url: fetchedManifest.payload?.download_url,
+              sha256: fetchedManifest.payload?.sha256,
+              changelog: fetchedManifest.changelog || [],
+            };
+          } else if (!cleanManifestUrl && edgeLogic[h]) {
+            delete edgeLogic[h];
+          }
+        }
+
         localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOvr));
+        localStorage.setItem("sanctuary_edge_logic", JSON.stringify(edgeLogic));
 
         const updatedDossier = { ...activeDossier, ...overrides, isLocalOverride: true };
         setActiveDossier(updatedDossier);
@@ -639,9 +753,12 @@ function App() {
 
     try {
       const localOvr = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
-      if (activeDossier.hash && localOvr[activeDossier.hash]) {
+      const edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+      if (activeDossier.hash && (localOvr[activeDossier.hash] || edgeLogic[activeDossier.hash])) {
         delete localOvr[activeDossier.hash];
+        delete edgeLogic[activeDossier.hash];
         localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOvr));
+        localStorage.setItem("sanctuary_edge_logic", JSON.stringify(edgeLogic));
 
         const originalMod = modList.find((m: any) => m.hash === activeDossier.hash && !m.isLocalOverride) ||
           modList.find((m: any) => m.hash === activeDossier.hash);
@@ -652,6 +769,7 @@ function App() {
           setMetaNameInput(originalMod.displayName || originalMod.name || "");
           setMetaAuthorInput(originalMod.author || "");
           setMetaUrlInput(originalMod.url || "");
+          setMetaManifestUrlInput("");
           setMetaImageInput(originalMod.image_url || originalMod.imageUrl || "");
           setMetaDescInput(originalMod.description || "");
           setMetaVersionInput(originalMod.version || "");
@@ -820,9 +938,43 @@ function App() {
         }).then((handler) => { unlisten = handler; });
 
         listen("edge_override_detected", (event: any) => {
-          setEdgeOverrideQueue((prev: any[]) => {
-            return [...prev, event.payload];
-          });
+          setEdgeOverrideQueue((prev: any[]) => [...prev, event.payload]);
+          try {
+            const payload = event.payload || {};
+            const data = payload.override_json ? JSON.parse(payload.override_json) : {};
+            const targetHash = (data.target_hash || "").toLowerCase();
+            const archiveHashes = (Array.isArray(data.archive_hashes) ? data.archive_hashes : []).map((h: string) =>
+              String(h).toLowerCase(),
+            );
+            const allCandidateHashes = [targetHash, ...archiveHashes].filter(Boolean);
+            const currentMods = useStore.getState().modList || [];
+            const matchedMod = currentMods.find((m: any) => {
+              const mh = (m.hash || "").toLowerCase();
+              if (mh && allCandidateHashes.includes(mh)) return true;
+              if (Array.isArray(m.flavors)) {
+                return m.flavors.some((f: any) => f.hash && allCandidateHashes.includes(String(f.hash).toLowerCase()));
+              }
+              return false;
+            });
+            const resolvedHash = matchedMod?.hash || data.target_hash || "";
+            setDnaMatchQueue((prev: any[]) => {
+              const isDuplicate = prev.some(
+                (m) => m.reason === "EDGE_OVERRIDE" && m.override_json === payload.override_json,
+              );
+              if (isDuplicate) return prev;
+              return [
+                ...prev,
+                {
+                  ...payload,
+                  reason: "EDGE_OVERRIDE",
+                  hash: resolvedHash,
+                  matched_mod_name: matchedMod?.displayName || matchedMod?.name || data.artifact_id || "",
+                },
+              ];
+            });
+          } catch (e) {
+            console.error("Failed to parse edge_override_detected payload", e);
+          }
         });
       }
     }
@@ -887,16 +1039,18 @@ function App() {
       vaultPath &&
       modList.some((m: any) => m.isSynced !== undefined)
     ) {
-      try {
-        const content = JSON.stringify(modList);
-        invoke("save_master_cache", {
-          vaultPath,
-          content,
-        }).catch((e) => console.error("Cache Save Failed", e));
-      } catch (err) {
-        console.error("JSON Stringify Failed for Cache!", err);
-        alert("Cache stringify failed: " + err);
-      }
+      const timer = setTimeout(() => {
+        try {
+          const content = JSON.stringify(modList);
+          invoke("save_master_cache", {
+            vaultPath,
+            content,
+          }).catch((e) => console.error("Cache Save Failed", e));
+        } catch (err) {
+          console.error("JSON Stringify Failed for Cache!", err);
+        }
+      }, 1500);
+      return () => clearTimeout(timer);
     }
   }, [modList, vaultPath]);
   const [anarchyRules, setAnarchyRules] = useState(() => {
@@ -934,7 +1088,7 @@ function App() {
       try {
         await loadDLCMap();
         if (!isDesktop()) {
-          const webSubdomain = getSubdomain();
+          const webSubdomain = getSubdomain() || (isStandaloneFork ? RESOLVED_SANCTUARY_CONFIG.standaloneWorkspace.id : null);
 
           if (webSubdomain) {
             try {
@@ -1279,12 +1433,16 @@ function App() {
         } catch (e: any) {
           console.error(e);
         }
+        if (isStandaloneFork && (newRole === "wayfinder" || currentOsRole === "wayfinder")) {
+          currentOsRole = "keeper";
+        }
+        setOsRole(currentOsRole);
         setUserRole(newRole);
 
         const currentView = useStore.getState().view;
         const elevatedHubs = ["MasonHub", "ArchitectHub", "Oversight", "WayfinderHub", "KeepersCore", "SADefcon"];
         if (elevatedHubs.includes(currentView)) {
-          if (currentView === "MasonHub" && !["mason", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
+          if (currentView === "MasonHub" && !session) setView("dashboard");
           else if (currentView === "ArchitectHub" && !["architect", "oversight", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
           else if (currentView === "Oversight" && !["oversight", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
           else if (currentView === "WayfinderHub" && !["wayfinder", "admin"].includes(newRole)) setView("dashboard");
@@ -1384,12 +1542,165 @@ function App() {
         }
       }
 
-      if (hasError && cloudData.length === 0) {
+      // --- DECENTRALIZED STATIC EDGE MANIFEST POLLING ---
+      const edgeBindings = new Map<string, { artifactId?: string; hashes: Set<string>; masonId?: string }>();
+      let localOvrMap: Record<string, any> = {};
+      let edgeLogicMap: Record<string, any> = {};
+      try {
+        localOvrMap = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+      } catch (e) {}
+      try {
+        edgeLogicMap = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+      } catch (e) {}
+
+      const addEdgeBinding = (url: string | undefined, hash?: string, artifactId?: string, masonId?: string) => {
+        if (!url || !/^https?:\/\//i.test(url.trim())) return;
+        const cleanUrl = url.trim();
+        if (!edgeBindings.has(cleanUrl)) {
+          edgeBindings.set(cleanUrl, { artifactId, hashes: new Set<string>(), masonId });
+        }
+        const entry = edgeBindings.get(cleanUrl)!;
+        if (artifactId && !entry.artifactId) entry.artifactId = artifactId;
+        if (masonId && !entry.masonId) entry.masonId = masonId;
+        if (hash) entry.hashes.add(hash);
+      };
+
+      const currentVaultPath = useStore.getState().vaultPath || vaultPath;
+      if (isDesktop() && currentVaultPath) {
+        try {
+          const sqliteRows = await invoke<any[]>("get_all_edge_manifests", { vaultPath: currentVaultPath });
+          for (const row of sqliteRows || []) {
+            addEdgeBinding(row.manifest_url, row.target_hash, row.artifact_id, row.mason_id);
+            if (Array.isArray(row.archive_hashes)) {
+              row.archive_hashes.forEach((ah: string) => addEdgeBinding(row.manifest_url, ah, row.artifact_id, row.mason_id));
+            }
+          }
+        } catch (e) {}
+      }
+
+      Object.entries(localOvrMap).forEach(([h, ovr]: [string, any]) => {
+        if (ovr?.manifest_url) addEdgeBinding(ovr.manifest_url, h, ovr.displayName, ovr.author);
+      });
+      syncedMods.forEach((m: any) => {
+        if (m.manifest_url && m.hash) addEdgeBinding(m.manifest_url, m.hash, m.displayName || m.name, m.author);
+      });
+
+      if (hasError && cloudData.length === 0 && edgeBindings.size === 0) {
         console.warn("Network check encountered errors and returned no data. Aborting to prevent wiping cached updates.");
         return;
       }
 
       let debugLog = "";
+
+      if (edgeBindings.size > 0 && navigator.onLine) {
+        let edgeLogicDirty = false;
+        let localOvrDirty = false;
+
+        for (const [manifestUrl, binding] of edgeBindings.entries()) {
+          try {
+            let manifest: any = null;
+            if (isDesktop() && currentVaultPath && binding.artifactId) {
+              try {
+                manifest = await invoke<any>("fetch_and_sync_edge_manifest", {
+                  vaultPath: currentVaultPath,
+                  artifactId: binding.artifactId,
+                });
+              } catch (e) {}
+            }
+            if (!manifest) {
+              const resp = await fetch(manifestUrl);
+              if (resp.ok) manifest = await resp.json();
+            }
+            if (!manifest || !manifest.artifact) continue;
+
+            const allFamilyHashes = new Set<string>([
+              ...Array.from(binding.hashes),
+              manifest.payload?.sha256,
+              ...(Array.isArray(manifest.previous_hashes) ? manifest.previous_hashes : []),
+              ...(Array.isArray(manifest.atomic_logic?.flavors) ? manifest.atomic_logic.flavors : []),
+            ].filter(Boolean));
+
+            const lowerFamilyHashes = new Set<string>(Array.from(allFamilyHashes).map((h) => h.toLowerCase()));
+            const matchedLocalMods = syncedMods.filter(
+              (m: any) =>
+                (m.hash && lowerFamilyHashes.has(String(m.hash).toLowerCase())) ||
+                m.manifest_url === manifestUrl ||
+                (m.hash && localOvrMap[m.hash]?.manifest_url === manifestUrl),
+            );
+
+            matchedLocalMods.forEach((m: any) => {
+              if (m.hash) allFamilyHashes.add(m.hash);
+            });
+
+            for (const famHash of allFamilyHashes) {
+              if (manifest.atomic_logic) {
+                edgeLogicMap[famHash] = {
+                  ...manifest.atomic_logic,
+                  manifest_url: manifestUrl,
+                  artifact_id: manifest.artifact?.id || binding.artifactId,
+                  version: manifest.artifact?.version,
+                  game_version: manifest.artifact?.game_version,
+                  download_url: manifest.payload?.download_url,
+                  sha256: manifest.payload?.sha256,
+                  changelog: manifest.changelog || [],
+                };
+                edgeLogicDirty = true;
+              }
+              if (localOvrMap[famHash]) {
+                localOvrMap[famHash] = {
+                  ...localOvrMap[famHash],
+                  manifest_url: manifestUrl,
+                  requiredDLC: manifest.atomic_logic?.required_dlc || localOvrMap[famHash].requiredDLC,
+                };
+                localOvrDirty = true;
+              }
+            }
+
+            if (matchedLocalMods.length > 0) {
+              const latestSha = String(manifest.payload?.sha256 || "").toLowerCase().trim();
+              const cleanEdgeVer = String(manifest.artifact?.version || "").toLowerCase().replace(/^v/, "").trim();
+
+              for (const localMod of matchedLocalMods) {
+                const localHash = String(localMod.hash || "").toLowerCase().trim();
+                const cleanLocalVer = String(localMod.version || "").toLowerCase().replace(/^v/, "").trim();
+
+                const hashDiffers = !!(latestSha && localHash && latestSha !== localHash);
+                const versionDiffers = !!(
+                  cleanEdgeVer &&
+                  cleanLocalVer &&
+                  cleanLocalVer !== "local" &&
+                  cleanLocalVer !== ".local" &&
+                  cleanEdgeVer !== cleanLocalVer
+                );
+
+                if (hashDiffers || versionDiffers) {
+                  if (!updated.some((u) => u.hash === localMod.hash && u.name === localMod.name)) {
+                    updated.push({
+                      ...localMod,
+                      newVersion: manifest.artifact?.version || "Update",
+                      newGameVersion: manifest.artifact?.game_version,
+                      download_url: manifest.payload?.download_url || manifestUrl,
+                      edge_changelog: manifest.changelog || [],
+                      is_edge_update: true,
+                    });
+                  }
+                }
+              }
+            }
+          } catch (edgeErr) {
+            console.warn("Edge manifest poll failed for", manifestUrl, edgeErr);
+          }
+        }
+
+        if (edgeLogicDirty) {
+          localStorage.setItem("sanctuary_edge_logic", JSON.stringify(edgeLogicMap));
+        }
+        if (localOvrDirty) {
+          localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOvrMap));
+        }
+      }
+      // ---------------------------------------------------
+
       cloudData.forEach((cloudMod) => {
         const localMods = syncedMods.filter((m) => String(m.dbId) === String(cloudMod.id) || m.name === cloudMod.name);
         if (localMods.length === 0) return;
@@ -2537,7 +2848,7 @@ function App() {
                         />
                       )}
                       {view === "MasonHub" &&
-                        ["mason", "wayfinder", "admin"].includes(userRole) && <MasonHub key={activeWorkspaceId || 'no-workspace'} sandboxMod={activeSandboxMod} clearSandboxMod={() => setActiveSandboxMod(null)} vaultPath={vaultPath} handleOpenMasonProfile={handleOpenMasonProfile} />}
+                        !!session && <MasonHub key={activeWorkspaceId || 'no-workspace'} sandboxMod={activeSandboxMod} clearSandboxMod={() => setActiveSandboxMod(null)} vaultPath={vaultPath} handleOpenMasonProfile={handleOpenMasonProfile} />}
                       {view === "ArchitectHub" &&
                         ["architect", "oversight", "wayfinder", "admin"].includes(
                           userRole,
@@ -2619,6 +2930,7 @@ function App() {
                   name: metaNameInput,
                   author: metaAuthorInput,
                   url: metaUrlInput,
+                  manifest_url: metaManifestUrlInput,
                   image: metaImageInput,
                   desc: metaDescInput,
                   statusMsg: metaStatusMsgInput,
@@ -2633,6 +2945,7 @@ function App() {
                   name: setMetaNameInput,
                   author: setMetaAuthorInput,
                   url: setMetaUrlInput,
+                  manifest_url: setMetaManifestUrlInput,
                   image: setMetaImageInput,
                   desc: setMetaDescInput,
                   statusMsg: setMetaStatusMsgInput,

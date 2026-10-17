@@ -16,6 +16,9 @@ window.confirm = (msg) => {
 import { LexiconProvider } from "./LexiconContext"; 
 import { ThemeProvider } from "./ThemeContext";
 import AuthWrapper from "./AuthWrapper";
+import { initPwaManager } from "./utils/pwaManager";
+
+initPwaManager();
 
 if (typeof document !== "undefined" && !document.getElementById("sa-portals")) {
   const portalsDiv = document.createElement("div");

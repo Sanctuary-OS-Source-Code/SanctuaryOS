@@ -1,11 +1,127 @@
 use crate::schema::GameSchema;
 use std::path::Path;
 
+pub fn get_load_order_strategy(schema: &Option<GameSchema>) -> String {
+    if let Some(s) = schema {
+        if let Some(lo) = &s.load_order {
+            if let Some(strat) = &lo.strategy {
+                if !strat.is_empty() {
+                    return strat.to_lowercase();
+                }
+            }
+        }
+    }
+    "folder_priority".to_string()
+}
+
+pub fn get_priority_folders(schema: &Option<GameSchema>) -> Vec<String> {
+    let mut folders = vec![
+        "".to_string(),
+        "!Sanctuary".to_string(),
+        "!Sanctuary2".to_string(),
+        "!Sanctuary3".to_string(),
+        "Sanctuary".to_string(),
+        "Sanctuary2".to_string(),
+        "Sanctuary3".to_string(),
+    ];
+    if let Some(s) = schema {
+        if let Some(lo) = &s.load_order {
+            if let Some(tiers) = &lo.priority_tiers {
+                for tier in tiers {
+                    if !folders.contains(&tier.folder) {
+                        folders.push(tier.folder.clone());
+                    }
+                    let bang = format!("!{}", tier.folder);
+                    if !tier.folder.is_empty() && !folders.contains(&bang) {
+                        folders.push(bang);
+                    }
+                }
+            }
+        }
+    }
+    folders
+}
+
 pub fn generate_manifest_if_needed(schema: &Option<GameSchema>, mods_dir: &Path) {
     if let Some(s) = schema {
-        if let Some(content) = &s.manifest_content {
-            let _ = std::fs::write(mods_dir.join(&s.paths.manifest_file), content);
+        let strategy = get_load_order_strategy(schema);
+        let manifest_file = s
+            .load_order
+            .as_ref()
+            .and_then(|lo| lo.manifest_file.clone())
+            .filter(|f| !f.is_empty())
+            .unwrap_or_else(|| s.paths.manifest_file.clone());
+
+        if manifest_file.is_empty() {
+            return;
         }
+
+        if strategy == "folder_priority" {
+            if let Some(content) = &s.manifest_content {
+                let mut full_content = content.clone();
+                if let Some(lo) = &s.load_order {
+                    if let Some(tiers) = &lo.priority_tiers {
+                        for tier in tiers {
+                            if !tier.folder.is_empty() && !full_content.contains(&format!("PackedFile {}/*.package", tier.folder)) {
+                                full_content.push_str(&format!(
+                                    "\n\nPriority {}\nPackedFile {}/*.package\nPackedFile {}/*/*.package\nPackedFile {}/*/*/*.package",
+                                    tier.priority, tier.folder, tier.folder, tier.folder
+                                ));
+                            }
+                        }
+                    }
+                }
+                let _ = std::fs::write(mods_dir.join(&manifest_file), full_content);
+            }
+        } else if let Some(content) = &s.manifest_content {
+            if !content.is_empty() && strategy != "manifest_list" {
+                let _ = std::fs::write(mods_dir.join(&manifest_file), content);
+            }
+        }
+    }
+}
+
+pub fn write_load_order_manifest(
+    schema: &Option<GameSchema>,
+    mods_dir: &Path,
+    ordered_files: &[String],
+) {
+    if let Some(s) = schema {
+        let strategy = get_load_order_strategy(schema);
+        if strategy != "manifest_list" {
+            return;
+        }
+        let manifest_file = s
+            .load_order
+            .as_ref()
+            .and_then(|lo| lo.manifest_file.clone())
+            .filter(|f| !f.is_empty())
+            .unwrap_or_else(|| s.paths.manifest_file.clone());
+
+        if manifest_file.is_empty() {
+            return;
+        }
+
+        let template = s
+            .load_order
+            .as_ref()
+            .and_then(|lo| lo.line_template.clone())
+            .filter(|t| !t.is_empty())
+            .unwrap_or_else(|| "{file}".to_string());
+
+        let mut lines = Vec::new();
+        if let Some(header) = &s.manifest_content {
+            if !header.trim().is_empty() {
+                lines.push(header.trim().to_string());
+            }
+        }
+        for (idx, file) in ordered_files.iter().enumerate() {
+            let line = template
+                .replace("{file}", file)
+                .replace("{index}", &(idx + 1).to_string());
+            lines.push(line);
+        }
+        let _ = std::fs::write(mods_dir.join(&manifest_file), lines.join("\n"));
     }
 }
 

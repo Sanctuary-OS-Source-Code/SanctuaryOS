@@ -10,7 +10,7 @@ import { supabase } from '../supabase';
 import { UniversalCard } from '../components/universal/UniversalCard';
 
 import { FilterPopover } from "./misc";
-import { SidePanelContext } from "./layout";
+import { SidePanelContext, HeaderActionPortalContext, useHubActionsState } from "./layout";
 export function LoadingScreen({
   title,
   subtitle,
@@ -338,14 +338,36 @@ export function ActionPill({
   className = "",
   isLoading,
 }: ActionPillProps) {
+  const { t } = useLexicon();
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   const isInsideSidePanel = React.useContext(SidePanelContext);
+  const isInsideHeaderPortal = React.useContext(HeaderActionPortalContext);
+  const { hubActions } = useHubActionsState();
+
+  const mergedActions = React.useMemo(() => {
+    if (
+      !isInsideHeaderPortal ||
+      isInsideSidePanel ||
+      !hubActions ||
+      hubActions.length === 0
+    ) {
+      return actions;
+    }
+    const base = actions || [];
+    const existingIds = new Set(base.map((a: any) => a.id));
+    return [...base, ...hubActions.filter((a: any) => !existingIds.has(a.id))];
+  }, [actions, hubActions, isInsideHeaderPortal, isInsideSidePanel]);
 
   const hasSearch = !hideSearch && !!setSearchQuery;
-  const hasActions = (actions && actions.length > 0) || !!primaryPopover || !!rightContent;
+  const hasActions =
+    (mergedActions && mergedActions.length > 0) ||
+    !!primaryPopover ||
+    !!rightContent;
   const hasContent = !!leftContent || hasSearch || hasActions;
 
   if (!hasContent) return null;
+
+  const isIconsOnly = !hasSearch && !leftContent && !primaryPopover;
 
   const widthClasses = !hasSearch
     ? "w-[fit-content] md:max-w-[fit-content]"
@@ -367,14 +389,16 @@ export function ActionPill({
           <span
             className={`material-symbols-outlined !text-[20px] transition-colors shrink-0 ml-4 ${isSearchFocused ? "text-[var(--accent)]" : "text-[var(--subtext)]"}`}
           >
-            {isLoading ? "hourglass_empty" : "search"}
+            {isLoading
+              ? t("icon_hourglass_empty") || "hourglass_empty"
+              : t("icon_search") || "search"}
           </span>
           <input
             value={searchQuery || ""}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setIsSearchFocused(false)}
-            placeholder={searchPlaceholder || "Search..."}
+            placeholder={searchPlaceholder || t("shared_search") || "Search..."}
             className="bg-transparent border-none outline-none text-[13px] font-medium text-[var(--text)] w-full transition-all duration-300 px-3 placeholder:text-[var(--subtext)]/50 h-13 min-w-0"
           />
         </div>
@@ -398,10 +422,12 @@ export function ActionPill({
           </FilterPopover>
         )}
 
-        {/* DESKTOP Action Icons */}
-        {actions && actions.length > 0 && (
-          <div className="hidden sm:flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] shrink-0">
-            {actions.map((action) => (
+        {/* DESKTOP (or Icons-Only) Action Icons */}
+        {mergedActions && mergedActions.length > 0 && (
+          <div
+            className={`${isIconsOnly ? "flex" : "hidden sm:flex"} items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] shrink-0`}
+          >
+            {mergedActions.map((action) => (
               <button
                 key={action.id}
                 onClick={action.onClick}
@@ -424,21 +450,21 @@ export function ActionPill({
         )}
 
         {/* MOBILE "More" Menu */}
-        {actions && actions.length > 0 && (
+        {!isIconsOnly && mergedActions && mergedActions.length > 0 && (
           <div className="flex sm:hidden h-full shrink-0 items-center justify-center border-l border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
             <FilterPopover
-              icon="more_vert"
+              icon={t("icon_more_vert") || "more_vert"}
               className="shrink-0 h-full"
               buttonClassName="!h-13 w-12 !rounded-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !border-none !shadow-none transition-colors text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center shrink-0"
             >
               <div className="flex flex-col p-2 min-w-[200px] gap-1">
-                {actions.map((action) => (
+                {mergedActions.map((action) => (
                   <button
                     key={action.id}
                     onClick={action.onClick}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-left transition-colors group ${action.activeClassName?.includes("bg-") ? action.activeClassName : ""}`}
                   >
-                    <span className="shrink-0 group-hover:text-[var(--text)] transition-colors">
+                    <span className="material-symbols-outlined !text-[18px] shrink-0 group-hover:text-[var(--text)] transition-colors">
                       {action.icon}
                     </span>
                     <span

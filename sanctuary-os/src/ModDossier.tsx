@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { isDesktop } from "./utils/envUtils";
 import { useLexicon } from "./LexiconContext";
@@ -218,12 +219,105 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       updated_at: localUpdatedAt,
       category_override: localCategory,
       compatible_versions: localCompatibleVersions,
+      manifest_url: metaInputs.manifest_url?.trim() || undefined,
       is_paid: metaInputs.is_paid || false,
       is_early_access: metaInputs.is_early_access || false
     });
     setIsSaving(false);
     setEditMode(false);
     setIsCorrecting(false);
+  };
+
+  const handleExportLocalRelease = async () => {
+    const vaultPath = useStore.getState().vaultPath;
+    if (!vaultPath || !mod?.name) return;
+    setIsSaving(true);
+    try {
+      const localOvr = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+      const edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+      const existingManifestUrl =
+        metaInputs.manifest_url?.trim() ||
+        mod.manifest_url ||
+        (mod.hash && localOvr[mod.hash]?.manifest_url) ||
+        (mod.hash && edgeLogic[mod.hash]?.manifest_url) ||
+        "https://your-domain.com/manifest.json";
+
+      const cleanModName = (mod.displayName || mod.name.split(/[\\/]/).pop() || "local_mod").trim();
+      const artifactId = cleanModName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+      const previousHashes = Array.from(
+        new Set(
+          [
+            ...(Array.isArray(mod.flavors) ? mod.flavors.map((f: any) => f.hash) : []),
+            ...(Array.isArray(edgeLogic[mod.hash]?.previous_hashes) ? edgeLogic[mod.hash].previous_hashes : []),
+          ].filter((h: any) => h && h !== mod.hash),
+        ),
+      );
+
+      const manifestPayload = {
+        schema_version: "1.0",
+        artifact: {
+          id: artifactId,
+          name: cleanModName,
+          author: (metaInputs.author || mod.author || "Local Mason").trim(),
+          version: (metaInputs.version || mod.version || "1.0.0").replace(/^v\.?/i, "").trim() || "1.0.0",
+          game_version:
+            (Array.isArray(localCompatibleVersions) && localCompatibleVersions[0]) ||
+            useStore.getState().selectedVersion ||
+            "Any",
+          release_date: new Date().toISOString(),
+          game_id: useStore.getState().activeWorkspaceId || "sims4",
+        },
+        payload: {
+          download_url: (metaInputs.url || mod.url || existingManifestUrl).trim(),
+          sha256: mod.hash || "",
+          archive_type: "zip",
+        },
+        atomic_logic: {
+          required_dlc: Array.isArray(metaInputs.requiredDLC) && metaInputs.requiredDLC.length > 0
+            ? metaInputs.requiredDLC
+            : Array.isArray(mod.requiredDLC)
+              ? mod.requiredDLC
+              : [],
+          dependencies: Array.isArray(mod.requirements)
+            ? mod.requirements.map((r: any) => ({ hash: String(r.hash || r.id || r), min_version: r.min_version || null }))
+            : [],
+          twins: Array.isArray(mod.twins) ? mod.twins.map((tw: any) => String(tw.hash || tw.id || tw)) : [],
+          addons: [],
+          conflicts: Array.isArray(mod.conflicts)
+            ? mod.conflicts.map((c: any) => ({
+                hash: String(c.enemy_id || c.enemy_name || ""),
+                severity: Number(c.severity_rank || 3),
+                description: c.resolution_note || undefined,
+              }))
+            : [],
+          flavors: Array.isArray(mod.flavors) ? mod.flavors.map((f: any) => f.hash).filter(Boolean) : [],
+        },
+        virtual_filesystem: {
+          overrides: [],
+          injected_folders: [],
+        },
+        changelog: metaInputs.desc ? [metaInputs.desc] : [t("label_initial_edge_release") || "Static Edge Release"],
+        previous_hashes: previousHashes,
+      };
+
+      const targetFolderOrFile = mod.physical_path || mod.name;
+      await invoke("export_edge_release", {
+        vaultPath,
+        sandboxModName: targetFolderOrFile,
+        manifest: manifestPayload,
+        customUrl: existingManifestUrl,
+      });
+
+      useStore.getState().pushStatus(
+        t("msg_export_release_success") ||
+          "Exported manifest.json, override.json, and release .zip to mod folder!",
+      );
+    } catch (err: any) {
+      console.error("Failed to export edge release from Dossier:", err);
+      useStore.getState().pushStatus(`Export failed: ${err?.message || err}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleFlagMod = async (reason: string) => {
@@ -389,6 +483,16 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       <button onClick={() => { if (onSyncToNetwork) onSyncToNetwork(mod); else setEditMode(true); }} className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--success)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]">
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_cloud_sync")}</span>
                         {t("btn_sync_network")}
+                      </button>
+                    )}
+                    {!mod.isVirtual && !isNexusView && !mod.name?.startsWith('LOCAL_SET_') && isDesktop() && (
+                      <button
+                        onClick={handleExportLocalRelease}
+                        disabled={isSaving}
+                        className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--accent)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">{t("icon_rocket_launch") || "rocket_launch"}</span>
+                        {t("btn_export_release") || "Export Release"}
                       </button>
                     )}
                     {mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && isDesktop() && (
@@ -723,6 +827,31 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                 </div>
 
               </div>
+
+              {!editMode && (metaInputs.manifest_url || mod.manifest_url) && (
+                <div className="flex items-center justify-between gap-4 p-4 px-5 glass-panel backdrop-blur-xl rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shadow-md">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
+                      {t("icon_network_wifi") || "network_wifi"}
+                    </span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
+                        {t("label_static_manifest_linked") || "Static Edge Manifest Linked"}
+                      </span>
+                      <span className="text-[11px] font-mono text-[var(--text)] opacity-80 truncate">
+                        {metaInputs.manifest_url || mod.manifest_url}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onSaveMetadata({ manifest_url: metaInputs.manifest_url || mod.manifest_url })}
+                    className="px-3 py-1.5 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0 transition-all"
+                  >
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_sync") || "sync"}</span>
+                    {t("btn_poll_manifest") || "Poll Manifest"}
+                  </button>
+                </div>
+              )}
             </div>
 
             {editMode && (
@@ -761,12 +890,27 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2 p-5 py-4 glass-panel backdrop-blur-xl rounded-2xl items-start text-left justify-center ">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">link</span> {t("external_url_placeholder")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("icon_link") || "link"}</span> {t("external_url_placeholder")}</label>
                     <input value={metaInputs.url} onChange={e => setMetaInputs.url(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] rounded-xl px-4 py-2 text-[var(--text)] text-xs font-black capitalize tracking-widest opacity-90 focus:outline-none transition-all shadow-inner" placeholder="https://..." />
                   </div>
                   <div className="flex flex-col gap-2 p-5 py-4 glass-panel backdrop-blur-xl rounded-2xl items-start text-left justify-center ">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">image</span> {t("cc_cover_url")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-80 capitalize tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[12px]">{t("icon_image") || "image"}</span> {t("cc_cover_url")}</label>
                     <input value={metaInputs.image} onChange={e => setMetaInputs.image(e.target.value)} className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] rounded-xl px-4 py-2 text-[var(--text)] text-xs font-black capitalize tracking-widest opacity-90 focus:outline-none transition-all shadow-inner" placeholder="https://..." />
+                  </div>
+                  <div className="flex flex-col gap-2 p-5 py-4 glass-panel backdrop-blur-xl rounded-2xl items-start text-left justify-center md:col-span-2 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                    <label className="text-[9px] font-black text-[var(--accent)] opacity-90 capitalize tracking-[0.2em] flex items-center gap-2">
+                      <span className="material-symbols-outlined !text-[12px]">{t("icon_network_wifi") || "network_wifi"}</span>
+                      {t("label_static_manifest_url") || "Static Edge Manifest URL (manifest.json)"}
+                    </label>
+                    <input
+                      value={metaInputs.manifest_url || ""}
+                      onChange={e => setMetaInputs.manifest_url && setMetaInputs.manifest_url(e.target.value)}
+                      className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] rounded-xl px-4 py-2 text-[var(--text)] text-xs font-mono tracking-wider opacity-90 focus:outline-none transition-all shadow-inner"
+                      placeholder={t("placeholder_static_manifest_url") || "https://your-domain.com/manifest.json"}
+                    />
+                    <span className="text-[9px] text-[var(--subtext)] opacity-60 tracking-wide">
+                      {t("desc_static_manifest_url") || "Point this local mod hash and its family to a hosted static manifest.json for automatic background updates and atomic logic."}
+                    </span>
                   </div>
                 </div>
               </div>

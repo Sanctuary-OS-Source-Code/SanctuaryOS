@@ -101,23 +101,24 @@ export const parseStringArray = (
 export const stripMarkdown = (text: string) => {
   if (!text) return "";
   return text
+    .replace(/\[IMG:[^\]]+\]\s*/g, "")
+    .replace(/^(?:\*\*(?:Alert Type|Dispatch Type|Dispatch Date|Impact|Audience|Severity|Action Required|Action Needed):\*\*[^\r\n]*[\r\n]+)+(?:\s*---+\s*[\r\n]*)?/i, "")
     .replace(/\\?\[ICON:[a-zA-Z0-9_-]+\\?\]/gi, (match) =>
       match.replace(/\\/g, ""),
     )
     .replace(/\[ASSET:[^\]]+\]/g, "")
-    .replace(/\[IMG:[^\]]+\]/g, "")
     .replace(/!\[([^\]]*)\]\([^\)]+\)/g, "")
     .replace(/(\*\*|__)(.*?)\1/g, "$2")
     .replace(/(\*|_)(.*?)\1/g, "$2")
     .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
     .replace(/#{1,6}\s+/g, "")
+    .replace(/(?:^|\n)\s*[-*_]{3,}\s*(?:\n|$)/g, " ")
     .replace(/(?:^|\s+)[-*+]\s+/g, " ")
     .replace(/(?:^|\s+)\d+\.\s+/g, " ")
-    .replace(
-      /`{1,3}[^`\import { getExtensionRegex } from "./shared";\nn]+`{1,3}/g,
-      "",
-    )
+    .replace(/`{1,3}[^`\n]+`{1,3}/g, "")
     .replace(/<img[^>]*>/gi, "")
+    .replace(/\\\s*(?:\n|$)/g, " ")
+    .replace(/\\([\\`*_{}\[\]()#+\-.!])/g, "$1")
     .replace(/\n+/g, " ")
     .replace(/\s{2,}/g, " ")
     .trim();

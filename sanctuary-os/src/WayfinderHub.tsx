@@ -46,7 +46,22 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
 
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
-      <ViewHeader title={t("wf_hub_title")} subtitle={t("wf_hub_subtitle")} icon={t("icon_terminal")} iconColorClass="text-[var(--success)]" breadcrumb={activeTab !== "command_center" ? activeTab.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined} onTitleClick={() => setActiveTab("command_center")} />
+      <ViewHeader
+        title={t("wf_hub_title") || "Wayfinder Hub"}
+        subtitle={t("wf_hub_subtitle") || "Global Network & Operations"}
+        icon={t("icon_terminal") || "terminal"}
+        iconColorClass="text-[var(--success)]"
+        breadcrumb={activeTab !== "command_center" ? activeTab.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
+        onTitleClick={() => setActiveTab("command_center")}
+        hubActions={[
+          {
+            id: "hub_verify_hash",
+            icon: t("icon_verified_user") || "verified_user",
+            label: t("wf_hub_verify") || "Check Hash",
+            onClick: () => setIsVerifyPanelOpen(true)
+          }
+        ]}
+      />
 
       <div className="md:hidden">
         <HoverTabDrawer 

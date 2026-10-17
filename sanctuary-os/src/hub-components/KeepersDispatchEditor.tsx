@@ -18,6 +18,7 @@ import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import { logArchitectAction } from "../lib/audit";
+import { extractDispatchMetadata, DispatchMetadataHeader, DispatchPollBuilder, DispatchPollData } from "../components/universal/DispatchPollAndMeta";
 
 export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, isOpen, onClose }: { authorId: string, authorProfileId: string, isSidePanel?: boolean, isOpen?: boolean, onClose?: () => void }) {
   if (isSidePanel && !isOpen) return null;
@@ -30,6 +31,8 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
   const targetAudienceOptions = ["All", "Citizens", "Masons", "Architects", "Oversight", "Wayfinders", "Keepers"];
   const [communityOptions, setCommunityOptions] = useState<string[]>([]);
   const [category, setCategory] = useState("Update");
+  const [actionRequired, setActionRequired] = useState("No Action Required");
+  const [pollData, setPollData] = useState<DispatchPollData | null>(null);
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,19 +71,21 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       let isUnchanged = false;
       if (editingPost) {
         let rawContent = editingPost.message || editingPost.content || '';
-        let parsedImage = extractPostImage(editingPost) || "";
         if (rawContent.startsWith('[IMG:')) {
           const endIdx = rawContent.indexOf(']');
           if (endIdx !== -1) {
             rawContent = rawContent.substring(endIdx + 1).trim();
           }
         }
+        const parsedMeta = extractDispatchMetadata(editingPost, rawContent);
 
         isUnchanged =
           title === editingPost.title &&
-          content === rawContent &&
+          content === parsedMeta.cleanContent &&
           targetAudience.join(',') === (editingPost.target_audience || "All") &&
           category === (editingPost.category || "Update") &&
+          actionRequired === (parsedMeta.actionRequired || "No Action Required") &&
+          JSON.stringify(pollData || null) === JSON.stringify(editingPost.poll_data || null) &&
           codeSnippet === (editingPost.code_snippet || "") &&
           deliveryMethod === (editingPost.category?.includes("Alert") || isPostPinned(editingPost) ? "Alert" : "Dispatch") &&
           isUrgent === isPostPinned(editingPost);
@@ -90,6 +95,8 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
           content === "" &&
           targetAudience.length === 0 &&
           category === "Update" &&
+          actionRequired === "No Action Required" &&
+          pollData === null &&
           imageUrl === "" &&
           codeSnippet === "" &&
           deliveryMethod === "Dispatch" &&
@@ -107,11 +114,11 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       } else {
         setWayfinderDrafts(prev => ({
           ...prev,
-          [draftId]: { title, description, content, targetAudience, category, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive }
+          [draftId]: { title, description, content, targetAudience, category, actionRequired, pollData, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive }
         }));
       }
     }
-  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive]);
+  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, actionRequired, pollData, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive]);
 
   const updateTimeoutRef = useRef<any>(null);
 
@@ -140,7 +147,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
 
   const fetchPostsAndAssets = async () => {
     const targetTable = 'keeper_system_broadcasts';
-    const { data } = await supabase.from(targetTable).select('*').in('category', ['Update', 'Info', 'Alert', 'Game Version Alert', 'Malware Alert', 'Artifact Alert', 'Game Issue', 'Mod Issue', 'Announcement', 'System Alert', 'Security Alert']).order('created_at', { ascending: false });
+    const { data } = await supabase.from(targetTable).select('*').in('category', ['Update', 'Info', 'Information', 'Alert', 'Game Version Alert', 'Malware Alert', 'Artifact Alert', 'Game Issue', 'Mod Issue', 'Announcement', 'System Alert', 'Security Alert', 'Event']).order('created_at', { ascending: false });
     if (data) {
       const activeSchema = useStore.getState().activeGameSchema;
       const gameName = activeSchema ? (activeSchema.name || "Sanctuary") : "Sanctuary";
@@ -211,6 +218,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
   const openEditor = (post?: any) => {
     const draftId = post ? post.id : 'new';
     const draft = useStore.getState().wayfinderDrafts[draftId];
+    setConfirmDelete(null);
 
     if (post) {
       setEditingPostId(post.id);
@@ -224,29 +232,36 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
         rawContent = rawContent.replace(new RegExp(`<img[^>]+src=["']${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>\\s*`, 'i'), '');
       }
       rawContent = rawContent.replace(/\[IMG:.*?\]\s*/, '').trim();
+      const parsedMeta = extractDispatchMetadata(post, rawContent);
 
       setTitle(draft?.title ?? post.title);
       setDescription(draft?.description ?? (post.description || ""));
       setTargetAudience(draft?.targetAudience ?? (post.target_audience ? post.target_audience.split(',') : ["All"]));
-      setCategory(draft?.category ?? (post.category || "Update"));
+      const rawCat = draft?.category ?? (post.category || "Update");
+      setCategory(rawCat === "Info" ? "Information" : rawCat);
+      setActionRequired(draft?.actionRequired ?? (parsedMeta.actionRequired || "No Action Required"));
+      setPollData(draft?.pollData !== undefined ? draft.pollData : (post.poll_data || null));
       setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
       setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
       setDeliveryMethod(draft?.deliveryMethod ?? (post?.category?.includes("Alert") || isPostPinned(post) ? "Alert" : "Dispatch"));
       setIsUrgent(draft?.isUrgent ?? isPostPinned(post));
       setIsActive(draft?.isActive ?? (post.is_active !== false));
 
-      const contentToSet = draft?.content ?? rawContent;
+      const contentToSet = draft?.content ?? parsedMeta.cleanContent;
       setContent(contentToSet);
       if (editor) {
         editor.commands.setContent(contentToSet);
       }
       setImageUrl(draft?.imageUrl ?? parsedImage);
     } else {
+      setEditingPostId(null);
       setEditingPost(null);
       setTitle(draft?.title ?? "");
       setDescription(draft?.description ?? "");
       setTargetAudience(draft?.targetAudience ?? []);
       setCategory(draft?.category ?? "Update");
+      setActionRequired(draft?.actionRequired ?? "No Action Required");
+      setPollData(draft?.pollData ?? null);
 
       const contentToSet = draft?.content ?? "";
       setContent(contentToSet);
@@ -265,6 +280,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
 
   const closeEditor = () => {
     setIsEditorOpen(false);
+    setConfirmDelete(null);
     if (editingPostId) {
       const post = posts.find(p => p.id === editingPostId);
       if (post) {
@@ -288,6 +304,8 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       setIsSubmitting(false);
       setPreviewPost(null);
     }, 300);
+    setActionRequired("No Action Required");
+    setPollData(null);
     setImageUrl("");
     setCodeSnippet("");
     setShowCodeInput(false);
@@ -325,11 +343,35 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
 
     if (!title.trim() || !finalContent.trim()) return;
 
+    if (pollData && (!pollData.question.trim() || pollData.options.filter(o => o.label.trim()).length < 2)) {
+      alert(t("poll_err_incomplete", "Please enter a poll question and at least 2 options, or remove the poll before posting."));
+      return;
+    }
+
     setIsSubmitting(true);
     let finalCategory = category;
-    if (deliveryMethod === "Alert" && !false) finalCategory = "Alert"; // Override category if it's an Alert and not Oversight (since oversight has specific alert types)
+    if (deliveryMethod === "Alert" && !category.toLowerCase().includes("alert")) finalCategory = "Alert";
     let isPinned = deliveryMethod === "Alert" && isUrgent;
-    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: finalCategory, target_audience: targetAudience.join(','), code_snippet: codeSnippet.trim() || null, is_pinned: isPinned, is_active: isActive };
+    const sanitizedPoll = pollData && pollData.question.trim() && pollData.options.filter(o => o.label.trim()).length >= 2
+      ? {
+          ...pollData,
+          question: pollData.question.trim(),
+          options: pollData.options.filter(o => o.label.trim()).map(o => ({ ...o, label: o.label.trim() }))
+        }
+      : null;
+
+    let payload: any = {
+      title: title.trim(),
+      description: description.trim() || null,
+      message: finalContent.trim(),
+      category: finalCategory,
+      target_audience: targetAudience.join(','),
+      action_required: actionRequired.trim() || "No Action Required",
+      poll_data: sanitizedPoll,
+      code_snippet: codeSnippet.trim() || null,
+      is_pinned: isPinned,
+      is_active: isActive
+    };
     if (imageUrl.trim()) payload.message = `[IMG:${imageUrl.trim()}]\n\n` + payload.message;
 
     let error = null;
@@ -440,7 +482,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       const searchMatch = p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.message || p.content)?.toLowerCase().includes(searchTerm.toLowerCase());
       const audienceMatch = filterAudience === "All" || (p.target_audience && p.target_audience.includes(filterAudience));
-      const categoryMatch = filterCategory === "All" || p.category === filterCategory;
+      const categoryMatch = filterCategory === "All" || p.category === filterCategory || ((filterCategory === "Info" || filterCategory === "Information") && (p.category === "Info" || p.category === "Information"));
       const statusMatch = filterStatus === "overview" || filterStatus === "All" || (filterStatus === "Active" ? p.is_active !== false : p.is_active === false);
       return searchMatch && audienceMatch && categoryMatch && statusMatch;
     });
@@ -461,25 +503,6 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
         onPostClick={() => openEditor(post)}
         onToggleLike={() => { }}
         hasUnsavedEdits={hasUnsavedEdits}
-        actions={
-          <div className={`flex items-center gap-2 w-full transition-opacity duration-300 relative z-20 ${confirmDelete === post.id ? 'justify-center' : 'justify-end opacity-0 group-hover:opacity-100'}`}>
-            {confirmDelete === post.id ? (
-              <>
-                <span className="text-[10px] font-black text-[var(--danger)] capitalize tracking-widest self-center animate-pulse flex items-center gap-1.5 opacity-80 mr-2">
-                  <span className="material-symbols-outlined !text-[14px]">{t("icon_warning_amber")}</span> {t("btn_confirm")}
-                </span>
-                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--text)] opacity-60 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span> {t("nav_cancel")}</button>
-                <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); setConfirmDelete(null); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:shadow-md transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete_forever")}</span> {t("purge")}</button>
-              </>
-            ) : (
-              <>
-                <button onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_visibility")}</span> {t("btn_view")}</button>
-                <button onClick={(e) => { e.stopPropagation(); openEditor(post); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_edit")}</span> {t("emote_edit")}</button>
-                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(post.id); }} className="px-3 py-1.5 rounded-lg text-[9px] font-black capitalize tracking-widest text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:shadow-md border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] transition-all duration-300 flex items-center gap-1.5 group/btn"><span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span> {t("purge")}</button>
-              </>
-            )}
-          </div>
-        }
       />
     );
   };
@@ -567,7 +590,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                   options={[
                     { id: "All", label: t("all_classes") },
                     { id: "Update", label: t("comms_btn_update") },
-                    { id: "Info", label: t("category_info") },
+                    { id: "Information", label: t("category_info", "Information") },
                     { id: "Event", label: t("category_event") },
                     { id: "Alert", label: t("category_alert") },
                     { id: "Game Version Alert", label: t("category_game_version_alert") },
@@ -639,10 +662,30 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                     onClick={handleDiscardChanges}
                     disabled={isSubmitting}
                     tooltip={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))}
-                    icon={confirmDiscard ? "warning" : "delete"}
+                    icon={confirmDiscard ? "warning" : "close"}
                     variant="danger"
                     className={confirmDiscard ? "animate-pulse" : ""}
                   />
+                )}
+                {editingPostId && (
+                  confirmDelete === editingPostId ? (
+                    <PanelHeaderButton
+                      onClick={(e: any) => { e.stopPropagation(); handleDelete(editingPostId); setConfirmDelete(null); closeEditor(); }}
+                      disabled={isSubmitting}
+                      tooltip={t("btn_confirm", "Confirm")}
+                      icon="delete_forever"
+                      variant="danger"
+                      className="animate-pulse"
+                    />
+                  ) : (
+                    <PanelHeaderButton
+                      onClick={(e: any) => { e.stopPropagation(); setConfirmDelete(editingPostId); }}
+                      disabled={isSubmitting}
+                      tooltip={t("purge", "Purge")}
+                      icon="delete"
+                      variant="danger"
+                    />
+                  )
                 )}
                 <PanelHeaderButton
                   onClick={handleSubmit}
@@ -750,7 +793,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                               { id: "Artifact Alert", label: t("category_artifact_alert") }
                             ] : [
                               { id: "Update", label: t("comms_btn_update") || "Update" },
-                              { id: "Info", label: t("category_info") || "Info" },
+                              { id: "Information", label: t("category_info", "Information") },
                               { id: "Event", label: t("category_event") || "Event" }
                             ]
                           )
@@ -761,9 +804,42 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                   </div>
                 </div>
 
+                <div className="flex flex-col gap-2 w-full">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_lbl_action_required", "Action Required")}</label>
+                  <div className="h-14">
+                    <CustomDropdown disableTint={true}
+                      searchable={true}
+                      allowCustom={true}
+                      value={actionRequired}
+                      onChange={(v: string[]) => setActionRequired(v[0] || "No Action Required")}
+                      options={[
+                        { id: "No Action Required", label: t("dispatch_action_none", "No Action Required") },
+                        { id: "Review Required", label: t("dispatch_action_review", "Review Required") },
+                        { id: "Review Prior to Updating", label: t("dispatch_action_review_prior", "Review Prior to Updating") },
+                        { id: "Update Required", label: t("dispatch_action_update", "Update Required") },
+                        { id: "Global Alerts - Elevated Malware Risk", label: t("dispatch_action_elevated_malware", "Global Alerts - Elevated Malware Risk") },
+                        { id: "Clarify with Oversight & Architect Teams", label: t("dispatch_action_clarify", "Clarify with Oversight & Architect Teams") }
+                      ]}
+                      placeholder={t("dispatch_ph_action_required", "Select or type action required...")}
+                    />
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("header_image_placeholder")}</label>
                   <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_meta_header_title", "Dispatch Telemetry")}</label>
+                  <DispatchMetadataHeader
+                    categoryOverride={category}
+                    audienceOverride={targetAudience}
+                    availableTargets={communityOptions}
+                    deliveryMethodOverride={deliveryMethod}
+                    isUrgentOverride={deliveryMethod === "Alert" && isUrgent}
+                    actionRequiredOverride={actionRequired}
+                  />
                 </div>
 
                 <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
@@ -859,6 +935,8 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
                     </div>
                   </div>
                 </div>
+
+                <DispatchPollBuilder pollData={pollData} onChange={setPollData} />
               </div>
             </div>
           </SidePanel>

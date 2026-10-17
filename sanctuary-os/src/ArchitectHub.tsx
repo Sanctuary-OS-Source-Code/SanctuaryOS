@@ -53,12 +53,20 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader
-        title={t("hub_title")}
-        subtitle={t("hub_subtitle")}
-        icon={t("icon_analytics")}
+        title={t("hub_title") || "Architect Hub"}
+        subtitle={t("hub_subtitle") || "Catalog & Metadata Architecture"}
+        icon={t("icon_analytics") || "analytics"}
         iconColorClass="text-[var(--accent)]"
         breadcrumb={activeTab !== "command_center" ? activeTab.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
         onTitleClick={() => setActiveTab("command_center")}
+        hubActions={[
+          {
+            id: "hub_verify_hash",
+            icon: t("icon_verified_user") || "verified_user",
+            label: t("wf_hub_verify") || "Check Hash",
+            onClick: () => setIsVerifyPanelOpen(true)
+          }
+        ]}
       />
 
       <div className="md:hidden">

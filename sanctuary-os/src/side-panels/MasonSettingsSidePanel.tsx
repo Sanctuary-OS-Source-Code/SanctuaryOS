@@ -9,6 +9,7 @@ import {
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, PanelHeaderGroup, PanelHeaderButton
 } from "../shared";
+import { UniversalGroup, UniversalInput, UniversalTextArea } from "../components/layouts/ElevatedHubLayout";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -47,9 +48,6 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
     try {
       const state = useStore.getState();
       const token = state.session?.access_token;
-      const activeWs = state.workspaces?.find((w: any) => w.id === state.activeWorkspaceId);
-      const url = activeWs?.supabase_url || "https://chphhvpcgcpnyvshsudh.supabase.co";
-      const key = activeWs?.supabase_anon_key || "sb_publishable_EdCfD4meHLUUgoTRkfwsTA_PFXnZx8D";
 
       if (token) {
         const { data, error } = await supabase.rpc('secure_update_mason_profile', {
@@ -61,13 +59,13 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
         if (error) throw error;
 
         onUpdate(data);
-        useStore.getState().pushStatus(t("alert_saved"), 'success');
+        useStore.getState().pushStatus(t("alert_saved") || "Saved successfully", 'success');
         onClose();
       } else {
         const { data, error } = await supabase.from('masons').update(formData).eq('id', profile.id).select().single();
         if (error) throw error;
         onUpdate(data);
-        useStore.getState().pushStatus(t("alert_saved"), 'success');
+        useStore.getState().pushStatus(t("alert_saved") || "Saved successfully", 'success');
         onClose();
       }
     } catch (err: any) {
@@ -81,14 +79,14 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("masonhub_settings_title")}
-      icon={t("icon_settings")}
+      title={t("masonhub_settings_title") || "Mason Settings"}
+      icon={t("icon_settings") || "settings"}
       widthClass="w-[500px]"
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
-            icon={isSaving ? "sync" : "save"}
-            tooltip={isSaving ? t("saving_settings") : t("save_configuration")}
+            icon={isSaving ? (t("icon_sync") || "sync") : (t("icon_save") || "save")}
+            tooltip={isSaving ? (t("saving_settings") || "Saving...") : (t("save_configuration") || "Save Configuration")}
             variant="accent"
             disabled={isSaving}
             className={isSaving ? "animate-pulse" : ""}
@@ -98,39 +96,42 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
       }
     >
       <div className="w-full flex flex-col gap-6">
-        <h2 className="text-sm font-black theme-text-accent capitalize tracking-widest mb-2">{t("creator_identity")}</h2>
+        <UniversalGroup title={t("creator_identity") || "Creator Identity"} icon={t("icon_badge") || "badge"}>
+          <UniversalInput
+            label={t("public_name") || "Public Name"}
+            value={formData.name}
+            onChange={(val) => setFormData({ ...formData, name: val })}
+          />
+          <UniversalInput
+            label={t("avatar_url") || "Avatar URL"}
+            value={formData.avatar_url}
+            onChange={(val) => setFormData({ ...formData, avatar_url: val })}
+          />
+          <UniversalTextArea
+            label={t("biography") || "Biography"}
+            value={formData.bio}
+            onChange={(val) => setFormData({ ...formData, bio: val })}
+            rows={4}
+          />
+        </UniversalGroup>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("public_name")}</label>
-          <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("avatar_url")}</label>
-          <input value={formData.avatar_url} onChange={e => setFormData({ ...formData, avatar_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("biography")}</label>
-          <textarea value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-mono h-24 resize-none focus:outline-none focus:theme-border-accent custom-scrollbar overflow-y-auto" />
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("patreon_url")}</label>
-            <input value={formData.patreon_url} onChange={e => setFormData({ ...formData, patreon_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("personal_website")}</label>
-            <input value={formData.website_url} onChange={e => setFormData({ ...formData, website_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("discord_url")}</label>
-          <input value={formData.discord_url} onChange={e => setFormData({ ...formData, discord_url: e.target.value })} className="glass-surface rounded-xl px-5 h-12 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" />
-        </div>
-
+        <UniversalGroup title={t("social_links") || "External Links"} icon={t("icon_link") || "link"}>
+          <UniversalInput
+            label={t("patreon_url") || "Patreon URL"}
+            value={formData.patreon_url}
+            onChange={(val) => setFormData({ ...formData, patreon_url: val })}
+          />
+          <UniversalInput
+            label={t("personal_website") || "Personal Website"}
+            value={formData.website_url}
+            onChange={(val) => setFormData({ ...formData, website_url: val })}
+          />
+          <UniversalInput
+            label={t("discord_url") || "Discord URL"}
+            value={formData.discord_url}
+            onChange={(val) => setFormData({ ...formData, discord_url: val })}
+          />
+        </UniversalGroup>
       </div>
     </SidePanel>
   );

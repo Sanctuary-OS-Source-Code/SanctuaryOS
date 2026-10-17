@@ -10,6 +10,52 @@ import { supabase } from '../supabase';
 import { UniversalCard } from '../components/universal/UniversalCard';
 
 import { PanelHeaderButton } from "./buttons";
+import { ActionPill } from "./alerts";
+export const HeaderActionPortalContext = React.createContext(false);
+
+type HubActionsStoreState = {
+  hubActions: any[];
+  portalCount: number;
+};
+
+const hubActionsStore: {
+  state: HubActionsStoreState;
+  listeners: Set<() => void>;
+} = {
+  state: { hubActions: [], portalCount: 0 },
+  listeners: new Set(),
+};
+
+function notifyHubActionsListeners() {
+  hubActionsStore.listeners.forEach((l) => l());
+}
+
+export function setGlobalHubActions(actions: any[]) {
+  hubActionsStore.state = { ...hubActionsStore.state, hubActions: actions };
+  notifyHubActionsListeners();
+}
+
+export function adjustHeaderPortalCount(delta: number) {
+  hubActionsStore.state = {
+    ...hubActionsStore.state,
+    portalCount: Math.max(0, hubActionsStore.state.portalCount + delta),
+  };
+  notifyHubActionsListeners();
+}
+
+export function useHubActionsState() {
+  const [state, setState] = React.useState(hubActionsStore.state);
+  React.useEffect(() => {
+    const listener = () => setState(hubActionsStore.state);
+    hubActionsStore.listeners.add(listener);
+    listener();
+    return () => {
+      hubActionsStore.listeners.delete(listener);
+    };
+  }, []);
+  return state;
+}
+
 export const DeferredRender = ({ children }: { children: React.ReactNode }) => {
   const [ready, setReady] = React.useState(false);
   React.useEffect(() => {
@@ -450,7 +496,17 @@ export function ViewHeader({
   onTitleClick,
   breadcrumb,
   shape = "circle",
+  hubActions,
 }: any) {
+  const { portalCount } = useHubActionsState();
+
+  React.useLayoutEffect(() => {
+    if (hubActions && hubActions.length > 0) {
+      setGlobalHubActions(hubActions);
+      return () => setGlobalHubActions([]);
+    }
+  }, [hubActions]);
+
   const shapeClass =
     shape === "square" ? "rounded-[var(--radius)]" : "rounded-full";
   return (
@@ -506,6 +562,14 @@ export function ViewHeader({
         className="flex items-center justify-end gap-3 w-full md:flex-1 max-w-5xl md:ml-auto empty:hidden"
       >
         {children}
+        {portalCount === 0 && hubActions && hubActions.length > 0 && (
+          <ActionPill
+            searchQuery=""
+            setSearchQuery={() => {}}
+            hideSearch={true}
+            actions={hubActions}
+          />
+        )}
       </div>
     </header>
   );
@@ -518,6 +582,11 @@ export function HeaderActionPortal({
   const [portalRoot, setPortalRoot] = React.useState<
     HTMLElement | null | undefined
   >(undefined);
+
+  React.useLayoutEffect(() => {
+    adjustHeaderPortalCount(1);
+    return () => adjustHeaderPortalCount(-1);
+  }, []);
 
   React.useEffect(() => {
     let animationFrameId: number;
@@ -539,10 +608,16 @@ export function HeaderActionPortal({
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
-  if (portalRoot === undefined) return null; // Still searching
-  if (portalRoot === null) return <>{children}</>; // Fallback to inline
+  const wrappedChildren = (
+    <HeaderActionPortalContext.Provider value={true}>
+      {children}
+    </HeaderActionPortalContext.Provider>
+  );
 
-  return createPortal(children, portalRoot);
+  if (portalRoot === undefined) return null; // Still searching
+  if (portalRoot === null) return wrappedChildren; // Fallback to inline
+
+  return createPortal(wrappedChildren, portalRoot);
 }
 export function EmptyState({
   icon,
@@ -780,7 +855,7 @@ export function InlineFilterGroup({
 }) {
   if (!options || options.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-2 items-center">
+    <div className="flex flex-wrap gap-1.5 items-center w-full">
       {options.map((opt: any) => {
         const active = value === opt.id;
         return (
@@ -788,10 +863,10 @@ export function InlineFilterGroup({
             key={opt.id}
             type="button"
             onClick={() => onChange(opt.id)}
-            className={`rounded-full px-4 h-10 transition-all flex items-center justify-center text-[10px] font-black uppercase tracking-widest border ${
+            className={`flex-1 min-w-[calc(50%-6px)] rounded-xl px-3.5 h-9 transition-all flex items-center justify-center text-[11px] font-bold capitalize tracking-wide border whitespace-nowrap ${
               active
-                ? "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]"
-                : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-[var(--text)]"
+                ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] shadow-[0_0_12px_rgba(var(--accent-rgb),0.18)]"
+                : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] hover:text-[var(--text)]"
             }`}
           >
             {opt.label}

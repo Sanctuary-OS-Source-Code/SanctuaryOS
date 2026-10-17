@@ -194,10 +194,18 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
           }, { onConflict: 'dna_hash' });
         }
       }
-      await supabase.from('scout_suggestions').update({ status: 'approved' }).eq('id', activeScout.id);
+      if (activeScout.dna_hash) {
+        await supabase.from('scout_suggestions').update({ status: 'approved' }).eq('dna_hash', activeScout.dna_hash).eq('status', 'pending');
+      } else {
+        await supabase.from('scout_suggestions').update({ status: 'approved' }).eq('id', activeScout.id);
+      }
       logArchitectAction('Approved Scout Submission', 'scout_suggestions', activeScout.id);
     } else {
-      await supabase.from('scout_suggestions').update({ status: 'rejected' }).eq('id', activeScout.id);
+      if (activeScout.dna_hash) {
+        await supabase.from('scout_suggestions').update({ status: 'rejected' }).eq('dna_hash', activeScout.dna_hash).eq('status', 'pending');
+      } else {
+        await supabase.from('scout_suggestions').update({ status: 'rejected' }).eq('id', activeScout.id);
+      }
       logArchitectAction('Rejected Scout Submission', 'scout_suggestions', activeScout.id);
     }
 
@@ -206,38 +214,51 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
     setIsProcessing(false);
   };
 
-  const activeSubmissions = submissions.filter((s: any) => filterTab === 'pending' ? s.status === 'pending' : s.status !== 'pending');
+  const minScoutSubmissions = Math.max(1, Number(activeGameSchema?.min_scout_submissions ?? 5) || 5);
 
-  let filteredSubmissions = activeSubmissions.filter((s: any) => {
-    return s.suggested_name?.toLowerCase().includes(searchTerm.toLowerCase()) || s.id?.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  const pendingRaw = submissions.filter((s: any) => s.status === 'pending');
+  const completedRaw = submissions.filter((s: any) => s.status !== 'pending');
 
-  const hashCounts = new Map<string, number>();
-  activeSubmissions.forEach((s: any) => {
+  const pendingHashCounts = new Map<string, number>();
+  pendingRaw.forEach((s: any) => {
     if (s.dna_hash) {
-      hashCounts.set(s.dna_hash, (hashCounts.get(s.dna_hash) || 0) + 1);
+      pendingHashCounts.set(s.dna_hash, (pendingHashCounts.get(s.dna_hash) || 0) + 1);
     }
   });
 
-  const seenHashes = new Set();
-  filteredSubmissions = filteredSubmissions.filter((s: any) => {
-    if (!s.dna_hash) return true;
-    const minScoutSubmissions = activeGameSchema?.min_scout_submissions ?? 5;
-    if ((hashCounts.get(s.dna_hash) || 0) < minScoutSubmissions) return false;
-    if (seenHashes.has(s.dna_hash)) return false;
-    seenHashes.add(s.dna_hash);
+  const seenPendingHashes = new Set<string>();
+  const pendingSubmissions = pendingRaw.filter((s: any) => {
+    if (!s.dna_hash) return false;
+    if ((pendingHashCounts.get(s.dna_hash) || 0) < minScoutSubmissions) return false;
+    if (seenPendingHashes.has(s.dna_hash)) return false;
+    seenPendingHashes.add(s.dna_hash);
     return true;
   });
 
-  const pendingSubmissions = submissions.filter((s: any) => s.status === 'pending');
-  const completedSubmissions = submissions.filter((s: any) => s.status !== 'pending');
+  const seenCompletedHashes = new Set<string>();
+  const completedSubmissions = completedRaw.filter((s: any) => {
+    if (!s.dna_hash) return true;
+    if (seenCompletedHashes.has(s.dna_hash)) return false;
+    seenCompletedHashes.add(s.dna_hash);
+    return true;
+  });
+
+  const activeSubmissions = filterTab === 'pending' ? pendingSubmissions : completedSubmissions;
+
+  const filteredSubmissions = activeSubmissions.filter((s: any) => {
+    return (
+      s.suggested_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.dna_hash?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.id?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const tabs = [
     {
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
-      number: submissions.length.toString(),
+      number: (pendingSubmissions.length + completedSubmissions.length).toString(),
     },
     {
       id: "pending",

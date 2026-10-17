@@ -119,8 +119,10 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     setIsProcessing(false);
   };
 
-  const activeSubmissions = submissions.filter((s: any) => {
-    if (!s.mason_id) return false;
+  const verifiedMasonIds = new Set(masonsList.map((m: any) => m.id));
+  const verifiedSubmissions = submissions.filter((s: any) => s.mason_id && verifiedMasonIds.has(s.mason_id));
+
+  const activeSubmissions = verifiedSubmissions.filter((s: any) => {
     if (filterTab === 'pending') return s.status === 'under_review';
     if (filterTab === 'completed') return s.status === 'verified' || s.status === 'unverified';
     return true;
@@ -144,19 +146,19 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
       id: "overview",
       label: t("landing_overview") || "Overview",
       icon: "dashboard",
-      number: submissions.filter(s => s.mason_id).length.toString()
+      number: verifiedSubmissions.length.toString()
     },
     {
       id: "pending",
       label: t("pending") || "Pending",
       icon: "schedule",
-      number: submissions.filter(s => s.mason_id && s.status === 'under_review').length.toString()
+      number: verifiedSubmissions.filter(s => s.status === 'under_review').length.toString()
     },
     {
       id: "completed",
       label: t("status_completed") || "Completed",
       icon: "check_circle",
-      number: submissions.filter(s => s.mason_id && (s.status === 'verified' || s.status === 'unverified')).length.toString()
+      number: verifiedSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified').length.toString()
     }
   ];
 

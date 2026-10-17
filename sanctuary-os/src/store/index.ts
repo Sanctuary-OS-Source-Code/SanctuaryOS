@@ -14,6 +14,21 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
   if (!safe.executable_names) safe.executable_names = [];
   if (!safe.paths) safe.paths = { default_mod_dir_windows: "", default_mod_dir_mac: "", manifest_file: "", auto_scan_paths_windows: [], auto_scan_paths_mac: [] };
   if (!safe.extensions) safe.extensions = { supported: [], parsers: {}, labels: {} };
+  if (!safe.load_order) {
+    safe.load_order = {
+      strategy: "folder_priority",
+      direction: "higher_wins",
+      manifest_file: safe.paths?.manifest_file || "Resource.cfg",
+      prefix_format: "{index:03}_",
+      line_template: "{file}",
+      priority_tiers: [
+        { id: "default", label: "Standard (Base)", priority: 500, folder: "" },
+        { id: "tier_1", label: "Tier 1 (Sanctuary)", priority: 1000, folder: "Sanctuary" },
+        { id: "tier_2", label: "Tier 2 (Sanctuary2)", priority: 1500, folder: "Sanctuary2" },
+        { id: "tier_3", label: "Tier 3 (Sanctuary3)", priority: 2000, folder: "Sanctuary3" }
+      ]
+    };
+  }
   return safe;
 };
 
@@ -117,6 +132,51 @@ const loadMasonHubDrafts = (wsId: string) => {
 
 const loadActiveSet = (wsId: string) => {
   return localStorage.getItem(`sanctuary_${wsId}_active_set`);
+};
+
+const purgeBloatedLocalStorage = () => {
+  try {
+    const builtinLexicons = new Set(['en-default', 'en-sanctuary', 'en-sims', 'Simlish']);
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      if (k === 'network_updates_debug' || k.endsWith('_network_updates') || k === 'sanctuary_network_updates') {
+        localStorage.removeItem(k);
+        continue;
+      }
+      if (k.endsWith('_lexicon_registry')) {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            for (const bId of builtinLexicons) delete parsed[bId];
+            localStorage.removeItem(k);
+            if (Object.keys(parsed).length > 0) {
+              localStorage.setItem(k, JSON.stringify(parsed));
+            }
+          }
+        } catch {
+          localStorage.removeItem(k);
+        }
+      }
+    }
+  } catch {}
+};
+
+purgeBloatedLocalStorage();
+
+const safeLocalStorageSetItem = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    purgeBloatedLocalStorage();
+    try {
+      localStorage.removeItem(key);
+      localStorage.setItem(key, value);
+    } catch (retryErr) {
+      console.warn(`Could not persist ${key} to localStorage (quota exceeded):`, retryErr);
+    }
+  }
 };
 
 interface GlobalState {
@@ -464,20 +524,20 @@ export const useStore = create<GlobalState>((set) => ({
   nexusUpdateTabs: [],
   setNexusUpdateTabs: (nexusUpdateTabs) => set({ nexusUpdateTabs }),
   showImages: localStorage.getItem("sanctuary_show_images") !== "false",
-  setShowImages: (showImages) => { localStorage.setItem("sanctuary_show_images", showImages.toString()); set({ showImages }); },
+  setShowImages: (showImages) => { safeLocalStorageSetItem("sanctuary_show_images", showImages.toString()); set({ showImages }); },
   marketSearchQuery: '',
   setMarketSearchQuery: (marketSearchQuery) => set({ marketSearchQuery }),
   ideOpenFiles: [],
   setIdeOpenFiles: (files) => set((state) => {
       const newFiles = typeof files === 'function' ? files(state.ideOpenFiles) : files;
       const wsId = state.activeWorkspaceId || 'default';
-      localStorage.setItem(`sanctuary_${wsId}_ide_open_files`, JSON.stringify(newFiles));
+      safeLocalStorageSetItem(`sanctuary_${wsId}_ide_open_files`, JSON.stringify(newFiles));
       return { ideOpenFiles: newFiles };
   }),
   ideActiveFileIndex: -1,
   setIdeActiveFileIndex: (ideActiveFileIndex) => set((state) => {
     const wsId = state.activeWorkspaceId || 'default';
-    localStorage.setItem(`sanctuary_${wsId}_ide_active_file_index`, ideActiveFileIndex.toString());
+    safeLocalStorageSetItem(`sanctuary_${wsId}_ide_active_file_index`, ideActiveFileIndex.toString());
     return { ideActiveFileIndex };
   }),
   cloudIdeOpenFiles: [],
@@ -491,19 +551,19 @@ export const useStore = create<GlobalState>((set) => ({
   setCwUnsavedEdits: (edits) => set((state) => {
       const newEdits = typeof edits === 'function' ? edits(state.cwUnsavedEdits) : edits;
       const wsId = state.activeWorkspaceId || 'default';
-      localStorage.setItem(`sanctuary_${wsId}_cw_unsaved_edits`, JSON.stringify(newEdits));
+      safeLocalStorageSetItem(`sanctuary_${wsId}_cw_unsaved_edits`, JSON.stringify(newEdits));
       return { cwUnsavedEdits: newEdits };
   }),
   cwSelectedFile: null,
   setCwSelectedFile: (file) => set((state) => {
       const wsId = state.activeWorkspaceId || 'default';
-      localStorage.setItem(`sanctuary_${wsId}_cw_selected_file`, JSON.stringify(file));
+      safeLocalStorageSetItem(`sanctuary_${wsId}_cw_selected_file`, JSON.stringify(file));
       return { cwSelectedFile: file };
   }),
   cwActiveTab: "visual",
   setCwActiveTab: (tab) => set((state) => {
       const wsId = state.activeWorkspaceId || 'default';
-      localStorage.setItem(`sanctuary_${wsId}_cw_active_tab`, tab);
+      safeLocalStorageSetItem(`sanctuary_${wsId}_cw_active_tab`, tab);
       return { cwActiveTab: tab };
   }),
   masonActiveTab: "command_center",
@@ -514,21 +574,21 @@ export const useStore = create<GlobalState>((set) => ({
   setWayfinderDrafts: (drafts) => set((state) => {
       const newDrafts = typeof drafts === 'function' ? drafts(state.wayfinderDrafts) : drafts;
       const wsId = state.activeWorkspaceId || 'default';
-      localStorage.setItem(`sanctuary_${wsId}_wayfinder_drafts`, JSON.stringify(newDrafts));
+      safeLocalStorageSetItem(`sanctuary_${wsId}_wayfinder_drafts`, JSON.stringify(newDrafts));
       return { wayfinderDrafts: newDrafts };
   }),
   masonCommentDrafts: {},
   setMasonCommentDrafts: (drafts) => set((state) => {
       const newDrafts = typeof drafts === 'function' ? drafts(state.masonCommentDrafts) : drafts;
       const wsId = state.activeWorkspaceId || 'default';
-      localStorage.setItem(`sanctuary_${wsId}_mason_comment_drafts`, JSON.stringify(newDrafts));
+      safeLocalStorageSetItem(`sanctuary_${wsId}_mason_comment_drafts`, JSON.stringify(newDrafts));
       return { masonCommentDrafts: newDrafts };
   }),
   masonHubDrafts: {},
   setMasonHubDrafts: (drafts) => set((state) => {
       const newDrafts = typeof drafts === 'function' ? drafts(state.masonHubDrafts) : drafts;
       const wsId = state.activeWorkspaceId || 'default';
-      localStorage.setItem(`sanctuary_${wsId}_mason_hub_drafts`, JSON.stringify(newDrafts));
+      safeLocalStorageSetItem(`sanctuary_${wsId}_mason_hub_drafts`, JSON.stringify(newDrafts));
       return { masonHubDrafts: newDrafts };
   })
 }));
@@ -553,7 +613,7 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default_schem
     const { data, error } = await supabase.from('sanctuary_schemas').select('schema_data').eq('id', schemaId).maybeSingle();
     if (!error && data && data.schema_data) {
        const safeSchema = getSafeSchema(data.schema_data, schemaId);
-       localStorage.setItem(`sanctuary_master_schema_${schemaId}`, JSON.stringify(safeSchema));
+       safeLocalStorageSetItem(`sanctuary_master_schema_${schemaId}`, JSON.stringify(safeSchema));
        useStore.getState().setActiveGameSchema(safeSchema);
     } else {
        const cached = localStorage.getItem(`sanctuary_master_schema_${schemaId}`);
@@ -601,7 +661,10 @@ export const syncGameDatabases = async () => {
        return; // Rely on existing local workspaces/fallback config
     }
     const { supabaseAuth } = await import('../supabase');
-    const { data: games, error } = await supabaseAuth.from('sanctuary_games').select('*');
+    const { data: games, error } = await supabaseAuth
+      .from('sanctuary_games')
+      .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active')
+      .neq('is_active', false);
     
     if (error) {
       alert(`HUB DB ERROR: ${error.message}. If this says JWT invalid, you need to sign out and sign back in!`);

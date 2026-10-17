@@ -65,12 +65,20 @@ export default function Oversight({ userRole, activeGameSchema, onOpenMasonProfi
     return (
         <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
             <ViewHeader
-                title={t("oversight_title")}
-                subtitle={t("oversight_subtitle")}
-                icon="admin_panel_settings"
+                title={t("oversight_title") || "Oversight Hub"}
+                subtitle={t("oversight_subtitle") || "Security & Compliance Enforcement"}
+                icon={t("icon_admin_panel_settings") || "admin_panel_settings"}
                 iconColorClass="text-[var(--danger)]"
                 breadcrumb={activeTab !== "command_center" ? activeTab.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : undefined}
                 onTitleClick={() => setActiveTab("command_center")}
+                hubActions={[
+                    {
+                        id: "hub_verify_hash",
+                        icon: t("icon_verified_user") || "verified_user",
+                        label: t("wf_hub_verify") || "Check Hash",
+                        onClick: () => setIsVerifyPanelOpen(true)
+                    }
+                ]}
             />
 
             <div className="md:hidden">

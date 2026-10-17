@@ -55,6 +55,7 @@ export function FilterPopover({
   defaultTab,
   variant = "default",
 }: any) {
+  const { t } = useLexicon();
   const isInsideSidePanel = React.useContext(SidePanelContext);
   const effectiveVariant =
     variant === "panel" ? "panel" : isInsideSidePanel ? "panel" : variant;
@@ -63,7 +64,6 @@ export function FilterPopover({
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const popoverRef = React.useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
-  const isMobile = useIsMobile();
 
   React.useLayoutEffect(() => {
     if (!isOpen) return;
@@ -181,8 +181,7 @@ export function FilterPopover({
               />
               <div
                 ref={popoverRef}
-                className={`!fixed glass-panel portal-glass-fix backdrop-blur-[var(--glassBlur)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[0_24px_48px_rgba(0,0,0,0.45)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col
-                  min-w-[200px] p-2 gap-1 !rounded-xl w-max max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto custom-scrollbar`}
+                className="!fixed glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] pointer-events-auto animate-in fade-in zoom-in-95 duration-150 flex flex-col min-w-[210px] p-1.5 gap-0.5 !rounded-2xl w-max max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto custom-scrollbar text-[var(--text)]"
                 style={{
                   zIndex: 200001,
                   top: coords.top,
@@ -215,31 +214,31 @@ export function FilterPopover({
                               setIsOpen(false);
                             }
                           }}
-                          className={`flex items-center justify-center gap-3 w-full px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden ${
+                          className={`flex items-center justify-between gap-3 w-full px-3.5 py-2.5 rounded-xl transition-colors duration-150 group relative overflow-hidden ${
                             active
-                              ? "bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] shadow-[inset_0_0_15px_rgba(0,0,0,0.1)]"
-                              : "text-[var(--text)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+                              ? "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)] font-bold"
+                              : "text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] font-semibold"
                           }`}
                         >
-                          {multiSelect && (
-                            <div
-                              className={`absolute left-4 w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${active ? "bg-[var(--accent)] border-[var(--accent)] text-[#0a0a0c]" : "border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]"}`}
-                            >
-                              {active && (
-                                <span className="material-symbols-outlined !text-[12px] font-bold">
-                                  check
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          <span
-                            className={`text-[11px] font-black capitalize tracking-widest leading-none pt-0.5 text-center ${active ? "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]" : ""}`}
-                          >
-                            {opt.label}
-                          </span>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {multiSelect && (
+                              <div
+                                className={`w-4 h-4 rounded-[5px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${active ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]" : "border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]"}`}
+                              >
+                                {active && (
+                                  <span className="material-symbols-outlined !text-[12px] font-bold">
+                                    {t("icon_check") || "check"}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <span className="text-xs capitalize tracking-wide leading-tight text-left truncate">
+                              {opt.label}
+                            </span>
+                          </div>
                           {active && !multiSelect && (
-                            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] absolute right-4 drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]">
-                              check
+                            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                              {t("icon_check") || "check"}
                             </span>
                           )}
                         </button>

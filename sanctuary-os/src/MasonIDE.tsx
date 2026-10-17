@@ -16,7 +16,7 @@ import MasonEditorPanel from "./hub-components/MasonEditorPanel";
 import { deepCountKeys, deepCompare, createEmptyClone, deepAddMissing, deepPurgeDeprecated } from "./lib/MasonValidation";
 import { useMasonFiles } from "./hooks/useMasonFiles";
 
-export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas", isKeepers = false }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons" | "sanctuary_games", isKeepers?: boolean }) {
+export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas", isKeepers = false, isVerifiedMason = true }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons" | "sanctuary_games", isKeepers?: boolean, isVerifiedMason?: boolean }) {
    const mason = useMasonFiles({ vaultPath, isCloudMode, cloudTarget, isKeepers });
    const {
       t, session, pushStatus,
@@ -547,7 +547,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                      setDeleteConfirmPath={setDeleteConfirmPath}
                      handleDeleteFile={handleDeleteFile}
                      openFiles={openFiles}
-                     handlePublishLexicon={handlePublishLexicon}
+                     handlePublishLexicon={isVerifiedMason ? handlePublishLexicon : undefined}
                      layout="list"
                   />
                </HubOverviewSection>
@@ -575,7 +575,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                      setDeleteConfirmPath={setDeleteConfirmPath}
                      handleDeleteFile={handleDeleteFile}
                      openFiles={openFiles}
-                     handlePublishLexicon={handlePublishLexicon}
+                     handlePublishLexicon={isVerifiedMason ? handlePublishLexicon : undefined}
                      layout="list"
                   />
                </HubOverviewSection>
@@ -601,7 +601,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                setDeleteConfirmPath={setDeleteConfirmPath}
                handleDeleteFile={handleDeleteFile}
                openFiles={openFiles}
-               handlePublishLexicon={handlePublishLexicon}
+               handlePublishLexicon={isVerifiedMason ? handlePublishLexicon : undefined}
             />
          )}
 
@@ -623,7 +623,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
             validationStats={validationStats}
             isDirty={isDirty}
             saveFile={saveFile}
-            handlePublishLexicon={handlePublishLexicon}
+            handlePublishLexicon={isVerifiedMason ? handlePublishLexicon : undefined}
             openFiles={openFiles}
             closeFile={closeFile}
             splitRatio={splitRatio}

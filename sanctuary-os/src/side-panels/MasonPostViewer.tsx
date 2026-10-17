@@ -12,6 +12,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import { IconPlugin } from '../IconPlugin';
+import { DispatchMetadataHeader, DispatchPollViewer, extractDispatchMetadata, formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
 
 function RichReplyEditor({ value, onChange, placeholder, className, id }: { value: string, onChange: (val: string) => void, placeholder?: string, className?: string, id?: string }) {
   const updateTimeoutRef = React.useRef<any>(null);
@@ -292,8 +293,14 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
 
   if (!post) return null;
 
+  const nonDispatchCategories = ['EULA', 'Privacy', 'Terms', 'Citizen Guide', 'Master Architecture', 'Master Protocol List', 'Phase Roadmap'];
+  const isDispatchPost = Boolean(
+    (post.mason_id === 'system' || post.category || post.target_audience) &&
+    !nonDispatchCategories.includes(post.category || '')
+  );
+
   const parsePostContent = (p: any) => {
-    let content = p.content || '';
+    let content = p.content || p.message || '';
     let imageUrl = p.image_url || '';
     if (content.startsWith('[IMG:')) {
       const endIdx = content.indexOf(']');
@@ -301,6 +308,10 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
         imageUrl = content.substring(5, endIdx);
         content = content.substring(endIdx + 1).trim();
       }
+    }
+    if (isDispatchPost) {
+      const meta = extractDispatchMetadata(p, content);
+      content = meta.cleanContent;
     }
     return { content, imageUrl };
   };
@@ -634,13 +645,17 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       <>
                         <span className="w-1 h-1 rounded-full bg-[var(--text)] opacity-30"></span>
                         <span className={`text-[10px] font-black capitalize tracking-widest ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)]' : 'theme-text-accent'}`}>
-                          {post.category}
+                          {formatDispatchCategory(post.category, t)}
                         </span>
                       </>
                     )}
                   </div>
                 </div>
               </div>
+
+              {isDispatchPost && (
+                <DispatchMetadataHeader post={post} />
+              )}
 
               <div className="flex-1 flex flex-col mt-2">
                 <div className="markdown-body text-[var(--text)] opacity-90 leading-relaxed text-lg flex-1">
@@ -658,16 +673,20 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined text-[20px] theme-text-accent">{t("icon_data_object")}</span>
+                          <span className="material-symbols-outlined text-[20px] theme-text-accent">{t("icon_data_object", "data_object")}</span>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <h4 className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{t("code_snippet")}</h4>
-                          <p className="text-[9px] font-bold capitalize tracking-widest text-[var(--subtext)] leading-snug hidden sm:block">{t("code_desc")}</p>
+                          <h4 className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{t("code_snippet", "Code Snippet")}</h4>
+                          <p className="text-[9px] font-bold capitalize tracking-widest text-[var(--subtext)] leading-snug hidden sm:block">{t("code_desc", "View attached code")}</p>
                         </div>
                       </div>
-                      <ActionButton onClick={() => setActiveCodeSnippet(post.code_snippet)} variant="accent" icon="visibility" label={t("show_code")} className="!rounded-full !px-4 !py-1.5 !text-[10px]" />
+                      <ActionButton onClick={() => setActiveCodeSnippet(post.code_snippet)} variant="accent" icon="visibility" label={t("show_code", "Show Code")} className="!rounded-full !px-4 !py-1.5 !text-[10px]" />
                     </div>
                   </div>
+                )}
+
+                {post.poll_data && (
+                  <DispatchPollViewer post={post} userId={userId} />
                 )}
               </div>
             </div>

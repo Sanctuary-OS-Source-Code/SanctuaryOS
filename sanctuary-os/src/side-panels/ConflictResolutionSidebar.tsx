@@ -45,13 +45,24 @@ interface ConflictResolutionSidebarProps {
   conflict: any;
   onClose: () => void;
   onVault: (modName: string) => void;
-  onOverride: (winnerName: string, modPair: string) => void;
+  onOverride: (winnerName: string, modPair: string, targetTierFolder?: string, loserName?: string) => void;
   onUndo?: (winnerName: string) => void;
 }
 
 export default function ConflictResolutionSidebar({ conflict, onClose, onVault, onOverride, onUndo }: ConflictResolutionSidebarProps) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
   const [selectedMod, setSelectedMod] = useState<string | null>(null);
+
+  const overrideTiers = (activeGameSchema?.load_order?.priority_tiers || [
+    { id: "tier_1", label: t("lo_tier_1", "Priority Tier 1"), folder: "Sanctuary", priority: 1000 },
+    { id: "tier_2", label: t("lo_tier_2", "Priority Tier 2"), folder: "Sanctuary2", priority: 2000 },
+    { id: "tier_3", label: t("lo_tier_3", "Priority Tier 3"), folder: "Sanctuary3", priority: 3000 },
+  ]).filter((pt: any) => pt.folder && pt.folder.length > 0);
+
+  const [selectedTierFolder, setSelectedTierFolder] = useState<string>(
+    overrideTiers[0]?.folder || "Sanctuary"
+  );
 
   if (!conflict) return null;
 
@@ -76,10 +87,10 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
               tooltip={t("btn_set_winner")}
               variant="success"
               onClick={() => {
+                const loser = conflict.modA === selectedMod ? conflict.modB : conflict.modA;
                 if (isTier3) {
-                  onOverride(selectedMod, conflict.mod_pair);
+                  onOverride(selectedMod, conflict.mod_pair, selectedTierFolder, loser);
                 } else {
-                  const loser = conflict.modA === selectedMod ? conflict.modB : conflict.modA;
                   onVault(loser);
                 }
                 onClose();
@@ -161,7 +172,7 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
                         <ModNameWithBadge name={modName} />
                       </div>
 
-                      <div className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 transition-all duration-500 ${isActive ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_40%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent group-hover:border-[color-mix(in_srgb,var(--text)_50%,transparent)] bg-black/20 shadow-inner'
+                      <div className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 transition-all duration-500 ${isActive ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_40%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent group-hover:border-[color-mix(in_srgb,var(--text)_50%,transparent)] glass-surface shadow-inner'
                         }`}>
                         <span className={`material-symbols-outlined font-black transition-all duration-500 ${isActive ? '!text-[18px] drop-shadow-[0_0_8px_var(--accent)] scale-110' : '!text-[16px] scale-90'}`}>{t("icon_check")}</span>
                       </div>

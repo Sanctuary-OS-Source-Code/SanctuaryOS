@@ -111,13 +111,37 @@ export default function CommandConflictsPanel({
     return conflicts;
   }, [activeMods, ignoredGlobal]);
 
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const schemaPriorityOptions = useMemo(() => {
+    const tiers = activeGameSchema?.load_order?.priority_tiers;
+    if (Array.isArray(tiers) && tiers.length > 0) {
+      return tiers.map((pt: any) => ({
+        id: pt.folder ? `!${pt.folder.replace(/^!/, "")}` : "",
+        rawFolder: pt.folder || "",
+        label: pt.label || (pt.folder ? pt.folder : t("bp_priority_default")),
+      }));
+    }
+    return [
+      { id: "", rawFolder: "", label: t("bp_priority_default") },
+      { id: "!Sanctuary", rawFolder: "Sanctuary", label: t("bp_priority_sanctuary") },
+      { id: "!Sanctuary2", rawFolder: "Sanctuary2", label: t("bp_priority_sanctuary2") },
+      { id: "!Sanctuary3", rawFolder: "Sanctuary3", label: t("bp_priority_sanctuary3") },
+    ];
+  }, [activeGameSchema, t]);
+
   const getPriorityDrop = (modData: any) => {
     if (!modData || modData.isFallback || !allow_write) return null;
     let currentPriority = "";
     if (modData.path) {
       const firstPart = modData.path.split(/[/\\]/)[0];
-      if (["!Sanctuary", "!Sanctuary2", "!Sanctuary3"].includes(firstPart)) {
-        currentPriority = firstPart;
+      const matchedOpt = schemaPriorityOptions.find(
+        (opt) =>
+          opt.id &&
+          (opt.id.toLowerCase() === firstPart.toLowerCase() ||
+            opt.rawFolder.toLowerCase() === firstPart.toLowerCase())
+      );
+      if (matchedOpt) {
+        currentPriority = matchedOpt.id;
       }
     }
     return (
@@ -137,23 +161,7 @@ export default function CommandConflictsPanel({
               console.error("Failed to move mod priority", e);
             }
           }}
-          options={[
-            { id: "", label: t("bp_priority_default") },
-            {
-              id: "!Sanctuary",
-              label: t("bp_priority_sanctuary"),
-            },
-            {
-              id: "!Sanctuary2",
-              label:
-                t("bp_priority_sanctuary2"),
-            },
-            {
-              id: "!Sanctuary3",
-              label:
-                t("bp_priority_sanctuary3"),
-            },
-          ]}
+          options={schemaPriorityOptions.map((o) => ({ id: o.id, label: o.label }))}
         />
       </div>
     );

@@ -44,7 +44,7 @@ pub fn initialize_vault_watch(
             Err(_) => return,
         };
 
-        let subdirs = vec!["Mods", "Blueprints", "Quarantine"];
+        let subdirs = vec!["Mods"];
         for subdir in subdirs {
             let subdir_path = path_to_watch.join(subdir);
             if subdir_path.exists() {
@@ -71,7 +71,17 @@ pub fn initialize_vault_watch(
                     if path.starts_with(&mods_path_to_ignore) {
                         continue;
                     }
-                    let _ = app_handle.emit("vault_changed", path.to_string_lossy().to_string());
+                    let path_str = path.to_string_lossy().to_string();
+                    let lower = path_str.to_lowercase();
+                    if lower.ends_with(".db")
+                        || lower.ends_with(".db-journal")
+                        || lower.ends_with(".db-wal")
+                        || lower.ends_with(".db-shm")
+                        || lower.ends_with(".json")
+                    {
+                        continue;
+                    }
+                    let _ = app_handle.emit("vault_changed", path_str);
                 }
             }
         }

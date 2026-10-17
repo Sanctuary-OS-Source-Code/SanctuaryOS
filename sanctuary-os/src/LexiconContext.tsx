@@ -18,7 +18,8 @@ export const LexiconProvider = ({ children }: any) => {
 
   const readRegistryFromStorage = (workspaceId: string) => {
     try {
-      const raw = localStorage.getItem(`sanctuary_${workspaceId}_lexicon_registry`);
+      const key = `sanctuary_${workspaceId}_lexicon_registry`;
+      const raw = localStorage.getItem(key);
       if (!raw) return {};
       const parsed = JSON.parse(raw);
       let hadBuiltins = false;
@@ -30,7 +31,10 @@ export const LexiconProvider = ({ children }: any) => {
       }
       if (hadBuiltins) {
         try {
-          localStorage.setItem(`sanctuary_${workspaceId}_lexicon_registry`, JSON.stringify(parsed));
+          localStorage.removeItem(key);
+          if (Object.keys(parsed).length > 0) {
+            localStorage.setItem(key, JSON.stringify(parsed));
+          }
         } catch {}
       }
       return parsed;
@@ -40,25 +44,32 @@ export const LexiconProvider = ({ children }: any) => {
   };
 
   const saveRegistryToStorage = (workspaceId: string, reg: Record<string, any>) => {
+    const key = `sanctuary_${workspaceId}_lexicon_registry`;
     const customOnly: Record<string, any> = {};
     for (const [k, v] of Object.entries(reg || {})) {
       if (!BUILTIN_LEXICON_IDS.has(k)) {
         customOnly[k] = v;
       }
     }
+    if (Object.keys(customOnly).length === 0) {
+      try {
+        localStorage.removeItem(key);
+      } catch {}
+      return;
+    }
     const serialized = JSON.stringify(customOnly);
     try {
-      localStorage.setItem(`sanctuary_${workspaceId}_lexicon_registry`, serialized);
+      localStorage.setItem(key, serialized);
     } catch (e) {
       // Free up space from any legacy bloated lexicon_registry keys across workspaces
       try {
         for (let i = localStorage.length - 1; i >= 0; i--) {
-          const key = localStorage.key(i);
-          if (key && key.endsWith('_lexicon_registry')) {
-            localStorage.removeItem(key);
+          const k = localStorage.key(i);
+          if (k && k.endsWith('_lexicon_registry')) {
+            localStorage.removeItem(k);
           }
         }
-        localStorage.setItem(`sanctuary_${workspaceId}_lexicon_registry`, serialized);
+        localStorage.setItem(key, serialized);
       } catch (err) {
         console.warn('Could not persist custom lexicon registry to localStorage:', err);
       }

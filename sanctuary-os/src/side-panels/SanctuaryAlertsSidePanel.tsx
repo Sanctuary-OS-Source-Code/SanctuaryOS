@@ -5,6 +5,7 @@ import { SidePanel, CustomDropdown, extractPostImage, stripMarkdown, ActionPill,
 import { UniversalCard } from '../components/universal/UniversalCard';
 import MasonPostViewer from "./MasonPostViewer";
 import { useStore } from '../store';
+import { formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
 
 export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', tableName = 'system_broadcasts' }: { isOpen: boolean, onClose: () => void, audience?: string, tableName?: string }) {
   const { t } = useLexicon();
@@ -163,7 +164,7 @@ export function SanctuaryAlertsSidePanel({ isOpen, onClose, audience = 'All', ta
                               </span>
                             )}
                             <span className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest capitalize border shadow-inner ${isPinned ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}>
-                              {post.category || t("comms_btn_update")}
+                              {formatDispatchCategory(post.category, t)}
                             </span>
                             {isInactive && (
                               <span className="px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest capitalize border shadow-inner bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
