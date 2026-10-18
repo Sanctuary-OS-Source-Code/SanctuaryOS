@@ -55,8 +55,12 @@ import MasonPostViewer from "./side-panels/MasonPostViewer";
 import SupportHub from "./SupportHub";
 import CommandCenter from "./CommandCenter";
 import Blueprints from "./Blueprints";
+import StagingPayloadEditor from "./components/StagingPayloadEditor";
 import Vault from "./Vault";
 import Lab from "./Lab";
+import { scrubLogUserData, buildFormattedLabReportText } from "./utils/logScrubber";
+import { matchExceptionRules } from "./components/KnownErrorDiagnosisBanner";
+import { isUnrelatedGameBugLog, getExceptionRules } from "./components/KnownExceptionRules";
 import TimeCapsule from "./TimeCapsule";
 import Oversight from "./Oversight";
 import WayfinderHub from "./WayfinderHub";
@@ -68,6 +72,13 @@ import { ContextMenu } from "./ContextMenu";
 import { GlobalTooltip } from "./GlobalTooltip";
 import { useTheme } from "./ThemeContext";
 import { SystemBackground } from "./SystemBackground";
+import {
+  dispatchSanctuaryNotification,
+  getNotificationMode,
+  mapDbNotificationTypeToCategory,
+  seedInitialDeliveredNotifications,
+  hasDeliveredNotification,
+} from "./utils/notificationHelper";
 const setupBtnStyle: React.CSSProperties = {
   padding: "12px",
   backgroundColor: "rgba(255,255,255,0.05)",
@@ -171,7 +182,6 @@ function App() {
       }
     };
     prefetchHubs();
-    syncMasterSchemas();
 
     const interval = setInterval(() => {
       setSubtitleIndex(Math.floor(Math.random() * 12) + 1);
@@ -261,9 +271,33 @@ function App() {
   useEffect(() => {
     async function checkForUpdates() {
       try {
-        const update = await check();
-        if (update) {
-          setUpdatePayload(update);
+        const { checkSupporterDevBuildUpdate } = await import("./utils/supporterManager");
+        const { getVersion } = await import("@tauri-apps/api/app");
+        let currentVer = "0.5.5";
+        if (isDesktop()) {
+          try {
+            currentVer = await getVersion();
+          } catch {
+            // fallback
+          }
+        }
+        const devUpdate = await checkSupporterDevBuildUpdate(currentVer);
+        if (devUpdate && devUpdate.isDevChannelActive && devUpdate.updateAvailable) {
+          setUpdatePayload({
+            version: devUpdate.version,
+            date: devUpdate.date,
+            body: devUpdate.notes,
+            downloadAndInstall: async () => {
+              await openUrl(devUpdate.downloadUrl);
+            },
+          } as any);
+          return;
+        }
+        if (isDesktop()) {
+          const update = await check();
+          if (update) {
+            setUpdatePayload(update);
+          }
         }
       } catch (e) {
       }
@@ -451,7 +485,37 @@ function App() {
   const [associatedMods, setAssociatedMods] = useState<any[]>([]);
 
   useEffect(() => {
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'SANCTUARY_NOTIFICATION_CLICK') {
+        setIsNotificationSidebarOpen(true);
+      }
+    };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    }
+    return () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!session?.user?.id) return;
+
+    const getTitleForDbType = (dbType?: string) => {
+      switch (dbType) {
+        case 'reply':
+          return t('ui.replies', 'Comm-Link Reply');
+        case 'support_reply':
+          return t('notify_support', 'Support Alert');
+        case 'new_post':
+          return t('btn_new_posts', 'Comm-Link Post');
+        case 'system_broadcast':
+        default:
+          return t('notify_system_dispatch', 'System Dispatch');
+      }
+    };
 
     const fetchUnread = async () => {
       if (session?.user?.id) {
@@ -459,11 +523,38 @@ function App() {
         const token = sessionData.session?.access_token;
         const { data } = await supabase.rpc('secure_fetch_notifications', { p_token: token });
 
-        if (data) {
-          const gameUnread = data.filter((n: any) => !n.is_read).length;
+        if (data && Array.isArray(data)) {
+          // On the very first boot on this device, seed existing notification IDs so historical backlog isn't spammed
+          seedInitialDeliveredNotifications(data.map((n: any) => `notif:${n.id}`));
 
-          if (!isInitialLoadRef.current && gameUnread > prevUnreadRef.current) {
-            setStatus(`notifications_active New Transmission Received`);
+          const enabledUnread = data.filter((n: any) => {
+            if (n.is_read) return false;
+            const cat = mapDbNotificationTypeToCategory(n.type);
+            return getNotificationMode(cat) !== 'NONE';
+          });
+
+          const gameUnread = enabledUnread.length;
+
+          for (const notif of enabledUnread) {
+            const uniqueId = `notif:${notif.id}`;
+            if (!hasDeliveredNotification(uniqueId)) {
+              const cat = mapDbNotificationTypeToCategory(notif.type);
+              dispatchSanctuaryNotification({
+                uniqueId,
+                category: cat,
+                title: getTitleForDbType(notif.type),
+                body: notif.message || '',
+                onInApp: () => {
+                  setStatus(`notifications_active ${t('tab_notifs', 'Notifications')}`);
+                  window.dispatchEvent(new Event('new_notification_arrived'));
+                },
+                data: {
+                  notificationId: notif.id,
+                  referenceId: notif.reference_id,
+                  type: notif.type,
+                },
+              });
+            }
           }
 
           prevUnreadRef.current = gameUnread;
@@ -476,12 +567,52 @@ function App() {
     };
 
     let interval: any = null;
+    let realtimeChannel: any = null;
 
     const setupNetworkFeatures = async () => {
       if (session) {
         fetchUnread();
         if (!interval) {
           interval = setInterval(fetchUnread, 30000);
+        }
+        if (!realtimeChannel && navigator.onLine && localStorage.getItem('sanctuary_local_only') !== 'true') {
+          realtimeChannel = supabase
+            .channel(`sanctuary_user_notifs_${session.user.id}`)
+            .on(
+              'postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'notifications',
+                filter: `user_id=eq.${session.user.id}`,
+              },
+              () => {
+                fetchUnread();
+              }
+            )
+            .on(
+              'postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'system_broadcasts',
+              },
+              (payload: any) => {
+                const row = payload?.new;
+                if (row?.id && row?.is_active) {
+                  const isUrgent = Boolean(row.is_pinned);
+                  dispatchSanctuaryNotification({
+                    uniqueId: isUrgent ? `urgent_broadcast:${row.id}` : `broadcast:${row.id}`,
+                    category: isUrgent ? 'alert_banner' : 'system_dispatch',
+                    title: row.title || t('notify_system_dispatch', 'System Dispatch'),
+                    body: row.message || row.content || '',
+                    data: { broadcastId: row.id, type: 'system_broadcast' },
+                  });
+                }
+                fetchUnread();
+              }
+            )
+            .subscribe();
         }
       }
     };
@@ -500,11 +631,15 @@ function App() {
 
     return () => {
       if (interval) clearInterval(interval);
-      if (interval) clearInterval(interval);
+      if (realtimeChannel && typeof realtimeChannel.unsubscribe === 'function') {
+        try {
+          realtimeChannel.unsubscribe();
+        } catch (e) {}
+      }
       window.removeEventListener('refresh_notifications', fetchUnread);
       window.removeEventListener('online', handleOnline);
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, activeWorkspaceId]);
 
   useEffect(() => {
     if (!activeWorkspaceId) return;
@@ -1126,12 +1261,12 @@ function App() {
           useStore.getState().setActiveGameSchema(getSafeSchema(JSON.parse(cachedSchema), schemaId));
         }
 
-        // Let it sync in the background so it doesn't block the boot modal!
-        syncMasterSchemas(schemaId).catch(console.warn);
-
         // Fetch the live database nodes from Core OS to get the correct Game Database URLs!
-        // We MUST await this before mounting the UI, otherwise the Game Spokes will fallback to unconfigured-spoke.
+        // We MUST await this before mounting the UI or syncing spoke schemas, otherwise the Game Spokes will fallback to unconfigured-spoke.
         await syncGameDatabases().catch(console.warn);
+
+        // Sync master schemas after spoke database URLs are ready
+        syncMasterSchemas(schemaId).catch(console.warn);
 
         // Do not blindly overwrite sanctuary_last_active_workspace with globalConfig here!
         // globalConfig might have 'default_workspace' if the rust config is empty, which destroys the user's selection.
@@ -2246,14 +2381,21 @@ function App() {
       const config: any = await invoke("get_saved_coordinates");
       const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
       setStatus(t("status_purging_logs"));
+      await invoke("airgap_saves", { docsPath: dPath, enable: true });
       await invoke("clear_old_logs", { docsPath: dPath });
+      try {
+        const currentRules = getExceptionRules(activeGameSchema);
+        await invoke("update_active_game_schema", {
+          schema: { ...(activeGameSchema || {}), exception_rules: currentRules },
+        });
+      } catch {}
       setStatus(t("status_igniting"));
       await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
       setTestErrorFound(false);
       setTestLogSnippet("");
       const interval = setInterval(async () => {
         const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
-        if (res !== "Clean") {
+        if (res !== "Clean" && !isUnrelatedGameBugLog(res, useStore.getState().activeGameSchema)) {
           setTestErrorFound(true);
           setTestLogSnippet(res);
           setStatus(`${t("status_fatal_error")} ${res.substring(0, 50)}...`);
@@ -2294,42 +2436,156 @@ function App() {
       setStatus(`${t("status_save_failure")}${err}`);
     }
   }
-  async function submitLabReport() {
+  async function ensureSpokeModVersion(targetMod: any, desiredStatus = "under_review"): Promise<{ modId: string; versionId: string }> {
+    const modHash = targetMod.hash || targetMod.id || targetMod.name;
+    const { data: existingVer, error: searchError } = await supabase
+      .from("mod_versions")
+      .select("id, mod_id")
+      .eq("dna_hash", modHash)
+      .limit(1)
+      .maybeSingle();
+    if (searchError) throw searchError;
+
+    if (existingVer?.id && existingVer?.mod_id) {
+      return { modId: existingVer.mod_id, versionId: existingVer.id };
+    }
+
+    const rawName = targetMod.name || targetMod.displayName || "Unknown Artifact";
+    const cleanName = rawName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "") || rawName;
+    const searchPattern = cleanName.replace(/[_ ]/g, "%");
+
+    const { data: existingMods } = await supabase
+      .from("mods")
+      .select("id")
+      .ilike("name", searchPattern)
+      .limit(1);
+
+    let targetModId = existingMods?.[0]?.id;
+    if (!targetModId) {
+      const { data: modData, error: modError } = await supabase
+        .from("mods")
+        .insert([
+          {
+            name: cleanName,
+            status: desiredStatus,
+            description: "Homestead Lab Diagnostic Artifact",
+          },
+        ])
+        .select("id")
+        .single();
+      if (modError) throw modError;
+      targetModId = modData.id;
+    }
+
+    const { data: createdVer, error: verError } = await supabase
+      .from("mod_versions")
+      .insert([
+        {
+          mod_id: targetModId,
+          version_label: deriveHumanReadableVersion(rawName, modHash),
+          game_version: selectedVersion || "Local",
+          dna_hash: modHash,
+        },
+      ])
+      .select("id")
+      .single();
+    if (verError) throw verError;
+
+    return { modId: targetModId, versionId: createdVer.id };
+  }
+
+  async function submitLabReport(reportOverride?: any): Promise<boolean> {
     if (!session) {
       alert(t("alert_guest_mode_uploads"));
-      return;
+      return false;
     }
-    if (!activeLabMod) return;
-    if (activeLabMod.compliance_tier === 1 || activeLabMod.compliance_tier === 2) {
+    const targetMod = reportOverride?.mod || activeLabMod;
+    const rawSnippet = reportOverride?.logSnippet || testLogSnippet || "";
+    const targetSnippet = scrubLogUserData(rawSnippet);
+    if (!targetMod) return false;
+    if (targetMod.compliance_tier === 1 || targetMod.compliance_tier === 2) {
       alert(t("alert_nsfw_no_lab_reports"));
-      return;
+      return false;
     }
     setIsSubmittingReport(true);
     setStatus(t("status_submitting_report"));
+    let ok = false;
     try {
-      const { data: verData } = await supabase
-        .from("mod_versions")
-        .select("id, mod_id")
-        .eq("dna_hash", activeLabMod.hash)
-        .single();
-      if (!verData) throw new Error(t("status_missing_mod_msg"));
+      const { modId, versionId } = await ensureSpokeModVersion(targetMod, "under_review");
+      await supabase
+        .from("mods")
+        .update({ status: "under_review" })
+        .eq("id", modId);
+
+      const stagedDepsList = (reportOverride?.stagedExtras || []).map((m: any) => m.name).filter(Boolean);
+      const conflictExtrasList = (reportOverride?.conflictExtras || []).map((m: any) => m.name).filter(Boolean);
+      const hasContextPayload = Boolean(
+        reportOverride?.conflictTarget ||
+          stagedDepsList.length > 0 ||
+          conflictExtrasList.length > 0
+      );
+
+      const notePayload = hasContextPayload
+        ? JSON.stringify({
+            conflictTarget: reportOverride?.conflictTarget?.name,
+            dependencies: stagedDepsList,
+            conflictExtras: conflictExtrasList,
+          })
+        : t("status_report_automated");
+
+      const currentExceptionRules = useStore.getState().exceptionRules || [];
+      const matchedRules = matchExceptionRules(targetSnippet, currentExceptionRules);
+      const formattedReportLog = buildFormattedLabReportText({
+        reportNumber: reportOverride?.reportNumber || 1,
+        date: reportOverride?.time
+          ? new Date(reportOverride.time).toLocaleString()
+          : new Date().toLocaleString(),
+        gameVersion: selectedVersion || "Local",
+        targetMod,
+        conflictTarget: reportOverride?.conflictTarget,
+        stagedExtras: reportOverride?.stagedExtras,
+        conflictExtras: reportOverride?.conflictExtras,
+        missingDeps: reportOverride?.missingDeps,
+        linkedFiles: reportOverride?.linkedFiles,
+        matchedRules,
+        rawLogText: targetSnippet,
+        errorFound: true,
+        verified: false,
+        activeGameSchema,
+        modList,
+      });
+
       const { error } = await supabase.from("homestead_lab_logs").insert([
         {
-          mod_id: verData.mod_id,
-          version_id: verData.id,
-          log_snippet: testLogSnippet,
-          tester_note: t("status_report_automated"),
+          mod_id: modId,
+          version_id: versionId,
+          mod_version_id: versionId,
+          log_snippet: targetSnippet,
+          log_text: formattedReportLog,
+          status: "pending",
+          tester_note: notePayload,
         },
       ]);
       if (error) throw error;
       setStatus(t("status_report_secured"));
+      useStore.getState().pushStatus(t("status_report_secured"), "success");
+      ok = true;
     } catch (err: any) {
-      setStatus(`${t("status_report_failed")}${err.message}`);
+      const errMsg = `${t("status_report_failed")}${err?.message || String(err)}`;
+      setStatus(errMsg);
+      useStore.getState().pushStatus(errMsg, "error");
     }
     setIsSubmittingReport(false);
+    return ok;
   }
-  async function concludeTest(labContext?: any) {
-    if (!activeLabMod) return;
+  async function concludeTest(
+    labContext?: any,
+    targetModOverride?: any,
+    errorFoundOverride?: boolean,
+  ): Promise<boolean> {
+    const targetMod = targetModOverride || activeLabMod;
+    if (!targetMod) return false;
+    const isError = errorFoundOverride !== undefined ? errorFoundOverride : testErrorFound;
     setStatus(t("status_evaluating"));
     if (logWatcher) {
       clearInterval(logWatcher);
@@ -2338,33 +2594,29 @@ function App() {
     try {
       const config: any = await invoke("get_saved_coordinates");
       const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      await invoke("stop_lab_verification_session");
       await invoke("airgap_saves", { docsPath: dPath, enable: false });
     } catch (e) { }
     try {
-      const finalStatus = testErrorFound ? "broken" : "verified";
-      const uiStatus = testErrorFound
+      const finalStatus = isError ? "broken" : "verified";
+      const spokeModStatus = isError ? "under_review" : "verified";
+      const uiStatus = isError
         ? t("status_broken")
         : t("verified");
-      const uiColor = testErrorFound ? "var(--danger)" : "var(--success)";
-      const { data: verData } = await supabase
-        .from("mod_versions")
-        .select("id, mod_id")
-        .eq("dna_hash", activeLabMod.hash)
-        .single();
-      if (verData) {
+      const uiColor = isError ? "var(--danger)" : "var(--success)";
+      try {
+        const { modId } = await ensureSpokeModVersion(targetMod, spokeModStatus);
         await supabase
           .from("mods")
-          .update({ status: finalStatus })
-          .eq("id", verData.mod_id);
-
-        if (testErrorFound) {
-          await supabase.from("homestead_lab_logs").insert([{
-            mod_id: verData.mod_id,
-            version_id: verData.id,
-            log_snippet: testLogSnippet,
-            tester_note: labContext ? JSON.stringify(labContext) : t("status_report_automated"),
-          }]);
-        }
+          .update({ status: spokeModStatus })
+          .eq("id", modId);
+      } catch (dbErr) {
+        console.warn("Could not sync concluded test to Spoke DB:", dbErr);
+      }
+      if (isError && targetMod.name) {
+        try {
+          toggleInActiveSet(targetMod.name, true, true);
+        } catch (e) { }
       }
       if (shelterActive) {
         setStatus(t("status_restoring_bunker_full"));
@@ -2377,10 +2629,10 @@ function App() {
         }
         setShelterActive(false);
       }
-      setLabQueue((prev) => prev.filter((m) => m.hash !== activeLabMod.hash));
+      setLabQueue((prev) => prev.filter((m) => m.hash !== targetMod.hash));
       setModList((prev) =>
         prev.map((m) =>
-          m.hash === activeLabMod.hash
+          m.hash === targetMod.hash
             ? { ...m, status: uiStatus, color: uiColor, isSynced: true }
             : m,
         ),
@@ -2391,8 +2643,10 @@ function App() {
       setStatus(
         `${t("status_artifact_secured_prefix")}${finalStatus.toUpperCase()}`,
       );
+      return true;
     } catch (err: any) {
       setStatus(`${t("status_teardown_error")}${err.message}`);
+      return false;
     }
   }
   const fetchLabAssociated = async (mod: ModData) => {
@@ -2503,7 +2757,7 @@ function App() {
     setLabConflicts(data || []);
     setIsLoadingAssociated(false);
   };
-  const runProvingRun = async (extraDeployNames: string[] = []) => {
+  const runProvingRun = async (extraDeployNames: string[] = [], customToolPath?: string) => {
     if (!activeLabMod) return;
     try {
       setStatus(t("status_diagnostic_run"));
@@ -2559,21 +2813,37 @@ function App() {
         ...extraDeployNames
       ]);
 
-      const deployMods = Array.from(rawDeploySet).map((modName: string) => {
-        const modObj = modList.find((m: any) => {
-          if (m.isVirtual) return false;
-          if (m.name === modName || m.displayName === modName) return true;
-          const mBase = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
-          const targetBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
-          return mBase && targetBase && mBase === targetBase;
-        });
-        return { path: modObj ? modObj.name : modName, allow_write: true };
-      });
+      const normalizeLookup = (s: string) =>
+        (s || "")
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(getExtensionRegex(activeGameSchema), "")
+          .replace(/[^a-z0-9]/gi, "")
+          .toLowerCase() || "";
 
-      await invoke("deploy_playset_bulk", {
-        mods: deployMods,
+      const deployPaths = Array.from(rawDeploySet)
+        .map((modName: string) => {
+          const targetNorm = normalizeLookup(modName);
+          const modObj = modList.find((m: any) => {
+            if (m.isVirtual) return false;
+            if (m.name === modName || m.displayName === modName) return true;
+            const mNorm = normalizeLookup(m.name);
+            return mNorm && targetNorm && mNorm === targetNorm;
+          });
+          return modObj ? (modObj.physical_path || modObj.name) : modName;
+        })
+        .filter(Boolean);
+
+      const primaryPath = activeLabMod.physical_path || activeLabMod.name;
+      const additionalMods = deployPaths.filter((p) => p !== primaryPath);
+
+      const linkedFiles = await invoke<string[]>("deploy_mod_for_lab_test", {
+        modPathOrName: primaryPath,
+        dnaHash: activeLabMod.hash || null,
+        additionalMods,
+        isSandbox: false,
         modsPath: config.mods_path,
-        vaultPath: config.vault_path,
+        vaultPath: config.vault_path || "",
       });
 
       setShelterActive(true);
@@ -2584,20 +2854,41 @@ function App() {
       await invoke("airgap_saves", { docsPath: dPath, enable: true });
       await invoke("clear_old_logs", { docsPath: dPath });
 
-      setStatus(t("status_igniting"));
-      await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
+      try {
+        await invoke("start_lab_verification_session", {
+          dnaHash: activeLabMod?.hash || activeLabMod?.name || "lab_session",
+          modName: activeLabMod.displayName || activeLabMod.name || "Unknown",
+          docsPath: dPath,
+          vaultPath: config.vault_path || "",
+          linkedFiles,
+        });
+      } catch (e) {}
+
+      if (customToolPath && customToolPath.trim()) {
+        setStatus(t("status_external_tool_launched"));
+        await invoke("launch_external_tool", {
+          toolPath: customToolPath.trim(),
+          docsPath: dPath,
+          enforceAirgap: true,
+        });
+      } else {
+        setStatus(t("status_igniting"));
+        await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
+      }
 
       setTestErrorFound(false);
       setTestLogSnippet("");
       const interval = setInterval(async () => {
         const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
         if (res !== "Clean") {
+          const scrubbedRes = scrubLogUserData(res);
           setTestErrorFound(true);
-          setTestLogSnippet(res);
-          setStatus(`${t("status_fatal_error")} ${res.substring(0, 50)}...`);
+          setTestLogSnippet(scrubbedRes);
+          setStatus(`${t("status_fatal_error")} ${scrubbedRes.substring(0, 50)}...`);
           clearInterval(interval);
           setLogWatcher(null);
-          await invoke("airgap_saves", { docsPath: dPath, enable: false });
+          // Do NOT disable save airgap while the game/tool is still running!
+          // Airgap remains engaged until concludeTest() or repopulate_from_shelter().
         }
       }, 5000);
       setLogWatcher(interval as any);
@@ -2620,7 +2911,7 @@ function App() {
 
   return (
     <div
-      className={`flex flex-col ${isDesktop() ? 'h-screen' : 'h-[100dvh]'} w-screen overflow-hidden relative ${currentTheme?.animated !== false ? 'animated-fluid-bg' : ''}`}
+      className={`flex flex-col ${isDesktop() ? 'h-screen w-screen' : 'h-full min-h-[100dvh] w-full'} overflow-hidden relative ${currentTheme?.animated !== false ? 'animated-fluid-bg' : ''}`}
       style={{ color: "var(--text)" } as React.CSSProperties}
     >
       <SystemBackground />
@@ -2728,40 +3019,55 @@ function App() {
                       )}
                       {view === "playsets" && (
                         <ErrorBoundary moduleName="Blueprints">
-                          <Blueprints
-                            playSets={playSets}
-                            setPlaySets={setPlaySets}
-                            activeSetName={activeSetName}
-                            setActiveSetName={setActiveSetName}
-                            equipPlaySet={equipPlaySet}
-                            isDraftingSet={isDraftingSet}
-                            setIsDraftingSet={setIsDraftingSet}
-                            draftSetName={draftSetName}
-                            setDraftSetName={setDraftSetName}
-                            finalizeDraftSet={finalizeDraftSet}
-                            renamePlaySet={renamePlaySet}
-                            deletePlaySet={deletePlaySet}
-                            exportPlaySet={exportPlaySet}
-                            importPlaySet={importPlaySet}
-                            uploadBlueprintToCloud={uploadBlueprintToCloud}
-                            syncBlueprintByCode={syncBlueprintByCode}
-                            setView={setView}
-                            setSnapshotModal={setSnapshotModal}
-                            globalSearchQuery={globalSearchQuery}
-                            setGlobalSearchQuery={setGlobalSearchQuery}
-                            isSearchingCloud={isSearchingCloud}
-                            searchGlobalNetwork={searchGlobalNetwork}
-                            cloudSearchResults={cloudSearchResults}
-                            syncCode={syncCode}
-                            setSyncCode={setSyncCode}
-                            modList={modList}
-                            activePlaySetIndex={activePlaySetIndex}
-                            setActivePlaySetIndex={setActivePlaySetIndex}
-                            toggleInActiveSet={toggleInActiveSet}
-                            getMissingStrings={getMissingStrings}
-                            ignoreMissingString={ignoreMissingString}
-                            purgeMissingString={purgeMissingString}
-                          />
+                          {isDesktop() ? (
+                            <Blueprints
+                              playSets={playSets}
+                              setPlaySets={setPlaySets}
+                              activeSetName={activeSetName}
+                              setActiveSetName={setActiveSetName}
+                              equipPlaySet={equipPlaySet}
+                              isDraftingSet={isDraftingSet}
+                              setIsDraftingSet={setIsDraftingSet}
+                              draftSetName={draftSetName}
+                              setDraftSetName={setDraftSetName}
+                              finalizeDraftSet={finalizeDraftSet}
+                              renamePlaySet={renamePlaySet}
+                              deletePlaySet={deletePlaySet}
+                              exportPlaySet={exportPlaySet}
+                              importPlaySet={importPlaySet}
+                              uploadBlueprintToCloud={uploadBlueprintToCloud}
+                              syncBlueprintByCode={syncBlueprintByCode}
+                              setView={setView}
+                              setSnapshotModal={setSnapshotModal}
+                              globalSearchQuery={globalSearchQuery}
+                              setGlobalSearchQuery={setGlobalSearchQuery}
+                              isSearchingCloud={isSearchingCloud}
+                              searchGlobalNetwork={searchGlobalNetwork}
+                              cloudSearchResults={cloudSearchResults}
+                              syncCode={syncCode}
+                              setSyncCode={setSyncCode}
+                              modList={modList}
+                              activePlaySetIndex={activePlaySetIndex}
+                              setActivePlaySetIndex={setActivePlaySetIndex}
+                              toggleInActiveSet={toggleInActiveSet}
+                              getMissingStrings={getMissingStrings}
+                              ignoreMissingString={ignoreMissingString}
+                              purgeMissingString={purgeMissingString}
+                            />
+                          ) : (
+                            <StagingPayloadEditor
+                              onSetStatus={setStatus}
+                              onOpenDossier={setActiveDossier}
+                              onBrowseMods={() => {
+                                setView("nexus");
+                                useStore.getState().setMarketTab("MODS");
+                              }}
+                              onBrowseBlueprints={() => {
+                                setView("nexus");
+                                useStore.getState().setMarketTab("BLUEPRINTS");
+                              }}
+                            />
+                          )}
                         </ErrorBoundary>
                       )}
                       {view === "GlobalFeed" && (

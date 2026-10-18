@@ -1,6 +1,6 @@
 import { handleOpenUrl, HoverTooltip } from './shared';
 
-export default function MasonProfileHeader({ mason, masonId, followerCount, isFollowing, masonAlerts, toggleFollow, toggleMasonAlert, activeView, setActiveView, t, children }: any) {
+export default function MasonProfileHeader({ mason, masonId, followerCount, isFollowing, isVerifiedSupporter, onOpenSupportModal, masonAlerts, toggleFollow, toggleMasonAlert, activeView, setActiveView, t, children }: any) {
   const isCompact = activeView && activeView !== 'OVERVIEW';
 
   return (
@@ -51,6 +51,13 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
                     </span>
                   </div>
                 )}
+
+                {isVerifiedSupporter && (
+                  <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 text-emerald-400 border border-emerald-500/35 flex items-center gap-1 shadow-sm">
+                    <span className="material-symbols-outlined !text-[12px]">{t("icon_verified", "verified")}</span>
+                    {t("supporter_badge_verified_patron", "VERIFIED SUPPORTER")}
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--subtext)]">
@@ -62,6 +69,15 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
                   <>
                     <span className="opacity-30">•</span>
                     <span className="opacity-60">{t("status_standard_clearance", "Standard Clearance")}</span>
+                  </>
+                )}
+                {isVerifiedSupporter && (
+                  <>
+                    <span className="opacity-30">•</span>
+                    <span className="text-[var(--accent)] flex items-center gap-1">
+                      <span className="material-symbols-outlined !text-[12px]">{t("icon_bolt", "bolt")}</span>
+                      {t("supporter_badge_expedited_support", "EXPEDITED SUPPORT PATH")}
+                    </span>
                   </>
                 )}
               </div>
@@ -120,6 +136,26 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
                 >
                   <HoverTooltip title={t("link_discord", "Discord")} noIcon={true} />
                   <span className="material-symbols-outlined !text-[18px]">{t("icon_chat", "chat")}</span>
+                </button>
+              )}
+
+              {onOpenSupportModal && (
+                <button
+                  onClick={onOpenSupportModal}
+                  className={`h-10 px-4 rounded-xl glass-surface backdrop-blur-md border flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] ${
+                    isVerifiedSupporter
+                      ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-400 hover:bg-emerald-500/25'
+                      : 'bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[16px]">
+                    {isVerifiedSupporter ? t("icon_verified", "verified") : t("icon_volunteer_activism", "volunteer_activism")}
+                  </span>
+                  <span>
+                    {isVerifiedSupporter
+                      ? t("supporter_badge_verified_patron", "VERIFIED SUPPORTER")
+                      : t("supporter_btn_support_creator", "Support (0% Fee)")}
+                  </span>
                 </button>
               )}
 

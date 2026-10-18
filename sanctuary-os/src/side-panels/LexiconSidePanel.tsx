@@ -34,31 +34,48 @@ export default function LexiconSidePanel({ isOpen, onClose }: { isOpen: boolean,
     fetchLanguages();
   }, []);
 
+  const activeGameSchema = useStore(state => state.activeGameSchema);
+  const isSimsGame = `${activeGameSchema?.id || ''} ${activeGameSchema?.name || ''} ${activeGameSchema?.display_name || ''}`.toLowerCase().includes('sims');
+
   const getLexiconMetadata = (code: string) => {
     const cleanName = (val: string) => val.includes(':') ? val.split(':')[1].trim() : val;
 
     // Core Built-in OS Lexicons
-    if (code === 'en-sanctuary') return { community: 'Sanctuary', language: 'English', name: cleanName(t("lang_sanctuary")) };
-    if (code === 'en-default') return { community: 'Sanctuary', language: 'English', name: cleanName(t("lang_standard")) };
+    if (code === 'en-sanctuary') return { community: 'Sanctuary', language: 'English', name: cleanName(t("lang_sanctuary", "Sanctuary")) };
+    if (code === 'en-default') return { community: 'Sanctuary', language: 'English', name: cleanName(t("lang_standard", "Standard English")) };
+    if (code === 'en-sims' || code === 'Simlish') {
+      const simsMeta = lexiconMeta?.find((m: any) => m.id === code);
+      return {
+        community: simsMeta?.badge && simsMeta.badge !== 'Sanctuary' ? simsMeta.badge : (activeGameSchema?.display_name || 'The Sims 4'),
+        language: simsMeta?.lang || 'English',
+        name: simsMeta?.name || cleanName(t("lang_sims", "Simlish"))
+      };
+    }
 
-    // Community Lexicons (Pulled from DB)
+    // Community Lexicons (Pulled from Game Spoke DB)
     const meta = lexiconMeta?.find((m: any) => m.id === code);
     if (meta) {
       let badge = meta.badge || 'Community';
       const state = useStore.getState();
 
-      if (badge === 'Sanctuary' && state.activeGameSchema?.display_name) {
-        badge = state.activeGameSchema.display_name;
+      if (badge === 'Sanctuary' && (state.activeGameSchema?.display_name || state.activeGameSchema?.name)) {
+        badge = state.activeGameSchema.display_name || state.activeGameSchema.name;
       }
-      return { community: badge, language: meta.lang || 'English', name: meta.name };
+      return { community: badge, language: meta.lang || 'English', name: meta.name || registry?.[code]?._meta_name || code };
     }
 
     // Imported/Custom JSONs
-    return { community: 'Custom', language: registry?.[code]?._meta_lang || dbLanguages[code] || 'English', name: code };
+    return {
+      community: registry?.[code]?._meta_badge || activeGameSchema?.display_name || 'Custom',
+      language: registry?.[code]?._meta_lang || dbLanguages[code] || 'English',
+      name: registry?.[code]?._meta_name || code
+    };
   };
 
-  const dbCodes = lexiconMeta ? lexiconMeta.map((m: any) => m.id) : ['en-sanctuary', 'en-default'];
-  const allLexiconCodes = Array.from(new Set([...dbCodes, ...Object.keys(registry || {})]));
+  const coreCodes = isSimsGame ? ['en-sanctuary', 'en-default', 'en-sims'] : ['en-sanctuary', 'en-default'];
+  const dbCodes = lexiconMeta && lexiconMeta.length > 0 ? lexiconMeta.map((m: any) => m.id) : [];
+  const allLexiconCodes = Array.from(new Set([...coreCodes, ...dbCodes, ...Object.keys(registry || {})]))
+    .filter(code => isSimsGame || activeLang === code || (code !== 'en-sims' && code !== 'Simlish'));
   const uniqueLanguages = Array.from(new Set(allLexiconCodes.map(code => getLexiconMetadata(code).language)));
   const uniqueCommunities = Array.from(new Set(allLexiconCodes.map(code => getLexiconMetadata(code).community)));
 

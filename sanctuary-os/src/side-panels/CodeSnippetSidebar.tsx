@@ -4,6 +4,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { SidePanel, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
+import { scrubLogUserData } from '../utils/logScrubber';
 
 interface CodeSnippetSidebarProps {
   code: string;
@@ -18,6 +19,7 @@ export default function CodeSnippetSidebar({ code, title, onClose, widthClass = 
   const [searchTerm, setSearchTerm] = React.useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = React.useState(0);
   const markRefs = React.useRef<(HTMLElement | null)[]>([]);
+  const safeCode = React.useMemo(() => scrubLogUserData(code || ""), [code]);
 
   React.useEffect(() => {
     setCurrentMatchIndex(0);
@@ -34,7 +36,7 @@ export default function CodeSnippetSidebar({ code, title, onClose, widthClass = 
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   };
 
-  const matchCount = searchTerm ? (code.match(new RegExp(escapeRegExp(searchTerm), 'gi')) || []).length : 0;
+  const matchCount = searchTerm ? (safeCode.match(new RegExp(escapeRegExp(searchTerm), 'gi')) || []).length : 0;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -64,7 +66,7 @@ export default function CodeSnippetSidebar({ code, title, onClose, widthClass = 
           <PanelHeaderButton 
             icon={t("icon_content_copy")}
             tooltip={t("ui_btn_copy_all") || "Copy All"}
-            onClick={() => { navigator.clipboard.writeText(code); useStore.getState().pushStatus(t("alert_copied")); }}
+            onClick={() => { navigator.clipboard.writeText(safeCode); useStore.getState().pushStatus(t("alert_copied")); }}
           />
         </PanelHeaderGroup>
       }
@@ -122,14 +124,14 @@ export default function CodeSnippetSidebar({ code, title, onClose, widthClass = 
                   ...(wrapText ? { whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere' } : {})
                 }}
               >
-                {code}
+                {safeCode}
               </SyntaxHighlighter>
             ) : (
               <pre className="m-0 p-8 bg-transparent text-[13px] leading-[1.6] text-[#d4d4d4] font-mono" style={{ whiteSpace: wrapText ? 'pre-wrap' : 'pre', wordBreak: wrapText ? 'break-all' : 'normal', overflowWrap: 'anywhere' }}>
                 {(() => {
                   markRefs.current = []; // Reset refs on every render when there's a search
                   let matchIndexCounter = -1;
-                  return code.split(new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi')).map((part, i) => {
+                  return safeCode.split(new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi')).map((part, i) => {
                     if (part.toLowerCase() === searchTerm.toLowerCase()) {
                       matchIndexCounter++;
                       const isCurrent = matchIndexCounter === currentMatchIndex;

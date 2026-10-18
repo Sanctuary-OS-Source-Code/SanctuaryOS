@@ -21,6 +21,7 @@ use crate::commands::shelter::*;
 use crate::commands::state_ops::*;
 use crate::commands::system::*;
 use crate::commands::edge_network::*;
+use crate::commands::supporter::*;
 use crate::state::*;
 use crate::utils::*;
 use crate::watchers::*;
@@ -76,6 +77,8 @@ fn test_package_scanner(_: String) -> Result<String, String> {
 }
 
 fn main() {
+    ensure_windows_aumid_registered();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
@@ -110,7 +113,15 @@ fn main() {
             sanitize_vault,
             auto_detect_paths,
             launch_game,
+            launch_external_tool,
             airgap_saves,
+            get_airgap_status,
+            deploy_mod_for_lab_test,
+            start_lab_verification_session,
+            poll_lab_verification_session,
+            stop_lab_verification_session,
+            get_lab_certificates,
+            record_lab_certificate,
             get_backups,
             delete_backup,
             deploy_playset_bulk,
@@ -145,6 +156,7 @@ fn main() {
             get_config,
             update_config,
             scan_game_logs,
+            get_scrubbed_game_logs,
             clear_old_logs,
             write_os_log,
             generate_full_dna_hash,
@@ -177,6 +189,7 @@ fn main() {
             rename_version,
             delete_version,
             overwrite_local_schema,
+            send_sanctuary_notification,
             telemetry::fetch_system_telemetry,
             telemetry::fetch_app_footprint,
             telemetry::get_directory_size,
@@ -186,7 +199,12 @@ fn main() {
             register_edge_override,
             fetch_and_sync_edge_manifest,
             get_all_edge_manifests,
-            export_edge_release
+            export_edge_release,
+            get_local_supporter_state,
+            toggle_local_mason_follow,
+            sync_mason_supporter_bridge,
+            remove_local_mason_supporter,
+            stack_local_dev_build_donation
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

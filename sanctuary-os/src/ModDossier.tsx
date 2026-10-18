@@ -8,11 +8,28 @@ import { supabase } from "./supabase";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import { GameVersionMultiSelect, deriveHumanReadableVersion, CustomDatePicker, CustomClassificationDropdown, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, getHighestVersion, getLowestVersion, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, HoverTooltip, cleanSearchName, SidePanel, ActionButton, getModFallbackUrl, PanelHeaderGroup, PanelHeaderButton } from "./shared";
+import {
+  LabVerificationGate,
+  LabVerificationBadge,
+  checkDnaHashVerification,
+} from "./components/LabVerificationGate";
 
 export default function ModDossier({ mod, modList, activePlaySet, onToggleInActiveSet, onShowYeetAlert, onClose, metaInputs, setMetaInputs, onSaveMetadata, onResetMetadata, onOpenMasonProfile, editMode, setEditMode, onSendToLab, onSecureShred, isCorrecting, setIsCorrecting, onSyncToNetwork }: any) {
   const activeGameSchema = useStore(state => state.activeGameSchema);
+  const requireScoutLabTest = activeGameSchema?.lab_verification?.require_for_scout_approval !== false;
   const session = useStore((state) => state.session);
   const [isDossierOpen, setIsDossierOpen] = useState(true);
+  const [isModLabVerified, setIsModLabVerified] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!mod?.hash) {
+      setIsModLabVerified(false);
+      return;
+    }
+    checkDnaHashVerification(mod.hash).then((res) => {
+      setIsModLabVerified(res.verified);
+    });
+  }, [mod?.hash]);
   const handleClose = () => {
     setIsDossierOpen(false);
     setTimeout(() => {
@@ -61,7 +78,11 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
   const { t } = useLexicon();
   const userRole = useStore((state: any) => state.userRole);
-  const { setIsSideBrowserOpen, setSideBrowserUrl, useInternalBrowser } = useModalStore();
+  const { setIsSideBrowserOpen, setSideBrowserUrl, useInternalBrowser, stagingDraftItems, toggleModInStagingDraft } = useModalStore();
+  const isModStaged = stagingDraftItems.some((item: any) =>
+    String(item.mod_id || item.dna_hash || item.name) === String(mod?.id || mod?.dbId || mod?.hash || mod?.name) ||
+    (mod?.hash && item.dna_hash === mod.hash)
+  );
 
   if (!mod) return null;
 
@@ -374,6 +395,20 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
       return;
     }
 
+    if (requireScoutLabTest && mod?.hash) {
+      const verRes = await checkDnaHashVerification(mod.hash);
+      if (!verRes.verified) {
+        useStore.getState().pushStatus(
+          t(
+            "lab_gate_locked_scout_msg",
+            "Submission Locked: This spoke requires a clean timed test before unlocking Scout Queue submissions."
+          ),
+          "error"
+        );
+        return;
+      }
+    }
+
     let bondedHash = metaInputs.lineage || null;
     if (bondedHash) {
       const parentMod = (modList || []).find((m: any) =>
@@ -471,8 +506,19 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                       </>
                     )}
                     {isCorrecting && session && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (
-                      <button onClick={handleSubmitToVault} disabled={isSaving} className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--success)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed">
-                        <span className="material-symbols-outlined !text-[16px]">{t("icon_send")}</span>
+                      <button
+                        onClick={handleSubmitToVault}
+                        disabled={isSaving || (requireScoutLabTest && !isModLabVerified)}
+                        title={
+                          requireScoutLabTest && !isModLabVerified
+                            ? t("lab_gate_locked_scout_msg", "Submission Locked: Timed Lab test required")
+                            : undefined
+                        }
+                        className="h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap text-[var(--success)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {requireScoutLabTest && !isModLabVerified ? t("icon_lock", "lock") : t("icon_send")}
+                        </span>
                         {isSaving ? t("btn_submitting") : t("btn_submit_corrections")}
                       </button>
                     )}
@@ -533,6 +579,26 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                     )}
                   </>
                 )}
+                {!editMode && !mod.isVirtual && (isNexusView || !isDesktop()) && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const wasStaged = isModStaged;
+                      toggleModInStagingDraft(mod);
+                      useStore.getState().pushStatus(wasStaged ? t("status_staging_item_removed", "Removed from Remote Staging Queue.") : t("status_staging_item_added", "Added to Remote Staging Queue."));
+                    }}
+                    className={`h-full px-5 flex items-center first:rounded-l-full last:rounded-r-full justify-center gap-2 font-black text-[10px] capitalize tracking-widest transition-all whitespace-nowrap cursor-pointer ${
+                      isModStaged
+                        ? 'text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_18%,transparent)]'
+                        : 'text-[var(--accent)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[16px]">
+                      {isModStaged ? t("icon_playlist_add_check", "playlist_add_check") : t("icon_playlist_add", "playlist_add")}
+                    </span>
+                    {isModStaged ? t("staging_btn_staged", "Staged") : t("staging_btn_stage_mod", "Stage to PC")}
+                  </button>
+                )}
                 {!editMode && isDesktop() && (
                   <button
                     onClick={(e) => {
@@ -571,10 +637,32 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                         .{(mod.name || '').split('.').pop()?.toUpperCase()}
                       </span>
                     )}
+                    {!mod.isVirtual && mod.hash && (
+                      <LabVerificationBadge dnaHash={mod.hash} required={requireScoutLabTest && isCorrecting} />
+                    )}
                   </div>
                 </div>
               )}
             </div>
+
+            {!mod.isVirtual && !isNexusView && mod.hash && mod.compliance_tier !== 1 && mod.compliance_tier !== 2 && (editMode && isCorrecting) && (
+              <LabVerificationGate
+                dnaHash={mod.hash}
+                modName={mod.displayName || mod.name || "Artifact"}
+                physicalPath={mod.physical_path || mod.name}
+                roleContext="scout"
+                isGateRequired={requireScoutLabTest}
+                onStatusChange={(st) => setIsModLabVerified(st.verified)}
+                onOpenInFullLab={
+                  onSendToLab
+                    ? () => {
+                        handleClose();
+                        onSendToLab();
+                      }
+                    : undefined
+                }
+              />
+            )}
 
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[120px] gap-4 relative z-20">
@@ -727,29 +815,29 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                   )}
                 </div>
 
-                <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 glass-panel backdrop-blur-xl rounded-2xl items-start text-left justify-center transition-all hover:scale-[1.02] ${mod.is_early_access
-                  ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]'
+                <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 glass-panel backdrop-blur-xl rounded-2xl items-start text-left justify-center transition-all hover:scale-[1.02] ${(editMode ? metaInputs.is_early_access : mod.is_early_access)
+                  ? '!border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.1)]'
                   : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
                   }`}>
-                  <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] mb-1 ${mod.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>
-                    {t("label_is_early_access")}
+                  <p className={`text-[9px] font-black capitalize tracking-[0.2em] mb-1 ${(editMode ? metaInputs.is_early_access : mod.is_early_access) ? 'text-[var(--accent)] opacity-90' : 'text-[var(--subtext)] opacity-50'}`}>
+                    {t("label_is_early_access", "Early Access")}
                   </p>
-                  <span className={`text-xs font-black capitalize tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--text)] opacity-90'}`}>
-                    <span className="material-symbols-outlined !text-[16px]">{mod.is_early_access ? 'science' : 'public'}</span>
-                    {mod.is_early_access ? (t("badge_early_access")) : "STANDARD"}
+                  <span className={`text-xs font-black capitalize tracking-widest truncate max-w-full flex items-center gap-2 ${(editMode ? metaInputs.is_early_access : mod.is_early_access) ? 'text-[var(--accent)]' : 'text-[var(--text)] opacity-90'}`}>
+                    <span className="material-symbols-outlined !text-[16px]">{(editMode ? metaInputs.is_early_access : mod.is_early_access) ? t("icon_science", "science") : t("icon_public", "public")}</span>
+                    {(editMode ? metaInputs.is_early_access : mod.is_early_access) ? (t("badge_early_access", "Early Access")) : t("badge_standard", "Standard")}
                   </span>
                 </div>
 
-                <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 glass-panel backdrop-blur-xl rounded-2xl items-start text-left justify-center transition-all hover:scale-[1.02] ${mod.is_paid
-                  ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)]'
+                <div className={`col-span-1 md:col-span-1 flex flex-col gap-1 p-6 glass-panel backdrop-blur-xl rounded-2xl items-start text-left justify-center transition-all hover:scale-[1.02] ${(editMode ? metaInputs.is_paid : mod.is_paid)
+                  ? '!border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] shadow-[0_0_20px_rgba(var(--warning-rgb),0.1)]'
                   : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
                   }`}>
-                  <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] mb-1 ${mod.is_paid ? 'text-[var(--warning)]' : 'text-[var(--subtext)]'}`}>
-                    {t("label_is_paid")}
+                  <p className={`text-[9px] font-black capitalize tracking-[0.2em] mb-1 ${(editMode ? metaInputs.is_paid : mod.is_paid) ? 'text-[var(--warning)] opacity-90' : 'text-[var(--subtext)] opacity-50'}`}>
+                    {t("label_is_paid", "Paid Artifact")}
                   </p>
-                  <span className={`text-xs font-black capitalize tracking-widest truncate max-w-full flex items-center gap-2 ${mod.is_paid ? 'text-[var(--warning)]' : 'text-[var(--text)] opacity-90'}`}>
-                    <span className="material-symbols-outlined !text-[16px]">{mod.is_paid ? 'monetization_on' : 'money_off'}</span>
-                    {mod.is_paid ? (t("badge_paid")) : "FREE"}
+                  <span className={`text-xs font-black capitalize tracking-widest truncate max-w-full flex items-center gap-2 ${(editMode ? metaInputs.is_paid : mod.is_paid) ? 'text-[var(--warning)]' : 'text-[var(--text)] opacity-90'}`}>
+                    <span className="material-symbols-outlined !text-[16px]">{(editMode ? metaInputs.is_paid : mod.is_paid) ? t("icon_monetization_on", "monetization_on") : t("icon_money_off", "money_off")}</span>
+                    {(editMode ? metaInputs.is_paid : mod.is_paid) ? (t("badge_paid", "Paid")) : t("badge_free", "Free")}
                   </span>
                 </div>
 
@@ -857,31 +945,39 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
             {editMode && (
               <div className="grid grid-cols-1 gap-4 mb-8 relative z-20">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className={`flex flex-row items-center justify-start gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-2xl transition-all hover:scale-[1.02] cursor-pointer ${metaInputs.is_paid ? 'border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                    <div className="flex flex-col items-start gap-1">
-                      <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] ${metaInputs.is_paid ? 'text-[var(--warning)]' : 'text-[var(--subtext)]'}`}>{t("label_is_paid")}</p>
-                      <span className={`text-xs font-black capitalize tracking-widest truncate flex items-center gap-2 ${metaInputs.is_paid ? 'text-[var(--warning)]' : 'text-[var(--text)] opacity-90'}`}>
-                        <span className="material-symbols-outlined !text-[16px]">{metaInputs.is_paid ? 'monetization_on' : 'money_off'}</span>
-                        {metaInputs.is_paid ? (t("badge_paid")) : "FREE"}
-                      </span>
+                  <label className={`group flex flex-row items-center justify-between gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-2xl transition-all hover:scale-[1.01] cursor-pointer ${metaInputs.is_paid ? '!border-[color-mix(in_srgb,var(--warning)_40%,transparent)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] shadow-[0_0_25px_rgba(var(--warning-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-all ${metaInputs.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[var(--warning)] shadow-[inset_0_0_12px_rgba(var(--warning-rgb),0.15)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                        <span className="material-symbols-outlined !text-[18px]">{metaInputs.is_paid ? t("icon_monetization_on", "monetization_on") : t("icon_money_off", "money_off")}</span>
+                      </div>
+                      <div className="flex flex-col items-start gap-0.5 min-w-0">
+                        <p className={`text-[9px] font-black capitalize tracking-[0.2em] transition-colors ${metaInputs.is_paid ? 'text-[var(--warning)] opacity-90' : 'text-[var(--subtext)] opacity-60'}`}>{t("label_is_paid", "Paid Artifact")}</p>
+                        <span className={`text-xs font-black capitalize tracking-widest truncate ${metaInputs.is_paid ? 'text-[var(--warning)]' : 'text-[var(--text)] opacity-90'}`}>
+                          {metaInputs.is_paid ? (t("badge_paid", "Paid")) : t("badge_free", "Free")}
+                        </span>
+                      </div>
                     </div>
-                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_paid ? 'bg-[var(--warning)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                      <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${metaInputs.is_paid ? 'translate-x-5' : 'translate-x-1'}`}>
+                    <div className={`w-11 h-6 rounded-full transition-all relative shrink-0 border backdrop-blur-md ${metaInputs.is_paid ? 'bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border-[color-mix(in_srgb,var(--warning)_50%,transparent)] shadow-[inset_0_0_10px_rgba(var(--warning-rgb),0.2)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-inner'}`}>
+                      <div className={`w-4 h-4 rounded-full absolute top-[3px] transition-all duration-300 ${metaInputs.is_paid ? 'translate-x-[22px] bg-[var(--warning)] shadow-[0_0_8px_var(--warning)]' : 'translate-x-[3px] bg-[color-mix(in_srgb,var(--text)_40%,transparent)]'}`}>
                       </div>
                     </div>
                     <input type="checkbox" checked={metaInputs.is_paid || false} onChange={e => setMetaInputs.is_paid(e.target.checked)} className="hidden" />
                   </label>
 
-                  <label className={`flex flex-row items-center justify-start gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-2xl transition-all hover:scale-[1.02] cursor-pointer ${metaInputs.is_early_access ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                    <div className="flex flex-col items-start gap-1">
-                      <p className={`text-[9px] font-black opacity-80 capitalize tracking-[0.2em] ${metaInputs.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>{t("label_is_early_access")}</p>
-                      <span className={`text-xs font-black capitalize tracking-widest truncate flex items-center gap-2 ${metaInputs.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--text)] opacity-90'}`}>
-                        <span className="material-symbols-outlined !text-[16px]">{metaInputs.is_early_access ? 'science' : 'public'}</span>
-                        {metaInputs.is_early_access ? (t("badge_early_access")) : "STANDARD"}
-                      </span>
+                  <label className={`group flex flex-row items-center justify-between gap-4 p-5 py-4 glass-panel backdrop-blur-xl rounded-2xl transition-all hover:scale-[1.01] cursor-pointer ${metaInputs.is_early_access ? '!border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] shadow-[0_0_25px_rgba(var(--accent-rgb),0.1)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-all ${metaInputs.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] shadow-[inset_0_0_12px_rgba(var(--accent-rgb),0.15)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
+                        <span className="material-symbols-outlined !text-[18px]">{metaInputs.is_early_access ? t("icon_science", "science") : t("icon_public", "public")}</span>
+                      </div>
+                      <div className="flex flex-col items-start gap-0.5 min-w-0">
+                        <p className={`text-[9px] font-black capitalize tracking-[0.2em] transition-colors ${metaInputs.is_early_access ? 'text-[var(--accent)] opacity-90' : 'text-[var(--subtext)] opacity-60'}`}>{t("label_is_early_access", "Early Access")}</p>
+                        <span className={`text-xs font-black capitalize tracking-widest truncate ${metaInputs.is_early_access ? 'text-[var(--accent)]' : 'text-[var(--text)] opacity-90'}`}>
+                          {metaInputs.is_early_access ? (t("badge_early_access", "Early Access")) : t("badge_standard", "Standard")}
+                        </span>
+                      </div>
                     </div>
-                    <div className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${metaInputs.is_early_access ? 'bg-[var(--accent)]' : 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                      <div className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${metaInputs.is_early_access ? 'translate-x-5' : 'translate-x-1'}`}>
+                    <div className={`w-11 h-6 rounded-full transition-all relative shrink-0 border backdrop-blur-md ${metaInputs.is_early_access ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.2)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-inner'}`}>
+                      <div className={`w-4 h-4 rounded-full absolute top-[3px] transition-all duration-300 ${metaInputs.is_early_access ? 'translate-x-[22px] bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]' : 'translate-x-[3px] bg-[color-mix(in_srgb,var(--text)_40%,transparent)]'}`}>
                       </div>
                     </div>
                     <input type="checkbox" checked={metaInputs.is_early_access || false} onChange={e => setMetaInputs.is_early_access(e.target.checked)} className="hidden" />

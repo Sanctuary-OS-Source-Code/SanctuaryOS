@@ -22,10 +22,16 @@ import { MasonStatusDropdown } from "./MasonHub";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import MarkdownRenderer from "./MarkdownRenderer";
 import { StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
+import {
+  LabVerificationGate,
+  checkDnaHashVerification,
+} from "./components/LabVerificationGate";
 
 
 export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: any }) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
+  const requireMasonLabTest = activeGameSchema?.lab_verification?.require_for_mason_publish !== false;
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTab, setFilterTab] = useState<'overview' | 'pending' | 'completed'>('overview');
@@ -33,6 +39,9 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
   const [masonsList, setMasonsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeMod, setActiveMod] = useState<any | null>(null);
+  const [activeDnaHash, setActiveDnaHash] = useState<string>("");
+  const [isActiveVerified, setIsActiveVerified] = useState<boolean>(false);
+  const [isActiveFailed, setIsActiveFailed] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [editForm, setEditForm] = useState({
@@ -62,8 +71,10 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
 
   useEffect(() => { setVisibleCount(100); }, [searchTerm, filterTab]);
 
-  const handleSelect = (mod: any) => {
+  const handleSelect = async (mod: any) => {
     setActiveMod(mod);
+    setIsActiveVerified(false);
+    setIsActiveFailed(false);
     setEditForm({
       name: mod.name || '',
       mason_id: mod.mason_id || '',
@@ -77,10 +88,45 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
       compliance_tier: mod.compliance_tier || 0,
       compatible_versions: mod.compatible_versions || []
     });
+
+    let resolvedHash = mod.dna_hash || mod.hash || "";
+    if (!resolvedHash && mod.id) {
+      const { data: vRows } = await supabase
+        .from("mod_versions")
+        .select("dna_hash")
+        .eq("mod_id", mod.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (vRows && vRows[0]?.dna_hash) {
+        resolvedHash = vRows[0].dna_hash;
+      }
+    }
+    if (!resolvedHash && modList?.length) {
+      const localMatch = modList.find(
+        (m: any) => m.dbId === mod.id || m.name === mod.name || m.displayName === mod.name
+      );
+      if (localMatch?.hash) resolvedHash = localMatch.hash;
+    }
+    setActiveDnaHash(resolvedHash);
+    if (resolvedHash) {
+      const verRes = await checkDnaHashVerification(resolvedHash);
+      setIsActiveVerified(verRes.verified);
+      setIsActiveFailed(verRes.failed);
+    }
   };
 
   const handleApprove = async () => {
     if (!activeMod) return;
+    if (requireMasonLabTest && (!isActiveVerified || isActiveFailed)) {
+      if (setStatus) {
+        setStatus(
+          isActiveFailed
+            ? t("lab_gate_failed_reject_only_msg", "Fatal error detected or no clean test produced. Only Rejection is permitted for this submission.")
+            : t("lab_gate_locked_architect_msg", "Approval Locked: No clean timed Lab test exists for this SHA-256 hash.")
+        );
+      }
+      return;
+    }
     setIsProcessing(true);
 
     const { error } = await supabase.from('mods').update({
@@ -248,11 +294,19 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
               disabled={isProcessing}
             />
             <PanelHeaderButton
-              icon="check"
+              icon={requireMasonLabTest && (!isActiveVerified || isActiveFailed) ? "lock" : "check"}
               variant="success"
-              tooltip={isProcessing ? (t("btn_saving") || "Saving...") : (t("ui_btn_approve") || "Approve")}
+              tooltip={
+                requireMasonLabTest && (!isActiveVerified || isActiveFailed)
+                  ? (isActiveFailed
+                      ? t("lab_gate_failed_reject_only_msg", "Fatal error detected — Reject Only")
+                      : t("lab_gate_locked_architect_msg", "Approval Locked: Timed Lab test required"))
+                  : isProcessing
+                  ? (t("btn_saving") || "Saving...")
+                  : (t("ui_btn_approve") || "Approve")
+              }
               onClick={handleApprove}
-              disabled={isProcessing}
+              disabled={isProcessing || (requireMasonLabTest && (!isActiveVerified || isActiveFailed))}
             />
           </PanelHeaderGroup>
         }
@@ -264,6 +318,26 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
               onChange={val => setEditForm({ ...editForm, name: val })}
               placeholder={t("label_modname") || "Artifact Name"}
               subtitle={t("label_modname") || "Artifact Name"}
+            />
+
+            <LabVerificationGate
+              dnaHash={activeDnaHash || activeMod?.id}
+              modName={editForm.name || activeMod?.name || "Submission"}
+              physicalPath={
+                (modList || []).find(
+                  (m: any) =>
+                    (activeDnaHash && m.hash === activeDnaHash) ||
+                    m.dbId === activeMod?.id ||
+                    m.name === activeMod?.name ||
+                    m.displayName === activeMod?.name
+                )?.name || activeMod?.name
+              }
+              roleContext="architect"
+              isGateRequired={requireMasonLabTest}
+              onStatusChange={(st) => {
+                setIsActiveVerified(st.verified);
+                setIsActiveFailed(st.failed);
+              }}
             />
 
             <UniversalGroup title={t("btn_view") || "Classification"} icon={t("icon_info") || "info"}>

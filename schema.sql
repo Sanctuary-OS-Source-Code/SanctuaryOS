@@ -59,6 +59,7 @@ DROP TABLE IF EXISTS collections CASCADE;
 DROP TABLE IF EXISTS collection_members CASCADE;
 DROP TABLE IF EXISTS blueprints CASCADE;
 DROP TABLE IF EXISTS blueprint_reports CASCADE;
+DROP TABLE IF EXISTS citizen_staging_queue CASCADE;
 DROP TABLE IF EXISTS audit_logs CASCADE;
 
 -- ============================================================================
@@ -83,9 +84,13 @@ CREATE TABLE masons (
     bio TEXT,
     avatar_url TEXT,
     patreon_url TEXT,
+    donation_url TEXT,
+    payment_processor TEXT DEFAULT 'patreon',
+    patreon_campaign_id TEXT,
     website_url TEXT,
     discord_url TEXT,
     is_verified BOOLEAN DEFAULT false,
+    followers_count INTEGER DEFAULT 0,
     pinned_mod_id UUID,
     pinned_asset_id UUID,
     pinned_blueprint_id INTEGER,
@@ -748,6 +753,40 @@ CREATE TABLE IF NOT EXISTS hardware_bans (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Ephemeral Encrypted Staging Queue for PWA-to-Desktop Signature Queuing
+-- Stores only AES-256-GCM encrypted payloads keyed by a blinded SHA-256 user_token.
+-- Rows are immediately shredded (DELETE) upon desktop signature approval or rejection.
+CREATE TABLE IF NOT EXISTS citizen_staging_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_token TEXT NOT NULL,
+    payload_type TEXT NOT NULL DEFAULT 'mod_queue',
+    encrypted_payload TEXT NOT NULL,
+    iv TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    item_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours')
+);
+
+CREATE INDEX IF NOT EXISTS idx_citizen_staging_queue_user_token ON citizen_staging_queue(user_token);
+CREATE INDEX IF NOT EXISTS idx_citizen_staging_queue_expires_at ON citizen_staging_queue(expires_at);
+
+CREATE OR REPLACE FUNCTION public.cleanup_expired_staging_queue()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+    DELETE FROM public.citizen_staging_queue WHERE expires_at < NOW();
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_cleanup_expired_staging_queue ON citizen_staging_queue;
+CREATE TRIGGER trg_cleanup_expired_staging_queue
+AFTER INSERT ON citizen_staging_queue
+FOR EACH STATEMENT EXECUTE FUNCTION public.cleanup_expired_staging_queue();
+
 -- Automatic Standalone Fork Auth Trigger:
 -- In Hub-and-Spoke mode, users sign up on the Hub DB, so this trigger remains dormant on the Spoke.
 -- In Standalone Fork mode, users sign up directly on this database: the very first registered user is
@@ -815,6 +854,7 @@ BEGIN
         'audit_logs',
         'blueprint_reports',
         'blueprints',
+        'citizen_staging_queue',
         'collection_members',
         'collections',
         'community_group_members',

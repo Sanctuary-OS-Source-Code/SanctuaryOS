@@ -9,6 +9,8 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import ArtifactResolutionSidePanel from "./side-panels/ArtifactResolutionSidePanel";
 import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from "./components/universal/UniversalLayout";
+import { getSupporterState, findLocalMasonSupporterPass, LocalMasonSupporter } from "./utils/supporterManager";
+import { scrubLogUserData } from "./utils/logScrubber";
 
 export default function SupportHub() {
   const activeGameSchema = useStore(state => state.activeGameSchema);
@@ -48,7 +50,25 @@ export default function SupportHub() {
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState("");
   const [resolutionType, setResolutionType] = useState<'vault' | 'blueprint' | null>(null);
+  const [localSupporters, setLocalSupporters] = useState<LocalMasonSupporter[]>([]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    getSupporterState().then(state => {
+      setLocalSupporters(state.supporters || []);
+    }).catch(() => {});
+  }, [isOpen]);
+
+  const matchedSupporterPass = React.useMemo(() => {
+    if (!targetModId || localSupporters.length === 0) return null;
+    const targetMod = modList.find((m: any) => m.id === targetModId || m.hash === targetModId);
+    if (!targetMod) return null;
+    return findLocalMasonSupporterPass(
+      localSupporters,
+      targetMod.mason_id,
+      targetMod.author || targetMod.master_author
+    );
+  }, [targetModId, localSupporters, modList]);
 
   // Update maxReachedIndex when activeCardIndex changes
   useEffect(() => {
@@ -97,7 +117,7 @@ export default function SupportHub() {
       setDescription(draftData.description || "");
       setTargetModId(draftData.targetModId || "");
       setTargetUserId(draftData.targetUserId || "");
-      setLogs(draftData.logs || "");
+      setLogs(scrubLogUserData(draftData.logs || ""));
       setCustomFieldsData(draftData.customFieldsData || {});
       setOptedOutSources(draftData.optedOutSources || []);
     }
@@ -139,7 +159,8 @@ export default function SupportHub() {
       });
       if (selected && !Array.isArray(selected)) {
         const text = await readTextFile(selected);
-        setLogs(prev => prev ? prev + '\n\n' + text : text);
+        const scrubbedText = scrubLogUserData(text);
+        setLogs(prev => prev ? prev + '\n\n' + scrubbedText : scrubbedText);
       }
     } catch (e) {
       console.error(e);
@@ -357,8 +378,8 @@ export default function SupportHub() {
               const netUpdates = storeState.networkUpdates;
               const totalUpdates = (netUpdates?.broken?.length || 0) + (netUpdates?.obsolete?.length || 0) + (netUpdates?.updated?.length || 0);
 
-              const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nUser Agent: ${navigator.userAgent}\nMods Path: ${storeState.modsPath}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`;
-              finalLogs += `\n--- TELEMETRY: ${source.label} (OS) ---\n` + sysInfo + diagnostics + "\n";
+              const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nUser Agent: ${navigator.userAgent}\nMods Path: ${scrubLogUserData(storeState.modsPath)}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`;
+              finalLogs += `\n--- TELEMETRY: ${source.label} (OS) ---\n` + scrubLogUserData(sysInfo) + diagnostics + "\n";
 
               if (activeSet) {
                 const bpPayload = JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2);
@@ -366,14 +387,13 @@ export default function SupportHub() {
               }
 
               const systemLogHistory = storeState.statusLog.map(entry => {
-                return `[${new Date(entry.timestamp).toISOString()}] [${entry.type.toUpperCase()}] ${entry.message}`;
+                return `[${new Date(entry.timestamp).toISOString()}] [${entry.type.toUpperCase()}] ${scrubLogUserData(entry.message)}`;
               }).join('\n');
               finalLogs += `\n--- TELEMETRY: System Log History ---\n${systemLogHistory || "No system logs available."}\n`;
             } else {
               const docDirMatch = modsPath.match(/(.*)[\\/]+mods[\\/]*$/i);
               const docDir = docDirMatch ? docDirMatch[1] : modsPath;
               let searchPath = source.search_path.replace('%MODS_DIR%', modsPath).replace('%DOC_DIR%', docDir);
-              const isPatternIncludedInPath = source.file_pattern.includes('/');
               let fullPath = searchPath;
               if (!fullPath.endsWith('\\') && !fullPath.endsWith('/')) fullPath += '/';
               fullPath += source.file_pattern;
@@ -399,7 +419,8 @@ export default function SupportHub() {
                     throw new Error(errStr);
                   }
                 }
-                finalLogs += `\n--- TELEMETRY: ${source.label} ---\n` + text.substring(0, 10000) + "\n";
+                const scrubbedTelemetry = scrubLogUserData(text.substring(0, 20000));
+                finalLogs += `\n--- TELEMETRY: ${source.label} ---\n` + scrubbedTelemetry + "\n";
               }
             }
           } catch (e) {
@@ -422,17 +443,24 @@ export default function SupportHub() {
         finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
       }
 
+      const scrubbedFinalLogs = finalLogs ? scrubLogUserData(finalLogs) : null;
+
       const { error } = await supabase.from('sanctuary_tickets').insert([{
         author_id: user.id,
         ticket_type: activeTab,
         title: title || (activeCategory?.category_name || "Support Ticket"),
-        description: description || "No description provided.",
+        description: scrubLogUserData(description || "No description provided."),
         status: "open",
         metadata: {
           target_mod_id: activeCategory?.requires_target_mod ? (targetModId || null) : null,
           target_user_id: activeCategory?.requires_target_user ? (targetUserId || null) : null,
-          logs: finalLogs || null,
+          logs: scrubbedFinalLogs,
           custom_fields: customFieldsData,
+          ...(matchedSupporterPass ? {
+            expedited_support: true,
+            supporter_tier: matchedSupporterPass.tier_name,
+            supporter_pass_hash: matchedSupporterPass.cryptographic_pass
+          } : {}),
           ...(hasViolations && activeCategory?.requires_target_mod ? { restricted_violations: [...new Set(violations)] } : {})
         }
       }]);
@@ -520,30 +548,30 @@ export default function SupportHub() {
           <div className="flex flex-col w-full mx-auto gap-6 pb-20 mt-4 max-w-4xl px-4">
 
             {error && (
-              <div className="glass-panel border-l-4 border-l-[var(--danger)] border-y border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl flex flex-col relative shadow-md group">
+              <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col relative shadow-md group">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
                   <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]">
-                    <span className="material-symbols-outlined !text-[20px]">{t("icon_warning")}</span>
+                    <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                   </div>
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                    <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_err_failed")}</span>
+                    <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_err_failed", "Submission Failed")}</span>
                     <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">{error}</span>
                   </div>
                   <button
                     onClick={() => { setError(""); setPolicyViolations([]); }}
                     className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all shrink-0"
                   >
-                    <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
+                    <span className="material-symbols-outlined !text-[18px]">{t("icon_close", "close")}</span>
                   </button>
                 </div>
                 {policyViolations.length > 0 && (
                   <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                    <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34")}</span>
+                    <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted Artifacts Detected")}</span>
                     <div className="flex flex-wrap gap-2">
                       {policyViolations.map((mod, i) => (
                         <div key={i} className="flex items-center gap-2 text-[color-mix(in_srgb,var(--danger)_90%,transparent)] text-[10px] font-mono bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
-                          <span className="material-symbols-outlined !text-[12px] opacity-70">{t("auto_extension")}</span>
+                          <span className="material-symbols-outlined !text-[12px] opacity-70">{t("auto_extension", "extension")}</span>
                           <span className="truncate">{mod.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || mod.replace(/[-_]/g, ' ')}</span>
                         </div>
                       ))}
@@ -554,19 +582,19 @@ export default function SupportHub() {
             )}
 
             {vaultExtremeMods.length > 0 && (
-              <div className="glass-panel border-l-4 border-l-[var(--danger)] border-y border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl flex flex-col relative shadow-md group shrink-0 mb-6">
+              <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl flex flex-col relative shadow-md group shrink-0 mb-6">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
                   <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]">
-                    <span className="material-symbols-outlined !text-[20px]">{t("icon_block")}</span>
+                    <span className="material-symbols-outlined !text-[20px]">{t("icon_block", "block")}</span>
                   </div>
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                    <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title") || "Vault Lock Engaged"}</span>
+                    <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title", "Vault Lock Engaged")}</span>
                     <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">
-                      {t("support_vault_lock_desc") || `Your vault contains ${totalExtremeMods} severe artifact(s) (Tier 3-5). Support submissions are disabled until purged.`}
+                      {t("support_vault_lock_desc", `Your vault contains ${totalExtremeMods} severe artifact(s) (Tier 3-5). Support submissions are disabled until purged.`)}
                     </span>
                     <button onClick={() => setResolutionType('vault')} className="mt-3 self-start px-4 py-2 rounded-xl bg-transparent text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-2">
-                      <span className="material-symbols-outlined !text-[16px]">delete</span> {t("resolve_issues") || "Resolve"}
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_delete", "delete")}</span> {t("resolve_issues", "Resolve")}
                     </button>
                   </div>
                 </div>
@@ -574,19 +602,19 @@ export default function SupportHub() {
             )}
 
             {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
-              <div className="glass-panel border-l-4 border-l-[var(--warning)] border-y border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl flex flex-col relative shadow-md group shrink-0 mb-6">
+              <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl flex flex-col relative shadow-md group shrink-0 mb-6">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
                   <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)]">
-                    <span className="material-symbols-outlined !text-[20px]">{t("icon_warning")}</span>
+                    <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                   </div>
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                    <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title")}</span>
+                    <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title", "Blueprint Lock: Explicit Artifacts Detected")}</span>
                     <span className="text-xs font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] leading-relaxed pr-4">
-                      {t("support_adult_mods_desc") || `Your active blueprint contains ${activeAdultMods.length} adult/NSFW mod(s). If your ticket is related to one of these, please ensure you tag it appropriately or contact the author directly.`}
+                      {t("support_adult_mods_desc", `Your active blueprint contains ${activeAdultMods.length} adult/NSFW mod(s). If your ticket is related to one of these, please ensure you tag it appropriately or contact the author directly.`)}
                     </span>
                     <button onClick={() => setResolutionType('blueprint')} className="mt-3 self-start px-4 py-2 rounded-xl bg-transparent text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[var(--warning)] text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-2">
-                      <span className="material-symbols-outlined !text-[16px]">engineering</span> {t("resolve_issues") || "Resolve Anomalies"}
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_engineering", "engineering")}</span> {t("resolve_issues", "Resolve Anomalies")}
                     </button>
                   </div>
                 </div>
@@ -664,7 +692,7 @@ export default function SupportHub() {
                         )}
 
                         {card.type === 'TARGET_MOD' && (
-                          <div className="relative z-[60]">
+                          <div className="flex flex-col gap-4 relative z-[60]">
                             <ModSearchDropdown
                               modList={modList}
                               placeholder={t("support_placeholder_mod_uuid") || "Select Mod..."}
@@ -672,6 +700,21 @@ export default function SupportHub() {
                               onSelect={(m: any) => setTargetModId(m.id || m.hash)}
                               onClear={() => setTargetModId("")}
                             />
+                            {matchedSupporterPass && (
+                              <div className="glass-surface rounded-2xl p-4 border border-emerald-500/35 bg-emerald-500/10 flex items-start gap-3.5 animate-in fade-in duration-300">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                                  <span className="material-symbols-outlined !text-[20px]">{t("icon_bolt", "bolt")}</span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-xs font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                                    {t("supporter_ticket_expedited_banner", "Verified Creator Supporter — Expedited Support Routing Active")}
+                                  </span>
+                                  <p className="text-[11px] font-semibold text-[var(--subtext)] leading-relaxed">
+                                    {t("supporter_ticket_expedited_desc", "Your local SQLite Supporter Pass was verified for this creator. This ticket will be flagged for Priority Queue routing without exposing your global subscription list.")}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 

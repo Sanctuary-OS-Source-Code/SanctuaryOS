@@ -1,7 +1,7 @@
-import React from 'react';
+import React from "react";
 import { useLexicon } from "../LexiconContext";
+import { ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useStore } from "../store";
-import { ActionButton } from "../shared";
 
 export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot }: any) {
   const { t } = useLexicon();
@@ -10,30 +10,82 @@ export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, s
   if (!snapshotModal) return null;
 
   return (
-    <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-2xl p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
-        <div>
-          <h2 className="text-2xl font-black capitalize theme-text-accent tracking-tighter mb-1">{t("snapshot_title")}</h2>
-          <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-            {t("snapshot_desc1")} <span className="text-[var(--text)]">{playSets[activePlaySetIndex]?.mods?.length || 0}</span> {t("snapshot_desc2")}
-          </p>
-        </div>
-        <div className="flex flex-col gap-4">
-          <input 
-            autoFocus 
-            type="text" 
-            value={snapshotName} 
-            onChange={(e) => setSnapshotName(e.target.value)} 
-            onKeyDown={(e) => e.key === "Enter" && executeSnapshot()} 
-            placeholder={t("snapshot_placeholder")}
-            className="w-full glass-surface px-5 py-4 rounded-xl text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all" 
-          />
-          <div className="flex gap-3 mt-2">
-            <button onClick={() => setSnapshotModal(false)} className="flex-1 py-3 theme-btn-standard font-black text-[10px] capitalize tracking-widest rounded-xl transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-              {t("nav_cancel")}
-            </button>
-            <ActionButton onClick={executeSnapshot} className="flex-1 py-3 shrink-0 h-12" label={t("auto_save")} />
+    <div
+      className="fixed inset-0 z-[15000] flex items-center justify-center bg-black/35 backdrop-blur-md animate-in fade-in duration-300 p-6"
+      onClick={() => setSnapshotModal(false)}
+    >
+      <div
+        className="relative w-full max-w-xl rounded-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_30px_80px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col backdrop-blur-[var(--glassBlur)] animate-in zoom-in-95 duration-300"
+        style={{
+          background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal, 0.85) * 100%), transparent)`,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="absolute -top-24 -left-24 w-72 h-72 rounded-full opacity-15 blur-[90px] pointer-events-none z-0"
+          style={{ backgroundColor: "var(--accent)" }}
+        />
+
+        {/* SidePanel-style Header */}
+        <div className="pt-6 px-6 pb-5 md:pt-7 md:px-8 shrink-0 relative z-20 border-b border-[color-mix(in_srgb,var(--text)_6%,transparent)] flex items-center justify-between gap-4 w-full">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl glass-panel before:!hidden border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center justify-center shadow-lg shrink-0 relative">
+              <span className="material-symbols-outlined !text-[24px] md:!text-[26px] drop-shadow-[0_0_12px_currentColor]">
+                {t("icon_archive", "archive")}
+              </span>
+            </div>
+            <div className="flex flex-col min-w-0 justify-center">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)]">
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]" />
+                  {t("snapshot_desc1")} {playSets[activePlaySetIndex]?.mods?.length || 0} {t("snapshot_desc2")}
+                </span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-black text-[var(--text)] tracking-tight truncate drop-shadow-md m-0">
+                {t("snapshot_title")}
+              </h2>
+            </div>
           </div>
+
+          <div className="flex items-center z-50 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1 gap-1 shrink-0">
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t("icon_close", "close")}
+                tooltip={t("nav_cancel")}
+                variant="danger"
+                onClick={() => setSnapshotModal(false)}
+              />
+            </PanelHeaderGroup>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 md:p-8 flex flex-col gap-4 relative z-10">
+          <input
+            autoFocus
+            type="text"
+            value={snapshotName}
+            onChange={(e) => setSnapshotName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && executeSnapshot()}
+            placeholder={t("snapshot_placeholder")}
+            className="w-full glass-surface before:!hidden px-5 py-4 rounded-2xl text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all"
+          />
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-5 md:px-8 md:pb-7 flex items-center justify-end gap-3 shrink-0 relative z-20 border-t border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
+          <ActionButton
+            variant="glass"
+            icon={t("icon_close", "close")}
+            label={t("nav_cancel")}
+            onClick={() => setSnapshotModal(false)}
+          />
+          <ActionButton
+            variant="accent"
+            icon={t("icon_save", "save")}
+            label={t("auto_save")}
+            onClick={executeSnapshot}
+          />
         </div>
       </div>
     </div>

@@ -8,7 +8,7 @@ import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
-import { notifyOS } from "./utils/notificationHelper";
+import { dispatchSanctuaryNotification } from "./utils/notificationHelper";
 
 import CommandAlertsPanel from "./side-panels/CommandAlertsPanel";
 import CommandRadarSweepPanel from "./side-panels/CommandRadarSweepPanel";
@@ -17,6 +17,7 @@ import { UpdatesSidePanel } from './side-panels/CommandCenterSidePanels';
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { CommandScreenStats, CommandScreenSectionHeading, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 import { SanctuaryAlertsSidePanel } from "./side-panels/SanctuaryAlertsSidePanel";
+import { CommunitySupportSidePanel } from "./side-panels/CommunitySupportSidePanel";
 import { VaultFilters } from "./hub-components/vault/VaultFilters";
 export default function CommandCenter({
   isScanning, modsPath, isConfigured, toggleInActiveSet,
@@ -41,6 +42,7 @@ export default function CommandCenter({
   const [hasSymlinkPerms, setHasSymlinkPerms] = useState<boolean | null>(null);
 
   const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
+  const [isSupportPanelOpen, setIsSupportPanelOpen] = useState(false);
   const isAlertsOpen = useStore((state) => state.isAlertsOpen);
   const setIsAlertsOpen = useStore((state) => state.setIsAlertsOpen);
   const [alertsPanelMode, setAlertsPanelMode] = useState<"critical" | "alert" | null>(null);
@@ -78,10 +80,13 @@ export default function CommandCenter({
           setUrgentBroadcast((prev: any) => {
             if (!prev || prev.id !== data[0].id) {
               if (localStorage.getItem("sanctuary_dismissed_alert_id") !== String(data[0].id)) {
-                if (!sessionStorage.getItem("sanctuary_notified_urgent_" + data[0].id)) {
-                  sessionStorage.setItem("sanctuary_notified_urgent_" + data[0].id, "true");
-                  notifyOS(data[0].title || 'SYSTEM BROADCAST', data[0].message || data[0].content || 'Urgent message from Wayfinders', 'URGENT_BROADCAST');
-                }
+                dispatchSanctuaryNotification({
+                  uniqueId: `urgent_broadcast:${data[0].id}`,
+                  category: 'alert_banner',
+                  title: data[0].title || t('notify_alert_banner', 'Urgent Global Alert'),
+                  body: data[0].message || data[0].content || '',
+                  data: { broadcastId: data[0].id, type: 'urgent_broadcast' },
+                });
               }
             }
             return data[0];
@@ -634,9 +639,9 @@ export default function CommandCenter({
 
             {!urgentBroadcast && (
               <CommandScreenQuickLink
-                icon="warning_off"
-                title={t("title_sanctuary_alerts") || "Sanctuary Alerts"}
-                subtitle={t("alert_empty") || "SYSTEM BROADCASTS"}
+                icon={t("icon_warning_off", "warning_off")}
+                title={t("title_sanctuary_alerts", "Sanctuary Alerts")}
+                subtitle={t("alert_empty", "SYSTEM BROADCASTS")}
                 onClick={() => setIsAlertsOpen(true)}
                 textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]"
                 hoverTextColorClass="group-hover:text-amber-400"
@@ -645,9 +650,37 @@ export default function CommandCenter({
               />
             )}
 
+            <CommandScreenQuickLink
+              icon={t("icon_volunteer_activism", "volunteer_activism")}
+              title={t("cmd_quick_support_title", "Support & Perks (0% Fee)")}
+              subtitle={t("cmd_quick_support_desc", "Support this community & unlock Global Daily Dev Builds")}
+              onClick={() => setIsSupportPanelOpen(true)}
+              textColorClass="text-[color-mix(in_srgb,var(--success)_85%,transparent)]"
+              hoverTextColorClass="group-hover:text-emerald-400"
+              iconShadowClass="drop-shadow-md"
+              iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
+            />
+
           </div>
         </div>
       </div>
+
+      <CommunitySupportSidePanel
+        isOpen={isSupportPanelOpen}
+        onClose={() => setIsSupportPanelOpen(false)}
+        onNavigateSettings={() => {
+          setIsSupportPanelOpen(false);
+          localStorage.setItem("sanctuary_settings_tab", "SUPPORTER");
+          if (setView) setView("settings");
+          setTimeout(() => {
+            window.dispatchEvent(
+              new CustomEvent("navigateSettings", {
+                detail: { tab: "SUPPORTER" },
+              }),
+            );
+          }, 50);
+        }}
+      />
 
       <AuditLogViewer
         isSidePanel={true}

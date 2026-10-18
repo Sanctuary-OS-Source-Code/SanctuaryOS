@@ -82,7 +82,7 @@ export function AlertStatTile({ number, onClick, active, className = "" }: any) 
 
 export function CommandScreenLayout({ children }: any) {
     return (
-        <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-4 pb-32">
+        <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-0 md:pr-4 pb-36 md:pb-32">
             {children}
         </div>
     );
@@ -111,7 +111,7 @@ export function CommandScreenSectionHeading({
           <div className="flex items-center gap-2 w-full">
             <h2 
                 onClick={onBack}
-                className={`text-2xl font-black text-[var(--text)] capitalize tracking-widest drop-shadow-lg m-0 truncate min-w-0 ${onBack ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
+                className={`text-lg sm:text-2xl font-black text-[var(--text)] capitalize tracking-wider sm:tracking-widest drop-shadow-lg m-0 truncate min-w-0 ${onBack ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
             >
               {title}
             </h2>
@@ -175,16 +175,16 @@ export function CommandScreenSidebar({ title, icon, shape = "square", children }
     const { t } = useLexicon();
     const shapeClass = shape === "square" ? "rounded-xl" : "rounded-2xl";
     return (
-        <div className="w-[380px] shrink-0 flex flex-col">
-            <div className="flex items-center gap-4 mb-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6 relative z-10 w-full">
+        <div className="w-full lg:w-[380px] shrink-0 flex flex-col">
+            <div className="flex items-center gap-3.5 mb-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-5 relative z-10 w-full">
                 <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
                 {icon && (
-          <div className={`w-12 h-12 ${shapeClass} flex items-center justify-center shrink-0 border glass-panel relative group shadow-md`}>
+                    <div className={`w-11 h-11 sm:w-12 sm:h-12 ${shapeClass} flex items-center justify-center shrink-0 border glass-panel relative group shadow-md`}>
                         <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <span className="material-symbols-outlined !text-[24px] relative z-10 theme-text-accent">{icon}</span>
+                        <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] relative z-10 theme-text-accent">{icon}</span>
                     </div>
                 )}
-                <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] m-0 p-0 text-left truncate flex-1 min-w-0">
+                <h2 className="text-base sm:text-xl font-black capitalize tracking-wider sm:tracking-widest text-[var(--text)] m-0 p-0 text-left leading-snug flex-1 min-w-0">
                     {title}
                 </h2>
             </div>

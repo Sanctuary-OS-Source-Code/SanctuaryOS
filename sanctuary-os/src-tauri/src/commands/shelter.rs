@@ -94,6 +94,7 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
     let game_schema = state.active_schema.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
+        cleanup_routed_links(&config.vault_path);
         let mods_dir = PathBuf::from(&config.mods_path);
         let vault_mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
         if !mods_dir.exists() {
@@ -127,6 +128,16 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
         let mut moved = 0;
         let mut exorcised = 0;
 
+        // Clean up any spurious Resource/Resource.cfg folder in mods or vault
+        let spurious_mods_res = mods_dir.join("Resource");
+        if spurious_mods_res.is_dir() {
+            let _ = fs::remove_dir_all(&spurious_mods_res);
+        }
+        let spurious_vault_res = vault_mods_lane.join("Resource");
+        if spurious_vault_res.is_dir() {
+            let _ = fs::remove_dir_all(&spurious_vault_res);
+        }
+
         items.sort_by_key(|p| p.to_string_lossy().len());
         items.reverse();
 
@@ -134,20 +145,25 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
             let manifest_name = game_schema
                 .as_ref()
                 .map(|s| s.paths.manifest_file.clone())
-                .unwrap_or_default();
-            if path
-                .file_name()
-                .map_or(false, |n| n == manifest_name.as_str())
+                .filter(|m| !m.is_empty())
+                .unwrap_or_else(|| "Resource.cfg".to_string());
+
+            let is_symlink_or_junction = fs::read_link(&path).is_ok()
+                || fs::symlink_metadata(&path)
+                    .map(|m| m.file_type().is_symlink())
+                    .unwrap_or(false);
+
+            if !is_symlink_or_junction
+                && path.parent() == Some(mods_dir.as_path())
+                && path.file_name().and_then(|n| n.to_str()).map_or(false, |n| {
+                    n.eq_ignore_ascii_case(&manifest_name)
+                        || n.eq_ignore_ascii_case("Resource.cfg")
+                })
             {
                 continue;
             }
             if let Ok(rel_path) = path.strip_prefix(&mods_dir) {
                 let dest = vault_mods_lane.join(rel_path);
-
-                let is_symlink_or_junction = fs::read_link(&path).is_ok()
-                    || fs::symlink_metadata(&path)
-                        .map(|m| m.file_type().is_symlink())
-                        .unwrap_or(false);
 
                 if is_symlink_or_junction {
                     if fs::remove_file(&path).is_ok() || fs::remove_dir(&path).is_ok() {
@@ -155,6 +171,11 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
                     }
                 } else if path.is_dir() {
                     let _ = fs::remove_dir(&path);
+                } else if path.file_name().and_then(|n| n.to_str()).map_or(false, |n| {
+                    n.eq_ignore_ascii_case(&manifest_name)
+                        || n.eq_ignore_ascii_case("Resource.cfg")
+                }) {
+                    let _ = fs::remove_file(&path);
                 } else {
                     if let Some(parent) = dest.parent() {
                         let _ = fs::create_dir_all(parent);
@@ -180,6 +201,7 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
 pub async fn repopulate_from_shelter(state: tauri::State<'_, AppState>) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
     let config = get_saved_coordinates();
+    let _ = apply_save_airgap(&config.mods_path, false, &game_schema);
     let vault_mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
     let mut packages = Vec::new();
     walk_packages(&game_schema, &vault_mods_lane, &mut packages);
@@ -216,60 +238,16 @@ pub async fn move_to_lab(
     let game_schema = state.active_schema.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
-        let vault_mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
-
-        let mut vault_path = vault_mods_lane.join(&filename);
-        let folders_to_check = vec![
-            "",
-            "!Sanctuary",
-            "!Sanctuary2",
-            "!Sanctuary3",
-            "Sanctuary",
-            "Sanctuary2",
-            "Sanctuary3",
-        ];
-        let mut found = false;
-
-        for f in &folders_to_check {
-            let base_test = if f.is_empty() {
-                vault_mods_lane.join(&filename)
-            } else {
-                vault_mods_lane.join(f).join(&filename)
-            };
-
-            if base_test.exists() {
-                vault_path = base_test;
-                found = true;
-                break;
-            } else {
-                let exts = crate::game_logic::get_supported_extensions(&game_schema);
-                for ext in exts {
-                    if base_test.with_extension(&ext).exists() {
-                        vault_path = base_test.with_extension(&ext);
-                        found = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if !found {
-            return Err("Artifact not found in Vault.".into());
-        }
-
-        let mods_path = PathBuf::from(config.mods_path).join(&filename);
-
-        if let Some(parent) = mods_path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-
-        if vault_path.is_dir() {
-            deploy_air_gap(&vault_path, &mods_path).map_err(|e| e.to_string())?;
-        } else {
-            fs::copy(&vault_path, &mods_path).map_err(|e| e.to_string())?;
-        }
-
-        Ok("Injected".into())
+        let linked = deploy_single_mod_to_live_sync(
+            &filename,
+            None,
+            &[],
+            false,
+            &config.mods_path,
+            &config.vault_path,
+            &game_schema,
+        )?;
+        Ok(format!("Injected ({} files symlinked)", linked.len()))
     })
     .await
     .map_err(|e| format!("Task failed: {}", e))?

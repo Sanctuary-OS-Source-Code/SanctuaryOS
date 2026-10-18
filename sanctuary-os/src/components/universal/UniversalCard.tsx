@@ -200,10 +200,10 @@ export function UniversalCard({
         {/* Dividers (Removed for a cleaner glass look) */}
         <div className={`flex flex-col min-w-0 self-stretch grow ${contentClasses}`}>
           {/* Title & Subtitle */}
-          <div className={`flex flex-col gap-1 w-full min-w-0 ${layout === 'stat' ? 'items-center' : ''}`}>
+          <div className={`flex flex-col gap-1.5 w-full min-w-0 ${layout === 'stat' ? 'items-center' : ''}`}>
 
             {subtitle && layout === 'stat' && (
-              <div className="sanctuary-subtitle">
+              <div className="sanctuary-subtitle text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed">
                 {subtitle}
               </div>
             )}
@@ -211,8 +211,8 @@ export function UniversalCard({
             <div className={`flex min-w-0 w-full ${layout === 'stat' ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
               {/* Removed large inline icon since it now renders in the banner */}
 
-              <span className={`flex-none min-w-0 w-full capitalize break-words ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm line-clamp-2 text-balance leading-snug' : layout === 'vertical-compact' ? 'text-base line-clamp-2 text-balance leading-snug' : layout === 'stat' ? 'text-base' : 'text-lg md:text-xl line-clamp-2 text-balance leading-tight'} sanctuary-title group-hover:theme-text-accent transition-colors`}>
-                {typeof title === 'string' ? title.toLowerCase() : title}
+              <span className={`flex-none min-w-0 w-full break-words font-bold tracking-tight text-[var(--text)] ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm line-clamp-2 leading-snug' : layout === 'vertical-compact' ? 'text-[15px] line-clamp-2 leading-snug' : layout === 'stat' ? 'text-base' : 'text-[15px] md:text-base line-clamp-2 leading-snug'} sanctuary-title group-hover:theme-text-accent transition-colors`}>
+                {title}
               </span>
               {/* layout !== 'stat' && typeof title === 'string' && (
                 <HoverTooltip title={title} variant="default" noIcon={true} align="center" vAlign="top" className="!hidden group-hover/title:!flex z-[200]" />
@@ -220,7 +220,7 @@ export function UniversalCard({
             </div>
 
             {subtitle && layout !== 'stat' && (
-              <div className={`sanctuary-subtitle line-clamp-2 relative group/subtitle w-max max-w-full`}>
+              <div className="sanctuary-subtitle text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-3 relative group/subtitle w-full">
                 {subtitle}
                 {/* typeof subtitle === 'string' && (
                   <HoverTooltip title={subtitle} variant="default" noIcon={true} align="center" vAlign="top" className="!hidden group-hover/subtitle:!flex z-[200]" />
@@ -238,7 +238,7 @@ export function UniversalCard({
 
           {/* Children (Custom Body content) */}
           {children && (
-            <div className="mt-3 w-full flex flex-col">
+            <div className="mt-auto pt-3 w-full flex flex-col">
               {children}
             </div>
           )}

@@ -261,14 +261,14 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           await runInBatches(hashes, 200, 0, async (chunk) => {
             let { data, error } = await supabase
               .from("mod_versions")
-              .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))")
+              .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, file_extension, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))")
               .in("dna_hash", chunk);
             
             if (error) {
               console.warn("Schema mismatch detected, falling back to safe query...");
               const fallback = await supabase
                 .from("mod_versions")
-                .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, mason_id, created_at, updated_at, folder_structure, masons(name))")
+                .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, file_extension, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, mason_id, created_at, updated_at, folder_structure, masons(name))")
                 .in("dna_hash", chunk);
               data = fallback.data as any;
             }
@@ -937,6 +937,14 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           sub_type: effectiveDbMod?.sub_type,
           image_url: effectiveDbMod?.image_url,
           folder_structure: effectiveDbMod?.folder_structure,
+          file_extension:
+            effectiveDbMod?.file_extension ||
+            dbMod?.file_extension ||
+            mod.file_extension ||
+            (() => {
+              const extMatch = (mod.name || "").match(/\.([a-z0-9]{2,12})$/i);
+              return extMatch ? extMatch[1].toLowerCase() : undefined;
+            })(),
           url: effectiveCloudMatch?.download_url || effectiveDbMod?.url || modLocalOvr?.url || modEdgeLogic?.download_url || mod.url || null,
           manifest_url: modLocalOvr?.manifest_url || modEdgeLogic?.manifest_url || mod.manifest_url || undefined,
           author:
@@ -1139,6 +1147,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             baseFamilyId: String(baseFId),
             displayName: safeName.toUpperCase(),
             author: pData.author,
+            version:
+              familyMembers.find((fm: any) => fm.version && fm.version !== "v.Local")?.version ||
+              familyMembers[0]?.version ||
+              "v.Local",
             mason_id: pData.mason_id || (familyMembers.length > 0 ? familyMembers[0].mason_id : null),
             status: folderStatus,
             color: isFlavorFolder ? "var(--warning)" : "var(--accent)",

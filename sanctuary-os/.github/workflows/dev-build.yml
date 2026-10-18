@@ -1,0 +1,55 @@
+name: "Daily Dev Build (Supporter Channel)"
+on:
+  push:
+    tags:
+      - 'v*-dev*'
+      - 'dev-*'
+  workflow_dispatch:
+    inputs:
+      dev_version_label:
+        description: 'Daily Dev Build label (e.g. v0.5.9-dev.1)'
+        required: false
+        default: 'Nightly Dev Build'
+      release_notes:
+        description: 'Markdown patch notes for Daily Dev Build supporters'
+        required: false
+        default: 'Automated Daily Dev Build for Sanctuary OS Ecosystem Supporters.'
+
+jobs:
+  publish-dev-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Build and Publish Tauri Daily Dev Build
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: dev-latest
+          releaseName: "Sanctuary OS Daily Dev Build (${{ github.event.inputs.dev_version_label || github.ref_name }})"
+          releaseBody: "${{ github.event.inputs.release_notes || github.event.head_commit.message || 'Daily Dev Build for Sanctuary OS Ecosystem Supporters. Unlocked globally via any $5+ Partner or Keepers Core contribution.' }}"
+          releaseDraft: false
+          prerelease: true
+          includeUpdaterJson: true
+

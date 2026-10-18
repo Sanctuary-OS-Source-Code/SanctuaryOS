@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabase, supabaseAuth } from "./supabase";
+import { useStore } from "./store";
 import { stripMarkdown } from "./shared";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import MasonPostCard from "./MasonPostCard";
 
 export default function WebNewsFeed() {
   const { t } = useLexicon();
+  const session = useStore((state: any) => state.session);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any>(null);
@@ -60,7 +62,7 @@ export default function WebNewsFeed() {
         <MasonPostViewer
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
-          userId={null}
+          userId={session?.user?.id || null}
           hideActions={true}
         />
       )}

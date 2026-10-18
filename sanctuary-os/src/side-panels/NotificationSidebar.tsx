@@ -4,6 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
 import { useStore } from "../store";
 import { SidePanel, standardButtonClass, standardDangerButtonClass, ActionButton, PanelHeaderGroup, HoverTooltip, PanelHeaderButton } from "../shared";
+import { getNotificationMode, mapDbNotificationTypeToCategory } from "../utils/notificationHelper";
 
 interface NotificationSidebarProps {
   onClose: () => void;
@@ -35,8 +36,10 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
     };
 
     window.addEventListener('new_notification_arrived', handleNewNotification);
+    window.addEventListener('sanctuary_notification_prefs_changed', handleNewNotification);
     return () => {
       window.removeEventListener('new_notification_arrived', handleNewNotification);
+      window.removeEventListener('sanctuary_notification_prefs_changed', handleNewNotification);
     };
   }, [userId]);
 
@@ -59,19 +62,10 @@ export default function NotificationSidebar({ onClose, onOpenPost }: Notificatio
     allData = allData.slice(0, 50);
 
     if (allData.length > 0) {
-      let validNotifications = allData;
-      if (localStorage.getItem("sanctuary_notify_replies") === "false") {
-        validNotifications = validNotifications.filter((n: any) => n.type !== 'reply');
-      }
-      if (localStorage.getItem("sanctuary_notify_support") === "false") {
-        validNotifications = validNotifications.filter((n: any) => n.type !== 'support_reply');
-      }
-      if (localStorage.getItem("sanctuary_notify_new_posts") === "false") {
-        validNotifications = validNotifications.filter((n: any) => n.type !== 'new_post');
-      }
-      if (localStorage.getItem("sanctuary_notify_system_dispatch") === "false") {
-        validNotifications = validNotifications.filter((n: any) => n.type !== 'system_broadcast');
-      }
+      const validNotifications = allData.filter((n: any) => {
+        const category = mapDbNotificationTypeToCategory(n.type);
+        return getNotificationMode(category) !== 'NONE';
+      });
       setNotifications(validNotifications);
     } else {
       setNotifications([]);

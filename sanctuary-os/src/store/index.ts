@@ -11,9 +11,119 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
   if (!safe.name) safe.name = safe.id.replace(/_/g, ' ').toUpperCase();
   if (!safe.display_name) safe.display_name = safe.name;
   if (!safe.schema_version) safe.schema_version = 1;
-  if (!safe.executable_names) safe.executable_names = [];
-  if (!safe.paths) safe.paths = { default_mod_dir_windows: "", default_mod_dir_mac: "", manifest_file: "", auto_scan_paths_windows: [], auto_scan_paths_mac: [] };
-  if (!safe.extensions) safe.extensions = { supported: [], parsers: {}, labels: {} };
+  if (!safe.executable_names || safe.executable_names.length === 0) {
+    safe.executable_names = ["TS4_x64.exe", "TS4.exe", "TS4_DX9_x64.exe"];
+  }
+  if (!safe.paths) {
+    safe.paths = { default_mod_dir_windows: "", default_mod_dir_mac: "", manifest_file: "Resource.cfg", auto_scan_paths_windows: [], auto_scan_paths_mac: [] };
+  } else if (!safe.paths.manifest_file) {
+    safe.paths = { ...safe.paths, manifest_file: "Resource.cfg" };
+  }
+  if (!safe.extensions) {
+    safe.extensions = { supported: [".package", ".ts4script", ".world"], parsers: {}, labels: { package: "PACKAGE", ts4script: "SCRIPT", world: "WORLD" } };
+  } else if (!safe.extensions.supported || safe.extensions.supported.length === 0) {
+    safe.extensions = {
+      ...safe.extensions,
+      supported: [".package", ".ts4script", ".world"],
+      labels: { package: "PACKAGE", ts4script: "SCRIPT", world: "WORLD", ...(safe.extensions.labels || {}) }
+    };
+  }
+  if (!safe.install_routes) {
+    safe.install_routes = [
+      {
+        id: "world_areas",
+        label: "World Area Files (.world)",
+        extensions: [".world"],
+        folder_match: "Worlds",
+        target_root: "live_path",
+        target_subdir: "Data/Shared/Worlds/Areas",
+        preserve_vanilla: true
+      }
+    ];
+  }
+  if (!safe.external_tools) {
+    safe.external_tools = [];
+  }
+  if (!safe.lab_verification) {
+    safe.lab_verification = {
+      require_for_mason_publish: true,
+      require_for_scout_approval: true,
+      required_active_seconds: 120,
+      max_idle_seconds: 20,
+      require_focus: true,
+      require_save_checkpoint: true,
+      seed_sandbox_from_latest_save: true,
+      save_extensions: [".save"],
+      world_load_signature: {
+        stabilize_boot_seconds: 8,
+        min_disk_read_mb: 75,
+        min_ram_step_percent: 25,
+        warm_cache_ram_step_percent: 45,
+        scratch_activity_subdirs: ["saves/scratch"]
+      }
+    };
+  }
+  if (!safe.exception_rules || !Array.isArray(safe.exception_rules) || safe.exception_rules.length === 0) {
+    let cachedRules: any[] | null = null;
+    try {
+      const rawRules = localStorage.getItem(`sanctuary_exception_rules_${safe.id}`);
+      if (rawRules) {
+        const parsed = JSON.parse(rawRules);
+        if (Array.isArray(parsed) && parsed.length > 0) cachedRules = parsed;
+      }
+    } catch (e) {}
+    safe.exception_rules = cachedRules || [
+      {
+        id: "ts4_store_utils_wallet_ui",
+        title: "StoreUtils / VirtualCurrencyWallet UI Desync (Error #1006)",
+        pattern: "StoreUtils/StoreDisabledByFeatureParameter | VirtualCurrencyWallet | TryGetValueAsBoolean",
+        file_hint: "lastUIException.txt",
+        severity: "warning",
+        diagnosis: "ActionScript UI exception in widgets.shared.utils::StoreUtils / VirtualCurrencyWallet. Frequently triggered on the Main Menu when EA Store feature parameters fail to initialize, or when an outdated UI override (.package) conflicts with current game patch UI widgets.",
+        resolution: "If this occurred on the Main Menu and live gameplay UI works normally, it is often a benign EA Store telemetry quirk (you can toggle 'Ignore During Timed Lab Verification' on this rule if desired). If UI panels are broken in live mode, ensure UI Cheats Extension (.package + .ts4script) and Main Menu overrides match your current game patch.",
+        ignore_in_lab: false,
+        enabled: true
+      },
+      {
+        id: "ts4_python_attr_or_import",
+        title: "Python Script Tuning Mismatch or Missing Core Library",
+        pattern: "AttributeError | ModuleNotFoundError | ImportError",
+        file_hint: "lastException.txt",
+        severity: "critical",
+        diagnosis: "A Python script (.ts4script) attempted to call a game engine attribute or import a module that changed in a recent game patch or requires an external core library (such as Lot51 Core Library, XML Injector, or S4CL).",
+        resolution: "Verify that all required dependency libraries are installed in your Mods folder and that the mod's .ts4script is updated for your active game patch.",
+        ignore_in_lab: false,
+        enabled: true
+      },
+      {
+        id: "ts4_posture_routing_graph",
+        title: "Posture Graph / Sim Routing Autonomy Exception",
+        pattern: "posture_graph | routing_service | PostureGraphService",
+        file_hint: "lastException.txt",
+        severity: "warning",
+        diagnosis: "A Sim attempted to route to or interact with an object whose footprint, slot, or posture tuning failed validation during live autonomy.",
+        resolution: "Check custom furniture/object overrides on the active lot or custom interaction mods that modify Sim posture tuning.",
+        ignore_in_lab: false,
+        enabled: true
+      }
+    ];
+  }
+  if (!safe.time_capsule) {
+    safe.time_capsule = {
+      world_state_targets: [
+        { name: "Saves", path: "saves" },
+        { name: "Tray", path: "Tray" }
+      ],
+      engine_state_targets: [
+        { name: "Game", path: "Game" },
+        { name: "Data", path: "Data" },
+        { name: "Delta", path: "Delta" }
+      ],
+      save_airgap_targets: ["saves"]
+    };
+  } else if (!safe.time_capsule.save_airgap_targets) {
+    safe.time_capsule.save_airgap_targets = ["saves"];
+  }
   if (!safe.load_order) {
     safe.load_order = {
       strategy: "folder_priority",
@@ -208,6 +318,7 @@ interface GlobalState {
   workspaces: any[];
   setWorkspaces: (workspaces: any[]) => void;
   activeWorkspaceId: string | null;
+  exceptionRules?: any[];
   setActiveWorkspaceId: (id: string | null) => void;
   modList: any[];
   setModList: (modList: any[] | ((prev: any[]) => any[])) => void;
@@ -621,31 +732,18 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default_schem
          useStore.getState().setActiveGameSchema(getSafeSchema(JSON.parse(cached), schemaId));
        } else {
          // Fallback basic schema if not found anywhere
-         const fallbackSchema = {
+         const fallbackSchema = getSafeSchema({
            id: schemaId,
            game_id: schemaId,
            name: schemaId.replace(/_/g, ' ').toUpperCase(),
            display_name: schemaId.replace(/_/g, ' ').toUpperCase(),
-           executable_names: [],
            schema_version: 1,
-           paths: {
-             default_mod_dir_windows: "",
-             default_mod_dir_mac: "",
-             manifest_file: "",
-             auto_scan_paths_windows: [],
-             auto_scan_paths_mac: []
-           },
-           extensions: {
-             supported: [],
-             parsers: {},
-             labels: {}
-           },
            config_schema: { groups: [] },
            file_patterns: { live: [], mods: [], vault: [], dlc: [] },
            folder_structures: { live: [], mods: [], vault: [] },
            heuristics: { critical_files: [], ignore_patterns: [] },
-           features: { has_dlc: false, has_saves: false, has_tray: false, has_cc: false }
-         };
+           features: { has_dlc: true, has_saves: true, has_tray: true, has_cc: true }
+         }, schemaId);
          useStore.getState().setActiveGameSchema(fallbackSchema);
        }
     }

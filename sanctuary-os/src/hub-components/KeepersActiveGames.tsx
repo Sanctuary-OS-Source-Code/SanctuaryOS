@@ -25,7 +25,9 @@ export default function KeepersActiveGames() {
     supabase_service_key: "",
     icon: "",
     is_active: true,
-    founder_identifier: ""
+    founder_identifier: "",
+    donation_url: "",
+    payment_processor: "STRIPE"
   });
   const [bundleInput, setBundleInput] = useState("");
   const [verifyingHandshake, setVerifyingHandshake] = useState(false);
@@ -192,9 +194,18 @@ export default function KeepersActiveGames() {
     }
 
     if (!result?.error) {
+      try {
+        const { savePartnerCommunityDonationConfig } = await import("../utils/supporterManager");
+        await savePartnerCommunityDonationConfig({
+          gameId: formData.id || undefined,
+          schemaId: formData.schema_id.trim().toUpperCase(),
+          donationUrl: formData.donation_url,
+          paymentProcessor: formData.payment_processor,
+        });
+      } catch {}
       setSidePanelMode(null);
       setHandshakeStatus(null);
-      setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "", is_active: true, founder_identifier: "" });
+      setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "", is_active: true, founder_identifier: "", donation_url: "", payment_processor: "STRIPE" });
       await fetchGames();
       await syncGameDatabases();
     } else {
@@ -281,7 +292,9 @@ export default function KeepersActiveGames() {
             supabase_service_key: game.supabase_service_key || "",
             icon: game.icon || "",
             is_active: game.is_active !== false,
-            founder_identifier: ""
+            founder_identifier: "",
+            donation_url: game.donation_url || "",
+            payment_processor: (game.payment_processor || "STRIPE").toUpperCase()
           });
           setSidePanelMode('edit');
         }}
@@ -368,7 +381,7 @@ export default function KeepersActiveGames() {
           label: t("ui_register_game_db", "Register Game Database"),
           onClick: () => {
             setHandshakeStatus(null);
-            setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "", is_active: true, founder_identifier: "" });
+            setFormData({ id: "", name: "", schema_id: "", supabase_url: "", supabase_anon_key: "", supabase_service_key: "", icon: "", is_active: true, founder_identifier: "", donation_url: "", payment_processor: "STRIPE" });
             setSidePanelMode('add');
           }
         }
@@ -455,6 +468,22 @@ export default function KeepersActiveGames() {
               value={formData.founder_identifier}
               onChange={val => setFormData({ ...formData, founder_identifier: val })}
               placeholder={t("spoke_founder_ph", "Optional: Hub username or UUID to auto-promote to Wayfinder")}
+            />
+          </UniversalGroup>
+          <UniversalGroup label={t("wf_donation_processor_label", "Community Payment Processor")}>
+            <UniversalInput
+              type="text"
+              value={formData.payment_processor}
+              onChange={val => setFormData({ ...formData, payment_processor: val })}
+              placeholder="STRIPE / KO-FI / PATREON / PAYPAL"
+            />
+          </UniversalGroup>
+          <UniversalGroup label={t("wf_donation_url_label", "Donation / Checkout URL (Leave blank to hide from directory)")}>
+            <UniversalInput
+              type="text"
+              value={formData.donation_url}
+              onChange={val => setFormData({ ...formData, donation_url: val })}
+              placeholder={t("wf_donation_url_ph", "https://donate.stripe.com/... or https://ko-fi.com/...")}
             />
           </UniversalGroup>
 

@@ -1,8 +1,11 @@
-name: Release
+name: Release (Stable Channel)
 on:
   push:
     tags:
       - 'v*'
+    tags-ignore:
+      - '*-dev*'
+      - 'dev-*'
 jobs:
   release:
     permissions:

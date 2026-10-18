@@ -188,14 +188,27 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
         // Scan legacy vault Engine
         process_dir(&base.join("Engine"));
 
-        // Scan relocated Engine backups
+        // Scan relocated Engine backups (same drive as live_path)
         if let Some(engine_dir) =
             crate::utils::get_engine_backups_dir(&config.live_path, &vault_path)
         {
-            process_dir(&engine_dir);
+            if engine_dir != base.join("Engine") {
+                process_dir(&engine_dir);
+            }
+        }
+
+        // Scan relocated World State backups (same drive as docs_path / mods_path)
+        let docs_base = crate::utils::get_docs_base_from_mods_path(&config.mods_path);
+        if let Some(world_dir) =
+            crate::utils::get_world_backups_dir(&docs_base, &vault_path)
+        {
+            if world_dir != base.join("World") {
+                process_dir(&world_dir);
+            }
         }
 
         files.sort_by(|a, b| a.name.cmp(&b.name));
+        files.dedup_by(|a, b| a.name == b.name);
         let mut world_state_seen = false;
         let mut engine_core_seen = false;
         for file in &mut files {
@@ -274,9 +287,13 @@ pub async fn backup_universe(
                 .unwrap()
                 .as_secs()
         );
-        let parent_dir = PathBuf::from(&config.vault_path)
-            .join("Backups")
-            .join("World");
+        // Anchor World State backups to the same physical drive as docs_path so hardlinks never break if Vault is on a different drive
+        let parent_dir = crate::utils::get_world_backups_dir(&docs_path, &config.vault_path)
+            .unwrap_or_else(|| {
+                PathBuf::from(&config.vault_path)
+                    .join("Backups")
+                    .join("World")
+            });
         let backup_path = parent_dir.join(&backup_name);
 
         let mut previous_backup = None;
@@ -314,6 +331,14 @@ pub async fn backup_universe(
                 for target in &time_capsule.world_state_targets {
                     let resolved = crate::game_logic::expand_env_vars(&target.path);
                     targets.push((target.name.clone(), game_docs_path.join(&resolved)));
+                }
+            }
+        }
+        if targets.is_empty() {
+            for default_dir in &["saves", "Saves", "Tray"] {
+                let candidate = game_docs_path.join(default_dir);
+                if candidate.exists() && !targets.iter().any(|(_, p)| p == &candidate) {
+                    targets.push((default_dir.to_string(), candidate));
                 }
             }
         }
@@ -737,28 +762,10 @@ pub async fn get_backup_contents(
     backup_name: String,
 ) -> Result<BackupInspectionResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let parent = if backup_name.starts_with("Engine_Core") {
-            "Engine"
-        } else {
-            "World"
+        let backup_dir = match crate::utils::find_backup(&vault_path, &backup_name) {
+            Some(dir) => dir,
+            None => return Err("Backup not found".into()),
         };
-        let mut backup_dir = PathBuf::from(&vault_path)
-            .join("Backups")
-            .join(parent)
-            .join(&backup_name);
-
-        if backup_name.starts_with("Engine_Core") && !backup_dir.exists() {
-            let config = get_saved_coordinates();
-            if let Some(engine_dir) =
-                crate::utils::get_engine_backups_dir(&config.live_path, &vault_path)
-            {
-                backup_dir = engine_dir.join(&backup_name);
-            }
-        }
-
-        if !backup_dir.exists() {
-            return Err("Backup not found".into());
-        }
 
         let mut files = vec![];
         let all_files = get_all_files(&backup_dir);
@@ -813,28 +820,11 @@ pub async fn extract_backup_file(
     file_path: String,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let parent = if backup_name.starts_with("Engine_Core") {
-            "Engine"
-        } else {
-            "World"
+        let backup_dir = match crate::utils::find_backup(&vault_path, &backup_name) {
+            Some(dir) => dir,
+            None => return Err("Backup not found".into()),
         };
-        let mut backup_dir = PathBuf::from(&vault_path)
-            .join("Backups")
-            .join(parent)
-            .join(&backup_name);
         let config = get_saved_coordinates();
-
-        if backup_name.starts_with("Engine_Core") && !backup_dir.exists() {
-            if let Some(engine_dir) =
-                crate::utils::get_engine_backups_dir(&config.live_path, &vault_path)
-            {
-                backup_dir = engine_dir.join(&backup_name);
-            }
-        }
-
-        if !backup_dir.exists() {
-            return Err("Backup not found".into());
-        }
 
         let src_file = backup_dir.join(&file_path);
         if !src_file.exists() {
@@ -878,28 +868,11 @@ pub async fn diff_backup(
     backup_name: String,
 ) -> Result<Vec<DiffEntry>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let parent = if backup_name.starts_with("Engine_Core") {
-            "Engine"
-        } else {
-            "World"
+        let backup_dir = match crate::utils::find_backup(&vault_path, &backup_name) {
+            Some(dir) => dir,
+            None => return Err("Backup not found".into()),
         };
-        let mut backup_dir = PathBuf::from(&vault_path)
-            .join("Backups")
-            .join(parent)
-            .join(&backup_name);
         let config = get_saved_coordinates();
-
-        if backup_name.starts_with("Engine_Core") && !backup_dir.exists() {
-            if let Some(engine_dir) =
-                crate::utils::get_engine_backups_dir(&config.live_path, &vault_path)
-            {
-                backup_dir = engine_dir.join(&backup_name);
-            }
-        }
-
-        if !backup_dir.exists() {
-            return Err("Backup not found".into());
-        }
 
         let target_root = if backup_name.starts_with("Engine_Core") {
             let mut base = PathBuf::from(&config.live_path);

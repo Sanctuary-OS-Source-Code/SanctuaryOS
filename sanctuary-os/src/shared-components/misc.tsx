@@ -61,9 +61,22 @@ export function FilterPopover({
     variant === "panel" ? "panel" : isInsideSidePanel ? "panel" : variant;
 
   const [isOpen, setIsOpen] = useState(false);
+  const instanceId = React.useId();
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const popoverRef = React.useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    window.dispatchEvent(
+      new CustomEvent("sa-close-popovers", { detail: instanceId }),
+    );
+    const onOtherOpen = (e: any) => {
+      if (e.detail !== instanceId) setIsOpen(false);
+    };
+    window.addEventListener("sa-close-popovers", onOtherOpen);
+    return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
+  }, [isOpen, instanceId]);
 
   React.useLayoutEffect(() => {
     if (!isOpen) return;

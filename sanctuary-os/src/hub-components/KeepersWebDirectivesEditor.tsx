@@ -18,6 +18,7 @@ import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import { logArchitectAction } from "../lib/audit";
+import { extractDispatchMetadata, DispatchMetadataHeader, DispatchPollBuilder, DispatchPollData } from "../components/universal/DispatchPollAndMeta";
 
 export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen = true, onClose = () => {} }: any = {}) {
   const session = useStore((state) => state.session);
@@ -31,6 +32,8 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
   const targetAudienceOptions = ["All", "Public", "Citizens", "Masons", "Architects", "Oversight", "Wayfinders", "Keepers"];
   const [communityOptions, setCommunityOptions] = useState<string[]>([]);
   const [category, setCategory] = useState("Citizen Guide");
+  const [actionRequired, setActionRequired] = useState("No Action Required");
+  const [pollData, setPollData] = useState<DispatchPollData | null>(null);
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState("Standard");
@@ -76,25 +79,27 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
             rawContent = rawContent.substring(endIdx + 1).trim();
           }
         }
+        const parsedMeta = extractDispatchMetadata(editingPost, rawContent);
 
         isUnchanged =
           title === editingPost.title &&
-          content === rawContent &&
+          content === parsedMeta.cleanContent &&
           targetAudience.join(',') === (editingPost.target_audience || "All") &&
-          category === (editingPost.category || "Update") &&
+          category === (editingPost.category || "Citizen Guide") &&
+          actionRequired === (parsedMeta.actionRequired || "No Action Required") &&
+          JSON.stringify(pollData || null) === JSON.stringify(editingPost.poll_data || null) &&
           codeSnippet === (editingPost.code_snippet || "") &&
-          
           true;
       } else {
         isUnchanged = title === "" &&
           description === "" &&
           content === "" &&
           targetAudience.length === 0 &&
-          category === "Update" &&
+          category === "Citizen Guide" &&
+          actionRequired === "No Action Required" &&
+          pollData === null &&
           imageUrl === "" &&
           codeSnippet === "" &&
-          
-          
           isActive === true;
       }
 
@@ -108,11 +113,11 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
       } else {
         setWayfinderDrafts(prev => ({
           ...prev,
-          [draftId]: { title, description, content, targetAudience, category, imageUrl, codeSnippet, isActive }
+          [draftId]: { title, description, content, targetAudience, category, actionRequired, pollData, imageUrl, codeSnippet, isActive }
         }));
       }
     }
-  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, imageUrl, codeSnippet, isActive]);
+  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, actionRequired, pollData, imageUrl, codeSnippet, isActive]);
 
   const updateTimeoutRef = useRef<any>(null);
 
@@ -230,18 +235,19 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
         rawContent = rawContent.replace(new RegExp(`<img[^>]+src=["']${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>\\s*`, 'i'), '');
       }
       rawContent = rawContent.replace(/\[IMG:.*?\]\s*/, '').trim();
+      const parsedMeta = extractDispatchMetadata(post, rawContent);
 
       setTitle(draft?.title ?? post.title);
       setDescription(draft?.description ?? (post.description || ""));
       setTargetAudience(draft?.targetAudience ?? (post.target_audience ? post.target_audience.split(',') : ["All"]));
       setCategory(draft?.category ?? (post.category || "Citizen Guide"));
+      setActionRequired(draft?.actionRequired ?? (parsedMeta.actionRequired || "No Action Required"));
+      setPollData(draft?.pollData !== undefined ? draft.pollData : (post.poll_data || null));
       setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
       setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
-      
-      
       setIsActive(draft?.isActive ?? (post.is_active !== false));
 
-      const contentToSet = draft?.content ?? rawContent;
+      const contentToSet = draft?.content ?? parsedMeta.cleanContent;
       setContent(contentToSet);
       if (editor) {
         editor.commands.setContent(contentToSet);
@@ -254,6 +260,8 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
       setDescription(draft?.description ?? "");
       setTargetAudience(draft?.targetAudience ?? []);
       setCategory(draft?.category ?? "Citizen Guide");
+      setActionRequired(draft?.actionRequired ?? "No Action Required");
+      setPollData(draft?.pollData ?? null);
 
       const contentToSet = draft?.content ?? "";
       setContent(contentToSet);
@@ -263,8 +271,6 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
       setImageUrl(draft?.imageUrl ?? "");
       setCodeSnippet(draft?.codeSnippet ?? "");
       setShowCodeInput(!!draft?.codeSnippet);
-      
-      
       setIsActive(draft?.isActive ?? true);
     }
     setIsEditorOpen(true);
@@ -296,13 +302,13 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
       setIsSubmitting(false);
       setPreviewPost(null);
     }, 300);
+    setActionRequired("No Action Required");
+    setPollData(null);
     setImageUrl("");
     setCodeSnippet("");
     setShowCodeInput(false);
     setShowImageInput(false);
     setShowIconPicker(false);
-    
-    
     setIsActive(true);
   };
 
@@ -333,10 +339,33 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
 
     if (!title.trim() || !finalContent.trim()) return;
 
+    if (pollData && (!pollData.question.trim() || pollData.options.filter(o => o.label.trim()).length < 2)) {
+      alert(t("poll_err_incomplete", "Please enter a poll question and at least 2 options, or remove the poll before posting."));
+      return;
+    }
+
     setIsSubmitting(true);
     let finalCategory = category;
-    let isPinned = false;
-    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: finalCategory, target_audience: "Public", code_snippet: codeSnippet.trim() || null, is_pinned: false, is_active: isActive };
+    const sanitizedPoll = pollData && pollData.question.trim() && pollData.options.filter(o => o.label.trim()).length >= 2
+      ? {
+          ...pollData,
+          question: pollData.question.trim(),
+          options: pollData.options.filter(o => o.label.trim()).map(o => ({ ...o, label: o.label.trim() }))
+        }
+      : null;
+
+    let payload: any = {
+      title: title.trim(),
+      description: description.trim() || null,
+      message: finalContent.trim(),
+      category: finalCategory,
+      target_audience: "Public",
+      action_required: actionRequired.trim() || "No Action Required",
+      poll_data: sanitizedPoll,
+      code_snippet: codeSnippet.trim() || null,
+      is_pinned: false,
+      is_active: isActive
+    };
     if (imageUrl.trim()) payload.message = `[IMG:${imageUrl.trim()}]\n\n` + payload.message;
 
     let error = null;
@@ -696,7 +725,7 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
                   <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
 
-                <div className="flex gap-4 w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                   <div className="flex flex-col gap-2 flex-1">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category")}</label>
                     <div className="h-14">
@@ -715,6 +744,35 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
                       />
                     </div>
                   </div>
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_meta_action", "Action Required")}</label>
+                    <div className="h-14">
+                      <CustomDropdown
+                        disableTint={true}
+                        searchable={true}
+                        allowCustom={true}
+                        value={actionRequired}
+                        onChange={(v: string[]) => setActionRequired(v[0] || "No Action Required")}
+                        options={[
+                          { id: "No Action Required", label: t("dispatch_action_none", "No Action Required") },
+                          { id: "Review Before Updating", label: t("dispatch_action_review", "Review Before Updating") },
+                          { id: "Update Recommended", label: t("dispatch_action_update_rec", "Update Recommended") },
+                          { id: "Immediate Action Required", label: t("dispatch_action_immediate", "Immediate Action Required") }
+                        ]}
+                        placeholder={t("dispatch_meta_action", "Action Required")}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_telemetry_preview", "Dispatch Telemetry Header Preview")}</label>
+                  <DispatchMetadataHeader
+                    post={{ category, target_audience: "Public", action_required: actionRequired }}
+                    categoryOverride={category}
+                    audienceOverride={["Public"]}
+                    actionRequiredOverride={actionRequired}
+                  />
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -815,6 +873,8 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
                     </div>
                   </div>
                 </div>
+
+                <DispatchPollBuilder pollData={pollData} onChange={setPollData} />
               </div>
             </div>
           </SidePanel>

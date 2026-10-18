@@ -11,6 +11,60 @@ pub struct BackupTarget {
 pub struct TimeCapsuleConfig {
     pub world_state_targets: Vec<BackupTarget>,
     pub engine_state_targets: Vec<BackupTarget>,
+    #[serde(default)]
+    pub save_airgap_targets: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SchemaInstallRoute {
+    pub id: String,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub extensions: Vec<String>,
+    #[serde(default)]
+    pub folder_match: Option<String>,
+    pub target_root: String,
+    pub target_subdir: String,
+    #[serde(default)]
+    pub preserve_vanilla: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SchemaExternalTool {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub executable_names: Vec<String>,
+    #[serde(default)]
+    pub requires_save_airgap: Option<bool>,
+    #[serde(default)]
+    pub requires_mod_isolation: Option<bool>,
+    #[serde(default)]
+    pub default_args: Option<Vec<String>>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SchemaExceptionRule {
+    pub id: String,
+    pub title: String,
+    pub pattern: String,
+    #[serde(default)]
+    pub file_hint: Option<String>,
+    #[serde(default)]
+    pub severity: String,
+    #[serde(default)]
+    pub diagnosis: String,
+    #[serde(default)]
+    pub resolution: String,
+    #[serde(default)]
+    pub ignore_in_lab: bool,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -48,6 +102,42 @@ pub struct LoadOrderConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WorldLoadSignatureConfig {
+    #[serde(default)]
+    pub stabilize_boot_seconds: Option<u32>,
+    #[serde(default)]
+    pub min_disk_read_mb: Option<u64>,
+    #[serde(default)]
+    pub min_ram_step_percent: Option<u32>,
+    #[serde(default)]
+    pub warm_cache_ram_step_percent: Option<u32>,
+    #[serde(default)]
+    pub scratch_activity_subdirs: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SchemaLabVerification {
+    #[serde(default)]
+    pub require_for_mason_publish: Option<bool>,
+    #[serde(default)]
+    pub require_for_scout_approval: Option<bool>,
+    #[serde(default)]
+    pub required_active_seconds: Option<u32>,
+    #[serde(default)]
+    pub max_idle_seconds: Option<u32>,
+    #[serde(default)]
+    pub require_focus: Option<bool>,
+    #[serde(default)]
+    pub require_save_checkpoint: Option<bool>,
+    #[serde(default)]
+    pub seed_sandbox_from_latest_save: Option<bool>,
+    #[serde(default)]
+    pub save_extensions: Option<Vec<String>>,
+    #[serde(default)]
+    pub world_load_signature: Option<WorldLoadSignatureConfig>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GameSchema {
     pub schema_version: u32,
     pub game_id: String,
@@ -59,12 +149,20 @@ pub struct GameSchema {
     pub taxonomy: Option<serde_json::Value>,
     pub time_capsule: Option<TimeCapsuleConfig>,
     pub exception_logs: Option<Vec<LogMatcher>>,
+    #[serde(default)]
+    pub exception_rules: Option<Vec<SchemaExceptionRule>>,
     pub version_extraction: Option<VersionExtraction>,
     pub dlc_folder_prefixes: Option<Vec<String>>,
 
     pub magic_bytes: Option<std::collections::HashMap<String, String>>,
     pub manifest_content: Option<String>,
     pub load_order: Option<LoadOrderConfig>,
+    #[serde(default)]
+    pub install_routes: Option<Vec<SchemaInstallRoute>>,
+    #[serde(default)]
+    pub external_tools: Option<Vec<SchemaExternalTool>>,
+    #[serde(default)]
+    pub lab_verification: Option<SchemaLabVerification>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

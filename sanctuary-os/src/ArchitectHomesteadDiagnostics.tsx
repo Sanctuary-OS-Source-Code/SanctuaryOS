@@ -21,6 +21,17 @@ import { logArchitectAction } from "./lib/audit";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import MarkdownRenderer from "./MarkdownRenderer";
 import { StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
+import {
+  LabVerificationGate,
+  LabVerificationStatus,
+  recordVerifiedCertificate,
+} from "./components/LabVerificationGate";
+import {
+  KnownErrorDiagnosisBanner,
+  KnownErrorRulesManager,
+  getExceptionRules,
+} from "./components/KnownExceptionRules";
+import { scrubLogUserData, formatHumanReadableLogText } from "./utils/logScrubber";
 
 
 export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], setStatus?: any }) {
@@ -42,19 +53,32 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
   const [testPassed, setTestPassed] = useState(true);
   const [testLog, setTestLog] = useState("");
   const [logWatcher, setLogWatcher] = useState<any>(null);
+  const [diagSessionStatus, setDiagSessionStatus] = useState<LabVerificationStatus | null>(null);
+  const [isDiagVerified, setIsDiagVerified] = useState<boolean>(false);
 
   const [severity, setSeverity] = useState(4);
   const [resolution, setResolution] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [filterTab, setFilterTab] = useState<'overview' | 'pending' | 'completed'>('overview');
+  const [filterTab, setFilterTab] = useState<'overview' | 'pending' | 'completed' | 'known_errors'>('overview');
   const [visibleCount, setVisibleCount] = useState(100);
+  const [submittedLog, setSubmittedLog] = useState<string>("");
+  const [triggerCreateRule, setTriggerCreateRule] = useState<number>(0);
+  const [triggerCreateGameBug, setTriggerCreateGameBug] = useState<number>(0);
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: logsData } = await supabase
+      let { data: logsData, error: logsError } = await supabase
         .from('homestead_lab_logs')
         .select('*, mods(*), mod_versions(dna_hash)')
         .order('created_at', { ascending: false });
+
+      if (logsError && !logsData) {
+        const fallbackRes = await supabase
+          .from('homestead_lab_logs')
+          .select('*, mods(*)')
+          .order('created_at', { ascending: false });
+        logsData = fallbackRes.data as any;
+      }
 
       if (logsData) {
         const uniqueModsMap = new Map();
@@ -62,7 +86,13 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           let mod = log.mods;
           if (Array.isArray(mod)) mod = mod[0];
           if (!mod) return;
-          if (!['under_review', 'verified', 'broken'].includes(mod.status)) return;
+
+          const effectiveStatus =
+            log.status === 'pending' && mod.status !== 'verified' && mod.status !== 'broken'
+              ? 'under_review'
+              : ['under_review', 'verified', 'broken'].includes(mod.status)
+                ? mod.status
+                : 'under_review';
 
           let hash = mod.id;
           if (log.mod_versions) {
@@ -71,7 +101,11 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
           hash = hash || mod.id;
 
           if (!uniqueModsMap.has(hash)) {
-            uniqueModsMap.set(hash, mod);
+            uniqueModsMap.set(hash, {
+              ...mod,
+              status: effectiveStatus,
+              dna_hash: hash !== mod.id ? hash : mod.dna_hash,
+            });
           }
         });
         const reports = Array.from(uniqueModsMap.values()).sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
@@ -89,31 +123,42 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
   }, [logWatcher]);
 
   useEffect(() => {
-    if (activeReport && allMods.length > 0) {
+    if (activeReport) {
       supabase.from("homestead_lab_logs")
-        .select("tester_note")
+        .select("tester_note, log_snippet, log_text, created_at")
         .eq("mod_id", activeReport.id)
+        .order("created_at", { ascending: false })
         .limit(1)
         .then(({ data, error }) => {
           if (error) {
             console.warn("Could not fetch homestead_lab_logs:", error);
             return;
           }
-          if (data && data.length > 0 && data[0].tester_note) {
-            try {
-              const ctx = JSON.parse(data[0].tester_note);
-              if (ctx.conflictTarget) {
-                const t = allMods.find(m => m.name === ctx.conflictTarget);
-                if (t) setConflictTarget(t);
+          if (data && data.length > 0) {
+            const logRow = data[0];
+            setSubmittedLog(
+              scrubLogUserData(logRow.log_text || logRow.log_snippet || "")
+            );
+            if (logRow.tester_note && allMods.length > 0) {
+              try {
+                const ctx = JSON.parse(logRow.tester_note);
+                if (ctx.conflictTarget) {
+                  const t = allMods.find(m => m.name === ctx.conflictTarget);
+                  if (t) setConflictTarget(t);
+                }
+                if (ctx.dependencies) {
+                  const deps = ctx.dependencies.map((name: string) => allMods.find(m => m.name === name)).filter(Boolean);
+                  if (deps.length > 0) setDependencies(deps);
+                }
+              } catch (e) {
               }
-              if (ctx.dependencies) {
-                const deps = ctx.dependencies.map((name: string) => allMods.find(m => m.name === name)).filter(Boolean);
-                if (deps.length > 0) setDependencies(deps);
-              }
-            } catch (e) {
             }
+          } else {
+            setSubmittedLog("");
           }
         });
+    } else {
+      setSubmittedLog("");
     }
   }, [activeReport, allMods]);
 
@@ -127,6 +172,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
     setTestRun(false);
     setTestPassed(true);
     setTestLog("");
+    setSubmittedLog("");
   };
 
   const handleSelectDependency = (mod: any) => {
@@ -213,20 +259,54 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
       const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
       await invoke("airgap_saves", { docsPath: dPath, enable: true });
       await invoke("clear_old_logs", { docsPath: dPath });
+
+      const targetHash = activeReport.dna_hash || activeReport.hash || activeReport.id;
+      try {
+        const initSt = await invoke<LabVerificationStatus>("start_lab_verification_session", {
+          dnaHash: String(targetHash),
+          modName: activeReport.name || "Diagnostic Target",
+          docsPath: dPath,
+          vaultPath: config.vault_path || "",
+        });
+        setDiagSessionStatus(initSt);
+      } catch (e) {}
+
       await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
 
       const interval = setInterval(async () => {
+        try {
+          const st = await invoke<LabVerificationStatus | null>("poll_lab_verification_session");
+          if (st) {
+            setDiagSessionStatus(st);
+            if (st.stage === "VERIFIED" && st.certificate) {
+              setIsDiagVerified(true);
+              await recordVerifiedCertificate(st.certificate);
+            } else if (st.stage === "FAILED") {
+              setTestPassed(false);
+              setTestLog(scrubLogUserData(st.error_log || "Simulation Failed"));
+              setTestRun(true);
+              setIsLoading(false);
+              clearInterval(interval);
+              setLogWatcher(null);
+              await invoke("stop_lab_verification_session");
+              await invoke("airgap_saves", { docsPath: dPath, enable: false });
+              return;
+            }
+          }
+        } catch (e) {}
+
         const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
         if (res !== "Clean") {
           setTestPassed(false);
-          setTestLog(res);
+          setTestLog(scrubLogUserData(res));
           setTestRun(true);
           setIsLoading(false);
           clearInterval(interval);
           setLogWatcher(null);
+          await invoke("stop_lab_verification_session");
           await invoke("airgap_saves", { docsPath: dPath, enable: false });
         }
-      }, 5000);
+      }, 1000);
       setLogWatcher(interval);
     } catch (err) {
       console.error(err);
@@ -236,9 +316,11 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
 
   const concludeTest = async (passed: boolean) => {
     if (logWatcher) clearInterval(logWatcher);
+    setDiagSessionStatus(null);
     try {
       const config: any = await invoke("get_saved_coordinates");
       const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      await invoke("stop_lab_verification_session");
       await invoke("airgap_saves", { docsPath: dPath, enable: false });
     } catch (e) { }
 
@@ -248,6 +330,7 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
 
     const finalStatus = passed ? "verified" : "broken";
     await supabase.from('mods').update({ status: finalStatus }).eq('id', activeReport.id);
+    await supabase.from('homestead_lab_logs').update({ status: finalStatus }).eq('mod_id', activeReport.id).eq('status', 'pending');
 
     setLabReports(prev => prev.map(r => r.id === activeReport.id ? { ...r, status: finalStatus } : r));
     closePanel();
@@ -403,6 +486,12 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
       label: t("status_completed") || "Completed",
       icon: "check_circle",
       number: completedReports.length.toString()
+    },
+    {
+      id: "known_errors",
+      label: t("exc_rules_user_tab_title", "Known Errors"),
+      icon: t("icon_rule_settings", "rule_settings"),
+      number: getExceptionRules(activeGameSchema).length.toString()
     }
   ];
 
@@ -450,6 +539,24 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         activeTab={filterTab}
         onTabChange={(tabId: string) => setFilterTab(tabId as any)}
         tabs={tabs}
+        actions={
+          filterTab === 'known_errors'
+            ? [
+                {
+                  id: "add_game_bug",
+                  icon: t("icon_bug_report", "bug_report"),
+                  label: t("exc_rules_btn_add_game_bug", "Add Normal Game Bug"),
+                  onClick: () => setTriggerCreateGameBug((v) => v + 1),
+                },
+                {
+                  id: "add_rule",
+                  icon: t("icon_add", "add"),
+                  label: t("exc_rules_btn_add_rule", "Add Known Error Rule"),
+                  onClick: () => setTriggerCreateRule((v) => v + 1),
+                },
+              ]
+            : undefined
+        }
       >
         {filterTab === 'overview' && renderLanding()}
 
@@ -494,6 +601,18 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
         {filterTab === 'completed' && completedReports.length === 0 && (
           <EmptyState icon={searchTerm ? "search_off" : (t("icon_monitor_heart") || "monitor_heart")} title={searchTerm ? (t("no_matches") || "No matches") : (t("no_completed_reports") || "No completed reports")} className="py-16 mt-10" />
         )}
+
+        {filterTab === 'known_errors' && (
+          <div className="flex flex-col gap-6 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <KnownErrorRulesManager
+              searchQuery={searchTerm}
+              canEdit={true}
+              externalTriggerCreate={triggerCreateRule}
+              externalTriggerCreateGameBug={triggerCreateGameBug}
+              hideTopBarButton={true}
+            />
+          </div>
+        )}
       </ElevatedHubLayout>
 
       {activeReport && (
@@ -508,9 +627,14 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
               {isLoading ? (
                 <>
                   <PanelHeaderButton
-                    icon="check"
+                    icon={isDiagVerified ? "check" : "lock"}
                     variant="success"
-                    tooltip={t("auto_conclude_pass") || "Conclude Pass"}
+                    disabled={!isDiagVerified}
+                    tooltip={
+                      isDiagVerified
+                        ? (t("auto_conclude_pass") || "Conclude Pass")
+                        : t("lab_tooltip_approve_locked", "Approval Locked (Lab Test Required)")
+                    }
                     onClick={() => concludeTest(true)}
                   />
                   <PanelHeaderButton
@@ -540,19 +664,38 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
             </PanelHeaderGroup>
           }
         >
-          <div className="flex flex-col h-full gap-8">
+          <div className="flex flex-col min-h-full gap-8">
             <SidePanelTitleInput
               value={activeReport?.name || ""}
               readOnly
               subtitle={t("target_artifact") || "Target Artifact"}
             />
 
-            {isLoading && (
-              <div className="flex flex-col items-center justify-center p-6 glass-surface rounded-xl gap-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
-                <div className="w-8 h-8 border-4 border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-t-[var(--accent)] rounded-full animate-spin" />
-                <span className="text-[10px] font-black capitalize tracking-widest animate-pulse mt-1 theme-text-accent">{t("diagnostic_running") || "Diagnostic Running..."}</span>
-              </div>
+            {submittedLog && (
+              <UniversalGroup
+                title={t("diag_submitted_log_title", "Submitted Crash Log & Telemetry")}
+                icon={t("icon_terminal", "terminal")}
+              >
+                <KnownErrorDiagnosisBanner
+                  logText={submittedLog}
+                  canEdit={true}
+                  reportFailed={true}
+                />
+                <pre className="w-full glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] font-mono text-[11px] text-[var(--text)] max-h-56 overflow-y-auto custom-scrollbar whitespace-pre-wrap break-all leading-relaxed">
+                  {formatHumanReadableLogText(submittedLog)}
+                </pre>
+              </UniversalGroup>
             )}
+
+            <LabVerificationGate
+              dnaHash={activeReport?.dna_hash || activeReport?.hash || activeReport?.id}
+              modName={activeReport?.name || "Diagnostic Target"}
+              physicalPath={activeReport?.physical_path || activeReport?.name}
+              roleContext="lab"
+              isGateRequired={true}
+              externalStatus={diagSessionStatus}
+              onStatusChange={(st) => setIsDiagVerified(st.verified)}
+            />
 
             <UniversalGroup title={t("section_deps_title") || "Dependencies"} icon={t("icon_account_tree") || "account_tree"}>
               <p className="text-[9px] text-[var(--subtext)] opacity-60 capitalize tracking-widest -mt-2">{t("diagnostic_dependencies_desc") || "Select dependencies required for testing"}</p>
@@ -621,8 +764,18 @@ export function HomesteadDiagnostics({ modList, setStatus }: { modList: any[], s
                   </div>
                 </div>
 
+                {testLog && (
+                  <div className="mt-4">
+                    <KnownErrorDiagnosisBanner
+                      logText={testLog}
+                      canEdit={true}
+                      reportFailed={!testPassed}
+                    />
+                  </div>
+                )}
+
                 <div className="mt-4 w-full glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono text-[10px] text-[var(--subtext)] max-h-48 overflow-y-auto custom-scrollbar whitespace-pre-wrap leading-relaxed">
-                  {testLog || (t("no_logs_generated") || "No logs generated.")}
+                  {testLog ? formatHumanReadableLogText(testLog) : (t("no_logs_generated") || "No logs generated.")}
                 </div>
 
                 {!testPassed && conflictTarget && (

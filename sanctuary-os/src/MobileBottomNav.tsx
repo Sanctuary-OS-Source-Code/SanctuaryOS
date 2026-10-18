@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from './store';
+import { useModalStore } from './store/modalStore';
 import { useLexicon } from './LexiconContext';
 import { useTheme } from './ThemeContext';
 import { isRootDomain, scrollToLandingSection } from './utils/routingUtils';
@@ -12,6 +13,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   const userRole = useStore((state) => state.userRole);
   const osRole = useStore((state) => state.osRole);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const stagingDraftItems = useModalStore((state) => state.stagingDraftItems);
   const masonActiveTab = useStore((state: any) => state.masonActiveTab);
   const setMasonActiveTab = useStore((state: any) => state.setMasonActiveTab);
   const architectActiveTab = useStore((state: any) => state.architectActiveTab);
@@ -51,7 +53,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     return () => container.removeEventListener('scroll', handleScroll);
   }, [view]);
 
-  const tabs = [];
+  const tabs: { id: string; icon: string; label: string; badge?: number }[] = [];
 
   let hubNavLabel = "";
   let hubNavIcon = "";
@@ -66,6 +68,14 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     tabs.push({ id: 'dashboard', icon: t("icon_desktop_windows", "desktop_windows"), label: t("center_title", "Dashboard") });
     if (localStorage.getItem("sanctuary_blacklisted") !== "true") {
       tabs.push({ id: 'nexus', icon: t("icon_hub", "hub"), label: t("market_title", "Nexus") });
+      if (schemaFeatures.has_cc) {
+        tabs.push({
+          id: 'playsets',
+          icon: t("icon_map", "map"),
+          label: t("playsets_title", "Blueprints"),
+          badge: (stagingDraftItems || []).length,
+        });
+      }
       tabs.push({ id: 'GlobalFeed', icon: t("icon_satellite_alt", "satellite_alt"), label: t("feed_title", "Feed") });
     }
 
@@ -110,7 +120,9 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   return (
     <>
       <PwaInstallPrompt />
-      <div className="md:hidden fixed bottom-0 left-0 right-0 min-h-[76px] h-[calc(72px+env(safe-area-inset-bottom,0px))] z-[999999] flex items-center justify-around px-2 glass-panel !rounded-none !border-x-0 !border-b-0 pb-[env(safe-area-inset-bottom,0px)]">
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 min-h-[76px] h-[calc(72px+env(safe-area-inset-bottom,0px))] z-[999999] flex items-center justify-around px-2 glass-panel portal-glass-fix !rounded-none !border-x-0 !border-b-0 pb-[env(safe-area-inset-bottom,0px)]"
+      >
         {tabs.map(tab => {
           const isLandingView = isRootDomain() && view !== 'settings' && view !== 'KeepersCore';
           const isActive =
@@ -126,9 +138,16 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
               {isActive && (
                 <div className="absolute inset-0 m-auto w-12 h-12 bg-[var(--accent)] blur-[20px] opacity-20 rounded-full pointer-events-none" />
               )}
-              <span className={`material-symbols-outlined relative z-10 leading-none shrink-0 transition-all duration-300 ${isActive ? '!text-[22px] drop-shadow-[0_0_8px_var(--accent)]' : '!text-[20px]'}`}>
-                {tab.icon}
-              </span>
+              <div className="relative flex items-center justify-center">
+                <span className={`material-symbols-outlined relative z-10 leading-none shrink-0 transition-all duration-300 ${isActive ? '!text-[22px] drop-shadow-[0_0_8px_var(--accent)]' : '!text-[20px]'}`}>
+                  {tab.icon}
+                </span>
+                {typeof tab.badge === "number" && tab.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2.5 min-w-[15px] h-[15px] px-1 rounded-full bg-[var(--accent)] text-[var(--bg)] text-[8px] font-black flex items-center justify-center shadow-md z-20">
+                    {tab.badge}
+                  </span>
+                )}
+              </div>
               {isActive && (
                 <span className="text-[8.5px] font-black w-full text-center px-0.5 leading-[1.15] uppercase tracking-[0.06em] whitespace-normal break-words line-clamp-2 relative z-10">
                   {tab.label}
@@ -142,7 +161,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
       <div
         className={`md:hidden fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom,0px))] z-[999998] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none'}`}
       >
-        <div className="mx-4 mb-4 p-4 glass-panel !rounded-3xl shadow-2xl flex flex-col gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
+        <div className="mx-4 mb-4 p-4 glass-panel portal-glass-fix !rounded-3xl shadow-2xl flex flex-col gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
           <div className="w-12 h-1 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-auto mb-2 shrink-0" />
 
           {/* System Navigation */}
@@ -235,7 +254,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
       <div
         className={`md:hidden fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom,0px))] z-[999998] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isHubNavOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none'}`}
       >
-        <div className="mx-4 mb-4 p-4 glass-panel !rounded-3xl shadow-2xl flex flex-col gap-2 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar">
+        <div className="mx-4 mb-4 p-4 glass-panel portal-glass-fix !rounded-3xl shadow-2xl flex flex-col gap-2 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar">
           <div className="w-12 h-1 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-auto mb-4 shrink-0" />
 
           <div className="flex items-center gap-2 mb-2 px-4 shrink-0">

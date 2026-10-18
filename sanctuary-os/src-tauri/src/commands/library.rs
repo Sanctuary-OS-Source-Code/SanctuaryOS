@@ -92,12 +92,58 @@ pub async fn scan_bunker(
                     return Ok(vec![]);
                 }
 
+                // Clean up any accidental Mods/Resource/Resource.cfg folder created by earlier builds
+                let bogus_res_dir = mods_lane.join("Resource");
+                if bogus_res_dir.is_dir() {
+                    let inner_cfg = bogus_res_dir.join("Resource.cfg");
+                    if inner_cfg.is_file() {
+                        let root_cfg = mods_lane.join("Resource.cfg");
+                        if !root_cfg.exists() {
+                            let _ = std::fs::rename(&inner_cfg, &root_cfg);
+                        } else {
+                            let _ = std::fs::remove_file(&inner_cfg);
+                        }
+                    }
+                    let _ = std::fs::remove_dir(&bogus_res_dir);
+                }
+
+                let manifest_name_lower = game_schema
+                    .as_ref()
+                    .map(|s| s.paths.manifest_file.to_lowercase())
+                    .unwrap_or_else(|| "resource.cfg".to_string());
+
                 if let Ok(entries) = std::fs::read_dir(&mods_lane) {
                     for entry in entries.flatten() {
                         let path = entry.path();
                         if path.is_file() {
+                            let fname_lower = path
+                                .file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or_default()
+                                .to_lowercase();
+                            if fname_lower == "resource.cfg"
+                                || (!manifest_name_lower.is_empty()
+                                    && fname_lower == manifest_name_lower)
+                                || fname_lower == "desktop.ini"
+                                || fname_lower == "default.ini"
+                                || fname_lower.starts_with('.')
+                            {
+                                continue;
+                            }
                             if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
                                 let ext_lower = ext.to_lowercase();
+                                if ext_lower == "cfg"
+                                    || ext_lower == "ini"
+                                    || ext_lower == "json"
+                                    || ext_lower == "txt"
+                                    || ext_lower == "xml"
+                                    || ext_lower == "log"
+                                    || ext_lower == "zip"
+                                    || ext_lower == "rar"
+                                    || ext_lower == "7z"
+                                {
+                                    continue;
+                                }
                                 let supported =
                                     crate::game_logic::get_supported_extensions(&game_schema);
                                 if supported.contains(&ext_lower) {
@@ -397,6 +443,51 @@ pub async fn scan_bunker(
     .map_err(|e| format!("Scanner join error: {}", e))?
 }
 
+pub fn extract_sandbox_zip_in_place(zip_path: &Path, target_dir: &Path) -> usize {
+    let mut extracted = 0usize;
+    if let Ok(file) = std::fs::File::open(zip_path) {
+        if let Ok(mut archive) = zip::ZipArchive::new(file) {
+            for i in 0..archive.len() {
+                if let Ok(mut zf) = archive.by_index(i) {
+                    if zf.is_file() {
+                        let raw_name = zf.name().to_string();
+                        if raw_name.contains("__MACOSX") {
+                            continue;
+                        }
+                        if let Some(fname) = Path::new(&raw_name).file_name() {
+                            let fname_str = fname.to_string_lossy().to_string();
+                            if fname_str.starts_with('.')
+                                || fname_str.eq_ignore_ascii_case("desktop.ini")
+                            {
+                                continue;
+                            }
+                            let _ = std::fs::create_dir_all(target_dir);
+                            let out_path = target_dir.join(fname);
+                            if let Ok(mut out_file) = std::fs::File::create(&out_path) {
+                                if std::io::copy(&mut zf, &mut out_file).is_ok() {
+                                    extracted += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if extracted == 0 {
+        let status = std::process::Command::new("tar")
+            .arg("-xf")
+            .arg(zip_path)
+            .arg("-C")
+            .arg(target_dir)
+            .status();
+        if status.map_or(false, |s| s.success()) {
+            extracted = 1;
+        }
+    }
+    extracted
+}
+
 #[tauri::command]
 pub async fn scan_sandbox(
     vault_path: String,
@@ -421,7 +512,7 @@ pub async fn scan_sandbox(
             return Ok(vec![]);
         }
 
-        let mut paths = Vec::new();
+        let mut initial_paths = Vec::new();
         fn walk_sandbox_files(dir: &Path, paths: &mut Vec<PathBuf>) {
             if let Ok(entries) = std::fs::read_dir(dir) {
                 for entry in entries.flatten() {
@@ -434,10 +525,50 @@ pub async fn scan_sandbox(
                 }
             }
         }
-        walk_sandbox_files(&dev_lane, &mut paths);
+        walk_sandbox_files(&dev_lane, &mut initial_paths);
+
+        // Automatically unpack any .zip archives sitting inside Dev/Sandbox so their .package/.ts4script files are ready to symlink
+        let mut unpacked_any = false;
+        for p in &initial_paths {
+            if p.extension()
+                .and_then(|e| e.to_str())
+                .map_or(false, |e| e.eq_ignore_ascii_case("zip"))
+            {
+                let target_dir = if p.parent() == Some(dev_lane.as_path()) {
+                    let stem = p.file_stem().unwrap_or_default().to_string_lossy().to_string();
+                    dev_lane.join(stem)
+                } else {
+                    p.parent().unwrap_or(&dev_lane).to_path_buf()
+                };
+                if extract_sandbox_zip_in_place(p, &target_dir) > 0 {
+                    let _ = std::fs::remove_file(p);
+                    unpacked_any = true;
+                }
+            }
+        }
+
+        let mut paths = Vec::new();
+        if unpacked_any {
+            walk_sandbox_files(&dev_lane, &mut paths);
+        } else {
+            paths = initial_paths;
+        }
 
         let mut results = Vec::new();
         for path in paths {
+            let fname_lower = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default()
+                .to_lowercase();
+            if fname_lower.starts_with('.')
+                || fname_lower == "desktop.ini"
+                || fname_lower == "manifest.json"
+                || fname_lower == "override.json"
+                || fname_lower == "resource.cfg"
+            {
+                continue;
+            }
             let rel = path
                 .strip_prefix(&dev_lane)
                 .unwrap_or(&path)
@@ -662,7 +793,7 @@ pub fn ingest_dropped_file(
                             .to_lowercase();
                         let vault_visible_exts =
                             crate::game_logic::get_vault_visible_extensions(&game_schema);
-                        if vault_visible_exts.contains(&zf_ext) || p.file_name().unwrap_or_default() == "override.json" {
+                        if vault_visible_exts.contains(&zf_ext) {
                             if let Some(zf_file_name) = p.file_name() {
                                 let file_name_str = zf_file_name.to_string_lossy().to_string();
                                 let mut file_target = target_base.clone();
@@ -820,19 +951,13 @@ pub fn ingest_dropped_file(
                                             } else {
                                                 "ZIP_NAME_MATCH"
                                             };
-                                            let mut override_json = None::<String>;
-                                            if file_name_str.to_lowercase() == "override.json" {
-                                                if let Ok(content) = std::fs::read_to_string(&extract_target) {
-                                                    override_json = Some(content);
-                                                }
-                                            }
                                             let _ = app.emit("dna_match_detected", serde_json::json!({
                                                 "path": extract_target.to_string_lossy().to_string(), 
                                                 "hash": "", 
                                                 "existing_name": resolution_existing_name, 
                                                 "source_action": "ingest_dropped_file", 
                                                 "reason": reason,
-                                                "override_json": override_json
+                                                "override_json": zip_override_json.clone()
                                             }));
                                         } else {
                                             let mut hash_match_found = false;
@@ -865,7 +990,8 @@ pub fn ingest_dropped_file(
                                                     "hash": extracted_hash, 
                                                     "existing_name": matched_existing_name, 
                                                     "source_action": "ingest_dropped_file", 
-                                                    "reason": "ZIP_DNA_MATCH" 
+                                                    "reason": "ZIP_DNA_MATCH",
+                                                    "override_json": zip_override_json.clone()
                                                 }));
                                             }
                                         }
@@ -876,13 +1002,18 @@ pub fn ingest_dropped_file(
                     }
                 }
             }
+            if let Some(ref ov_json) = zip_override_json {
+                let _ = app.emit("edge_override_detected", serde_json::json!({
+                    "override_json": ov_json
+                }));
+            }
             if std::fs::read_dir(&target_base)
                 .map(|mut iter| iter.next().is_none())
                 .unwrap_or(false)
             {
                 let _ = std::fs::remove_dir(&target_base);
             }
-            if extracted_files.is_empty() {
+            if extracted_files.is_empty() && zip_override_json.is_none() {
                 return Err("No supported files found inside archive.".into());
             }
             return Ok(serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()));
@@ -1347,15 +1478,9 @@ pub fn import_to_sandbox(files: Vec<String>, vault_path: String) -> Result<usize
             
             let ext = source.extension().unwrap_or_default().to_string_lossy().to_lowercase();
             if ext == "zip" {
-                let status = std::process::Command::new("tar")
-                    .arg("-xf")
-                    .arg(&source)
-                    .arg("-C")
-                    .arg(&mod_folder)
-                    .status();
-                
-                if status.map_or(false, |s| s.success()) {
-                    imported += 1;
+                let count = extract_sandbox_zip_in_place(&source, &mod_folder);
+                if count > 0 {
+                    imported += count;
                 }
             } else {
                 let dest = mod_folder.join(name);

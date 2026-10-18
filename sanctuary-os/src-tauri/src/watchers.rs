@@ -204,7 +204,9 @@ pub fn initialize_settings_watch(
                                     if let Some(file_name) =
                                         path.file_name().and_then(|n| n.to_str())
                                     {
-                                        if file_name.eq_ignore_ascii_case("Default.ini") {
+                                        if file_name.eq_ignore_ascii_case("Default.ini")
+                                            || file_name.eq_ignore_ascii_case("Resource.cfg")
+                                        {
                                             continue;
                                         }
                                     }

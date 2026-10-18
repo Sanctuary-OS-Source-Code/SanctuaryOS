@@ -20,11 +20,20 @@ import { MasonStatusDropdown } from "./MasonHub";
 import { logArchitectAction } from "./lib/audit";
 
 import MasonPostViewer from "./side-panels/MasonPostViewer";
+import {
+  LabVerificationGate,
+  LabVerificationBadge,
+  checkDnaHashVerification,
+  recordVerifiedCertificate,
+} from "./components/LabVerificationGate";
 
 
 export function MasonSandbox({ masonId, masonName, isVerifiedMason = true, initialSandboxMod, onClear, vaultPath }: { masonId: string, masonName?: string, isVerifiedMason?: boolean, initialSandboxMod: any, onClear: any, vaultPath?: string }) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
+  const requireMasonLabTest = activeGameSchema?.lab_verification?.require_for_mason_publish !== false;
   const [activeMod, setActiveMod] = useState<any>(initialSandboxMod || null);
+  const [isActiveModLabVerified, setIsActiveModLabVerified] = useState<boolean>(false);
   const [sandboxMods, setSandboxMods] = useState<any[]>([]);
   const [isCommitting, setIsCommitting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -39,6 +48,16 @@ export function MasonSandbox({ masonId, masonName, isVerifiedMason = true, initi
   const [confirmPurge, setConfirmPurge] = useState(false);
 
   const [isEditorOpen, setIsEditorOpen] = useState(!!initialSandboxMod);
+
+  useEffect(() => {
+    if (!activeMod?.hash) {
+      setIsActiveModLabVerified(false);
+      return;
+    }
+    checkDnaHashVerification(activeMod.hash).then((res) => {
+      setIsActiveModLabVerified(res.verified);
+    });
+  }, [activeMod?.hash]);
 
   const fetchExistingMods = async () => {
     if (!isVerifiedMason) return;
@@ -103,7 +122,7 @@ export function MasonSandbox({ masonId, masonName, isVerifiedMason = true, initi
 
   useEffect(() => {
     if (initialSandboxMod) {
-      setActiveMod(initialSandboxMod);
+      setActiveMod({ ...initialSandboxMod, physical_path: initialSandboxMod.physical_path || initialSandboxMod.name });
       setIsEditorOpen(true);
     }
     fetchSandboxMods();
@@ -262,6 +281,14 @@ export function MasonSandbox({ masonId, masonName, isVerifiedMason = true, initi
       useStore.getState().pushStatus(t("auto_no_valid_sandbox_45") || "No valid sandbox mod", "error");
       return;
     }
+    const verCheck = await checkDnaHashVerification(activeMod.hash);
+    if (requireMasonLabTest && !verCheck.verified) {
+      useStore.getState().pushStatus(
+        t("lab_gate_locked_mason_msg", "Publish Locked: This spoke requires a clean timed test inside the Homestead Lab before unlocking uploads."),
+        "error"
+      );
+      return;
+    }
     setIsCommitting(true);
     try {
       if (!isVerifiedMason) {
@@ -320,6 +347,10 @@ export function MasonSandbox({ masonId, masonName, isVerifiedMason = true, initi
       ], { onConflict: "dna_hash" });
 
       if (versionError) throw versionError;
+
+      if (verCheck.cert) {
+        await recordVerifiedCertificate(verCheck.cert);
+      }
 
       useStore.getState().pushStatus(t("auto_mod_synced_to_39") || "Mod synced to network!", "success");
       setIsEditorOpen(false);
@@ -396,7 +427,7 @@ export function MasonSandbox({ masonId, masonName, isVerifiedMason = true, initi
   const renderSandboxCard = (mod: any, type: 'local' | 'synced') => (
     <UniversalCard
       key={mod.hash}
-      onClick={() => { setActiveMod(mod); setIsEditorOpen(true); setConfirmPurge(false); }}
+      onClick={() => { setActiveMod({ ...mod, physical_path: mod.physical_path || mod.name }); setIsEditorOpen(true); setConfirmPurge(false); }}
       layout="horizontal"
       icon={type === 'local' ? "folder_zip" : "cloud_done"}
       title={mod.name.split(/[\\/]/).pop()}
@@ -404,10 +435,11 @@ export function MasonSandbox({ masonId, masonName, isVerifiedMason = true, initi
       badges={[
         <span key="badge" className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 transition-colors ${type === 'local' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]'}`}>
           {type === 'local' ? (t("unlinked_badge") || "Unlinked") : (t("synced_badge") || "Synced")}
-        </span>
+        </span>,
+        <LabVerificationBadge key="lab_ver" dnaHash={mod.hash} required={requireMasonLabTest && type === 'local'} compact={true} />
       ]}
     >
-      <div className="flex flex-col gap-1 mt-auto pb-4">
+      <div className="flex flex-col gap-1 mt-auto">
         <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate group-hover:opacity-100 transition-opacity">{mod.hash}</span>
       </div>
     </UniversalCard>
@@ -498,7 +530,7 @@ export function MasonSandbox({ masonId, masonName, isVerifiedMason = true, initi
             isOpen={isEditorOpen}
             onClose={() => setIsEditorOpen(false)}
             title={t("artifact_config") || "Artifact Configuration"}
-            subtitle={`${t("hash_prefix") || "HASH:"} ${activeMod?.hash}`}
+            subtitle={`${t("hash_prefix") || "HASH:"} ${activeMod?.hash ? (activeMod.hash.length > 24 ? `${activeMod.hash.slice(0, 24)}...` : activeMod.hash) : ""}`}
             icon="settings"
             widthClass="w-[600px]"
             backdropZ="z-[50000]"
@@ -519,20 +551,36 @@ export function MasonSandbox({ masonId, masonName, isVerifiedMason = true, initi
                   variant="danger" 
                 />
                 <PanelHeaderButton 
-                  icon="sync" 
+                  icon={requireMasonLabTest && !isActiveModLabVerified ? "lock" : "sync"} 
                   onClick={handleSyncToNetwork} 
-                  disabled={isCommitting} 
-                  tooltip={isCommitting ? (t("btn_syncing") || "Syncing...") : (isVerifiedMason ? (t("sandbox_btn_sync") || "Sync to Network") : (t("sandbox_btn_submit_scout") || "Submit to Scout Queue"))} 
+                  disabled={isCommitting || (requireMasonLabTest && !isActiveModLabVerified)} 
+                  tooltip={
+                    requireMasonLabTest && !isActiveModLabVerified
+                      ? (t("lab_tooltip_publish_locked", "Publish Locked (Lab Test Required)"))
+                      : isCommitting
+                      ? (t("btn_syncing") || "Syncing...")
+                      : (isVerifiedMason ? (t("sandbox_btn_sync") || "Sync to Network") : (t("sandbox_btn_submit_scout") || "Submit to Scout Queue"))
+                  } 
                   variant="accent"
                 />
               </PanelHeaderGroup>
             }
           >
-            <div className="flex flex-col h-full gap-8">
+            <div className="flex flex-col min-h-full gap-8">
               <SidePanelTitleInput
-                value={activeMod.name || ""}
-                onChange={(val) => setActiveMod({ ...activeMod, name: val })}
+                value={(activeMod.name || "").split(/[\\/]/).pop() || activeMod.name || ""}
+                onChange={(val) => setActiveMod({ ...activeMod, physical_path: activeMod.physical_path || activeMod.name, name: val })}
                 placeholder={t("label_modname") || "Artifact Name"}
+              />
+
+              <LabVerificationGate
+                dnaHash={activeMod.hash}
+                modName={(activeMod.name || "Sandbox Artifact").split(/[\\/]/).pop() || "Sandbox Artifact"}
+                physicalPath={activeMod.physical_path || activeMod.name}
+                isSandboxMod={true}
+                roleContext="mason"
+                isGateRequired={requireMasonLabTest}
+                onStatusChange={(st) => setIsActiveModLabVerified(st.verified)}
               />
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

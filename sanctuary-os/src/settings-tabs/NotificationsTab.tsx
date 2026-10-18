@@ -1,139 +1,454 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLexicon } from '../LexiconContext';
-import { SettingsToggle, TabContainer, SettingsGrid } from './shared';
+import { SettingsToggle, TabContainer, SettingsGrid, CustomSettingsDropdown } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
-import { ActionButton } from '../shared';
-import { SidePanel } from '../shared';
+import { ActionButton, SidePanel, ActionPill, InlineFilterGroup, HoverTooltip } from '../shared';
 import { supabase } from '../supabase';
-
-const standardButtonClass = "px-6 py-3 rounded-2xl glass-surface text-[var(--text)] text-[10px] font-black capitalize tracking-widest transition-all shadow-lg hover:theme-border-accent hover:scale-105 active:scale-95 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-xl flex items-center justify-center gap-3 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
+import { useStore } from '../store';
+import { getSupporterState } from '../utils/supporterManager';
+import { isDesktop } from '../utils/envUtils';
+import {
+  NotificationCategory,
+  NotificationDeliveryMode,
+  SystemNotificationPermissionState,
+  getNotificationMode,
+  setNotificationMode,
+  setAllNotificationModes,
+  getSystemNotificationPermissionState,
+  requestSystemNotificationPermission,
+  notifyOS,
+} from '../utils/notificationHelper';
 
 export default function NotificationsTab() {
   const { t } = useLexicon();
-  
-  const [notifyReplies, setNotifyReplies] = useState(localStorage.getItem("sanctuary_notify_replies") !== "false");
-  const [notifyNewPosts, setNotifyNewPosts] = useState(localStorage.getItem("sanctuary_notify_new_posts") !== "false");
-  const [notifySystemDispatch, setNotifySystemDispatch] = useState(localStorage.getItem("sanctuary_notify_system_dispatch") !== "false");
-  const [notifyAlertBanner, setNotifyAlertBanner] = useState(localStorage.getItem("sanctuary_notify_alert_banner") !== "false");
-  const [notifySupport, setNotifySupport] = useState(localStorage.getItem("sanctuary_notify_support") !== "false");
-  const [notifyAuthorOnly, setNotifyAuthorOnly] = useState(localStorage.getItem("sanctuary_notify_author_only") === "true");
 
+  const [modes, setModes] = useState<Record<NotificationCategory, NotificationDeliveryMode>>(() => ({
+    defcon: getNotificationMode('defcon'),
+    alert_banner: getNotificationMode('alert_banner'),
+    system_dispatch: getNotificationMode('system_dispatch'),
+    new_posts: getNotificationMode('new_posts'),
+    replies: getNotificationMode('replies'),
+    support: getNotificationMode('support'),
+  }));
+
+  const [notifyAuthorOnly, setNotifyAuthorOnly] = useState(
+    localStorage.getItem('sanctuary_notify_author_only') === 'true'
+  );
+  const [permissionState, setPermissionState] = useState<SystemNotificationPermissionState>(() =>
+    isDesktop() ||
+    (typeof window !== 'undefined' &&
+      'Notification' in window &&
+      window.Notification.permission === 'granted')
+      ? 'granted'
+      : 'prompt'
+  );
   const [showMasonPanel, setShowMasonPanel] = useState(false);
 
-  const [masonAlerts, setMasonAlerts] = useState<Record<string, boolean>>(() => JSON.parse(localStorage.getItem("sanctuary_mason_alerts") || "{}"));
+  const [masonAlerts, setMasonAlerts] = useState<Record<string, boolean>>(() =>
+    JSON.parse(localStorage.getItem('sanctuary_mason_alerts') || '{}')
+  );
   const [followedMasons, setFollowedMasons] = useState<any[]>([]);
+  const [masonSearchQuery, setMasonSearchQuery] = useState('');
+  const [masonAlertFilter, setMasonAlertFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [masonVerifiedFilter, setMasonVerifiedFilter] = useState<'all' | 'verified' | 'standard'>('all');
+
+  const syncState = useCallback(async () => {
+    setModes({
+      defcon: getNotificationMode('defcon'),
+      alert_banner: getNotificationMode('alert_banner'),
+      system_dispatch: getNotificationMode('system_dispatch'),
+      new_posts: getNotificationMode('new_posts'),
+      replies: getNotificationMode('replies'),
+      support: getNotificationMode('support'),
+    });
+    const perm = await getSystemNotificationPermissionState();
+    setPermissionState(perm);
+  }, []);
+
+  useEffect(() => {
+    syncState();
+    window.addEventListener('sanctuary_notification_prefs_changed', syncState);
+    return () => {
+      window.removeEventListener('sanctuary_notification_prefs_changed', syncState);
+    };
+  }, [syncState]);
 
   useEffect(() => {
     async function fetchFollows() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) return;
-      const { data } = await supabase.from('mason_followers').select('masons(id, name, profile_id)').eq('user_id', session.user.id);
-      if (data) {
-        setFollowedMasons(data.map((row: any) => ({
-          id: row.masons.id,
-          name: row.masons.name,
-          handle: `@${row.masons.profile_id || 'vlocal'}`
-        })));
+      const mergedMap = new Map<string, any>();
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user?.id) {
+        const { data } = await supabase
+          .from('mason_followers')
+          .select('mason_id, masons(*)')
+          .eq('user_id', session.user.id);
+        if (data) {
+          for (const row of data as any[]) {
+            const m = Array.isArray(row.masons) ? row.masons[0] : row.masons;
+            if (m && m.id) {
+              mergedMap.set(String(m.id), {
+                id: String(m.id),
+                name: m.name || t('unknown_architect', 'Unknown'),
+                avatar_url: m.avatar_url || null,
+                is_verified: Boolean(m.is_verified),
+                tagline:
+                  m.tagline && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(m.tagline).replace(/^@/, ''))
+                    ? String(m.tagline)
+                    : '',
+              });
+            }
+          }
+        }
       }
+
+      try {
+        const localState = await getSupporterState();
+        const localFollows = localState?.follows || [];
+        const missingIds = localFollows
+          .map((f) => String(f.mason_id))
+          .filter((id) => id && !mergedMap.has(id));
+
+        if (missingIds.length > 0) {
+          const { data: extraMasons } = await supabase
+            .from('masons')
+            .select('*')
+            .in('id', missingIds);
+          if (extraMasons) {
+            for (const m of extraMasons as any[]) {
+              if (m && m.id) {
+                mergedMap.set(String(m.id), {
+                  id: String(m.id),
+                  name: m.name || t('unknown_architect', 'Unknown'),
+                  avatar_url: m.avatar_url || null,
+                  is_verified: Boolean(m.is_verified),
+                  tagline:
+                    m.tagline && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(m.tagline).replace(/^@/, ''))
+                      ? String(m.tagline)
+                      : '',
+                });
+              }
+            }
+          }
+        }
+
+        for (const f of localFollows) {
+          const id = String(f.mason_id || '');
+          if (id && !mergedMap.has(id)) {
+            mergedMap.set(id, {
+              id,
+              name: f.mason_name || t('unknown_architect', 'Unknown'),
+              avatar_url: null,
+              is_verified: false,
+              tagline: '',
+            });
+          }
+        }
+      } catch {
+        // Ignore if local supporter vault unavailable
+      }
+
+      setFollowedMasons(
+        Array.from(mergedMap.values()).sort((a, b) =>
+          String(a.name || '').localeCompare(String(b.name || ''))
+        )
+      );
     }
     if (showMasonPanel) fetchFollows();
-  }, [showMasonPanel]);
+  }, [showMasonPanel, t]);
+
+  const filteredFollowedMasons = useMemo(() => {
+    const q = masonSearchQuery.trim().toLowerCase();
+    return followedMasons.filter((m) => {
+      if (q) {
+        const matchName = String(m.name || '').toLowerCase().includes(q);
+        const matchTagline = String(m.tagline || '').toLowerCase().includes(q);
+        if (!matchName && !matchTagline) return false;
+      }
+      const isAlertOn = Boolean(masonAlerts[m.id]);
+      if (masonAlertFilter === 'enabled' && !isAlertOn) return false;
+      if (masonAlertFilter === 'disabled' && isAlertOn) return false;
+      if (masonVerifiedFilter === 'verified' && !m.is_verified) return false;
+      if (masonVerifiedFilter === 'standard' && m.is_verified) return false;
+      return true;
+    });
+  }, [followedMasons, masonSearchQuery, masonAlertFilter, masonVerifiedFilter, masonAlerts]);
 
   const toggleMasonAlert = (id: string) => {
     const newVal = { ...masonAlerts, [id]: !masonAlerts[id] };
     setMasonAlerts(newVal);
-    localStorage.setItem("sanctuary_mason_alerts", JSON.stringify(newVal));
+    localStorage.setItem('sanctuary_mason_alerts', JSON.stringify(newVal));
   };
 
-  const toggleNotifyReplies = () => {
-    const newVal = !notifyReplies;
-    setNotifyReplies(newVal);
-    localStorage.setItem("sanctuary_notify_replies", newVal.toString());
+  const handleModeChange = async (category: NotificationCategory, nextMode: NotificationDeliveryMode) => {
+    if (nextMode === 'OS' && permissionState !== 'granted') {
+      const perm = await requestSystemNotificationPermission();
+      setPermissionState(perm);
+      if (perm === 'denied') {
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              'notif_os_banner_desc_denied',
+              'System notifications are blocked by your browser or device settings.'
+            ),
+            'warning'
+          );
+      }
+    }
+    setNotificationMode(category, nextMode);
+    setModes((prev) => ({ ...prev, [category]: nextMode }));
   };
 
-  const toggleNotifyNewPosts = () => {
-    const newVal = !notifyNewPosts;
-    setNotifyNewPosts(newVal);
-    localStorage.setItem("sanctuary_notify_new_posts", newVal.toString());
+  const handleEnableSystemNotifications = async () => {
+    const perm = await requestSystemNotificationPermission();
+    setPermissionState(perm);
+    if (perm === 'granted') {
+      const categories: NotificationCategory[] = [
+        'defcon',
+        'alert_banner',
+        'system_dispatch',
+        'new_posts',
+        'replies',
+        'support',
+      ];
+      categories.forEach((cat) => {
+        if (getNotificationMode(cat) !== 'NONE') {
+          setNotificationMode(cat, 'OS');
+        }
+      });
+      await syncState();
+      await notifyOS(
+        t('notif_test_title', 'Sanctuary OS — System Notification'),
+        t(
+          'notif_test_body',
+          'System notifications are connected and ready. Alerts will only be sent once.'
+        ),
+        'TEST_PULSE',
+        true,
+        `test_optin_${Date.now()}`
+      );
+    }
   };
 
-  const toggleNotifySystemDispatch = () => {
-    const newVal = !notifySystemDispatch;
-    setNotifySystemDispatch(newVal);
-    localStorage.setItem("sanctuary_notify_system_dispatch", newVal.toString());
+  const handleSendTestNotification = async () => {
+    const perm = await requestSystemNotificationPermission();
+    setPermissionState(perm);
+    const sent = await notifyOS(
+      t('notif_test_title', 'Sanctuary OS — System Notification'),
+      t(
+        'notif_test_body',
+        'System notifications are connected and ready. Alerts will only be sent once.'
+      ),
+      'TEST_PULSE',
+      true,
+      `test_manual_${Date.now()}`
+    );
+    if (sent) {
+      useStore
+        .getState()
+        .pushStatus(
+          `${t('icon_check_circle', 'check_circle')} ${t('notif_test_title', 'Sanctuary OS — System Notification')}`,
+          'success'
+        );
+    }
   };
 
-  const toggleNotifyAlertBanner = () => {
-    const newVal = !notifyAlertBanner;
-    setNotifyAlertBanner(newVal);
-    localStorage.setItem("sanctuary_notify_alert_banner", newVal.toString());
-  };
-
-  const toggleNotifySupport = () => {
-    const newVal = !notifySupport;
-    setNotifySupport(newVal);
-    localStorage.setItem("sanctuary_notify_support", newVal.toString());
+  const handleSetAllModes = async (targetMode: NotificationDeliveryMode) => {
+    if (targetMode === 'OS' && permissionState !== 'granted') {
+      const perm = await requestSystemNotificationPermission();
+      setPermissionState(perm);
+    }
+    setAllNotificationModes(targetMode);
+    await syncState();
   };
 
   const toggleNotifyAuthorOnly = () => {
     const newVal = !notifyAuthorOnly;
     setNotifyAuthorOnly(newVal);
-    localStorage.setItem("sanctuary_notify_author_only", newVal.toString());
+    localStorage.setItem('sanctuary_notify_author_only', newVal.toString());
   };
+
+  const deliveryOptions = [
+    { id: 'OS', label: t('notif_mode_os', 'System (OS)') },
+    { id: 'APP', label: t('notif_mode_app', 'In-App Only') },
+    { id: 'NONE', label: t('notif_mode_none', 'None (Muted)') },
+  ];
+
+  const categoryCards: {
+    id: NotificationCategory;
+    title: string;
+    subtitle: string;
+    icon: string;
+  }[] = [
+    {
+      id: 'defcon',
+      title: t('notify_defcon_title', 'Game Update & Lockdown Alerts'),
+      subtitle: t(
+        'notify_defcon_desc',
+        'Emergency alerts when a new game update is detected or a safety lockdown is triggered.'
+      ),
+      icon: t('icon_shield', 'shield'),
+    },
+    {
+      id: 'alert_banner',
+      title: t('notify_alert_banner', 'Urgent Global Alerts'),
+      subtitle: t('notify_alert_banner_desc', 'Critical network-wide alerts and pinned advisories.'),
+      icon: t('icon_warning', 'warning'),
+    },
+    {
+      id: 'system_dispatch',
+      title: t('notify_system_dispatch', 'System Dispatches'),
+      subtitle: t('notify_system_dispatch_desc', 'Official announcements and global dispatches.'),
+      icon: t('icon_admin_panel_settings', 'admin_panel_settings'),
+    },
+    {
+      id: 'new_posts',
+      title: t('btn_new_posts', 'Comm-Link Posts'),
+      subtitle: t('notify_new_posts_desc', 'New posts and broadcasts from creators you follow.'),
+      icon: t('icon_post_add', 'post_add'),
+    },
+    {
+      id: 'replies',
+      title: t('ui.replies', 'Comm-Link Replies'),
+      subtitle: t('notify_replies_desc', 'Direct replies and responses on Comm-Link threads.'),
+      icon: t('icon_chat_bubble', 'chat_bubble'),
+    },
+    {
+      id: 'support',
+      title: t('notify_support', 'Support Alerts'),
+      subtitle: t('notify_support_desc', 'Replies and updates on your support tickets.'),
+      icon: t('icon_contact_support', 'contact_support'),
+    },
+  ];
+
+  const isGranted = permissionState === 'granted';
+  const isDenied = permissionState === 'denied';
 
   return (
     <>
       <TabContainer
-        title={t("tab_notifs")}
+        title={t('tab_notifs', 'Notifications')}
         icon="notifications"
         actions={
-          <ActionButton 
+          <ActionButton
             variant="glass"
-            icon={t("icon_notifications")}
-            label={t("notif_per_mason")}
+            icon={t('icon_notifications', 'notifications')}
+            label={t('notif_per_mason', 'Creator Alerts')}
             onClick={() => setShowMasonPanel(true)}
           />
         }
       >
+        {/* System & PWA Notification Opt-In / Status Card */}
+        <div className="p-6 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-4 min-w-0">
+              <div
+                className={`w-12 h-12 rounded-2xl glass-surface flex items-center justify-center shrink-0 border ${
+                  isGranted
+                    ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]'
+                    : isDenied
+                    ? 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]'
+                    : 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
+                }`}
+              >
+                <span className="material-symbols-outlined !text-[24px]">
+                  {isGranted
+                    ? t('icon_notifications_active', 'notifications_active')
+                    : isDenied
+                    ? t('icon_notifications_off', 'notifications_off')
+                    : t('icon_notifications', 'notifications')}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 min-w-0">
+                <h3 className="text-base font-black tracking-tight text-[var(--text)]">
+                  {t('notif_os_banner_title', 'System & PWA Notifications')}
+                </h3>
+                <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed">
+                  {isGranted
+                    ? t(
+                        'notif_os_banner_desc_granted',
+                        'System notifications are active. Each alert is delivered once according to your per-category routing rules below.'
+                      )
+                    : isDenied
+                    ? t(
+                        'notif_os_banner_desc_denied',
+                        'System notifications are blocked by your browser or device settings. Enable notification permissions in your OS or browser to use System (OS) alerts.'
+                      )
+                    : t(
+                        'notif_os_banner_desc_prompt',
+                        'Opt in to receive real desktop or phone notifications for Game Updates, Creator Posts, Support Replies, and Global Alerts.'
+                      )}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex items-stretch gap-2.5 shrink-0">
+              {!isGranted && (
+                <ActionButton
+                  variant={isDenied ? 'danger' : 'accent'}
+                  icon={
+                    isDenied
+                      ? t('icon_notifications_off', 'notifications_off')
+                      : t('icon_notifications_active', 'notifications_active')
+                  }
+                  label={
+                    isDenied
+                      ? t('notif_os_status_blocked', 'Permission Blocked')
+                      : t('notif_os_btn_enable', 'Enable System Notifications')
+                  }
+                  onClick={handleEnableSystemNotifications}
+                  className="w-full lg:w-auto justify-center min-h-[42px]"
+                />
+              )}
+              <ActionButton
+                variant="glass"
+                icon={t('icon_send', 'send')}
+                label={t('notif_os_btn_test', 'Send Test Notification')}
+                onClick={handleSendTestNotification}
+                className="w-full lg:w-auto justify-center min-h-[42px]"
+              />
+              <ActionButton
+                variant="glass"
+                icon={t('icon_done_all', 'done_all')}
+                label={t('notif_os_btn_all_os', 'Set All to System (OS)')}
+                onClick={() => handleSetAllModes('OS')}
+                className="w-full lg:w-auto justify-center min-h-[42px]"
+              />
+              <ActionButton
+                variant="glass"
+                icon={t('icon_app_Shortcut', 'app_registration')}
+                label={t('notif_os_btn_all_app', 'Set All to In-App')}
+                onClick={() => handleSetAllModes('APP')}
+                className="w-full lg:w-auto justify-center min-h-[42px]"
+              />
+            </div>
+          </div>
+        </div>
+
         <SettingsGrid>
-          <UniversalCard 
-            title={t("ui.replies")} 
-            subtitle={t("notify_replies_desc")} 
-            icon="chat_bubble"
-            onClick={toggleNotifyReplies}
-            actions={<SettingsToggle checked={notifyReplies} />}
-          />
-          <UniversalCard 
-            title={t("btn_new_posts")} 
-            subtitle={t("notify_new_posts_desc")} 
-            icon="post_add"
-            onClick={toggleNotifyNewPosts}
-            actions={<SettingsToggle checked={notifyNewPosts} />}
-          />
-          <UniversalCard 
-            title={t("notify_system_dispatch")} 
-            subtitle={t("notify_system_dispatch_desc")} 
-            icon="admin_panel_settings"
-            onClick={toggleNotifySystemDispatch}
-            actions={<SettingsToggle checked={notifySystemDispatch} />}
-          />
-          <UniversalCard 
-            title={t("notify_alert_banner")} 
-            subtitle={t("notify_alert_banner_desc")} 
-            icon="warning"
-            onClick={toggleNotifyAlertBanner}
-            actions={<SettingsToggle checked={notifyAlertBanner} />}
-          />
-          <UniversalCard 
-            title={t("notify_support")} 
-            subtitle={t("notify_support_desc")} 
-            icon="contact_support"
-            onClick={toggleNotifySupport}
-            actions={<SettingsToggle checked={notifySupport} />}
-          />
-          <UniversalCard 
-            title={t("notify_author_only")} 
-            subtitle={t("notify_author_only_desc")} 
+          {categoryCards.map((card) => (
+            <UniversalCard
+              key={card.id}
+              title={card.title}
+              subtitle={card.subtitle}
+              icon={card.icon}
+              footer={
+                <CustomSettingsDropdown
+                  value={modes[card.id]}
+                  options={deliveryOptions}
+                  onChange={(val: NotificationDeliveryMode) => handleModeChange(card.id, val)}
+                />
+              }
+            />
+          ))}
+
+          <UniversalCard
+            title={t('notify_author_only', 'Creator Replies Only')}
+            subtitle={t('notify_author_only_desc', 'Only notify when the original post creator replies.')}
             icon="person"
             onClick={toggleNotifyAuthorOnly}
             actions={<SettingsToggle checked={notifyAuthorOnly} />}
@@ -144,29 +459,92 @@ export default function NotificationsTab() {
       <SidePanel
         isOpen={showMasonPanel}
         onClose={() => setShowMasonPanel(false)}
-        title={t("notif_per_mason")}
-        subtitle={t("notif_per_mason_desc")}
-        icon={t("icon_notifications")}
+        title={t('notif_per_mason', 'Creator Alerts')}
+        subtitle={t('notif_per_mason_desc', 'Manage notifications for individual creators you follow.')}
+        icon={t('icon_notifications', 'notifications')}
         iconColorClass="theme-text-accent"
       >
-        <div className="flex flex-col space-y-4 relative z-10 w-full h-full p-4 overflow-y-auto accent-scrollbar">
-          {followedMasons.length === 0 && <div className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 text-center mt-12 p-8 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl">{t("settings_no_masons")}</div>}
-          <SettingsGrid>
-            {followedMasons.map(m => (
-              <UniversalCard 
-                key={m.id} 
-                title={m.name} 
-                subtitle={m.handle} 
-                icon="person"
-                onClick={() => toggleMasonAlert(m.id)}
-                actions={<SettingsToggle checked={masonAlerts[m.id]} />}
-              />
-            ))}
-          </SettingsGrid>
+        <div className="flex flex-col gap-5 relative z-10 w-full">
+          <ActionPill
+            searchQuery={masonSearchQuery}
+            setSearchQuery={setMasonSearchQuery}
+            searchPlaceholder={t('ui_placeholder_search', 'Search...')}
+            primaryPopover={{
+              icon: t('icon_tune', 'tune'),
+              label: t('filters', 'Filters'),
+              content: (
+                <div className="flex flex-col gap-4 w-[280px] p-3">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                      {t('status', 'Status')}
+                    </span>
+                    <InlineFilterGroup
+                      value={masonAlertFilter}
+                      onChange={(v: string) => setMasonAlertFilter(v as any)}
+                      options={[
+                        { id: 'all', label: t('filter_all', 'All') },
+                        { id: 'enabled', label: t('comp_enabled', 'Enabled') },
+                        { id: 'disabled', label: t('comp_disabled', 'Disabled') },
+                      ]}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                      {t('verified', 'Verified')}
+                    </span>
+                    <InlineFilterGroup
+                      value={masonVerifiedFilter}
+                      onChange={(v: string) => setMasonVerifiedFilter(v as any)}
+                      options={[
+                        { id: 'all', label: t('filter_all', 'All') },
+                        { id: 'verified', label: t('verified', 'Verified') },
+                        { id: 'standard', label: t('status_standard_clearance', 'Standard Clearance') },
+                      ]}
+                    />
+                  </div>
+                </div>
+              ),
+            }}
+          />
+
+          {filteredFollowedMasons.length === 0 ? (
+            <div className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 text-center mt-6 p-8 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl">
+              {t('settings_no_masons', 'No creators followed yet.')}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 w-full">
+              {filteredFollowedMasons.map((m) => (
+                <UniversalCard
+                  key={m.id}
+                  layout="compact"
+                  image={m.avatar_url || undefined}
+                  icon={t('icon_person', 'person')}
+                  title={
+                    <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                      <span className="truncate">{m.name}</span>
+                      {m.is_verified && (
+                        <span className="relative inline-flex items-center shrink-0 cursor-default">
+                          <span className="material-symbols-outlined !text-[16px] text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.45)]">
+                            {t('icon_verified_user', 'verified_user')}
+                          </span>
+                          <HoverTooltip
+                            title={t('verified', 'Verified')}
+                            icon={t('icon_verified_user', 'verified_user')}
+                            variant="success"
+                          />
+                        </span>
+                      )}
+                    </span>
+                  }
+                  subtitle={m.tagline || undefined}
+                  onClick={() => toggleMasonAlert(m.id)}
+                  actions={<SettingsToggle checked={Boolean(masonAlerts[m.id])} />}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </SidePanel>
     </>
   );
 }
-
-

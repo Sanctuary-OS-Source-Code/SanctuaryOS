@@ -5,6 +5,7 @@ import { supabase } from "./supabase";
 import { stripMarkdown, getFileLabel, isSupportedExtension, formatDisplayName, compareVersions, SidePanel, PanelHeaderGroup, PanelHeaderButton } from "./shared";
 import { useTheme } from "./ThemeContext";
 import { useStore } from "./store";
+import { useModalStore } from "./store/modalStore";
 import { readTextFile, writeTextFile, mkdir, exists, readDir } from "@tauri-apps/plugin-fs";
 import { appDataDir } from "@tauri-apps/api/path";
 import { UniversalCard } from "./components/universal/UniversalCard";
@@ -18,6 +19,9 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
   const [installedTemplates, setInstalledTemplates] = useState<Record<string, string>>({});
   const session = useStore((state) => state.session);
   const vaultPath = useStore((state) => state.vaultPath);
+  const stagingDraftItems = useModalStore((state) => state.stagingDraftItems);
+  const toggleModInStagingDraft = useModalStore((state) => state.toggleModInStagingDraft);
+  const stageBlueprintToDraft = useModalStore((state) => state.stageBlueprintToDraft);
 
   useEffect(() => {
     const fetchLocalTemplates = async () => {
@@ -133,61 +137,98 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
       panelZ="z-[70001]"
       coverImage={data?.image_url || data?.thumbnail_url}
       headerActions={
-        data ? (
-          <PanelHeaderGroup>
-            {session?.user && session?.user?.user_metadata?.username !== data.author && onFlag && (
+        data ? (() => {
+          const assetStagingId = `asset_${assetType}_${data.id || assetId}`;
+          const isAssetStaged = stagingDraftItems.some(
+            (item: any) => String(item.id || "").toLowerCase() === assetStagingId.toLowerCase()
+          );
+          return (
+            <PanelHeaderGroup>
+              {session?.user && session?.user?.user_metadata?.username !== data.author && onFlag && (
+                <PanelHeaderButton
+                  icon="flag"
+                  tooltip={t("feed_btn_flag")}
+                  onClick={() => onFlag(assetId, assetType)}
+                  variant="danger"
+                />
+              )}
               <PanelHeaderButton
-                icon="flag"
-                tooltip={t("feed_btn_flag")}
-                onClick={() => onFlag(assetId, assetType)}
-                variant="danger"
-              />
-            )}
-            <PanelHeaderButton
-              icon={assetType === 'blueprint' ? "download" : (isInstalled(data) ? (isOutdated(data) ? "update" : "check_circle") : "download")}
-              tooltip={assetType === 'blueprint' ? (t("update_panel_install")) : (isInstalled(data) ? (isOutdated(data) ? "UPDATE" : t("btn_reinstall")) : (t("update_panel_install")))}
-              onClick={async (e?: React.MouseEvent) => {
-                e?.stopPropagation();
-                if (assetType === 'blueprint') {
-                  navigator.clipboard.writeText(data.json_data?.code || '').catch(() => { });
-                  useStore.getState().pushStatus("Copied Uplink Code: " + (data.json_data?.code || ''));
-                } else if (assetType === 'lexicon' || assetType === 'chameleon' || assetType === 'workbench_template') {
-                  if (assetType === 'lexicon') {
-                    const parsedData = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-                    importLexicon({ ...parsedData, _meta_language: data.language || "Custom", _meta_version: data.version || '1.0.0' }, data.name);
-                    useStore.getState().pushStatus(`Successfully Installed Lexicon: ${data.name}`);
-                  } else if (assetType === 'chameleon') {
-                    importTheme(data.json_data);
-                    useStore.getState().pushStatus(`Successfully Installed Chameleon: ${data.name}`);
-                  } else if (assetType === 'workbench_template') {
-                    try {
-                      if (!vaultPath) throw new Error("Vault path not configured.");
-
-                      let parsed = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-                      const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
-                      const templateId = displayData?.template_id || "vlocal";
-
-                      const templatesDir = `${vaultPath}\\Data\\Templates`;
-                      if (!(await exists(templatesDir))) {
-                        await mkdir(templatesDir, { recursive: true });
-                      }
-
-                      await writeTextFile(`${templatesDir}\\${templateId}_template.json`, JSON.stringify(parsed, null, 2));
-                      useStore.getState().pushStatus(`Successfully Installed Template: ${data.name}`);
-                    } catch (err: any) {
-                      useStore.getState().pushStatus(`Failed to install template: ${err.message}`);
-                    }
-                  }
-
-                  try {
-                    await supabase.rpc('increment_asset_downloads', { asset_id: assetId });
-                  } catch (e) { console.error("Could not increment downloads", e); }
+                icon={isAssetStaged ? t("icon_playlist_add_check", "playlist_add_check") : t("icon_playlist_add", "playlist_add")}
+                tooltip={
+                  assetType === 'blueprint'
+                    ? t("staging_btn_stage_blueprint", "Stage Blueprint to Desktop")
+                    : isAssetStaged
+                      ? t("staging_btn_unstage_mod", "Remove from Staging")
+                      : t("staging_btn_stage_mod", "Stage to PC")
                 }
-              }}
-              variant={assetType === 'blueprint' ? (isInstalled(data) ? "primary" : "success") : (isInstalled(data) ? (isOutdated(data) ? "primary" : "glass") : "success")}
-            />
-          </PanelHeaderGroup>
-        ) : undefined
+                onClick={(e?: React.MouseEvent) => {
+                  e?.stopPropagation();
+                  if (assetType === 'blueprint') {
+                    stageBlueprintToDraft(data);
+                    useStore.getState().pushStatus(t("status_staging_blueprint_loaded", "Blueprint loaded into Payload Editor."));
+                    onClose();
+                    useStore.getState().setView('playsets');
+                  } else {
+                    toggleModInStagingDraft({
+                      ...data,
+                      asset_type: assetType,
+                      asset_id: data.id || assetId,
+                    });
+                    useStore.getState().pushStatus(
+                      isAssetStaged
+                        ? t("status_staging_item_removed", "Removed from Remote Staging Queue.")
+                        : t("status_staging_item_added", "Added to Remote Staging Queue.")
+                    );
+                  }
+                }}
+                variant={isAssetStaged ? "accent" : "default"}
+              />
+              <PanelHeaderButton
+                icon={assetType === 'blueprint' ? "download" : (isInstalled(data) ? (isOutdated(data) ? "update" : "check_circle") : "download")}
+                tooltip={assetType === 'blueprint' ? (t("update_panel_install")) : (isInstalled(data) ? (isOutdated(data) ? "UPDATE" : t("btn_reinstall")) : (t("update_panel_install")))}
+                onClick={async (e?: React.MouseEvent) => {
+                  e?.stopPropagation();
+                  if (assetType === 'blueprint') {
+                    navigator.clipboard.writeText(data.json_data?.code || '').catch(() => { });
+                    useStore.getState().pushStatus("Copied Uplink Code: " + (data.json_data?.code || ''));
+                  } else if (assetType === 'lexicon' || assetType === 'chameleon' || assetType === 'workbench_template') {
+                    if (assetType === 'lexicon') {
+                      const parsedData = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
+                      importLexicon({ ...parsedData, _meta_language: data.language || "Custom", _meta_version: data.version || '1.0.0' }, data.name);
+                      useStore.getState().pushStatus(`Successfully Installed Lexicon: ${data.name}`);
+                    } else if (assetType === 'chameleon') {
+                      importTheme(data.json_data);
+                      useStore.getState().pushStatus(`Successfully Installed Chameleon: ${data.name}`);
+                    } else if (assetType === 'workbench_template') {
+                      try {
+                        if (!vaultPath) throw new Error("Vault path not configured.");
+
+                        let parsed = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
+                        const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
+                        const templateId = displayData?.template_id || "vlocal";
+
+                        const templatesDir = `${vaultPath}\\Data\\Templates`;
+                        if (!(await exists(templatesDir))) {
+                          await mkdir(templatesDir, { recursive: true });
+                        }
+
+                        await writeTextFile(`${templatesDir}\\${templateId}_template.json`, JSON.stringify(parsed, null, 2));
+                        useStore.getState().pushStatus(`Successfully Installed Template: ${data.name}`);
+                      } catch (err: any) {
+                        useStore.getState().pushStatus(`Failed to install template: ${err.message}`);
+                      }
+                    }
+
+                    try {
+                      await supabase.rpc('increment_asset_downloads', { asset_id: assetId });
+                    } catch (e) { console.error("Could not increment downloads", e); }
+                  }
+                }}
+                variant={assetType === 'blueprint' ? (isInstalled(data) ? "primary" : "success") : (isInstalled(data) ? (isOutdated(data) ? "primary" : "glass") : "success")}
+              />
+            </PanelHeaderGroup>
+          );
+        })() : undefined
       }
     >
       {loading ? (

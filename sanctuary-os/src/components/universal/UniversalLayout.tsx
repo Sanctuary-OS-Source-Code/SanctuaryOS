@@ -172,7 +172,7 @@ export function SidePanelPillToggle({
     <label
       className={`w-full glass-surface rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${
         checked
-          ? `bg-[color-mix(in_srgb,var(${colorVar})_10%,transparent)] border-[color-mix(in_srgb,var(${colorVar})_30%,transparent)]`
+          ? `bg-[color-mix(in_srgb,var(${colorVar})_10%,transparent)] !border-[color-mix(in_srgb,var(${colorVar})_35%,transparent)]`
           : "border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
       } ${disabled ? "opacity-50 pointer-events-none" : ""} ${className}`}
     >
@@ -185,13 +185,17 @@ export function SidePanelPillToggle({
         {label}
       </span>
       <div
-        className={`w-10 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${
-          checked ? `bg-[var(${colorVar})]` : "bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+        className={`w-11 h-6 rounded-full transition-all relative shrink-0 border backdrop-blur-md ${
+          checked
+            ? `bg-[color-mix(in_srgb,var(${colorVar})_15%,transparent)] border-[color-mix(in_srgb,var(${colorVar})_50%,transparent)]`
+            : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-inner"
         }`}
       >
         <div
-          className={`w-4 h-4 rounded-full bg-[var(--bg)] absolute top-1 transition-transform shadow-md flex items-center justify-center ${
-            checked ? "translate-x-5" : "translate-x-1"
+          className={`w-4 h-4 rounded-full absolute top-[3px] transition-all duration-300 ${
+            checked
+              ? `translate-x-[22px] bg-[var(${colorVar})] shadow-[0_0_8px_var(${colorVar})]`
+              : "translate-x-[3px] bg-[color-mix(in_srgb,var(--text)_40%,transparent)]"
           }`}
         />
       </div>

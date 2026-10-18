@@ -18,6 +18,8 @@ import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import { logArchitectAction } from "../lib/audit";
+import { extractDispatchMetadata, DispatchMetadataHeader, DispatchPollBuilder, DispatchPollData } from "../components/universal/DispatchPollAndMeta";
+import { ReleaseNotesShowcase } from "../components/ReleaseNotesShowcase";
 
 export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = true, onClose = () => {} }: any = {}) {
   const session = useStore((state) => state.session);
@@ -31,6 +33,8 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
   const targetAudienceOptions = ["All", "Public", "Citizens", "Masons", "Architects", "Oversight", "Wayfinders", "Keepers"];
   const [communityOptions, setCommunityOptions] = useState<string[]>([]);
   const [category, setCategory] = useState("Announcement");
+  const [actionRequired, setActionRequired] = useState("No Action Required");
+  const [pollData, setPollData] = useState<DispatchPollData | null>(null);
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState("Standard");
@@ -76,25 +80,27 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
             rawContent = rawContent.substring(endIdx + 1).trim();
           }
         }
+        const parsedMeta = extractDispatchMetadata(editingPost, rawContent);
 
         isUnchanged =
           title === editingPost.title &&
-          content === rawContent &&
+          content === parsedMeta.cleanContent &&
           targetAudience.join(',') === (editingPost.target_audience || "All") &&
-          category === (editingPost.category || "Update") &&
+          category === (editingPost.category || "Announcement") &&
+          actionRequired === (parsedMeta.actionRequired || "No Action Required") &&
+          JSON.stringify(pollData || null) === JSON.stringify(editingPost.poll_data || null) &&
           codeSnippet === (editingPost.code_snippet || "") &&
-          
           true;
       } else {
         isUnchanged = title === "" &&
           description === "" &&
           content === "" &&
           targetAudience.length === 0 &&
-          category === "Update" &&
+          category === "Announcement" &&
+          actionRequired === "No Action Required" &&
+          pollData === null &&
           imageUrl === "" &&
           codeSnippet === "" &&
-          
-          
           isActive === true;
       }
 
@@ -108,11 +114,11 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       } else {
         setWayfinderDrafts(prev => ({
           ...prev,
-          [draftId]: { title, description, content, targetAudience, category, imageUrl, codeSnippet, isActive }
+          [draftId]: { title, description, content, targetAudience, category, actionRequired, pollData, imageUrl, codeSnippet, isActive }
         }));
       }
     }
-  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, imageUrl, codeSnippet, isActive]);
+  }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, actionRequired, pollData, imageUrl, codeSnippet, isActive]);
 
   const updateTimeoutRef = useRef<any>(null);
 
@@ -230,18 +236,19 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
         rawContent = rawContent.replace(new RegExp(`<img[^>]+src=["']${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>\\s*`, 'i'), '');
       }
       rawContent = rawContent.replace(/\[IMG:.*?\]\s*/, '').trim();
+      const parsedMeta = extractDispatchMetadata(post, rawContent);
 
       setTitle(draft?.title ?? post.title);
       setDescription(draft?.description ?? (post.description || ""));
       setTargetAudience(draft?.targetAudience ?? (post.target_audience ? post.target_audience.split(',') : ["All"]));
       setCategory(draft?.category ?? (post.category || "Announcement"));
+      setActionRequired(draft?.actionRequired ?? (parsedMeta.actionRequired || "No Action Required"));
+      setPollData(draft?.pollData !== undefined ? draft.pollData : (post.poll_data || null));
       setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
       setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
-      
-      
       setIsActive(draft?.isActive ?? (post.is_active !== false));
 
-      const contentToSet = draft?.content ?? rawContent;
+      const contentToSet = draft?.content ?? parsedMeta.cleanContent;
       setContent(contentToSet);
       if (editor) {
         editor.commands.setContent(contentToSet);
@@ -254,6 +261,8 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       setDescription(draft?.description ?? "");
       setTargetAudience(draft?.targetAudience ?? []);
       setCategory(draft?.category ?? "Announcement");
+      setActionRequired(draft?.actionRequired ?? "No Action Required");
+      setPollData(draft?.pollData ?? null);
 
       const contentToSet = draft?.content ?? "";
       setContent(contentToSet);
@@ -263,8 +272,6 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       setImageUrl(draft?.imageUrl ?? "");
       setCodeSnippet(draft?.codeSnippet ?? "");
       setShowCodeInput(!!draft?.codeSnippet);
-      
-      
       setIsActive(draft?.isActive ?? true);
     }
     setIsEditorOpen(true);
@@ -296,13 +303,13 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       setIsSubmitting(false);
       setPreviewPost(null);
     }, 300);
+    setActionRequired("No Action Required");
+    setPollData(null);
     setImageUrl("");
     setCodeSnippet("");
     setShowCodeInput(false);
     setShowImageInput(false);
     setShowIconPicker(false);
-    
-    
     setIsActive(true);
   };
 
@@ -333,10 +340,33 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
 
     if (!title.trim() || !finalContent.trim()) return;
 
+    if (pollData && (!pollData.question.trim() || pollData.options.filter(o => o.label.trim()).length < 2)) {
+      alert(t("poll_err_incomplete", "Please enter a poll question and at least 2 options, or remove the poll before posting."));
+      return;
+    }
+
     setIsSubmitting(true);
     let finalCategory = category;
-    let isPinned = false;
-    let payload: any = { title: title.trim(), description: description.trim() || null, message: finalContent.trim(), category: finalCategory, target_audience: "Public", code_snippet: codeSnippet.trim() || null, is_pinned: false, is_active: isActive };
+    const sanitizedPoll = pollData && pollData.question.trim() && pollData.options.filter(o => o.label.trim()).length >= 2
+      ? {
+          ...pollData,
+          question: pollData.question.trim(),
+          options: pollData.options.filter(o => o.label.trim()).map(o => ({ ...o, label: o.label.trim() }))
+        }
+      : null;
+
+    let payload: any = {
+      title: title.trim(),
+      description: description.trim() || null,
+      message: finalContent.trim(),
+      category: finalCategory,
+      target_audience: "Public",
+      action_required: actionRequired.trim() || "No Action Required",
+      poll_data: sanitizedPoll,
+      code_snippet: codeSnippet.trim() || null,
+      is_pinned: false,
+      is_active: isActive
+    };
     if (imageUrl.trim()) payload.message = `[IMG:${imageUrl.trim()}]\n\n` + payload.message;
 
     let error = null;
@@ -479,6 +509,13 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       number: posts.length.toString(),
     },
     {
+      id: "ReleasePosts",
+      label: t("release_notes_keepers_tab", "Release Posts"),
+      icon: "new_releases",
+      number: "2",
+      colorClass: "text-[var(--accent)]",
+    },
+    {
       id: "Urgent",
       label: t("urgent") || "Urgent",
       icon: "notification_important",
@@ -506,6 +543,16 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
 
     return (
       <HubOverviewLanding>
+        <HubOverviewSection
+          className="xl:col-span-2"
+          icon="new_releases"
+          iconColorClass="text-[var(--accent)]"
+          title={t("release_notes_keepers_section_title", "Current Build Release Posts (Public & Dev)")}
+          gridClassName="flex flex-col w-full"
+        >
+          <ReleaseNotesShowcase isKeepers={true} />
+        </HubOverviewSection>
+
         {urgentPosts.length > 0 && (
           <HubOverviewSection
             className="xl:col-span-2"
@@ -555,13 +602,13 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       search={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder={t("mason_search_placeholder")}
-      hideSearch={filterStatus === 'overview'}
+      hideSearch={filterStatus === 'overview' || filterStatus === 'ReleasePosts'}
       tabs={tabs}
 
       activeTab={filterStatus === 'overview' ? 'overview' : filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
       primaryPopover={
-        filterStatus !== 'overview' ? {
+        filterStatus !== 'overview' && filterStatus !== 'ReleasePosts' ? {
           icon: "tune",
           label: t("filters") || "Filters",
           content: (
@@ -589,7 +636,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
         } : undefined
       }
       actions={
-        filterStatus !== 'overview' ? [
+        filterStatus !== 'overview' && filterStatus !== 'ReleasePosts' ? [
           {
             id: "post",
             icon: t("icon_cell_tower") || "cell_tower",
@@ -599,7 +646,11 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
         ] : undefined
       }
     >
-      {filterStatus === 'overview' ? renderLanding() : (
+      {filterStatus === 'overview' ? renderLanding() : filterStatus === 'ReleasePosts' ? (
+        <div className="w-full py-2">
+          <ReleaseNotesShowcase isKeepers={true} />
+        </div>
+      ) : (
           <div className="flex flex-col gap-4">
             {filteredPosts.length === 0 ? (
               <EmptyState icon={t("icon_cell_tower")} title={t("no_transmissions")} className="col-span-full py-16" />
@@ -697,7 +748,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                   <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
 
-                <div className="flex gap-4 w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                   <div className="flex flex-col gap-2 flex-1">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category")}</label>
                     <div className="h-14">
@@ -717,6 +768,35 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                       />
                     </div>
                   </div>
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_meta_action", "Action Required")}</label>
+                    <div className="h-14">
+                      <CustomDropdown
+                        disableTint={true}
+                        searchable={true}
+                        allowCustom={true}
+                        value={actionRequired}
+                        onChange={(v: string[]) => setActionRequired(v[0] || "No Action Required")}
+                        options={[
+                          { id: "No Action Required", label: t("dispatch_action_none", "No Action Required") },
+                          { id: "Review Before Updating", label: t("dispatch_action_review", "Review Before Updating") },
+                          { id: "Update Recommended", label: t("dispatch_action_update_rec", "Update Recommended") },
+                          { id: "Immediate Action Required", label: t("dispatch_action_immediate", "Immediate Action Required") }
+                        ]}
+                        placeholder={t("dispatch_meta_action", "Action Required")}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_telemetry_preview", "Dispatch Telemetry Header Preview")}</label>
+                  <DispatchMetadataHeader
+                    post={{ category, target_audience: "Public", action_required: actionRequired }}
+                    categoryOverride={category}
+                    audienceOverride={["Public"]}
+                    actionRequiredOverride={actionRequired}
+                  />
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -817,6 +897,8 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                     </div>
                   </div>
                 </div>
+
+                <DispatchPollBuilder pollData={pollData} onChange={setPollData} />
               </div>
             </div>
           </SidePanel>

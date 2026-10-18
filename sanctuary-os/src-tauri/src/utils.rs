@@ -30,13 +30,14 @@ pub fn process_structure_nodes(
     current_target_dir: &std::path::Path,
     vault_mods_lane: &std::path::Path,
     folders_to_check: &[&str],
-) {
+) -> usize {
+    let mut linked_count = 0usize;
     for node in nodes {
         if node.node_type == "folder" {
             let next_target_dir = current_target_dir.join(&node.name);
             let _ = std::fs::create_dir_all(&next_target_dir);
             if let Some(children) = &node.children {
-                process_structure_nodes(
+                linked_count += process_structure_nodes(
                     schema,
                     children,
                     &next_target_dir,
@@ -48,28 +49,42 @@ pub fn process_structure_nodes(
             let mod_name = node.assigned_mod_name.as_ref().unwrap_or(&node.name);
             let mut source = vault_mods_lane.join(mod_name);
             let mut found = false;
+            let exts = crate::game_logic::get_supported_extensions(schema);
+            let mod_stem = std::path::Path::new(mod_name)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(mod_name);
+
             for f in folders_to_check {
-                let base_test = if f.is_empty() {
-                    vault_mods_lane.join(mod_name)
+                let dir_root = if f.is_empty() {
+                    vault_mods_lane.to_path_buf()
                 } else {
-                    vault_mods_lane.join(f).join(mod_name)
+                    vault_mods_lane.join(f)
                 };
-                let exts = crate::game_logic::get_supported_extensions(schema);
-                if base_test.is_file() {
-                    source = base_test;
-                    found = true;
-                    break;
-                } else {
-                    for ext in exts {
-                        if base_test.with_extension(&ext).is_file() {
-                            source = base_test.with_extension(&ext);
-                            found = true;
+                let candidates = [
+                    dir_root.join(mod_name),
+                    dir_root.join(mod_stem).join(mod_name),
+                ];
+                for base_test in candidates {
+                    if base_test.is_file() {
+                        source = base_test;
+                        found = true;
+                        break;
+                    } else {
+                        for ext in &exts {
+                            if base_test.with_extension(ext).is_file() {
+                                source = base_test.with_extension(ext);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if found {
                             break;
                         }
                     }
-                    if found {
-                        break;
-                    }
+                }
+                if found {
+                    break;
                 }
             }
             if found {
@@ -83,15 +98,22 @@ pub fn process_structure_nodes(
                 }
                 let target_path = current_target_dir.join(final_name);
                 if source.is_dir() {
-                    let _ = deploy_junction(&source, &target_path);
+                    if deploy_junction(&source, &target_path).is_ok() {
+                        linked_count += 1;
+                    }
                 } else {
-                    let _ = create_symlink_file(&source, &target_path)
+                    if create_symlink_file(&source, &target_path)
                         .or_else(|_| std::fs::hard_link(&source, &target_path))
-                        .or_else(|_| std::fs::copy(&source, &target_path).map(|_| ()));
+                        .or_else(|_| std::fs::copy(&source, &target_path).map(|_| ()))
+                        .is_ok()
+                    {
+                        linked_count += 1;
+                    }
                 }
             }
         }
     }
+    linked_count
 }
 
 pub fn is_mods_dir(path: &Path) -> bool {
@@ -152,6 +174,45 @@ pub fn get_db_conn(vault_path: &str) -> Connection {
     let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN target_hash TEXT DEFAULT ''", []);
     let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN archive_hashes TEXT DEFAULT '[]'", []);
     let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN game_id TEXT DEFAULT ''", []);
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS local_mason_follows (
+            mason_id TEXT PRIMARY KEY,
+            mason_name TEXT NOT NULL DEFAULT '',
+            avatar_url TEXT DEFAULT '',
+            workspace_id TEXT DEFAULT '',
+            notify_alerts INTEGER NOT NULL DEFAULT 1,
+            followed_at INTEGER NOT NULL
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS local_mason_supporters (
+            mason_id TEXT PRIMARY KEY,
+            mason_name TEXT NOT NULL DEFAULT '',
+            provider TEXT NOT NULL DEFAULT 'patreon',
+            tier_name TEXT DEFAULT 'Supporter',
+            pledge_cents INTEGER NOT NULL DEFAULT 500,
+            patreon_campaign_id TEXT DEFAULT '',
+            access_token TEXT DEFAULT '',
+            cryptographic_pass TEXT NOT NULL DEFAULT '',
+            expedited_support INTEGER NOT NULL DEFAULT 1,
+            early_access INTEGER NOT NULL DEFAULT 1,
+            verified_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS local_dev_build_status (
+            user_id TEXT PRIMARY KEY,
+            dev_build_until INTEGER NOT NULL DEFAULT 0,
+            donation_credit_cents INTEGER NOT NULL DEFAULT 0,
+            total_months_unlocked INTEGER NOT NULL DEFAULT 0,
+            channel_enabled INTEGER NOT NULL DEFAULT 0,
+            updated_at INTEGER NOT NULL
+        )",
+        [],
+    );
     let _ = conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache (dna_hash)",
         [],
@@ -286,19 +347,38 @@ pub fn walk_packages(
     dir: &Path,
     files: &mut Vec<PathBuf>,
 ) {
+    let manifest_name = game_schema
+        .as_ref()
+        .map(|s| s.paths.manifest_file.to_lowercase())
+        .unwrap_or_else(|| "resource.cfg".to_string());
+
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let p = entry.path();
             if p.is_dir() {
                 if let Some(name) = p.file_name() {
                     let name_str = name.to_string_lossy().to_lowercase();
-                    if name_str == "sandbox" || name_str == "dev" {
+                    if name_str == "sandbox" || name_str == "dev" || name_str == "resource" {
                         continue;
                     }
                 }
                 walk_packages(game_schema, &p, files);
             } else if let Some(ext) = p.extension().and_then(|s| s.to_str()) {
                 let ext_lower = ext.to_lowercase();
+                let fname_lower = p
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or_default()
+                    .to_lowercase();
+                if fname_lower == "resource.cfg"
+                    || (!manifest_name.is_empty() && fname_lower == manifest_name)
+                    || ext_lower == "cfg"
+                    || ext_lower == "ini"
+                    || ext_lower == "txt"
+                    || ext_lower == "log"
+                {
+                    continue;
+                }
                 let exts = crate::game_logic::get_supported_extensions(&game_schema);
                 if exts.contains(&ext_lower) {
                     files.push(p);
@@ -379,17 +459,6 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
     if let Ok(entries) = std::fs::read_dir(dir) {
         let items: Vec<_> = entries.flatten().map(|e| e.path()).collect();
         items.into_par_iter().for_each(|path| {
-            let manifest_name = game_schema
-                .as_ref()
-                .map(|s| s.paths.manifest_file.clone())
-                .unwrap_or_default();
-            if path
-                .file_name()
-                .map_or(false, |n| n == manifest_name.as_str())
-            {
-                return;
-            }
-
             let is_symlink_or_junction = std::fs::read_link(&path).is_ok()
                 || std::fs::symlink_metadata(&path)
                     .map(|m| m.file_type().is_symlink())
@@ -401,6 +470,28 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
                 } else {
                     let _ = std::fs::remove_file(&path);
                 }
+                return;
+            }
+
+            let manifest_name = game_schema
+                .as_ref()
+                .map(|s| s.paths.manifest_file.clone())
+                .filter(|m| !m.is_empty())
+                .unwrap_or_else(|| "Resource.cfg".to_string());
+
+            let parent_is_resource_subdir = path
+                .parent()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str())
+                .map(|n| n.eq_ignore_ascii_case("resource"))
+                .unwrap_or(false);
+
+            if !parent_is_resource_subdir
+                && path.file_name().and_then(|n| n.to_str()).map_or(false, |n| {
+                    n.eq_ignore_ascii_case(&manifest_name)
+                        || n.eq_ignore_ascii_case("Resource.cfg")
+                })
+            {
                 return;
             }
 
@@ -935,6 +1026,13 @@ pub fn find_backup(vault_path: &str, file_name: &str) -> Option<PathBuf> {
             return Some(p3);
         }
     }
+    let docs_base = get_docs_base_from_mods_path(&config.mods_path);
+    if let Some(world_dir) = get_world_backups_dir(&docs_base, vault_path) {
+        let p4 = world_dir.join(file_name);
+        if p4.exists() {
+            return Some(p4);
+        }
+    }
 
     None
 }
@@ -1001,8 +1099,14 @@ pub fn enforce_retention_policy(target_dir: &Path, keep_count: u32) {
 }
 
 pub fn get_engine_backups_dir(live_path: &str, vault_path: &str) -> Option<PathBuf> {
+    if live_path.trim().is_empty() {
+        return None;
+    }
     let p = PathBuf::from(live_path);
     let root = p.ancestors().last()?;
+    if root.as_os_str().is_empty() {
+        return None;
+    }
 
     let vault_name = PathBuf::from(vault_path)
         .file_name()
@@ -1014,6 +1118,45 @@ pub fn get_engine_backups_dir(live_path: &str, vault_path: &str) -> Option<PathB
         root.join(".sanctuary_backups")
             .join(vault_name)
             .join("Engine"),
+    )
+}
+
+pub fn get_docs_base_from_mods_path(mods_path: &str) -> String {
+    if mods_path.trim().is_empty() {
+        return String::new();
+    }
+    let mut doc_dir = PathBuf::from(mods_path);
+    if doc_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default()
+        .eq_ignore_ascii_case("mods")
+    {
+        doc_dir.pop();
+    }
+    doc_dir.to_string_lossy().to_string()
+}
+
+pub fn get_world_backups_dir(docs_path: &str, vault_path: &str) -> Option<PathBuf> {
+    if docs_path.trim().is_empty() {
+        return None;
+    }
+    let p = PathBuf::from(docs_path);
+    let root = p.ancestors().last()?;
+    if root.as_os_str().is_empty() {
+        return None;
+    }
+
+    let vault_name = PathBuf::from(vault_path)
+        .file_name()
+        .unwrap_or(std::ffi::OsStr::new("default"))
+        .to_string_lossy()
+        .into_owned();
+
+    Some(
+        root.join(".sanctuary_backups")
+            .join(vault_name)
+            .join("World"),
     )
 }
 
@@ -1101,3 +1244,216 @@ pub fn hardlink_mirror(
     }
     Ok(())
 }
+
+pub const SANCTUARY_REDACTED_TOKEN: &str = "[REDACTED BY SANCTUARY]";
+
+fn chars_match_ignore_ascii_case(haystack: &[char], pos: usize, needle_lower: &[char]) -> bool {
+    if pos + needle_lower.len() > haystack.len() {
+        return false;
+    }
+    for (i, &nc) in needle_lower.iter().enumerate() {
+        if haystack[pos + i].to_ascii_lowercase() != nc {
+            return false;
+        }
+    }
+    true
+}
+
+fn redact_after_marker_chars(input: &str, marker_lower_str: &str, stop_chars: &[char]) -> String {
+    let chars: Vec<char> = input.chars().collect();
+    let marker: Vec<char> = marker_lower_str.chars().collect();
+    let redacted_chars: Vec<char> = SANCTUARY_REDACTED_TOKEN.chars().collect();
+    let mut out = String::with_capacity(input.len());
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars_match_ignore_ascii_case(&chars, i, &marker) {
+            for k in 0..marker.len() {
+                out.push(chars[i + k]);
+            }
+            i += marker.len();
+            if chars_match_ignore_ascii_case(&chars, i, &redacted_chars) {
+                for k in 0..redacted_chars.len() {
+                    out.push(chars[i + k]);
+                }
+                i += redacted_chars.len();
+                continue;
+            }
+            let seg_start = i;
+            while i < chars.len() && !stop_chars.contains(&chars[i]) {
+                i += 1;
+            }
+            if i > seg_start {
+                out.push_str(SANCTUARY_REDACTED_TOKEN);
+            }
+        } else {
+            out.push(chars[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+fn redact_xml_tag_chars(input: &str, tag_lower: &str, replacement: &str) -> String {
+    let chars: Vec<char> = input.chars().collect();
+    let open_tag: Vec<char> = format!("<{}>", tag_lower).chars().collect();
+    let close_tag: Vec<char> = format!("</{}>", tag_lower).chars().collect();
+    let mut out = String::with_capacity(input.len());
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars_match_ignore_ascii_case(&chars, i, &open_tag) {
+            for k in 0..open_tag.len() {
+                out.push(chars[i + k]);
+            }
+            i += open_tag.len();
+            let content_start = i;
+            let mut found_close = None;
+            let mut scan = i;
+            while scan < chars.len() {
+                if chars_match_ignore_ascii_case(&chars, scan, &close_tag) {
+                    found_close = Some(scan);
+                    break;
+                }
+                if chars[scan] == '<' || chars[scan] == '\n' {
+                    break;
+                }
+                scan += 1;
+            }
+            if let Some(close_idx) = found_close {
+                if close_idx > content_start {
+                    out.push_str(replacement);
+                }
+                for k in 0..close_tag.len() {
+                    out.push(chars[close_idx + k]);
+                }
+                i = close_idx + close_tag.len();
+            }
+        } else {
+            out.push(chars[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+fn redact_guid_tokens(input: &str) -> String {
+    let chars: Vec<char> = input.chars().collect();
+    let guid_kw: Vec<char> = vec!['g', 'u', 'i', 'd'];
+    let mut out = String::with_capacity(input.len());
+    let mut i = 0;
+
+    while i < chars.len() {
+        let prev_ok = i == 0 || !chars[i - 1].is_ascii_alphanumeric();
+        if prev_ok && chars_match_ignore_ascii_case(&chars, i, &guid_kw) {
+            let mut scan = i + 4;
+            while scan < chars.len() && (chars[scan] == ' ' || chars[scan] == '\t') {
+                scan += 1;
+            }
+            if scan < chars.len() && (chars[scan] == ':' || chars[scan] == '=') {
+                scan += 1;
+                while scan < chars.len() && (chars[scan] == ' ' || chars[scan] == '\t') {
+                    scan += 1;
+                }
+                let val_start = scan;
+                while scan < chars.len()
+                    && (chars[scan].is_ascii_hexdigit()
+                        || chars[scan] == '-'
+                        || chars[scan] == '{'
+                        || chars[scan] == '}')
+                {
+                    scan += 1;
+                }
+                if scan.saturating_sub(val_start) >= 8 {
+                    for k in i..val_start {
+                        out.push(chars[k]);
+                    }
+                    out.push_str(SANCTUARY_REDACTED_TOKEN);
+                    i = scan;
+                    continue;
+                }
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+pub const SANCTUARY_REDACTED_HEX_SESSION: &str = "000000000000000000000000";
+
+pub fn scrub_user_data_from_log(input: &str) -> String {
+    if input.is_empty() {
+        return String::new();
+    }
+
+    let path_stops = ['\\', '/', '"', '\'', '<', '>', '\r', '\n', '&', '|'];
+    let mut text = input.to_string();
+
+    // 1. Redact GUID: <UUID/Hex> (e.g. GUID: BC7AFD5D-ECE9-11EF-BE02-E6D1369926EE&#13; &#10;</desyncdata></report>)
+    text = redact_guid_tokens(&text);
+
+    // 2a. Redact sessionid and desyncid with 24 hex zeroes for strict XML hex parser compatibility
+    for hex_tag in ["sessionid", "desyncid"] {
+        text = redact_xml_tag_chars(&text, hex_tag, SANCTUARY_REDACTED_HEX_SESSION);
+    }
+
+    // 2b. Redact machine/user XML tags with [REDACTED BY SANCTUARY]
+    for tag in [
+        "guid",
+        "userid",
+        "machineid",
+        "computername",
+        "accountid",
+    ] {
+        text = redact_xml_tag_chars(&text, tag, SANCTUARY_REDACTED_TOKEN);
+    }
+
+    // 3. Redact file paths containing the Username across Windows, macOS, Linux, and OneDrive
+    for marker in [
+        "\\\\users\\\\",
+        "\\users\\",
+        "/users/",
+        "/home/",
+        "\\documents and settings\\",
+        "/documents and settings/",
+        "onedrive - ",
+    ] {
+        text = redact_after_marker_chars(&text, marker, &path_stops);
+    }
+
+    // 4. Redact current OS USERNAME / USER and COMPUTERNAME / HOSTNAME if any literal occurrences remain
+    for env_key in ["USERNAME", "USER"] {
+        if let Ok(val) = std::env::var(env_key) {
+            let trimmed = val.trim();
+            if trimmed.len() >= 2 {
+                for pat in [
+                    format!("\\{}\\", trimmed),
+                    format!("\\\\{}\\\\", trimmed),
+                    format!("/{}/", trimmed),
+                ] {
+                    let repl = if pat.starts_with("\\\\") {
+                        format!("\\\\{}\\\\", SANCTUARY_REDACTED_TOKEN)
+                    } else if pat.starts_with('\\') {
+                        format!("\\{}\\", SANCTUARY_REDACTED_TOKEN)
+                    } else {
+                        format!("/{}/", SANCTUARY_REDACTED_TOKEN)
+                    };
+                    text = text.replace(&pat, &repl);
+                }
+            }
+        }
+    }
+
+    for host_key in ["COMPUTERNAME", "HOSTNAME"] {
+        if let Ok(val) = std::env::var(host_key) {
+            let trimmed = val.trim();
+            if trimmed.len() >= 3 {
+                text = text.replace(trimmed, SANCTUARY_REDACTED_TOKEN);
+            }
+        }
+    }
+
+    text
+}
+

@@ -23,6 +23,67 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use tauri::{Emitter, Manager};
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ScrubbedLogFile {
+    pub file_name: String,
+    pub content: String,
+    pub modified_epoch: u64,
+}
+
+pub fn read_and_scrub_exception_file(log_path: &Path) -> Option<String> {
+    let bytes = fs::read(log_path).ok()?;
+    if bytes.is_empty() {
+        return None;
+    }
+    let max_len = bytes.len().min(512 * 1024);
+    let raw_text = String::from_utf8_lossy(&bytes[..max_len]).into_owned();
+    let scrubbed = crate::utils::scrub_user_data_from_log(&raw_text);
+    // Also scrub the real log file on disk so any direct access or external export is free of PII
+    if scrubbed != raw_text {
+        let _ = fs::write(log_path, scrubbed.as_bytes());
+    }
+    Some(scrubbed)
+}
+
+#[tauri::command]
+pub async fn get_scrubbed_game_logs(
+    docs_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<ScrubbedLogFile>, String> {
+    let game_schema = state.active_schema.lock().unwrap().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = PathBuf::from(&docs_path);
+        let mut results: Vec<ScrubbedLogFile> = Vec::new();
+        if let Ok(entries) = fs::read_dir(&path) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if crate::game_logic::is_exception_log(&game_schema, &name) {
+                    let mtime_secs = entry
+                        .metadata()
+                        .ok()
+                        .and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    if let Some(scrubbed) = read_and_scrub_exception_file(&entry.path()) {
+                        if !crate::game_logic::is_ignored_lab_exception(&game_schema, &name, &scrubbed) {
+                            results.push(ScrubbedLogFile {
+                                file_name: name,
+                                content: scrubbed,
+                                modified_epoch: mtime_secs,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        results.sort_by(|a, b| b.modified_epoch.cmp(&a.modified_epoch));
+        Ok(results)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub async fn scan_game_logs(
     docs_path: String,
@@ -52,6 +113,9 @@ pub async fn scan_game_logs(
         }
 
         if has_crash {
+            for (_mtime, log_path) in &exceptions {
+                let _ = read_and_scrub_exception_file(log_path);
+            }
             return Ok("crash_detected".into());
         }
 
@@ -60,17 +124,21 @@ pub async fn scan_game_logs(
         }
 
         exceptions.sort_by(|a, b| b.0.cmp(&a.0));
-        let latest = &exceptions[0].1;
 
-        match fs::File::open(latest) {
-            Ok(mut file) => {
-                let mut buffer = [0; 1000];
-                let bytes_read = file.read(&mut buffer).unwrap_or(0);
-                let snippet = String::from_utf8_lossy(&buffer[..bytes_read]).into_owned();
-                Ok(format!("⚠️ EXCEPTION DETECTED: {}", snippet))
+        for (_mtime, log_path) in &exceptions {
+            let file_name = log_path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            if let Some(scrubbed) = read_and_scrub_exception_file(log_path) {
+                if crate::game_logic::is_ignored_lab_exception(&game_schema, &file_name, &scrubbed) {
+                    continue;
+                }
+                return Ok(format!("⚠️ EXCEPTION DETECTED: {}", scrubbed));
             }
-            Err(e) => Err(format!("Failed to read log: {}", e)),
         }
+
+        Ok("Clean".into())
     })
     .await
     .map_err(|e| e.to_string())?

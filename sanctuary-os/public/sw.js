@@ -1,4 +1,4 @@
-const CACHE_NAME = "sanctuary-os-pwa-v1";
+const CACHE_NAME = "sanctuary-os-pwa-v3";
 const PRECACHE_URLS = [
   "/",
   "/index.html",
@@ -30,6 +30,29 @@ self.addEventListener("activate", (event) => {
         )
       )
       .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const notifData = event.notification.data || {};
+  const targetUrl = notifData.url || "/";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ("focus" in client) {
+          client.postMessage({
+            type: "SANCTUARY_NOTIFICATION_CLICK",
+            data: notifData
+          });
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
   );
 });
 

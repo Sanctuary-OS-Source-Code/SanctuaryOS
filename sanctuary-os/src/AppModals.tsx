@@ -10,6 +10,7 @@ import { DropzoneSidePanel } from "./app-modals/DropzoneSidePanel";
 import { DnaMatchQueueSidePanel } from "./app-modals/DnaMatchQueueSidePanel";
 
 import { ScoutQueueSidePanel } from "./app-modals/ScoutQueueSidePanel";
+import { SignatureQueueSidePanel } from "./side-panels/SignatureQueueSidePanel";
 import { SystemStatusPanel } from "./side-panels/SystemStatusPanel";
 import SidePanelBrowser from "./side-panels/SidePanelBrowser";
 import { MalwareAlertModal } from "./app-modals/MalwareAlertModal";
@@ -202,6 +203,8 @@ export const AppModals = React.memo(function AppModals(props: any) {
       
 
       <ScoutQueueSidePanel scoutQueue={scoutQueue} setScoutQueue={setScoutQueue} onOpenScoutDossier={onOpenScoutDossier} />
+
+      <SignatureQueueSidePanel equipPlaySet={equipPlaySet} />
       
       <SystemLogModal isLogExpanded={isLogExpanded} setIsLogExpanded={setIsLogExpanded} statusLog={statusLog} clearStatusLog={clearStatusLog} logModalRef={logModalRef} handleLogPointerDown={handleLogPointerDown} handleLogPointerMove={handleLogPointerMove} handleLogPointerUp={handleLogPointerUp} />
       

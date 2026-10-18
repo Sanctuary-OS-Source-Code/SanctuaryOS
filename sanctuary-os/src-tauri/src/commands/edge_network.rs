@@ -298,9 +298,28 @@ pub async fn export_edge_release(
         }
     }
     
-    // Read any existing override.json to preserve local lineage across exports
+    // Read any existing lineage from SQLite edge_manifests (or legacy override.json if present)
     let override_path = mod_dir.join("override.json");
     let mut local_lineage_hashes = Vec::new();
+    {
+        let conn = get_db_conn(&vault_path);
+        if let Ok((existing_target, existing_archive_str)) = conn.query_row(
+            "SELECT COALESCE(target_hash, ''), COALESCE(archive_hashes, '[]') FROM edge_manifests WHERE artifact_id = ?1 OR target_hash = ?2",
+            rusqlite::params![manifest.artifact.id, actual_hash],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        ) {
+            if !existing_target.is_empty() && existing_target != actual_hash {
+                local_lineage_hashes.push(existing_target);
+            }
+            if let Ok(db_archives) = serde_json::from_str::<Vec<String>>(&existing_archive_str) {
+                for h in db_archives {
+                    if !h.is_empty() && !local_lineage_hashes.contains(&h) {
+                        local_lineage_hashes.push(h);
+                    }
+                }
+            }
+        }
+    }
     if override_path.exists() {
         if let Ok(old_data) = fs::read_to_string(&override_path) {
             if let Ok(old_override) = serde_json::from_str::<EdgeOverride>(&old_data) {
@@ -314,6 +333,7 @@ pub async fn export_edge_release(
                 }
             }
         }
+        let _ = fs::remove_file(&override_path);
     }
 
     // Combine directory hashes with any backward-compatible previous hashes + local lineage
@@ -344,12 +364,36 @@ pub async fn export_edge_release(
         manifest_url: if custom_url.is_empty() { "https://your-domain.com/manifest.json".to_string() } else { custom_url },
         target_hash: actual_hash.clone(),
         archive_hashes: merged_archive_hashes,
-        last_fetched_hash: None,
-        last_fetched_metadata: None,
+        last_fetched_hash: Some(actual_hash.clone()),
+        last_fetched_metadata: Some(manifest_str.clone()),
     };
 
     let override_str = serde_json::to_string_pretty(&override_data).map_err(|e| format!("JSON error: {}", e))?;
-    fs::write(&override_path, &override_str).map_err(|e| format!("Write error override ({}) : {}", override_path.display(), e))?;
+
+    // Sync lineage directly into the local SQLite database so no loose override.json is needed on disk
+    {
+        let conn = get_db_conn(&vault_path);
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+        let archive_hashes_str = serde_json::to_string(&override_data.archive_hashes).unwrap_or_else(|_| "[]".to_string());
+        let _ = conn.execute(
+            "INSERT OR REPLACE INTO edge_manifests (
+                artifact_id, mason_id, manifest_url, target_hash, archive_hashes, game_id,
+                last_fetched_hash, last_fetched_metadata, created_at
+             )
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                override_data.artifact_id,
+                override_data.mason_id,
+                override_data.manifest_url,
+                override_data.target_hash,
+                archive_hashes_str,
+                override_data.game_id,
+                actual_hash,
+                manifest_str,
+                now
+            ],
+        );
+    }
 
     // Package mod files + override.json into a clean release .zip archive in the mod directory
     let safe_name: String = final_manifest

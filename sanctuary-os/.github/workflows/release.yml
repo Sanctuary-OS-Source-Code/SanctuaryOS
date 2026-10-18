@@ -3,6 +3,9 @@ on:
   push:
     tags:
       - 'v*'
+    tags-ignore:
+      - '*-dev*'
+      - 'dev-*'
   workflow_dispatch:
 
 jobs:

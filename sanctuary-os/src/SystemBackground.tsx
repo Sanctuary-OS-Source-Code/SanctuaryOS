@@ -7,7 +7,17 @@ export function SystemBackground() {
   const { ambientOrb = true, ambientNoise = true, volumetricOrbs } = currentTheme;
 
   return (
-    <div className="fixed inset-0 w-full h-full pointer-events-none z-[0] overflow-hidden transform-gpu">
+    <div
+      className="fixed inset-0 w-full h-full pointer-events-none z-[0] overflow-hidden transform-gpu"
+      style={{
+        top: 'calc(-1 * env(safe-area-inset-top, 0px))',
+        bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))',
+        left: 'calc(-1 * env(safe-area-inset-left, 0px))',
+        right: 'calc(-1 * env(safe-area-inset-right, 0px))',
+        minHeight: 'calc(100dvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px))',
+        backgroundColor: 'var(--bg, #000000)',
+      }}
+    >
 
       {/* 
         Layer 1: The Deep Mesh Gradient or Wallpaper

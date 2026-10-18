@@ -153,14 +153,22 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
                 subtitle={ticket.ticket_type || "SUPPORT"}
                 onClick={() => onSelectTicket && onSelectTicket(ticket)}
                 badges={
-                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest capitalize flex-shrink-0 shadow-sm
-                    ${!isResolved && !isRejected && !isEscalated ? 'bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-emerald-400 border border-[color-mix(in_srgb,var(--success)_30%,transparent)]' : ''}
-                    ${isResolved ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}
-                    ${isRejected ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-rose-400 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : ''}
-                    ${isEscalated ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-amber-400 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-md' : ''}
-                  `}>
-                    {ticket.status}
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {ticket.metadata?.expedited_support && (
+                      <span className="px-3 py-1.5 rounded-full text-[9px] font-black tracking-widest uppercase bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center gap-1 shadow-sm">
+                        <span className="material-symbols-outlined !text-[12px]">{t("icon_bolt", "bolt")}</span>
+                        {t("supporter_badge_expedited_support", "EXPEDITED SUPPORT PATH")}
+                      </span>
+                    )}
+                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest capitalize flex-shrink-0 shadow-sm
+                      ${!isResolved && !isRejected && !isEscalated ? 'bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-emerald-400 border border-[color-mix(in_srgb,var(--success)_30%,transparent)]' : ''}
+                      ${isResolved ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}
+                      ${isRejected ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-rose-400 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : ''}
+                      ${isEscalated ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-amber-400 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-md' : ''}
+                    `}>
+                      {ticket.status}
+                    </span>
+                  </div>
                 }
                 footer={
                   <div className="flex justify-between items-center w-full">

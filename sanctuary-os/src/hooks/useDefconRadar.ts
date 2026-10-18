@@ -4,12 +4,31 @@ import { tauriBridge } from "../lib/tauri-bridge";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
 import { supabase } from "../supabase";
+import {
+  dispatchSanctuaryNotification,
+  getNotificationMode,
+  clearDeliveredNotification,
+} from "../utils/notificationHelper";
 
-export function useDefconRadar(t: (key: string) => string, askCustom: any, triggerPrePatchSnapshot: any, triggerFullEngineBackup: any) {
+export function useDefconRadar(t: (key: string, fallback?: string) => string, askCustom: any, triggerPrePatchSnapshot: any, triggerFullEngineBackup: any) {
   const { isPatchDetected, setIsPatchDetected, defconLevel, setDefconLevel, activeWorkspaceId } = useStore();
   const { showDefconAlert, setShowDefconAlert } = useModalStore();
 
   useEffect(() => {
+    const defconUniqueId = `defcon:${activeWorkspaceId || 'global'}:level_1`;
+
+    const triggerDefconNotificationOnce = () => {
+      const mode = getNotificationMode('defcon');
+      if (mode === 'NONE') return;
+      dispatchSanctuaryNotification({
+        uniqueId: defconUniqueId,
+        category: 'defcon',
+        title: t("notif_defcon_os_title", "Game Patch Detected — Safety Lockdown"),
+        body: t("notif_defcon_os_body", "A new game update was detected. Sanctuary OS has engaged safety protocols to protect your mods and saves."),
+        data: { type: 'defcon', workspaceId: activeWorkspaceId },
+      });
+    };
+
     const fetchInitialDefcon = async () => {
       setIsPatchDetected(false);
       setShowDefconAlert(false);
@@ -21,9 +40,11 @@ export function useDefconRadar(t: (key: string) => string, askCustom: any, trigg
             setDefconLevel(data.defcon_level);
             if (data.defcon_level === 1) {
               setIsPatchDetected(true);
+              triggerDefconNotificationOnce();
             } else {
               setIsPatchDetected(false);
               setShowDefconAlert(false);
+              clearDeliveredNotification(defconUniqueId);
             }
           }
         } catch (err) {
@@ -47,6 +68,8 @@ export function useDefconRadar(t: (key: string) => string, askCustom: any, trigg
         if (newLevel === 1) {
           setIsPatchDetected(true);
           setDefconLevel(1);
+          triggerDefconNotificationOnce();
+          const defconMode = getNotificationMode('defcon');
           const ack = localStorage.getItem('sanctuary_defcon_ack');
           if (!ack) {
             localStorage.setItem('sanctuary_defcon_ack', 'true'); 
@@ -55,16 +78,20 @@ export function useDefconRadar(t: (key: string) => string, askCustom: any, trigg
               if (agency === 0) { 
                 localStorage.setItem('sanctuary_defcon_ack', 'true');
               } else if (agency === 1) {
-                askCustom(t("defcon_prompt_patch_detected"), false, t("defcon_btn_backup"), t("defcon_btn_skip"), true, t("defcon_alert_title")).then(async (proceed: boolean) => {
-                  if (proceed) {
-                    setShowDefconAlert(true);
-                    await triggerPrePatchSnapshot();
-                    await triggerFullEngineBackup();
-                    localStorage.setItem('sanctuary_defcon_backup_done', 'true');
-                  }
-                });
+                if (defconMode !== 'NONE') {
+                  askCustom(t("defcon_prompt_patch_detected"), false, t("defcon_btn_backup"), t("defcon_btn_skip"), true, t("defcon_alert_title")).then(async (proceed: boolean) => {
+                    if (proceed) {
+                      setShowDefconAlert(true);
+                      await triggerPrePatchSnapshot();
+                      await triggerFullEngineBackup();
+                      localStorage.setItem('sanctuary_defcon_backup_done', 'true');
+                    }
+                  });
+                }
               } else { 
-                setShowDefconAlert(true);
+                if (defconMode !== 'NONE') {
+                  setShowDefconAlert(true);
+                }
                 (async () => {
                   await triggerPrePatchSnapshot();
                   await triggerFullEngineBackup();
@@ -79,6 +106,7 @@ export function useDefconRadar(t: (key: string) => string, askCustom: any, trigg
           setShowDefconAlert(false);
           localStorage.removeItem('sanctuary_defcon_ack');
           localStorage.removeItem('sanctuary_defcon_backup_done');
+          clearDeliveredNotification(defconUniqueId);
         }
       });
     }

@@ -93,9 +93,9 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
                   className="my-2 mx-1 group relative flex flex-row items-center justify-between gap-4 p-3 px-4 rounded-[20px] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-2xl backdrop-blur-2xl transition-all cursor-pointer hover:scale-[1.02] w-[calc(100%-0.5rem)] align-top no-underline"
                 >
                   <span className="flex items-center gap-4 min-w-0 flex-1">
-                    <span className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0 text-[var(--text)] opacity-80 group-hover:theme-bg-accent/20 group-hover:theme-text-accent transition-colors">
+                    <span className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 text-[var(--text)] opacity-80 group-hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] group-hover:theme-text-accent transition-all">
                       <span className="material-symbols-outlined !text-[20px]">
-                        {type === 'mod' ? 'inventory_2' : type === 'blueprint' ? 'map' : type === 'lexicon' ? 'translate' : 'palette'}
+                        {type === 'mod' ? t("icon_inventory_2", "inventory_2") : type === 'blueprint' ? t("icon_map", "map") : type === 'lexicon' ? t("icon_translate", "translate") : t("icon_palette", "palette")}
                       </span>
                     </span>
                     <span className="flex flex-col min-w-0 flex-1 gap-0.5">
@@ -103,12 +103,12 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
                         {cleanChildren}
                       </span>
                       <span className="text-[9px] font-bold text-[var(--subtext)] opacity-70 tracking-widest uppercase flex items-center gap-1.5 truncate">
-                         {type} <span className="opacity-50">•</span> {t("attached_asset")}
+                         {type} <span className="opacity-50">•</span> {t("attached_asset", "Attached Asset")}
                       </span>
                     </span>
                   </span>
-                  <span className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] group-hover:bg-[var(--accent)] group-hover:text-[var(--bg)] flex items-center justify-center shrink-0 transition-all shadow-inner group-hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_50%,transparent)] group-hover:scale-110 group-active:scale-95">
-                    <span className="material-symbols-outlined !text-[16px]">arrow_forward</span>
+                  <span className="w-8 h-8 rounded-full border border-[color-mix(in_srgb,var(--text)_15%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] group-hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] group-hover:text-[var(--accent)] backdrop-blur-md flex items-center justify-center shrink-0 transition-all shadow-[inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.18)] group-hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent),inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.25)] group-hover:scale-110 group-active:scale-95">
+                    <span className="material-symbols-outlined !text-[16px]">{t("icon_arrow_forward", "arrow_forward")}</span>
                   </span>
                 </span>
               );

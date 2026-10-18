@@ -6,33 +6,48 @@ import { getSubdomain, scrollToLandingSection } from './utils/routingUtils';
 import WebNewsFeed from './WebNewsFeed';
 import WebDocumentFeed from './WebDocumentFeed';
 import WebLegalViewer from './WebLegalViewer';
-import { DashboardStatTile, standardButtonClass, standardAccentGlassButtonClass } from './shared';
+import { DashboardStatTile, standardButtonClass, standardAccentGlassButtonClass, handleOpenUrl } from './shared';
 import { SystemBackground } from './SystemBackground';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './utils/envUtils';
 import packageJson from '../package.json';
 import { UniversalCard } from './components/universal/UniversalCard';
 import { usePwaInstall } from './utils/pwaManager';
+import { getKeepersPipelineConfig, getSupporterState, buildPartnerCheckoutUrl, DEFAULT_KEEPERS_PIPELINE_CONFIG, KeepersPipelineConfig } from './utils/supporterManager';
+import { ReleaseNotesShowcase } from './components/ReleaseNotesShowcase';
 
 export default function WebLandingPage() {
   const { t } = useLexicon();
+  const session = useStore((state: any) => state.session);
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [keepersConfig, setKeepersConfig] = useState<KeepersPipelineConfig>(DEFAULT_KEEPERS_PIPELINE_CONFIG);
+  const [isDevUnlocked, setIsDevUnlocked] = useState(false);
   const { isStandalone, triggerInstall } = usePwaInstall();
 
   useEffect(() => {
     const fetchGames = async () => {
-      const { data } = await supabase.from('sanctuary_games').select('*');
+      const [{ data }, pipelineCfg, supState] = await Promise.all([
+        supabase.from('sanctuary_games').select('*'),
+        getKeepersPipelineConfig(),
+        getSupporterState('web', session?.user?.id),
+      ]);
       if (data) setGames(data);
+      if (pipelineCfg) setKeepersConfig(pipelineCfg);
+      if (supState?.dev_build?.dev_build_until) {
+        setIsDevUnlocked(supState.dev_build.dev_build_until > Math.floor(Date.now() / 1000));
+      }
       setLoading(false);
     };
     fetchGames();
-  }, []);
+  }, [session?.user?.id]);
+
+  const stableVersion = (keepersConfig.stable_version || packageJson.version.split('-')[0] || packageJson.version).replace(/^v/i, '').trim();
 
   useEffect(() => {
     const handleInitialHash = () => {
       const hash = window.location.hash.replace('#', '').toLowerCase();
-      if (['workspaces', 'news', 'sanctuary_foundry_news', 'system_directives', 'download'].includes(hash)) {
+      if (['workspaces', 'news', 'sanctuary_foundry_news', 'release_notes', 'system_directives', 'download'].includes(hash)) {
         setTimeout(() => scrollToLandingSection(hash), 150);
       }
     };
@@ -140,6 +155,20 @@ export default function WebLandingPage() {
             </div>
           </section>
 
+          <section id="release_notes" className="flex flex-col gap-6 scroll-mt-24 mt-8">
+            <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
+                <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                  <span className="material-symbols-outlined text-[var(--accent)]">
+                    {t("icon_new_releases", "new_releases")}
+                  </span>
+                </div>
+                {t("release_notes_section_title", "Current Build Release Notes")}
+              </h2>
+            </div>
+            <ReleaseNotesShowcase versionLabel={stableVersion} />
+          </section>
+
         </div>
 
         <section id="system_directives" className="w-full flex flex-col gap-6 mt-16 mb-8 scroll-mt-24">
@@ -220,7 +249,7 @@ export default function WebLandingPage() {
                 </UniversalCard>
               </div>
 
-              <a href={`https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${packageJson.version}/Sanctuary.OS_${packageJson.version}_x64-setup.exe`} className="hidden md:block group">
+              <a href={keepersConfig.stable_exe_url || `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_x64-setup.exe`} className="hidden md:block group">
                 <UniversalCard
                   layout="vertical"
                   icon="rocket_launch"
@@ -229,7 +258,7 @@ export default function WebLandingPage() {
                   className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_20px_40px_color-mix(in srgb, var(--accent) 10%, transparent)] transition-all duration-500 hover:-translate-y-1"
                   footer={
                     <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                      <span>v{packageJson.version}</span>
+                      <span>v{stableVersion}</span>
                       <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">download</span> {t("landing_download_native_footer") || "STANDARD INSTALL"}</span>
                     </div>
                   }
@@ -240,7 +269,7 @@ export default function WebLandingPage() {
                 </UniversalCard>
               </a>
 
-              <a href={`https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${packageJson.version}/Sanctuary.OS_${packageJson.version}_x64_en-US.msi`} className="hidden md:block group">
+              <a href={keepersConfig.stable_msi_url || `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_x64_en-US.msi`} className="hidden md:block group">
                 <UniversalCard
                   layout="vertical"
                   icon="api"
@@ -249,7 +278,7 @@ export default function WebLandingPage() {
                   className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.2)] transition-all duration-500 hover:-translate-y-1"
                   footer={
                     <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest">
-                      <span>v{packageJson.version}</span>
+                      <span>v{stableVersion}</span>
                       <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">business</span> {t("landing_download_enterprise_footer") || "SILENT DEPLOY"}</span>
                     </div>
                   }
@@ -260,9 +289,140 @@ export default function WebLandingPage() {
                 </UniversalCard>
               </a>
 
+              {isDevUnlocked && (
+                <a href={keepersConfig.dev_build_download_url || "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"} target="_blank" rel="noopener noreferrer" className="hidden md:block group">
+                  <UniversalCard
+                    layout="vertical"
+                    icon={t("icon_bolt", "bolt")}
+                    title={<span className="group-hover:text-[var(--success)] transition-colors">{t("landing_download_dev_title", "Daily Dev Build (Supporter)")}</span>}
+                    subtitle={<span className="text-[10px] font-mono tracking-widest">{t("landing_download_dev_subtitle", "Supporter Preview Channel (.exe)")}</span>}
+                    className="h-full bg-[color-mix(in_srgb,var(--success)_4%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_55%,transparent)] hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--success)_15%,transparent)] transition-all duration-500 hover:-translate-y-1"
+                    footer={
+                      <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--success)] opacity-80 uppercase tracking-widest">
+                        <span>v{keepersConfig.dev_build_version || "dev-latest"}</span>
+                        <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_bolt", "bolt")}</span> {t("landing_download_dev_footer", "SUPPORTER STREAM")}</span>
+                      </div>
+                    }
+                  >
+                    <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                      {t("landing_download_dev_desc", "Nightly preview build unlocked by your active Global Daily Dev Build supporter time.")}
+                    </p>
+                  </UniversalCard>
+                </a>
+              )}
+
             </div>
           </section>
         )}
+
+        <section id="support" className="w-full flex flex-col gap-6 mt-8 mb-8 scroll-mt-24 z-10 relative">
+          <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
+              <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                <span className="material-symbols-outlined text-[var(--accent)]">
+                  {t("icon_volunteer_activism", "volunteer_activism")}
+                </span>
+              </div>
+              {t("landing_support_section_title", "Support Sanctuary OS & Partner Communities")}
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+            <UniversalCard
+              layout="vertical"
+              onClick={() =>
+                handleOpenUrl(
+                  buildPartnerCheckoutUrl(
+                    keepersConfig.keepers_donation_url ||
+                      "https://github.com/sponsors/Sanctuary-OS-Source-Code",
+                    session?.user?.id,
+                    session?.user?.email
+                  )
+                )
+              }
+              icon={t("icon_rocket_launch", "rocket_launch")}
+              title={
+                <span className="group-hover/card:text-[var(--accent)] transition-colors">
+                  {t("supporter_keepers_title", "Sanctuary OS (Keepers Core)")}
+                </span>
+              }
+              subtitle={
+                <span className="text-[10px] font-mono tracking-widest">
+                  {t("supporter_keepers_subtitle", "Core OS Infrastructure • 0% Platform Fee • Stacks Global Daily Dev Builds")}
+                </span>
+              }
+              className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] transition-all duration-500 hover:-translate-y-1 cursor-pointer"
+              footer={
+                <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-60 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] uppercase tracking-widest transition-all">
+                  <span>{t("landing_support_card_badge", "0% PLATFORM FEE • +30 DAYS DEV BUILDS PER $5")}</span>
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {t("icon_open_in_new", "open_in_new")}
+                    </span>
+                    {t("supporter_keepers_btn", "Support Sanctuary OS")}
+                  </span>
+                </div>
+              }
+            >
+              <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                {t(
+                  "supporter_keepers_desc",
+                  "Directly support the Keepers building Sanctuary OS. Every $5 contribution dynamically stacks +30 days of Global Daily Dev Build access onto your account.",
+                )}
+              </p>
+            </UniversalCard>
+
+            {games
+              .filter((g) => Boolean(g.donation_url && String(g.donation_url).trim().length > 0))
+              .map((g) => (
+                <UniversalCard
+                  key={`support-${g.id}`}
+                  layout="vertical"
+                  onClick={() =>
+                    handleOpenUrl(
+                      buildPartnerCheckoutUrl(
+                        g.donation_url,
+                        session?.user?.id,
+                        session?.user?.email
+                      )
+                    )
+                  }
+                  icon={g.icon ? undefined : t("icon_sports_esports", "sports_esports")}
+                  customIcon={
+                    g.icon ? (
+                      <img
+                        src={g.icon}
+                        alt=""
+                        className="w-10 h-10 object-contain drop-shadow-md opacity-80 group-hover/card:opacity-100 transition-opacity"
+                      />
+                    ) : undefined
+                  }
+                  title={
+                    <span className="group-hover/card:text-[var(--accent)] transition-colors">
+                      {g.name}
+                    </span>
+                  }
+                  subtitle={
+                    <span className="text-[10px] font-mono tracking-widest">
+                      {`${(g.payment_processor || "STRIPE").toUpperCase()} • ${t("supporter_zero_fee_badge", "0% PLATFORM FEE • NON-CUSTODIAL")}`}
+                    </span>
+                  }
+                  className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all duration-500 hover:-translate-y-1 cursor-pointer"
+                  footer={
+                    <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-60 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] uppercase tracking-widest transition-all">
+                      <span>{t("landing_support_card_badge", "0% PLATFORM FEE • +30 DAYS DEV BUILDS PER $5")}</span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        <span className="material-symbols-outlined !text-[14px]">
+                          {t("icon_open_in_new", "open_in_new")}
+                        </span>
+                        {t("supporter_btn_donate_partner", "Donate to Partner")}
+                      </span>
+                    </div>
+                  }
+                />
+              ))}
+          </div>
+        </section>
 
       </main>
 

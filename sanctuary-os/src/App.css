@@ -626,6 +626,8 @@ body,
 .glass-panel .glass-surface::before,
 .glass-surface .glass-panel::before,
 .glass-surface .glass-surface::before,
+.portal-glass-fix .glass-panel::before,
+.portal-glass-fix .glass-surface::before,
 #sa-portals .portal-glass-fix::before,
 .glass-panel .portal-glass-fix::before,
 .glass-surface .portal-glass-fix::before,
@@ -925,16 +927,29 @@ input[type="date"].custom-date-input {
 html {
   font-size: var(--fontSizeBase, 16px) !important;
   font-family: var(--fontFamily, 'Inter, sans-serif');
+  background-color: var(--bg, #000000) !important;
+  background-image: var(--bgGradient, none) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 
 body {
   font-family: var(--fontFamily, 'Inter, sans-serif');
-  background-color: var(--bg) !important;
+  background-color: var(--bg, #000000) !important;
   background-image: var(--bgGradient, none) !important;
   background-attachment: fixed !important;
   background-size: cover !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
+}
+
+@media (max-width: 1024px),
+(pointer: coarse) {
+  html,
+  body {
+    background-attachment: scroll !important;
+  }
 }
 
 .material-symbols-outlined {
@@ -1212,3 +1227,17 @@ body {
 section:has(.monaco-editor) {
   background-color: transparent !important;
 }
+
+/* ---- UNIVERSAL CARD TYPOGRAPHY HIERARCHY ---- */
+.sanctuary-title {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.sanctuary-subtitle {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  font-weight: 500;
+  color: var(--subtext);
+}

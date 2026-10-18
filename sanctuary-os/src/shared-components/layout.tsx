@@ -264,6 +264,9 @@ export function SidePanel({
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
 
   useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("sa-close-popovers", { detail: "side-panel" }),
+    );
     if (isOpen) {
       setShouldRender(true);
       setIsAnimatingOut(false);
@@ -719,13 +722,16 @@ export function DashboardStatTile({
   const strVal = String(displayValue);
   const hasValue = displayValue !== undefined && displayValue !== "";
   const isSpecial = variant === "tab" || variant === "filter";
-  const isFilter = variant === "filter";
+  const isModal = variant === "modal";
+  const isFilter = variant === "filter" || isModal;
 
   let sizeClass = "text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
   const activeStyles = isActive
-    ? isSpecial
-      ? "border border-[color-mix(in_srgb,var(--accent)_50%,rgba(var(--text-rgb),0.25))] z-10"
-      : "border border-[currentColor] z-10"
+    ? isModal
+      ? "border border-[color-mix(in_srgb,currentColor_50%,rgba(var(--text-rgb),0.25))] z-10 hover:brightness-110"
+      : isSpecial
+        ? "border border-[color-mix(in_srgb,var(--accent)_50%,rgba(var(--text-rgb),0.25))] z-10"
+        : "border border-[currentColor] z-10"
     : "hover:border-[rgba(var(--text-rgb,255,255,255),0.28)] hover:brightness-110";
 
   if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
@@ -733,7 +739,7 @@ export function DashboardStatTile({
   else if (strVal.length > 5) sizeClass = "text-xl lg:text-2xl xl:text-3xl";
 
   const paddingClass =
-    variant === "tab" || variant === "filter"
+    variant === "tab" || variant === "filter" || isModal
       ? "py-3 px-4 md:py-4 md:px-5"
       : "py-3 px-4 md:py-4 md:px-5 lg:p-5";
   const iconSizeClass = isFilter
@@ -743,19 +749,38 @@ export function DashboardStatTile({
     ? "!text-[20px] md:!text-[24px]"
     : "!text-[20px] md:!text-[32px]";
   const shadowClass = "[--tw-shadow:0_0_#0000]";
-  const activeTint = isActive && isSpecial ? "var(--accent)" : "currentColor";
+  const activeTint =
+    isActive && isSpecial
+      ? "var(--accent)"
+      : isModal
+        ? isStatusRed
+          ? "var(--danger)"
+          : isStatusYellow
+            ? "var(--warning)"
+            : isStatusGreen
+              ? "var(--success)"
+              : isStatusBlue
+                ? "var(--accent)"
+                : "currentColor"
+        : "currentColor";
 
   const sizeConstraintClass = isSpecial
     ? "w-[calc(50vw-1.5rem)] md:w-[260px] min-h-[68px] md:min-h-[88px] shrink-0"
-    : "flex-1 min-w-0 min-h-[68px] md:min-h-[88px]";
+    : isModal
+      ? "flex-1 min-w-0 min-h-[64px] md:min-h-[76px]"
+      : "flex-1 min-w-0 min-h-[68px] md:min-h-[88px]";
+
+  const mergedStyle = isModal
+    ? ({ "--glassBeforeDisplay": "none", backgroundImage: "none", ...style } as React.CSSProperties)
+    : style;
 
   return (
     <div
       onClick={disabled ? undefined : onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      style={style}
-      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-3xl glass-panel ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
+      style={mergedStyle}
+      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-3xl glass-panel ${isModal ? "before:!hidden" : ""} ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
     >
       <div
         className="absolute inset-0 rounded-[inherit] pointer-events-none"
@@ -781,7 +806,7 @@ export function DashboardStatTile({
 
       <div className={`flex flex-col flex-1 min-w-0 relative z-10 py-1 items-start justify-center`}>
         <span
-          className={`${hasValue ? "text-[9px] md:text-xs mb-0 md:mb-1" : "text-xs md:text-sm"} uppercase tracking-widest font-black group-hover:text-current transition-colors duration-500 truncate w-full pr-2 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : hasValue ? "text-[var(--subtext)]" : "text-[var(--text)] opacity-90"}`}
+          className={`${hasValue ? "text-[9px] md:text-xs mb-0 md:mb-1" : "text-xs md:text-sm"} uppercase tracking-widest font-black group-hover:text-current transition-colors duration-500 truncate w-full pr-2 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : isModal && isActive ? "text-current" : hasValue ? "text-[var(--subtext)]" : "text-[var(--text)] opacity-90"}`}
         >
           {label}
         </span>

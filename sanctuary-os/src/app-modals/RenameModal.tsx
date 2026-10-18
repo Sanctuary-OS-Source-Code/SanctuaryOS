@@ -1,60 +1,108 @@
-import React from 'react';
+import React from "react";
 import { useLexicon } from "../LexiconContext";
-import { ActionButton } from "../shared";
+import { ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 
 export function RenameModal({ renameModal, setRenameModal, executeRename, renameTarget, setRenameTarget, nameInput, setNameInput, confirmRename }: any) {
   const { t } = useLexicon();
 
   if (!renameModal && !renameTarget) return null;
 
+  const isOpen = Boolean(renameModal || renameTarget);
+  if (!isOpen) return null;
+
+  const value = renameModal ? renameModal.newName : nameInput;
+  const onChange = (val: string) => {
+    if (renameModal) setRenameModal({ ...renameModal, newName: val });
+    else setNameInput(val);
+  };
+  const onCancel = () => {
+    if (renameModal) setRenameModal(null);
+    else setRenameTarget(null);
+  };
+  const onConfirm = () => {
+    if (renameModal) executeRename();
+    else confirmRename();
+  };
+
   return (
-    <>
-      {renameModal && (
-        <div className="fixed inset-0 z-[15000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-2xl animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[var(--sidebar)] border theme-border-accent rounded-2xl p-8 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
-            <div>
-              <h2 className="text-2xl font-black capitalize theme-text-accent tracking-tighter mb-1">{t("rename_title")}</h2>
-              <p className="text-[10px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-                {t("rename_desc")}
-              </p>
+    <div
+      className="fixed inset-0 z-[15000] flex items-center justify-center bg-black/35 backdrop-blur-md animate-in fade-in duration-300 p-6"
+      onClick={onCancel}
+    >
+      <div
+        className="relative w-full max-w-xl rounded-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_30px_80px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col backdrop-blur-[var(--glassBlur)] animate-in zoom-in-95 duration-300"
+        style={{
+          background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal, 0.85) * 100%), transparent)`,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="absolute -top-24 -left-24 w-72 h-72 rounded-full opacity-15 blur-[90px] pointer-events-none z-0"
+          style={{ backgroundColor: "var(--accent)" }}
+        />
+
+        {/* SidePanel-style Header */}
+        <div className="pt-6 px-6 pb-5 md:pt-7 md:px-8 shrink-0 relative z-20 border-b border-[color-mix(in_srgb,var(--text)_6%,transparent)] flex items-center justify-between gap-4 w-full">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl glass-panel before:!hidden border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center justify-center shadow-lg shrink-0 relative">
+              <span className="material-symbols-outlined !text-[24px] md:!text-[26px] drop-shadow-[0_0_12px_currentColor]">
+                {t("icon_edit", "edit")}
+              </span>
             </div>
-            <div className="flex flex-col gap-4">
-              <input 
-                autoFocus 
-                type="text" 
-                value={renameModal.newName} 
-                onChange={(e) => setRenameModal({ ...renameModal, newName: e.target.value }) } 
-                onKeyDown={(e) => e.key === "Enter" && executeRename()} 
-                className="w-full glass-surface px-5 py-4 rounded-xl text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent transition-all" 
+            <div className="flex flex-col min-w-0 justify-center">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)]">
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]" />
+                  {renameModal ? t("rename_desc") : t("redesignate_label")}
+                </span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-black text-[var(--text)] tracking-tight truncate drop-shadow-md m-0">
+                {t("rename_title")}
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex items-center z-50 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1 gap-1 shrink-0">
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t("icon_close", "close")}
+                tooltip={renameModal ? t("nav_cancel") : t("btn_abort")}
+                variant="danger"
+                onClick={onCancel}
               />
-              <div className="flex gap-3 mt-2">
-                <button onClick={() => setRenameModal(null)} className="flex-1 py-3 theme-btn-standard font-black text-[10px] capitalize tracking-widest rounded-xl transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                  {t("nav_cancel")}
-                </button>
-                <ActionButton onClick={executeRename} className="flex-1 shrink-0 h-12" label={t("btn_rename")} />
-              </div>
-            </div>
+            </PanelHeaderGroup>
           </div>
         </div>
-      )}
-      {renameTarget && (
-        <div className="fixed inset-0 z-10000 flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_10%,transparent)] backdrop-blur-[2px] animate-in fade-in duration-200">
-          <div className="w-full max-w-md glass-panel border theme-border-accent rounded-2xl p-8 shadow-2xl">
-            <h3 className="text-xs font-black tracking-[0.3em] theme-text-accent capitalize mb-6 flex items-center gap-2"><span className="w-2 h-2 theme-bg-accent rounded-full animate-pulse"></span>{t("rename_title")}</h3>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] text-[color-mix(in_srgb,var(--text)_40%,transparent)] capitalize tracking-widest ml-1">{t("redesignate_label")}</label>
-                <input autoFocus value={nameInput} onChange={(e) => setNameInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmRename()} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all font-mono" />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setRenameTarget(null)} className="flex-1 px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[color-mix(in_srgb,var(--text)_60%,transparent)] text-[10px] font-bold capitalize tracking-widest hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">{t("btn_abort")}</button>
-                <ActionButton onClick={confirmRename} className="flex-1 shrink-0 h-12" label={t("btn_confirm")} />
-              </div>
-            </div>
-          </div>
+
+        {/* Body */}
+        <div className="p-6 md:p-8 flex flex-col gap-4 relative z-10">
+          <input
+            autoFocus
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && onConfirm()}
+            className="w-full glass-surface before:!hidden px-5 py-4 rounded-2xl text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all"
+          />
         </div>
-      )}
-    </>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-5 md:px-8 md:pb-7 flex items-center justify-end gap-3 shrink-0 relative z-20 border-t border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
+          <ActionButton
+            variant="glass"
+            icon={t("icon_close", "close")}
+            label={renameModal ? t("nav_cancel") : t("btn_abort")}
+            onClick={onCancel}
+          />
+          <ActionButton
+            variant="accent"
+            icon={t("icon_check", "check")}
+            label={renameModal ? t("btn_rename") : t("btn_confirm")}
+            onClick={onConfirm}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 

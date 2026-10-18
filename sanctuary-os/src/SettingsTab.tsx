@@ -17,6 +17,7 @@ import NotificationsTab from './settings-tabs/NotificationsTab';
 import AestheticsTab from './settings-tabs/AestheticsTab';
 import LogicTab from './settings-tabs/LogicTab';
 import MalwareTab from './settings-tabs/MalwareTab';
+import SupporterTab from './settings-tabs/SupporterTab';
 import { isDesktop } from './utils/envUtils';
 
 export default function Settings({ anarchyRules, setAnarchyRules }: any) {
@@ -128,6 +129,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   let TABS = [
     { id: 'CORE', icon: t("icon_account_circle") || "account_circle", label: t("tab_core") || "Core" },
+    { id: 'SUPPORTER', icon: t("icon_volunteer_activism") || "volunteer_activism", label: t("tab_supporter") || "Supporter & Perks" },
     { id: 'ENGINE', icon: t("icon_history") || "history", label: t("tab_engine") || "Engine" },
     { id: 'CLIENT', icon: t("icon_tune") || "tune", label: t("tab_preferences") || "Preferences" },
     { id: 'NOTIFICATIONS', icon: t("icon_notifications") || "notifications", label: t("tab_notifs") || "Notifications" },
@@ -137,9 +139,9 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull") || "skull", label: t("malware_btn") || "Nuclear Override" });
 
   if (!isDesktop()) {
-    TABS = TABS.filter(t => ['CLIENT', 'AESTHETICS', 'NOTIFICATIONS', 'CORE'].includes(t.id));
+    TABS = TABS.filter(t => ['CORE', 'SUPPORTER', 'CLIENT', 'AESTHETICS', 'NOTIFICATIONS'].includes(t.id));
   } else if (config?.isGuest) {
-    TABS = TABS.filter(t => ['CLIENT', 'AESTHETICS', 'NOTIFICATIONS'].includes(t.id));
+    TABS = TABS.filter(t => ['SUPPORTER', 'CLIENT', 'AESTHETICS', 'NOTIFICATIONS'].includes(t.id));
   }
 
   return (
@@ -195,6 +197,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       <div className="flex flex-col gap-4 relative">
         <div className="w-full relative">
           {activeTab === 'CORE' && <CoreTab config={config} updateConfig={updateConfig} pickPath={pickPath} pathMap={pathMap} />}
+          {activeTab === 'SUPPORTER' && <SupporterTab />}
           {activeTab === 'ENGINE' && <EngineTab config={config} updateConfig={updateConfig} />}
           {activeTab === 'CLIENT' && <ClientTab />}
           {activeTab === 'NOTIFICATIONS' && <NotificationsTab />}

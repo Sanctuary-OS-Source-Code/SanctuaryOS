@@ -22,7 +22,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const playSets = useStore(state => state.playSets);
   const scanProgress = useStore((state: any) => state.scanProgress);
   const quarantineList = useStore(state => state.quarantineList);
-  const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen, dnaMatchQueue, isDnaModalOpen, setIsDnaModalOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen, setIsNexusUpdatesPanelOpen, setIsUpdatePanelOpen, setShowQuarantineModal } = useModalStore();
+  const { isSideBrowserOpen, scoutQueue, setIsScoutPanelOpen, isScoutPanelOpen, dnaMatchQueue, isDnaModalOpen, setIsDnaModalOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen, setIsNexusUpdatesPanelOpen, setIsUpdatePanelOpen, setShowQuarantineModal, volatileSignatureQueue, isSignatureQueueOpen, setIsSignatureQueueOpen } = useModalStore();
 
   const updatesCount = React.useMemo(() => {
     if (!networkUpdates?.updated || typeof activePlaySetIndex !== 'number' || !playSets || !playSets[activePlaySetIndex]) return 0;
@@ -60,7 +60,15 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   const [isDockHovered, setIsDockHovered] = useState(false);
   const dockTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  React.useEffect(() => {
+    if (isSideBrowserOpen) {
+      if (dockTimeout.current) clearTimeout(dockTimeout.current);
+      setIsDockHovered(false);
+    }
+  }, [isSideBrowserOpen]);
+
   const handleDockEnter = () => {
+    if (isSideBrowserOpen) return;
     if (dockTimeout.current) clearTimeout(dockTimeout.current);
     setIsDockHovered(true);
   };
@@ -72,15 +80,16 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
   };
 
   const isRoot = !isDesktop() && isRootDomain();
-  const hasDockNotifications = !isRoot && ((nexusUpdatesCount > 0) || (unreadNotificationCount > 0) || (scoutQueue && scoutQueue.length > 0) || (dnaMatchQueue && dnaMatchQueue.length > 0) || updatePayload || (quarantineList && quarantineList.length > 0));
+  const sigQueueCount = volatileSignatureQueue?.resolvedItems?.length || 0;
+  const hasDockNotifications = !isRoot && ((nexusUpdatesCount > 0) || (unreadNotificationCount > 0) || (scoutQueue && scoutQueue.length > 0) || (dnaMatchQueue && dnaMatchQueue.length > 0) || updatePayload || (quarantineList && quarantineList.length > 0) || (sigQueueCount > 0));
 
-  const dockTransformClass = isDockHovered ? 'translate-y-0' : 'translate-y-[calc(100%-16px)]';
-  const dockOpacityClass = isDockHovered ? 'opacity-100' : 'opacity-40';
+  const dockTransformClass = isSideBrowserOpen ? 'translate-y-full' : isDockHovered ? 'translate-y-0' : 'translate-y-[calc(100%-16px)]';
+  const dockOpacityClass = isSideBrowserOpen ? 'opacity-0' : isDockHovered ? 'opacity-100' : 'opacity-40';
 
   return createPortal(
     <>
       <div
-        className={`fixed bottom-12 left-1/2 -translate-x-1/2 z-[9999999] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${showToast ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-4 opacity-0 pointer-events-none"}`}
+        className={`fixed bottom-12 left-1/2 -translate-x-1/2 z-[9999999] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${showToast && !isSideBrowserOpen ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-4 opacity-0 pointer-events-none"}`}
       >
         <div
           onClick={() => setIsNotificationSidebarOpen(true)}
@@ -117,10 +126,10 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 md:z-[9999999] max-md:z-[14000] flex flex-col items-center justify-end pointer-events-none">
+      <div className={`fixed bottom-0 left-0 right-0 md:z-[9999999] max-md:z-[14000] flex flex-col items-center justify-end pointer-events-none transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${isSideBrowserOpen ? 'opacity-0 translate-y-12' : ''}`}>
 
         {!isRoot && (
-          <div className={`absolute max-md:fixed bottom-[20px] max-md:top-[20px] max-md:right-4 max-md:bottom-auto max-md:left-auto transition-all duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${hasDockNotifications && !isDockHovered ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' : 'opacity-0 translate-y-8 max-md:-translate-y-8 scale-95 pointer-events-none'}`}>
+          <div className={`absolute max-md:fixed bottom-[20px] max-md:top-[20px] max-md:right-4 max-md:bottom-auto max-md:left-auto transition-all duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${hasDockNotifications && !isDockHovered && !isSideBrowserOpen ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' : 'opacity-0 translate-y-8 max-md:-translate-y-8 scale-95 pointer-events-none'}`}>
             <div className="glass-panel portal-glass-fix flex items-center gap-4 px-5 py-2 rounded-full border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_10px_30px_color-mix(in_srgb,var(--accent)_20%,transparent),inset_0_1px_0_color-mix(in_srgb,var(--accent)_50%,transparent)] animate-[pulse_4s_cubic-bezier(0.4,0,0.6,1)_infinite]">
               {quarantineList && quarantineList.length > 0 && isDesktop() && (
                 <button onClick={() => setShowQuarantineModal(true)} className="flex items-center gap-1.5 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)] hover:scale-110 transition-transform cursor-pointer">
@@ -132,6 +141,12 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
                 <button onClick={() => setIsDnaModalOpen(true)} className="flex items-center gap-1.5 text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)] hover:scale-110 transition-transform cursor-pointer">
                   <span className="material-symbols-outlined !text-[15px]">{t("icon_radar") || "radar"}</span>
                   <span className="text-[11px] font-black">{dnaMatchQueue.length}</span>
+                </button>
+              )}
+              {sigQueueCount > 0 && (
+                <button onClick={() => setIsSignatureQueueOpen(true)} className="flex items-center gap-1.5 text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)] hover:scale-110 transition-transform cursor-pointer">
+                  <span className="material-symbols-outlined !text-[15px]">{t("icon_phonelink_ring") || "phonelink_ring"}</span>
+                  <span className="text-[11px] font-black">{sigQueueCount}</span>
                 </button>
               )}
               {scoutQueue && scoutQueue.length > 0 && isDesktop() && (
@@ -165,7 +180,7 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
         <div
           onMouseEnter={handleDockEnter}
           onMouseLeave={handleDockLeave}
-          className={`pointer-events-auto relative flex flex-col items-center justify-end transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${dockTransformClass} pb-4 max-md:hidden ${!isConfigured ? 'opacity-50 grayscale hover:opacity-100 hover:grayscale-0' : ''}`}>
+          className={`${isSideBrowserOpen ? 'pointer-events-none' : 'pointer-events-auto'} relative flex flex-col items-center justify-end transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${dockTransformClass} pb-4 max-md:hidden ${!isConfigured ? 'opacity-50 grayscale hover:opacity-100 hover:grayscale-0' : ''}`}>
 
 
           <div className="w-[800px] max-w-[100vw] h-16 cursor-default" />
@@ -195,6 +210,19 @@ export function SystemStatusBar({ isSidebarCollapsed, isNotificationSidebarOpen,
               >
                 <span className="material-symbols-outlined !text-[20px] text-orange-500 drop-shadow-md animate-pulse">{t("icon_radar") || "radar"}</span>
                 <HoverTooltip title={<><span className="font-black text-orange-500">{dnaMatchQueue.length}</span> {t("radar_title") || "Conflict Radar"}</>} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
+              </button>
+            )}
+
+            {isConfigured && sigQueueCount > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsSignatureQueueOpen(!isSignatureQueueOpen);
+                }}
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--success)_15%,transparent)] group/btn ${isSignatureQueueOpen ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-100' : 'text-emerald-400 opacity-95 hover:opacity-100'} relative`}
+              >
+                <span className="material-symbols-outlined !text-[20px] text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-pulse">{t("icon_phonelink_ring") || "phonelink_ring"}</span>
+                <HoverTooltip title={<><span className="font-black text-emerald-400">{sigQueueCount}</span> {t("sig_queue_title") || "Signature Queue"}</>} variant="default" noIcon={true} className="!hidden group-hover/btn:!flex !bottom-[calc(100%+8px)] !right-auto !left-1/2 !-translate-x-1/2" />
               </button>
             )}
 

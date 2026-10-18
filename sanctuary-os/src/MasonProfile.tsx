@@ -20,6 +20,15 @@ import MasonProfileArtifacts from "./MasonProfileArtifacts";
 import MasonProfileAssets from "./MasonProfileAssets";
 import SidePanelMasonPin from "./side-panels/SidePanelMasonPin";
 import { StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
+import {
+  getSupporterState,
+  toggleLocalFollow,
+  syncLocalMasonSupporterBridge,
+  removeLocalMasonSupporterBridge,
+  findLocalMasonSupporterPass,
+  LocalMasonSupporter
+} from "./utils/supporterManager";
+import { UniversalGroup, UniversalInput } from "./components/universal/UniversalLayout";
 
 
 const cleanModName = (raw: string) => {
@@ -132,6 +141,13 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
   const [posts, setPosts] = useState<any[]>([]);
   const [followerCount, setFollowerCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [localSupporterPass, setLocalSupporterPass] = useState<LocalMasonSupporter | null>(null);
+  const [isSupportDrawerOpen, setIsSupportDrawerOpen] = useState(false);
+  const [bridgeProvider, setBridgeProvider] = useState("patreon");
+  const [bridgeToken, setBridgeToken] = useState("");
+  const [bridgeTier, setBridgeTier] = useState("Supporter");
+  const [isVerifyingBridge, setIsVerifyingBridge] = useState(false);
+
   const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAllPosts, setShowAllPosts] = useState(false);
@@ -186,7 +202,12 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
       setUserId(currentUserId);
 
       const { data: mData } = await supabase.from('masons').select('*').eq('id', masonId).single();
-      if (mData) setMason(mData);
+      if (mData) {
+        setMason(mData);
+        if (mData.payment_processor) {
+          setBridgeProvider(String(mData.payment_processor).toLowerCase());
+        }
+      }
 
       const { data: modsDataRaw } = await supabase.from('mods').select('*').eq('mason_id', masonId).order('name');
 
@@ -267,12 +288,14 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
       }
 
       const { count } = await supabase.from('mason_followers').select('*', { count: 'exact', head: true }).eq('mason_id', masonId);
-      setFollowerCount(count || 0);
+      const localState = await getSupporterState();
+      const locallyFollowed = localState.follows.some(f => f.mason_id === masonId);
+      const matchedPass = findLocalMasonSupporterPass(localState.supporters, masonId, mData?.name);
+      setLocalSupporterPass(matchedPass);
 
-      if (currentUserId) {
-        const { data: followData } = await supabase.from('mason_followers').select('*').eq('mason_id', masonId).eq('user_id', currentUserId).maybeSingle();
-        setIsFollowing(!!followData);
-      }
+      const baseFollowers = Math.max(Number(mData?.followers_count || 0), count || 0);
+      setFollowerCount(baseFollowers);
+      setIsFollowing(locallyFollowed);
 
       setLoading(false);
     }
@@ -322,22 +345,57 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
   };
 
   const toggleFollow = async () => {
-    if (!userId) { useStore.getState().pushStatus(t("auto_guest_mode_active_45", "Guest mode active.")); return; }
-    const session = useStore.getState().session;
-    if (isFollowing) {
-      await supabase.rpc('secure_toggle_mason_follow', { p_mason_id: masonId, p_action: 'unfollow', p_token: session?.access_token });
-      setFollowerCount(prev => prev - 1);
-      setIsFollowing(false);
-    } else {
-      const { error } = await supabase.rpc('secure_toggle_mason_follow', { p_mason_id: masonId, p_action: 'follow', p_token: session?.access_token });
-      if (error && (JSON.stringify(error).includes('23505') || JSON.stringify(error).includes('Conflict'))) {
-        setIsFollowing(true);
-      } else if (!error) {
-        setFollowerCount(prev => prev + 1);
-        setIsFollowing(true);
-      } else {
-        useStore.getState().pushStatus(t("err_follow_mason", "Failed to follow Mason."));
-      }
+    try {
+      const nowFollowing = await toggleLocalFollow({
+        masonId,
+        masonName: mason?.name || "",
+        avatarUrl: mason?.avatar_url || ""
+      });
+      setIsFollowing(nowFollowing);
+      const nextCount = Math.max(0, followerCount + (nowFollowing ? 1 : -1));
+      setFollowerCount(nextCount);
+      // Update aggregate anonymous counter without storing a central user_id <-> mason_id honeypot
+      await supabase.from('masons').update({ followers_count: nextCount }).eq('id', masonId);
+    } catch {
+      useStore.getState().pushStatus(t("err_follow_mason", "Failed to follow Mason."));
+    }
+  };
+
+  const handleVerifyLocalBridge = async () => {
+    if (!bridgeToken.trim()) return;
+    setIsVerifyingBridge(true);
+    try {
+      const pass = await syncLocalMasonSupporterBridge({
+        masonId,
+        masonName: mason?.name || masonId,
+        provider: bridgeProvider,
+        tokenOrKey: bridgeToken.trim(),
+        patreonCampaignId: mason?.patreon_campaign_id || "",
+        tierName: bridgeTier.trim() || "Supporter"
+      });
+      setLocalSupporterPass(pass);
+      setBridgeToken("");
+      useStore.getState().pushStatus(
+        t("supporter_status_bridge_linked", "Creator Supporter Pass verified and saved to your local SQLite Vault!"),
+        "success"
+      );
+    } catch (err: any) {
+      useStore.getState().pushStatus(String(err), "error");
+    } finally {
+      setIsVerifyingBridge(false);
+    }
+  };
+
+  const handleRemoveLocalBridge = async () => {
+    try {
+      await removeLocalMasonSupporterBridge(masonId);
+      setLocalSupporterPass(null);
+      useStore.getState().pushStatus(
+        t("supporter_status_bridge_removed", "Local Creator Supporter Pass removed from Vault."),
+        "info"
+      );
+    } catch (err: any) {
+      useStore.getState().pushStatus(String(err), "error");
     }
   };
 
@@ -390,7 +448,20 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full w-full pb-36 pt-0 md:pt-4 px-0 md:px-6 max-w-[1600px] mx-auto">
 
-      <MasonProfileHeader mason={mason} masonId={masonId} followerCount={followerCount} isFollowing={isFollowing} masonAlerts={masonAlerts} toggleFollow={toggleFollow} toggleMasonAlert={toggleMasonAlert} activeView={activeView} setActiveView={setActiveView} t={t}>
+      <MasonProfileHeader
+        mason={mason}
+        masonId={masonId}
+        followerCount={followerCount}
+        isFollowing={isFollowing}
+        isVerifiedSupporter={!!localSupporterPass}
+        onOpenSupportModal={() => setIsSupportDrawerOpen(true)}
+        masonAlerts={masonAlerts}
+        toggleFollow={toggleFollow}
+        toggleMasonAlert={toggleMasonAlert}
+        activeView={activeView}
+        setActiveView={setActiveView}
+        t={t}
+      >
         {activeView !== 'OVERVIEW' && (
           <div className="flex flex-row items-center justify-end gap-3 flex-1 w-full ml-auto">
             <ActionPill
@@ -613,6 +684,137 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
       )}
 
       <SidePanelMasonPin isOpen={isPinPanelOpen} onClose={() => setIsPinPanelOpen(false)} mason={mason} mods={mods} marketAssets={marketAssets} gameVersions={gameVersions} handlePin={handlePin} activeGameSchema={activeGameSchema} t={t} />
+
+      <SidePanel
+        isOpen={isSupportDrawerOpen}
+        onClose={() => setIsSupportDrawerOpen(false)}
+        title={t("supporter_bridge_modal_title", "Link Creator Supporter Bridge")}
+        subtitle={mason?.name || ""}
+        icon={t("icon_volunteer_activism", "volunteer_activism")}
+        widthClass="w-[520px] max-w-[92vw]"
+      >
+        <div className="flex flex-col gap-6 p-2">
+          <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span className="material-symbols-outlined !text-[12px]">{t("icon_verified", "verified")}</span>
+                {t("supporter_zero_fee_badge", "0% PLATFORM FEE • NON-CUSTODIAL")}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center gap-1">
+                <span className="material-symbols-outlined !text-[12px]">{t("icon_encrypted", "encrypted")}</span>
+                {t("supporter_zero_honeypot_badge", "ZERO CLOUD HONEYPOT • LOCAL SQLITE VAULT")}
+              </span>
+            </div>
+            <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+              {t("supporter_liability_notice", "Non-Custodial Notice: Partner Communities and Creators run their own payment processors and receive 100% of your contribution. Sanctuary OS takes a 0% cut, never touches the funds, and does not process refunds or chargebacks.")}
+            </p>
+          </div>
+
+          {(mason?.donation_url || mason?.patreon_url || mason?.website_url) && (
+            <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-black uppercase tracking-widest text-[var(--text)]">
+                  {t("supporter_btn_support_creator", "Support (0% Fee)")}
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+                  {mason?.payment_processor || "Patreon / Direct"}
+                </span>
+              </div>
+              <button
+                onClick={() => handleOpenUrl(mason.donation_url || mason.patreon_url || mason.website_url)}
+                className={`${standardAccentGlassButtonClass} w-full h-11 rounded-xl flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest`}
+              >
+                <span className="material-symbols-outlined !text-[18px]">{t("icon_open_in_new", "open_in_new")}</span>
+                <span>{t("supporter_btn_support_creator", "Support (0% Fee)")}</span>
+              </button>
+            </div>
+          )}
+
+          {localSupporterPass ? (
+            <div className="glass-panel rounded-2xl p-5 border border-emerald-500/35 bg-emerald-500/5 flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="material-symbols-outlined !text-[22px] text-emerald-400">{t("icon_verified", "verified")}</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-black text-[var(--text)]">
+                      {t("supporter_badge_verified_patron", "VERIFIED SUPPORTER")}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+                      {localSupporterPass.provider} • {localSupporterPass.tier_name}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleRemoveLocalBridge}
+                  className={`${standardButtonClass} h-8 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest text-rose-400 hover:border-rose-500/40 flex items-center gap-1`}
+                >
+                  <span className="material-symbols-outlined !text-[14px]">{t("icon_delete", "delete")}</span>
+                  <span>{t("supporter_btn_unlink_bridge", "Remove Local Pass")}</span>
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center gap-1">
+                  <span className="material-symbols-outlined !text-[12px]">{t("icon_bolt", "bolt")}</span>
+                  {t("supporter_badge_expedited_support", "EXPEDITED SUPPORT PATH")}
+                </span>
+                <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                  <span className="material-symbols-outlined !text-[12px]">{t("icon_science", "science")}</span>
+                  {t("supporter_badge_early_access", "EARLY ACCESS SYNC")}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <UniversalGroup
+              title={t("supporter_masons_vault_title", "Creator Supporter Bridges (Local Vault Only)")}
+              icon={t("icon_encrypted", "encrypted")}
+            >
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                  {t("supporter_bridge_provider_label", "Payment Processor / Platform")}
+                </span>
+                <CustomDropdown
+                  disableTint={true}
+                  value={bridgeProvider}
+                  onChange={(vals: string[]) => {
+                    if (vals[0]) setBridgeProvider(vals[0]);
+                  }}
+                  options={[
+                    { id: "patreon", label: "Patreon (OAuth v2 Bridge)" },
+                    { id: "kofi", label: "Ko-fi Supporter Pass" },
+                    { id: "stripe", label: "Stripe / Direct Receipt" }
+                  ]}
+                  allowMultiSelect={false}
+                />
+              </div>
+
+              <UniversalInput
+                label={t("supporter_bridge_token_label", "Patreon Access Token or Creator Supporter Key")}
+                value={bridgeToken}
+                onChange={setBridgeToken}
+                placeholder={t("supporter_bridge_token_ph", "Paste token or supporter pass key (stored in local SQLite only)...")}
+              />
+
+              <UniversalInput
+                label={t("supporter_bridge_tier_label", "Supporter Tier Label (Optional)")}
+                value={bridgeTier}
+                onChange={setBridgeTier}
+                placeholder="Supporter"
+              />
+
+              <button
+                onClick={handleVerifyLocalBridge}
+                disabled={isVerifyingBridge || !bridgeToken.trim()}
+                className={`${standardPrimaryButtonClass} w-full h-11 rounded-xl flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest disabled:opacity-40 mt-2`}
+              >
+                <span className={`material-symbols-outlined !text-[18px] ${isVerifyingBridge ? "animate-spin" : ""}`}>
+                  {isVerifyingBridge ? t("icon_sync", "sync") : t("icon_verified", "verified")}
+                </span>
+                <span>{t("supporter_bridge_btn_verify", "Verify & Save to Local Vault")}</span>
+              </button>
+            </UniversalGroup>
+          )}
+        </div>
+      </SidePanel>
     </div>
   );
 }

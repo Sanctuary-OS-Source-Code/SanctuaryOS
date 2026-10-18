@@ -199,7 +199,7 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
         }
     }
 
-    Ok(info)
+    Ok(crate::utils::scrub_user_data_from_log(&info))
 }
 
 #[tauri::command]
@@ -208,3 +208,134 @@ pub fn overwrite_local_schema(schema_id: String, schema_data: String) -> Result<
     let path = format!("../src/data/schemas/{}.json", schema_id);
     std::fs::write(&path, schema_data).map_err(|e| e.to_string())
 }
+
+#[cfg(target_os = "windows")]
+const SANCTUARY_NOTIFICATION_AUMID: &str = "sanctuary-os";
+
+#[cfg(target_os = "windows")]
+const SANCTUARY_NOTIFICATION_ICON: &[u8] = include_bytes!("../../icons/128x128.png");
+
+#[cfg(target_os = "windows")]
+static AUMID_ICON_PATH: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
+
+/// Ensures `HKCU\Software\Classes\AppUserModelId\sanctuary-os` is registered for the current user
+/// with the "Sanctuary OS" display name and icon so Windows Toast notifications show
+/// "Sanctuary OS" instead of "Windows PowerShell" in both dev and portable/release modes.
+pub fn ensure_windows_aumid_registered() {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = AUMID_ICON_PATH.get_or_init(|| {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+            let app_dir = dirs::data_local_dir()
+                .unwrap_or_else(std::env::temp_dir)
+                .join("sanctuary-os");
+            let _ = std::fs::create_dir_all(&app_dir);
+
+            let icon_path = app_dir.join("sanctuary-notification-icon.png");
+            let should_write = match std::fs::metadata(&icon_path) {
+                Ok(meta) => meta.len() != SANCTUARY_NOTIFICATION_ICON.len() as u64,
+                Err(_) => true,
+            };
+            if should_write {
+                let _ = std::fs::write(&icon_path, SANCTUARY_NOTIFICATION_ICON);
+            }
+
+            let reg_key = format!(
+                r"HKCU\Software\Classes\AppUserModelId\{}",
+                SANCTUARY_NOTIFICATION_AUMID
+            );
+
+            let _ = std::process::Command::new("reg")
+                .args([
+                    "add",
+                    &reg_key,
+                    "/v",
+                    "DisplayName",
+                    "/t",
+                    "REG_SZ",
+                    "/d",
+                    "Sanctuary OS",
+                    "/f",
+                ])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output();
+
+            if let Some(icon_str) = icon_path.to_str() {
+                let _ = std::process::Command::new("reg")
+                    .args([
+                        "add",
+                        &reg_key,
+                        "/v",
+                        "IconUri",
+                        "/t",
+                        "REG_SZ",
+                        "/d",
+                        icon_str,
+                        "/f",
+                    ])
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .output();
+            }
+
+            let _ = std::process::Command::new("reg")
+                .args([
+                    "add",
+                    &reg_key,
+                    "/v",
+                    "IconBackgroundColor",
+                    "/t",
+                    "REG_SZ",
+                    "/d",
+                    "00000000",
+                    "/f",
+                ])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output();
+
+            Some(icon_path)
+        });
+    }
+}
+
+#[tauri::command]
+pub fn send_sanctuary_notification(
+    app: tauri::AppHandle,
+    title: String,
+    body: String,
+) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = &app;
+        ensure_windows_aumid_registered();
+        let toast_result = tauri_winrt_notification::Toast::new(SANCTUARY_NOTIFICATION_AUMID)
+            .title(&title)
+            .text1(&body)
+            .show();
+
+        if let Err(err) = toast_result {
+            // Fallback to PowerShell App ID only if custom AUMID toast fails
+            tauri_winrt_notification::Toast::new(
+                tauri_winrt_notification::Toast::POWERSHELL_APP_ID,
+            )
+            .title(&title)
+            .text1(&body)
+            .show()
+            .map_err(|fallback_err| format!("{:?} (fallback: {:?})", err, fallback_err))?;
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        use tauri_plugin_notification::NotificationExt;
+        app.notification()
+            .builder()
+            .title(&title)
+            .body(&body)
+            .show()
+            .map_err(|e| e.to_string())
+    }
+}
+

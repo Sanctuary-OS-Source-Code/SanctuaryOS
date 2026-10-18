@@ -86,7 +86,24 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const { importTheme, CORE_THEMES, customThemes } = useTheme();
   const [assetResultsMap, setAssetResultsMap] = useState<Record<string, any[]>>(window.__sanctuaryCache!.nexus?.assetResultsMap || {});
   const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
-  const { nexusPreviewAsset: previewAsset, setNexusPreviewAsset: setPreviewAsset } = useModalStore();
+  const {
+    nexusPreviewAsset: previewAsset,
+    setNexusPreviewAsset: setPreviewAsset,
+    stagingDraftItems,
+    toggleModInStagingDraft,
+    stageBlueprintToDraft,
+    volatileSignatureQueue
+  } = useModalStore();
+  const stagedModKeys = useMemo(() => {
+    const s = new Set<string>();
+    stagingDraftItems.forEach((item) => {
+      const key = String(item.mod_id || item.dna_hash || item.name);
+      s.add(key);
+      if (item.dna_hash) s.add(String(item.dna_hash));
+      if (item.mod_id) s.add(String(item.mod_id));
+    });
+    return s;
+  }, [stagingDraftItems]);
   const [results, setResults] = useState<any[]>([]);
   const [loadingMods, setLoadingMods] = useState(false);
   const [loadingAssets, setLoadingAssets] = useState(false);
@@ -976,9 +993,17 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
           familyMap.forEach((memberIds, parentId) => {
             if (memberIds.size > 1) {
-              const members = Array.from(memberIds)
+              const rawMembers = Array.from(memberIds)
                 .map(id => modsById.get(id))
                 .filter(Boolean);
+
+              const seenMemberNames = new Set<string>();
+              const members = rawMembers.filter((m: any) => {
+                const normName = String(m?.name || "").trim().toLowerCase();
+                if (!normName || seenMemberNames.has(normName)) return false;
+                seenMemberNames.add(normName);
+                return true;
+              });
 
               const parentMod = modsById.get(parentId);
               const isValidName = parentMod?.name && !parentMod.name.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
@@ -1440,10 +1465,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           subtitle={`${t("subtitle_suffix")}`}
           icon={t("icon_hub")}
           iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-          breadcrumb={marketTab !== 'HOME' ? (marketTab === 'HOME' ? t('tab_overview') : t(`tab_${marketTab.toLowerCase()}`) || marketTab) : undefined}
+          breadcrumb={marketTab !== 'HOME' ? (marketTab === 'HOME' ? t('tab_overview', 'Overview') : marketTab === 'STAGING' ? t('tab_staging', 'Staging') : t(`tab_${marketTab.toLowerCase()}`) || marketTab) : undefined}
           onTitleClick={() => setMarketTab('HOME')}
         >
-          {marketTab !== 'HOME' && (
+          {marketTab !== 'HOME' && marketTab !== 'STAGING' && (
             <div className="animate-in slide-in-from-top-4 duration-500 relative z-20 w-full xl:w-auto overflow-hidden">
               <ActionPill
                 searchQuery={marketTab === 'MODS' ? searchQuery : assetSearchQuery}
@@ -1580,7 +1605,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 key={tab}
                 variant="tab"
                 icon={tab === 'HOME' ? 'dashboard' : tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : tab === 'TEMPLATES' ? "draw" : "palette"}
-                label={tab === 'HOME' ? t('tab_overview') : t(`tab_${tab.toLowerCase()}`) || tab}
+                label={tab === 'HOME' ? t('tab_overview', 'Overview') : t(`tab_${tab.toLowerCase()}`) || tab}
                 number={tab === 'HOME' ? (stats.artifacts + stats.blueprints + stats.lexicons + stats.chameleons + stats.templates) : tab === 'MODS' ? stats.artifacts : tab === 'BLUEPRINTS' ? stats.blueprints : tab === 'LEXICONS' ? stats.lexicons : tab === 'CHAMELEONS' ? stats.chameleons : tab === 'TEMPLATES' ? stats.templates : ""}
                 onClick={() => setMarketTab(tab as any)}
                 isActive={marketTab === tab}
@@ -1957,7 +1982,49 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               )}
                             </div>
 
-                            <span className="text-[10px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300 pointer-events-auto z-10 w-20 text-right"></span>
+                            {(() => {
+                              const isModOrSuiteStaged = isFolder && Array.isArray(mod.flavors) && mod.flavors.length > 0
+                                ? mod.flavors.every((f: any) => stagedModKeys.has(String(f.id)) || (f.hash && stagedModKeys.has(String(f.hash))))
+                                : (stagedModKeys.has(String(mod.id)) || (mod.hash && stagedModKeys.has(String(mod.hash))));
+                              return (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleModInStagingDraft(mod);
+                                    onSetStatus(
+                                      isModOrSuiteStaged
+                                        ? t("status_staging_item_removed", "Removed from Remote Staging Queue.")
+                                        : t("status_staging_item_added", "Added to Remote Staging Queue.")
+                                    );
+                                  }}
+                                  title={
+                                    isModOrSuiteStaged
+                                      ? t("staging_btn_unstage_mod", "Remove from Staging")
+                                      : isFolder
+                                        ? t("staging_btn_stage_suite", "Stage Suite")
+                                        : t("staging_btn_stage_mod", "Stage to PC")
+                                  }
+                                  className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all pointer-events-auto z-20 ${
+                                    isModOrSuiteStaged
+                                      ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-sm'
+                                      : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
+                                  }`}
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {isModOrSuiteStaged
+                                      ? t("icon_playlist_add_check", "playlist_add_check")
+                                      : t("icon_playlist_add", "playlist_add")}
+                                  </span>
+                                  <span>
+                                    {isModOrSuiteStaged
+                                      ? t("staging_btn_staged", "Staged")
+                                      : isFolder
+                                        ? t("staging_btn_stage_suite", "Stage Suite")
+                                        : t("staging_btn_stage_mod", "Stage to PC")}
+                                  </span>
+                                </button>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -2050,6 +2117,32 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                             <p className="text-[8px] font-black text-[color-mix(in_srgb,var(--text)_30%,transparent)] capitalize tracking-widest truncate mb-2">
                                               {flavor.master_author || mod.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` \u2022 ${flavor.latest_version || flavor.version}` : ""}
                                             </p>
+                                            <div className="mt-auto pt-2 flex justify-end">
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  const wasStaged = stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash)));
+                                                  toggleModInStagingDraft(flavor);
+                                                  onSetStatus(wasStaged ? t("status_staging_item_removed", "Removed from Remote Staging Queue.") : t("status_staging_item_added", "Added to Remote Staging Queue."));
+                                                }}
+                                                className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase tracking-widest flex items-center gap-1 transition-all ${
+                                                  (stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
+                                                    ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
+                                                    : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]'
+                                                }`}
+                                              >
+                                                <span className="material-symbols-outlined !text-[12px]">
+                                                  {(stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
+                                                    ? t("icon_playlist_add_check", "playlist_add_check")
+                                                    : t("icon_playlist_add", "playlist_add")}
+                                                </span>
+                                                <span>
+                                                  {(stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
+                                                    ? t("staging_btn_staged", "Staged")
+                                                    : t("staging_btn_stage_mod", "Stage to PC")}
+                                                </span>
+                                              </button>
+                                            </div>
                                           </div>
                                         </div>
                                       ))}
@@ -2208,55 +2301,95 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           {marketTab === 'BLUEPRINTS' ? (() => {
                             const isInstalled = playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code);
                             return (
-                              <ActionButton
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedBlueprint(asset);
-                                }}
-                                variant={isInstalled ? "primary" : "success"}
-                                icon="download"
-                                label={isInstalled ? (t("btn_install_copy")) : (t("update_panel_install"))}
-                                className="!py-1.5 !px-3 !text-[9px]"
-                              />
+                              <>
+                                <ActionButton
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    stageBlueprintToDraft(asset);
+                                    onSetStatus(t("status_staging_blueprint_loaded", "Blueprint loaded into Payload Editor."));
+                                    useStore.getState().setView('playsets');
+                                  }}
+                                  variant="glass"
+                                  icon={t("icon_phonelink", "phonelink")}
+                                  label={t("staging_btn_use_short", "Use Blueprint")}
+                                  className="!py-1.5 !px-3 !text-[9px]"
+                                />
+                                <ActionButton
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedBlueprint(asset);
+                                  }}
+                                  variant={isInstalled ? "primary" : "success"}
+                                  icon="download"
+                                  label={isInstalled ? (t("btn_install_copy")) : (t("update_panel_install"))}
+                                  className="!py-1.5 !px-3 !text-[9px]"
+                                />
+                              </>
                             );
-                          })() : (
-                            <ActionButton
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (marketTab === 'CHAMELEONS') {
-                                  const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
-                                  importTheme({ ...parsedData, version: asset.version || '1.0.0' });
-                                  onSetStatus(`Successfully Installed Theme: ${asset.name}`);
-                                } else if (marketTab === 'TEMPLATES') {
-                                  const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
-                                  const versionToSave = getAssetDisplayVersion(asset);
-                                  await importTemplate({ ...parsedData, version: versionToSave });
-                                  setInstalledTemplates(prev => ({ ...prev, [asset.name]: versionToSave }));
-                                  onSetStatus(`Successfully Installed Template: ${asset.name}`);
-                                } else {
-                                  const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
-                                  importLexicon({ ...parsedData, _meta_language: asset.language || "Custom", _meta_version: asset.version || '1.0.0' }, asset.name);
-                                  onSetStatus(`Successfully Installed Lexicon: ${asset.name}`);
-                                }
-                                try {
-                                  if (marketTab === 'BLUEPRINTS') {
-                                    await supabase.rpc('increment_blueprint_downloads', { blueprint_id: asset.id });
-                                  } else {
-                                    await supabase.rpc('increment_asset_downloads', { asset_id: asset.id });
-                                  }
-                                } catch (e) { console.error("Could not increment downloads", e); }
-                                setAssetResultsMap(prev => {
-                                  const newMap = { ...prev, [marketTab]: (prev[marketTab] || []).map(a => a.id === asset.id ? { ...a, downloads: (a.downloads || 0) + 1 } : a) };
-                                  if (window.__sanctuaryCache!.nexus) window.__sanctuaryCache!.nexus.assetResultsMap = newMap;
-                                  return newMap;
-                                });
-                              }}
-                              variant={isInstalled(asset) ? (isOutdated(asset) ? 'primary' : 'glass') : 'success'}
-                              icon={isInstalled(asset) ? (isOutdated(asset) ? 'update' : 'refresh') : 'download'}
-                              label={isInstalled(asset) ? (isOutdated(asset) ? "UPDATE" : (t("btn_reinstall"))) : (t("update_panel_install"))}
-                              className="!py-1.5 !px-3 !text-[9px]"
-                            />
-                          )}
+                          })() : (() => {
+                            const assetTypeKey = marketTab === 'LEXICONS' ? 'lexicon' : marketTab === 'CHAMELEONS' ? 'chameleon' : 'workbench_template';
+                            const assetStagingId = `asset_${assetTypeKey}_${asset.id}`;
+                            const isAssetStaged = stagedModKeys.has(assetStagingId.toLowerCase());
+                            return (
+                              <>
+                                <ActionButton
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleModInStagingDraft({
+                                      ...asset,
+                                      asset_type: assetTypeKey,
+                                      asset_id: asset.id,
+                                    });
+                                    onSetStatus(
+                                      isAssetStaged
+                                        ? t("status_staging_item_removed", "Removed from Remote Staging Queue.")
+                                        : t("status_staging_item_added", "Added to Remote Staging Queue.")
+                                    );
+                                  }}
+                                  variant={isAssetStaged ? "primary" : "glass"}
+                                  icon={isAssetStaged ? t("icon_playlist_add_check", "playlist_add_check") : t("icon_playlist_add", "playlist_add")}
+                                  label={isAssetStaged ? t("staging_btn_staged", "Staged") : t("staging_btn_stage_mod", "Stage to PC")}
+                                  className="!py-1.5 !px-3 !text-[9px]"
+                                />
+                                <ActionButton
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (marketTab === 'CHAMELEONS') {
+                                      const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+                                      importTheme({ ...parsedData, version: asset.version || '1.0.0' });
+                                      onSetStatus(`Successfully Installed Theme: ${asset.name}`);
+                                    } else if (marketTab === 'TEMPLATES') {
+                                      const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+                                      const versionToSave = getAssetDisplayVersion(asset);
+                                      await importTemplate({ ...parsedData, version: versionToSave });
+                                      setInstalledTemplates(prev => ({ ...prev, [asset.name]: versionToSave }));
+                                      onSetStatus(`Successfully Installed Template: ${asset.name}`);
+                                    } else {
+                                      const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+                                      importLexicon({ ...parsedData, _meta_language: asset.language || "Custom", _meta_version: asset.version || '1.0.0' }, asset.name);
+                                      onSetStatus(`Successfully Installed Lexicon: ${asset.name}`);
+                                    }
+                                    try {
+                                      if (marketTab === 'BLUEPRINTS') {
+                                        await supabase.rpc('increment_blueprint_downloads', { blueprint_id: asset.id });
+                                      } else {
+                                        await supabase.rpc('increment_asset_downloads', { asset_id: asset.id });
+                                      }
+                                    } catch (e) { console.error("Could not increment downloads", e); }
+                                    setAssetResultsMap(prev => {
+                                      const newMap = { ...prev, [marketTab]: (prev[marketTab] || []).map(a => a.id === asset.id ? { ...a, downloads: (a.downloads || 0) + 1 } : a) };
+                                      if (window.__sanctuaryCache!.nexus) window.__sanctuaryCache!.nexus.assetResultsMap = newMap;
+                                      return newMap;
+                                    });
+                                  }}
+                                  variant={isInstalled(asset) ? (isOutdated(asset) ? 'primary' : 'glass') : 'success'}
+                                  icon={isInstalled(asset) ? (isOutdated(asset) ? 'update' : 'refresh') : 'download'}
+                                  label={isInstalled(asset) ? (isOutdated(asset) ? "UPDATE" : (t("btn_reinstall"))) : (t("update_panel_install"))}
+                                  className="!py-1.5 !px-3 !text-[9px]"
+                                />
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

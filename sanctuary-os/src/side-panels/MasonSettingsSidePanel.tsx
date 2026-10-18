@@ -26,7 +26,10 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
     avatar_url: profile.avatar_url || "",
     patreon_url: profile.patreon_url || "",
     website_url: profile.website_url || "",
-    discord_url: profile.discord_url || ""
+    discord_url: profile.discord_url || "",
+    donation_url: profile.donation_url || "",
+    payment_processor: profile.payment_processor || "Patreon",
+    patreon_campaign_id: profile.patreon_campaign_id || ""
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -38,7 +41,10 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
         avatar_url: profile.avatar_url || "",
         patreon_url: profile.patreon_url || "",
         website_url: profile.website_url || "",
-        discord_url: profile.discord_url || ""
+        discord_url: profile.discord_url || "",
+        donation_url: profile.donation_url || "",
+        payment_processor: profile.payment_processor || "Patreon",
+        patreon_campaign_id: profile.patreon_campaign_id || ""
       });
     }
   }, [isOpen, profile]);
@@ -130,6 +136,33 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
             label={t("discord_url") || "Discord URL"}
             value={formData.discord_url}
             onChange={(val) => setFormData({ ...formData, discord_url: val })}
+          />
+        </UniversalGroup>
+
+        <UniversalGroup title={t("supporter_mason_settings_group", "Non-Custodial Supporter & API Bridge (0% Fee)")} icon={t("icon_volunteer_activism", "volunteer_activism")}>
+          <div className="glass-surface rounded-xl p-3 border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] flex flex-col gap-1.5">
+            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-1.5">
+              <span className="material-symbols-outlined !text-[14px]">{t("icon_verified", "verified")}</span>
+              {t("supporter_zero_fee_badge", "0% PLATFORM FEE • NON-CUSTODIAL")}
+            </span>
+            <p className="text-[11px] font-semibold text-[var(--subtext)] leading-relaxed">
+              {t("supporter_liability_notice", "Non-Custodial Notice: Partner Communities and Creators run their own payment processors and receive 100% of your contribution. Sanctuary OS takes a 0% cut, never touches the funds, and does not process refunds or chargebacks.")}
+            </p>
+          </div>
+          <UniversalInput
+            label={t("supporter_mason_processor_label", "Primary Payment Processor")}
+            value={formData.payment_processor}
+            onChange={(val) => setFormData({ ...formData, payment_processor: val })}
+          />
+          <UniversalInput
+            label={t("supporter_mason_donation_url", "Direct Tip / Checkout URL (Ko-fi, Stripe, PayPal)")}
+            value={formData.donation_url}
+            onChange={(val) => setFormData({ ...formData, donation_url: val })}
+          />
+          <UniversalInput
+            label={t("supporter_mason_patreon_campaign", "Patreon Campaign ID (For Local API Bridge)")}
+            value={formData.patreon_campaign_id}
+            onChange={(val) => setFormData({ ...formData, patreon_campaign_id: val })}
           />
         </UniversalGroup>
       </div>

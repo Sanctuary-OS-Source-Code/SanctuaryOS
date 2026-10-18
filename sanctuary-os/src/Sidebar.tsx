@@ -8,7 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from "./utils/envUtils";
 import { isRootDomain, scrollToLandingSection } from "./utils/routingUtils";
 
-function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false, setHoveredTooltip }: any) {
+function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false, badge = 0, setHoveredTooltip }: any) {
   const isActive = active;
   return (
     <div className="px-4 relative group/navbtn">
@@ -32,17 +32,29 @@ function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false
             : (isAccent ? "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent" : "text-[var(--sidebartext)] opacity-60 hover:bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)] hover:opacity-100 border-transparent")
           } ${isCollapsed ? 'justify-center px-0' : ''}`}
       >
-        <span
-          className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${isActive ? "scale-110" : "group-hover:scale-110"}`}
-        >
-          {icon}
-        </span>
+        <div className="relative flex items-center justify-center shrink-0">
+          <span
+            className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${isActive ? "scale-110" : "group-hover:scale-110"}`}
+          >
+            {icon}
+          </span>
+          {isCollapsed && badge > 0 && (
+            <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-1 rounded-full bg-[var(--accent)] text-[var(--bg)] text-[8px] font-black flex items-center justify-center z-20">
+              {badge}
+            </span>
+          )}
+        </div>
         {!isCollapsed && (
           <span
-            className="font-black capitalize tracking-[0.15em] truncate pt-0.5 relative z-10"
+            className="font-black capitalize tracking-[0.15em] truncate pt-0.5 relative z-10 flex-1 text-left"
             style={{ fontSize: "var(--fontSizeSidebar, 11px)" }}
           >
             {label}
+          </span>
+        )}
+        {!isCollapsed && badge > 0 && (
+          <span className="px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black text-[var(--accent)] shrink-0">
+            {badge}
           </span>
         )}
       </button>
@@ -68,7 +80,7 @@ export function Sidebar({
   const osRole = useStore((state) => state.osRole);
   const isPatchDetected = useStore((state) => state.isPatchDetected);
   const isConfigured = useStore((state) => state.isConfigured);
-  const { showDefconAlert } = useModalStore();
+  const { showDefconAlert, stagingDraftItems } = useModalStore();
   const [globalGames, setGlobalGames] = React.useState<any[]>([]);
   const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = React.useState(false);
   const [hoveredTooltip, setHoveredTooltip] = React.useState<{ label: string, top: number } | null>(null);
@@ -309,12 +321,13 @@ export function Sidebar({
                   setHoveredTooltip={setHoveredTooltip}
                 />
               )}
-              {schemaFeatures.has_cc && isDesktop() && (
+              {schemaFeatures.has_cc && (
                 <NavButton
                   active={view === "playsets"}
                   onClick={() => setView("playsets")}
                   icon={t("icon_map")}
                   label={t("playsets_title")}
+                  badge={(stagingDraftItems || []).length}
                   isCollapsed={isSidebarCollapsed}
                   isAccent={true}
                   setHoveredTooltip={setHoveredTooltip}

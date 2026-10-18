@@ -22,6 +22,10 @@ import { MasonStatusDropdown } from "../MasonHub";
 import { logArchitectAction } from "../lib/audit";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import MarkdownRenderer from "../MarkdownRenderer";
+import {
+  LabVerificationGate,
+  checkDnaHashVerification,
+} from "../components/LabVerificationGate";
 
 
 export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setStatus?: any }) {
@@ -34,9 +38,24 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
   const [cloudModsList, setCloudModsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeScout, setActiveScout] = useState<any | null>(null);
+  const [isActiveVerified, setIsActiveVerified] = useState<boolean>(false);
+  const [isActiveFailed, setIsActiveFailed] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lineageId, setLineageId] = useState<string>("");
   const activeGameSchema = useStore(state => state.activeGameSchema);
+  const requireScoutLabTest = activeGameSchema?.lab_verification?.require_for_scout_approval !== false;
+
+  useEffect(() => {
+    if (!activeScout?.dna_hash) {
+      setIsActiveVerified(false);
+      setIsActiveFailed(false);
+      return;
+    }
+    checkDnaHashVerification(activeScout.dna_hash).then((res) => {
+      setIsActiveVerified(res.verified);
+      setIsActiveFailed(res.failed);
+    });
+  }, [activeScout?.dna_hash]);
 
   const [isMasonPanelOpen, setIsMasonPanelOpen] = useState(false);
   const [newMasonName, setNewMasonName] = useState("");
@@ -147,6 +166,16 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
 
   const handleAction = async (action: 'approved' | 'rejected') => {
     if (!activeScout) return;
+    if (action === 'approved' && requireScoutLabTest && (!isActiveVerified || isActiveFailed)) {
+      if (setStatus) {
+        setStatus(
+          isActiveFailed
+            ? t("lab_gate_failed_reject_only_msg", "Fatal error detected or no clean test produced. Only Rejection is permitted for this submission.")
+            : t("lab_gate_locked_architect_msg", "Approval Locked: No clean timed Lab test exists for this SHA-256 hash.")
+        );
+      }
+      return;
+    }
     setIsProcessing(true);
 
     if (action === 'approved') {
@@ -358,22 +387,49 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               disabled={isProcessing}
             />
             <PanelHeaderButton
-              icon="check"
+              icon={requireScoutLabTest && (!isActiveVerified || isActiveFailed) ? "lock" : "check"}
               variant="success"
-              tooltip={isProcessing ? (t("btn_saving") || "Saving...") : (t("approve") || "Approve")}
+              tooltip={
+                requireScoutLabTest && (!isActiveVerified || isActiveFailed)
+                  ? (isActiveFailed
+                      ? t("lab_badge_short_failed", "Lab Failed")
+                      : t("lab_tooltip_approve_locked", "Approval Locked (Lab Test Required)"))
+                  : isProcessing
+                  ? (t("btn_saving") || "Saving...")
+                  : (t("approve") || "Approve")
+              }
               onClick={() => handleAction('approved')}
-              disabled={isProcessing}
+              disabled={isProcessing || (requireScoutLabTest && (!isActiveVerified || isActiveFailed))}
             />
           </PanelHeaderGroup>
         }
       >
         {activeScout && (
-          <div className="flex flex-col h-full gap-8">
+          <div className="flex flex-col min-h-full gap-8">
             <SidePanelTitleInput
               value={editForm.name}
               onChange={val => setEditForm({ ...editForm, name: val })}
               placeholder={t("label_modname") || "Artifact Name"}
               subtitle={t("label_modname") || "Artifact Name"}
+            />
+
+            <LabVerificationGate
+              dnaHash={activeScout.dna_hash}
+              modName={editForm.name || activeScout.suggested_name || "Scout Artifact"}
+              physicalPath={
+                (modList || []).find(
+                  (m: any) =>
+                    (activeScout.dna_hash && m.hash === activeScout.dna_hash) ||
+                    m.name === activeScout.suggested_name ||
+                    m.displayName === activeScout.suggested_name
+                )?.name || activeScout.suggested_name
+              }
+              roleContext="architect"
+              isGateRequired={requireScoutLabTest}
+              onStatusChange={(st) => {
+                setIsActiveVerified(st.verified);
+                setIsActiveFailed(st.failed);
+              }}
             />
 
             <UniversalGroup title={t("label_lineage") || "Artifact Lineage"} icon={t("icon_account_tree") || "account_tree"}>

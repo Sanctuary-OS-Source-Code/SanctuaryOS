@@ -135,6 +135,8 @@ export function CustomDropdown({
 
   const isActive =
     !disableTint &&
+    variant === "pill" &&
+    !isInsideSidePanel &&
     (multiSelect
       ? selectedValues.length > 0
       : effectiveValue !== undefined &&
@@ -337,7 +339,7 @@ export function CustomDropdown({
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? "bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90" : isPill ? `h-10 px-5 rounded-full text-[10px] font-black uppercase tracking-widest ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]" : "glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"}` : `${className?.includes("h-") ? "h-full px-4" : "h-12 px-5"} rounded-[var(--radius)] text-sm font-bold ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] shadow-md" : "glass-surface shadow-inner hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"}`} ${buttonClassName || ""}`}
+        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? "bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90" : isPill ? `h-10 px-5 rounded-full text-[10px] font-black uppercase tracking-widest ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]" : "glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"}` : `${className?.includes("h-") ? "h-full px-4" : "h-12 px-5"} rounded-[var(--radius)] text-sm font-bold ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] shadow-md" : "glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-inner hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--text)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"}`} ${buttonClassName || ""}`}
       >
         <span className="pr-4 flex-1 text-left flex items-center h-full capitalize overflow-hidden whitespace-nowrap text-ellipsis min-w-0">
           {getSelectedLabel()}

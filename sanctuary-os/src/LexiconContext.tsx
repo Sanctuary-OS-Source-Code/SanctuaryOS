@@ -4,9 +4,12 @@ import { isDesktop } from './utils/envUtils';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
 import enSanctuary from './lexicons/en-sanctuary.json';
 import enDefault from './lexicons/en-default.json';
-import enSims from './lexicons/Simlish.json';
+import enSimlish from './lexicons/Simlish.json';
+import enSimsJson from './lexicons/en-sims.json';
 import { supabase, supabaseAuth } from './supabase';
 import { useStore } from './store';
+
+const enSims: Record<string, any> = { ...enSimlish, ...enSimsJson };
 
 const LexiconContext = createContext<any>(null);
 
@@ -15,6 +18,26 @@ export const LexiconProvider = ({ children }: any) => {
   const wsId = activeWorkspaceId || 'default';
 
   const BUILTIN_LEXICON_IDS = new Set(['en-default', 'en-sanctuary', 'en-sims', 'Simlish']);
+
+  const resolveGameDefaultLexicon = (schema: any, metaList?: any[]) => {
+    if (schema?.default_lexicon) return schema.default_lexicon;
+    if (schema?.lexicon_id) return schema.lexicon_id;
+    if (schema?.schema_json?.default_lexicon) return schema.schema_json.default_lexicon;
+
+    const gameDescriptor = `${schema?.id || ''} ${schema?.name || ''} ${schema?.display_name || ''}`.toLowerCase();
+    if (gameDescriptor.includes('sims')) {
+      return 'en-sims';
+    }
+
+    const spokeDefault = metaList?.find(
+      (m: any) => m?.is_default || (!BUILTIN_LEXICON_IDS.has(m?.id) && m?.badge && m.badge !== 'Sanctuary')
+    );
+    if (spokeDefault?.id) {
+      return spokeDefault.id;
+    }
+
+    return 'en-sanctuary';
+  };
 
   const readRegistryFromStorage = (workspaceId: string) => {
     try {
@@ -87,10 +110,7 @@ export const LexiconProvider = ({ children }: any) => {
   });
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const [activeLangState, setActiveLangState] = useState(() => {
-    let defaultLang = "en-sanctuary";
-    if (activeGameSchema?.id?.toLowerCase().includes("sims") || activeGameSchema?.name?.toLowerCase().includes("sims")) {
-       defaultLang = "en-sims";
-    }
+    const defaultLang = resolveGameDefaultLexicon(activeGameSchema, lexiconMeta);
     
     if (localStorage.getItem('sanctuary_use_global_lexicon') === 'true') {
       return localStorage.getItem('sanctuary_global_lang') || "en-sanctuary";
@@ -105,7 +125,8 @@ export const LexiconProvider = ({ children }: any) => {
     if (val) {
       setActiveLangState(localStorage.getItem('sanctuary_global_lang') || "en-sanctuary");
     } else {
-      setActiveLangState(localStorage.getItem(`sanctuary_${wsId}_lang`) || "en-sanctuary");
+      const defaultLang = resolveGameDefaultLexicon(activeGameSchema, lexiconMeta);
+      setActiveLangState(localStorage.getItem(`sanctuary_${wsId}_lang`) || defaultLang);
     }
   };
 
@@ -123,29 +144,51 @@ export const LexiconProvider = ({ children }: any) => {
   // When workspace changes, hydrate from local storage
   useEffect(() => {
     setRegistry(readRegistryFromStorage(wsId));
+    let parsedMeta: any[] = [];
     try {
-      setLexiconMeta(JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_meta`) || "[]"));
+      parsedMeta = JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_meta`) || "[]");
+      setLexiconMeta(parsedMeta);
     } catch {
       setLexiconMeta([]);
     }
     if (!useGlobalLexiconState) {
-      let defaultLang = "en-sanctuary";
-      if (activeGameSchema?.id?.toLowerCase().includes("sims") || activeGameSchema?.name?.toLowerCase().includes("sims")) {
-         defaultLang = "en-sims";
-      }
+      const defaultLang = resolveGameDefaultLexicon(activeGameSchema, parsedMeta);
       setActiveLangState(localStorage.getItem(`sanctuary_${wsId}_lang`) || defaultLang);
     }
   }, [wsId, useGlobalLexiconState, activeGameSchema]);
 
   useEffect(() => {
     const loadLang = () => {
-      let baseDict: any = enSanctuary;
-      if (activeLangState === 'en-default') baseDict = enDefault;
-      if (activeLangState === 'en-sims' || activeLangState === 'Simlish') baseDict = enSims;
+      if (activeLangState === 'en-default') {
+        setDictionary(enDefault);
+        return;
+      }
+      if (activeLangState === 'en-sanctuary') {
+        setDictionary({ ...enDefault, ...enSanctuary });
+        return;
+      }
+      if (activeLangState === 'en-sims' || activeLangState === 'Simlish') {
+        setDictionary({
+          ...enDefault,
+          ...enSims,
+          ...(registry[activeLangState] || {})
+        });
+        return;
+      }
       if (registry[activeLangState]) {
-        setDictionary({ ...registry[activeLangState], ...baseDict });
+        const customDict = registry[activeLangState];
+        const nonEmptyCustom: Record<string, any> = {};
+        for (const [k, v] of Object.entries(customDict)) {
+          if (v !== "" && v !== null && v !== undefined) {
+            nonEmptyCustom[k] = v;
+          }
+        }
+        setDictionary({
+          ...enDefault,
+          ...nonEmptyCustom
+        });
       } else {
-        setDictionary(baseDict);
+        setDictionary({ ...enDefault, ...enSanctuary });
       }
     };
     loadLang();
@@ -265,11 +308,26 @@ export const LexiconProvider = ({ children }: any) => {
           });
 
           // Cache metadata like badges and names
-          const meta = data.map(d => ({ id: d.id, name: d.name, badge: d.badge, version: d.version, lang: d.lexicon_data?._meta_lang || 'English' }));
+          const meta = data.map(d => ({
+            id: d.id,
+            name: d.name,
+            badge: d.badge,
+            version: d.version,
+            lang: d.lexicon_data?._meta_lang || 'English',
+            is_default: Boolean(d.lexicon_data?._meta_default || d.is_default)
+          }));
           try {
             localStorage.setItem(`sanctuary_${wsId}_lexicon_meta`, JSON.stringify(meta));
           } catch {}
           setLexiconMeta(meta);
+
+          if (!useGlobalLexiconState && !localStorage.getItem(`sanctuary_${wsId}_lang`)) {
+            const currentSchema = useStore.getState().activeGameSchema;
+            const resolvedDefault = resolveGameDefaultLexicon(currentSchema, meta);
+            if (resolvedDefault) {
+              setActiveLangState(resolvedDefault);
+            }
+          }
 
           // If in local development, automatically sync cloud lexicons back to the source code files
           if (import.meta.env.DEV && hasOSAccess) {
@@ -296,10 +354,10 @@ export const LexiconProvider = ({ children }: any) => {
     let val = dictionary[key];
 
     if (val === undefined || val === "") {
-      val = (enSanctuary as any)[key];
+      val = (enDefault as any)[key];
     }
     if (val === undefined || val === "") {
-      val = (enDefault as any)[key];
+      val = (enSanctuary as any)[key];
     }
     if (val === undefined || val === "") {
       val = (enSims as any)[key];

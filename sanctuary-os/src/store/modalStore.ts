@@ -123,9 +123,130 @@ interface ModalState {
   
   downloadsQueue: string[];
   setDownloadsQueue: (val: string[] | ((prev: string[]) => string[])) => void;
+
+  // Remote Staging Draft (PWA / Web Payload Editor — Held in Local Device Memory until Sent or Discarded)
+  stagingDraftMode: "mod_queue" | "blueprint";
+  setStagingDraftMode: (val: "mod_queue" | "blueprint") => void;
+  stagingDraftName: string;
+  setStagingDraftName: (val: string) => void;
+  stagingDraftCode: string;
+  setStagingDraftCode: (val: string) => void;
+  stagingDraftNotes: string;
+  setStagingDraftNotes: (val: string) => void;
+  stagingDraftAutoEquip: boolean;
+  setStagingDraftAutoEquip: (val: boolean) => void;
+  stagingDraftStrategy: "alphabetical" | "numeric_prefix" | "loadorder_txt";
+  setStagingDraftStrategy: (val: "alphabetical" | "numeric_prefix" | "loadorder_txt") => void;
+  stagingDraftItems: any[];
+  setStagingDraftItems: (val: any[] | ((prev: any[]) => any[])) => void;
+  stagingDraftLastSavedAt: string | null;
+  savedLocalDrafts: any[];
+  saveCurrentDraftLocally: (customName?: string) => void;
+  loadSavedLocalDraft: (draftId: string) => void;
+  deleteSavedLocalDraft: (draftId: string) => void;
+  toggleModInStagingDraft: (mod: any) => boolean;
+  stageBlueprintToDraft: (blueprint: any) => void;
+  clearStagingDraft: () => void;
+
+  // Volatile Desktop Signature Queue (RAM Only — Zero Disk Footprint)
+  volatileSignatureQueue: any | null;
+  setVolatileSignatureQueue: (val: any | null | ((prev: any | null) => any | null)) => void;
+  isSignatureQueueOpen: boolean;
+  setIsSignatureQueueOpen: (val: boolean) => void;
 }
 
-export const useModalStore = create<ModalState>((set) => ({
+const LOCAL_STAGING_DRAFT_KEY = "sanctuary_local_staging_draft";
+const SAVED_LOCAL_DRAFTS_KEY = "sanctuary_saved_local_blueprints";
+
+function loadInitialStagingDraft() {
+  try {
+    const raw = localStorage.getItem(LOCAL_STAGING_DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function loadSavedDraftSnapshots(): any[] {
+  try {
+    const raw = localStorage.getItem(SAVED_LOCAL_DRAFTS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistActiveStagingDraft(state: {
+  stagingDraftMode: "mod_queue" | "blueprint";
+  stagingDraftName: string;
+  stagingDraftCode: string;
+  stagingDraftNotes: string;
+  stagingDraftAutoEquip: boolean;
+  stagingDraftStrategy: "alphabetical" | "numeric_prefix" | "loadorder_txt";
+  stagingDraftItems: any[];
+}): string | null {
+  try {
+    const hasContent =
+      (state.stagingDraftItems && state.stagingDraftItems.length > 0) ||
+      !!state.stagingDraftName.trim() ||
+      !!state.stagingDraftNotes.trim();
+    if (!hasContent) {
+      localStorage.removeItem(LOCAL_STAGING_DRAFT_KEY);
+      return null;
+    }
+    const updatedAt = new Date().toISOString();
+    localStorage.setItem(
+      LOCAL_STAGING_DRAFT_KEY,
+      JSON.stringify({
+        ...state,
+        updatedAt,
+      })
+    );
+    return updatedAt;
+  } catch {
+    return null;
+  }
+}
+
+function inferDefaultPriorityTier(category?: string, name?: string): string {
+  const hay = `${category || ""} ${name || ""}`.toLowerCase();
+  if (
+    hay.includes("core") ||
+    hay.includes("script") ||
+    hay.includes("framework") ||
+    hay.includes("library") ||
+    hay.includes("injector") ||
+    hay.includes("mccc") ||
+    hay.includes("ui cheats")
+  ) {
+    return "1_Core";
+  }
+  if (
+    hay.includes("override") ||
+    hay.includes("default replacement") ||
+    hay.includes("lighting") ||
+    hay.includes("reshade")
+  ) {
+    return "4_Overrides";
+  }
+  if (
+    hay.includes("gameplay") ||
+    hay.includes("trait") ||
+    hay.includes("career") ||
+    hay.includes("aspiration") ||
+    hay.includes("overhaul")
+  ) {
+    return "2_Gameplay";
+  }
+  return "3_Standard";
+}
+
+const initialDraft = loadInitialStagingDraft();
+
+export const useModalStore = create<ModalState>((set, get) => ({
   syncCode: '',
   setSyncCode: (syncCode) => set({ syncCode }),
   snapshotModal: false,
@@ -264,4 +385,442 @@ export const useModalStore = create<ModalState>((set) => ({
   setDownloadsQueue: (downloadsQueue) => set((state) => ({ 
     downloadsQueue: typeof downloadsQueue === 'function' ? downloadsQueue(state.downloadsQueue) : downloadsQueue 
   })),
+
+  stagingDraftMode:
+    initialDraft?.stagingDraftMode === "mod_queue" || initialDraft?.stagingDraftMode === "blueprint"
+      ? initialDraft.stagingDraftMode
+      : "blueprint",
+  setStagingDraftMode: (stagingDraftMode) =>
+    set((state) => {
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: state.stagingDraftItems,
+      });
+      return { stagingDraftMode, stagingDraftLastSavedAt: updatedAt };
+    }),
+  stagingDraftName: initialDraft?.stagingDraftName || "",
+  setStagingDraftName: (stagingDraftName) =>
+    set((state) => {
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: state.stagingDraftItems,
+      });
+      return { stagingDraftName, stagingDraftLastSavedAt: updatedAt };
+    }),
+  stagingDraftCode: initialDraft?.stagingDraftCode || "",
+  setStagingDraftCode: (stagingDraftCode) =>
+    set((state) => {
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: state.stagingDraftItems,
+      });
+      return { stagingDraftCode, stagingDraftLastSavedAt: updatedAt };
+    }),
+  stagingDraftNotes: initialDraft?.stagingDraftNotes || "",
+  setStagingDraftNotes: (stagingDraftNotes) =>
+    set((state) => {
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: state.stagingDraftItems,
+      });
+      return { stagingDraftNotes, stagingDraftLastSavedAt: updatedAt };
+    }),
+  stagingDraftAutoEquip:
+    typeof initialDraft?.stagingDraftAutoEquip === "boolean"
+      ? initialDraft.stagingDraftAutoEquip
+      : true,
+  setStagingDraftAutoEquip: (stagingDraftAutoEquip) =>
+    set((state) => {
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: state.stagingDraftItems,
+      });
+      return { stagingDraftAutoEquip, stagingDraftLastSavedAt: updatedAt };
+    }),
+  stagingDraftStrategy:
+    initialDraft?.stagingDraftStrategy === "numeric_prefix" ||
+    initialDraft?.stagingDraftStrategy === "loadorder_txt"
+      ? initialDraft.stagingDraftStrategy
+      : "alphabetical",
+  setStagingDraftStrategy: (stagingDraftStrategy) =>
+    set((state) => {
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy,
+        stagingDraftItems: state.stagingDraftItems,
+      });
+      return { stagingDraftStrategy, stagingDraftLastSavedAt: updatedAt };
+    }),
+  stagingDraftItems: Array.isArray(initialDraft?.stagingDraftItems)
+    ? initialDraft.stagingDraftItems
+    : [],
+  setStagingDraftItems: (stagingDraftItems) =>
+    set((state) => {
+      const nextItems =
+        typeof stagingDraftItems === "function"
+          ? stagingDraftItems(state.stagingDraftItems)
+          : stagingDraftItems;
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: nextItems,
+      });
+      return {
+        stagingDraftItems: nextItems,
+        stagingDraftLastSavedAt: updatedAt,
+      };
+    }),
+  stagingDraftLastSavedAt: initialDraft?.updatedAt || null,
+  savedLocalDrafts: loadSavedDraftSnapshots(),
+  saveCurrentDraftLocally: (customName?: string) => {
+    const state = get();
+    const entryName =
+      (customName || state.stagingDraftName || "").trim() ||
+      `Blueprint (${state.stagingDraftItems.length})`;
+    const entry = {
+      id: `local-${Date.now().toString(36)}`,
+      name: entryName,
+      code:
+        state.stagingDraftCode.trim() ||
+        `SANC-BP-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      mode: state.stagingDraftMode,
+      notes: state.stagingDraftNotes,
+      autoEquip: state.stagingDraftAutoEquip,
+      strategy: state.stagingDraftStrategy,
+      items: state.stagingDraftItems,
+      savedAt: new Date().toISOString(),
+    };
+    const nextSaved = [
+      entry,
+      ...state.savedLocalDrafts.filter(
+        (d: any) => d.name.toLowerCase() !== entryName.toLowerCase()
+      ),
+    ].slice(0, 25);
+    try {
+      localStorage.setItem(SAVED_LOCAL_DRAFTS_KEY, JSON.stringify(nextSaved));
+    } catch {
+      // Ignore quota errors
+    }
+    set({ savedLocalDrafts: nextSaved });
+  },
+  loadSavedLocalDraft: (draftId: string) => {
+    const state = get();
+    const found = state.savedLocalDrafts.find((d: any) => d.id === draftId);
+    if (!found) return;
+    const nextState = {
+      stagingDraftMode: (found.mode === "mod_queue" ? "mod_queue" : "blueprint") as
+        | "mod_queue"
+        | "blueprint",
+      stagingDraftName: found.name || "",
+      stagingDraftCode: found.code || "",
+      stagingDraftNotes: found.notes || "",
+      stagingDraftAutoEquip: typeof found.autoEquip === "boolean" ? found.autoEquip : true,
+      stagingDraftStrategy: (found.strategy || "alphabetical") as
+        | "alphabetical"
+        | "numeric_prefix"
+        | "loadorder_txt",
+      stagingDraftItems: Array.isArray(found.items) ? found.items : [],
+    };
+    const updatedAt = persistActiveStagingDraft(nextState);
+    set({
+      ...nextState,
+      stagingDraftLastSavedAt: updatedAt,
+    });
+  },
+  deleteSavedLocalDraft: (draftId: string) => {
+    const state = get();
+    const nextSaved = state.savedLocalDrafts.filter((d: any) => d.id !== draftId);
+    try {
+      localStorage.setItem(SAVED_LOCAL_DRAFTS_KEY, JSON.stringify(nextSaved));
+    } catch {
+      // Ignore storage error
+    }
+    set({ savedLocalDrafts: nextSaved });
+  },
+  toggleModInStagingDraft: (mod: any) => {
+    const state = get();
+    const current = state.stagingDraftItems || [];
+
+    // Support grouped parent suites (e.g. MC Command Center with child flavors)
+    if (mod?.isParent && Array.isArray(mod.flavors) && mod.flavors.length > 0 && !mod._stageSingle) {
+      const seenChildNames = new Set<string>();
+      const childMods = mod.flavors.filter((c: any) => {
+        const norm = String(c?.name || c?.displayName || "").trim().toLowerCase();
+        if (!norm || seenChildNames.has(norm)) return false;
+        seenChildNames.add(norm);
+        return true;
+      });
+      const isChildInDraft = (c: any) => {
+        const cId = String(c.id || c.dbId || c.hash || c.name || "");
+        const cHash = String(c.hash || "");
+        const cName = String(c.name || c.displayName || "").toLowerCase();
+        return current.some(
+          (item: any) =>
+            (cId && item.id === cId) ||
+            (cHash && item.hash && item.hash === cHash) ||
+            (cName && String(item.name || "").toLowerCase() === cName)
+        );
+      };
+      const allChildrenStaged = childMods.every(isChildInDraft);
+      let nextItems = [...current];
+      if (allChildrenStaged) {
+        const childIds = new Set(childMods.map((c: any) => String(c.id || c.dbId || c.hash || c.name || "")));
+        const childNames = new Set(childMods.map((c: any) => String(c.name || c.displayName || "").toLowerCase()));
+        nextItems = current.filter(
+          (item: any) =>
+            !childIds.has(String(item.id || "")) &&
+            !childNames.has(String(item.name || "").toLowerCase())
+        );
+      } else {
+        childMods.forEach((c: any) => {
+          if (!isChildInDraft(c)) {
+            const cCategory = c.category_override || c.type || c.category || mod.category_override || mod.category || "";
+            const cName = c.name || c.displayName || "Unknown Mod";
+            const cId = String(c.id || c.dbId || c.hash || cName);
+            nextItems.push({
+              id: cId,
+              name: cName,
+              displayName: c.displayName || c.name || "Unknown Mod",
+              hash: c.hash || (Array.isArray(c.mod_versions) && c.mod_versions[0]?.dna_hash) || "",
+              author: c.master_author || c.author || mod.master_author || mod.author || "",
+              url: c.url || mod.url || "",
+              version: c.latest_version || c.version || mod.latest_version || mod.version || "",
+              image_url: c.image_url || mod.image_url || "",
+              category: cCategory,
+              is_paid: !!(c.is_paid ?? mod.is_paid),
+              is_early_access: !!(c.is_early_access ?? mod.is_early_access),
+              requiredDLC: Array.isArray(c.requiredDLC) ? c.requiredDLC : [],
+              priority_tier: c.priority_tier || inferDefaultPriorityTier(cCategory, cName),
+              load_order_index: nextItems.length,
+            });
+          }
+        });
+      }
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: nextItems,
+      });
+      set({
+        stagingDraftItems: nextItems,
+        stagingDraftLastSavedAt: updatedAt,
+      });
+      return !allChildrenStaged;
+    }
+
+    const isNexusAsset =
+      mod?.asset_type === "lexicon" ||
+      mod?.asset_type === "chameleon" ||
+      mod?.asset_type === "workbench_template";
+    const targetId = isNexusAsset
+      ? `asset_${mod.asset_type}_${mod.asset_id || mod.id}`
+      : String(mod.id || mod.dbId || mod.hash || mod.name || "");
+    const targetHash = String(mod.hash || "");
+    const targetName = String(mod.name || mod.displayName || "");
+    const existsIdx = current.findIndex(
+      (item: any) =>
+        (targetId && item.id === targetId) ||
+        (!isNexusAsset && targetHash && item.hash && item.hash === targetHash) ||
+        (!isNexusAsset && targetName && item.name.toLowerCase() === targetName.toLowerCase())
+    );
+    if (existsIdx >= 0) {
+      const nextItems = current.filter((_: any, i: number) => i !== existsIdx);
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: nextItems,
+      });
+      set({
+        stagingDraftItems: nextItems,
+        stagingDraftLastSavedAt: updatedAt,
+      });
+      return false;
+    }
+    const category = isNexusAsset
+      ? mod.asset_type === "lexicon"
+        ? "Lexicon"
+        : mod.asset_type === "chameleon"
+          ? "Chameleon"
+          : "Template"
+      : mod.category_override || mod.type || mod.category || "";
+    const modName = mod.name || mod.displayName || "Unknown Mod";
+    const newItem = {
+      id: targetId || targetName,
+      name: modName,
+      displayName: mod.displayName || mod.name || "Unknown Mod",
+      hash: mod.hash || (Array.isArray(mod.mod_versions) && mod.mod_versions[0]?.dna_hash) || "",
+      author: mod.master_author || mod.author || "",
+      url: mod.url || "",
+      version: mod.latest_version || mod.version || "",
+      image_url: mod.image_url || "",
+      category,
+      is_paid: !!mod.is_paid,
+      is_early_access: !!mod.is_early_access,
+      requiredDLC: Array.isArray(mod.requiredDLC) ? mod.requiredDLC : [],
+      priority_tier: isNexusAsset ? "3_normal" : mod.priority_tier || inferDefaultPriorityTier(category, modName),
+      load_order_index: current.length,
+      ...(isNexusAsset
+        ? {
+            asset_type: mod.asset_type,
+            asset_id: mod.asset_id || mod.id,
+            language: mod.language || "",
+            theme_mode: mod.theme_mode || "",
+            lexicon_type: mod.lexicon_type || "",
+          }
+        : {}),
+    };
+    const nextItems = [...current, newItem];
+    const updatedAt = persistActiveStagingDraft({
+      stagingDraftMode: state.stagingDraftMode,
+      stagingDraftName: state.stagingDraftName,
+      stagingDraftCode: state.stagingDraftCode,
+      stagingDraftNotes: state.stagingDraftNotes,
+      stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+      stagingDraftStrategy: state.stagingDraftStrategy,
+      stagingDraftItems: nextItems,
+    });
+    set({
+      stagingDraftItems: nextItems,
+      stagingDraftLastSavedAt: updatedAt,
+    });
+    return true;
+  },
+  stageBlueprintToDraft: (blueprint: any) => {
+    let parsedJson = blueprint?.json_data;
+    if (typeof parsedJson === "string") {
+      try {
+        parsedJson = JSON.parse(parsedJson);
+      } catch {
+        parsedJson = {};
+      }
+    }
+    parsedJson = parsedJson || {};
+    let rawArtifacts = parsedJson.artifacts || blueprint?.artifacts || [];
+    if (typeof rawArtifacts === "string") {
+      try {
+        rawArtifacts = JSON.parse(rawArtifacts);
+      } catch {
+        rawArtifacts = [];
+      }
+    }
+    if (!Array.isArray(rawArtifacts)) rawArtifacts = [];
+
+    const mappedItems = rawArtifacts.map((a: any, idx: number) => {
+      if (typeof a === "string") {
+        return {
+          id: `${a}_${idx}`,
+          name: a,
+          displayName: a,
+          hash: "",
+          author: blueprint?.author || "",
+          url: "",
+          version: "",
+          category: "",
+          is_paid: false,
+          is_early_access: false,
+          priority_tier: inferDefaultPriorityTier("", a),
+          load_order_index: idx,
+        };
+      }
+      const modName = a.name || a.displayName || "Unknown Mod";
+      const category = a.category || a.type || "";
+      return {
+        id: String(a.id || a.hash || a.name || idx),
+        name: modName,
+        displayName: a.displayName || a.name || "Unknown Mod",
+        hash: a.hash || "",
+        author: a.author || blueprint?.author || "",
+        url: a.url || "",
+        version: a.version || "",
+        category,
+        is_paid: !!a.is_paid,
+        is_early_access: !!a.is_early_access,
+        priority_tier: a.priority_tier || inferDefaultPriorityTier(category, modName),
+        load_order_index: typeof a.load_order_index === "number" ? a.load_order_index : idx,
+      };
+    });
+    const nextState = {
+      stagingDraftMode: "blueprint" as const,
+      stagingDraftName: blueprint?.name || parsedJson?.name || "Staged Blueprint",
+      stagingDraftCode: parsedJson?.code || blueprint?.code || "",
+      stagingDraftNotes: blueprint?.description || parsedJson?.notes || "",
+      stagingDraftAutoEquip: true,
+      stagingDraftStrategy: (parsedJson?.load_order_strategy || "alphabetical") as
+        | "alphabetical"
+        | "numeric_prefix"
+        | "loadorder_txt",
+      stagingDraftItems: mappedItems,
+    };
+    const updatedAt = persistActiveStagingDraft(nextState);
+    set({
+      ...nextState,
+      stagingDraftLastSavedAt: updatedAt,
+    });
+  },
+  clearStagingDraft: () => {
+    try {
+      localStorage.removeItem(LOCAL_STAGING_DRAFT_KEY);
+    } catch {
+      // Ignore storage error
+    }
+    set({
+      stagingDraftItems: [],
+      stagingDraftName: "",
+      stagingDraftCode: "",
+      stagingDraftNotes: "",
+      stagingDraftLastSavedAt: null,
+    });
+  },
+
+  volatileSignatureQueue: null,
+  setVolatileSignatureQueue: (volatileSignatureQueue) =>
+    set((state) => ({
+      volatileSignatureQueue:
+        typeof volatileSignatureQueue === "function"
+          ? volatileSignatureQueue(state.volatileSignatureQueue)
+          : volatileSignatureQueue,
+    })),
+  isSignatureQueueOpen: false,
+  setIsSignatureQueueOpen: (isSignatureQueueOpen) => set({ isSignatureQueueOpen }),
 }));

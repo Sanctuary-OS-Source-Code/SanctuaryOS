@@ -3,6 +3,7 @@ import { SidePanel, EmptyState, ActionButton } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
+import { LabVerificationBadge } from "../components/LabVerificationGate";
 
 export function ScoutQueueSidePanel({
   scoutQueue,
@@ -11,6 +12,8 @@ export function ScoutQueueSidePanel({
 }: any) {
   const { t } = useLexicon();
   const session = useStore(state => state.session);
+  const activeGameSchema = useStore(state => state.activeGameSchema);
+  const requireScoutLabTest = activeGameSchema?.lab_verification?.require_for_scout_approval !== false;
   const { isScoutPanelOpen, setIsScoutPanelOpen } = useModalStore();
   const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
 
@@ -35,8 +38,11 @@ export function ScoutQueueSidePanel({
         <div className="flex flex-col gap-4">
           {scoutQueue && scoutQueue.map((mod: any, index: number) => (
             <div key={index} className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-5 flex flex-col gap-4 shadow-inner text-left hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all">
-              <div className="flex flex-col gap-1">
-                <span className="text-[9px] font-black theme-text-accent capitalize tracking-widest">{t("queue_target")}</span>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[9px] font-black theme-text-accent capitalize tracking-widest">{t("queue_target")}</span>
+                  <LabVerificationBadge dnaHash={mod.hash} required={requireScoutLabTest} />
+                </div>
                 <span className="text-xs font-black text-[var(--text)] truncate">{mod.displayName || mod.name}</span>
               </div>
               <div className="flex justify-center items-center gap-3 w-full mt-4">

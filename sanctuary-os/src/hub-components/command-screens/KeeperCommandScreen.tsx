@@ -3,15 +3,17 @@ import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
-import { ServerHealthSidePanel } from '../../side-panels/WayfinderSidePanels';
+import { ServerHealthSidePanel, KeeperReleasePipelineSidePanel } from '../../side-panels/WayfinderSidePanels';
 import MasonPostViewer from "../../side-panels/MasonPostViewer";
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
+import { ReleaseNotesShowcase } from "../../components/ReleaseNotesShowcase";
 
 export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
   const { t } = useLexicon();
   const { session } = useStore();
   const [healthOpen, setHealthOpen] = useState(false);
+  const [isPipelineOpen, setIsPipelineOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
   const [viewingPost, setViewingPost] = useState<any>(null);
@@ -118,9 +120,9 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
 
       <CommandScreenBody>
         <CommandScreenMain>
-          <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
-          <div className="flex flex-col gap-8 w-full mb-8">
-            <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+          <CommandScreenSectionHeading title={t("release_notes_section_title", "Current Build Release Notes")} icon={t("icon_new_releases", "new_releases")} />
+          <div className="flex flex-col gap-6 w-full mb-8">
+            <ReleaseNotesShowcase isKeepers={true} />
           </div>
 
           {recentSupport.length > 0 && (
@@ -170,6 +172,7 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
           )}
 
           <CommandScreenQuickLink icon="dns" title={t("ui_active_games") || "Active Workspaces"} subtitle="Manage Game Servers" onClick={() => setTab("active_games")} textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400" />
+          <CommandScreenQuickLink icon={t("icon_rocket_launch", "rocket_launch")} title={t("keepers_pipeline_quicklink_title", "Release Pipeline & Donations")} subtitle={t("keepers_pipeline_quicklink_sub", "Manage Daily Dev Builds, Stable Stream & Keepers Donation Link")} onClick={() => setIsPipelineOpen(true)} textColorClass="text-cyan-400" hoverTextColorClass="group-hover:text-cyan-300" dotColorClass="bg-cyan-400" />
           <CommandScreenQuickLink icon={t("icon_shield_lock") || "shield_lock"} title={t("core_heuristics_tab") || "Core Heuristics"} subtitle={t("keepers_heuristics_subtitle") || "System-Wide Threat Definitions"} onClick={() => setTab("heuristics")} textColorClass="text-red-400" hoverTextColorClass="group-hover:text-red-300" dotColorClass="bg-red-400" />
           <CommandScreenQuickLink icon="group" title={t("citizen_oversight") || "Citizen Oversight"} subtitle="Manage Identities" onClick={() => setTab("identities")} textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400" />
           <CommandScreenQuickLink icon="local_activity" title="Support Tickets" subtitle="View Support Queue" onClick={() => setTab("support")} textColorClass="text-purple-400" hoverTextColorClass="group-hover:text-purple-300" dotColorClass="bg-purple-400" />
@@ -181,7 +184,8 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
         </CommandScreenSidebar>
       </CommandScreenBody>
 
-      <ServerHealthSidePanel isOpen={healthOpen} onClose={() => setHealthOpen(false)} stats={stats} />
+      <ServerHealthSidePanel isOpen={healthOpen} onClose={() => setHealthOpen(false)} stats={stats} isKeepers={true} />
+      <KeeperReleasePipelineSidePanel isOpen={isPipelineOpen} onClose={() => setIsPipelineOpen(false)} />
       <SanctuaryAlertsSidePanel
         isOpen={isAlertsOpen}
         onClose={() => setIsAlertsOpen(false)}

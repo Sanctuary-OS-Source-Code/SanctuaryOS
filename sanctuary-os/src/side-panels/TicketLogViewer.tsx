@@ -3,6 +3,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { SidePanel, getExtensionRegex, ActionButton, PanelHeaderGroup, PanelHeaderButton, ActionPill } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
+import { scrubLogUserData } from "../utils/logScrubber";
 
 interface LogSection {
   title: string;
@@ -18,6 +19,7 @@ export default function TicketLogViewer({
   const [blueprintJson, setBlueprintJson] = useState<any>(null);
   const [viewingCodeSnippet, setViewingCodeSnippet] = useState<{ title: string, content: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const scrubbedLogs = useMemo(() => scrubLogUserData(logs || ""), [logs]);
 
   const handleImportBlueprint = () => {
     if (!blueprintJson) return;
@@ -41,9 +43,9 @@ export default function TicketLogViewer({
   };
 
   const sections = useMemo(() => {
-    if (!logs) return [];
+    if (!scrubbedLogs) return [];
 
-    const lines = logs.split("\n");
+    const lines = scrubbedLogs.split("\n");
     const parsedSections: LogSection[] = [];
     let currentTitle = "General";
     let currentLines: string[] = [];
@@ -84,9 +86,9 @@ export default function TicketLogViewer({
       if (idxB !== -1) return 1;
       return 0;
     });
-  }, [logs]);
+  }, [scrubbedLogs]);
 
-  if (!logs || sections.length === 0) return null;
+  if (!scrubbedLogs || sections.length === 0) return null;
 
   const renderContent = (sec: LogSection) => {
     const lines = sec.content.split('\n').filter(l => l.trim() !== '' && !l.trim().startsWith('---'));
@@ -101,14 +103,14 @@ export default function TicketLogViewer({
           {lines.map((line, i) => {
             const idx = line.indexOf(':');
             const key = line.substring(0, idx).trim();
-            const value = line.substring(idx + 1).trim();
+            const value = scrubLogUserData(line.substring(idx + 1).trim());
             return (
               <div key={i} className="flex flex-row justify-between items-start py-3 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 gap-4 group w-full">
                 <span className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] shrink-0 pt-0.5">{key}</span>
                 {key.toUpperCase() === 'MODS PATH' ? (
                   <div className="flex items-center gap-2 text-right">
                     <span className="text-[11px] font-medium text-[var(--text)] break-all max-w-[200px] md:max-w-[400px]">
-                      {value.replace(/^([A-Za-z]:[\\/]Users[\\/])[^\\]+([\\/].*)$/i, '...$2')}
+                      {value}
                     </span>
                     <button
                       onClick={() => {
@@ -233,10 +235,10 @@ export default function TicketLogViewer({
     <div className="flex flex-col w-full gap-4">
       <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 w-full">
         {sections.map((sec, idx) => {
-          let icon = 'description';
-          if (sec.title.includes('Blueprint')) icon = 'map';
-          else if (sec.title.includes('System')) icon = 'terminal';
-          else if (sec.title.includes('OS Logs')) icon = 'data_object';
+          let icon = t("icon_description", "description");
+          if (sec.title.includes('Blueprint')) icon = t("icon_map", "map");
+          else if (sec.title.includes('System')) icon = t("icon_terminal", "terminal");
+          else if (sec.title.includes('OS Logs')) icon = t("icon_data_object", "data_object");
 
           const label = sec.title.endsWith('Logs') ? sec.title.slice(0, -1) : sec.title.replace(' (OS)', '');
 
@@ -244,7 +246,7 @@ export default function TicketLogViewer({
             <div
               key={idx}
               onClick={() => handleCardClick(idx)}
-              className="glass-panel group relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-300 rounded-2xl shadow-lg bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] cursor-pointer min-h-[100px] flex flex-col items-start justify-center p-5"
+              className="glass-surface group relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-300 rounded-2xl cursor-pointer min-h-[100px] flex flex-col items-start justify-center p-5"
             >
               <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
@@ -254,7 +256,7 @@ export default function TicketLogViewer({
 
               <div className="flex flex-col w-full relative z-10">
                 <span className="text-xs font-black text-[var(--text)] capitalize tracking-widest truncate group-hover:theme-text-accent transition-colors">{label}</span>
-                <span className="text-[9px] font-bold opacity-60 capitalize tracking-widest mt-1 text-[var(--subtext)]">{t("btn_view_details") || "View Details"}</span>
+                <span className="text-[9px] font-bold opacity-60 capitalize tracking-widest mt-1 text-[var(--subtext)]">{t("btn_view_details", "View Details")}</span>
               </div>
             </div>
           );

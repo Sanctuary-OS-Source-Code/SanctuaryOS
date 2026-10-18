@@ -6,6 +6,7 @@ import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabBu
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { SidePanelTitleInput } from "../components/universal/UniversalLayout";
 import { isDesktop } from "../utils/envUtils";
@@ -462,6 +463,17 @@ export function MarketBlueprintPanel({
         subtitle={t("blueprint_desc") || "Inspect included artifacts"}
         headerActions={
           <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_phonelink", "phonelink")}
+              tooltip={t("staging_btn_stage_blueprint", "Stage Blueprint to Desktop")}
+              onClick={() => {
+                useModalStore.getState().stageBlueprintToDraft(enrichedBlueprint);
+                useStore.getState().pushStatus(t("status_staging_blueprint_loaded", "Blueprint loaded into Payload Editor."));
+                setSelectedBlueprint(null);
+                useStore.getState().setView('playsets');
+              }}
+              variant="default"
+            />
             {isDesktop() && (
               <PanelHeaderButton
                 icon={isSyncing ? "sync" : "download"}

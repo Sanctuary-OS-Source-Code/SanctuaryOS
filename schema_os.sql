@@ -26,6 +26,7 @@ DROP TABLE IF EXISTS sanctuary_schemas CASCADE;
 DROP TABLE IF EXISTS sanctuary_games CASCADE;
 DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS hardware_bans CASCADE;
+DROP TABLE IF EXISTS donation_event_nonces CASCADE;
 DROP TABLE IF EXISTS profiles CASCADE;
 
 -- ============================================================================
@@ -35,6 +36,8 @@ DROP TABLE IF EXISTS profiles CASCADE;
 -- Global OS Profiles (Single Sign-On Source of Truth)
 -- Note: Spoke-level roles (Wayfinder, Oversight, Architect, Mason) live in each
 -- Spoke database's `profiles` table. Only `citizen` and `keeper` live here.
+-- Cumulative Global Daily Dev Build perk timestamps are stored here with zero
+-- relational history of which Partner Community or Mason a citizen supported.
 CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     username TEXT UNIQUE,
@@ -42,7 +45,17 @@ CREATE TABLE profiles (
     role TEXT DEFAULT 'citizen',
     is_banned BOOLEAN DEFAULT false,
     blacklist_reason TEXT,
+    dev_build_until TIMESTAMP WITH TIME ZONE,
+    donation_credit_cents INTEGER DEFAULT 0,
+    total_months_unlocked INTEGER DEFAULT 0,
+    last_donation_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- One-Way Anti-Replay Nonces for Partner Donation Events (Zero User/Partner Relational Honeypot)
+CREATE TABLE donation_event_nonces (
+    tx_hash TEXT PRIMARY KEY,
+    processed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Master Game Schemas (Engine configurations for supported games)
@@ -94,6 +107,8 @@ CREATE TABLE sanctuary_games (
     supabase_anon_key TEXT NOT NULL,
     supabase_service_key TEXT,
     icon TEXT,
+    donation_url TEXT,
+    payment_processor TEXT DEFAULT 'custom',
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -256,11 +271,112 @@ CREATE TRIGGER ensure_os_audit_log_immutability
   BEFORE UPDATE OR DELETE ON audit_logs
   FOR EACH ROW EXECUTE FUNCTION prevent_audit_modifications();
 
+-- Non-Custodial Partner Donation Cumulative Time-Stacking RPC ($5 = +30 Days)
+-- Merges back-to-back donations across any Partner Communities cumulatively
+-- without recording which Partner Community or Creator the citizen supported.
+CREATE OR REPLACE FUNCTION public.register_partner_donation_event(
+    p_user_id UUID,
+    p_amount_cents INTEGER,
+    p_tx_nonce TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+    v_tx_hash TEXT;
+    v_cur_until TIMESTAMP WITH TIME ZONE;
+    v_cur_credit INTEGER;
+    v_cur_months INTEGER;
+    v_combined_cents INTEGER;
+    v_months_added INTEGER;
+    v_new_credit INTEGER;
+    v_new_until TIMESTAMP WITH TIME ZONE;
+    v_new_months INTEGER;
+BEGIN
+    IF p_amount_cents <= 0 THEN
+        RAISE EXCEPTION 'Invalid donation amount.';
+    END IF;
+
+    v_tx_hash := encode(digest(COALESCE(p_tx_nonce, gen_random_uuid()::text), 'sha256'), 'hex');
+
+    IF EXISTS (SELECT 1 FROM donation_event_nonces WHERE tx_hash = v_tx_hash) THEN
+        RAISE EXCEPTION 'This transaction receipt has already been redeemed.';
+    END IF;
+
+    INSERT INTO donation_event_nonces (tx_hash, processed_at)
+    VALUES (v_tx_hash, NOW());
+
+    SELECT dev_build_until, COALESCE(donation_credit_cents, 0), COALESCE(total_months_unlocked, 0)
+    INTO v_cur_until, v_cur_credit, v_cur_months
+    FROM profiles
+    WHERE id = p_user_id
+    FOR UPDATE;
+
+    v_combined_cents := v_cur_credit + p_amount_cents;
+    v_months_added := v_combined_cents / 500;
+    v_new_credit := v_combined_cents % 500;
+
+    IF v_months_added > 0 THEN
+        v_new_until := GREATEST(COALESCE(v_cur_until, NOW()), NOW()) + (v_months_added * INTERVAL '30 days');
+        v_new_months := v_cur_months + v_months_added;
+    ELSE
+        v_new_until := v_cur_until;
+        v_new_months := v_cur_months;
+    END IF;
+
+    UPDATE profiles
+    SET dev_build_until = v_new_until,
+        donation_credit_cents = v_new_credit,
+        total_months_unlocked = v_new_months,
+        last_donation_at = NOW()
+    WHERE id = p_user_id;
+
+    RETURN jsonb_build_object(
+        'dev_build_until', v_new_until,
+        'months_added', v_months_added,
+        'donation_credit_cents', v_new_credit,
+        'total_months_unlocked', v_new_months
+    );
+END;
+$$;
+
+-- Strictly lock down donation crediting to the backend Webhook Edge Function (service_role)
+-- so clients can never spoof donation amounts or self-grant Dev Build time.
+REVOKE EXECUTE ON FUNCTION public.register_partner_donation_event(UUID, INTEGER, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.register_partner_donation_event(UUID, INTEGER, TEXT) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.protect_profile_supporter_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+    -- Only service_role (Edge Function Webhooks / SECURITY DEFINER RPC) or a Keeper may modify supporter time/credits
+    IF current_setting('request.jwt.claim.role', true) IS DISTINCT FROM 'service_role'
+       AND current_user NOT IN ('postgres', 'service_role', 'supabase_admin')
+       AND NOT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper')
+    THEN
+        NEW.dev_build_until := OLD.dev_build_until;
+        NEW.donation_credit_cents := OLD.donation_credit_cents;
+        NEW.total_months_unlocked := OLD.total_months_unlocked;
+        NEW.last_donation_at := OLD.last_donation_at;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS ensure_profile_supporter_integrity ON profiles;
+CREATE TRIGGER ensure_profile_supporter_integrity
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION public.protect_profile_supporter_fields();
+
 -- ============================================================================
 -- 6. ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================================================
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE donation_event_nonces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sanctuary_schemas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sanctuary_lexicons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sanctuary_themes ENABLE ROW LEVEL SECURITY;

@@ -192,6 +192,7 @@ export const supabaseAuth: SupabaseClient = new Proxy(rawAuthClient, {
 let currentGameClient: SupabaseClient | null = null;
 let currentGameId = "";
 let currentToken = "";
+const spokeClientCache = new Map<string, SupabaseClient>();
 
 export function getActiveGameClient(): SupabaseClient {
     // In Standalone Fork Mode, the Auth DB and the Game Spoke DB are the exact same Supabase instance
@@ -207,7 +208,13 @@ export function getActiveGameClient(): SupabaseClient {
     const token = session?.access_token || "";
 
     // If no workspace is active (e.g. on the Hub), return null
-    if (!activeWs || !activeWs.supabase_url || !activeWs.supabase_anon_key || activeWsId === 'default_workspace') {
+    if (
+        !activeWs ||
+        !activeWs.supabase_url ||
+        !activeWs.supabase_anon_key ||
+        activeWsId === 'default_workspace' ||
+        !/^https?:\/\//i.test(String(activeWs.supabase_url).trim())
+    ) {
         return null as unknown as SupabaseClient; // Handled by proxy traps
     }
 
@@ -216,21 +223,32 @@ export function getActiveGameClient(): SupabaseClient {
         currentGameId = activeWs.id;
         currentToken = token;
 
+        const cleanSpokeUrl = activeWs.supabase_url.trim().replace(/\/+$/, '');
         // If the Spoke URL matches the Hub URL, reuse rawAuthClient so session JWTs work seamlessly
-        if (activeWs.supabase_url.trim().replace(/\/+$/, '') === authUrl.trim().replace(/\/+$/, '')) {
+        if (cleanSpokeUrl === authUrl.trim().replace(/\/+$/, '')) {
             currentGameClient = rawAuthClient;
+            return currentGameClient;
+        }
+
+        const cacheKey = `${cleanSpokeUrl}::${activeWs.supabase_anon_key.slice(0, 16)}`;
+        if (spokeClientCache.has(cacheKey)) {
+            currentGameClient = spokeClientCache.get(cacheKey)!;
             return currentGameClient;
         }
 
         const clientOptions: any = {
             auth: {
-                persistSession: false
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false,
+                storageKey: `sb-spoke-client-${activeWs.id}`,
             }
         };
 
         // In Hub-and-Spoke mode, we DO NOT inject the Hub JWT token into external Spoke clients
         // because external Spoke databases have their own JWT secrets.
-        currentGameClient = createClient(activeWs.supabase_url, activeWs.supabase_anon_key, clientOptions);
+        currentGameClient = createClient(cleanSpokeUrl, activeWs.supabase_anon_key.trim(), clientOptions);
+        spokeClientCache.set(cacheKey, currentGameClient);
     }
 
     return currentGameClient as SupabaseClient;
@@ -641,6 +659,21 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     return mockChannel;
                 }
                 return client.channel(name, opts);
+            };
+        }
+
+        if (prop === 'removeChannel') {
+            return async (ch: any) => {
+                try {
+                    const client = getActiveGameClient();
+                    if (client && typeof client.removeChannel === 'function') {
+                        return await client.removeChannel(ch);
+                    }
+                    if (ch && typeof ch.unsubscribe === 'function') {
+                        return ch.unsubscribe();
+                    }
+                } catch (e) {}
+                return 'ok';
             };
         }
 

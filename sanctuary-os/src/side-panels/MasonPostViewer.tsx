@@ -293,7 +293,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
 
   if (!post) return null;
 
-  const nonDispatchCategories = ['EULA', 'Privacy', 'Terms', 'Citizen Guide', 'Master Architecture', 'Master Protocol List', 'Phase Roadmap'];
+  const nonDispatchCategories = ['EULA', 'Privacy', 'Terms'];
   const isDispatchPost = Boolean(
     (post.mason_id === 'system' || post.category || post.target_audience) &&
     !nonDispatchCategories.includes(post.category || '')
@@ -633,7 +633,16 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       {post.mason_id === 'system' ? (post.masons?.name || t("author_sanctuary_team")) : (post.masons?.name || t("unknown_architect"))}
                     </span>
                     {post.mason_id === 'system' && (
-                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]" title="Verified System Transmission">verified</span>
+                      <span className="relative inline-flex items-center cursor-default">
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                          {t("icon_verified", "verified")}
+                        </span>
+                        <HoverTooltip
+                          title={t("verified", "Verified")}
+                          icon={t("icon_verified", "verified")}
+                          variant="accent"
+                        />
+                      </span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-1.5 flex-wrap">
@@ -641,7 +650,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       <span className="material-symbols-outlined !text-[12px] opacity-60">schedule</span>
                       {new Date(post.created_at).toLocaleString()}
                     </span>
-                    {post.category && (
+                    {post.category && !isDispatchPost && (
                       <>
                         <span className="w-1 h-1 rounded-full bg-[var(--text)] opacity-30"></span>
                         <span className={`text-[10px] font-black capitalize tracking-widest ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)]' : 'theme-text-accent'}`}>

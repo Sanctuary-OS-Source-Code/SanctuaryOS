@@ -35,3 +35,4 @@ pub mod cache;
 #[macro_use]
 pub mod game_info;
 pub mod edge_network;
+pub mod supporter;

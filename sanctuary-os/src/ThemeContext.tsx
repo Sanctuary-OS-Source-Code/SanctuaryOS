@@ -170,18 +170,54 @@ export const ThemeProvider = ({ children }: any) => {
   }, []);
 
   useEffect(() => {
+    const isValidHttpUrl = (raw?: string) => {
+      if (!raw || typeof raw !== "string") return false;
+      const trimmed = raw.trim();
+      if (!/^https?:\/\//i.test(trimmed)) return false;
+      try {
+        const u = new URL(trimmed);
+        return (u.protocol === "http:" || u.protocol === "https:") && u.hostname.includes(".");
+      } catch {
+        return false;
+      }
+    };
+
+    const getReadOnlyThemeClient = (url: string, anonKey: string, keySuffix: string) => {
+      const cleanUrl = url.trim().replace(/\/+$/, "");
+      const w = window as any;
+      if (!w.__sanctuaryThemeClients) w.__sanctuaryThemeClients = new Map();
+      const cacheKey = `${cleanUrl}::${anonKey.slice(0, 16)}`;
+      if (w.__sanctuaryThemeClients.has(cacheKey)) {
+        return w.__sanctuaryThemeClients.get(cacheKey);
+      }
+      const client = createClient(cleanUrl, anonKey.trim(), {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          storageKey: `sb-theme-ro-${keySuffix}`,
+        },
+      });
+      w.__sanctuaryThemeClients.set(cacheKey, client);
+      return client;
+    };
+
     const fetchGameThemes = async () => {
       try {
         const fetchedGameThemes: Record<string, any> = {};
+        const queriedUrls = new Set<string>();
 
         // 1. Fetch Community Defaults from public Spoke databases
         try {
           const { data: publicGames } = await supabase.from('sanctuary_games').select('*').eq('is_active', true);
           if (publicGames) {
             for (const game of publicGames) {
-              if (!game.supabase_url || !game.supabase_anon_key) continue;
+              if (!isValidHttpUrl(game.supabase_url) || !game.supabase_anon_key) continue;
+              const cleanUrl = game.supabase_url.trim().replace(/\/+$/, "");
+              if (queriedUrls.has(cleanUrl)) continue;
+              queriedUrls.add(cleanUrl);
               try {
-                const client = createClient(game.supabase_url, game.supabase_anon_key, { auth: { persistSession: false } });
+                const client = getReadOnlyThemeClient(cleanUrl, game.supabase_anon_key, String(game.id || game.name || "game"));
                 const { data } = await client.from('sanctuary_themes').select('*');
                 if (data && data.length > 0) {
                   data.forEach((row: any) => {
@@ -199,10 +235,13 @@ export const ThemeProvider = ({ children }: any) => {
 
         // 2. Fetch from Workspaces (User specific overrides)
         for (const ws of workspaces) {
-          if (ws.id === 'default_workspace' || !ws.supabase_url || !ws.supabase_anon_key) continue;
+          if (ws.id === 'default_workspace' || !isValidHttpUrl(ws.supabase_url) || !ws.supabase_anon_key) continue;
+          const cleanUrl = ws.supabase_url.trim().replace(/\/+$/, "");
+          if (queriedUrls.has(cleanUrl)) continue;
+          queriedUrls.add(cleanUrl);
           
           try {
-            const client = createClient(ws.supabase_url, ws.supabase_anon_key, { auth: { persistSession: false } });
+            const client = getReadOnlyThemeClient(cleanUrl, ws.supabase_anon_key, String(ws.id || "ws"));
             const { data, error } = await client.from('sanctuary_themes').select('*');
             
             if (!error && data && data.length > 0) {
@@ -396,8 +435,20 @@ export const ThemeProvider = ({ children }: any) => {
 
     const yiq = (((parseInt(bgHex.substring(0, 2), 16) || 0) * 299) + ((parseInt(bgHex.substring(2, 4), 16) || 0) * 587) + ((parseInt(bgHex.substring(4, 6), 16) || 0) * 114)) / 1000;
     const isLight = yiq >= 128;
+    const scheme = isLight ? 'light' : 'dark';
+    root.style.colorScheme = scheme;
+
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute('content', rawBg);
+    }
+    const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
+    if (colorSchemeMeta) {
+      colorSchemeMeta.setAttribute('content', scheme);
+    }
+
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-      getCurrentWindow().setTheme(isLight ? 'light' : 'dark').catch(() => { });
+      getCurrentWindow().setTheme(scheme).catch(() => { });
     }).catch(() => { });
   }, [activeThemeIdState, currentTheme]);
 

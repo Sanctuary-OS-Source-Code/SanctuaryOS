@@ -3,7 +3,7 @@ import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
-import { ServerHealthSidePanel } from '../../side-panels/WayfinderSidePanels';
+import { ServerHealthSidePanel, WayfinderDonationSetupSidePanel } from '../../side-panels/WayfinderSidePanels';
 import { DefconSidePanel } from "../SADefcon";
 import MasonPostViewer from "../../side-panels/MasonPostViewer";
 import WayfinderKeeperSidePanel from "../../side-panels/WayfinderKeeperSidePanel";
@@ -17,6 +17,7 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const [defconOpen, setDefconOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
+  const [isDonationSetupOpen, setIsDonationSetupOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isKeeperSupportOpen, setIsKeeperSupportOpen] = useState(false);
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
@@ -376,6 +377,8 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
 
           <CommandScreenQuickLink onClick={() => setHealthOpen(true)} icon="settings_ethernet" title={t("wf_uplink_quicklink_title", "Spoke Uplink & Sovereignty")} subtitle={t("wf_uplink_quicklink_sub", "Node Telemetry, Key Rotation & Cut the Cord")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400 shadow-md" />
 
+          <CommandScreenQuickLink onClick={() => setIsDonationSetupOpen(true)} icon={t("icon_volunteer_activism", "volunteer_activism")} title={t("wf_donation_quicklink_title", "Partner Donation Setup")} subtitle={t("wf_donation_quicklink_sub", "Configure 0% Fee Payment Processor & Checkout Link")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-cyan-400" hoverTextColorClass="group-hover:text-cyan-300" dotColorClass="bg-cyan-400 shadow-md" />
+
           <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history")} title={t("audit_title")} subtitle={t("link_audit_sub")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400 shadow-md" />
 
           {!stats.urgentBroadcast && (
@@ -385,6 +388,7 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
       </CommandScreenBody>
 
       <ServerHealthSidePanel isOpen={healthOpen} onClose={() => setHealthOpen(false)} stats={stats} />
+      <WayfinderDonationSetupSidePanel isOpen={isDonationSetupOpen} onClose={() => setIsDonationSetupOpen(false)} />
       <DefconSidePanel isOpen={defconOpen} onClose={() => setDefconOpen(false)} />
       <SanctuaryAlertsSidePanel
         isOpen={isAlertsOpen}
