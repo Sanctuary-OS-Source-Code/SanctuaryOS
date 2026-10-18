@@ -4222,5 +4222,16 @@
   "modal_sub_defcon_secured": "Safety lockdown complete — return to workspace",
   "modal_sub_close_quarantine": "Close quarantine manager",
   "modal_sub_save_snapshot": "Save current play set snapshot",
-  "modal_sub_apply_rename": "Save new designation"
+  "modal_sub_apply_rename": "Save new designation",
+  "dev_gate_badge": "DAILY DEV BUILD • SUPPORTER STREAM",
+  "dev_gate_title": "Supporter Dev Build Clearance Required",
+  "dev_gate_desc": "You are running a Daily Dev Build from the supporter preview channel. To unlock this build, sign in with an account that has active Global Daily Dev Build time ($5 = +30 days via any Partner Community or Keepers Core), or download the free Public Stable release.",
+  "dev_gate_status_label": "Account Status",
+  "dev_gate_status_unauthenticated": "Not Signed In — Sign in to verify your Supporter timer",
+  "dev_gate_status_expired": "No Active Dev Build Time Found on Account",
+  "dev_gate_btn_signin": "Sign In to Verify Account",
+  "dev_gate_btn_unlock": "Unlock Daily Dev Builds ($5 = +30 Days)",
+  "dev_gate_btn_recheck": "Re-Check Clearance",
+  "dev_gate_btn_download_stable": "Download Free Stable Release",
+  "dev_gate_checking": "Verifying Cloud Supporter Clearance..."
 }

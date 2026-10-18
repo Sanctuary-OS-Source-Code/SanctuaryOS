@@ -1049,4 +1049,181 @@ export async function loadPartnerCommunitiesList(
   return partnerList;
 }
 
+export interface DevBuildClearanceResult {
+  isDevBinary: boolean;
+  isAuthorized: boolean;
+  reason?: "ok" | "unauthenticated" | "expired";
+  devBuildUntil?: number;
+  stableVersion?: string;
+  stableDownloadUrl?: string;
+  appVersion?: string;
+}
+
+export async function verifyDevBuildClearance(): Promise<DevBuildClearanceResult> {
+  if (!isDesktop()) {
+    return { isDevBinary: false, isAuthorized: true, reason: "ok" };
+  }
+
+  let appVersion = "0.5.8";
+  try {
+    const { getVersion } = await import("@tauri-apps/api/app");
+    appVersion = await getVersion();
+  } catch {
+    // fallback
+  }
+
+  const isLocalDevServer = Boolean((import.meta as any).env?.DEV);
+  const previewGateEnabled =
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("sanctuary_preview_dev_gate") === "true";
+
+  if (isLocalDevServer && !previewGateEnabled) {
+    return {
+      isDevBinary: false,
+      isAuthorized: true,
+      reason: "ok",
+      appVersion,
+    };
+  }
+
+  const buildChannel = String(
+    (import.meta as any).env?.VITE_SANCTUARY_BUILD_CHANNEL || "",
+  )
+    .trim()
+    .toLowerCase();
+  const isDevVersionTag = appVersion.toLowerCase().includes("dev");
+  const isDevBinary =
+    previewGateEnabled || buildChannel === "dev" || isDevVersionTag;
+
+  if (!isDevBinary) {
+    return {
+      isDevBinary: false,
+      isAuthorized: true,
+      reason: "ok",
+      appVersion,
+    };
+  }
+
+  const storeState = useStore.getState();
+  const osRole = String(storeState.osRole || "").toLowerCase();
+  const userRole = String(storeState.userRole || "").toLowerCase();
+  const staffRoles = ["keeper", "wayfinder", "architect", "admin"];
+
+  if (staffRoles.includes(osRole) || staffRoles.includes(userRole)) {
+    return {
+      isDevBinary: true,
+      isAuthorized: true,
+      reason: "ok",
+      appVersion,
+    };
+  }
+
+  const pipeline = await getKeepersPipelineConfig().catch(
+    () => DEFAULT_KEEPERS_PIPELINE_CONFIG,
+  );
+  const stableVersion = pipeline.stable_version || "0.5.7";
+  const stableDownloadUrl =
+    pipeline.stable_exe_url ||
+    `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest`;
+
+  const session = storeState.session;
+  const userId = session?.user?.id;
+  if (!userId || userId === "local_citizen") {
+    return {
+      isDevBinary: true,
+      isAuthorized: false,
+      reason: "unauthenticated",
+      stableVersion,
+      stableDownloadUrl,
+      appVersion,
+    };
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+
+  if (typeof navigator === "undefined" || navigator.onLine) {
+    try {
+      const client = supabaseAuth || supabase;
+      const { data: profile, error } = await client
+        .from("profiles")
+        .select("dev_build_until, role, os_role")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (!error && profile) {
+        const remoteRole = String((profile as any).role || "").toLowerCase();
+        const remoteOsRole = String(
+          (profile as any).os_role || "",
+        ).toLowerCase();
+        if (
+          staffRoles.includes(remoteRole) ||
+          staffRoles.includes(remoteOsRole)
+        ) {
+          return {
+            isDevBinary: true,
+            isAuthorized: true,
+            reason: "ok",
+            appVersion,
+          };
+        }
+
+        const remoteUntil = profile.dev_build_until
+          ? Math.floor(new Date(profile.dev_build_until).getTime() / 1000)
+          : 0;
+
+        if (remoteUntil > now) {
+          // Refresh local SQLite cache for brief offline resilience
+          await getSupporterState(storeState.vaultPath || "", userId).catch(
+            () => {},
+          );
+          return {
+            isDevBinary: true,
+            isAuthorized: true,
+            reason: "ok",
+            devBuildUntil: remoteUntil,
+            appVersion,
+          };
+        }
+
+        return {
+          isDevBinary: true,
+          isAuthorized: false,
+          reason: "expired",
+          devBuildUntil: remoteUntil,
+          stableVersion,
+          stableDownloadUrl,
+          appVersion,
+        };
+      }
+    } catch {
+      // Fallback to local SQLite vault if Hub query is unreachable
+    }
+  }
+
+  const localState = await getSupporterState(
+    storeState.vaultPath || "",
+    userId,
+  );
+  const localUntil = localState.dev_build.dev_build_until || 0;
+  if (localUntil > now) {
+    return {
+      isDevBinary: true,
+      isAuthorized: true,
+      reason: "ok",
+      devBuildUntil: localUntil,
+      appVersion,
+    };
+  }
+
+  return {
+    isDevBinary: true,
+    isAuthorized: false,
+    reason: "expired",
+    devBuildUntil: localUntil,
+    stableVersion,
+    stableDownloadUrl,
+    appVersion,
+  };
+}
+
 

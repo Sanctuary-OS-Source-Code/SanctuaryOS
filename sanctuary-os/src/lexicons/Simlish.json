@@ -4230,5 +4230,16 @@
   "supporter_partners_unconfigured_notice": "Only Partner Communities that have set up their tip jar appear here! If you do not see a community yet, their Wayfinders just need to set it up in the Wayfinder Hub.",
   "lab_action_download_done_desc_with_real": "Lab_Report_#.txt and scrubbed real game log saved to your computer.",
   "supporter_processor_setup_guidnote_desc": "1. Create a Stripe Payment Link or Ko-fi page.\n2. Paste the link above.\n3. Citizens can donate directly and stack their +30 days per $5!",
-  "supporter_partners_empty_configured_desc": "Wayfinders can set up their community payment link anytime inside the Wayfinder Hub."
+  "supporter_partners_empty_configured_desc": "Wayfinders can set up their community payment link anytime inside the Wayfinder Hub.",
+  "dev_gate_badge": "DAILY DEV BUILD • SUPPORTER STREAM",
+  "dev_gate_title": "Supporter Dev Build Pass Needed",
+  "dev_gate_desc": "You're running an early Daily Dev Build! Sign in with an account that has active Daily Dev Build time ($5 = +30 days supporting any Partner Community or Keepers Core), or grab the free Public Stable release.",
+  "dev_gate_status_label": "Account Status",
+  "dev_gate_status_unauthenticated": "Not Signed In — Sign in to check your Supporter timer",
+  "dev_gate_status_expired": "No Active Dev Build Time on This Account",
+  "dev_gate_btn_signin": "Sign In to Verify Account",
+  "dev_gate_btn_unlock": "Unlock Daily Dev Builds ($5 = +30 Days)",
+  "dev_gate_btn_recheck": "Check Again",
+  "dev_gate_btn_download_stable": "Download Free Stable Version",
+  "dev_gate_checking": "Checking Supporter Status..."
 }

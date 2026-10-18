@@ -56,6 +56,7 @@ import SupportHub from "./SupportHub";
 import CommandCenter from "./CommandCenter";
 import Blueprints from "./Blueprints";
 import StagingPayloadEditor from "./components/StagingPayloadEditor";
+import { DevBuildClearanceGate } from "./components/DevBuildClearanceGate";
 import Vault from "./Vault";
 import Lab from "./Lab";
 import { scrubLogUserData, buildFormattedLabReportText } from "./utils/logScrubber";
@@ -3425,6 +3426,7 @@ function App() {
           )}
 
           <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
+          <DevBuildClearanceGate />
           <UpdateSidePanel />
           <NexusUpdatesSidePanel />
           <SupportHub />

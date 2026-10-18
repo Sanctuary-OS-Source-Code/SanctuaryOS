@@ -4222,5 +4222,16 @@
   "modal_sub_defcon_secured": "Mods and saves backed up — return to app",
   "modal_sub_close_quarantine": "Close quarantine list",
   "modal_sub_save_snapshot": "Save a snapshot of your current Play Set",
-  "modal_sub_apply_rename": "Save the new name"
+  "modal_sub_apply_rename": "Save the new name",
+  "dev_gate_badge": "DAILY DEV BUILD • SUPPORTER STREAM",
+  "dev_gate_title": "Supporter Dev Build Pass Needed",
+  "dev_gate_desc": "You're running an early Daily Dev Build! Sign in with an account that has active Daily Dev Build time ($5 = +30 days supporting any Partner Community or Keepers Core), or grab the free Public Stable release.",
+  "dev_gate_status_label": "Account Status",
+  "dev_gate_status_unauthenticated": "Not Signed In — Sign in to check your Supporter timer",
+  "dev_gate_status_expired": "No Active Dev Build Time on This Account",
+  "dev_gate_btn_signin": "Sign In to Verify Account",
+  "dev_gate_btn_unlock": "Unlock Daily Dev Builds ($5 = +30 Days)",
+  "dev_gate_btn_recheck": "Check Again",
+  "dev_gate_btn_download_stable": "Download Free Stable Version",
+  "dev_gate_checking": "Checking Supporter Status..."
 }

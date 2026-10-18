@@ -26,84 +26,115 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
 
   return (
     <div
-      className="fixed inset-0 z-[15000] flex items-center justify-center bg-black/35 backdrop-blur-md animate-in fade-in duration-300 p-6"
+      className="fixed inset-0 z-[15000] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md animate-in fade-in duration-300 p-6"
       onClick={onCancel}
     >
       <div
-        className="relative w-full max-w-xl rounded-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_30px_80px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col backdrop-blur-[var(--glassBlur)] animate-in zoom-in-95 duration-300"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full blur-[110px] pointer-events-none mix-blend-screen"
         style={{
-          background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal, 0.85) * 100%), transparent)`,
+          backgroundColor: "color-mix(in srgb, var(--accent) 14%, transparent)",
+        }}
+      />
+
+      <div
+        className="relative w-full max-w-lg glass-panel sanctuary-modal-glass backdrop-blur-2xl border rounded-3xl p-8 md:p-10 flex flex-col items-center text-center gap-6 overflow-hidden animate-in zoom-in-95 duration-300"
+        style={{
+          borderColor: "color-mix(in srgb, var(--accent) 35%, transparent)",
+          boxShadow:
+            "0 35px 90px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 0 36px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.22)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="absolute -top-24 -left-24 w-72 h-72 rounded-full opacity-15 blur-[90px] pointer-events-none z-0"
-          style={{ backgroundColor: "var(--accent)" }}
+          className="absolute top-0 left-0 w-full h-[2px] opacity-85 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 75%, transparent), transparent)",
+          }}
+        />
+        <div
+          className="absolute bottom-0 left-0 w-full h-px opacity-75 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 45%, transparent), transparent)",
+          }}
         />
 
-        {/* SidePanel-style Header */}
-        <div className="pt-6 px-6 pb-5 md:pt-7 md:px-8 shrink-0 relative z-20 border-b border-[color-mix(in_srgb,var(--text)_6%,transparent)] flex items-center justify-between gap-4 w-full">
-          <div className="flex items-center gap-4 min-w-0 flex-1">
-            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl glass-panel before:!hidden border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center justify-center shadow-lg shrink-0 relative">
-              <span className="material-symbols-outlined !text-[24px] md:!text-[26px] drop-shadow-[0_0_12px_currentColor]">
-                {t("icon_edit", "edit")}
-              </span>
-            </div>
-            <div className="flex flex-col min-w-0 justify-center">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)]">
-                  <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]" />
-                  {renameModal ? t("rename_desc") : t("redesignate_label")}
-                </span>
-              </div>
-              <h2 className="text-xl md:text-2xl font-black text-[var(--text)] tracking-tight truncate drop-shadow-md m-0">
-                {t("rename_title")}
-              </h2>
-            </div>
-          </div>
-
-          <div className="flex items-center z-50 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1 gap-1 shrink-0">
-            <PanelHeaderGroup>
-              <PanelHeaderButton
-                icon={t("icon_close", "close")}
-                tooltip={renameModal ? t("nav_cancel") : t("btn_abort")}
-                variant="danger"
-                onClick={onCancel}
-              />
-            </PanelHeaderGroup>
-          </div>
+        <div className="absolute top-5 right-5 z-30 flex items-center bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1">
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_close", "close")}
+              tooltip={renameModal ? t("nav_cancel") : t("btn_abort")}
+              variant="danger"
+              onClick={onCancel}
+            />
+          </PanelHeaderGroup>
         </div>
 
-        {/* Body */}
-        <div className="p-6 md:p-8 flex flex-col gap-4 relative z-10">
+        {/* Centered Circular Beacon Emblem */}
+        <div
+          className="relative w-20 h-20 rounded-full flex items-center justify-center shrink-0 border-2 z-10 mt-1"
+          style={{
+            backgroundColor: "color-mix(in srgb, var(--accent) 10%, transparent)",
+            borderColor: "color-mix(in srgb, var(--accent) 35%, transparent)",
+            boxShadow:
+              "0 0 30px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 10%, transparent)",
+          }}
+        >
+          <span
+            className="material-symbols-outlined !text-[34px]"
+            style={{
+              color: "var(--accent)",
+              filter: "drop-shadow(0 0 14px var(--accent))",
+            }}
+          >
+            {t("icon_edit", "edit")}
+          </span>
+        </div>
+
+        <div className="flex flex-col items-center gap-2 relative z-10 w-full">
+          <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-none text-[var(--text)] drop-shadow-md m-0">
+            {t("rename_title")}
+          </h2>
+          <span className="text-[10px] font-black uppercase tracking-[0.35em] text-[var(--accent)] opacity-85">
+            {renameModal ? t("rename_desc") : t("redesignate_label")}
+          </span>
+
+          <div
+            className="w-36 h-px my-2 opacity-60"
+            style={{
+              background:
+                "linear-gradient(to right, transparent, var(--accent), transparent)",
+            }}
+          />
+
           <input
             autoFocus
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && onConfirm()}
-            className="w-full glass-surface before:!hidden px-5 py-4 rounded-2xl text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all"
+            className="w-full glass-surface px-5 py-4 rounded-2xl text-sm font-bold text-center text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all mt-1"
           />
         </div>
 
-        {/* Footer */}
-        <div className="px-6 pb-6 pt-5 md:px-8 md:pb-7 flex items-center justify-end gap-3 shrink-0 relative z-20 border-t border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
+        <div className="grid grid-cols-2 gap-3.5 w-full mt-2 pt-5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-10">
           <ActionButton
             variant="glass"
             icon={t("icon_close", "close")}
             label={renameModal ? t("nav_cancel") : t("btn_abort")}
             onClick={onCancel}
+            className="w-full !py-3.5"
           />
           <ActionButton
             variant="accent"
             icon={t("icon_check", "check")}
             label={renameModal ? t("btn_rename") : t("btn_confirm")}
             onClick={onConfirm}
+            className="w-full !py-3.5"
           />
         </div>
       </div>
     </div>
   );
 }
-
-

@@ -1,5 +1,5 @@
-# Sanctuary OS — Version 0.5.8-1 Update
-## *"The Proving Grounds, Phone-to-PC Mod Staging & True System Alerts"*
+# Sanctuary OS — Version 0.5.8-Dev.1 Update
+## *"The Homestead Lab, Phone-to-PC Mod Staging & True System Alerts"*
 
 **Release Date:** October 17, 2026 | **Version:** 0.5.8-1 (Dev Channel)
 
@@ -68,7 +68,7 @@ Game exception logs shouldn't require a computer science degree to read—or lea
 ### 1. Support Any Partner Community → Unlock Daily Dev Builds Everywhere
 Sanctuary OS takes **0% cut** on community and creator donations—payments go straight to the community's own Stripe or Ko-fi account.
 * **Cumulative Global Daily Dev Builds (\$5 = +30 Days):** Whenever you donate to *any* Partner Game Community, your account is automatically credited with **+30 days per \$5** of access to the **Daily Dev Build** update channel across all of Sanctuary OS. Donating again simply stacks more days onto your existing timer—it never resets early.
-* **Seamless Channel Switching:** Flip on the **Daily Dev Build** toggle in **Settings → Supporter** (or from the **Support & Perks** quick action on the Command Center) to get the latest nightly features as soon as they ship, and automatically return to the **Stable** channel whenever your timer expires.
+* **Seamless Channel Switching & Cloud-Verified Dev Gate:** Flip on the **Daily Dev Build** toggle in **Settings → Supporter** (or from the **Support & Perks** quick action on the Command Center) to get the latest nightly features as soon as they ship. Daily Dev Build installers verify your active Supporter clearance (or staff role) on launch—and if someone downloads the Dev `.exe` by mistake without an active pass, a 1-click button lets them unlock Dev Builds or grab the free **Public Stable** installer right from the screen.
 
 ### 2. Zero-Honeypot Creator Supporter Vault & Priority Support
 * **100% Local Privacy:** Following creators and linking your Patreon or Ko-fi **Supporter Passes** happens strictly inside a private database on your own PC. Sanctuary never builds a central cloud list of who you follow or who you financially support.

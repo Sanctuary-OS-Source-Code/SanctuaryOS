@@ -40,86 +40,118 @@ export function GlobalConfirmDialog() {
 
   return (
     <div
-      className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/35 backdrop-blur-md p-6 animate-in fade-in duration-300"
+      className="fixed inset-0 z-[9999999] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md p-6 animate-in fade-in duration-300"
       onClick={handleCancel}
     >
       <div
-        className="relative w-full max-w-xl rounded-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_30px_80px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col backdrop-blur-[var(--glassBlur)] animate-in zoom-in-95 duration-300"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full blur-[110px] pointer-events-none mix-blend-screen"
         style={{
-          background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal, 0.85) * 100%), transparent)`,
+          backgroundColor: `color-mix(in srgb, var(${accentVar}) 14%, transparent)`,
+        }}
+      />
+
+      <div
+        className="relative w-full max-w-lg glass-panel sanctuary-modal-glass backdrop-blur-2xl border rounded-3xl p-8 md:p-10 flex flex-col items-center text-center gap-6 overflow-hidden animate-in zoom-in-95 duration-300"
+        style={{
+          borderColor: `color-mix(in srgb, var(${accentVar}) 35%, transparent)`,
+          boxShadow: `0 35px 90px color-mix(in srgb, var(${accentVar}) 22%, transparent), inset 0 0 36px color-mix(in srgb, var(${accentVar}) 8%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.22)`,
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Subtle SidePanel-style corner ambient glow */}
         <div
-          className="absolute -top-24 -left-24 w-72 h-72 rounded-full opacity-15 blur-[90px] pointer-events-none z-0"
-          style={{ backgroundColor: `var(${accentVar})` }}
+          className="absolute inset-0 rounded-[inherit] animate-pulse pointer-events-none"
+          style={{
+            backgroundColor: `color-mix(in srgb, var(${accentVar}) 4%, transparent)`,
+          }}
+        />
+        <div
+          className="absolute top-0 left-0 w-full h-[2px] opacity-85 pointer-events-none"
+          style={{
+            background: `linear-gradient(to right, transparent, color-mix(in srgb, var(${accentVar}) 75%, transparent), transparent)`,
+          }}
+        />
+        <div
+          className="absolute bottom-0 left-0 w-full h-px opacity-75 pointer-events-none"
+          style={{
+            background: `linear-gradient(to right, transparent, color-mix(in srgb, var(${accentVar}) 45%, transparent), transparent)`,
+          }}
         />
 
-        {/* SidePanel-style Header */}
-        <div className="pt-6 px-6 pb-5 md:pt-7 md:px-8 shrink-0 relative z-20 border-b border-[color-mix(in_srgb,var(--text)_6%,transparent)] flex items-center justify-between gap-4 w-full">
-          <div className="flex items-center gap-4 min-w-0 flex-1">
-            <div
-              className="w-12 h-12 md:w-14 md:h-14 rounded-2xl glass-panel before:!hidden border flex items-center justify-center shadow-lg shrink-0 relative"
-              style={{
-                borderColor: `color-mix(in srgb, var(${accentVar}) 30%, transparent)`,
-                color: `var(${accentVar})`,
-              }}
-            >
-              <span className="material-symbols-outlined !text-[24px] md:!text-[26px] drop-shadow-[0_0_12px_currentColor]">
-                {headerIcon}
-              </span>
-            </div>
-
-            <div className="flex flex-col min-w-0 justify-center">
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border"
-                  style={{
-                    color: `var(${accentVar})`,
-                    backgroundColor: `color-mix(in srgb, var(${accentVar}) 12%, transparent)`,
-                    borderColor: `color-mix(in srgb, var(${accentVar}) 25%, transparent)`,
-                  }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]" />
-                  {badgeLabel}
-                </span>
-              </div>
-              <h2 className="text-xl md:text-2xl font-black text-[var(--text)] tracking-tight truncate drop-shadow-md m-0">
-                {titleText}
-              </h2>
-            </div>
-          </div>
-
-          <div className="flex items-center z-50 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1 gap-1 shrink-0">
-            <PanelHeaderGroup>
-              <PanelHeaderButton
-                icon={t("icon_close", "close")}
-                tooltip={confirmDialog.cancelText || t("btn_close", "Close")}
-                variant="danger"
-                onClick={handleCancel}
-              />
-            </PanelHeaderGroup>
-          </div>
+        <div className="absolute top-5 right-5 z-30 flex items-center bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1">
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_close", "close")}
+              tooltip={confirmDialog.cancelText || t("btn_close", "Close")}
+              variant="danger"
+              onClick={handleCancel}
+            />
+          </PanelHeaderGroup>
         </div>
 
-        {/* Clean inner message well */}
-        <div className="p-6 md:p-8 flex flex-col gap-4 relative z-10">
-          <div className="glass-surface before:!hidden rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-            <p className="text-sm font-medium text-[var(--text)] opacity-90 leading-relaxed whitespace-pre-line m-0">
-              {confirmDialog.message}
-            </p>
-          </div>
+        {/* Centered Circular Beacon Emblem */}
+        <div
+          className="relative w-20 h-20 rounded-full flex items-center justify-center shrink-0 border-2 z-10 mt-1"
+          style={{
+            backgroundColor: `color-mix(in srgb, var(${accentVar}) 10%, transparent)`,
+            borderColor: `color-mix(in srgb, var(${accentVar}) 35%, transparent)`,
+            boxShadow: `0 0 30px color-mix(in srgb, var(${accentVar}) 20%, transparent), inset 0 0 20px color-mix(in srgb, var(${accentVar}) 10%, transparent)`,
+          }}
+        >
+          <div
+            className="absolute inset-0 rounded-full border-2 animate-ping opacity-35"
+            style={{
+              borderColor: `color-mix(in srgb, var(${accentVar}) 50%, transparent)`,
+            }}
+          />
+          <span
+            className="material-symbols-outlined !text-[36px] animate-pulse"
+            style={{
+              color: `var(${accentVar})`,
+              filter: `drop-shadow(0 0 14px var(${accentVar}))`,
+            }}
+          >
+            {headerIcon}
+          </span>
         </div>
 
-        {/* SidePanel-style Footer with ActionButtons */}
-        <div className="px-6 pb-6 pt-5 md:px-8 md:pb-7 flex items-center justify-end gap-3 shrink-0 relative z-20 border-t border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
+        {/* Centered Title, Status Subtitle & Message */}
+        <div className="flex flex-col items-center gap-2 relative z-10 w-full">
+          <h2
+            className="text-2xl md:text-3xl font-black tracking-tight leading-none drop-shadow-md m-0"
+            style={{ color: isDefcon ? `var(${accentVar})` : "var(--text)" }}
+          >
+            {titleText}
+          </h2>
+          <span
+            className="text-[10px] font-black uppercase tracking-[0.35em] opacity-85"
+            style={{ color: `var(${accentVar})` }}
+          >
+            {badgeLabel}
+          </span>
+
+          <div
+            className="w-36 h-px my-2 opacity-60"
+            style={{
+              background: `linear-gradient(to right, transparent, var(${accentVar}), transparent)`,
+            }}
+          />
+
+          <p className="text-sm font-medium text-[var(--text)] opacity-90 leading-relaxed whitespace-pre-line max-w-md m-0">
+            {confirmDialog.message}
+          </p>
+        </div>
+
+        {/* 50/50 Bottom Action Buttons */}
+        <div
+          className={`grid ${isAlert ? "grid-cols-1" : "grid-cols-2"} gap-3.5 w-full mt-2 pt-5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-10`}
+        >
           {!isAlert && (
             <ActionButton
               variant="glass"
               icon={t("icon_close", "close")}
               label={confirmDialog.cancelText || t("nav_cancel")}
               onClick={handleCancel}
+              className="w-full !py-3.5"
             />
           )}
           <ActionButton
@@ -134,13 +166,10 @@ export function GlobalConfirmDialog() {
               (isAlert ? t("btn_ok") : t("btn_proceed"))
             }
             onClick={handleConfirm}
+            className="w-full !py-3.5"
           />
         </div>
       </div>
     </div>
   );
 }
-
-
-
-
