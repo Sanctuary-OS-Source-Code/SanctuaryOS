@@ -127,6 +127,7 @@ export default function SupporterTab() {
           version: res.version,
           date: res.date,
           body: res.notes,
+          isDevChannel: true,
           isExternalDownload: true,
           downloadAndInstall: async () => {
             handleOpenUrl(res.downloadUrl);

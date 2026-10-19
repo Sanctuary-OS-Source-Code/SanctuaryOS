@@ -2,7 +2,16 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLexicon } from '../LexiconContext';
 import { SettingsToggle, TabContainer, SettingsGrid, CustomSettingsDropdown } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
-import { ActionButton, SidePanel, ActionPill, InlineFilterGroup, HoverTooltip } from '../shared';
+import {
+  ActionButton,
+  SidePanel,
+  ActionPill,
+  InlineFilterGroup,
+  HoverTooltip,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  EmptyState,
+} from '../shared';
 import { supabase } from '../supabase';
 import { useStore } from '../store';
 import { getSupporterState } from '../utils/supporterManager';
@@ -73,22 +82,51 @@ export default function NotificationsTab() {
     };
   }, [syncState]);
 
-  useEffect(() => {
-    async function fetchFollows() {
-      const mergedMap = new Map<string, any>();
+  const fetchFollows = useCallback(async () => {
+    const mergedMap = new Map<string, any>();
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      if (session?.user?.id) {
-        const { data } = await supabase
-          .from('mason_followers')
-          .select('mason_id, masons(*)')
-          .eq('user_id', session.user.id);
-        if (data) {
-          for (const row of data as any[]) {
-            const m = Array.isArray(row.masons) ? row.masons[0] : row.masons;
+    if (session?.user?.id) {
+      const { data } = await supabase
+        .from('mason_followers')
+        .select('mason_id, masons(*)')
+        .eq('user_id', session.user.id);
+      if (data) {
+        for (const row of data as any[]) {
+          const m = Array.isArray(row.masons) ? row.masons[0] : row.masons;
+          if (m && m.id) {
+            mergedMap.set(String(m.id), {
+              id: String(m.id),
+              name: m.name || t('unknown_architect', 'Unknown'),
+              avatar_url: m.avatar_url || null,
+              is_verified: Boolean(m.is_verified),
+              tagline:
+                m.tagline && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(m.tagline).replace(/^@/, ''))
+                  ? String(m.tagline)
+                  : '',
+            });
+          }
+        }
+      }
+    }
+
+    try {
+      const localState = await getSupporterState();
+      const localFollows = localState?.follows || [];
+      const missingIds = localFollows
+        .map((f) => String(f.mason_id))
+        .filter((id) => id && !mergedMap.has(id));
+
+      if (missingIds.length > 0) {
+        const { data: extraMasons } = await supabase
+          .from('masons')
+          .select('*')
+          .in('id', missingIds);
+        if (extraMasons) {
+          for (const m of extraMasons as any[]) {
             if (m && m.id) {
               mergedMap.set(String(m.id), {
                 id: String(m.id),
@@ -105,60 +143,32 @@ export default function NotificationsTab() {
         }
       }
 
-      try {
-        const localState = await getSupporterState();
-        const localFollows = localState?.follows || [];
-        const missingIds = localFollows
-          .map((f) => String(f.mason_id))
-          .filter((id) => id && !mergedMap.has(id));
-
-        if (missingIds.length > 0) {
-          const { data: extraMasons } = await supabase
-            .from('masons')
-            .select('*')
-            .in('id', missingIds);
-          if (extraMasons) {
-            for (const m of extraMasons as any[]) {
-              if (m && m.id) {
-                mergedMap.set(String(m.id), {
-                  id: String(m.id),
-                  name: m.name || t('unknown_architect', 'Unknown'),
-                  avatar_url: m.avatar_url || null,
-                  is_verified: Boolean(m.is_verified),
-                  tagline:
-                    m.tagline && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(m.tagline).replace(/^@/, ''))
-                      ? String(m.tagline)
-                      : '',
-                });
-              }
-            }
-          }
+      for (const f of localFollows) {
+        const id = String(f.mason_id || '');
+        if (id && !mergedMap.has(id)) {
+          mergedMap.set(id, {
+            id,
+            name: f.mason_name || t('unknown_architect', 'Unknown'),
+            avatar_url: null,
+            is_verified: false,
+            tagline: '',
+          });
         }
-
-        for (const f of localFollows) {
-          const id = String(f.mason_id || '');
-          if (id && !mergedMap.has(id)) {
-            mergedMap.set(id, {
-              id,
-              name: f.mason_name || t('unknown_architect', 'Unknown'),
-              avatar_url: null,
-              is_verified: false,
-              tagline: '',
-            });
-          }
-        }
-      } catch {
-        // Ignore if local supporter vault unavailable
       }
-
-      setFollowedMasons(
-        Array.from(mergedMap.values()).sort((a, b) =>
-          String(a.name || '').localeCompare(String(b.name || ''))
-        )
-      );
+    } catch {
+      // Ignore if local supporter vault unavailable
     }
-    if (showMasonPanel) fetchFollows();
-  }, [showMasonPanel, t]);
+
+    setFollowedMasons(
+      Array.from(mergedMap.values()).sort((a, b) =>
+        String(a.name || '').localeCompare(String(b.name || ''))
+      )
+    );
+  }, [t]);
+
+  useEffect(() => {
+    fetchFollows();
+  }, [fetchFollows, showMasonPanel]);
 
   const filteredFollowedMasons = useMemo(() => {
     const q = masonSearchQuery.trim().toLowerCase();
@@ -181,6 +191,15 @@ export default function NotificationsTab() {
     const newVal = { ...masonAlerts, [id]: !masonAlerts[id] };
     setMasonAlerts(newVal);
     localStorage.setItem('sanctuary_mason_alerts', JSON.stringify(newVal));
+  };
+
+  const setAllMasonAlerts = (enabled: boolean) => {
+    const next: Record<string, boolean> = { ...masonAlerts };
+    followedMasons.forEach((m) => {
+      next[m.id] = enabled;
+    });
+    setMasonAlerts(next);
+    localStorage.setItem('sanctuary_mason_alerts', JSON.stringify(next));
   };
 
   const handleModeChange = async (category: NotificationCategory, nextMode: NotificationDeliveryMode) => {
@@ -327,20 +346,13 @@ export default function NotificationsTab() {
 
   const isGranted = permissionState === 'granted';
   const isDenied = permissionState === 'denied';
+  const enabledMasonCount = followedMasons.filter((m) => Boolean(masonAlerts[m.id])).length;
 
   return (
     <>
       <TabContainer
         title={t('tab_notifs', 'Notifications')}
-        icon="notifications"
-        actions={
-          <ActionButton
-            variant="glass"
-            icon={t('icon_notifications', 'notifications')}
-            label={t('notif_per_mason', 'Creator Alerts')}
-            onClick={() => setShowMasonPanel(true)}
-          />
-        }
+        icon={t('icon_notifications', 'notifications')}
       >
         {/* System & PWA Notification Opt-In / Status Card */}
         <div className="p-6 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-5">
@@ -449,10 +461,34 @@ export default function NotificationsTab() {
           <UniversalCard
             title={t('notify_author_only', 'Creator Replies Only')}
             subtitle={t('notify_author_only_desc', 'Only notify when the original post creator replies.')}
-            icon="person"
+            icon={t('icon_person', 'person')}
             onClick={toggleNotifyAuthorOnly}
             actions={<SettingsToggle checked={notifyAuthorOnly} />}
           />
+
+          <UniversalCard
+            title={t('notif_per_mason', 'Creator Alerts')}
+            subtitle={t('notif_per_mason_desc', 'Manage notifications for individual creators you follow.')}
+            icon={t('icon_notifications_active', 'notifications_active')}
+            onClick={() => setShowMasonPanel(true)}
+            actions={
+              <div className="px-3 py-1.5 rounded-xl glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 shadow-sm">
+                <span className="material-symbols-outlined !text-[14px] theme-text-accent">
+                  {t('icon_notifications_active', 'notifications_active')}
+                </span>
+                <span className="text-[10px] font-mono font-bold text-[var(--text)]">
+                  {enabledMasonCount} / {followedMasons.length}
+                </span>
+              </div>
+            }
+          >
+            <ActionButton
+              variant="glass"
+              icon={t('icon_tune', 'tune')}
+              label={t('notif_per_mason_btn', 'Manage Creator Alerts')}
+              className="w-full pointer-events-none mt-2"
+            />
+          </UniversalCard>
         </SettingsGrid>
       </TabContainer>
 
@@ -461,10 +497,27 @@ export default function NotificationsTab() {
         onClose={() => setShowMasonPanel(false)}
         title={t('notif_per_mason', 'Creator Alerts')}
         subtitle={t('notif_per_mason_desc', 'Manage notifications for individual creators you follow.')}
-        icon={t('icon_notifications', 'notifications')}
+        icon={t('icon_notifications_active', 'notifications_active')}
         iconColorClass="theme-text-accent"
+        widthClass="w-full md:w-[760px]"
+        headerActions={
+          followedMasons.length > 0 ? (
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t('icon_notifications_active', 'notifications_active')}
+                tooltip={t('notif_per_mason_enable_all', 'Enable All')}
+                onClick={() => setAllMasonAlerts(true)}
+              />
+              <PanelHeaderButton
+                icon={t('icon_notifications_off', 'notifications_off')}
+                tooltip={t('notif_per_mason_disable_all', 'Mute All')}
+                onClick={() => setAllMasonAlerts(false)}
+              />
+            </PanelHeaderGroup>
+          ) : undefined
+        }
       >
-        <div className="flex flex-col gap-5 relative z-10 w-full">
+        <div className="flex flex-col gap-6 relative z-10 w-full">
           <ActionPill
             searchQuery={masonSearchQuery}
             setSearchQuery={setMasonSearchQuery}
@@ -508,39 +561,52 @@ export default function NotificationsTab() {
           />
 
           {filteredFollowedMasons.length === 0 ? (
-            <div className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 text-center mt-6 p-8 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl">
-              {t('settings_no_masons', 'No creators followed yet.')}
+            <div className="glass-panel rounded-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-8">
+              <EmptyState
+                icon={t('icon_person_search', 'person_search')}
+                title={t('settings_no_masons', 'No creators followed yet.')}
+                subtitle={t('notif_per_mason_desc', 'Manage notifications for individual creators you follow.')}
+              />
             </div>
           ) : (
-            <div className="flex flex-col gap-3 w-full">
-              {filteredFollowedMasons.map((m) => (
-                <UniversalCard
-                  key={m.id}
-                  layout="compact"
-                  image={m.avatar_url || undefined}
-                  icon={t('icon_person', 'person')}
-                  title={
-                    <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
-                      <span className="truncate">{m.name}</span>
-                      {m.is_verified && (
-                        <span className="relative inline-flex items-center shrink-0 cursor-default">
-                          <span className="material-symbols-outlined !text-[16px] text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.45)]">
-                            {t('icon_verified_user', 'verified_user')}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+              {filteredFollowedMasons.map((m) => {
+                const isAlertEnabled = Boolean(masonAlerts[m.id]);
+                return (
+                  <UniversalCard
+                    key={m.id}
+                    image={m.avatar_url || undefined}
+                    icon={t('icon_person', 'person')}
+                    isActive={isAlertEnabled}
+                    title={
+                      <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                        <span className="truncate">{m.name}</span>
+                        {m.is_verified && (
+                          <span className="relative inline-flex items-center shrink-0 cursor-default">
+                            <span className="material-symbols-outlined !text-[16px] text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.45)]">
+                              {t('icon_verified_user', 'verified_user')}
+                            </span>
+                            <HoverTooltip
+                              title={t('verified', 'Verified')}
+                              icon={t('icon_verified_user', 'verified_user')}
+                              variant="success"
+                            />
                           </span>
-                          <HoverTooltip
-                            title={t('verified', 'Verified')}
-                            icon={t('icon_verified_user', 'verified_user')}
-                            variant="success"
-                          />
-                        </span>
-                      )}
-                    </span>
-                  }
-                  subtitle={m.tagline || undefined}
-                  onClick={() => toggleMasonAlert(m.id)}
-                  actions={<SettingsToggle checked={Boolean(masonAlerts[m.id])} />}
-                />
-              ))}
+                        )}
+                      </span>
+                    }
+                    subtitle={
+                      m.tagline ||
+                      t(
+                        'notif_per_mason_card_fallback_sub',
+                        'Receive notifications when this creator publishes new posts or updates.'
+                      )
+                    }
+                    onClick={() => toggleMasonAlert(m.id)}
+                    actions={<SettingsToggle checked={isAlertEnabled} />}
+                  />
+                );
+              })}
             </div>
           )}
         </div>

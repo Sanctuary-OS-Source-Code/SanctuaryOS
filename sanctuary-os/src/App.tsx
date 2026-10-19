@@ -297,6 +297,7 @@ function App() {
             version: devUpdate.version,
             date: devUpdate.date,
             body: devUpdate.notes,
+            isDevChannel: true,
             isExternalDownload: true,
             downloadAndInstall: async () => {
               await openUrl(devUpdate.downloadUrl);

@@ -35,7 +35,7 @@ import packageJson from "../../package.json";
 import bundledCommunityBlog from "../../../Release Notes (Community Blog).md?raw";
 import bundledNerdChangelog from "../../../changelog.md?raw";
 
-const LEGACY_BLOG_BROADCAST_TITLE = "[KEEPERS_RELEASE_NOTES_BLOG]";
+export const LEGACY_BLOG_BROADCAST_TITLE = "[KEEPERS_RELEASE_NOTES_BLOG]";
 const PUBLIC_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_PUBLIC]";
 const DEV_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_DEV]";
 
@@ -61,7 +61,7 @@ function stripEmojiPrefix(text: string): string {
   return text.replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\s]+/u, "").trim();
 }
 
-function cleanPostBodyForViewer(markdown: string): string {
+export function cleanPostBodyForViewer(markdown: string): string {
   const lines = (markdown || "").split(/\r?\n/);
   const cleaned: string[] = [];
   let skippedTopH1 = false;
@@ -81,7 +81,7 @@ function cleanPostBodyForViewer(markdown: string): string {
   return cleaned.join("\n").replace(/^\s*---\s*\n/, "").trim();
 }
 
-function parseSeedCommunityBlog(markdown: string) {
+export function parseSeedCommunityBlog(markdown: string) {
   const lines = (markdown || "").split(/\r?\n/);
   let mainTitle = `Sanctuary OS v${packageJson.version}`;
   let releaseDate = "";
@@ -127,7 +127,7 @@ function parseSeedCommunityBlog(markdown: string) {
   };
 }
 
-function parseLatestChangelogBlock(changelog: string) {
+export function parseLatestChangelogBlock(changelog: string) {
   const lines = (changelog || "").split(/\r?\n/);
   let date = "";
   let version = "";
@@ -175,7 +175,7 @@ function serializeReleasePostMessage(record: Omit<KeepersReleasePostRecord, "id"
   return `<!-- RELEASE_META:${JSON.stringify(meta)} -->\n${(record.body || "").trim()}`;
 }
 
-function deserializeReleasePostRow(
+export function deserializeReleasePostRow(
   row: any,
   fallback: Omit<KeepersReleasePostRecord, "id">
 ): KeepersReleasePostRecord {
@@ -1094,8 +1094,8 @@ export function ReleaseNotesShowcase({
                 activePlatformStr
               )}
 
-              <div className="flex-1 flex flex-col mt-2 gap-6">
-                <div className="markdown-body text-[var(--text)] opacity-90 leading-relaxed text-base sm:text-lg flex-1">
+              <div className="flex-1 flex flex-col mt-2 gap-6 min-w-0">
+                <div className="markdown-body text-[var(--text)] opacity-90 leading-relaxed text-base sm:text-lg flex-1 min-w-0 break-words overflow-x-hidden [&_pre]:overflow-x-auto [&_code]:break-words">
                   <MarkdownRenderer content={activeMarkdownContent} />
                 </div>
 

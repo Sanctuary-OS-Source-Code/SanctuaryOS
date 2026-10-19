@@ -3919,7 +3919,7 @@
   "supporter_spoke_open_checkout_btn": "1. Open Payment Checkout",
   "supporter_spoke_sandbox_checkout_btn": "Simulate Sandbox Checkout (Test Mode)",
   "supporter_spoke_not_setup_title": "Payment Processor Not Configured Yet",
-  "supporter_spoke_not_setup_desc": "The Wayfinders for this community haven't linked a payment processor in the Wayfinder Hub yet. You can test the flow in Sandbox Mode below or support Sanctuary OS (Keepers Core).",
+  "supporter_spoke_not_setup_desc": "This community has not linked a payment processor yet. Please check again later.",
   "supporter_spoke_open_settings_btn": "Open Full Support & Perks Settings",
   "supporter_sandbox_mode_badge": "SANDBOX TEST MODE",
   "supporter_sandbox_enable_btn": "Use Sandbox Test Processor (For Testing)",

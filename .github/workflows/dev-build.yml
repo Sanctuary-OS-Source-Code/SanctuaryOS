@@ -1,4 +1,4 @@
-name: Daily Dev Build (Supporter Channel)
+name: Dev Build (Supporter Channel)
 on:
   push:
     tags:
@@ -10,13 +10,13 @@ on:
   workflow_dispatch:
     inputs:
       dev_version_label:
-        description: 'Daily Dev Build tag (e.g. v0.5.8-dev.1)'
+        description: 'Dev Build tag (e.g. v0.5.8-dev.1)'
         required: false
         default: 'v0.5.8-dev.1'
       release_notes:
-        description: 'Markdown patch notes for Daily Dev Build supporters'
+        description: 'Markdown patch notes for Dev Build supporters'
         required: false
-        default: 'Automated Daily Dev Build for Sanctuary OS Ecosystem Supporters.'
+        default: 'Automated Dev Build for Sanctuary OS Ecosystem Supporters.'
 
 jobs:
   dev-release:
@@ -49,29 +49,35 @@ jobs:
           if (-not $tag -or $tag -eq "main" -or $tag -eq "master") {
             $tag = "v0.5.8-dev.1"
           }
-          $cleanDevVer = ($tag -replace '^[vV]', '').ToLower()
-          $msiMatch = [regex]::Match($cleanDevVer, '^\d+\.\d+\.\d+')
+          $cleanDevVer = ($tag -replace '^[vV]', '') -replace '^(\d+\.\d+\.\d+)\.([a-zA-Z])', '$1-$2'
+          $cleanDevVer = $cleanDevVer.ToLower()
+          $msiMatch = [regex]::Match($cleanDevVer, '\d+\.\d+\.\d+')
           $msiVer = if ($msiMatch.Success) { $msiMatch.Value } else { "0.5.8" }
+          if ($cleanDevVer -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+            $cleanDevVer = "$msiVer-dev.1"
+          }
 
           Write-Host "Syncing Dev build version: package=$cleanDevVer, msi=$msiVer (tag=$tag)"
 
-          node -e "
-            const fs = require('fs');
-            const pkgPath = './sanctuary-os/package.json';
-            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-            pkg.version = '$cleanDevVer';
-            fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+          $env:PKG_VER = $cleanDevVer
+          $env:MSI_VER = $msiVer
+          @'
+          const fs = require("fs");
+          const pkgPath = "./sanctuary-os/package.json";
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+          pkg.version = process.env.PKG_VER;
+          fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 
-            const tauriPath = './sanctuary-os/src-tauri/tauri.conf.json';
-            const tauri = JSON.parse(fs.readFileSync(tauriPath, 'utf8'));
-            tauri.version = '$msiVer';
-            fs.writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + '\n');
+          const tauriPath = "./sanctuary-os/src-tauri/tauri.conf.json";
+          const tauri = JSON.parse(fs.readFileSync(tauriPath, "utf8"));
+          tauri.version = process.env.MSI_VER;
+          fs.writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + "\n");
 
-            const cargoPath = './sanctuary-os/src-tauri/Cargo.toml';
-            let cargo = fs.readFileSync(cargoPath, 'utf8');
-            cargo = cargo.replace(/^version\s*=\s*\"[^\"]*\"/m, 'version = \"$cleanDevVer\"');
-            fs.writeFileSync(cargoPath, cargo);
-          "
+          const cargoPath = "./sanctuary-os/src-tauri/Cargo.toml";
+          let cargo = fs.readFileSync(cargoPath, "utf8");
+          cargo = cargo.replace(/^version\s*=\s*"[^"]*"/m, `version = "${process.env.MSI_VER}"`);
+          fs.writeFileSync(cargoPath, cargo);
+          '@ | node -
 
       - name: install dependencies
         run: npm install
