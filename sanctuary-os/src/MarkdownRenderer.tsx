@@ -20,11 +20,11 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
   const processedContent = content.replace(/\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/gi, '![](icon://$1)');
 
   return (
-    <div className="prose prose-invert max-w-none text-[var(--text)] opacity-90 leading-relaxed marker:text-[var(--accent)]">
+    <div className="prose prose-invert max-w-none text-[var(--text)] opacity-90 leading-relaxed marker:text-[var(--subtext)]">
       <ReactMarkdown urlTransform={(uri) => uri}
         remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
-          h1: ({ node, ...props }) => <h1 className={`text-3xl font-black capitalize tracking-tighter mt-6 mb-4 ${isAlert ? 'text-[var(--danger)]' : 'theme-text-accent'}`} {...props} />,
+          h1: ({ node, ...props }) => <h1 className={`text-3xl font-black capitalize tracking-tighter mt-6 mb-4 ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`} {...props} />,
           h2: ({ node, ...props }) => <h2 className="text-2xl font-black capitalize tracking-tight mt-5 mb-3 text-[var(--text)]" {...props} />,
           h3: ({ node, ...props }) => <h3 className="text-xl font-bold capitalize tracking-widest mt-4 mb-2 text-[var(--text)] opacity-90" {...props} />,
           p: ({ node, ...props }) => <p className="mb-4 last:mb-0" {...props} />,
@@ -32,14 +32,14 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
           ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
           li: ({ node, ...props }) => <li className="pl-1" {...props} />,
           blockquote: ({ node, ...props }) => (
-            <blockquote className="border-l-4 theme-border-accent pl-4 py-1 my-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-r-lg italic opacity-80" {...props} />
+            <blockquote className="border-l-4 border-[color-mix(in_srgb,var(--text)_25%,transparent)] pl-4 py-1 my-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-r-lg italic opacity-80" {...props} />
           ),
           hr: ({ node, ...props }) => <hr className="my-8 border-[color-mix(in_srgb,var(--text)_10%,transparent)]" {...props} />,
           code: ({ node, className, children, ...props }: any) => {
             const match = /language-(\w+)/.exec(className || '');
             const isInline = !match && !content.includes('\n```');
             if (isInline) {
-              return <code className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 py-0.5 rounded font-mono text-sm theme-text-accent" {...props}>{children}</code>;
+              return <code className="bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] px-1.5 py-0.5 rounded-md font-semibold text-xs text-[var(--text)]" {...props}>{children}</code>;
             }
             return (
               <div className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 my-4 overflow-x-auto accent-scrollbar relative group">

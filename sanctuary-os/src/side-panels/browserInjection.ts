@@ -250,4 +250,75 @@ if (!window.__sanctuary_fs_injected) {
     setInterval(handleLinks, 2000);
     handleLinks();
 }
+
+if (!window.__sanctuary_checkout_watcher_v1) {
+    window.__sanctuary_checkout_watcher_v1 = true;
+
+    const parseStripeUsdAmounts = (text) => {
+        if (!text) return 0;
+        const matches = text.match(/\\$\\s*(\\d+(?:,\\d{3})*(?:\\.\\d{2})?)/g) || [];
+        let maxUsd = 0;
+        for (const m of matches) {
+            const num = parseFloat(m.replace(/[^0-9.]/g, ''));
+            if (!isNaN(num) && num > maxUsd && num <= 10000) {
+                maxUsd = num;
+            }
+        }
+        return maxUsd;
+    };
+
+    const checkStripeDonationCompletion = () => {
+        try {
+            const host = (window.location.hostname || '').toLowerCase();
+            if (!host.includes('stripe.com')) return;
+
+            const pathMatch = (window.location.pathname || '').match(/\\/c\\/pay\\/(cs_[a-zA-Z0-9_]+)/);
+            if (!pathMatch || !pathMatch[1]) return;
+            const sessionId = pathMatch[1];
+
+            if (sessionStorage.getItem('sanctuary_checkout_claimed_' + sessionId) === 'true') {
+                return;
+            }
+
+            const bodyText = (document.body && document.body.innerText) ? document.body.innerText : '';
+            const lowerText = bodyText.toLowerCase();
+
+            const isConfirmation =
+                lowerText.includes('thanks for your donation') ||
+                lowerText.includes('thanks for your payment') ||
+                lowerText.includes('thank you for your donation') ||
+                lowerText.includes('thank you for your payment') ||
+                lowerText.includes('thanks for your order') ||
+                lowerText.includes('payment successful') ||
+                lowerText.includes('will appear on your statement');
+
+            const visibleUsd = parseStripeUsdAmounts(bodyText);
+
+            if (!isConfirmation) {
+                if (visibleUsd > 0) {
+                    const prevSub = parseFloat(sessionStorage.getItem('sanctuary_checkout_subtotal_' + sessionId) || '0');
+                    if (visibleUsd > prevSub) {
+                        sessionStorage.setItem('sanctuary_checkout_subtotal_' + sessionId, String(visibleUsd));
+                    }
+                }
+                return;
+            }
+
+            sessionStorage.setItem('sanctuary_checkout_claimed_' + sessionId, 'true');
+
+            const savedSubtotal = parseFloat(sessionStorage.getItem('sanctuary_checkout_subtotal_' + sessionId) || '0');
+            const amountUsd = Math.max(visibleUsd, isNaN(savedSubtotal) ? 0 : savedSubtotal, 5);
+
+            const payload = JSON.stringify({
+                sessionId: sessionId,
+                amountUsd: amountUsd
+            });
+            window.location.hash = 'sanctuary-action=stripeCheckoutSuccess=' + encodeURIComponent(payload);
+        } catch (e) {}
+    };
+
+    setInterval(checkStripeDonationCompletion, 900);
+    checkStripeDonationCompletion();
+}
 `;
+

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { supabase, supabaseAuth } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
-import { renderTextWithIcons, HoverTooltip } from "../../shared";
+import { renderTextWithIcons, HoverTooltip, StatBox } from "../../shared";
 
 let cachedHubCommunities: string[] | null = null;
 let isFetchingHubCommunities = false;
@@ -93,9 +93,10 @@ export function extractDispatchMetadata(post: any, rawContentInput?: string) {
   }
 
   const isPinned = post?.is_pinned === true || post?.is_pinned === "true";
-  const isAlert = Boolean(post?.category?.toLowerCase().includes("alert") || isPinned);
+  const isAlert = Boolean(post?.category?.toLowerCase().includes("alert") || parsedType?.toLowerCase().includes("alert") || isPinned);
 
-  const rawType = post?.category || parsedType || "Update";
+  const isGenericCat = !post?.category || ["alert", "update", "dispatch"].includes(String(post.category).trim().toLowerCase());
+  const rawType = (isGenericCat && parsedType) ? parsedType : (post?.category || parsedType || "Update");
   const finalType = rawType.trim().toLowerCase() === "info" ? "Information" : rawType;
   const rawAudience = post?.target_audience || parsedAudience || "All";
   const finalSeverity = isPinned
@@ -261,7 +262,7 @@ export function DispatchMetadataHeader({
     ? t("dispatch_tt_action_none", "No action is required from recipients for this broadcast.")
     : actionRequired;
 
-  const severityTextClass = isUrgent
+  const severityColorClass = isUrgent
     ? "text-[var(--danger)]"
     : isAlert
       ? "text-[var(--warning)]"
@@ -290,80 +291,46 @@ export function DispatchMetadataHeader({
   }, [typeValue, isAlert, t]);
 
   return (
-    <div
-      className={`w-full rounded-2xl transition-all my-4 overflow-hidden ${
-        isUrgent
-          ? "theme-panel-danger border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
-          : isAlert
-            ? "theme-panel-warning border border-[color-mix(in_srgb,var(--warning)_28%,transparent)]"
-            : "glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
-      }`}
-    >
-      <div className="grid grid-cols-1 sm:grid-cols-2">
-        <div className="flex flex-col justify-center gap-1.5 px-5 py-4 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default min-w-0 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] sm:border-r">
-          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 flex items-center gap-1.5">
-            <span className="material-symbols-outlined !text-[14px] opacity-85">{t("icon_category", "category")}</span>
-            {typeLabel}
-          </span>
-          <span className={`text-sm font-black tracking-wide truncate ${isUrgent ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
-            {typeValue}
-          </span>
-          <HoverTooltip
-            title={typeValue}
-            subtitle={typeTooltipDesc}
-            icon={t("icon_category", "category")}
-            variant={isUrgent ? "danger" : isAlert ? "warning" : "info"}
-          />
-        </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full my-4">
+      <StatBox
+        icon={t("icon_category", "category")}
+        iconColorClass={severityColorClass}
+        label={typeLabel}
+        value={isUrgent ? <span className="text-[var(--danger)]">{typeValue}</span> : typeValue}
+        tooltipTitle={typeValue}
+        tooltipSubtitle={typeTooltipDesc}
+        tooltipVariant={isUrgent ? "danger" : isAlert ? "warning" : "info"}
+      />
 
-        <div className="flex flex-col justify-center gap-1.5 px-5 py-4 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default min-w-0 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 flex items-center gap-1.5">
-            <span className="material-symbols-outlined !text-[14px] opacity-85">{t("icon_groups", "groups")}</span>
-            {t("dispatch_lbl_audience", "Audience")}
-          </span>
-          <span className="text-sm font-black tracking-wide text-[var(--text)] truncate">
-            {audienceDisplay}
-          </span>
-          <HoverTooltip
-            title={audienceTooltipTitle}
-            subtitle={audienceTooltipSubtitle}
-            icon={t("icon_groups", "groups")}
-            variant="accent"
-          />
-        </div>
+      <StatBox
+        icon={t("icon_groups", "groups")}
+        iconColorClass="text-[var(--accent)]"
+        label={t("dispatch_lbl_audience", "Audience")}
+        value={audienceDisplay}
+        tooltipTitle={audienceTooltipTitle}
+        tooltipSubtitle={audienceTooltipSubtitle}
+        tooltipVariant="accent"
+      />
 
-        <div className="flex flex-col justify-center gap-1.5 px-5 py-4 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default min-w-0 border-b sm:border-b-0 sm:border-r border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 flex items-center gap-1.5">
-            <span className="material-symbols-outlined !text-[14px] opacity-85">{t("icon_shield", "shield")}</span>
-            {t("dispatch_lbl_severity", "Severity")}
-          </span>
-          <span className={`text-sm font-black tracking-wide truncate ${severityTextClass}`}>
-            {severityLabel}
-          </span>
-          <HoverTooltip
-            title={severityLabel}
-            subtitle={severityTooltipDesc}
-            icon={t("icon_shield", "shield")}
-            variant={isUrgent ? "danger" : isAlert ? "warning" : "accent"}
-          />
-        </div>
+      <StatBox
+        icon={t("icon_shield", "shield")}
+        iconColorClass={severityColorClass}
+        label={t("dispatch_lbl_severity", "Severity")}
+        value={<span className={severityColorClass}>{severityLabel}</span>}
+        tooltipTitle={severityLabel}
+        tooltipSubtitle={severityTooltipDesc}
+        tooltipVariant={isUrgent ? "danger" : isAlert ? "warning" : "accent"}
+      />
 
-        <div className="flex flex-col justify-center gap-1.5 px-5 py-4 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default min-w-0">
-          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 flex items-center gap-1.5">
-            <span className="material-symbols-outlined !text-[14px] opacity-85">{t("icon_bolt", "bolt")}</span>
-            {t("dispatch_lbl_action_required", "Action Required")}
-          </span>
-          <span className="text-sm font-black tracking-wide text-[var(--text)] truncate">
-            {actionRequired}
-          </span>
-          <HoverTooltip
-            title={t("dispatch_tt_action_title", "Recommended Recipient Action")}
-            subtitle={actionTooltipDesc}
-            icon={t("icon_bolt", "bolt")}
-            variant={!isNoAction ? "warning" : "default"}
-          />
-        </div>
-      </div>
+      <StatBox
+        icon={t("icon_bolt", "bolt")}
+        iconColorClass={!isNoAction ? (isUrgent ? "text-[var(--danger)]" : "text-[var(--warning)]") : "text-[var(--accent)]"}
+        label={t("dispatch_lbl_action_required", "Action Required")}
+        value={actionRequired}
+        tooltipTitle={t("dispatch_tt_action_title", "Recommended Recipient Action")}
+        tooltipSubtitle={actionTooltipDesc}
+        tooltipVariant={!isNoAction ? "warning" : "default"}
+      />
     </div>
   );
 }

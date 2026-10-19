@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { useLexicon } from "../LexiconContext";
 import { ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useModalStore } from "../store/modalStore";
@@ -12,21 +13,48 @@ export function GlobalConfirmDialog() {
 
   const isDefcon = Boolean(confirmDialog.isDefcon);
   const isAlert = Boolean(confirmDialog.isAlert);
+  const isSuccess = Boolean(confirmDialog.isSuccess);
+  const isSingleAction = isAlert || isSuccess;
 
-  const accentVar = isDefcon ? "--danger" : isAlert ? "--warning" : "--accent";
-  const headerIcon = isDefcon
-    ? t("icon_warning_amber", "warning")
-    : isAlert
-      ? t("icon_warning", "warning")
-      : t("icon_help_center", "help_center");
-  const badgeLabel = isDefcon
-    ? t("urgent_alert", "Urgent Alert")
-    : isAlert
-      ? t("category_system", "System")
-      : t("status", "Confirm");
+  const accentVar = isDefcon
+    ? "--danger"
+    : isSuccess
+      ? "--success"
+      : isAlert
+        ? "--warning"
+        : "--accent";
+  const headerIcon =
+    confirmDialog.icon ||
+    (isDefcon
+      ? t("icon_warning_amber", "warning")
+      : isSuccess
+        ? t("icon_verified", "verified")
+        : isAlert
+          ? t("icon_warning", "warning")
+          : t("icon_help_center", "help_center"));
+  const badgeLabel =
+    confirmDialog.badgeLabel ||
+    (isDefcon
+      ? t("urgent_alert", "Urgent Alert")
+      : isSuccess
+        ? t(
+            "supporter_celebration_badge",
+            "Donation Processed • Dev Channel Active",
+          )
+        : isAlert
+          ? t("category_system", "System")
+          : t("status", "Confirm"));
   const titleText =
     confirmDialog.title ||
-    (isDefcon ? t("defcon_alert_title", "Global Alert") : t("status", "Confirmation"));
+    (isDefcon
+      ? t("defcon_alert_title", "Global Alert")
+      : t("status", "Confirmation"));
+  const statsList: Array<{
+    label: string;
+    value: string;
+    subValue?: string;
+    icon?: string;
+  }> = Array.isArray(confirmDialog.stats) ? confirmDialog.stats : [];
 
   const handleCancel = () => {
     if (confirmDialog.cancelAction) confirmDialog.cancelAction();
@@ -34,11 +62,17 @@ export function GlobalConfirmDialog() {
   };
 
   const handleConfirm = () => {
-    confirmDialog.action();
+    if (typeof confirmDialog.action === "function") {
+      confirmDialog.action();
+    }
     setConfirmDialog(null);
   };
 
-  return (
+  const portalRoot =
+    (typeof document !== "undefined" && document.getElementById("sa-portals")) ||
+    (typeof document !== "undefined" ? document.body : null);
+
+  const dialogContent = (
     <div
       className="fixed inset-0 z-[9999999] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md p-6 animate-in fade-in duration-300"
       onClick={handleCancel}
@@ -139,13 +173,56 @@ export function GlobalConfirmDialog() {
           <p className="text-sm font-medium text-[var(--text)] opacity-90 leading-relaxed whitespace-pre-line max-w-md m-0">
             {confirmDialog.message}
           </p>
+
+          {statsList.length > 0 && (
+            <div className="grid grid-cols-3 gap-2.5 w-full mt-4">
+              {statsList.map((stat, idx) => (
+                <div
+                  key={idx}
+                  className="glass-surface rounded-2xl p-3 border flex flex-col items-center justify-center gap-1 text-center"
+                  style={{
+                    borderColor: `color-mix(in srgb, var(${accentVar}) 28%, transparent)`,
+                    backgroundColor: `color-mix(in srgb, var(${accentVar}) 8%, rgba(var(--bg-rgb), 0.55))`,
+                  }}
+                >
+                  <div className="flex items-center gap-1 opacity-75">
+                    {stat.icon && (
+                      <span
+                        className="material-symbols-outlined !text-[13px]"
+                        style={{ color: `var(${accentVar})` }}
+                      >
+                        {stat.icon}
+                      </span>
+                    )}
+                    <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)]">
+                      {stat.label}
+                    </span>
+                  </div>
+                  <span
+                    className="text-sm md:text-base font-black tracking-tight leading-tight"
+                    style={{ color: "var(--text)" }}
+                  >
+                    {stat.value}
+                  </span>
+                  {stat.subValue && (
+                    <span
+                      className="text-[10px] font-mono font-bold opacity-90"
+                      style={{ color: `var(${accentVar})` }}
+                    >
+                      {stat.subValue}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* 50/50 Bottom Action Buttons */}
+        {/* Bottom Action Buttons */}
         <div
-          className={`grid ${isAlert ? "grid-cols-1" : "grid-cols-2"} gap-3.5 w-full mt-2 pt-5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-10`}
+          className={`grid ${isSingleAction ? "grid-cols-1" : "grid-cols-2"} gap-3.5 w-full mt-2 pt-5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-10`}
         >
-          {!isAlert && (
+          {!isSingleAction && (
             <ActionButton
               variant="glass"
               icon={t("icon_close", "close")}
@@ -155,15 +232,26 @@ export function GlobalConfirmDialog() {
             />
           )}
           <ActionButton
-            variant={isDefcon ? "danger" : isAlert ? "warning" : "accent"}
-            icon={
+            variant={
               isDefcon
+                ? "danger"
+                : isSuccess
+                  ? "accent"
+                  : isAlert
+                    ? "warning"
+                    : "accent"
+            }
+            icon={
+              confirmDialog.confirmIcon ||
+              (isDefcon
                 ? t("icon_shield", "shield")
-                : t("icon_check", "check")
+                : isSuccess
+                  ? t("icon_verified", "verified")
+                  : t("icon_check", "check"))
             }
             label={
               confirmDialog.confirmText ||
-              (isAlert ? t("btn_ok") : t("btn_proceed"))
+              (isSingleAction ? t("btn_ok") : t("btn_proceed"))
             }
             onClick={handleConfirm}
             className="w-full !py-3.5"
@@ -172,4 +260,6 @@ export function GlobalConfirmDialog() {
       </div>
     </div>
   );
+
+  return portalRoot ? createPortal(dialogContent, portalRoot) : dialogContent;
 }

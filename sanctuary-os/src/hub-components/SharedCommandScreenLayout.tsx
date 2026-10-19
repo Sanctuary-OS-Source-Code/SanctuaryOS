@@ -2,11 +2,12 @@ import React from 'react';
 import { useLexicon } from '../LexiconContext';
 import { extractPostImage, stripMarkdown, DashboardStatTile } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
-import { formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
+import { extractDispatchMetadata, formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
 
 export { DashboardStatTile };
 
 export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
+    const { t } = useLexicon();
     const scrollRef = React.useRef<HTMLDivElement>(null);
     const [canScrollRight, setCanScrollRight] = React.useState(false);
     const [canScrollLeft, setCanScrollLeft] = React.useState(false);
@@ -49,7 +50,7 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
       <div className="relative group flex items-center w-full">
         {canScrollLeft && (
             <button onClick={() => scrollBy(-300)} className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center bg-[var(--bg-panel)] border border-[var(--border)] rounded-full shadow-xl text-[var(--text)] opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                <span className="material-symbols-outlined text-[16px]">{t("icon_chevron_left", "chevron_left")}</span>
             </button>
         )}
         <div ref={scrollRef} className={`flex w-full overflow-x-auto gap-4 md:gap-6 py-4 items-stretch snap-x scroll-smooth hide-scrollbar ${innerClassName}`}>
@@ -57,22 +58,30 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
         </div>
         {canScrollRight && (
             <button onClick={() => scrollBy(300)} className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center bg-[var(--bg-panel)] border border-[var(--border)] rounded-full shadow-xl text-[var(--text)] opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                <span className="material-symbols-outlined text-[16px]">{t("icon_chevron_right", "chevron_right")}</span>
             </button>
         )}
       </div>
     );
 }
 
-export function AlertStatTile({ number, onClick, active, className = "" }: any) {
+export function AlertStatTile({ broadcast, alertType, onClick, active, className = "" }: any) {
     const { t } = useLexicon();
+    const resolvedAlertType = React.useMemo(() => {
+        if (alertType) return alertType;
+        if (broadcast) {
+            const meta = extractDispatchMetadata(broadcast);
+            return formatDispatchCategory(meta.alertOrDispatchType, t);
+        }
+        return t("comms_btn_alert", "Alert");
+    }, [alertType, broadcast, t]);
     
     return (
         <DashboardStatTile
             className={className}
-            icon={<span className="material-symbols-outlined ">campaign</span>}
-            number="!"
-            label={t("title_sanctuary_alerts")}
+            icon={<span className="material-symbols-outlined ">{broadcast?.icon || t("icon_campaign", "campaign")}</span>}
+            number={resolvedAlertType}
+            label={t("tile_global_alert", "Global Alert")}
             disableBgStrip={true}
             colorClass={active ? "!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_15%,transparent)] animate-pulse w-full" : "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] w-full"}
             onClick={onClick}

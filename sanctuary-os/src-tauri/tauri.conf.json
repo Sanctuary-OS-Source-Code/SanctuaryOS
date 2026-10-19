@@ -58,6 +58,9 @@
   },
   "plugins": {
     "updater": {
+      "windows": {
+        "installMode": "quiet"
+      },
       "endpoints": [
         "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest/download/latest.json"
       ],

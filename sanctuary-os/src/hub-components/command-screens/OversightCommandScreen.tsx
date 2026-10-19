@@ -194,7 +194,7 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
     <CommandScreenLayout>
       <CommandScreenStats gridClassOverride={stats.urgentBroadcast ? "grid-cols-2 lg:grid-cols-4" : undefined}>
         {stats.urgentBroadcast && (
-          <AlertStatTile className="col-span-2" number={stats.urgentBroadcast ? 1 : 0} active={!!stats.urgentBroadcast} onClick={() => setIsAlertsOpen(true)} />
+          <AlertStatTile className="col-span-2" broadcast={stats.urgentBroadcast} number={stats.urgentBroadcast ? 1 : 0} active={!!stats.urgentBroadcast} onClick={() => setIsAlertsOpen(true)} />
         )}
         <DashboardStatTile className={stats.urgentBroadcast ? "col-span-2" : ""} icon={<span className="material-symbols-outlined ">{t("icon_warning_amber")}</span>} number={defconLevel} label={t("defcon_global")} colorClass={getDefconColor(defconLevel)} onClick={onOpenDefcon} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={`${t("stat_nsfw_flags")} / ${t("stat_explicit_flags")}`} colorClass="text-orange-500" onClick={() => { setComplianceFilter('nsfw'); setTab("compliance"); }} />

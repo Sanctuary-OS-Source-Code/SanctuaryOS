@@ -22,12 +22,16 @@ import {
   getKeepersPipelineConfig,
   loadPartnerCommunitiesList,
   checkSupporterDevBuildUpdate,
+  downloadAndInstallReleaseAsset,
+  syncUpdateChannelNotification,
   buildPartnerCheckoutUrl,
   isSandboxDonationUrl,
+  presentSupporterCelebrationModal,
   DEFAULT_KEEPERS_PIPELINE_CONFIG,
   KeepersPipelineConfig,
   LocalSupporterStatePayload,
 } from "../utils/supporterManager";
+import { isDesktop } from "../utils/envUtils";
 import { useModalStore } from "../store/modalStore";
 import packageJson from "../../package.json";
 
@@ -36,7 +40,7 @@ export default function SupporterTab() {
   const session = useStore((state) => state.session);
   const vaultPath = useStore((state) => state.vaultPath);
   const workspaces = useStore((state) => state.workspaces);
-  const { setUpdatePayload, setIsUpdatePanelOpen } = useModalStore();
+  const { setIsUpdatePanelOpen } = useModalStore();
 
   const [supporterState, setSupporterState] =
     useState<LocalSupporterStatePayload>({
@@ -100,6 +104,16 @@ export default function SupporterTab() {
 
   useEffect(() => {
     refreshData();
+    const onSupporterUpdated = () => {
+      refreshData();
+    };
+    window.addEventListener("sanctuary-supporter-updated", onSupporterUpdated);
+    return () => {
+      window.removeEventListener(
+        "sanctuary-supporter-updated",
+        onSupporterUpdated,
+      );
+    };
   }, [vaultPath, session?.user?.id]);
 
   // Only display Partner Communities that have configured a donation_url
@@ -121,18 +135,11 @@ export default function SupporterTab() {
     setCheckingDevStream(true);
     try {
       await refreshData();
-      const res = await checkSupporterDevBuildUpdate(packageJson.version);
+      const res = await syncUpdateChannelNotification({
+        currentVersion: packageJson.version,
+        forceGitHubRefresh: true,
+      });
       if (res && res.updateAvailable) {
-        setUpdatePayload({
-          version: res.version,
-          date: res.date,
-          body: res.notes,
-          isDevChannel: true,
-          isExternalDownload: true,
-          downloadAndInstall: async () => {
-            handleOpenUrl(res.downloadUrl);
-          },
-        } as any);
         setIsUpdatePanelOpen(true);
       } else {
         useStore
@@ -166,6 +173,11 @@ export default function SupporterTab() {
           ...prev,
           dev_build: result.devBuild,
         }));
+        presentSupporterCelebrationModal({
+          devBuildUntil: result.devBuild.dev_build_until,
+          monthsAdded: result.monthsAdded,
+          t,
+        });
         useStore
           .getState()
           .pushStatus(
@@ -192,6 +204,7 @@ export default function SupporterTab() {
     // Automatically poll supporter status in the background while checkout is open so webhook credits appear live
     let attempts = 0;
     const baselineUntil = supporterState.dev_build.dev_build_until || 0;
+    const baselineMonths = supporterState.dev_build.total_months_unlocked || 0;
     const pollTimer = setInterval(async () => {
       attempts += 1;
       if (attempts > 24) {
@@ -203,6 +216,15 @@ export default function SupporterTab() {
         if ((latest.dev_build.dev_build_until || 0) > baselineUntil) {
           setSupporterState(latest);
           clearInterval(pollTimer);
+          const addedMonths = Math.max(
+            1,
+            (latest.dev_build.total_months_unlocked || 0) - baselineMonths,
+          );
+          presentSupporterCelebrationModal({
+            devBuildUntil: latest.dev_build.dev_build_until,
+            monthsAdded: addedMonths,
+            t,
+          });
           useStore
             .getState()
             .pushStatus(
@@ -314,13 +336,31 @@ export default function SupporterTab() {
               icon={t("icon_bolt", "bolt")}
               onClick={async () => {
                 if (!isDevBuildUnlocked) return;
-                const updated = await setDevBuildChannelPreference(
-                  !supporterState.dev_build.channel_enabled,
-                );
+                const nextEnabled = !supporterState.dev_build.channel_enabled;
+                const updated = await setDevBuildChannelPreference(nextEnabled);
                 setSupporterState((prev) => ({
                   ...prev,
                   dev_build: updated,
                 }));
+                await syncUpdateChannelNotification({
+                  currentVersion: packageJson.version,
+                  switchedToChannel: updated.channel_enabled ? "dev" : "stable",
+                  forceGitHubRefresh: true,
+                });
+                useStore
+                  .getState()
+                  .pushStatus(
+                    updated.channel_enabled
+                      ? t(
+                          "supporter_channel_switched_to_dev_toast",
+                          "Switched to Dev Build channel — latest Dev Build is ready to install.",
+                        )
+                      : t(
+                          "supporter_channel_switched_to_stable_toast",
+                          "Switched to Stable channel — latest Stable version is ready to install.",
+                        ),
+                    "success",
+                  );
               }}
               actions={
                 <div
@@ -338,33 +378,34 @@ export default function SupporterTab() {
               }
             >
               <div
-                className={`w-full mt-2 px-4 py-2.5 rounded-xl flex items-center justify-between gap-2 border backdrop-blur-md transition-all ${
+                className={`w-full mt-2 px-3 py-2.5 rounded-xl flex items-center justify-between gap-2 border backdrop-blur-md transition-all ${
                   isDevBuildUnlocked
                     ? "bg-[color-mix(in_srgb,var(--success)_12%,rgba(var(--bg-rgb),0.65))] border-[color-mix(in_srgb,var(--success)_38%,transparent)] text-[var(--success)]"
                     : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)]"
                 }`}
               >
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <span className="material-symbols-outlined !text-[16px] shrink-0">
                     {isDevBuildUnlocked
                       ? t("icon_verified", "verified")
                       : t("icon_lock_clock", "lock_clock")}
                   </span>
-                  <span className="text-[11px] font-black tracking-wide truncate">
+                  <span className="text-[11px] font-black tracking-wide whitespace-nowrap">
                     {isDevBuildUnlocked
                       ? `${remainingDays} ${t("supporter_days_remaining_suffix", "Days Remaining")}`
                       : t("supporter_dev_builds_locked", "Standard Stable Channel")}
                   </span>
                 </div>
-                <span className="text-[10px] font-mono font-bold opacity-90 shrink-0">
+                <span className="text-[10px] font-mono font-bold opacity-90 shrink-0 whitespace-nowrap">
                   {isDevBuildUnlocked
-                    ? `${t("supporter_expires_prefix", "Expires")} ${new Date(
-                        devBuildUntil * 1000,
-                      ).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}`
+                    ? new Date(devBuildUntil * 1000).toLocaleDateString(
+                        undefined,
+                        {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        },
+                      )
                     : t("supporter_stable_fallback_label", "$5 = +30 Days Access")}
                 </span>
               </div>
@@ -658,6 +699,7 @@ export default function SupporterTab() {
           "Verify Patreon or Ko-fi support locally on your PC without cloud tracking",
         )}
         icon={t("icon_encrypted", "encrypted")}
+        iconColorClass="theme-text-accent"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -681,123 +723,144 @@ export default function SupporterTab() {
           </PanelHeaderGroup>
         }
       >
-        <div className="flex flex-col gap-5 w-full">
-          {knownMasons.length > 0 && (
+        <div className="flex flex-col gap-5 relative z-10 w-full">
+          <div className="glass-surface rounded-2xl p-5 border border-[color-mix(in_srgb,var(--success)_30%,transparent)] flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--success)_14%,transparent)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--success)]">
+              <span className="material-symbols-outlined !text-[22px]">
+                {t("icon_lock", "lock")}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-xs font-black tracking-wide text-[var(--success)]">
+                {t("supporter_local_vault_chip", "Local PC Vault")}
+              </span>
+              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                {t(
+                  "supporter_link_pass_card_desc",
+                  "Verify a Patreon or Ko-fi pass locally on your PC (zero cloud tracking) to unlock Priority Support and Early Access."
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="glass-panel rounded-3xl p-6 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-5">
+            {knownMasons.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                  {t("supporter_bridge_creator_label", "Creator Name")}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={bridgeMasonId}
+                  onChange={(val: any) => {
+                    const id = Array.isArray(val) ? val[0] : val;
+                    setBridgeMasonId(id);
+                    const found = knownMasons.find((m) => m.id === id);
+                    if (found) {
+                      setBridgeMasonName(found.name);
+                      if (found.payment_processor) {
+                        setBridgeProvider(found.payment_processor.toLowerCase());
+                      }
+                      if (found.patreon_campaign_id) {
+                        setBridgeCampaignId(found.patreon_campaign_id);
+                      }
+                    }
+                  }}
+                  options={knownMasons.map((m) => ({
+                    id: m.id,
+                    label: m.name,
+                  }))}
+                />
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
                 {t("supporter_bridge_creator_label", "Creator Name")}
+              </label>
+              <input
+                type="text"
+                value={bridgeMasonName}
+                onChange={(e) => setBridgeMasonName(e.target.value)}
+                placeholder="e.g. Deaderpool, LittleMsSam..."
+                className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-all shadow-inner"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                {t(
+                  "supporter_bridge_provider_label",
+                  "Payment Processor / Platform",
+                )}
               </label>
               <CustomDropdown
                 disableTint={true}
-                value={bridgeMasonId}
-                onChange={(val: any) => {
-                  const id = Array.isArray(val) ? val[0] : val;
-                  setBridgeMasonId(id);
-                  const found = knownMasons.find((m) => m.id === id);
-                  if (found) {
-                    setBridgeMasonName(found.name);
-                    if (found.payment_processor) {
-                      setBridgeProvider(found.payment_processor.toLowerCase());
-                    }
-                    if (found.patreon_campaign_id) {
-                      setBridgeCampaignId(found.patreon_campaign_id);
-                    }
-                  }
-                }}
-                options={knownMasons.map((m) => ({
-                  id: m.id,
-                  label: m.name,
-                }))}
+                value={bridgeProvider}
+                onChange={(val: any) =>
+                  setBridgeProvider(Array.isArray(val) ? val[0] : val)
+                }
+                options={[
+                  { id: "patreon", label: "Patreon (Direct Local API Bridge)" },
+                  { id: "kofi", label: "Ko-fi Supporter Pass" },
+                  { id: "stripe", label: "Stripe Receipt / Subscription" },
+                  { id: "fourthwall", label: "Fourthwall Supporter" },
+                  { id: "custom", label: "Direct Creator Key" },
+                ]}
               />
             </div>
-          )}
 
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-              {t("supporter_bridge_creator_label", "Creator Name")}
-            </label>
-            <input
-              type="text"
-              value={bridgeMasonName}
-              onChange={(e) => setBridgeMasonName(e.target.value)}
-              placeholder="e.g. Deaderpool, LittleMsSam..."
-              className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-            />
-          </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                {t(
+                  "supporter_bridge_token_label",
+                  "Patreon Token or Supporter Pass Key",
+                )}
+              </label>
+              <input
+                type="password"
+                value={bridgeToken}
+                onChange={(e) => setBridgeToken(e.target.value)}
+                placeholder={t(
+                  "supporter_bridge_token_ph",
+                  "Paste your token or supporter pass key (saved on your PC only)...",
+                )}
+                className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-all shadow-inner"
+              />
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-              {t(
-                "supporter_bridge_provider_label",
-                "Payment Processor / Platform",
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                {t(
+                  "supporter_bridge_tier_label",
+                  "Supporter Tier Name (Optional)",
+                )}
+              </label>
+              <input
+                type="text"
+                value={bridgeTierName}
+                onChange={(e) => setBridgeTierName(e.target.value)}
+                placeholder="e.g. Early Access Supporter"
+                className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-all shadow-inner"
+              />
+            </div>
+
+            <ActionButton
+              variant="accent"
+              icon={t("icon_encrypted", "encrypted")}
+              label={t(
+                "supporter_bridge_btn_verify",
+                "Verify & Save to Vault",
               )}
-            </label>
-            <CustomDropdown
-              disableTint={true}
-              value={bridgeProvider}
-              onChange={(val: any) =>
-                setBridgeProvider(Array.isArray(val) ? val[0] : val)
+              disabled={
+                isLinkingBridge ||
+                (!bridgeMasonName.trim() && !bridgeMasonId.trim()) ||
+                !bridgeToken.trim()
               }
-              options={[
-                { id: "patreon", label: "Patreon (Direct Local API Bridge)" },
-                { id: "kofi", label: "Ko-fi Supporter Pass" },
-                { id: "stripe", label: "Stripe Receipt / Subscription" },
-                { id: "fourthwall", label: "Fourthwall Supporter" },
-                { id: "custom", label: "Direct Creator Key" },
-              ]}
+              onClick={handleLinkMasonBridge}
+              className="w-full"
             />
           </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-              {t(
-                "supporter_bridge_token_label",
-                "Patreon Token or Supporter Pass Key",
-              )}
-            </label>
-            <input
-              type="password"
-              value={bridgeToken}
-              onChange={(e) => setBridgeToken(e.target.value)}
-              placeholder={t(
-                "supporter_bridge_token_ph",
-                "Paste your token or supporter pass key (saved on your PC only)...",
-              )}
-              className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-              {t(
-                "supporter_bridge_tier_label",
-                "Supporter Tier Name (Optional)",
-              )}
-            </label>
-            <input
-              type="text"
-              value={bridgeTierName}
-              onChange={(e) => setBridgeTierName(e.target.value)}
-              placeholder="e.g. Early Access Supporter"
-              className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-            />
-          </div>
-
-          <ActionButton
-            variant="accent"
-            icon={t("icon_encrypted", "encrypted")}
-            label={t(
-              "supporter_bridge_btn_verify",
-              "Verify & Save to Vault",
-            )}
-            disabled={
-              isLinkingBridge ||
-              (!bridgeMasonName.trim() && !bridgeMasonId.trim()) ||
-              !bridgeToken.trim()
-            }
-            onClick={handleLinkMasonBridge}
-            className="w-full"
-          />
         </div>
       </SidePanel>
     </>

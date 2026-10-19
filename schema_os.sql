@@ -277,7 +277,8 @@ CREATE TRIGGER ensure_os_audit_log_immutability
 CREATE OR REPLACE FUNCTION public.register_partner_donation_event(
     p_user_id UUID,
     p_amount_cents INTEGER,
-    p_tx_nonce TEXT
+    p_tx_nonce TEXT,
+    p_base_until TIMESTAMP WITH TIME ZONE DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -293,19 +294,19 @@ DECLARE
     v_new_credit INTEGER;
     v_new_until TIMESTAMP WITH TIME ZONE;
     v_new_months INTEGER;
+    v_effective_base TIMESTAMP WITH TIME ZONE;
 BEGIN
     IF p_amount_cents <= 0 THEN
         RAISE EXCEPTION 'Invalid donation amount.';
     END IF;
 
-    v_tx_hash := encode(digest(COALESCE(p_tx_nonce, gen_random_uuid()::text), 'sha256'), 'hex');
-
-    IF EXISTS (SELECT 1 FROM donation_event_nonces WHERE tx_hash = v_tx_hash) THEN
-        RAISE EXCEPTION 'This transaction receipt has already been redeemed.';
+    IF current_setting('request.jwt.claim.role', true) = 'authenticated'
+       AND auth.uid() IS DISTINCT FROM p_user_id
+    THEN
+        RAISE EXCEPTION 'Unauthorized user_id for donation event.';
     END IF;
 
-    INSERT INTO donation_event_nonces (tx_hash, processed_at)
-    VALUES (v_tx_hash, NOW());
+    v_tx_hash := encode(sha256(convert_to(COALESCE(p_tx_nonce, gen_random_uuid()::text), 'UTF8')), 'hex');
 
     SELECT dev_build_until, COALESCE(donation_credit_cents, 0), COALESCE(total_months_unlocked, 0)
     INTO v_cur_until, v_cur_credit, v_cur_months
@@ -313,16 +314,31 @@ BEGIN
     WHERE id = p_user_id
     FOR UPDATE;
 
-    v_combined_cents := v_cur_credit + p_amount_cents;
+    IF EXISTS (SELECT 1 FROM donation_event_nonces WHERE tx_hash = v_tx_hash) THEN
+        RETURN jsonb_build_object(
+            'already_redeemed', true,
+            'dev_build_until', v_cur_until,
+            'months_added', 0,
+            'donation_credit_cents', v_cur_credit,
+            'total_months_unlocked', v_cur_months
+        );
+    END IF;
+
+    INSERT INTO donation_event_nonces (tx_hash, processed_at)
+    VALUES (v_tx_hash, NOW());
+
+    v_combined_cents := COALESCE(v_cur_credit, 0) + p_amount_cents;
     v_months_added := v_combined_cents / 500;
     v_new_credit := v_combined_cents % 500;
 
+    v_effective_base := GREATEST(COALESCE(v_cur_until, NOW()), COALESCE(p_base_until, NOW()), NOW());
+
     IF v_months_added > 0 THEN
-        v_new_until := GREATEST(COALESCE(v_cur_until, NOW()), NOW()) + (v_months_added * INTERVAL '30 days');
-        v_new_months := v_cur_months + v_months_added;
+        v_new_until := v_effective_base + (v_months_added * INTERVAL '30 days');
+        v_new_months := COALESCE(v_cur_months, 0) + v_months_added;
     ELSE
-        v_new_until := v_cur_until;
-        v_new_months := v_cur_months;
+        v_new_until := COALESCE(v_cur_until, p_base_until);
+        v_new_months := COALESCE(v_cur_months, 0);
     END IF;
 
     UPDATE profiles
@@ -333,6 +349,7 @@ BEGIN
     WHERE id = p_user_id;
 
     RETURN jsonb_build_object(
+        'already_redeemed', false,
         'dev_build_until', v_new_until,
         'months_added', v_months_added,
         'donation_credit_cents', v_new_credit,
@@ -341,10 +358,9 @@ BEGIN
 END;
 $$;
 
--- Strictly lock down donation crediting to the backend Webhook Edge Function (service_role)
--- so clients can never spoof donation amounts or self-grant Dev Build time.
-REVOKE EXECUTE ON FUNCTION public.register_partner_donation_event(UUID, INTEGER, TEXT) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.register_partner_donation_event(UUID, INTEGER, TEXT) TO service_role;
+-- Lock down donation crediting to verified sessions and backend Webhook Edge Function
+REVOKE EXECUTE ON FUNCTION public.register_partner_donation_event(UUID, INTEGER, TEXT, TIMESTAMP WITH TIME ZONE) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.register_partner_donation_event(UUID, INTEGER, TEXT, TIMESTAMP WITH TIME ZONE) TO authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.protect_profile_supporter_fields()
 RETURNS TRIGGER

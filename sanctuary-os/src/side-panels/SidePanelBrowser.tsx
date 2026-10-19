@@ -31,7 +31,7 @@ export default function SidePanelBrowser() {
     isBackingUp, isRestoring, showDefconAlert
   } = useModalStore();
 
-  const isBlockingModalOpen = dnaMatchQueue.length > 0 || !!confirmDialog || showQuarantineModal || showBrokenModal ||
+  const isBlockingModalOpen = dnaMatchQueue.length > 0 || !!confirmDialog || showQuarantineModal ||
     snapshotModal || bulkModal || !!renameModal || localFolderModal || !!yeetConfirmPending || false /* scoutQueue removed */ ||
     isBackingUp || isRestoring || showDefconAlert;
 
@@ -131,6 +131,43 @@ export default function SidePanelBrowser() {
                   import("@tauri-apps/plugin-clipboard-manager").then(({ writeText }) => {
                     writeText(textToCopy).catch(console.error);
                   });
+                } else if (action.startsWith('stripeCheckoutSuccess=')) {
+                  try {
+                    const rawPayload = decodeURIComponent(action.substring('stripeCheckoutSuccess='.length));
+                    const parsed = JSON.parse(rawPayload);
+                    const sessionId = String(parsed.sessionId || '').trim();
+                    const amountUsd = Math.max(5, Number(parsed.amountUsd || 5));
+                    if (sessionId) {
+                      setTimeout(() => {
+                        import('../utils/supporterManager').then(({ stackGlobalDevBuildDonation, presentSupporterCelebrationModal }) => {
+                          stackGlobalDevBuildDonation({
+                            amountUsd,
+                            txNonce: `stripe_${sessionId}`,
+                          })
+                            .then((res) => {
+                              window.dispatchEvent(new CustomEvent('sanctuary-supporter-updated'));
+                              presentSupporterCelebrationModal({
+                                devBuildUntil: res.devBuild.dev_build_until,
+                                monthsAdded: res.monthsAdded,
+                                t,
+                              });
+                              useStore.getState().pushStatus(
+                                t(
+                                  'supporter_status_stacked',
+                                  'Global Daily Dev Build access updated! +30 days per $5 stacked to your account.',
+                                ),
+                                'success',
+                              );
+                            })
+                            .catch(() => {
+                              window.dispatchEvent(new CustomEvent('sanctuary-supporter-updated'));
+                            });
+                        });
+                      }, 950);
+                    }
+                  } catch (err) {
+                    console.error('Failed to process stripeCheckoutSuccess:', err);
+                  }
                 }
                 invoke('webview_eval', { label: activeLabel, script: "window.history.replaceState(null, '', window.location.pathname + window.location.search);" }).catch(console.error);
                 return;
@@ -491,7 +528,7 @@ export default function SidePanelBrowser() {
         isOpen={isSideBrowserOpen}
         keepMounted={true}
         onClose={() => setIsSideBrowserOpen(false)}
-        backdropZ="z-[100004]"
+        backdropZ="z-[999999]"
         panelZ="z-[1000000]"
         hideHeader={true}
         noPadding={true}

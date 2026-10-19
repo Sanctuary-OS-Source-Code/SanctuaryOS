@@ -4,6 +4,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  StatBox,
   HoverTooltip,
   handleOpenUrl,
 } from "../shared";
@@ -16,12 +17,15 @@ import MarkdownRenderer from "../MarkdownRenderer";
 import { DispatchPollViewer } from "../components/universal/DispatchPollAndMeta";
 import {
   getKeepersPipelineConfig,
+  downloadAndInstallReleaseAsset,
   DEFAULT_KEEPERS_PIPELINE_CONFIG,
   KeepersPipelineConfig,
 } from "../utils/supporterManager";
+import { isDesktop } from "../utils/envUtils";
 import {
   KeepersReleasePostRecord,
   LEGACY_BLOG_BROADCAST_TITLE,
+  StructuredReleaseNotesView,
   cleanPostBodyForViewer,
   parseSeedCommunityBlog,
   parseLatestChangelogBlock,
@@ -43,6 +47,9 @@ export function UpdateSidePanel() {
   const setStatus = useStore((state) => state.setStatus);
 
   const [isInstalling, setIsInstalling] = useState(false);
+  const [installStage, setInstallStage] = useState<
+    "idle" | "downloading" | "installing" | "relaunching"
+  >("idle");
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [activeView, setActiveView] = useState<"post" | "changelog">("post");
   const [isSyncing, setIsSyncing] = useState(false);
@@ -223,16 +230,15 @@ export function UpdateSidePanel() {
       const rawTag =
         version.startsWith("v") || version.startsWith("V") ? version : `v${version}`;
       setLiveReleaseNotes(null);
-      fetch(
-        `https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/${rawTag}`
-      )
-        .then((res) =>
-          res.ok
-            ? res
-            : fetch(
-                `https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/${rawTag.toLowerCase()}`
-              )
-        )
+      const primaryUrl = `https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/${rawTag}`;
+      const fallbackUrl =
+        rawTag !== rawTag.toLowerCase()
+          ? `https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/${rawTag.toLowerCase()}`
+          : isDevUpdate
+            ? "https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/dev-latest"
+            : primaryUrl;
+      fetch(primaryUrl)
+        .then((res) => (res.ok ? res : fetch(fallbackUrl)))
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data && data.body) {
@@ -241,7 +247,7 @@ export function UpdateSidePanel() {
         })
         .catch((err) => console.error("Failed to fetch live release notes:", err));
     }
-  }, [updatePayload, isUpdatePanelOpen]);
+  }, [updatePayload, isUpdatePanelOpen, isDevUpdate]);
 
   const handleRefreshReleaseData = async () => {
     setIsSyncing(true);
@@ -261,37 +267,77 @@ export function UpdateSidePanel() {
   const handleInstallUpdate = async () => {
     if (!updatePayload || isInstalling) return;
     setIsInstalling(true);
-    setDownloadProgress(null);
+    setInstallStage("downloading");
+    setDownloadProgress(0);
     setStatus(t("status_downloading_update", "Downloading Update..."));
     try {
       let totalBytes = 0;
       let downloadedBytes = 0;
-      await updatePayload.downloadAndInstall((event: any) => {
-        if (event?.event === "Started" && event?.data?.contentLength) {
-          totalBytes = Number(event.data.contentLength) || 0;
+      const handleProgressEvent = (event: any) => {
+        if (event?.event === "Started") {
+          setInstallStage("downloading");
+          totalBytes = Number(event?.data?.contentLength) || 0;
           setDownloadProgress(0);
         } else if (event?.event === "Progress" && event?.data?.chunkLength) {
+          setInstallStage("downloading");
           downloadedBytes += Number(event.data.chunkLength) || 0;
           if (totalBytes > 0) {
             setDownloadProgress(
               Math.min(100, Math.round((downloadedBytes / totalBytes) * 100))
             );
           }
-        } else if (event?.event === "Finished") {
+        } else if (event?.event === "Finished" || event?.event === "Installing") {
           setDownloadProgress(100);
+          setInstallStage("installing");
+          setStatus(t("update_panel_installing", "Installing Update..."));
+        } else if (event?.event === "Relaunching") {
+          setDownloadProgress(100);
+          setInstallStage("relaunching");
+          setStatus(t("status_restarting", "Restarting Sanctuary OS..."));
         }
-      });
-      if (updatePayload.isExternalDownload) {
+      };
+
+      // On Desktop, always run the silent in-app Rust downloader & /UPDATE /S /R installer so no Windows setup dialog appears
+      if (isDesktop()) {
+        const targetVer = String(updatePayload.version || "")
+          .replace(/^v/i, "")
+          .trim();
+        const fallbackUrl =
+          updatePayload.downloadUrl ||
+          (isDevUpdate
+            ? pipelineConfig.dev_build_download_url ||
+              pipelineConfig.dev_release_url ||
+              GITHUB_WEB_DEV_RELEASE_URL
+            : pipelineConfig.stable_exe_url ||
+              pipelineConfig.stable_msi_url ||
+              pipelineConfig.stable_release_url ||
+              GITHUB_RELEASES_WEB_URL);
+        await downloadAndInstallReleaseAsset(
+          fallbackUrl,
+          targetVer,
+          isDevUpdate,
+          handleProgressEvent
+        );
+        setInstallStage("relaunching");
+        setStatus(t("status_restarting", "Restarting Sanctuary OS..."));
+        return;
+      }
+
+      await updatePayload.downloadAndInstall(handleProgressEvent);
+      if (updatePayload.isExternalDownload && !isDesktop()) {
         setIsInstalling(false);
+        setInstallStage("idle");
         setDownloadProgress(null);
         setIsUpdatePanelOpen(false);
         return;
       }
+      setInstallStage("relaunching");
       setStatus(t("status_restarting", "Restarting Sanctuary OS..."));
       await relaunch();
     } catch (e) {
       setStatus(`${t("update_panel_failed_prefix", "Update Failed:")} ${e}`);
       setIsInstalling(false);
+      setInstallStage("idle");
       setDownloadProgress(null);
     }
   };
@@ -304,9 +350,6 @@ export function UpdateSidePanel() {
     activePostRecord.version ||
     defaultStableVersion
   )
-    .replace(/^v/i, "")
-    .trim();
-  const cleanInstalledVersion = String(packageJson.version || "0.5.8")
     .replace(/^v/i, "")
     .trim();
 
@@ -335,26 +378,39 @@ export function UpdateSidePanel() {
         ? `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${cleanTargetVersion}`
         : GITHUB_RELEASES_WEB_URL);
 
-  const stableGitHubChangelog = pipelineConfig.stable_release_notes?.trim()
-    ? pipelineConfig.stable_release_notes.trim()
+  const isDetailedChangelog = (raw?: string | null): boolean => {
+    const trimmed = String(raw || "").trim();
+    if (!trimmed) return false;
+    const placeholderStr = "See the assets to download this version and install.";
+    const simStr = "This is a simulated update payload for UI testing.";
+    const defaultDevNote =
+      "Daily Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).";
+    if (
+      trimmed === placeholderStr ||
+      trimmed === simStr ||
+      trimmed === defaultDevNote
+    ) {
+      return false;
+    }
+    return (
+      trimmed.length > 140 &&
+      (trimmed.includes("\n") || trimmed.includes("- ") || trimmed.includes("#"))
+    );
+  };
+
+  const stableGitHubChangelog = isDetailedChangelog(pipelineConfig.stable_release_notes)
+    ? pipelineConfig.stable_release_notes!.trim()
     : bundledNerdChangelog;
 
-  const devGitHubChangelog = pipelineConfig.dev_build_notes?.trim()
-    ? pipelineConfig.dev_build_notes.trim()
+  const devGitHubChangelog = isDetailedChangelog(pipelineConfig.dev_build_notes)
+    ? pipelineConfig.dev_build_notes!.trim()
     : seedChangelog.markdown || bundledNerdChangelog;
 
   const resolvedChangelogMarkdown = (() => {
-    const placeholderStr = "See the assets to download this version and install.";
-    const simStr = "This is a simulated update payload for UI testing.";
-    if (liveReleaseNotes && liveReleaseNotes.trim() && liveReleaseNotes.trim() !== placeholderStr) {
-      return liveReleaseNotes.trim();
+    if (isDetailedChangelog(liveReleaseNotes)) {
+      return liveReleaseNotes!.trim();
     }
-    if (
-      updatePayload.body &&
-      String(updatePayload.body).trim() &&
-      String(updatePayload.body).trim() !== placeholderStr &&
-      String(updatePayload.body).trim() !== simStr
-    ) {
+    if (isDetailedChangelog(updatePayload.body)) {
       return String(updatePayload.body).trim();
     }
     return isDevUpdate ? devGitHubChangelog : stableGitHubChangelog;
@@ -370,125 +426,35 @@ export function UpdateSidePanel() {
       ? resolvedChangelogMarkdown
       : cleanPostBodyForViewer(activePostRecord.body);
 
-  const renderReleaseInfoPanel = (
-    dateVal: string,
-    versionVal: string,
-    isDevChan: boolean,
-    platformVal: string
-  ) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full my-2">
-      <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3.5 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default">
-        <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-          <span className="material-symbols-outlined !text-[20px]">
-            {t("icon_calendar_today", "calendar_today")}
-          </span>
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-            {t("release_notes_meta_release_date", "Release Date")}
-          </span>
-          <span className="text-xs font-black tracking-wide text-[var(--text)] truncate mt-0.5">
-            {dateVal}
-          </span>
-        </div>
-        <HoverTooltip
-          title={t("release_notes_meta_release_date", "Release Date")}
-          subtitle={dateVal}
-          icon={t("icon_calendar_today", "calendar_today")}
-          variant="info"
-        />
-      </div>
+  const canAutoInstall = isDesktop() || !updatePayload.isExternalDownload;
 
-      <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3.5 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default">
-        <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-          <span className="material-symbols-outlined !text-[20px]">
-            {t("icon_tag", "tag")}
-          </span>
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-            {t("release_notes_meta_version", "Version Number")}
-          </span>
-          <span className="text-xs font-mono font-black tracking-wide text-[var(--accent)] truncate mt-0.5">
-            v{versionVal.replace(/^v/i, "")}
-          </span>
-        </div>
-        <HoverTooltip
-          title={t("release_notes_meta_version", "Version Number")}
-          subtitle={`v${versionVal.replace(/^v/i, "")}`}
-          icon={t("icon_tag", "tag")}
-          variant="accent"
-        />
-      </div>
+  const activeChannelShort = isDevUpdate
+    ? t("release_notes_meta_channel_dev", "Dev")
+    : t("release_notes_meta_channel_public", "Public");
 
-      <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3.5 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default">
-        <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-            isDevChan
-              ? "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)]"
-              : "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]"
-          }`}
-        >
-          <span className="material-symbols-outlined !text-[20px]">
-            {isDevChan ? t("icon_bolt", "bolt") : t("icon_verified", "verified")}
-          </span>
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-            {t("release_notes_meta_channel", "Channel")}
-          </span>
-          <span
-            className={`text-xs font-black uppercase tracking-widest truncate mt-0.5 ${
-              isDevChan ? "text-[var(--success)]" : "text-[var(--text)]"
-            }`}
-          >
-            {isDevChan
-              ? t("release_notes_meta_channel_dev", "Dev")
-              : t("release_notes_meta_channel_public", "Public")}
-          </span>
-        </div>
-        <HoverTooltip
-          title={t("release_notes_meta_channel", "Channel")}
-          subtitle={
-            isDevChan
-              ? t("release_notes_dev_channel_badge", "Daily Dev Build")
-              : t("release_notes_stable_channel_badge", "Stable Release")
-          }
-          icon={isDevChan ? t("icon_bolt", "bolt") : t("icon_verified", "verified")}
-          variant={isDevChan ? "success" : "accent"}
-        />
-      </div>
-
-      <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3.5 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default">
-        <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-          <span className="material-symbols-outlined !text-[20px]">
-            {t("icon_devices", "devices")}
-          </span>
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-            {t("release_notes_meta_platform", "Platform")}
-          </span>
-          <span className="text-xs font-black tracking-wide text-[var(--text)] truncate mt-0.5">
-            {platformVal}
-          </span>
-        </div>
-        <HoverTooltip
-          title={t("release_notes_meta_platform", "Platform")}
-          subtitle={platformVal}
-          icon={t("icon_devices", "devices")}
-          variant="info"
-        />
-      </div>
-    </div>
-  );
+  const installStatusText = (() => {
+    if (!isInstalling) {
+      return canAutoInstall
+        ? t("update_panel_btn_install", "Install & Restart")
+        : t("update_panel_btn_download", "Download Update");
+    }
+    if (installStage === "relaunching") {
+      return t("status_restarting", "Restarting Sanctuary OS...");
+    }
+    if (installStage === "installing") {
+      return t("update_panel_installing", "Installing Update...");
+    }
+    return downloadProgress !== null
+      ? `${t("status_downloading_update", "Downloading Update...")} (${downloadProgress}%)`
+      : t("status_downloading_update", "Downloading Update...");
+  })();
 
   return (
     <SidePanel
       isOpen={isUpdatePanelOpen}
       onClose={() => setIsUpdatePanelOpen(false)}
       title={t("update_panel_title", "System Update")}
-      subtitle={`${activeChannelBadge} • v${cleanTargetVersion}`}
+      subtitle={`${activeChannelBadge} v${cleanTargetVersion}`}
       icon={t("icon_system_update_alt", "system_update_alt")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[55vw] max-w-5xl"
@@ -507,27 +473,25 @@ export function UpdateSidePanel() {
             className={isSyncing ? "animate-spin" : ""}
           />
           <PanelHeaderButton
+            onClick={handleInstallUpdate}
+            disabled={isInstalling}
+            variant="success"
+            tooltip={installStatusText}
             icon={
               isInstalling
                 ? t("icon_sync", "sync")
-                : t("icon_system_update_alt", "system_update_alt")
+                : canAutoInstall
+                  ? t("icon_system_update_alt", "system_update_alt")
+                  : t("icon_download", "download")
             }
-            tooltip={
-              isInstalling
-                ? t("update_panel_installing", "Installing Update...")
-                : t("update_panel_install", "Install")
-            }
-            variant="accent"
-            disabled={isInstalling}
             className={isInstalling ? "animate-spin" : ""}
-            onClick={handleInstallUpdate}
           />
         </PanelHeaderGroup>
       }
     >
       <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col relative">
         {activeView === "post" && activePostRecord.imageUrl && (
-          <div className="w-full h-56 sm:h-72 relative shrink-0 overflow-hidden border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+          <div className="w-full h-56 sm:h-72 relative shrink-0 overflow-hidden">
             <img
               src={activePostRecord.imageUrl}
               alt={activeTitle}
@@ -537,143 +501,200 @@ export function UpdateSidePanel() {
           </div>
         )}
 
-        <div className="px-4 sm:px-8 md:px-12 pb-12 pt-8 gap-6 flex flex-col flex-1 relative z-20 min-w-0">
-          {isInstalling && (
-            <div className="w-full h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden relative z-10">
-              <div
-                className="h-full bg-[var(--accent)] transition-all duration-300 rounded-full shadow-[0_0_12px_var(--accent)]"
-                style={{
-                  width:
-                    downloadProgress !== null ? `${Math.max(8, downloadProgress)}%` : "100%",
-                }}
-              />
+        <div className="px-4 sm:px-8 md:px-10 pb-12 pt-6 gap-6 flex flex-col flex-1 relative z-20 min-w-0">
+          {/* 3-Column View Switcher Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_menu_book", "menu_book")}
+              value={t("release_notes_tile_post", "Post")}
+              label={t("release_notes_tile_view", "View")}
+              colorClass="text-[var(--accent)]"
+              isActive={activeView === "post"}
+              onClick={() => setActiveView("post")}
+              tooltipTitle={t("release_notes_tab_blog", "Community Blog")}
+              tooltipSubtitle={t(
+                "release_notes_tile_post_desc",
+                "Read the formatted community dispatch post for this release.",
+              )}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_terminal", "terminal")}
+              value={t("release_notes_tile_changelog", "Changelog")}
+              label={t("release_notes_tile_view", "View")}
+              colorClass="text-[var(--accent)]"
+              isActive={activeView === "changelog"}
+              onClick={() => setActiveView("changelog")}
+              tooltipTitle={t("release_notes_tab_changelog", "Technical Log")}
+              tooltipSubtitle={t(
+                "release_notes_tile_changelog_desc",
+                "Inspect the full technical commit and architecture changelog.",
+              )}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_open_in_new", "open_in_new")}
+              value={t("release_notes_tile_github", "On GitHub")}
+              label={t("release_notes_tile_view", "View")}
+              colorClass="text-[var(--text)]"
+              isActive={false}
+              onClick={() => handleOpenUrl(activeGitHubUrl)}
+              tooltipTitle={t("update_panel_view_github", "View on GitHub")}
+              tooltipSubtitle={activeGitHubUrl}
+            />
+          </div>
+
+          {/* Title, Author & Centered Enlarged Install Button */}
+          <div className="flex flex-wrap items-center justify-between gap-6 relative z-20">
+            <div className="flex flex-col gap-5 min-w-0 flex-1">
+              <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight text-[var(--text)] break-words">
+                {activeTitle}
+              </h1>
+
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,var(--surface))] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-inner">
+                  <span className="material-symbols-outlined !text-[22px]">
+                    {t("icon_memory", "memory")}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-0.5 z-20 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base sm:text-lg font-black capitalize tracking-tight text-[var(--text)] leading-tight">
+                      {t("author_sanctuary_team", "Sanctuary Foundry")}
+                    </span>
+                    <span className="relative inline-flex items-center cursor-default">
+                      <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                        {t("icon_verified", "verified")}
+                      </span>
+                      <HoverTooltip
+                        title={t("verified", "Verified")}
+                        icon={t("icon_verified", "verified")}
+                        variant="default"
+                      />
+                    </span>
+                  </div>
+                  <span className="text-xs sm:text-[13px] font-medium text-[var(--subtext)] opacity-85">
+                    {t("release_notes_author_subtitle", "Official Release Dispatch")}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center self-stretch sm:px-4 lg:px-8 shrink-0">
+              <button
+                type="button"
+                onClick={handleInstallUpdate}
+                disabled={isInstalling}
+                className="glass-panel before:!hidden rounded-3xl px-7 py-4 sm:px-8 sm:py-4.5 flex items-center justify-center gap-3.5 border !border-[color-mix(in_srgb,var(--success)_55%,rgba(var(--text-rgb),0.25))] hover:!border-[var(--success)] hover:brightness-110 transition-all duration-300 active:scale-[0.99] disabled:pointer-events-none shrink-0 cursor-pointer relative overflow-hidden group"
+              >
+                <div
+                  className="absolute inset-0 rounded-[inherit] pointer-events-none"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, color-mix(in srgb, var(--success) 18%, rgba(var(--text-rgb, 255, 255, 255), 0.08)) 0%, color-mix(in srgb, var(--success) 4%, transparent) 100%)",
+                  }}
+                />
+                {isInstalling && downloadProgress !== null && (
+                  <div
+                    className="absolute inset-y-0 left-0 pointer-events-none transition-all duration-200"
+                    style={{
+                      width: `${downloadProgress}%`,
+                      background:
+                        "linear-gradient(90deg, color-mix(in srgb, var(--success) 28%, transparent) 0%, color-mix(in srgb, var(--success) 14%, transparent) 100%)",
+                    }}
+                  />
+                )}
+                <span
+                  className={`material-symbols-outlined !text-[24px] text-[var(--success)] relative z-10 transition-transform duration-300 group-hover:scale-110 ${
+                    isInstalling ? "animate-spin" : ""
+                  }`}
+                >
+                  {isInstalling
+                    ? t("icon_sync", "sync")
+                    : canAutoInstall
+                      ? t("icon_system_update_alt", "system_update_alt")
+                      : t("icon_download", "download")}
+                </span>
+                <span className="text-base sm:text-lg font-black tracking-tight text-[var(--text)] relative z-10">
+                  {installStatusText}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* 4-Column Release Telemetry StatBox Row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+            <StatBox
+              icon={t("icon_calendar_today", "calendar_today")}
+              iconColorClass="text-[var(--accent)]"
+              label={t("release_notes_meta_release_date", "Release Date")}
+              value={resolvedDateStr}
+              tooltipSubtitle={resolvedDateStr}
+            />
+            <StatBox
+              icon={t("icon_tag", "tag")}
+              iconColorClass="text-[var(--accent)]"
+              label={t("release_notes_meta_version", "Version Number")}
+              value={`v${cleanTargetVersion}`}
+              tooltipSubtitle={`v${cleanTargetVersion}`}
+            />
+            <StatBox
+              icon={
+                isDevUpdate
+                  ? t("icon_bolt", "bolt")
+                  : t("icon_verified", "verified")
+              }
+              iconColorClass={
+                isDevUpdate ? "text-[var(--warning)]" : "text-[var(--success)]"
+              }
+              label={t("release_notes_meta_channel", "Channel")}
+              value={activeChannelShort}
+              tooltipSubtitle={activeChannelBadge}
+            />
+            <StatBox
+              icon={t("icon_devices", "devices")}
+              iconColorClass="text-[var(--accent)]"
+              label={t("release_notes_meta_platform", "Platform")}
+              value={activePlatformStr}
+              tooltipSubtitle={activePlatformStr}
+            />
+          </div>
+
+          {/* Structured Card-Based Release Notes Body */}
+          {activeMarkdownContent ? (
+            <StructuredReleaseNotesView content={activeMarkdownContent} />
+          ) : (
+            <div className="text-center py-12 opacity-50 font-bold capitalize text-[10px] tracking-widest flex flex-col items-center gap-2">
+              <span className="material-symbols-outlined !text-[24px]">
+                {t("icon_visibility_off", "visibility_off")}
+              </span>
+              {t("update_panel_no_notes", "No Release Notes Provided")}
             </div>
           )}
 
-          {/* Landing Page Style StatTile Navigation: View -> Post / Changelog / On GitHub */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={
-                <span className="material-symbols-outlined">
-                  {t("icon_menu_book", "menu_book")}
-                </span>
-              }
-              label={t("release_notes_tile_view", "View")}
-              number={t("release_notes_tile_post", "Post")}
-              isActive={activeView === "post"}
-              onClick={() => setActiveView("post")}
+          {activeView === "post" && activePostRecord.codeSnippet && (
+            <pre className="w-full glass-surface rounded-2xl p-5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-x-auto custom-scrollbar">
+              <code>{activePostRecord.codeSnippet}</code>
+            </pre>
+          )}
+
+          {activeView === "post" && activePostRecord.pollData && (
+            <DispatchPollViewer
+              post={{
+                id:
+                  activePostRecord.id ||
+                  `release-post-${isDevUpdate ? "dev" : "stable"}`,
+                poll_data: activePostRecord.pollData,
+                _sourceTable: "keeper_system_broadcasts",
+              }}
+              userId={session?.user?.id || null}
             />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={
-                <span className="material-symbols-outlined">
-                  {t("icon_terminal", "terminal")}
-                </span>
-              }
-              label={t("release_notes_tile_view", "View")}
-              number={t("release_notes_tile_changelog", "Changelog")}
-              isActive={activeView === "changelog"}
-              onClick={() => setActiveView("changelog")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={
-                <span className="material-symbols-outlined">
-                  {t("icon_open_in_new", "open_in_new")}
-                </span>
-              }
-              label={t("release_notes_tile_view", "View")}
-              number={t("release_notes_tile_on_github", "On GitHub")}
-              isActive={false}
-              onClick={() => handleOpenUrl(activeGitHubUrl)}
-            />
-          </div>
-
-          {/* Comm-Link Style Post Header & 2x2 Frosted-Glass Release Info Panel */}
-          <div className="flex flex-col gap-4 mt-2 min-w-0">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter drop-shadow-sm leading-tight text-[var(--text)] break-words">
-              {activeTitle}
-            </h1>
-
-            <div className="flex items-center gap-4 mt-1 mb-0 relative z-20">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg shrink-0 overflow-hidden glass-surface border border-[color-mix(in_srgb,var(--text)_20%,transparent)] backdrop-blur-md">
-                <span className="material-symbols-outlined !text-[24px] text-[var(--text)] drop-shadow-md">
-                  {t("icon_memory", "memory")}
-                </span>
-              </div>
-
-              <div className="flex flex-col z-20">
-                <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-black capitalize tracking-widest text-[var(--text)]">
-                    {t("author_sanctuary_team", "Sanctuary Foundry")}
-                  </span>
-                  <span className="relative inline-flex items-center cursor-default">
-                    <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                      {t("icon_verified", "verified")}
-                    </span>
-                    <HoverTooltip
-                      title={t("verified", "Verified")}
-                      icon={t("icon_verified", "verified")}
-                      variant="accent"
-                    />
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                  <span className="text-[11px] font-bold text-[var(--subtext)] font-mono tracking-widest opacity-80 flex items-center gap-1.5">
-                    <span className="material-symbols-outlined !text-[12px] opacity-60">
-                      {t("icon_schedule", "schedule")}
-                    </span>
-                    {resolvedDateStr}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {renderReleaseInfoPanel(
-              resolvedDateStr,
-              cleanTargetVersion,
-              isDevUpdate,
-              activePlatformStr
-            )}
-
-            <div className="flex-1 flex flex-col mt-2 gap-6 min-w-0">
-              {activeMarkdownContent ? (
-                <div className="markdown-body text-[var(--text)] opacity-90 leading-relaxed text-base sm:text-lg flex-1 min-w-0 break-words overflow-x-hidden [&_pre]:overflow-x-auto [&_code]:break-words">
-                  <MarkdownRenderer content={activeMarkdownContent} />
-                </div>
-              ) : (
-                <div className="text-center py-12 opacity-50 font-bold capitalize text-[10px] tracking-widest flex flex-col items-center gap-2">
-                  <span className="material-symbols-outlined !text-[24px]">
-                    {t("icon_visibility_off", "visibility_off")}
-                  </span>
-                  {t("update_panel_no_notes", "No Release Notes Provided")}
-                </div>
-              )}
-
-              {activeView === "post" && activePostRecord.codeSnippet && (
-                <pre className="w-full glass-surface rounded-2xl p-5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-x-auto custom-scrollbar">
-                  <code>{activePostRecord.codeSnippet}</code>
-                </pre>
-              )}
-
-              {activeView === "post" && activePostRecord.pollData && (
-                <DispatchPollViewer
-                  post={{
-                    id:
-                      activePostRecord.id ||
-                      `release-post-${isDevUpdate ? "dev" : "stable"}`,
-                    poll_data: activePostRecord.pollData,
-                    _sourceTable: "keeper_system_broadcasts",
-                  }}
-                  userId={session?.user?.id || null}
-                />
-              )}
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </SidePanel>

@@ -160,10 +160,10 @@ export function UniversalCard({
             }}
           />
         ) : (
-          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_6%,transparent)] to-transparent border-b border-[color-mix(in_srgb,var(--text)_7%,transparent)] flex items-center justify-center transition-colors duration-500 overflow-hidden">
+          <div className="absolute inset-0 rounded-t-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_6%,transparent)] via-[color-mix(in_srgb,var(--text)_2%,transparent)] to-transparent border-b border-[color-mix(in_srgb,var(--text)_6%,transparent)] flex items-center justify-center transition-colors duration-500 overflow-hidden">
             {customIcon ? customIcon : (
-              <div className={`rounded-2xl bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.2),0_8px_20px_rgba(0,0,0,0.2)] flex items-center justify-center transition-all duration-500 group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(var(--text-rgb,255,255,255),0.2))] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,rgba(var(--text-rgb,255,255,255),0.06))] ${layout === 'vertical-compact' ? 'w-14 h-14' : 'w-16 h-16'}`}>
-                <span className={`material-symbols-outlined text-[var(--text)] opacity-75 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm relative z-10 ${layout === 'vertical-compact' ? '!text-[28px]' : '!text-[34px]'}`}>
+              <div className={`rounded-2xl bg-[color-mix(in_srgb,var(--text)_7%,transparent)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.22),0_8px_20px_rgba(0,0,0,0.2)] flex items-center justify-center transition-all duration-500 group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(var(--text-rgb,255,255,255),0.2))] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,rgba(var(--text-rgb,255,255,255),0.06))] ${layout === 'vertical-compact' ? 'w-12 h-12' : 'w-16 h-16'}`}>
+                <span className={`material-symbols-outlined text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm relative z-10 ${layout === 'vertical-compact' ? '!text-[24px]' : '!text-[34px]'}`}>
                   {icon || t("icon_folder", "folder")}
                 </span>
               </div>

@@ -178,7 +178,7 @@ export function MasonCommandScreen({ onNavigate, masonId, session, onOpenRecentR
     <CommandScreenLayout>
       <CommandScreenStats gridClassOverride={urgentBroadcast ? "grid-cols-2 lg:grid-cols-4" : undefined}>
         {urgentBroadcast && (
-          <AlertStatTile className="col-span-2" number={urgentBroadcast ? 1 : 0} active={!!urgentBroadcast} onClick={() => setIsAlertsOpen(true)} />
+          <AlertStatTile className="col-span-2" broadcast={urgentBroadcast} number={urgentBroadcast ? 1 : 0} active={!!urgentBroadcast} onClick={() => setIsAlertsOpen(true)} />
         )}
         {urgentBroadcast && (
           <DashboardStatTile className="col-span-2" icon={<span className="material-symbols-outlined ">{t("icon_bug_report")}</span>} number={stats.bugs} label={t("stat_bugs")} colorClass="text-rose-500" onClick={() => onNavigate("bug_reports")} />

@@ -12,6 +12,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  StatBox,
   HoverTooltip,
   LinkAssetSidePanel,
   handleOpenUrl,
@@ -19,6 +20,7 @@ import {
 } from "../shared";
 import { SidePanelTitleInput } from "./layouts/ElevatedHubLayout";
 import { UniversalCard } from "./universal/UniversalCard";
+import { UniversalGroup } from "./universal/UniversalLayout";
 import {
   DispatchPollBuilder,
   DispatchPollData,
@@ -64,21 +66,661 @@ function stripEmojiPrefix(text: string): string {
 export function cleanPostBodyForViewer(markdown: string): string {
   const lines = (markdown || "").split(/\r?\n/);
   const cleaned: string[] = [];
-  let skippedTopH1 = false;
+  let skippedTopHeading = false;
 
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
-    if (!skippedTopH1 && i < 4 && trimmed.startsWith("# ") && !trimmed.startsWith("## ")) {
-      skippedTopH1 = true;
+    if (
+      !skippedTopHeading &&
+      i < 6 &&
+      (/^\\?#\s+sanctuary\s+os\s+[—–-]\s+version\b/i.test(trimmed) ||
+        /^\\?##\s+\*".*"\*\s*$/.test(trimmed))
+    ) {
+      skippedTopHeading = true;
       continue;
     }
-    if (i < 6 && /^\*\*Release Date:\*\*/i.test(trimmed)) {
+    if (i < 6 && /^\\?##\s+\*".*"\*\s*$/.test(trimmed)) {
+      continue;
+    }
+    if (i < 8 && /^\*\*(Release Date|Date|Version):/i.test(trimmed)) {
+      continue;
+    }
+    // If a long intro paragraph at the top was accidentally formatted as a # heading in TipTap, strip the leading # prefix
+    if (i < 6 && /^[\s\u200B\uFEFF#*\\]*#+\s+/.test(trimmed) && trimmed.length > 110) {
+      cleaned.push(trimmed.replace(/^[\s\u200B\uFEFF#\\]+/, ""));
       continue;
     }
     cleaned.push(lines[i]);
   }
 
   return cleaned.join("\n").replace(/^\s*---\s*\n/, "").trim();
+}
+
+interface ParsedReleaseSubItem {
+  title: string;
+  body: string;
+}
+
+interface ParsedReleaseCard {
+  title: string;
+  paragraphs: string[];
+  subItems?: ParsedReleaseSubItem[];
+}
+
+interface ParsedReleaseSection {
+  title: string;
+  cards: ParsedReleaseCard[];
+}
+
+function cleanHeadingTitle(raw: string): string {
+  return stripEmojiPrefix(
+    raw
+      .replace(/^[\s\u200B\uFEFF#*\\-]+/, "")
+      .replace(/\\+$/, "")
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/`/g, "")
+      .replace(/^\d+\.\s+/, "")
+      .replace(/[:—–-]+\s*$/, "")
+      .trim()
+  );
+}
+
+function cleanCardTitle(raw: string): string {
+  const cleaned = raw
+    .replace(
+      /\((?:[^()]*?(?:src\/|src-tauri\/|\.github\/|supabase\/|[A-Za-z0-9_/-]+\.(?:rs|tsx?|sql|css|yml)\b|keeper_heuristic|compliance_tier|tier2_hashes|schema_os)[^()]*)\)/gi,
+      ""
+    )
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/`/g, "")
+    .replace(/^\d+\.\s+/, "")
+    .replace(/[:—–-]+\s*$/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return stripEmojiPrefix(cleaned);
+}
+
+function cleanCardParagraph(raw: string): string {
+  return raw
+    .replace(/^\s*(?:[*-]|\d+\.)\s+/, "")
+    .replace(/^[\s\u200B\uFEFF#\\]+/, "")
+    .replace(/\\+$/, "")
+    .replace(
+      /\((?:[^()]*?(?:src\/|src-tauri\/|\.github\/|supabase\/|[A-Za-z0-9_/-]+\.(?:rs|tsx?|sql|css|yml)\b|keeper_heuristic|compliance_tier|tier2_hashes|schema_os)[^()]*)\)/gi,
+      ""
+    )
+    .replace(/\((?:[^()]*`[^`]+`[^()]*)\)/g, (match) => {
+      const withoutBackticks = match
+        .replace(/`[^`]+`/g, "")
+        .replace(
+          /\b(?:in|via|and|or|from|to|with|plus|e\.g\.|such as)\b|[(),/|+&.;:=\s-]/gi,
+          ""
+        );
+      return withoutBackticks.length > 14 ? match : "";
+    })
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/^[\s\u200B\uFEFF#\\]+/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function extractBulletTitleAndRest(rawLine: string): { title: string; rest: string } | null {
+  const stripped = rawLine.replace(/^\s*(?:[*-]|\d+\.)\s+/, "").trim();
+  if (!stripped.startsWith("**") && !stripped.startsWith("`")) {
+    return null;
+  }
+
+  // Match up to the first `:**` or `**:` delimiter (handles split TipTap bold spans, "vs.", brackets `[REDACTED]`, `#`, parentheses, etc.)
+  const colonMatch = stripped.match(/^(.{2,160}?)(?::\*\*|\*\*:)\s*(.*)$/);
+  if (colonMatch) {
+    const rawCandidate = colonMatch[1];
+    const title = cleanCardTitle(rawCandidate);
+    if (title) {
+      return {
+        title,
+        rest: colonMatch[2].trim(),
+      };
+    }
+  }
+
+  const dashMatch = stripped.match(
+    /^((?:\*\*[^*]+\*\*|`[^`]+`|\([^)]*\)|\[[^\]]*\]|\s)+?)\s+[—–-]\s+(.*)$/
+  );
+  if (dashMatch) {
+    const title = cleanCardTitle(dashMatch[1]);
+    if (title) {
+      return {
+        title,
+        rest: dashMatch[2].trim(),
+      };
+    }
+  }
+
+  const simpleMatch = stripped.match(/^\*\*([^*]+?)\*\*\s*(?::|—|–|-)\s*(.*)$/);
+  if (simpleMatch) {
+    const title = cleanCardTitle(simpleMatch[1]);
+    if (title) {
+      return {
+        title,
+        rest: simpleMatch[2].trim(),
+      };
+    }
+  }
+
+  return null;
+}
+
+function parseBulletGroupIntoCards(bulletLines: string[]): ParsedReleaseCard[] {
+  if (bulletLines.length === 0) return [];
+
+  const mainLine = bulletLines[0];
+  const mainExtracted = extractBulletTitleAndRest(mainLine);
+
+  // Find minimum indentation of sub-bullets so 4-space sub-sub-bullets stay grouped inside their 2-space parent
+  let minSubIndent = Infinity;
+  for (let i = 1; i < bulletLines.length; i++) {
+    const m = bulletLines[i].match(/^(\s+)(?:[*-]|\d+\.)\s+/);
+    if (m && m[1].length < minSubIndent) {
+      minSubIndent = m[1].length;
+    }
+  }
+
+  const mainContinuation: string[] = [];
+  const subBulletGroups: string[][] = [];
+  let currentSub: string[] | null = null;
+
+  for (let i = 1; i < bulletLines.length; i++) {
+    const line = bulletLines[i];
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const subMatch = line.match(/^(\s+)(?:[*-]|\d+\.)\s+/);
+    if (subMatch) {
+      const indentLen = subMatch[1].length;
+      if (indentLen <= minSubIndent + 1) {
+        if (currentSub) subBulletGroups.push(currentSub);
+        currentSub = [line];
+      } else if (currentSub) {
+        currentSub.push(line);
+      } else {
+        currentSub = [line];
+      }
+    } else if (currentSub) {
+      currentSub.push(line);
+    } else {
+      mainContinuation.push(trimmed);
+    }
+  }
+  if (currentSub) {
+    subBulletGroups.push(currentSub);
+  }
+
+  const rawMainBody = [
+    mainExtracted ? mainExtracted.rest : mainLine.replace(/^\s*(?:[*-]|\d+\.)\s+/, "").trim(),
+    ...mainContinuation,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  const cleanedMainBody = cleanCardParagraph(rawMainBody);
+
+  if (subBulletGroups.length > 0) {
+    const firstLinesParsed = subBulletGroups.map((group) => {
+      const firstExtracted = extractBulletTitleAndRest(group[0]);
+      const joinedAll = group.map((l) => l.trim()).join(" ");
+      const joinedExtracted = extractBulletTitleAndRest(joinedAll);
+      return {
+        group,
+        title: firstExtracted?.title || joinedExtracted?.title || "",
+        body: cleanCardParagraph(
+          joinedExtracted ? joinedExtracted.rest : joinedAll
+        ),
+      };
+    });
+
+    const allSubsHaveTitles = firstLinesParsed.every((s) => Boolean(s.title));
+
+    // If the parent bullet is an umbrella header with no body of its own and titled sub-bullets,
+    // promote each sub-bullet group into its own card (recursively handling any 4-space sub-sub-bullets).
+    if (!cleanedMainBody && allSubsHaveTitles) {
+      return subBulletGroups.flatMap(parseBulletGroupIntoCards);
+    }
+
+    // If there is only 1 untitled sub-bullet and no main body, fold it cleanly into a single 1-column card.
+    if (!cleanedMainBody && firstLinesParsed.length === 1 && !firstLinesParsed[0].title) {
+      return [
+        {
+          title: mainExtracted ? mainExtracted.title : "",
+          paragraphs: firstLinesParsed[0].body ? [firstLinesParsed[0].body] : [],
+        },
+      ];
+    }
+
+    // Render sub-bullets as structured mini-cards inside the parent card so there is never a multi-paragraph wall of text.
+    return [
+      {
+        title: mainExtracted ? mainExtracted.title : "",
+        paragraphs: cleanedMainBody ? [cleanedMainBody.replace(/:\s*$/, ".")] : [],
+        subItems: firstLinesParsed
+          .filter((s) => s.title || s.body)
+          .map((s) => ({
+            title: s.title,
+            body: s.body,
+          })),
+      },
+    ];
+  }
+
+  if (!mainExtracted && !cleanedMainBody) return [];
+
+  return [
+    {
+      title: mainExtracted ? mainExtracted.title : "",
+      paragraphs: cleanedMainBody ? [cleanedMainBody] : [],
+    },
+  ];
+}
+
+function parseMarkdownIntoReleaseSections(markdown: string): {
+  introTitle: string;
+  intro: string;
+  sections: ParsedReleaseSection[];
+} {
+  const cleaned = cleanPostBodyForViewer(
+    (markdown || "").replace(/<!--[\s\S]*?-->/g, "")
+  );
+  const rawLines = cleaned.split(/\r?\n/);
+
+  interface HeadingBlock {
+    level: number;
+    title: string;
+    lines: string[];
+  }
+
+  let introTitle = "";
+  const introLines: string[] = [];
+  const blocks: HeadingBlock[] = [];
+  let currentBlock: HeadingBlock | null = null;
+
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    const trimmed = line.trim();
+
+    if (trimmed === "---") continue;
+    if (i < 6 && /^\*\*(Date|Version|Release Date):/i.test(trimmed)) continue;
+
+    const headingMatch = trimmed.match(/^\\?(#{1,4})\s+(.*)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const rawHeadingText = headingMatch[2].trim();
+
+      // If a long multi-sentence paragraph at the top was accidentally formatted as a heading in TipTap, treat it as intro prose
+      if (
+        !currentBlock &&
+        blocks.length === 0 &&
+        i < 5 &&
+        rawHeadingText.length > 105
+      ) {
+        introLines.push(rawHeadingText);
+        continue;
+      }
+
+      const headingTitle = cleanHeadingTitle(rawHeadingText);
+
+      // Skip only the raw seed file top-level release header ("# Sanctuary OS — Version 0.5.7 Update")
+      if (
+        !currentBlock &&
+        blocks.length === 0 &&
+        i < 5 &&
+        /^sanctuary\s+os\s+[—–-]\s+version\b/i.test(headingTitle)
+      ) {
+        continue;
+      }
+
+      if (currentBlock) {
+        blocks.push(currentBlock);
+      }
+      currentBlock = { level, title: headingTitle, lines: [] };
+    } else if (currentBlock) {
+      currentBlock.lines.push(line);
+    } else {
+      introLines.push(line);
+    }
+  }
+
+  if (currentBlock) {
+    blocks.push(currentBlock);
+  }
+
+  // If the first heading block at the top of the post has only prose paragraphs (zero bullet items) before the first bulleted section,
+  // treat that heading as the Intro Title and its lines as the Intro paragraph.
+  const hasInitialIntroLines = introLines.some((l) => l.trim().length > 0);
+  if (
+    !hasInitialIntroLines &&
+    blocks.length > 1 &&
+    !blocks[0].lines.some((l) => /^\s*(?:[*-]|\d+\.)\s+/.test(l))
+  ) {
+    const firstBlock = blocks.shift()!;
+    introTitle = firstBlock.title;
+    introLines.push(...firstBlock.lines);
+  }
+
+  const sections: ParsedReleaseSection[] = [];
+
+  for (const block of blocks) {
+    const bulletGroups: string[][] = [];
+    const proseLines: string[] = [];
+    let currentBullet: string[] | null = null;
+
+    for (const line of block.lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed === "---") continue;
+
+      const isTopBullet = /^\s{0,1}(?:[*-]|\d+\.)\s+/.test(line);
+      if (isTopBullet) {
+        if (currentBullet) bulletGroups.push(currentBullet);
+        currentBullet = [line];
+      } else if (currentBullet) {
+        currentBullet.push(line);
+      } else {
+        if (!trimmed.endsWith(":")) {
+          proseLines.push(trimmed);
+        }
+      }
+    }
+
+    if (currentBullet) {
+      bulletGroups.push(currentBullet);
+    }
+
+    const parsedCards = bulletGroups.flatMap(parseBulletGroupIntoCards);
+    const hasTitledCards = parsedCards.some((c) => Boolean(c.title));
+
+    if (hasTitledCards) {
+      sections.push({
+        title: block.title,
+        cards: parsedCards,
+      });
+    } else if (parsedCards.length > 0 || proseLines.length > 0) {
+      // Untitled bullets in this subsection (e.g., "### 3. Decentralized Mod Updates" or "### 3. Forking Sanctuary OS"):
+      // Keep the section header consistent (`block.title`) and render each bullet as its own clean card.
+      const cardsFromUntitled: ParsedReleaseCard[] =
+        parsedCards.length > 0
+          ? parsedCards
+          : proseLines
+              .map(cleanCardParagraph)
+              .filter(Boolean)
+              .map((p) => ({ title: "", paragraphs: [p] }));
+
+      if (cardsFromUntitled.length > 0) {
+        sections.push({
+          title: block.title,
+          cards: cardsFromUntitled,
+        });
+      }
+    }
+  }
+
+  const nonEmptyIntroLines = introLines
+    .map((l) => l.replace(/\\+$/, "").trim())
+    .filter((l) => l && !l.endsWith(":"));
+
+  if (!introTitle && nonEmptyIntroLines.length >= 2) {
+    const firstLinePlain = cleanHeadingTitle(nonEmptyIntroLines[0]);
+    if (firstLinePlain.length >= 2 && firstLinePlain.length <= 100) {
+      introTitle = firstLinePlain;
+      nonEmptyIntroLines.shift();
+    }
+  }
+
+  let cleanedIntro = nonEmptyIntroLines
+    .map(cleanCardParagraph)
+    .filter(Boolean)
+    .join(" ")
+    .replace(/^[\s\u200B\uFEFF#\\]+/, "")
+    .trim();
+
+  if (!introTitle && cleanedIntro) {
+    const inlineWelcomeMatch = cleanedIntro.match(
+      /^(Welcome to [^*!.\n]{2,60}\*{0,2}!)\s+(.+)$/i
+    );
+    if (inlineWelcomeMatch) {
+      introTitle = cleanHeadingTitle(inlineWelcomeMatch[1]);
+      cleanedIntro = inlineWelcomeMatch[2].trim();
+    }
+  }
+
+  return {
+    introTitle,
+    intro: cleanedIntro,
+    sections,
+  };
+}
+
+function renderCleanInlineText(text: string): React.ReactNode {
+  const sanitized = (text || "").replace(/^[\s\u200B\uFEFF#\\]+/, "");
+  const parts = sanitized.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return (
+        <strong key={idx} className="font-bold text-[var(--text)] opacity-100">
+          {part.slice(2, -2).replace(/^[\s\u200B\uFEFF#\\]+/, "")}
+        </strong>
+      );
+    }
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      return (
+        <em key={idx} className="italic text-[var(--text)] opacity-95">
+          {part.slice(1, -1).replace(/^[\s\u200B\uFEFF#\\]+/, "")}
+        </em>
+      );
+    }
+    return <React.Fragment key={idx}>{part}</React.Fragment>;
+  });
+}
+
+export function StructuredReleaseNotesView({ content }: { content: string }) {
+  const { t } = useLexicon();
+  const parsed = useMemo(() => parseMarkdownIntoReleaseSections(content), [content]);
+
+  const resolveSectionIcon = (title: string) => {
+    const lower = title.toLowerCase();
+    if (lower.includes("tl;dr") || lower.includes("summary") || lower.includes("short")) {
+      return t("icon_bolt", "bolt");
+    }
+    if (
+      lower.includes("player") ||
+      lower.includes("citizen") ||
+      lower.includes("phone") ||
+      lower.includes("queue")
+    ) {
+      return t("icon_sports_esports", "sports_esports");
+    }
+    if (lower.includes("homestead") || lower.includes("lab") || lower.includes("proving")) {
+      return t("icon_science", "science");
+    }
+    if (
+      lower.includes("creator") ||
+      lower.includes("mason") ||
+      lower.includes("workshop") ||
+      lower.includes("scout")
+    ) {
+      return t("icon_construction", "construction");
+    }
+    if (lower.includes("community") || lower.includes("wayfinder") || lower.includes("server")) {
+      return t("icon_hub", "hub");
+    }
+    if (
+      lower.includes("security") ||
+      lower.includes("heuristic") ||
+      lower.includes("malware") ||
+      lower.includes("privacy") ||
+      lower.includes("honeypot")
+    ) {
+      return t("icon_shield", "shield");
+    }
+    if (lower.includes("architecture") || lower.includes("sandbox") || lower.includes("blueprint")) {
+      return t("icon_architecture", "architecture");
+    }
+    if (lower.includes("bug") || lower.includes("fix")) {
+      return t("icon_bug_report", "bug_report");
+    }
+    if (lower.includes("visual") || lower.includes("overhaul") || lower.includes("polish")) {
+      return t("icon_auto_awesome", "auto_awesome");
+    }
+    return t("icon_new_releases", "new_releases");
+  };
+
+  if (parsed.sections.length === 0) {
+    return (
+      <div className="flex flex-col gap-3.5 min-w-0">
+        {parsed.introTitle && (
+          <div className="flex items-center gap-3 px-1 pt-1">
+            <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] text-[var(--accent)] shrink-0">
+              {resolveSectionIcon(parsed.introTitle)}
+            </span>
+            <h2 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text)] leading-snug">
+              {parsed.introTitle}
+            </h2>
+          </div>
+        )}
+        <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-2 text-xs sm:text-[13px] text-[var(--text)] leading-relaxed break-words">
+          <p className="opacity-85">
+            {renderCleanInlineText(parsed.intro || cleanCardParagraph(content))}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-7 min-w-0">
+      {(parsed.introTitle || parsed.intro) && (
+        <div className="flex flex-col gap-3.5">
+          {parsed.introTitle && (
+            <div className="flex items-center gap-3 px-1 pt-1">
+              <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] text-[var(--accent)] shrink-0">
+                {resolveSectionIcon(parsed.introTitle)}
+              </span>
+              <h2 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text)] leading-snug">
+                {parsed.introTitle}
+              </h2>
+            </div>
+          )}
+          {parsed.intro && (
+            <div className="glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-2 relative overflow-hidden">
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.05) 0%, transparent 65%)",
+                }}
+              />
+              <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed relative z-10">
+                {renderCleanInlineText(parsed.intro)}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {parsed.sections.map((section, sIdx) => {
+        // Pair compact single cards first, followed by full-width multi-item cards so the 2-column Bento grid has zero orphan gaps
+        const singleCards = section.cards.filter(
+          (c) => !c.subItems || c.subItems.length === 0
+        );
+        const multiItemCards = section.cards.filter(
+          (c) => c.subItems && c.subItems.length > 0
+        );
+        const orderedCards = [...singleCards, ...multiItemCards];
+
+        return (
+          <div key={`${section.title}-${sIdx}`} className="flex flex-col gap-3.5">
+            <div className="flex items-center gap-3 px-1 pt-1">
+              <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] text-[var(--accent)] shrink-0">
+                {resolveSectionIcon(section.title)}
+              </span>
+              <h2 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text)] leading-snug">
+                {section.title}
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {orderedCards.map((card, cIdx) => {
+                const hasSubItems = Boolean(card.subItems && card.subItems.length > 0);
+                const isLastOddSingleCard =
+                  !hasSubItems &&
+                  singleCards.length % 2 === 1 &&
+                  cIdx === singleCards.length - 1;
+                const spanFull = hasSubItems || isLastOddSingleCard;
+
+                return (
+                  <div
+                    key={`${card.title || "card"}-${cIdx}`}
+                    className={`glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-2.5 relative overflow-hidden ${
+                      spanFull ? "md:col-span-2" : ""
+                    }`}
+                  >
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.05) 0%, transparent 65%)",
+                      }}
+                    />
+                    {card.title && (
+                      <h3 className="text-sm sm:text-[15px] font-bold tracking-tight text-[var(--text)] leading-snug relative z-10">
+                        {card.title}
+                      </h3>
+                    )}
+                    {card.paragraphs.length > 0 && (
+                      <div className="flex flex-col gap-2 text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed relative z-10">
+                        {card.paragraphs.map((p, pIdx) => (
+                          <p key={pIdx}>{renderCleanInlineText(p)}</p>
+                        ))}
+                      </div>
+                    )}
+                    {card.subItems && card.subItems.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 relative z-10">
+                        {card.subItems.map((sub, subIdx) => {
+                          const isLastOddSub =
+                            card.subItems!.length > 1 &&
+                            card.subItems!.length % 2 === 1 &&
+                            subIdx === card.subItems!.length - 1;
+                          return (
+                            <div
+                              key={`${sub.title || "sub"}-${subIdx}`}
+                              className={`glass-surface rounded-2xl p-3.5 flex flex-col gap-1 ${
+                                isLastOddSub ? "sm:col-span-2" : ""
+                              }`}
+                            >
+                              {sub.title && (
+                                <span className="text-xs font-bold text-[var(--text)]">
+                                  {sub.title}
+                                </span>
+                              )}
+                              <span className="text-xs text-[var(--text)] opacity-80 leading-relaxed">
+                                {renderCleanInlineText(sub.body)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function parseSeedCommunityBlog(markdown: string) {
@@ -673,12 +1315,23 @@ export function ReleaseNotesShowcase({
     }
   };
 
+  const formatCompactReleaseDate = (raw: string): string => {
+    const trimmed = (raw || "").trim();
+    if (!trimmed) return "";
+    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(trimmed)) return trimmed;
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString();
+    }
+    return trimmed;
+  };
+
   // Resolved display values for Public & Dev channels
   const stableVersion = (publicPost.version || defaultStableVersion).replace(/^v/i, "").trim();
   const devVersion = (devPost.version || defaultDevVersion).replace(/^v/i, "").trim();
 
-  const stableDateDisplay = publicPost.releaseDate || defaultStableDate;
-  const devDateDisplay = devPost.releaseDate || defaultDevDate;
+  const stableDateDisplay = formatCompactReleaseDate(publicPost.releaseDate || defaultStableDate);
+  const devDateDisplay = formatCompactReleaseDate(devPost.releaseDate || defaultDevDate);
 
   const stablePlatformDisplay =
     publicPost.platform || t("release_notes_meta_platform_default", "Windows / Mac (Planned)");
@@ -686,16 +1339,31 @@ export function ReleaseNotesShowcase({
     devPost.platform || t("release_notes_meta_platform_default", "Windows / Mac (Planned)");
 
   // Full Change Logs pulled from GitHub Release Notes (with fallback to changelog.md)
+  const isDetailedChangelog = (raw?: string | null): boolean => {
+    const trimmed = String(raw || "").trim();
+    if (!trimmed) return false;
+    const placeholderStr = "See the assets to download this version and install.";
+    const defaultDevNote =
+      "Daily Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).";
+    if (trimmed === placeholderStr || trimmed === defaultDevNote) {
+      return false;
+    }
+    return (
+      trimmed.length > 140 &&
+      (trimmed.includes("\n") || trimmed.includes("- ") || trimmed.includes("#"))
+    );
+  };
+
   const stableGitHubChangelog = useMemo(() => {
-    if (pipelineConfig.stable_release_notes?.trim()) {
-      return pipelineConfig.stable_release_notes.trim();
+    if (isDetailedChangelog(pipelineConfig.stable_release_notes)) {
+      return pipelineConfig.stable_release_notes!.trim();
     }
     return bundledNerdChangelog;
   }, [pipelineConfig.stable_release_notes]);
 
   const devGitHubChangelog = useMemo(() => {
-    if (pipelineConfig.dev_build_notes?.trim()) {
-      return pipelineConfig.dev_build_notes.trim();
+    if (isDetailedChangelog(pipelineConfig.dev_build_notes)) {
+      return pipelineConfig.dev_build_notes!.trim();
     }
     return seedChangelog.markdown || bundledNerdChangelog;
   }, [pipelineConfig.dev_build_notes, seedChangelog.markdown]);
@@ -759,113 +1427,53 @@ export function ReleaseNotesShowcase({
     versionVal: string,
     isDevChan: boolean,
     platformVal: string
-  ) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full my-2">
-      <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3.5 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default">
-        <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-          <span className="material-symbols-outlined !text-[20px]">
-            {t("icon_calendar_today", "calendar_today")}
-          </span>
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-            {t("release_notes_meta_release_date", "Release Date")}
-          </span>
-          <span className="text-xs font-black tracking-wide text-[var(--text)] truncate mt-0.5">
-            {dateVal}
-          </span>
-        </div>
-        <HoverTooltip
-          title={t("release_notes_meta_release_date", "Release Date")}
-          subtitle={dateVal}
+  ) => {
+    const compactDate = formatCompactReleaseDate(dateVal);
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+        <StatBox
+          className="w-full"
           icon={t("icon_calendar_today", "calendar_today")}
-          variant="info"
+          iconColorClass="text-[var(--accent)]"
+          label={t("release_notes_meta_release_date", "Release Date")}
+          value={compactDate}
+          tooltipSubtitle={dateVal || compactDate}
         />
-      </div>
-
-      <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3.5 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default">
-        <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-          <span className="material-symbols-outlined !text-[20px]">
-            {t("icon_tag", "tag")}
-          </span>
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-            {t("release_notes_meta_version", "Version Number")}
-          </span>
-          <span className="text-xs font-mono font-black tracking-wide text-[var(--accent)] truncate mt-0.5">
-            v{versionVal.replace(/^v/i, "")}
-          </span>
-        </div>
-        <HoverTooltip
-          title={t("release_notes_meta_version", "Version Number")}
-          subtitle={`v${versionVal.replace(/^v/i, "")}`}
+        <StatBox
+          className="w-full"
           icon={t("icon_tag", "tag")}
-          variant="accent"
+          iconColorClass="text-[var(--accent)]"
+          label={t("release_notes_meta_version", "Version Number")}
+          value={`v${versionVal.replace(/^v/i, "")}`}
+          tooltipSubtitle={`v${versionVal.replace(/^v/i, "")}`}
         />
-      </div>
-
-      <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3.5 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default">
-        <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+        <StatBox
+          className="w-full"
+          icon={isDevChan ? t("icon_bolt", "bolt") : t("icon_verified", "verified")}
+          iconColorClass={isDevChan ? "text-[var(--warning)]" : "text-[var(--success)]"}
+          label={t("release_notes_meta_channel", "Channel")}
+          value={
             isDevChan
-              ? "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)]"
-              : "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]"
-          }`}
-        >
-          <span className="material-symbols-outlined !text-[20px]">
-            {isDevChan ? t("icon_bolt", "bolt") : t("icon_verified", "verified")}
-          </span>
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-            {t("release_notes_meta_channel", "Channel")}
-          </span>
-          <span
-            className={`text-xs font-black uppercase tracking-widest truncate mt-0.5 ${
-              isDevChan ? "text-[var(--success)]" : "text-[var(--text)]"
-            }`}
-          >
-            {isDevChan
               ? t("release_notes_meta_channel_dev", "Dev")
-              : t("release_notes_meta_channel_public", "Public")}
-          </span>
-        </div>
-        <HoverTooltip
-          title={t("release_notes_meta_channel", "Channel")}
-          subtitle={
+              : t("release_notes_meta_channel_public", "Public")
+          }
+          tooltipSubtitle={
             isDevChan
               ? t("release_notes_dev_channel_badge", "Daily Dev Build")
               : t("release_notes_stable_channel_badge", "Stable Release")
           }
-          icon={isDevChan ? t("icon_bolt", "bolt") : t("icon_verified", "verified")}
-          variant={isDevChan ? "success" : "accent"}
         />
-      </div>
-
-      <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3.5 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-default">
-        <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-          <span className="material-symbols-outlined !text-[20px]">
-            {t("icon_devices", "devices")}
-          </span>
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-            {t("release_notes_meta_platform", "Platform")}
-          </span>
-          <span className="text-xs font-black tracking-wide text-[var(--text)] truncate mt-0.5">
-            {platformVal}
-          </span>
-        </div>
-        <HoverTooltip
-          title={t("release_notes_meta_platform", "Platform")}
-          subtitle={platformVal}
+        <StatBox
+          className="w-full"
           icon={t("icon_devices", "devices")}
-          variant="info"
+          iconColorClass="text-[var(--accent)]"
+          label={t("release_notes_meta_platform", "Platform")}
+          value={platformVal}
+          tooltipSubtitle={platformVal}
         />
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -963,7 +1571,7 @@ export function ReleaseNotesShowcase({
         isOpen={activeChannel !== null}
         onClose={() => setActiveChannel(null)}
         title={t("release_notes_blog_panel_title", "Community Release Notes")}
-        subtitle={`${activeChannelBadge} • v${activeVersion}`}
+        subtitle={`${activeChannelBadge} v${activeVersion}`}
         icon={isDevActive ? t("icon_bolt", "bolt") : t("icon_forum", "forum")}
         widthClass="w-[55vw] max-w-5xl"
         panelZ="z-[50001]"
@@ -992,7 +1600,7 @@ export function ReleaseNotesShowcase({
       >
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
           {activeView === "post" && activePostRecord.imageUrl && (
-            <div className="w-full h-56 sm:h-72 relative shrink-0 overflow-hidden border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <div className="w-full h-56 sm:h-72 relative shrink-0 overflow-hidden">
               <img
                 src={activePostRecord.imageUrl}
                 alt={activeTitle}
@@ -1008,85 +1616,70 @@ export function ReleaseNotesShowcase({
               <DashboardStatTile
                 variant="filter"
                 className="!w-full"
-                icon={
-                  <span className="material-symbols-outlined">
-                    {t("icon_menu_book", "menu_book")}
-                  </span>
-                }
+                icon={t("icon_menu_book", "menu_book")}
                 label={t("release_notes_tile_view", "View")}
                 number={t("release_notes_tile_post", "Post")}
+                colorClass="text-[var(--accent)]"
                 isActive={activeView === "post"}
                 onClick={() => setActiveView("post")}
               />
               <DashboardStatTile
                 variant="filter"
                 className="!w-full"
-                icon={
-                  <span className="material-symbols-outlined">
-                    {t("icon_terminal", "terminal")}
-                  </span>
-                }
+                icon={t("icon_terminal", "terminal")}
                 label={t("release_notes_tile_view", "View")}
                 number={t("release_notes_tile_changelog", "Changelog")}
+                colorClass="text-[var(--accent)]"
                 isActive={activeView === "changelog"}
                 onClick={() => setActiveView("changelog")}
               />
               <DashboardStatTile
                 variant="filter"
                 className="!w-full"
-                icon={
-                  <span className="material-symbols-outlined">
-                    {t("icon_open_in_new", "open_in_new")}
-                  </span>
-                }
+                icon={t("icon_open_in_new", "open_in_new")}
                 label={t("release_notes_tile_view", "View")}
                 number={t("release_notes_tile_on_github", "On GitHub")}
+                colorClass="text-[var(--text)]"
                 isActive={false}
                 onClick={() => handleOpenUrl(activeGitHubUrl)}
               />
             </div>
 
-            {/* Comm-Link Style Post Header & 2x2 Release Info Panel */}
-            <div className="flex flex-col gap-4 mt-2">
+            {/* Post Header & 4-Column Release Telemetry */}
+            <div className="flex flex-col gap-5 mt-2">
               <h1 className="text-3xl sm:text-4xl font-black tracking-tighter drop-shadow-sm leading-tight text-[var(--text)]">
                 {activeTitle}
               </h1>
 
-              <div className="flex items-center gap-4 mt-1 mb-0 relative z-20">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg shrink-0 overflow-hidden glass-surface border border-[color-mix(in_srgb,var(--text)_20%,transparent)] backdrop-blur-md">
-                  <span className="material-symbols-outlined !text-[24px] text-[var(--text)] drop-shadow-md">
+              <div className="flex items-center gap-3.5 relative z-20">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,var(--surface))] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-inner">
+                  <span className="material-symbols-outlined !text-[22px]">
                     {t("icon_memory", "memory")}
                   </span>
                 </div>
 
-                <div className="flex flex-col z-20">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-black capitalize tracking-widest text-[var(--text)]">
+                <div className="flex flex-col gap-0.5 z-20 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base sm:text-lg font-black capitalize tracking-tight text-[var(--text)] leading-tight">
                       {t("author_sanctuary_team", "Sanctuary Foundry")}
                     </span>
                     <span className="relative inline-flex items-center cursor-default">
-                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                      <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                         {t("icon_verified", "verified")}
                       </span>
                       <HoverTooltip
                         title={t("verified", "Verified")}
                         icon={t("icon_verified", "verified")}
-                        variant="accent"
+                        variant="default"
                       />
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                    <span className="text-[11px] font-bold text-[var(--subtext)] font-mono tracking-widest opacity-80 flex items-center gap-1.5">
-                      <span className="material-symbols-outlined !text-[12px] opacity-60">
-                        {t("icon_schedule", "schedule")}
-                      </span>
-                      {activeDateStr}
-                    </span>
-                  </div>
+                  <span className="text-xs sm:text-[13px] font-medium text-[var(--subtext)] opacity-85">
+                    {t("release_notes_author_subtitle", "Official Release Dispatch")}
+                  </span>
                 </div>
               </div>
 
-              {/* 2x2 Frosted-Glass Release Info Panel (Release Date / Version Number / Channel / Platform) */}
               {renderReleaseInfoPanel(
                 activeDateStr,
                 activeVersion,
@@ -1095,9 +1688,7 @@ export function ReleaseNotesShowcase({
               )}
 
               <div className="flex-1 flex flex-col mt-2 gap-6 min-w-0">
-                <div className="markdown-body text-[var(--text)] opacity-90 leading-relaxed text-base sm:text-lg flex-1 min-w-0 break-words overflow-x-hidden [&_pre]:overflow-x-auto [&_code]:break-words">
-                  <MarkdownRenderer content={activeMarkdownContent} />
-                </div>
+                <StructuredReleaseNotesView content={activeMarkdownContent} />
 
                 {activeView === "post" && activePostRecord.codeSnippet && (
                   <pre className="w-full glass-surface rounded-2xl p-5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-x-auto custom-scrollbar">

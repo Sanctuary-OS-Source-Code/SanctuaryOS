@@ -5,7 +5,7 @@ import { useLexicon } from "./LexiconContext";
 import { tauriBridge } from "./lib/tauri-bridge";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { UniversalCard } from "./components/universal/UniversalCard";
-import { IncompatibleModCard } from "./side-panels/CommandIncompatiblePanel";
+import { IncompatibleModCard, evaluateModIssues, groupBrokenMods } from "./side-panels/CommandIncompatiblePanel";
 
 export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, toggleInActiveSet, allow_write, vaultPath, onRefreshMods, renamePlaySet }: any) {
   const { t } = useLexicon();
@@ -146,69 +146,25 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
   }, [activeMods, ignoredGlobal]);
 
   const brokenMods = useMemo(() => {
-    return activeMods.map((mod: any) => {
-      if (mod.isFallback) return null;
-
-      let reason = null;
-      let alertType = 'red';
-
-      let isBroken = typeof mod.status === 'string' && mod.status.toLowerCase() === 'broken';
-      if (isBroken && mod.compatible_versions && mod.compatible_versions.length > 0 && selectedVersion) {
-        if (selectedVersion !== getHighestVersion(mod.compatible_versions)) {
-          isBroken = false;
-        }
-      }
-
-      if (isBroken || mod.compliance_tier === 3 || mod.compliance_tier === 4) {
-        reason = t("bp_status_broken_noncompliant");
-        alertType = 'red';
-      } else if (mod.compatible_versions && selectedVersion && !isVersionMatch(mod.compatible_versions, selectedVersion)) {
-        reason = t("bp_status_version_mismatch");
-        alertType = 'red';
-      } else {
-        if (mod.requiredDLC) {
-          const rawDLC = parseStringArray(mod.requiredDLC);
-          const activeDLC = ownedDLC.filter((d: string) => !maskedDLC.includes(d));
-          const missing = rawDLC.filter((req: string) => {
-            const cleanReq = req.toUpperCase().trim();
-            if (cleanReq === 'BASE') return false;
-            return !activeDLC.some((owned: string) => owned.toUpperCase() === cleanReq);
-          });
-          if (missing.length > 0) {
-            const missingNames = missing.map((m: string) => mapDlcCode(m)).join(", ");
-            reason = `${t("bp_status_missing_dlc")} ${missingNames}`;
-            alertType = 'red';
-          }
-        }
-
-        if (!reason && mod.dependencies) {
-          const rawDeps = parseStringArray(mod.dependencies);
-          if (rawDeps.length > 0) {
-            const activeModNames = activeMods.map((m: any) => (m._originalSetName || m.name)?.toLowerCase());
-            const missing = rawDeps.filter((req: string) => !activeModNames.includes(req.toLowerCase()));
-            if (missing.length > 0) {
-              reason = `${t("missing_deps")}: ${missing.join(", ")}`;
-              alertType = 'red';
-            }
-          }
-        }
-
-        if (!reason && typeof mod.status === 'string' && mod.status.toLowerCase() === 'unstable') {
-          reason = t("bp_status_unstable");
-          alertType = 'amber';
-        }
-      }
-
-      if (reason) {
-        return { ...mod, _alert_reason: reason, _alert_type: alertType };
-      }
-      return null;
-    }).filter(Boolean).sort((a: any, b: any) => {
-      if (a._alert_type === 'red' && b._alert_type === 'amber') return -1;
-      if (a._alert_type === 'amber' && b._alert_type === 'red') return 1;
-      return 0;
-    });
-  }, [activeMods, selectedVersion, ownedDLC, maskedDLC, t]);
+    const rawBroken = activeMods
+      .map((mod: any) =>
+        evaluateModIssues(mod, {
+          activeMods,
+          selectedVersion,
+          ownedDLC,
+          maskedDLC,
+          t,
+          activeGameSchema,
+        })
+      )
+      .filter(Boolean)
+      .sort((a: any, b: any) => {
+        if (a._alert_type === 'red' && b._alert_type === 'amber') return -1;
+        if (a._alert_type === 'amber' && b._alert_type === 'red') return 1;
+        return 0;
+      });
+    return groupBrokenMods(rawBroken);
+  }, [activeMods, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
 
   const redMods = useMemo(() => brokenMods.filter((m: any) => m._alert_type === 'red'), [brokenMods]);
   const amberMods = useMemo(() => brokenMods.filter((m: any) => m._alert_type === 'amber'), [brokenMods]);

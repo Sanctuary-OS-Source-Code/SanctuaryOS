@@ -204,7 +204,8 @@ fn main() {
             toggle_local_mason_follow,
             sync_mason_supporter_bridge,
             remove_local_mason_supporter,
-            stack_local_dev_build_donation
+            stack_local_dev_build_donation,
+            download_and_install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

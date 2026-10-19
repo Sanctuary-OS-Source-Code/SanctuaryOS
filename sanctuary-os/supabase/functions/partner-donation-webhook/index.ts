@@ -137,9 +137,43 @@ Deno.serve(async (req: Request) => {
           "";
         email =
           session.customer_details?.email || session.customer_email || "";
-        // Exact amount in cents verified by Stripe
-        amountCents = Number(session.amount_total || 0);
-        txNonce = `stripe_${session.payment_intent || session.id}`;
+        // Support both paid checkouts and 100% Promo Code / coupon redemptions
+        const amountTotal = Number(session.amount_total || 0);
+        const amountSubtotal = Number(session.amount_subtotal || 0);
+        const amountDiscount = Number(
+          session.total_details?.amount_discount || 0,
+        );
+        amountCents = Math.max(
+          amountTotal,
+          amountSubtotal,
+          amountTotal + amountDiscount,
+        );
+        if (
+          amountCents <= 0 &&
+          (session.payment_status === "no_payment_required" ||
+            session.payment_status === "paid" ||
+            session.status === "complete")
+        ) {
+          amountCents = 500;
+        }
+        txNonce = `stripe_${session.id || session.payment_intent}`;
+      } else if (
+        (body.type === "payment_intent.succeeded" ||
+          body.type === "charge.succeeded") &&
+        body.data?.object
+      ) {
+        const obj = body.data.object;
+        userId =
+          obj.metadata?.sanctuary_user_id ||
+          obj.metadata?.client_reference_id ||
+          "";
+        email =
+          obj.receipt_email ||
+          obj.billing_details?.email ||
+          obj.metadata?.email ||
+          "";
+        amountCents = Number(obj.amount_received || obj.amount || 0);
+        txNonce = `stripe_${obj.id}`;
       } else {
         userId = body.user_id || body.client_reference_id || "";
         email = body.email || "";

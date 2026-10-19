@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 import {
   SidePanel,
   ActionButton,
@@ -16,6 +17,7 @@ import {
   loadPartnerCommunitiesList,
   buildPartnerCheckoutUrl,
   isSandboxDonationUrl,
+  presentSupporterCelebrationModal,
   DEFAULT_KEEPERS_PIPELINE_CONFIG,
   KeepersPipelineConfig,
   LocalSupporterStatePayload,
@@ -116,6 +118,35 @@ export function CommunitySupportSidePanel({
     if (isOpen) {
       loadPanelData();
     }
+    const handleSupporterUpdated = () => {
+      if (isOpen) {
+        loadPanelData();
+      }
+    };
+    const handleCelebrationOpened = () => {
+      if (isOpen) {
+        loadPanelData();
+        onClose();
+      }
+    };
+    window.addEventListener(
+      "sanctuary-supporter-updated",
+      handleSupporterUpdated,
+    );
+    window.addEventListener(
+      "sanctuary-supporter-celebration",
+      handleCelebrationOpened,
+    );
+    return () => {
+      window.removeEventListener(
+        "sanctuary-supporter-updated",
+        handleSupporterUpdated,
+      );
+      window.removeEventListener(
+        "sanctuary-supporter-celebration",
+        handleCelebrationOpened,
+      );
+    };
   }, [isOpen, initialPartnerId, activeWorkspaceId]);
 
   const activeWs = (workspaces || []).find(
@@ -199,6 +230,11 @@ export function CommunitySupportSidePanel({
         };
         setSupporterState(nextState);
         if (onSuccess) onSuccess(nextState);
+        presentSupporterCelebrationModal({
+          devBuildUntil: result.devBuild.dev_build_until,
+          monthsAdded: result.monthsAdded,
+          t,
+        });
         useStore
           .getState()
           .pushStatus(
@@ -225,6 +261,7 @@ export function CommunitySupportSidePanel({
 
     let attempts = 0;
     const baselineUntil = supporterState.dev_build.dev_build_until || 0;
+    const baselineMonths = supporterState.dev_build.total_months_unlocked || 0;
     const pollTimer = setInterval(async () => {
       attempts += 1;
       if (attempts > 24) {
@@ -237,6 +274,15 @@ export function CommunitySupportSidePanel({
           setSupporterState(latest);
           if (onSuccess) onSuccess(latest);
           clearInterval(pollTimer);
+          const addedMonths = Math.max(
+            1,
+            (latest.dev_build.total_months_unlocked || 0) - baselineMonths,
+          );
+          presentSupporterCelebrationModal({
+            devBuildUntil: latest.dev_build.dev_build_until,
+            monthsAdded: addedMonths,
+            t,
+          });
           useStore
             .getState()
             .pushStatus(

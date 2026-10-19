@@ -320,16 +320,34 @@ export function SidePanel({
             <div className="fixed inset-0 z-[100010] cursor-col-resize" />
           )}
           <div
-            className={`sa-side-panel-backdrop fixed inset-0 z-0 ${depth > 0 || noBackdropDim ? "bg-transparent" : "bg-black/10 backdrop-blur-[3px]"} ${isAnimatingOut ? "animate-out fade-out opacity-0 duration-500" : "animate-in fade-in duration-500"}`}
-            style={{ zIndex: finalBackdropZ }}
+            className={`sa-side-panel-backdrop fixed inset-0 z-0 ${depth > 0 || noBackdropDim ? "bg-transparent" : ""} ${isAnimatingOut ? "animate-out fade-out opacity-0 duration-500" : "animate-in fade-in duration-500"}`}
+            style={{
+              zIndex: finalBackdropZ,
+              ...(depth === 0 && !noBackdropDim
+                ? {
+                    backgroundColor: "rgba(0, 0, 0, 0.08)",
+                    backdropFilter: "blur(6px)",
+                    WebkitBackdropFilter: "blur(6px)",
+                  }
+                : {}),
+            }}
             onClick={onClose}
           />
           <div
             ref={panelRef}
-            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-[0px] bottom-[0px] ${position === "left" ? "left-0 md:left-[var(--sidebarWidth,288px)]" : "right-0"} overflow-hidden ${isResizable ? "" : widthClass} max-md:!w-full max-md:!max-w-[100vw] ${position === "left" ? "!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl" : "!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]"} flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""} ${noPanelBlur ? "" : "backdrop-blur-[var(--glassBlur)]"}`}
+            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-[0px] bottom-[0px] ${position === "left" ? "left-0 md:left-[var(--sidebarWidth,288px)]" : "right-0"} overflow-hidden ${isResizable ? "" : widthClass} max-md:!w-full max-md:!max-w-[100vw] ${position === "left" ? "!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl" : "!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]"} flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
             style={{
               zIndex: finalPanelZ,
-              background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal) * 100%), transparent)`,
+              ...(noPanelBlur
+                ? {}
+                : {
+                    backdropFilter:
+                      "blur(var(--glassBlur, 36px)) saturate(160%)",
+                    WebkitBackdropFilter:
+                      "blur(var(--glassBlur, 36px)) saturate(160%)",
+                  }),
+              background: `linear-gradient(135deg, rgba(var(--panelTint-rgb, 255, 255, 255), 0.08) 0%, rgba(var(--panelTint-rgb, 255, 255, 255), 0.02) 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal, 0.1) * 100%), transparent)`,
+              boxShadow: `-20px 0 50px rgba(0, 0, 0, 0.25), inset 1px 1px 0 0 rgba(var(--text-rgb, 255, 255, 255), 0.22), inset 0 -1px 0 0 rgba(var(--text-rgb, 255, 255, 255), 0.06)`,
               ...(isResizable
                 ? {
                     width: `${isResizing ? dragWidthRef.current : panelWidth}px`,
@@ -406,25 +424,15 @@ export function SidePanel({
                       <div
                         className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative group/iconbox ${iconColorClass || ""}`}
                       >
-                        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
+                        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/10 to-transparent opacity-50 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
                         <span
-                          className={`material-symbols-outlined !text-[20px] md:!text-[24px] opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 drop-shadow-[0_0_15px_currentColor] ${iconColorClass || ""}`}
+                          className={`material-symbols-outlined !text-2xl md:!text-3xl opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 ${iconColorClass || "theme-text-accent"}`}
                         >
                           {icon}
                         </span>
                       </div>
                     )}
                     <div className="flex flex-col min-w-0 w-full justify-center">
-                      {badgeText && (
-                        <div className="flex items-center gap-2 mb-1 md:mb-2">
-                          <span
-                            className={`text-[9px] md:text-[10px] font-black capitalize tracking-widest flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-current/10 border border-current/20 ${iconColorClass || "theme-text-accent"}`}
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current shadow-[0_0_8px_currentColor]"></span>
-                            {badgeText}
-                          </span>
-                        </div>
-                      )}
                       <span className="leading-tight text-xl md:text-3xl tracking-tight truncate w-full drop-shadow-md">
                         {title}
                       </span>
@@ -812,7 +820,7 @@ export function DashboardStatTile({
         </span>
         {hasValue && (
           <span
-            className={`${sizeClass} font-black tracking-tighter pr-2 md:pr-1 leading-none`}
+            className={`${sizeClass} font-black tracking-tighter pr-2 md:pr-1 leading-tight truncate w-full`}
           >
             {displayValue}
           </span>

@@ -420,3 +420,276 @@ pub async fn stack_local_dev_build_donation(
     })
 }
 
+#[tauri::command]
+pub async fn download_and_install_update(
+    app_handle: tauri::AppHandle,
+    download_url: String,
+    version: Option<String>,
+    is_dev: Option<bool>,
+) -> Result<String, String> {
+    use std::io::Write;
+    use tauri::Emitter;
+
+    let client = Client::builder()
+        .user_agent("Sanctuary-OS-Updater")
+        .timeout(std::time::Duration::from_secs(600))
+        .build()
+        .map_err(|e| format!("Failed to initialize HTTP client: {}", e))?;
+
+    let clean_ver = version
+        .unwrap_or_else(|| "latest".to_string())
+        .trim()
+        .trim_start_matches(|c| c == 'v' || c == 'V')
+        .to_string();
+    let want_dev = is_dev.unwrap_or_else(|| clean_ver.to_lowercase().contains("dev"));
+
+    let is_direct_installer = |url: &str| -> bool {
+        let path_part = url.split('?').next().unwrap_or(url).to_lowercase();
+        path_part.ends_with(".exe") || path_part.ends_with(".msi")
+    };
+
+    let mut resolved_url = if is_direct_installer(&download_url) {
+        download_url.trim().to_string()
+    } else {
+        String::new()
+    };
+
+    // If the provided URL is a GitHub release page rather than a direct .exe/.msi binary,
+    // resolve the direct installer asset URL from the GitHub Releases API.
+    if resolved_url.is_empty() {
+        let gh_resp = client
+            .get("https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases?per_page=25")
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await
+            .map_err(|e| format!("Failed to query GitHub Releases API: {}", e))?;
+
+        if gh_resp.status().is_success() {
+            if let Ok(releases) = gh_resp.json::<Vec<serde_json::Value>>().await {
+                let pick_installer_from_release = |rel: &serde_json::Value| -> Option<String> {
+                    let assets = rel.get("assets")?.as_array()?;
+                    // Priority 1: NSIS *-setup.exe
+                    for asset in assets {
+                        let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+                        if name.ends_with("-setup.exe") || name.ends_with("_x64-setup.exe") {
+                            if let Some(u) = asset.get("browser_download_url").and_then(|v| v.as_str()) {
+                                return Some(u.to_string());
+                            }
+                        }
+                    }
+                    // Priority 2: any .exe
+                    for asset in assets {
+                        let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+                        if name.ends_with(".exe") {
+                            if let Some(u) = asset.get("browser_download_url").and_then(|v| v.as_str()) {
+                                return Some(u.to_string());
+                            }
+                        }
+                    }
+                    // Priority 3: any .msi
+                    for asset in assets {
+                        let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+                        if name.ends_with(".msi") {
+                            if let Some(u) = asset.get("browser_download_url").and_then(|v| v.as_str()) {
+                                return Some(u.to_string());
+                            }
+                        }
+                    }
+                    None
+                };
+
+                // 1. Try exact version match first
+                for rel in &releases {
+                    if rel.get("draft").and_then(|d| d.as_bool()).unwrap_or(false) {
+                        continue;
+                    }
+                    let tag = rel
+                        .get("tag_name")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or("")
+                        .trim_start_matches(|c| c == 'v' || c == 'V');
+                    let rel_name = rel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                    if (!clean_ver.is_empty() && tag.eq_ignore_ascii_case(&clean_ver))
+                        || (!clean_ver.is_empty() && rel_name.to_lowercase().contains(&clean_ver.to_lowercase()))
+                    {
+                        if let Some(u) = pick_installer_from_release(rel) {
+                            resolved_url = u;
+                            break;
+                        }
+                    }
+                }
+
+                // 2. Fallback to latest matching channel (Dev vs Stable) with an installer asset
+                if resolved_url.is_empty() {
+                    for rel in &releases {
+                        if rel.get("draft").and_then(|d| d.as_bool()).unwrap_or(false) {
+                            continue;
+                        }
+                        let tag = rel.get("tag_name").and_then(|t| t.as_str()).unwrap_or("").to_lowercase();
+                        let prerelease = rel.get("prerelease").and_then(|p| p.as_bool()).unwrap_or(false);
+                        let is_rel_dev = tag == "dev-latest" || prerelease || tag.contains("dev");
+                        if is_rel_dev == want_dev {
+                            if let Some(u) = pick_installer_from_release(rel) {
+                                resolved_url = u;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // 3. Final fallback to any release that has an installer binary
+                if resolved_url.is_empty() {
+                    for rel in &releases {
+                        if rel.get("draft").and_then(|d| d.as_bool()).unwrap_or(false) {
+                            continue;
+                        }
+                        if let Some(u) = pick_installer_from_release(rel) {
+                            resolved_url = u;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if resolved_url.is_empty() {
+        return Err("No direct Windows installer asset (.exe or .msi) found on GitHub Releases for this build.".into());
+    }
+
+    let mut resp = client
+        .get(&resolved_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to start update download: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!(
+            "Update download failed with HTTP status {}",
+            resp.status()
+        ));
+    }
+
+    let total_bytes = resp.content_length().unwrap_or(0);
+    let _ = app_handle.emit(
+        "sanctuary-update-progress",
+        serde_json::json!({
+            "event": "Started",
+            "data": { "contentLength": total_bytes }
+        }),
+    );
+
+    let is_msi = resolved_url
+        .split('?')
+        .next()
+        .unwrap_or(&resolved_url)
+        .to_lowercase()
+        .ends_with(".msi");
+    let ext = if is_msi { "msi" } else { "exe" };
+    let safe_ver: String = clean_ver
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' })
+        .collect();
+    let installer_filename = format!("SanctuaryOS_Update_{}_setup.{}", safe_ver, ext);
+    let installer_path = std::env::temp_dir().join(&installer_filename);
+
+    {
+        let mut file = std::fs::File::create(&installer_path)
+            .map_err(|e| format!("Failed to create temporary installer file: {}", e))?;
+
+        while let Some(chunk) = resp
+            .chunk()
+            .await
+            .map_err(|e| format!("Network error while downloading update: {}", e))?
+        {
+            file.write_all(&chunk)
+                .map_err(|e| format!("Failed writing update chunk to disk: {}", e))?;
+            let _ = app_handle.emit(
+                "sanctuary-update-progress",
+                serde_json::json!({
+                    "event": "Progress",
+                    "data": { "chunkLength": chunk.len() }
+                }),
+            );
+        }
+
+        file.flush()
+            .map_err(|e| format!("Failed to flush installer file: {}", e))?;
+    }
+
+    let _ = app_handle.emit(
+        "sanctuary-update-progress",
+        serde_json::json!({
+            "event": "Finished",
+            "data": {}
+        }),
+    );
+
+    let _ = app_handle.emit(
+        "sanctuary-update-progress",
+        serde_json::json!({
+            "event": "Installing",
+            "data": {}
+        }),
+    );
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        if is_msi {
+            let current_exe = std::env::current_exe()
+                .ok()
+                .and_then(|p| p.to_str().map(|s| s.to_string()))
+                .unwrap_or_default();
+            let msi_str = installer_path.to_string_lossy().to_string();
+            if !current_exe.is_empty() {
+                let cmd_line = format!(
+                    "msiexec /i \"{}\" /qn /norestart & start \"\" \"{}\"",
+                    msi_str, current_exe
+                );
+                std::process::Command::new("cmd")
+                    .args(["/C", &cmd_line])
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .spawn()
+                    .map_err(|e| format!("Failed to launch silent MSI installer: {}", e))?;
+            } else {
+                std::process::Command::new("msiexec")
+                    .args(["/i", &msi_str, "/qn", "/norestart"])
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .spawn()
+                    .map_err(|e| format!("Failed to launch silent MSI installer: {}", e))?;
+            }
+        } else {
+            // /UPDATE skips uninstall.exe + WebView2/shortcut steps, /S runs NSIS completely silently (no Windows dialog), and /R relaunches Sanctuary OS on completion
+            std::process::Command::new(&installer_path)
+                .args(["/UPDATE", "/S", "/R"])
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn()
+                .map_err(|e| format!("Failed to launch silent setup installer: {}", e))?;
+        }
+    }
+
+    std::thread::sleep(std::time::Duration::from_millis(850));
+
+    let _ = app_handle.emit(
+        "sanctuary-update-progress",
+        serde_json::json!({
+            "event": "Relaunching",
+            "data": {}
+        }),
+    );
+
+    let exit_handle = app_handle.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(550));
+        exit_handle.exit(0);
+    });
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    Ok(installer_path.to_string_lossy().to_string())
+}
+
+

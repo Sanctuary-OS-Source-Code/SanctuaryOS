@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { SidePanel, HoverTooltip } from "../shared";
-import { UniversalGroup } from "../components/universal/UniversalLayout";
+import { SidePanel, UniversalGroup, StatBox, HoverTooltip } from "../shared";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
@@ -160,15 +159,6 @@ export function SystemStatusPanel({
     };
   };
 
-  const cleanUpdateVersion = String(updatePayload?.version || "")
-    .replace(/^v/i, "")
-    .trim();
-
-  const diskUsagePercent =
-    telemetry && telemetry.disk_total > 0
-      ? Math.min(100, Math.round((telemetry.disk_used / telemetry.disk_total) * 100))
-      : 0;
-
   return (
     <SidePanel
       isOpen={isOpen}
@@ -176,98 +166,118 @@ export function SystemStatusPanel({
       title={t("system_status", "System Status")}
       subtitle={t("sys_panel_desc", "Hardware & Environment Telemetry")}
       icon={t("icon_memory", "memory")}
-      widthClass="w-[600px]"
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[620px]"
       noPadding={true}
       noScroll={true}
     >
       <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
-        <div className="p-6 flex flex-col gap-8">
+        <div className="p-6 flex flex-col gap-6 pb-12">
           <UniversalGroup
-            className="animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out relative z-10"
             title={t("sys_info_app", "Application")}
-            icon={t("icon_terminal", "terminal")}
-            innerClassName="flex flex-col gap-3"
+            icon={t("icon_desktop_windows", "desktop_windows")}
           >
-            {updatePayload && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsUpdatePanelOpen(true);
-                }}
-                className="w-full glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_55%,transparent)] transition-all duration-300 flex items-center justify-between gap-4 relative group cursor-pointer text-left"
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                    <span className="material-symbols-outlined !text-[20px] animate-bounce">
-                      {t("icon_downloading", "downloading")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] opacity-85 truncate">
-                      {t("sys_stat_update_available", "Update Available")}
-                    </span>
-                    <span className="text-sm font-mono font-black tracking-wide text-[var(--text)] truncate mt-0.5">
-                      v{cleanUpdateVersion}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_24%,transparent)] group-hover:translate-x-0.5 transition-all">
-                  <span className="material-symbols-outlined !text-[18px]">
-                    {t("icon_arrow_forward", "arrow_forward")}
-                  </span>
-                </div>
-              </button>
-            )}
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <StatBox
-                label={t("sys_stat_version", "Build Version")}
-                value={`v${String(packageJson.version || "").replace(/^v/i, "")}`}
-                monoValue={true}
-                icon={t("icon_tag", "tag")}
-                onClick={(e) => {
-                  if (e.altKey) {
-                    setUpdatePayload({
-                      version: "9.9.9",
-                      date: new Date().toISOString(),
-                      body: "This is a simulated update payload for UI testing.",
-                      downloadAndInstall: async () => {
-                        console.log("Simulating install...");
-                      },
-                    } as any);
-                  }
-                }}
-              />
+              {(() => {
+                const installedVersion = String(packageJson.version || "")
+                  .replace(/^v/i, "")
+                  .trim();
+                const targetUpdateVersion = updatePayload
+                  ? String(updatePayload.version || "")
+                      .replace(/^v/i, "")
+                      .trim()
+                  : "";
+                const isDevUpdate = Boolean(
+                  updatePayload?.isDevChannel || /dev/i.test(targetUpdateVersion)
+                );
+                const channelSuffix =
+                  installedVersion === targetUpdateVersion
+                    ? ` (${
+                        isDevUpdate
+                          ? t("release_notes_meta_channel_dev", "Dev")
+                          : t("release_notes_meta_channel_stable", "Stable")
+                      })`
+                    : "";
+                return (
+                  <StatBox
+                    label={
+                      updatePayload
+                        ? isDevUpdate
+                          ? t("sys_stat_dev_update_available", "Dev Build Available")
+                          : t("sys_stat_update_available", "Update Available")
+                        : t("sys_stat_version", "Build Version")
+                    }
+                    value={
+                      updatePayload && targetUpdateVersion ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span>v{installedVersion}</span>
+                          <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">
+                            {t("icon_arrow_forward", "arrow_forward")}
+                          </span>
+                          <span className="text-[var(--success)]">
+                            v{targetUpdateVersion}
+                            {channelSuffix}
+                          </span>
+                        </span>
+                      ) : (
+                        `v${installedVersion}`
+                      )
+                    }
+                    icon={
+                      updatePayload
+                        ? t("icon_system_update_alt", "system_update_alt")
+                        : t("icon_tag", "tag")
+                    }
+                    iconColorClass={
+                      updatePayload ? "text-[var(--success)]" : "text-[var(--accent)]"
+                    }
+                    tooltipSubtitle={
+                      updatePayload
+                        ? t(
+                            "sys_stat_click_to_update",
+                            "Click to view release notes and install update"
+                          )
+                        : t("sys_stat_up_to_date", "Sanctuary OS is up to date")
+                    }
+                    className={
+                      updatePayload
+                        ? "!border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:!border-[var(--success)]"
+                        : ""
+                    }
+                    onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                      if (e.altKey) {
+                        setUpdatePayload({
+                          version: "9.9.9",
+                          date: new Date().toISOString(),
+                          body: "This is a simulated update payload for UI testing.",
+                          downloadAndInstall: async () => {
+                            console.log("Simulating install...");
+                          },
+                        } as any);
+                      } else if (updatePayload) {
+                        setIsUpdatePanelOpen(true);
+                      }
+                    }}
+                  />
+                );
+              })()}
               <StatBox
                 label={t("sys_stat_online", "Uplink Status")}
                 value={
-                  <span className="flex items-center gap-2">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        telemetry
-                          ? "bg-[var(--success)] animate-pulse"
-                          : "bg-[var(--warning)] animate-pulse"
-                      }`}
-                    />
-                    <span>
-                      {telemetry
-                        ? t("sys_stat_connected_status", "Connected")
-                        : t("sys_stat_scanning_status", "Scanning...")}
-                    </span>
-                  </span>
+                  telemetry
+                    ? t("sys_stat_connected_status", "Connected")
+                    : t("sys_stat_scanning_status", "Scanning...")
                 }
                 icon={t("icon_cloud", "cloud")}
-                variant={telemetry ? "success" : "default"}
+                iconColorClass={telemetry ? "text-[var(--success)]" : "text-[var(--warning)]"}
               />
             </div>
           </UniversalGroup>
 
           <UniversalGroup
-            className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150 ease-out fill-mode-both relative z-10"
             title={t("sys_info_os", "System Environment")}
-            icon={t("icon_public", "public")}
-            innerClassName="flex flex-col gap-3"
+            icon={t("icon_devices", "devices")}
+            delayClass="delay-100"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <StatBox
@@ -275,12 +285,13 @@ export function SystemStatusPanel({
                 value={telemetry?.host_os || navigator.userAgent}
                 tooltipSubtitle={telemetry?.host_os || navigator.userAgent}
                 icon={t("icon_devices", "devices")}
+                iconColorClass="text-[var(--accent)]"
               />
               <StatBox
                 label={t("target_patch", "Detected Patch")}
                 value={selectedVersion || t("status_unknown", "Unknown")}
-                monoValue={Boolean(selectedVersion)}
                 icon={t("icon_verified_user", "verified_user")}
+                iconColorClass="text-[var(--success)]"
               />
               <StatBox
                 label={t("sys_stat_cores", "Logical Cores")}
@@ -295,6 +306,7 @@ export function SystemStatusPanel({
                   )
                 }
                 icon={t("icon_memory", "memory")}
+                iconColorClass="text-[var(--accent)]"
               />
               <StatBox
                 label={t("sys_stat_ram", "Est. Device Memory")}
@@ -309,19 +321,31 @@ export function SystemStatusPanel({
                   )
                 }
                 icon={t("icon_speed", "speed")}
+                iconColorClass="text-[var(--success)]"
               />
             </div>
           </UniversalGroup>
 
           <UniversalGroup
-            className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200 ease-out fill-mode-both relative z-10"
             title={t("sys_info_app_footprint", "Sanctuary OS Footprint")}
-            icon={t("icon_monitoring", "monitoring")}
-            innerClassName="flex flex-col gap-3"
+            icon={t("icon_memory", "memory")}
+            delayClass="delay-200"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <StatBox
-                label={t("sys_stat_mem_working_set", "Memory (Working Set)")}
+                label={t("sys_stat_cpu", "CPU")}
+                value={
+                  appFootprint ? (
+                    <AnimatedNumber value={appFootprint.cpu_usage} suffix="%" />
+                  ) : (
+                    t("scanning", "Scanning...")
+                  )
+                }
+                icon={t("icon_speed", "speed")}
+                iconColorClass="text-[var(--warning)]"
+              />
+              <StatBox
+                label={t("sys_stat_app_memory", "Memory")}
                 value={
                   appFootprint ? (
                     (() => {
@@ -332,70 +356,55 @@ export function SystemStatusPanel({
                     t("scanning", "Scanning...")
                   )
                 }
-                icon={t("icon_memory", "memory")}
-              />
-              <StatBox
-                label={t("sys_stat_mem_private_set", "Memory (Private Bytes)")}
-                value={
-                  appFootprint ? (
-                    (() => {
-                      const s = parseBytes(appFootprint.memory_private);
-                      return <AnimatedNumber value={s.val} suffix={s.unit} />;
-                    })()
-                  ) : (
-                    t("scanning", "Scanning...")
-                  )
+                tooltipSubtitle={
+                  appFootprint
+                    ? `${t("sys_stat_working_set", "Working Set")}: ${(() => {
+                        const s = parseBytes(appFootprint.memory_used);
+                        return `${s.val} ${s.unit}`;
+                      })()} / ${t("sys_stat_private_set", "Private Bytes")}: ${(() => {
+                        const s = parseBytes(appFootprint.memory_private);
+                        return `${s.val} ${s.unit}`;
+                      })()}`
+                    : undefined
                 }
                 icon={t("icon_memory", "memory")}
+                iconColorClass="text-[var(--accent)]"
               />
               <StatBox
-                label={t("sys_stat_total_disk_read", "Disk Read")}
+                label={t("sys_stat_disk_io", "Disk I/O")}
                 value={
                   appFootprint ? (
                     (() => {
-                      const s = parseBytes(appFootprint.disk_read_speed);
+                      const s = parseBytes(
+                        (appFootprint.disk_read_speed || 0) + (appFootprint.disk_write_speed || 0),
+                      );
                       return <AnimatedNumber value={s.val} suffix={`${s.unit}/s`} />;
                     })()
                   ) : (
                     t("scanning", "Scanning...")
                   )
                 }
-                icon={t("icon_download", "download")}
-              />
-              <StatBox
-                label={t("sys_stat_total_disk_write", "Disk Write")}
-                value={
-                  appFootprint ? (
-                    (() => {
-                      const s = parseBytes(appFootprint.disk_write_speed);
-                      return <AnimatedNumber value={s.val} suffix={`${s.unit}/s`} />;
-                    })()
-                  ) : (
-                    t("scanning", "Scanning...")
-                  )
+                tooltipSubtitle={
+                  appFootprint
+                    ? `${t("sys_stat_total_disk_read", "Disk Read")}: ${(() => {
+                        const s = parseBytes(appFootprint.disk_read_speed);
+                        return `${s.val} ${s.unit}/s`;
+                      })()} / ${t("sys_stat_total_disk_write", "Disk Write")}: ${(() => {
+                        const s = parseBytes(appFootprint.disk_write_speed);
+                        return `${s.val} ${s.unit}/s`;
+                      })()}`
+                    : undefined
                 }
-                icon={t("icon_upload", "upload")}
+                icon={t("icon_swap_vert", "swap_vert")}
+                iconColorClass="text-[var(--success)]"
               />
             </div>
-
-            <StatBox
-              label={t("sys_stat_cpu", "CPU")}
-              value={
-                appFootprint ? (
-                  <AnimatedNumber value={appFootprint.cpu_usage} suffix="%" />
-                ) : (
-                  t("scanning", "Scanning...")
-                )
-              }
-              icon={t("icon_speed", "speed")}
-            />
           </UniversalGroup>
 
           <UniversalGroup
-            className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-300 ease-out fill-mode-both relative z-10"
-            title={t("sys_info_local_storage", "Local System Storage")}
-            icon={t("icon_hard_drive", "hard_drive")}
-            innerClassName="flex flex-col gap-3"
+            title={t("sys_info_storage", "Storage & Vault")}
+            icon={t("icon_storage", "storage")}
+            delayClass="delay-300"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <StatBox
@@ -403,169 +412,74 @@ export function SystemStatusPanel({
                 value={
                   telemetry ? (
                     (() => {
-                      const s = parseBytes(telemetry.disk_used);
-                      return <AnimatedNumber value={s.val} suffix={s.unit} />;
+                      const used = parseBytes(telemetry.disk_used);
+                      const total = parseBytes(telemetry.disk_total);
+                      return `${used.val} ${used.unit} / ${total.val} ${total.unit}`;
                     })()
                   ) : (
                     t("scanning", "Scanning...")
                   )
                 }
                 icon={t("icon_data_usage", "data_usage")}
+                iconColorClass="text-[var(--accent)]"
               />
-              <StatBox
-                label={t("sys_stat_quota", "Local Storage Capacity")}
-                value={
-                  telemetry ? (
-                    (() => {
-                      const s = parseBytes(telemetry.disk_total);
+
+              {vaultSize !== null && (
+                <>
+                  <StatBox
+                    label={t("sys_stat_vault", "Vault Footprint")}
+                    value={(() => {
+                      const s = parseBytes(vaultSize);
                       return <AnimatedNumber value={s.val} suffix={s.unit} />;
-                    })()
-                  ) : (
-                    t("scanning", "Scanning...")
-                  )
-                }
-                icon={t("icon_storage", "storage")}
-              />
-            </div>
-
-            {telemetry && telemetry.disk_total > 0 && (
-              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3.5">
-                <div className="flex-1 h-2 rounded-full overflow-hidden bg-[color-mix(in_srgb,var(--text)_8%,transparent)] relative">
-                  <div
-                    className="h-full bg-[var(--accent)] transition-all duration-1000 ease-out rounded-full shadow-[0_0_12px_var(--accent)]"
-                    style={{ width: `${diskUsagePercent}%` }}
+                    })()}
+                    icon={t("icon_folder_special", "folder_special")}
+                    iconColorClass="text-[var(--accent)]"
                   />
-                </div>
-                <span className="text-[10px] font-mono font-black text-[var(--accent)] shrink-0">
-                  {diskUsagePercent}%
-                </span>
-              </div>
-            )}
+                  <StatBox
+                    label={t("items", "Vault")}
+                    value={(() => {
+                      const s = parseBytes(artifactsSize || 0);
+                      return <AnimatedNumber value={s.val} suffix={s.unit} />;
+                    })()}
+                    icon={t("icon_inventory_2", "inventory_2")}
+                    iconColorClass="text-[var(--success)]"
+                  />
+                  <StatBox
+                    label={t("sys_stat_data", "Data Matrix")}
+                    value={(() => {
+                      const s = parseBytes(dataSize || 0);
+                      return <AnimatedNumber value={s.val} suffix={s.unit} />;
+                    })()}
+                    icon={t("icon_database", "database")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                  <StatBox
+                    label={t("filter_dev", "Sandbox")}
+                    value={(() => {
+                      const s = parseBytes(sandboxSize || 0);
+                      return <AnimatedNumber value={s.val} suffix={s.unit} />;
+                    })()}
+                    icon={t("icon_science", "science")}
+                    iconColorClass="text-[var(--warning)]"
+                  />
+                  <StatBox
+                    label={t("backups_title", "Time Capsule")}
+                    value={(() => {
+                      const s = parseBytes(timeCapsuleSize || 0);
+                      return <AnimatedNumber value={s.val} suffix={s.unit} />;
+                    })()}
+                    icon={t("icon_history", "history")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                </>
+              )}
+            </div>
           </UniversalGroup>
-
-          {vaultSize !== null && (
-            <UniversalGroup
-              className="animate-in fade-in slide-in-from-bottom-2 duration-700 delay-500 ease-out fill-mode-both relative z-10"
-              title={t("sys_info_vault_storage", "Sanctuary Storage Breakdown")}
-              icon={t("icon_inventory_2", "inventory_2")}
-              innerClassName="flex flex-col gap-3"
-            >
-              <StatBox
-                label={t("sys_stat_vault", "Vault Footprint")}
-                value={(() => {
-                  const s = parseBytes(vaultSize);
-                  return <AnimatedNumber value={s.val} suffix={s.unit} />;
-                })()}
-                icon={t("icon_inventory_2", "inventory_2")}
-                variant="accent"
-              />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <StatBox
-                  label={t("items", "Vault")}
-                  value={(() => {
-                    const s = parseBytes(artifactsSize || 0);
-                    return <AnimatedNumber value={s.val} suffix={s.unit} />;
-                  })()}
-                  icon={t("icon_extension", "extension")}
-                />
-                <StatBox
-                  label={t("sys_stat_data", "Mod Data")}
-                  value={(() => {
-                    const s = parseBytes(dataSize || 0);
-                    return <AnimatedNumber value={s.val} suffix={s.unit} />;
-                  })()}
-                  icon={t("icon_database", "database")}
-                />
-                <StatBox
-                  label={t("filter_dev", "Sandbox")}
-                  value={(() => {
-                    const s = parseBytes(sandboxSize || 0);
-                    return <AnimatedNumber value={s.val} suffix={s.unit} />;
-                  })()}
-                  icon={t("icon_science", "science")}
-                />
-                <StatBox
-                  label={t("backups_title", "Time Capsule")}
-                  value={(() => {
-                    const s = parseBytes(timeCapsuleSize || 0);
-                    return <AnimatedNumber value={s.val} suffix={s.unit} />;
-                  })()}
-                  icon={t("icon_history", "history")}
-                />
-              </div>
-            </UniversalGroup>
-          )}
         </div>
       </div>
     </SidePanel>
   );
 }
 
-function StatBox({
-  label,
-  value,
-  icon,
-  variant = "default",
-  monoValue = false,
-  tooltipSubtitle,
-  onClick,
-}: {
-  label: string;
-  value: React.ReactNode;
-  icon: string;
-  variant?: "default" | "accent" | "success";
-  monoValue?: boolean;
-  tooltipSubtitle?: string;
-  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
-}) {
-  const isSuccess = variant === "success";
-  const isAccent = variant === "accent";
 
-  const iconBoxClasses = isSuccess
-    ? "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)]"
-    : "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]";
 
-  const valueColorClass = isSuccess
-    ? "text-[var(--success)]"
-    : isAccent
-      ? "text-[var(--accent)]"
-      : "text-[var(--text)]";
-
-  return (
-    <div
-      onClick={onClick}
-      className={`glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3.5 relative hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] transition-all ${
-        onClick ? "cursor-pointer" : "cursor-default"
-      }`}
-    >
-      <div
-        className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${iconBoxClasses}`}
-      >
-        <span className="material-symbols-outlined !text-[20px]">{icon}</span>
-      </div>
-
-      <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 truncate">
-          {label}
-        </span>
-        <div
-          className={`text-xs sm:text-sm font-black tracking-wide truncate mt-0.5 ${
-            monoValue ? "font-mono" : ""
-          } ${valueColorClass}`}
-        >
-          {value}
-        </div>
-      </div>
-
-      {tooltipSubtitle && (
-        <HoverTooltip
-          title={label}
-          subtitle={tooltipSubtitle}
-          icon={icon}
-          variant="info"
-        />
-      )}
-    </div>
-  );
-}

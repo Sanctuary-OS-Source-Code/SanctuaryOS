@@ -19,6 +19,7 @@ import { CommandScreenStats, CommandScreenSectionHeading, CommandScreenQuickLink
 import { SanctuaryAlertsSidePanel } from "./side-panels/SanctuaryAlertsSidePanel";
 import { CommunitySupportSidePanel } from "./side-panels/CommunitySupportSidePanel";
 import { VaultFilters } from "./hub-components/vault/VaultFilters";
+import { extractDispatchMetadata, formatDispatchCategory } from "./components/universal/DispatchPollAndMeta";
 export default function CommandCenter({
   isScanning, modsPath, isConfigured, toggleInActiveSet,
   modList, quarantineList, shelterContents, shelterActive, runRadarSweep, runSanitization, massIngestToCloud, triggerShelter, setView, setFilterStatus, setShowBrokenModal, setShowQuarantineModal, handleOpenMasonProfile, networkUpdates, setIsSupportDeskOpen, setIsCitizenTicketsOpen, equipPlaySet
@@ -460,19 +461,22 @@ export default function CommandCenter({
                       />
                     </div>
                   )}
-                  {urgentBroadcast && dismissedBroadcastId !== String(urgentBroadcast.id) && (
+                  {urgentBroadcast && dismissedBroadcastId !== String(urgentBroadcast.id) && (() => {
+                    const broadcastMeta = extractDispatchMetadata(urgentBroadcast);
+                    const broadcastAlertType = formatDispatchCategory(broadcastMeta.alertOrDispatchType, t);
+                    return (
                     <div key="broadcast" className="relative group/broadcast flex-1 flex min-w-0 w-full h-full">
                       <HoverTooltip
                         variant="danger"
-                        title={urgentBroadcast.title || 'SYSTEM BROADCAST'}
-                        subtitle={stripMarkdown(urgentBroadcast.message || urgentBroadcast.content)}
+                        title={urgentBroadcast.title || t("tile_global_alert", "Global Alert")}
+                        subtitle={stripMarkdown(broadcastMeta.cleanContent || urgentBroadcast.message || urgentBroadcast.content)}
                         className="group-hover/broadcast:flex z-[1000] w-full"
                         vAlign="bottom"
                       />
                       <DashboardStatTile
-                        icon={<span className="material-symbols-outlined ">{urgentBroadcast.icon || 'campaign'}</span>}
-                        number="!"
-                        label={urgentBroadcast.title || 'SYSTEM BROADCAST'}
+                        icon={<span className="material-symbols-outlined ">{urgentBroadcast.icon || t("icon_campaign", "campaign")}</span>}
+                        number={broadcastAlertType}
+                        label={t("tile_global_alert", "Global Alert")}
                         disableBgStrip={true}
                         colorClass="!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_15%,transparent)] animate-pulse w-full"
                         onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', masons: { name: `${useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || "Wayfinders"} Team` }, views: 0, likes: 0, replies: 0 })}
@@ -485,11 +489,12 @@ export default function CommandCenter({
                         }}
                         className="absolute top-4 right-4 w-8 h-8 rounded-[10px] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-110 hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md cursor-pointer shadow-md"
                       >
-                        <HoverTooltip title="Dismiss Alert" variant="danger" vAlign="bottom" />
-                        <span className="material-symbols-outlined !text-[16px]">{t("icon_close") || "close"}</span>
+                        <HoverTooltip title={t("dismiss_alert", "Dismiss Alert")} variant="danger" vAlign="bottom" />
+                        <span className="material-symbols-outlined !text-[16px]">{t("icon_close", "close")}</span>
                       </button>
                     </div>
-                  )}
+                    );
+                  })()}
                   {activeGameSchema?.features?.has_cc !== false && showCritical && (
                     <div key="critical" className="relative group/critical flex-1 flex min-w-0 w-full h-full">
                       <HoverTooltip

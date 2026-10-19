@@ -68,6 +68,7 @@ import WayfinderHub from "./WayfinderHub";
 import KeepersCore from "./KeepersCore";
 import { UpdateSidePanel } from './side-panels/UpdateSidePanel';
 import { NexusUpdatesSidePanel } from './side-panels/NexusUpdatesSidePanel';
+import { SupporterCelebrationSidePanel } from './side-panels/SupporterCelebrationSidePanel';
 import CitizensWorkbench from "./CitizensWorkbench";
 import { ContextMenu } from "./ContextMenu";
 import { GlobalTooltip } from "./GlobalTooltip";
@@ -273,8 +274,7 @@ function App() {
     async function checkForUpdates() {
       try {
         const {
-          checkSupporterDevBuildUpdate,
-          checkStableGitHubReleaseUpdate,
+          syncUpdateChannelNotification,
           isTargetVersionNewer,
         } = await import("./utils/supporterManager");
         const pkgMod: any = await import("../package.json");
@@ -291,43 +291,10 @@ function App() {
             // fallback
           }
         }
-        const devUpdate = await checkSupporterDevBuildUpdate(currentVer);
-        if (devUpdate && devUpdate.isDevChannelActive && devUpdate.updateAvailable) {
-          setUpdatePayload({
-            version: devUpdate.version,
-            date: devUpdate.date,
-            body: devUpdate.notes,
-            isDevChannel: true,
-            isExternalDownload: true,
-            downloadAndInstall: async () => {
-              await openUrl(devUpdate.downloadUrl);
-            },
-          } as any);
-          return;
-        }
-        if (isDesktop()) {
-          try {
-            const update = await check();
-            if (update && isTargetVersionNewer(currentVer, update.version, false)) {
-              setUpdatePayload(update);
-              return;
-            }
-          } catch {
-            // Fallback to live GitHub Releases API check below
-          }
-          const stableFallback = await checkStableGitHubReleaseUpdate(currentVer);
-          if (stableFallback && stableFallback.updateAvailable) {
-            setUpdatePayload({
-              version: stableFallback.version,
-              date: stableFallback.date,
-              body: stableFallback.notes,
-              isExternalDownload: true,
-              downloadAndInstall: async () => {
-                await openUrl(stableFallback.downloadUrl);
-              },
-            } as any);
-          }
-        }
+        await syncUpdateChannelNotification({
+          currentVersion: currentVer,
+          checkTauriStableUpdater: isDesktop() ? () => check() : undefined,
+        });
       } catch (e) {
       }
     }
@@ -3456,6 +3423,7 @@ function App() {
           <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
           <DevBuildClearanceGate />
           <UpdateSidePanel />
+          <SupporterCelebrationSidePanel />
           <NexusUpdatesSidePanel />
           <SupportHub />
           <ContextMenu />
@@ -3513,7 +3481,7 @@ function App() {
       */}
       {currentTheme.ambientNoise !== false && (
         <div
-          className="fixed inset-0 w-full h-full opacity-[0.06] mix-blend-overlay pointer-events-none z-[9999] transform-gpu"
+          className="fixed inset-0 w-full h-full opacity-[0.06] mix-blend-overlay pointer-events-none z-[9999999] transform-gpu"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
             backgroundRepeat: 'repeat'

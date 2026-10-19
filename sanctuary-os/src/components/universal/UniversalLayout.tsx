@@ -1,5 +1,6 @@
 import React from 'react';
 import { EmptyState } from '../../shared-components/layout';
+import { HoverTooltip } from '../../shared-components/alerts';
 
 // ==========================================
 // HUB OVERVIEW LANDING & SECTION (GOLD STANDARD)
@@ -120,9 +121,9 @@ export function SidePanelTitleInput({
   ...rest
 }: SidePanelTitleInputProps) {
   return (
-    <div className={`flex flex-col gap-3 shrink-0 mb-4 mt-2 ${wrapperClassName}`}>
+    <div className={`glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-md flex flex-col gap-2 shrink-0 ${wrapperClassName}`}>
       {label && (
-        <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">
+        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 tracking-wide">
           {label}
         </span>
       )}
@@ -132,10 +133,10 @@ export function SidePanelTitleInput({
         readOnly={readOnly || !onChange}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
-        className={`bg-transparent text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] pb-1 w-full ${className}`}
+        className={`bg-transparent text-xl md:text-2xl font-bold text-[var(--text)] tracking-tight leading-snug truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 ${!readOnly && onChange ? "border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] pb-1.5" : ""} w-full ${className}`}
       />
       {subtitle && (
-        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1">
+        <span className="text-xs font-medium text-[var(--subtext)] opacity-75 tracking-normal">
           {subtitle}
         </span>
       )}
@@ -173,11 +174,11 @@ export function SidePanelPillToggle({
       className={`w-full glass-surface rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${
         checked
           ? `bg-[color-mix(in_srgb,var(${colorVar})_10%,transparent)] !border-[color-mix(in_srgb,var(${colorVar})_35%,transparent)]`
-          : "border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+          : "border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
       } ${disabled ? "opacity-50 pointer-events-none" : ""} ${className}`}
     >
       <span
-        className={`text-xs font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${
+        className={`text-xs font-bold tracking-wide transition-colors flex items-center gap-2 ${
           checked ? `text-[var(${colorVar})]` : "text-[var(--subtext)] group-hover:text-[var(--text)]"
         }`}
       >
@@ -221,29 +222,36 @@ export interface UniversalGroupProps {
   children?: React.ReactNode;
   className?: string;
   innerClassName?: string;
+  variant?: string;
+  collapsible?: boolean;
+  delayClass?: string;
 }
 
 export function UniversalGroup({
   title,
   label,
   icon,
-  headerColorClass = "text-[var(--text)] opacity-80",
+  headerColorClass = "text-[var(--text)] opacity-85",
   headerAction,
   children,
   className = "",
-  innerClassName = "flex flex-col gap-4"
+  innerClassName = "flex flex-col gap-3.5",
+  delayClass = ""
 }: UniversalGroupProps) {
   const heading = title || label;
   return (
-    <div className={`flex flex-col gap-4 relative mb-2 ${className}`}>
+    <div className={`flex flex-col gap-3.5 relative ${delayClass} ${className}`}>
       {heading && (
-        <div className="flex items-center gap-2">
-          {icon && <span className={`material-symbols-outlined !text-[16px] text-[var(--accent)]`}>{icon}</span>}
-          <h4 className={`text-[10px] font-black capitalize tracking-widest flex items-center gap-2 ${headerColorClass}`}>
+        <div className="flex items-center gap-2.5 px-1">
+          {icon && (
+            <span className="material-symbols-outlined !text-[17px] text-[var(--accent)] opacity-90">
+              {icon}
+            </span>
+          )}
+          <h4 className={`text-xs font-semibold tracking-wide capitalize flex items-center gap-2 ${headerColorClass}`}>
             {heading}
           </h4>
-          <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
-          {headerAction && <div className="ml-auto">{headerAction}</div>}
+          {headerAction && <div className="ml-auto shrink-0">{headerAction}</div>}
         </div>
       )}
       <div className={innerClassName}>
@@ -427,5 +435,84 @@ export function UniversalToggle({
   );
 }
 
+// ==========================================
+// STAT BOX (TELEMETRY / INFO CARD)
+// ==========================================
+export interface StatBoxProps {
+  label: string;
+  value: React.ReactNode;
+  icon: string;
+  iconColorClass?: string;
+  tooltipTitle?: string;
+  tooltipSubtitle?: string;
+  tooltipVariant?: string;
+  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  className?: string;
+}
+
+export function StatBox({
+  label,
+  value,
+  icon,
+  iconColorClass = "text-[var(--accent)]",
+  tooltipTitle,
+  tooltipSubtitle,
+  tooltipVariant = "default",
+  onClick,
+  className = "",
+}: StatBoxProps) {
+  const rawText =
+    typeof value === "string" || typeof value === "number"
+      ? String(value)
+      : React.isValidElement(value) &&
+          typeof (value.props as any)?.children === "string"
+        ? (value.props as any).children
+        : "";
+  const valueSizeClass =
+    rawText.length > 34
+      ? "text-xs md:text-sm"
+      : rawText.length > 22
+        ? "text-sm md:text-[15px]"
+        : "text-base md:text-lg";
+
+  return (
+    <div
+      onClick={onClick}
+      className={`glass-panel rounded-3xl py-3.5 px-4 md:py-4 md:px-5 hover:border-[rgba(var(--text-rgb),0.28)] flex items-center gap-3 md:gap-3.5 relative overflow-hidden transition-all duration-300 group ${
+        onClick ? "cursor-pointer active:scale-[0.99]" : "cursor-default"
+      } ${className}`}
+    >
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.06) 0%, transparent 65%)",
+        }}
+      />
+
+      <div className={`w-8 h-8 md:w-9 md:h-9 flex items-center justify-center shrink-0 relative z-10 ${iconColorClass}`}>
+        <span className="material-symbols-outlined !text-[20px] md:!text-[22px]">{icon}</span>
+      </div>
+
+      <div className="flex flex-col min-w-0 flex-1 relative z-10">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-80 mb-1 truncate">
+          {label}
+        </span>
+        <div className={`${valueSizeClass} font-black tracking-tight leading-snug text-[var(--text)] truncate`}>
+          {value}
+        </div>
+      </div>
+
+      {tooltipSubtitle && (
+        <HoverTooltip
+          title={tooltipTitle || label}
+          subtitle={tooltipSubtitle}
+          icon={icon}
+          variant={tooltipVariant}
+        />
+      )}
+    </div>
+  );
+}
 
 

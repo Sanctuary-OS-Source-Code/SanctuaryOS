@@ -622,6 +622,8 @@ body,
 */
 #sa-portals .glass-panel::before,
 #sa-portals .glass-surface::before,
+.sa-side-panel-window .glass-panel::before,
+.sa-side-panel-window .glass-surface::before,
 .glass-panel .glass-panel::before,
 .glass-panel .glass-surface::before,
 .glass-surface .glass-panel::before,
@@ -1243,4 +1245,4 @@ section:has(.monaco-editor) {
   line-height: 1.5;
   font-weight: 500;
   color: var(--subtext);
-}
+}

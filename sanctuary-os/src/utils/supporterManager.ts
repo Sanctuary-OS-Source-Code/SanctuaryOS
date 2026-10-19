@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "./envUtils";
 import { supabaseAuth, supabase } from "../supabase";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 
 export interface LocalMasonFollow {
   mason_id: string;
@@ -356,28 +357,59 @@ export async function stackGlobalDevBuildDonation(params: {
   const newTotalMonths =
     (currentState.dev_build.total_months_unlocked || 0) + monthsAdded;
 
+  let finalUntil = newUntil;
+  let finalCredit = remainderCents;
+  let finalTotalMonths = newTotalMonths;
+  let finalMonthsAdded = monthsAdded;
+
   // 1. Try syncing with Hub User Database via RPC or profile update (Zero Partner/Creator Honeypot)
   const localOnly = localStorage.getItem("sanctuary_local_only") === "true";
   if (!localOnly && navigator.onLine && userId && userId !== "local_citizen") {
     try {
       const client = supabaseAuth || supabase;
-      const { error: rpcErr } = await client.rpc(
+      const existingUntilIso =
+        (currentState.dev_build.dev_build_until || 0) > now
+          ? new Date(
+              currentState.dev_build.dev_build_until * 1000,
+            ).toISOString()
+          : null;
+      const { data: rpcData, error: rpcErr } = await client.rpc(
         "register_partner_donation_event",
         {
           p_user_id: userId,
           p_amount_cents: amountCents,
           p_tx_nonce: cleanNonce,
+          p_base_until: existingUntilIso,
         },
       );
-      if (rpcErr) {
+      if (!rpcErr && rpcData) {
+        if (rpcData.dev_build_until) {
+          finalUntil = Math.max(
+            finalUntil,
+            Math.floor(new Date(rpcData.dev_build_until).getTime() / 1000),
+          );
+        }
+        if (typeof rpcData.donation_credit_cents === "number") {
+          finalCredit = rpcData.donation_credit_cents;
+        }
+        if (typeof rpcData.total_months_unlocked === "number") {
+          finalTotalMonths = Math.max(
+            finalTotalMonths,
+            rpcData.total_months_unlocked,
+          );
+        }
+        if (typeof rpcData.months_added === "number") {
+          finalMonthsAdded = rpcData.months_added;
+        }
+      } else if (rpcErr) {
         // Fallback direct profile update if RPC not yet applied on Hub DB
         await client
           .from("profiles")
           .update({
             dev_build_until:
-              newUntil > 0 ? new Date(newUntil * 1000).toISOString() : null,
-            donation_credit_cents: remainderCents,
-            total_months_unlocked: newTotalMonths,
+              finalUntil > 0 ? new Date(finalUntil * 1000).toISOString() : null,
+            donation_credit_cents: finalCredit,
+            total_months_unlocked: finalTotalMonths,
             last_donation_at: new Date().toISOString(),
           })
           .eq("id", userId);
@@ -390,10 +422,11 @@ export async function stackGlobalDevBuildDonation(params: {
   // 2. Persist in local SQLite + local storage
   let updatedDevBuild: LocalDevBuildStatus = {
     user_id: userId,
-    dev_build_until: newUntil,
-    donation_credit_cents: remainderCents,
-    total_months_unlocked: newTotalMonths,
-    channel_enabled: newUntil > now ? true : currentState.dev_build.channel_enabled,
+    dev_build_until: finalUntil,
+    donation_credit_cents: finalCredit,
+    total_months_unlocked: finalTotalMonths,
+    channel_enabled:
+      finalUntil > now ? true : currentState.dev_build.channel_enabled,
     updated_at: now,
   };
 
@@ -404,11 +437,12 @@ export async function stackGlobalDevBuildDonation(params: {
         {
           vaultPath,
           userId,
-          amountCents,
-          channelEnabled: newUntil > now ? true : undefined,
-          overrideUntil: null,
-          overrideCreditCents: null,
-          overrideTotalMonths: null,
+          amountCents: 0,
+          channelEnabled:
+            finalUntil > now ? true : currentState.dev_build.channel_enabled,
+          overrideUntil: finalUntil,
+          overrideCreditCents: finalCredit,
+          overrideTotalMonths: finalTotalMonths,
         },
       );
     } catch (e) {
@@ -427,7 +461,7 @@ export async function stackGlobalDevBuildDonation(params: {
 
   return {
     devBuild: updatedDevBuild,
-    monthsAdded,
+    monthsAdded: finalMonthsAdded,
   };
 }
 
@@ -639,14 +673,20 @@ export async function fetchLiveGitHubReleases(
         result.dev_release_url = devRel.html_url;
         result.dev_build_download_url = devRel.html_url;
       }
-      const findExeAsset = (rel: any) =>
-        Array.isArray(rel?.assets)
-          ? rel.assets.find(
-              (a: any) =>
-                String(a.name || "").endsWith("-setup.exe") ||
-                String(a.name || "").endsWith(".exe"),
-            )
-          : null;
+      const findExeAsset = (rel: any) => {
+        if (!Array.isArray(rel?.assets)) return null;
+        return (
+          rel.assets.find(
+            (a: any) =>
+              String(a.name || "").toLowerCase().endsWith("-setup.exe") ||
+              String(a.name || "").toLowerCase().endsWith(".exe"),
+          ) ||
+          rel.assets.find((a: any) =>
+            String(a.name || "").toLowerCase().endsWith(".msi"),
+          ) ||
+          null
+        );
+      };
       const directExe = findExeAsset(devRel);
       if (directExe?.browser_download_url) {
         result.dev_build_download_url = directExe.browser_download_url;
@@ -864,6 +904,35 @@ export function getLocalPartnerDonationOverride(
   }
 }
 
+const INSTALLED_BUILD_META_KEY = "sanctuary_installed_build_meta_v1";
+const PENDING_CHANNEL_SWITCH_KEY = "sanctuary_pending_channel_switch_v1";
+
+export interface InstalledBuildMeta {
+  channel: "dev" | "stable";
+  version: string;
+  publishedAt?: string;
+  installedAt: number;
+}
+
+export function getInstalledBuildMeta(): InstalledBuildMeta | null {
+  try {
+    const raw = localStorage.getItem(INSTALLED_BUILD_META_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function setInstalledBuildMeta(meta: InstalledBuildMeta): void {
+  try {
+    localStorage.setItem(INSTALLED_BUILD_META_KEY, JSON.stringify(meta));
+    localStorage.removeItem(PENDING_CHANNEL_SWITCH_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
 export function isTargetVersionNewer(
   currentVersion: string,
   targetVersion: string,
@@ -892,10 +961,15 @@ export function isTargetVersionNewer(
   if (tgt.patch !== cur.patch) return tgt.patch > cur.patch;
 
   if (isDevChannel) {
-    return tgt.devNum > cur.devNum;
+    // Only compare dev iteration numbers directly when currentVersion already carries a dev suffix
+    // or when explicitly comparing against a recorded dev install version
+    if (cur.isDev) {
+      return tgt.devNum > cur.devNum;
+    }
+    return false;
   }
 
-  // On Stable channel: if current was a dev iteration or older build, only upgrade if target is non-dev with higher base version
+  // On Stable channel: only upgrade if target has a strictly higher major.minor.patch
   return false;
 }
 
@@ -914,7 +988,10 @@ export async function checkStableGitHubReleaseUpdate(
     const cleanCurrent = (currentVersion || "").replace(/^v/i, "").trim();
     if (!latestStable) return null;
 
-    const updateAvailable = isTargetVersionNewer(cleanCurrent, latestStable, false);
+    const pendingSwitch = localStorage.getItem(PENDING_CHANNEL_SWITCH_KEY);
+    const updateAvailable =
+      pendingSwitch === "stable" ||
+      isTargetVersionNewer(cleanCurrent, latestStable, false);
     if (!updateAvailable) return null;
 
     const downloadUrl =
@@ -967,11 +1044,41 @@ export async function checkSupporterDevBuildUpdate(
   const downloadUrl =
     pipeline.dev_build_download_url ||
     pipeline.dev_release_url ||
-    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases";
+    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
 
   const cleanCurrent = (currentVersion || "").replace(/^v/i, "").trim();
   const cleanTarget = (latestDevVersion || "").replace(/^v/i, "").trim();
-  const updateAvailable = isTargetVersionNewer(cleanCurrent, cleanTarget, true);
+  const pendingSwitch = localStorage.getItem(PENDING_CHANNEL_SWITCH_KEY);
+  const installedMeta = getInstalledBuildMeta();
+
+  let updateAvailable = false;
+  if (pendingSwitch === "dev") {
+    updateAvailable = true;
+  } else if (isTargetVersionNewer(cleanCurrent, cleanTarget, false)) {
+    // Remote dev build has a strictly higher major.minor.patch than current binary
+    updateAvailable = true;
+  } else if (/dev/i.test(cleanCurrent) && isTargetVersionNewer(cleanCurrent, cleanTarget, true)) {
+    // Current binary has a -dev suffix and remote dev iteration is higher
+    updateAvailable = true;
+  } else if (installedMeta && installedMeta.channel === "dev") {
+    // Compare against the previously installed dev build metadata
+    if (isTargetVersionNewer(installedMeta.version || cleanCurrent, cleanTarget, true)) {
+      updateAvailable = true;
+    } else if (pipeline.dev_published_at && installedMeta.publishedAt) {
+      const remoteTime = new Date(pipeline.dev_published_at).getTime();
+      const installedTime = new Date(installedMeta.publishedAt).getTime();
+      if (!isNaN(remoteTime) && !isNaN(installedTime) && remoteTime > installedTime + 60_000) {
+        updateAvailable = true;
+      }
+    }
+  } else if (pipeline.has_live_dev_release && pipeline.dev_published_at && pipeline.stable_published_at) {
+    // Only treat same-base-version dev release as newer if published after the current stable release
+    const devTime = new Date(pipeline.dev_published_at).getTime();
+    const stableTime = new Date(pipeline.stable_published_at).getTime();
+    if (!isNaN(devTime) && !isNaN(stableTime) && devTime > stableTime + 60_000) {
+      updateAvailable = true;
+    }
+  }
 
   return {
     isDevChannelActive: true,
@@ -981,6 +1088,284 @@ export async function checkSupporterDevBuildUpdate(
     downloadUrl,
     date: latestDate,
   };
+}
+
+export function buildChannelUpdatePayload(
+  pipeline: KeepersPipelineConfig,
+  channel: "dev" | "stable",
+  currentVersion = "0.5.8",
+  isChannelSwitchOffer = false,
+): any {
+  const cleanBase =
+    (currentVersion || "0.5.8").replace(/^v/i, "").trim().split("-")[0] || "0.5.8";
+
+  if (channel === "dev") {
+    const latestDevVersion = (
+      pipeline.dev_build_version || `${cleanBase}-dev.1`
+    )
+      .replace(/^v/i, "")
+      .trim();
+    const latestDevDate =
+      pipeline.dev_published_at || pipeline.updated_at || new Date().toISOString();
+    const latestDevNotes = pipeline.dev_build_notes || "";
+    const latestDevDownloadUrl =
+      pipeline.dev_build_download_url ||
+      pipeline.dev_release_url ||
+      "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
+
+    return {
+      version: latestDevVersion,
+      date: latestDevDate,
+      body: latestDevNotes,
+      downloadUrl: latestDevDownloadUrl,
+      isDevChannel: true,
+      isChannelSwitchOffer,
+      isExternalDownload: !isDesktop(),
+      downloadAndInstall: async (onEvent?: (event: any) => void) => {
+        await downloadAndInstallReleaseAsset(
+          latestDevDownloadUrl,
+          latestDevVersion,
+          true,
+          onEvent,
+          latestDevDate,
+        );
+      },
+    };
+  }
+
+  const latestStableVersion = (pipeline.stable_version || cleanBase)
+    .replace(/^v/i, "")
+    .trim();
+  const latestStableDate =
+    pipeline.stable_published_at || pipeline.updated_at || new Date().toISOString();
+  const latestStableNotes = pipeline.stable_release_notes || "";
+  const latestStableDownloadUrl =
+    pipeline.stable_exe_url ||
+    pipeline.stable_msi_url ||
+    pipeline.stable_release_url ||
+    `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`;
+
+  return {
+    version: latestStableVersion,
+    date: latestStableDate,
+    body: latestStableNotes,
+    downloadUrl: latestStableDownloadUrl,
+    isDevChannel: false,
+    isChannelSwitchOffer,
+    isExternalDownload: !isDesktop(),
+    downloadAndInstall: async (onEvent?: (event: any) => void) => {
+      await downloadAndInstallReleaseAsset(
+        latestStableDownloadUrl,
+        latestStableVersion,
+        false,
+        onEvent,
+        latestStableDate,
+      );
+    },
+  };
+}
+
+export async function syncUpdateChannelNotification(options?: {
+  currentVersion?: string;
+  switchedToChannel?: "dev" | "stable";
+  forceGitHubRefresh?: boolean;
+  checkTauriStableUpdater?: () => Promise<any>;
+}): Promise<{
+  activeChannel: "dev" | "stable";
+  updateAvailable: boolean;
+  payload: any | null;
+}> {
+  let resolvedVersion = options?.currentVersion || "";
+  if (!resolvedVersion) {
+    try {
+      const pkgMod: any = await import("../../package.json");
+      resolvedVersion = pkgMod?.default?.version || pkgMod?.version || "0.5.8";
+    } catch {
+      resolvedVersion = "0.5.8";
+    }
+  }
+  const cleanCurrent = resolvedVersion.replace(/^v/i, "").trim();
+
+  // 1. Explicit toggle flip between Stable <-> Dev:
+  //    - Flipped to Dev -> Immediately offers latest Dev Build
+  //    - Flipped to Stable -> Immediately offers latest Stable Version
+  if (options?.switchedToChannel === "dev" || options?.switchedToChannel === "stable") {
+    const targetChannel = options.switchedToChannel;
+    try {
+      localStorage.setItem(PENDING_CHANNEL_SWITCH_KEY, targetChannel);
+    } catch {
+      // ignore storage errors
+    }
+
+    // Set instant payload from local/cached pipeline config so UI updates with 0ms latency
+    const cachedPipeline = await getKeepersPipelineConfig(false);
+    const instantPayload = buildChannelUpdatePayload(
+      cachedPipeline,
+      targetChannel,
+      cleanCurrent,
+      true,
+    );
+    useModalStore.getState().setUpdatePayload(instantPayload);
+
+    // Hydrate from live GitHub releases in the background
+    const freshPipeline = await getKeepersPipelineConfig(
+      options.forceGitHubRefresh ?? true,
+    );
+    const freshPayload = buildChannelUpdatePayload(
+      freshPipeline,
+      targetChannel,
+      cleanCurrent,
+      true,
+    );
+    useModalStore.getState().setUpdatePayload(freshPayload);
+
+    return {
+      activeChannel: targetChannel,
+      updateAvailable: true,
+      payload: freshPayload,
+    };
+  }
+
+  // 2. Normal check: strictly scoped to the active channel
+  const devRes = await checkSupporterDevBuildUpdate(cleanCurrent);
+  if (devRes && devRes.isDevChannelActive) {
+    // On Dev channel: ONLY notify for new Dev builds (never fall through to Stable)
+    if (devRes.updateAvailable) {
+      const payload = {
+        version: devRes.version,
+        date: devRes.date,
+        body: devRes.notes,
+        downloadUrl: devRes.downloadUrl,
+        isDevChannel: true,
+        isChannelSwitchOffer:
+          localStorage.getItem(PENDING_CHANNEL_SWITCH_KEY) === "dev",
+        isExternalDownload: !isDesktop(),
+        downloadAndInstall: async (onEvent?: (event: any) => void) => {
+          await downloadAndInstallReleaseAsset(
+            devRes.downloadUrl,
+            devRes.version,
+            true,
+            onEvent,
+            devRes.date,
+          );
+        },
+      };
+      useModalStore.getState().setUpdatePayload(payload);
+      return {
+        activeChannel: "dev",
+        updateAvailable: true,
+        payload,
+      };
+    }
+
+    useModalStore.getState().setUpdatePayload(null);
+    return {
+      activeChannel: "dev",
+      updateAvailable: false,
+      payload: null,
+    };
+  }
+
+  // On Stable channel: ONLY notify for new Stable builds (never notify for Dev builds)
+  if (isDesktop() && options?.checkTauriStableUpdater) {
+    try {
+      const tauriUpdate = await options.checkTauriStableUpdater();
+      if (
+        tauriUpdate &&
+        isTargetVersionNewer(cleanCurrent, tauriUpdate.version, false)
+      ) {
+        useModalStore.getState().setUpdatePayload(tauriUpdate);
+        return {
+          activeChannel: "stable",
+          updateAvailable: true,
+          payload: tauriUpdate,
+        };
+      }
+    } catch {
+      // Fallback to GitHub Release API check below
+    }
+  }
+
+  const stableRes = await checkStableGitHubReleaseUpdate(cleanCurrent);
+  if (stableRes && stableRes.updateAvailable) {
+    const payload = {
+      version: stableRes.version,
+      date: stableRes.date,
+      body: stableRes.notes,
+      downloadUrl: stableRes.downloadUrl,
+      isDevChannel: false,
+      isChannelSwitchOffer:
+        localStorage.getItem(PENDING_CHANNEL_SWITCH_KEY) === "stable",
+      isExternalDownload: !isDesktop(),
+      downloadAndInstall: async (onEvent?: (event: any) => void) => {
+        await downloadAndInstallReleaseAsset(
+          stableRes.downloadUrl,
+          stableRes.version,
+          false,
+          onEvent,
+          stableRes.date,
+        );
+      },
+    };
+    useModalStore.getState().setUpdatePayload(payload);
+    return {
+      activeChannel: "stable",
+      updateAvailable: true,
+      payload,
+    };
+  }
+
+  useModalStore.getState().setUpdatePayload(null);
+  return {
+    activeChannel: "stable",
+    updateAvailable: false,
+    payload: null,
+  };
+}
+
+export async function downloadAndInstallReleaseAsset(
+  downloadUrl: string,
+  version: string,
+  isDevChannel: boolean,
+  onEvent?: (event: any) => void,
+  publishedAt?: string,
+): Promise<void> {
+  setInstalledBuildMeta({
+    channel: isDevChannel ? "dev" : "stable",
+    version: String(version || "").replace(/^v/i, "").trim(),
+    publishedAt: publishedAt || new Date().toISOString(),
+    installedAt: Date.now(),
+  });
+
+  if (!isDesktop()) {
+    window.open(downloadUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  let unlisten: (() => void) | null = null;
+  try {
+    if (onEvent) {
+      const { listen } = await import("@tauri-apps/api/event");
+      unlisten = await listen("sanctuary-update-progress", (ev: any) => {
+        if (ev?.payload) {
+          onEvent(ev.payload);
+        }
+      });
+    }
+    await invoke("download_and_install_update", {
+      downloadUrl: downloadUrl || "",
+      version: version || "",
+      isDev: Boolean(isDevChannel),
+    });
+  } finally {
+    if (unlisten) {
+      try {
+        unlisten();
+      } catch {
+        // ignore unlisten error
+      }
+    }
+  }
 }
 
 export function isSandboxDonationUrl(url?: string | null): boolean {
@@ -1271,5 +1656,92 @@ export async function verifyDevBuildClearance(): Promise<DevBuildClearanceResult
     appVersion,
   };
 }
+
+let lastCelebratedUntil = 0;
+
+export function presentSupporterCelebrationModal(params: {
+  devBuildUntil: number;
+  monthsAdded?: number;
+  t?: (key: string, fallback: string) => string;
+}): void {
+  if (params.devBuildUntil > 0 && params.devBuildUntil === lastCelebratedUntil) {
+    return;
+  }
+  if (params.devBuildUntil > 0) {
+    lastCelebratedUntil = params.devBuildUntil;
+  }
+
+  const tr = params.t || ((_k: string, fb: string) => fb);
+  const months = Math.max(1, Number(params.monthsAdded || 1));
+  const daysAdded = months * 30;
+  const nowSecs = Math.floor(Date.now() / 1000);
+  const remainingDays = Math.max(
+    daysAdded,
+    Math.ceil(Math.max(0, (params.devBuildUntil || 0) - nowSecs) / 86400),
+  );
+  const expiryDateStr =
+    params.devBuildUntil > 0
+      ? new Date(params.devBuildUntil * 1000).toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : tr("supporter_active_channel_label", "Active Stream");
+
+  const daysUnit = tr("supporter_celebration_days_unit", "Days");
+  const monthUnit =
+    months === 1
+      ? tr("supporter_celebration_month_unit", "Month")
+      : tr("supporter_celebration_months_unit", "Months");
+
+  const modalState = useModalStore.getState();
+
+  // Close the SidePanelBrowser and remove completed Stripe checkout tabs so the user returns cleanly to Sanctuary OS
+  if (modalState.isSideBrowserOpen) {
+    modalState.setIsSideBrowserOpen(false);
+  }
+  if (Array.isArray(modalState.browserTabs) && modalState.browserTabs.length > 0) {
+    const remainingTabs = modalState.browserTabs.filter(
+      (tab: any) => !String(tab?.url || "").toLowerCase().includes("stripe.com/c/pay/"),
+    );
+    if (remainingTabs.length !== modalState.browserTabs.length) {
+      modalState.setBrowserTabs(remainingTabs);
+      if (remainingTabs.length > 0) {
+        modalState.setActiveBrowserTabId(remainingTabs[remainingTabs.length - 1].id);
+      }
+    }
+  }
+
+  const title = tr(
+    "supporter_celebration_title",
+    "Supporter Access Extended!",
+  );
+
+  window.dispatchEvent(new CustomEvent("sanctuary-supporter-updated"));
+  window.dispatchEvent(
+    new CustomEvent("sanctuary-supporter-celebration", {
+      detail: {
+        devBuildUntil: params.devBuildUntil,
+        monthsAdded: months,
+        daysAdded,
+        remainingDays,
+        expiryDateStr,
+      },
+    }),
+  );
+
+  import("./notificationHelper")
+    .then(({ notifyOS }) => {
+      notifyOS(
+        title,
+        `+${daysAdded} ${daysUnit} (+${months} ${monthUnit}) — ${remainingDays} ${tr("supporter_days_remaining_suffix", "Days Remaining")} (${tr("supporter_expires_prefix", "Expires")} ${expiryDateStr})`,
+        "SUPPORT",
+        true,
+        `supporter_celebration_${params.devBuildUntil}_${Date.now()}`,
+      ).catch(() => {});
+    })
+    .catch(() => {});
+}
+
 
 
