@@ -20,10 +20,12 @@ export function UpdateSidePanel() {
 
   useEffect(() => {
     if (updatePayload && isUpdatePanelOpen) {
-      const version = updatePayload.version;
-      const tag = version.startsWith('v') ? version : `v${version}`;
-      fetch(`https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/${tag}`)
-        .then(res => res.json())
+      const version = String(updatePayload.version || "").trim();
+      const rawTag = version.startsWith('v') || version.startsWith('V') ? version : `v${version}`;
+      setLiveReleaseNotes(null);
+      fetch(`https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/${rawTag}`)
+        .then(res => (res.ok ? res : fetch(`https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/${rawTag.toLowerCase()}`)))
+        .then(res => (res.ok ? res.json() : null))
         .then(data => {
           if (data && data.body) {
             setLiveReleaseNotes(data.body);
@@ -64,6 +66,11 @@ export function UpdateSidePanel() {
                   if (event.event === 'Progress') {
                   }
                 });
+                if (updatePayload.isExternalDownload) {
+                  setIsInstalling(false);
+                  setIsUpdatePanelOpen(false);
+                  return;
+                }
                 setStatus(t("status_restarting"));
                 await relaunch();
               } catch (e) {

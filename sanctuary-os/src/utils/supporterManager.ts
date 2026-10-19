@@ -515,7 +515,7 @@ const KEEPERS_PIPELINE_STORAGE_KEY = "sanctuary_keepers_pipeline_config_v1";
 export const DEFAULT_KEEPERS_PIPELINE_CONFIG: KeepersPipelineConfig = {
   keepers_donation_url: "https://donate.stripe.com/00w28j4ZP3IU2HCgEl08g00",
   keepers_payment_processor: "STRIPE",
-  stable_version: "0.5.7",
+  stable_version: "0.5.8",
   dev_build_version: "0.5.8-dev.1",
   dev_build_endpoint:
     "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/dev-latest/latest.json",
@@ -602,7 +602,7 @@ export async function fetchLiveGitHubReleases(
     }
 
     // 2. Latest Daily Dev Build Release (tag_name === 'dev-latest', prerelease, or tag contains 'dev')
-    const devRel = releases.find(
+    const devReleases = releases.filter(
       (r: any) =>
         r &&
         !r.draft &&
@@ -612,6 +612,7 @@ export async function fetchLiveGitHubReleases(
             .toLowerCase()
             .includes("dev")),
     );
+    const devRel = devReleases[0];
 
     if (devRel) {
       result.has_live_dev_release = true;
@@ -638,14 +639,24 @@ export async function fetchLiveGitHubReleases(
         result.dev_release_url = devRel.html_url;
         result.dev_build_download_url = devRel.html_url;
       }
-      if (Array.isArray(devRel.assets)) {
-        const exeAsset = devRel.assets.find(
-          (a: any) =>
-            String(a.name || "").endsWith("-setup.exe") ||
-            String(a.name || "").endsWith(".exe"),
+      const findExeAsset = (rel: any) =>
+        Array.isArray(rel?.assets)
+          ? rel.assets.find(
+              (a: any) =>
+                String(a.name || "").endsWith("-setup.exe") ||
+                String(a.name || "").endsWith(".exe"),
+            )
+          : null;
+      const directExe = findExeAsset(devRel);
+      if (directExe?.browser_download_url) {
+        result.dev_build_download_url = directExe.browser_download_url;
+      } else {
+        const fallbackDevWithExe = devReleases.find((r: any) =>
+          Boolean(findExeAsset(r)?.browser_download_url),
         );
-        if (exeAsset?.browser_download_url) {
-          result.dev_build_download_url = exeAsset.browser_download_url;
+        const fallbackExe = findExeAsset(fallbackDevWithExe);
+        if (fallbackExe?.browser_download_url) {
+          result.dev_build_download_url = fallbackExe.browser_download_url;
         }
       }
     } else {
@@ -853,6 +864,77 @@ export function getLocalPartnerDonationOverride(
   }
 }
 
+export function isTargetVersionNewer(
+  currentVersion: string,
+  targetVersion: string,
+  isDevChannel = false,
+): boolean {
+  const cleanCurrent = (currentVersion || "").replace(/^v/i, "").trim().toLowerCase();
+  const cleanTarget = (targetVersion || "").replace(/^v/i, "").trim().toLowerCase();
+  if (!cleanTarget || cleanTarget === cleanCurrent) return false;
+
+  const parseVer = (v: string) => {
+    const baseMatch = v.match(/^(\d+)\.(\d+)\.(\d+)/);
+    const major = baseMatch ? parseInt(baseMatch[1], 10) : 0;
+    const minor = baseMatch ? parseInt(baseMatch[2], 10) : 0;
+    const patch = baseMatch ? parseInt(baseMatch[3], 10) : 0;
+    const isDev = /dev/i.test(v);
+    const devMatch = v.match(/dev[.\-_]?(\d+)/i);
+    const devNum = devMatch ? parseInt(devMatch[1], 10) : isDev ? 1 : 0;
+    return { major, minor, patch, isDev, devNum };
+  };
+
+  const cur = parseVer(cleanCurrent);
+  const tgt = parseVer(cleanTarget);
+
+  if (tgt.major !== cur.major) return tgt.major > cur.major;
+  if (tgt.minor !== cur.minor) return tgt.minor > cur.minor;
+  if (tgt.patch !== cur.patch) return tgt.patch > cur.patch;
+
+  if (isDevChannel) {
+    return tgt.devNum > cur.devNum;
+  }
+
+  // On Stable channel: if current was a dev iteration or older build, only upgrade if target is non-dev with higher base version
+  return false;
+}
+
+export async function checkStableGitHubReleaseUpdate(
+  currentVersion: string,
+): Promise<{
+  updateAvailable: boolean;
+  version: string;
+  notes: string;
+  downloadUrl: string;
+  date: string;
+} | null> {
+  try {
+    const pipeline = await getKeepersPipelineConfig(true);
+    const latestStable = (pipeline.stable_version || "").replace(/^v/i, "").trim();
+    const cleanCurrent = (currentVersion || "").replace(/^v/i, "").trim();
+    if (!latestStable) return null;
+
+    const updateAvailable = isTargetVersionNewer(cleanCurrent, latestStable, false);
+    if (!updateAvailable) return null;
+
+    const downloadUrl =
+      pipeline.stable_exe_url ||
+      pipeline.stable_msi_url ||
+      pipeline.stable_release_url ||
+      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`;
+
+    return {
+      updateAvailable: true,
+      version: latestStable,
+      notes: pipeline.stable_release_notes || "",
+      downloadUrl,
+      date: pipeline.stable_published_at || pipeline.updated_at || new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function checkSupporterDevBuildUpdate(
   currentVersion: string,
 ): Promise<{
@@ -877,55 +959,19 @@ export async function checkSupporterDevBuildUpdate(
     return null;
   }
 
-  const pipeline = await getKeepersPipelineConfig();
-  let latestDevVersion = pipeline.dev_build_version || "";
-  let latestNotes = pipeline.dev_build_notes || "";
-  let latestDate = pipeline.updated_at || new Date().toISOString();
-  let downloadUrl =
+  const pipeline = await getKeepersPipelineConfig(true);
+  const latestDevVersion = pipeline.dev_build_version || "";
+  const latestNotes = pipeline.dev_build_notes || "";
+  const latestDate =
+    pipeline.dev_published_at || pipeline.updated_at || new Date().toISOString();
+  const downloadUrl =
     pipeline.dev_build_download_url ||
-    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
-
-  // Also check live GitHub dev-latest release if online (query releases list to avoid 404 console noise when dev-latest tag isn't published)
-  if (navigator.onLine) {
-    try {
-      const res = await fetch(
-        "https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases?per_page=10",
-      );
-      if (res.ok) {
-        const releases = await res.json();
-        const release = Array.isArray(releases)
-          ? releases.find((r: any) => r?.tag_name === "dev-latest")
-          : null;
-        if (release) {
-          if (release.name) {
-            const match = String(release.name).match(/v?(\d+\.\d+\.\d+[^\s)]*)/i);
-            if (match && match[1]) {
-              latestDevVersion = match[1];
-            }
-          }
-          if (release.body) latestNotes = release.body;
-          if (release.published_at) latestDate = release.published_at;
-          if (release.html_url) downloadUrl = release.html_url;
-          if (Array.isArray(release.assets)) {
-            const exeAsset = release.assets.find((a: any) =>
-              String(a.name || "").endsWith("-setup.exe"),
-            );
-            if (exeAsset?.browser_download_url) {
-              downloadUrl = exeAsset.browser_download_url;
-            }
-          }
-        }
-      }
-    } catch {
-      // use pipeline config
-    }
-  }
+    pipeline.dev_release_url ||
+    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases";
 
   const cleanCurrent = (currentVersion || "").replace(/^v/i, "").trim();
   const cleanTarget = (latestDevVersion || "").replace(/^v/i, "").trim();
-  const updateAvailable = Boolean(
-    cleanTarget && cleanTarget !== cleanCurrent,
-  );
+  const updateAvailable = isTargetVersionNewer(cleanCurrent, cleanTarget, true);
 
   return {
     isDevChannelActive: true,

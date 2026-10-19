@@ -3,9 +3,18 @@ on:
   push:
     tags:
       - 'v*'
-    tags-ignore:
-      - '*-dev*'
-      - 'dev-*'
+      - '!*-dev*'
+      - '!*-Dev*'
+      - '!*-DEV*'
+      - '!dev-*'
+      - '!Dev-*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Stable release tag to build and attach assets to (e.g. v0.5.8)'
+        required: false
+        default: 'v0.5.8'
+
 jobs:
   release:
     permissions:
@@ -16,34 +25,108 @@ jobs:
         include:
           - platform: windows-latest
             args: ""
-          - platform: macos-latest
-            args: "--target universal-apple-darwin"
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
       - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
-      - name: install rust targets for macos
-        if: matrix.platform == 'macos-latest'
-        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Sync version metadata from tag and clean stale release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          RAW_TAG: ${{ github.event.inputs.tag_name || github.ref_name }}
+        run: |
+          $tag = "$env:RAW_TAG".Trim()
+          if (-not $tag -or $tag -eq "main" -or $tag -eq "master") {
+            $pkg = Get-Content "./sanctuary-os/package.json" -Raw | ConvertFrom-Json
+            $tag = "v$($pkg.version)"
+          }
+          $cleanVer = $tag -replace '^[vV]', ''
+          $msiMatch = [regex]::Match($cleanVer, '^\d+\.\d+\.\d+')
+          $msiVer = if ($msiMatch.Success) { $msiMatch.Value } else { "0.5.8" }
+
+          Write-Host "Syncing Stable build version: package=$cleanVer, msi=$msiVer (tag=$tag)"
+
+          node -e "
+            const fs = require('fs');
+            const pkgPath = './sanctuary-os/package.json';
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            pkg.version = '$cleanVer';
+            fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+
+            const tauriPath = './sanctuary-os/src-tauri/tauri.conf.json';
+            const tauri = JSON.parse(fs.readFileSync(tauriPath, 'utf8'));
+            tauri.version = '$msiVer';
+            fs.writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + '\n');
+
+            const cargoPath = './sanctuary-os/src-tauri/Cargo.toml';
+            let cargo = fs.readFileSync(cargoPath, 'utf8');
+            cargo = cargo.replace(/^version\s*=\s*\"[^\"]*\"/m, 'version = \"$cleanVer\"');
+            fs.writeFileSync(cargoPath, cargo);
+          "
+
+          # Remove any stale 0.5.5 assets if rebuilding an existing release
+          try {
+            $assetsJson = gh release view $tag --json assets 2>$null | ConvertFrom-Json
+            if ($assetsJson -and $assetsJson.assets) {
+              foreach ($a in $assetsJson.assets) {
+                if ($a.name -like "*0.5.5*" -and $msiVer -ne "0.5.5") {
+                  Write-Host "Removing stale asset $($a.name) from $tag..."
+                  gh release delete-asset $tag $a.name --yes 2>$null
+                }
+              }
+            }
+          } catch {
+            Write-Host "No existing release assets to clean for $tag"
+          }
+
       - name: install dependencies
         run: npm install
         working-directory: ./sanctuary-os
+
       - name: build and publish
         uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: ./sanctuary-os
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Sanctuary OS ${{ github.ref_name }}'
+          tagName: ${{ github.event.inputs.tag_name || github.ref_name }}
+          releaseName: 'Sanctuary OS ${{ github.event.inputs.tag_name || github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: false
           prerelease: false
+          includeUpdaterJson: true
           args: ${{ matrix.args }}
+
+      - name: Ensure Stable release is marked Latest and Dev releases are Pre-release
+        if: always()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          RAW_TAG: ${{ github.event.inputs.tag_name || github.ref_name }}
+        run: |
+          $tag = "$env:RAW_TAG".Trim()
+          try {
+            $rels = gh release list --limit 15 --json tagName,isPrerelease | ConvertFrom-Json
+            foreach ($r in $rels) {
+              if ($r.tagName -match '(?i)dev' -and -not $r.isPrerelease) {
+                Write-Host "Marking dev release $($r.tagName) as pre-release..."
+                gh release edit $r.tagName --prerelease 2>$null
+              }
+            }
+            if ($tag -and $tag -notmatch '(?i)dev') {
+              Write-Host "Marking $tag as Latest Stable release..."
+              gh release edit $tag --prerelease=false --latest 2>$null
+            }
+          } catch {
+            Write-Host "Notice: Could not update release flags via gh CLI: $_"
+          }

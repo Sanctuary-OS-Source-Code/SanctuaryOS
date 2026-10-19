@@ -1,6 +1,6 @@
 [package]
 name = "sanctuary-os"
-version = "0.4.30"
+version = "0.5.8"
 description = "Sanctuary OS"
 authors = ["Sanctuary OS"]
 edition = "2021"

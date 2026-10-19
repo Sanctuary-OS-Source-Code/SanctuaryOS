@@ -272,12 +272,21 @@ function App() {
   useEffect(() => {
     async function checkForUpdates() {
       try {
-        const { checkSupporterDevBuildUpdate } = await import("./utils/supporterManager");
-        const { getVersion } = await import("@tauri-apps/api/app");
-        let currentVer = "0.5.5";
-        if (isDesktop()) {
+        const {
+          checkSupporterDevBuildUpdate,
+          checkStableGitHubReleaseUpdate,
+          isTargetVersionNewer,
+        } = await import("./utils/supporterManager");
+        const pkgMod: any = await import("../package.json");
+        const pkgVer = pkgMod?.default?.version || pkgMod?.version || "0.5.8";
+        let currentVer = pkgVer;
+        if (isDesktop() && !/dev/i.test(pkgVer)) {
           try {
-            currentVer = await getVersion();
+            const { getVersion } = await import("@tauri-apps/api/app");
+            const tauriVer = await getVersion();
+            if (tauriVer && isTargetVersionNewer(pkgVer, tauriVer, false)) {
+              currentVer = tauriVer;
+            }
           } catch {
             // fallback
           }
@@ -288,6 +297,7 @@ function App() {
             version: devUpdate.version,
             date: devUpdate.date,
             body: devUpdate.notes,
+            isExternalDownload: true,
             downloadAndInstall: async () => {
               await openUrl(devUpdate.downloadUrl);
             },
@@ -295,9 +305,26 @@ function App() {
           return;
         }
         if (isDesktop()) {
-          const update = await check();
-          if (update) {
-            setUpdatePayload(update);
+          try {
+            const update = await check();
+            if (update && isTargetVersionNewer(currentVer, update.version, false)) {
+              setUpdatePayload(update);
+              return;
+            }
+          } catch {
+            // Fallback to live GitHub Releases API check below
+          }
+          const stableFallback = await checkStableGitHubReleaseUpdate(currentVer);
+          if (stableFallback && stableFallback.updateAvailable) {
+            setUpdatePayload({
+              version: stableFallback.version,
+              date: stableFallback.date,
+              body: stableFallback.notes,
+              isExternalDownload: true,
+              downloadAndInstall: async () => {
+                await openUrl(stableFallback.downloadUrl);
+              },
+            } as any);
           }
         }
       } catch (e) {
