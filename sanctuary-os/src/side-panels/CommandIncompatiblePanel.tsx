@@ -444,100 +444,51 @@ export function IncompatibleModCard({
           },
         ];
 
+  const canOfferUpdate =
+    hasUpdate ||
+    categories.includes("version_mismatch") ||
+    categories.includes("unstable") ||
+    hasDirectUrl;
+
   return (
     <div
-      className={`glass-panel rounded-2xl p-4 flex flex-col gap-3 transition-all duration-300 relative border ${
+      className={`glass-panel rounded-[var(--radius)] p-4 flex flex-col justify-between gap-3 transition-all duration-300 relative border ${
         effectiveIgnored
-          ? "opacity-55 grayscale-[40%] border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
-          : isAmber
-            ? "border-[color-mix(in_srgb,var(--warning)_22%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
-            : "border-[color-mix(in_srgb,var(--danger)_22%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
+          ? "opacity-50 grayscale-[40%] border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+          : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
       }`}
     >
-      {/* Top Header Row: Icon + Title/Meta + Compact Action Icons */}
-      <div className="flex items-center gap-3 min-w-0">
+      {/* Row 1: Icon Squircle (Left) + Action Controls (Right) */}
+      <div className="flex items-center justify-between gap-2">
         <div
-          className={`w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 overflow-hidden ${
+          className={`w-9 h-9 rounded-[10px] glass-surface border flex items-center justify-center shrink-0 overflow-hidden ${
             effectiveIgnored
-              ? "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)]"
+              ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]"
               : isAmber
-                ? "border-[color-mix(in_srgb,var(--warning)_25%,transparent)] text-[var(--warning)]"
-                : "border-[color-mix(in_srgb,var(--danger)_25%,transparent)] text-[var(--danger)]"
+                ? "border-[color-mix(in_srgb,var(--warning)_28%,transparent)] text-[var(--warning)]"
+                : "border-[color-mix(in_srgb,var(--danger)_28%,transparent)] text-[var(--danger)]"
           }`}
         >
           {image ? (
             <img src={image} alt={title} className="w-full h-full object-cover" />
           ) : (
-            <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
+            <span className="material-symbols-outlined !text-[19px]">{modIcon}</span>
           )}
         </div>
 
-        <div className="flex flex-col min-w-0 flex-1">
-          <span
-            className="text-[13px] font-bold text-[var(--text)] truncate leading-tight"
-            title={title}
-          >
-            {title}
-          </span>
-          <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] mt-1 flex-wrap">
-            {realAuthor && <span className="truncate max-w-[140px]">{realAuthor}</span>}
-            {realAuthor && (hasRealVersion || groupedMods.length > 1) && (
-              <span className="opacity-40">•</span>
-            )}
-            {hasRealVersion && !hasUpdate && (
-              <span className="font-mono text-[10px] opacity-80">{mod.version}</span>
-            )}
-            {hasRealVersion && !hasUpdate && groupedMods.length > 1 && (
-              <span className="opacity-40">•</span>
-            )}
-            {groupedMods.length > 1 ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded((prev) => !prev);
-                }}
-                className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] text-[var(--accent)] text-[10px] font-bold hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors cursor-pointer"
-              >
-                <span>
-                  {groupedMods.length} {t("staging_btn_view_suite", "Modules")}
-                </span>
-                <span className="material-symbols-outlined !text-[13px] leading-none">
-                  {isExpanded
-                    ? t("icon_expand_less", "expand_less")
-                    : t("icon_expand_more", "expand_more")}
-                </span>
-              </button>
-            ) : (
-              !realAuthor &&
-              !hasRealVersion && (
-                <span className="truncate opacity-70 font-mono text-[10px]">
-                  {(mod.name || "").split(/[\\/]/).pop()}
-                </span>
-              )
-            )}
-          </div>
-        </div>
-
-        {/* Right Compact Action Buttons (Never 4 crammed text buttons) */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {!hasUpdate && (
+          {canOfferUpdate && (
             <button
               type="button"
               onClick={openModUpdate}
-              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+              className="relative group/actionbtn px-2.5 h-8 rounded-[10px] glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] text-[var(--accent)] text-[11px] font-bold inline-flex items-center gap-1 transition-all cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[16px]">
+              <span className="material-symbols-outlined !text-[15px]">
                 {hasDirectUrl
                   ? t("icon_download", "download")
                   : t("icon_open_in_new", "open_in_new")}
               </span>
-              <HoverTooltip
-                className="z-[100] !right-0 !translate-x-0 !left-auto"
-                title={t("comms_btn_update", "Update")}
-                icon={t("icon_update", "update")}
-                variant="accent"
-              />
+              <span>{t("comms_btn_update", "Update")}</span>
             </button>
           )}
 
@@ -554,7 +505,7 @@ export function IncompatibleModCard({
                 }
                 setIgnoredBroken(next);
               }}
-              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+              className="relative group/actionbtn w-8 h-8 rounded-[10px] glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center transition-all cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[16px]">
                 {effectiveIgnored
@@ -586,7 +537,7 @@ export function IncompatibleModCard({
                   toggleInActiveSet(m._originalSetName || m.name, true, true);
                 });
               }}
-              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_22%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+              className="relative group/actionbtn w-8 h-8 rounded-[10px] glass-surface border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_22%,transparent)] flex items-center justify-center transition-all cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[16px]">
                 {t("icon_delete", "delete")}
@@ -602,8 +553,67 @@ export function IncompatibleModCard({
         </div>
       </div>
 
-      {/* Inline Diagnostic & Update Strip (Replaces boxy rectangular badges) */}
-      <div className="flex flex-col gap-1.5">
+      {/* Row 2: Full-Width Title & Clean Subtitle Metadata */}
+      <div className="flex flex-col min-w-0">
+        <span
+          className="text-[14px] font-bold text-[var(--text)] tracking-tight leading-snug truncate"
+          title={title}
+        >
+          {title}
+        </span>
+
+        <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] mt-1 min-w-0 flex-wrap">
+          {realAuthor && <span className="truncate max-w-[140px]">{realAuthor}</span>}
+          {realAuthor && (hasUpdate || hasRealVersion || groupedMods.length > 1) && (
+            <span className="opacity-40">•</span>
+          )}
+
+          {hasUpdate ? (
+            <span className="font-mono text-[11px] font-semibold text-[var(--accent)]">
+              {hasRealVersion ? `${mod.version} → ${mod.newVersion}` : String(mod.newVersion)}
+            </span>
+          ) : (
+            hasRealVersion && (
+              <span className="font-mono text-[11px] opacity-80">{mod.version}</span>
+            )
+          )}
+
+          {(hasUpdate || hasRealVersion) && groupedMods.length > 1 && (
+            <span className="opacity-40">•</span>
+          )}
+
+          {groupedMods.length > 1 ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
+              className="inline-flex items-center gap-0.5 text-[var(--accent)] hover:underline font-semibold cursor-pointer"
+            >
+              <span>
+                {groupedMods.length} {t("staging_btn_view_suite", "Modules")}
+              </span>
+              <span className="material-symbols-outlined !text-[14px] leading-none">
+                {isExpanded
+                  ? t("icon_expand_less", "expand_less")
+                  : t("icon_expand_more", "expand_more")}
+              </span>
+            </button>
+          ) : (
+            !realAuthor &&
+            !hasRealVersion &&
+            !hasUpdate && (
+              <span className="truncate opacity-65 font-mono text-[10px]">
+                {(mod.name || "").split(/[\\/]/).pop()}
+              </span>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* Row 3: Clean Hairline-Separated Diagnostic Footer (No Sausage Pills) */}
+      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-1.5">
         {stackedIssues.map((iss, idx) => {
           const isWarn = iss.type === "amber";
           const showDetail =
@@ -614,21 +624,21 @@ export function IncompatibleModCard({
           return (
             <div
               key={`${iss.category}-${idx}`}
-              className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl border text-[11px] ${
-                isWarn
-                  ? "bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] border-[color-mix(in_srgb,var(--warning)_22%,transparent)] text-[var(--warning)]"
-                  : "bg-[color-mix(in_srgb,var(--danger)_8%,transparent)] border-[color-mix(in_srgb,var(--danger)_22%,transparent)] text-[var(--danger)]"
-              }`}
+              className="flex items-center justify-between gap-2 text-[11px] min-w-0"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className="material-symbols-outlined !text-[15px] shrink-0">
-                  {iss.icon}
+
+                <span
+                  className={`font-semibold truncate ${
+                    isWarn ? "text-[var(--warning)]" : "text-[var(--danger)]"
+                  }`}
+                >
+                  {iss.title}
                 </span>
-                <span className="font-bold truncate">{iss.title}</span>
               </div>
               {showDetail && (
                 <span
-                  className="font-mono font-bold text-[var(--text)] truncate max-w-[55%] text-right"
+                  className="font-mono font-semibold text-[var(--text)] opacity-90 truncate max-w-[55%] text-right"
                   title={iss.detail}
                 >
                   {iss.detail}
@@ -637,57 +647,30 @@ export function IncompatibleModCard({
             </div>
           );
         })}
-
-        {hasUpdate && (
-          <button
-            type="button"
-            onClick={openModUpdate}
-            className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl border bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_28%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] text-[11px] transition-all cursor-pointer w-full"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="material-symbols-outlined !text-[15px] shrink-0">
-                {t("icon_download", "download")}
-              </span>
-              <span className="font-mono font-bold truncate">
-                {hasRealVersion ? `${mod.version} → ${mod.newVersion}` : String(mod.newVersion)}
-              </span>
-            </div>
-            <div className="flex items-center gap-1 shrink-0 font-bold">
-              <span>{t("comms_btn_update", "Update")}</span>
-              <span className="material-symbols-outlined !text-[13px]">
-                {t("icon_open_in_new", "open_in_new")}
-              </span>
-            </div>
-          </button>
-        )}
       </div>
 
-      {/* Expandable Grouped Modules Drawer */}
+      {/* Expandable Grouped Modules List */}
       {isExpanded && groupedMods.length > 1 && (
-        <div className="pt-2.5 mt-0.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-75 px-1">
-            {t("card_grouped_files", "Grouped Files")} ({groupedMods.length})
-          </span>
-          <div className="flex flex-col gap-1 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+        <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-1">
+          <div className="flex flex-col gap-1 max-h-[135px] overflow-y-auto custom-scrollbar pr-1">
             {groupedMods.map((gm: any, idx: number) => {
-              const rawFile = String(gm.name || gm._originalSetName || "").split(/[\\/]/).pop() || gm.name;
+              const rawFile =
+                String(gm.name || gm._originalSetName || "").split(/[\\/]/).pop() || gm.name;
               const isScript = /\.ts4script$/i.test(rawFile);
               return (
                 <div
                   key={`${gm.name}-${idx}`}
-                  className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[11px]"
+                  className="flex items-center justify-between gap-2 py-0.5 text-[11px]"
                 >
                   <span
-                    className="font-mono text-[var(--text)] opacity-90 truncate"
+                    className="font-mono text-[var(--text)] opacity-85 truncate"
                     title={rawFile}
                   >
                     {rawFile}
                   </span>
                   <span
-                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
-                      isScript
-                        ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]"
-                        : "bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[var(--subtext)]"
+                    className={`text-[10px] font-semibold shrink-0 ${
+                      isScript ? "text-[var(--accent)]" : "text-[var(--subtext)] opacity-60"
                     }`}
                   >
                     {isScript

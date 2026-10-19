@@ -79,14 +79,14 @@ export default function BlueprintSwapSidePanel({
                   <div
                     key={bp.name}
                     onClick={() => handleSelect(index)}
-                    className={`glass-panel rounded-2xl p-4 flex items-center gap-3.5 transition-all duration-300 cursor-pointer border ${
+                    className={`glass-panel rounded-[var(--radius)] p-4 flex items-center gap-3.5 transition-all duration-300 cursor-pointer border ${
                       isActive
-                        ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_6%,transparent)]"
-                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                        ? "border-[color-mix(in_srgb,var(--success)_38%,transparent)] bg-[color-mix(in_srgb,var(--success)_6%,transparent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
                     }`}
                   >
                     <div
-                      className={`w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
+                      className={`w-10 h-10 rounded-[10px] glass-surface border flex items-center justify-center shrink-0 ${
                         isActive
                           ? "border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]"
                           : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)]"
@@ -99,19 +99,19 @@ export default function BlueprintSwapSidePanel({
 
                     <div className="flex flex-col min-w-0 flex-1">
                       <span
-                        className="text-[13px] font-bold text-[var(--text)] truncate leading-tight"
+                        className="text-[14px] font-bold text-[var(--text)] tracking-tight truncate leading-snug"
                         title={cleanName}
                       >
                         {cleanName}
                       </span>
-                      <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] mt-1">
+                      <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] mt-0.5">
                         <span>
                           {itemCount} {t("items", "Items")}
                         </span>
                         {isActive && (
                           <>
                             <span className="opacity-40">•</span>
-                            <span className="text-[var(--success)] font-bold">
+                            <span className="text-[var(--success)] font-semibold">
                               {t("active", "Active")}
                             </span>
                           </>
@@ -125,10 +125,10 @@ export default function BlueprintSwapSidePanel({
                         e.stopPropagation();
                         handleSelect(index);
                       }}
-                      className={`relative group/actionbtn w-8 h-8 rounded-xl glass-surface border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                      className={`relative group/actionbtn w-8 h-8 rounded-[10px] glass-surface border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                         isActive
                           ? "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]"
-                          : "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]"
+                          : "bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)]"
                       }`}
                     >
                       <span className="material-symbols-outlined !text-[16px]">

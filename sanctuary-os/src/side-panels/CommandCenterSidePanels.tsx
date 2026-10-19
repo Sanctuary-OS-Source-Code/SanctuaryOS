@@ -129,124 +129,104 @@ function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: any) {
       : null;
 
   return (
-    <div className="glass-panel rounded-2xl p-4 flex flex-col gap-3 transition-all duration-300 relative border border-[color-mix(in_srgb,var(--accent)_22%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]">
-      {/* Top Row: Icon + Title/Meta + Single Update Button */}
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0 overflow-hidden">
+    <div className="glass-panel rounded-[var(--radius)] p-4 flex flex-col justify-between gap-3 transition-all duration-300 relative border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
+      {/* Row 1: Icon Squircle (Left) + Update Action (Right) */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="w-9 h-9 rounded-[10px] glass-surface border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0 overflow-hidden">
           {image ? (
             <img src={image} alt={title} className="w-full h-full object-cover" />
           ) : (
-            <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
+            <span className="material-symbols-outlined !text-[19px]">{modIcon}</span>
           )}
-        </div>
-
-        <div className="flex flex-col min-w-0 flex-1">
-          <span
-            className="text-[13px] font-bold text-[var(--text)] truncate leading-tight"
-            title={title}
-          >
-            {title}
-          </span>
-          <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] mt-1 flex-wrap">
-            {realAuthor && <span className="truncate max-w-[150px]">{realAuthor}</span>}
-            {realAuthor && groupedMods.length > 1 && <span className="opacity-40">•</span>}
-            {groupedMods.length > 1 ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded((prev) => !prev);
-                }}
-                className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] text-[var(--accent)] text-[10px] font-bold hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors cursor-pointer"
-              >
-                <span>
-                  {groupedMods.length} {t("staging_btn_view_suite", "Modules")}
-                </span>
-                <span className="material-symbols-outlined !text-[13px] leading-none">
-                  {isExpanded
-                    ? t("icon_expand_less", "expand_less")
-                    : t("icon_expand_more", "expand_more")}
-                </span>
-              </button>
-            ) : (
-              !realAuthor && (
-                <span className="truncate opacity-70 font-mono text-[10px]">
-                  {(update.name || "").split(/[\\/]/).pop()}
-                </span>
-              )
-            )}
-          </div>
         </div>
 
         <button
           type="button"
           onClick={openUpdateTarget}
-          className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-center transition-all shrink-0 cursor-pointer"
+          className="relative group/actionbtn px-2.5 h-8 rounded-[10px] glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] text-[var(--accent)] text-[11px] font-bold inline-flex items-center gap-1 transition-all shrink-0 cursor-pointer"
         >
-          <span className="material-symbols-outlined !text-[16px]">
+          <span className="material-symbols-outlined !text-[15px]">
             {hasDirectLink ? t("icon_download", "download") : t("icon_open_in_new", "open_in_new")}
           </span>
-          <HoverTooltip
-            className="z-[100] !right-0 !translate-x-0 !left-auto"
-            title={t("comms_btn_update", "Update")}
-            subtitle={realVersion ? `${realVersion} → ${update.newVersion}` : String(update.newVersion)}
-            icon={t("icon_update", "update")}
-            variant="accent"
-          />
+          <span>{t("comms_btn_update", "Update")}</span>
         </button>
       </div>
 
-      {/* Inline Version Transition Strip */}
-      <button
-        type="button"
-        onClick={openUpdateTarget}
-        className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl border bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border-[color-mix(in_srgb,var(--accent)_22%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[11px] transition-all cursor-pointer w-full"
-      >
-        <div className="flex items-center gap-2 min-w-0 text-[var(--accent)]">
-          <span className="material-symbols-outlined !text-[15px] shrink-0">
-            {t("icon_update", "update")}
-          </span>
-          <span className="font-mono font-bold truncate">
+      {/* Row 2: Full-Width Title & Clean Subtitle Metadata */}
+      <div className="flex flex-col min-w-0">
+        <span
+          className="text-[14px] font-bold text-[var(--text)] tracking-tight leading-snug truncate"
+          title={title}
+        >
+          {title}
+        </span>
+
+        <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] mt-1 min-w-0 flex-wrap">
+          {realAuthor && <span className="truncate max-w-[150px]">{realAuthor}</span>}
+          {realAuthor && groupedMods.length > 1 && <span className="opacity-40">•</span>}
+          {groupedMods.length > 1 ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
+              className="inline-flex items-center gap-0.5 text-[var(--accent)] hover:underline font-semibold cursor-pointer"
+            >
+              <span>
+                {groupedMods.length} {t("staging_btn_view_suite", "Modules")}
+              </span>
+              <span className="material-symbols-outlined !text-[14px] leading-none">
+                {isExpanded
+                  ? t("icon_expand_less", "expand_less")
+                  : t("icon_expand_more", "expand_more")}
+              </span>
+            </button>
+          ) : (
+            !realAuthor && (
+              <span className="truncate opacity-65 font-mono text-[10px]">
+                {(update.name || "").split(/[\\/]/).pop()}
+              </span>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* Row 3: Clean Hairline-Separated Version Transition Footer */}
+      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[11px] min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-mono font-semibold text-[var(--accent)] truncate">
             {realVersion ? `${realVersion} → ${update.newVersion}` : String(update.newVersion)}
           </span>
         </div>
-        {highestGameVer && highestGameVer !== "Unknown" ? (
-          <span className="font-mono text-[10px] font-bold text-[var(--subtext)] shrink-0">
+        {highestGameVer && highestGameVer !== "Unknown" && (
+          <span className="font-mono text-[11px] font-semibold text-[var(--text)] opacity-85 shrink-0">
             {highestGameVer}
           </span>
-        ) : (
-          <span className="text-[10px] font-bold text-[var(--accent)] shrink-0">
-            {t("comms_btn_update", "Update")}
-          </span>
         )}
-      </button>
+      </div>
 
-      {/* Expandable Grouped Modules Drawer */}
+      {/* Expandable Grouped Modules List */}
       {isExpanded && groupedMods.length > 1 && (
-        <div className="pt-2.5 mt-0.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-75 px-1">
-            {t("card_grouped_files", "Grouped Files")} ({groupedMods.length})
-          </span>
-          <div className="flex flex-col gap-1 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+        <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-1">
+          <div className="flex flex-col gap-1 max-h-[135px] overflow-y-auto custom-scrollbar pr-1">
             {groupedMods.map((gm: any, idx: number) => {
               const rawFile = String(gm.name || "").split(/[\\/]/).pop() || gm.name;
               const isScript = /\.ts4script$/i.test(rawFile);
               return (
                 <div
                   key={`${gm.name}-${idx}`}
-                  className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[11px]"
+                  className="flex items-center justify-between gap-2 py-0.5 text-[11px]"
                 >
                   <span
-                    className="font-mono text-[var(--text)] opacity-90 truncate"
+                    className="font-mono text-[var(--text)] opacity-85 truncate"
                     title={rawFile}
                   >
                     {rawFile}
                   </span>
                   <span
-                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
-                      isScript
-                        ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]"
-                        : "bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[var(--subtext)]"
+                    className={`text-[10px] font-semibold shrink-0 ${
+                      isScript ? "text-[var(--accent)]" : "text-[var(--subtext)] opacity-60"
                     }`}
                   >
                     {isScript
