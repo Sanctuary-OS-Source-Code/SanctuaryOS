@@ -30,10 +30,17 @@ pub fn purge_external_file(
     filename: String,
 ) -> Result<String, String> {
     let p = std::path::PathBuf::from(&path);
+    if !crate::utils::is_safe_user_file_path(&p) {
+        return Err("Refusing to purge protected or unsafe path.".into());
+    }
     let config = get_saved_coordinates();
+    let safe_filename = std::path::Path::new(&filename)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "Invalid filename.".to_string())?;
     let manifest_path = std::path::PathBuf::from(&config.vault_path)
         .join("Quarantine")
-        .join(format!("{}.manifest.json", filename));
+        .join(format!("{}.manifest.json", safe_filename));
 
     if p.exists() {
         tauri::async_runtime::spawn_blocking(move || {
@@ -78,6 +85,9 @@ pub fn purge_external_file(
 #[tauri::command]
 pub fn purge_from_shelter(file_path: String) -> Result<String, String> {
     let path = Path::new(&file_path);
+    if !crate::utils::is_safe_user_file_path(path) {
+        return Err("Refusing to purge protected or unsafe path.".into());
+    }
     if path.exists() {
         if path.is_dir() {
             std::fs::remove_dir_all(path).map_err(|e| e.to_string())?;

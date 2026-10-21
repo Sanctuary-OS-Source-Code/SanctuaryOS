@@ -1,8 +1,8 @@
 /// <reference path="../deno.d.ts" />
 // Supabase Edge Function: partner-donation-webhook
 // Non-Custodial Partner & Keepers Core Payment Processor Webhook Bridge
-// Cryptographically verifies Stripe (Stripe-Signature HMAC-SHA256) and Ko-fi (verification_token)
-// Reads the exact amount paid directly from the processor payload so clients can NEVER spoof amounts.
+// Cryptographically verifies Stripe (Stripe-Signature HMAC-SHA256 + 300s replay window) and Ko-fi (verification_token)
+// Fail-closed: rejects any unverified request if secrets or signatures are missing.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -12,23 +12,48 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, stripe-signature, x-partner-secret",
 };
 
+const MAX_STRIPE_TIMESTAMP_DRIFT_SECONDS = 300;
+
+function timingSafeEqualString(a: string, b: string): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  const enc = new TextEncoder();
+  const aBytes = enc.encode(a);
+  const bBytes = enc.encode(b);
+  if (aBytes.length !== bBytes.length) return false;
+  let diff = 0;
+  for (let i = 0; i < aBytes.length; i++) {
+    diff |= aBytes[i] ^ bBytes[i];
+  }
+  return diff === 0;
+}
+
 async function verifyStripeSignature(
   rawBody: string,
   sigHeader: string,
   secret: string,
 ): Promise<boolean> {
   if (!sigHeader || !secret) return false;
-  const parts = sigHeader.split(",").reduce(
-    (acc, item) => {
-      const [k, v] = item.split("=");
-      if (k && v) acc[k.trim()] = v.trim();
-      return acc;
-    },
-    {} as Record<string, string>,
-  );
-  const timestamp = parts["t"];
-  const signature = parts["v1"];
-  if (!timestamp || !signature) return false;
+  const parts = sigHeader.split(",");
+  let timestamp = "";
+  const signatures: string[] = [];
+
+  for (const item of parts) {
+    const eqIdx = item.indexOf("=");
+    if (eqIdx === -1) continue;
+    const k = item.slice(0, eqIdx).trim();
+    const v = item.slice(eqIdx + 1).trim();
+    if (k === "t" && v) timestamp = v;
+    else if (k === "v1" && v) signatures.push(v.toLowerCase());
+  }
+
+  if (!timestamp || signatures.length === 0) return false;
+
+  const tsSeconds = Number(timestamp);
+  if (!Number.isFinite(tsSeconds)) return false;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (Math.abs(nowSeconds - tsSeconds) > MAX_STRIPE_TIMESTAMP_DRIFT_SECONDS) {
+    return false;
+  }
 
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -48,7 +73,13 @@ async function verifyStripeSignature(
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  return computedHex === signature;
+  let matched = false;
+  for (const sig of signatures) {
+    if (timingSafeEqualString(computedHex, sig)) {
+      matched = true;
+    }
+  }
+  return matched;
 }
 
 Deno.serve(async (req: Request) => {
@@ -59,9 +90,9 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
-    const kofiVerificationToken = Deno.env.get("KOFI_VERIFICATION_TOKEN") ?? "";
-    const partnerSharedSecret = Deno.env.get("PARTNER_WEBHOOK_SECRET") ?? "";
+    const stripeWebhookSecret = (Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "").trim();
+    const kofiVerificationToken = (Deno.env.get("KOFI_VERIFICATION_TOKEN") ?? "").trim();
+    const partnerSharedSecret = (Deno.env.get("PARTNER_WEBHOOK_SECRET") ?? "").trim();
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -74,70 +105,79 @@ Deno.serve(async (req: Request) => {
     let txNonce = "";
 
     if (contentType.includes("application/x-www-form-urlencoded")) {
-      // Ko-fi webhook payload (form-urlencoded `data` JSON field)
+      // Ko-fi webhook payload (form-urlencoded `data` JSON field) — fail-closed
+      if (!kofiVerificationToken) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Ko-fi webhook verification is not configured" }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
       const params = new URLSearchParams(rawBody);
       const rawData = params.get("data");
-      if (rawData) {
-        const kofi = JSON.parse(rawData);
-        if (
-          kofiVerificationToken &&
-          kofi.verification_token !== kofiVerificationToken
-        ) {
-          return new Response(
-            JSON.stringify({ ok: false, error: "Invalid Ko-fi verification token" }),
-            {
-              status: 401,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
-        email = kofi.email || "";
-        amountCents = Math.round(parseFloat(kofi.amount || "0") * 100);
-        txNonce = `kofi_${kofi.kofi_transaction_id || kofi.message_id || Date.now()}`;
+      if (!rawData) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Missing Ko-fi payload data" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
+      const kofi = JSON.parse(rawData);
+      if (
+        !kofi?.verification_token ||
+        !timingSafeEqualString(String(kofi.verification_token), kofiVerificationToken)
+      ) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Invalid Ko-fi verification token" }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      email = kofi.email || "";
+      amountCents = Math.round(parseFloat(kofi.amount || "0") * 100);
+      txNonce = `kofi_${kofi.kofi_transaction_id || kofi.message_id || Date.now()}`;
     } else {
-      // Verify Stripe HMAC-SHA256 signature if present or configured
+      // Fail-closed verification: require either valid Stripe HMAC signature OR valid Partner shared secret
       const stripeSig = req.headers.get("stripe-signature") || "";
-      if (stripeWebhookSecret) {
-        const isValid = await verifyStripeSignature(
+      const headerSecret = req.headers.get("x-partner-secret") || "";
+
+      let isAuthenticatedWebhook = false;
+      if (stripeSig && stripeWebhookSecret) {
+        isAuthenticatedWebhook = await verifyStripeSignature(
           rawBody,
           stripeSig,
           stripeWebhookSecret,
         );
-        if (!isValid) {
-          return new Response(
-            JSON.stringify({ ok: false, error: "Invalid Stripe webhook signature" }),
-            {
-              status: 401,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
-      } else if (partnerSharedSecret) {
-        const headerSecret = req.headers.get("x-partner-secret") || "";
-        if (headerSecret !== partnerSharedSecret) {
-          return new Response(
-            JSON.stringify({ ok: false, error: "Invalid Partner webhook secret" }),
-            {
-              status: 401,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
+      } else if (headerSecret && partnerSharedSecret) {
+        isAuthenticatedWebhook = timingSafeEqualString(headerSecret, partnerSharedSecret);
+      }
+
+      if (!isAuthenticatedWebhook) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Unauthorized webhook request: missing or invalid signature" }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
 
       const body = JSON.parse(rawBody);
 
       if (body.type === "checkout.session.completed" && body.data?.object) {
         const session = body.data.object;
-        // Sanctuary OS automatically passes ?client_reference_id=<user_id> on Stripe Payment Links
         userId =
           session.client_reference_id ||
           session.metadata?.sanctuary_user_id ||
           "";
         email =
           session.customer_details?.email || session.customer_email || "";
-        // Support both paid checkouts and 100% Promo Code / coupon redemptions
         const amountTotal = Number(session.amount_total || 0);
         const amountSubtotal = Number(session.amount_subtotal || 0);
         const amountDiscount = Number(

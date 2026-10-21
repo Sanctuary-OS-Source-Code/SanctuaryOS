@@ -820,6 +820,15 @@ pub async fn extract_backup_file(
     file_path: String,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let parsed_rel = Path::new(&file_path);
+        if file_path.trim().is_empty()
+            || !parsed_rel
+                .components()
+                .all(|c| matches!(c, std::path::Component::Normal(_)))
+        {
+            return Err("Invalid backup file path.".into());
+        }
+
         let backup_dir = match crate::utils::find_backup(&vault_path, &backup_name) {
             Some(dir) => dir,
             None => return Err("Backup not found".into()),

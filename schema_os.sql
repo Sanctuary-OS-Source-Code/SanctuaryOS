@@ -260,16 +260,19 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
-CREATE OR REPLACE FUNCTION prevent_audit_modifications()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.prevent_audit_modifications()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     RAISE EXCEPTION 'Audit logs are append-only. Modification or deletion is strictly forbidden.';
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER ensure_os_audit_log_immutability
   BEFORE UPDATE OR DELETE ON audit_logs
-  FOR EACH ROW EXECUTE FUNCTION prevent_audit_modifications();
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_audit_modifications();
 
 -- Non-Custodial Partner Donation Cumulative Time-Stacking RPC ($5 = +30 Days)
 -- Merges back-to-back donations across any Partner Communities cumulatively
@@ -300,10 +303,11 @@ BEGIN
         RAISE EXCEPTION 'Invalid donation amount.';
     END IF;
 
-    IF current_setting('request.jwt.claim.role', true) = 'authenticated'
-       AND auth.uid() IS DISTINCT FROM p_user_id
+    IF COALESCE(current_setting('request.jwt.claim.role', true), '') IS DISTINCT FROM 'service_role'
+       AND session_user NOT IN ('postgres', 'supabase_admin')
+       AND NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'keeper')
     THEN
-        RAISE EXCEPTION 'Unauthorized user_id for donation event.';
+        RAISE EXCEPTION 'Unauthorized: Only verified payment webhooks or Keepers may credit partner donation events.';
     END IF;
 
     v_tx_hash := encode(sha256(convert_to(COALESCE(p_tx_nonce, gen_random_uuid()::text), 'UTF8')), 'hex');
@@ -341,6 +345,8 @@ BEGIN
         v_new_months := COALESCE(v_cur_months, 0);
     END IF;
 
+    PERFORM set_config('sanctuary.internal_rpc', 'true', true);
+
     UPDATE profiles
     SET dev_build_until = v_new_until,
         donation_credit_cents = v_new_credit,
@@ -358,9 +364,9 @@ BEGIN
 END;
 $$;
 
--- Lock down donation crediting to verified sessions and backend Webhook Edge Function
-REVOKE EXECUTE ON FUNCTION public.register_partner_donation_event(UUID, INTEGER, TEXT, TIMESTAMP WITH TIME ZONE) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.register_partner_donation_event(UUID, INTEGER, TEXT, TIMESTAMP WITH TIME ZONE) TO authenticated, service_role;
+-- Lock down donation crediting strictly to backend Webhook Edge Function (service_role)
+REVOKE EXECUTE ON FUNCTION public.register_partner_donation_event(UUID, INTEGER, TEXT, TIMESTAMP WITH TIME ZONE) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.register_partner_donation_event(UUID, INTEGER, TEXT, TIMESTAMP WITH TIME ZONE) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.protect_profile_supporter_fields()
 RETURNS TRIGGER
@@ -368,24 +374,47 @@ LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
-    -- Only service_role (Edge Function Webhooks / SECURITY DEFINER RPC) or a Keeper may modify supporter time/credits
-    IF current_setting('request.jwt.claim.role', true) IS DISTINCT FROM 'service_role'
-       AND current_user NOT IN ('postgres', 'service_role', 'supabase_admin')
-       AND NOT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper')
+    -- Only service_role (Edge Function Webhooks / internal RPC), superusers, or a Keeper may modify privileged profile fields
+    IF COALESCE(current_setting('request.jwt.claim.role', true), '') IS DISTINCT FROM 'service_role'
+       AND COALESCE(current_setting('sanctuary.internal_rpc', true), '') IS DISTINCT FROM 'true'
+       AND session_user NOT IN ('postgres', 'supabase_admin')
+       AND NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'keeper')
     THEN
-        NEW.dev_build_until := OLD.dev_build_until;
-        NEW.donation_credit_cents := OLD.donation_credit_cents;
-        NEW.total_months_unlocked := OLD.total_months_unlocked;
-        NEW.last_donation_at := OLD.last_donation_at;
+        IF TG_OP = 'INSERT' THEN
+            NEW.role := 'citizen';
+            NEW.is_banned := false;
+            NEW.blacklist_reason := NULL;
+            NEW.dev_build_until := NULL;
+            NEW.donation_credit_cents := 0;
+            NEW.total_months_unlocked := 0;
+            NEW.last_donation_at := NULL;
+        ELSE
+            NEW.role := OLD.role;
+            -- Allow automated self-quarantine (false -> true on own row via RLS), but strictly forbid self-unbanning
+            IF OLD.is_banned = true OR NEW.is_banned IS DISTINCT FROM true THEN
+                NEW.is_banned := OLD.is_banned;
+                NEW.blacklist_reason := OLD.blacklist_reason;
+            END IF;
+            NEW.dev_build_until := OLD.dev_build_until;
+            NEW.donation_credit_cents := OLD.donation_credit_cents;
+            NEW.total_months_unlocked := OLD.total_months_unlocked;
+            NEW.last_donation_at := OLD.last_donation_at;
+        END IF;
     END IF;
     RETURN NEW;
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.protect_profile_supporter_fields() FROM PUBLIC, anon, authenticated;
+
 DROP TRIGGER IF EXISTS ensure_profile_supporter_integrity ON profiles;
 CREATE TRIGGER ensure_profile_supporter_integrity
-  BEFORE UPDATE ON profiles
+  BEFORE INSERT OR UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION public.protect_profile_supporter_fields();
+
+-- Prevent client queries from reading Spoke service_role keys stored on the Hub
+REVOKE SELECT (supabase_service_key) ON public.sanctuary_games FROM PUBLIC, anon, authenticated;
 
 -- ============================================================================
 -- 6. ROW LEVEL SECURITY (RLS) POLICIES
@@ -410,6 +439,7 @@ ALTER TABLE dispatch_poll_votes ENABLE ROW LEVEL SECURITY;
 
 -- Public Read Policies
 CREATE POLICY "Allow public read profiles" ON profiles FOR SELECT USING (true);
+CREATE POLICY "Service role manages donation nonces" ON donation_event_nonces FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read schemas" ON sanctuary_schemas FOR SELECT USING (true);
 CREATE POLICY "Allow public read lexicons" ON sanctuary_lexicons FOR SELECT USING (true);
 CREATE POLICY "Allow public read themes" ON sanctuary_themes FOR SELECT USING (true);
@@ -425,29 +455,33 @@ CREATE POLICY "Public can view system broadcasts" ON system_broadcasts FOR SELEC
 CREATE POLICY "Public can view dispatch poll votes" ON dispatch_poll_votes FOR SELECT USING (true);
 
 -- Write & Management Policies
-CREATE POLICY "Allow user to update own profile" ON profiles FOR ALL USING (auth.uid() = id);
+CREATE POLICY "Allow user to update own profile" ON profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+CREATE POLICY "Allow user to insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Allow keepers to update any profile" ON profiles FOR UPDATE USING ((SELECT p.role FROM profiles p WHERE p.id = auth.uid()) = 'keeper');
 
-CREATE POLICY "Allow authenticated insert/update schemas" ON sanctuary_schemas FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow authenticated insert/update lexicons" ON sanctuary_lexicons FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow authenticated insert/update themes" ON sanctuary_themes FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow all access theme images" ON sanctuary_theme_images FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Keepers can manage schemas" ON sanctuary_schemas FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper')) WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
+CREATE POLICY "Keepers can manage lexicons" ON sanctuary_lexicons FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper')) WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
+CREATE POLICY "Keepers can manage themes" ON sanctuary_themes FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('keeper', 'wayfinder', 'architect', 'mason'))) WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('keeper', 'wayfinder', 'architect', 'mason')));
+CREATE POLICY "Authenticated users can manage theme images" ON sanctuary_theme_images FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
-CREATE POLICY "Keepers can manage games" ON sanctuary_games FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
-CREATE POLICY "Allow authenticated insert on hardware_bans" ON hardware_bans FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Keepers can manage core heuristic signatures" ON keeper_heuristic_signatures FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('keeper', 'admin')));
-CREATE POLICY "Allow public insert audit logs" ON audit_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Keepers can manage games" ON sanctuary_games FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper')) WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
+CREATE POLICY "Keepers can manage hardware_bans" ON hardware_bans FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper')) WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
+CREATE POLICY "Allow authenticated insert on hardware_bans" ON hardware_bans FOR INSERT TO authenticated WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Keepers can manage core heuristic signatures" ON keeper_heuristic_signatures FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('keeper', 'admin'))) WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('keeper', 'admin')));
+CREATE POLICY "Allow authenticated insert audit logs" ON audit_logs FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
-CREATE POLICY "Keepers can manage support categories" ON keeper_support_categories FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
+CREATE POLICY "Keepers can manage support categories" ON keeper_support_categories FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper')) WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
 CREATE POLICY "Users can view their own tickets" ON keeper_tickets FOR SELECT USING (auth.uid() = author_id);
 CREATE POLICY "Users can create tickets" ON keeper_tickets FOR INSERT WITH CHECK (auth.uid() = author_id);
 CREATE POLICY "Users can update their own tickets" ON keeper_tickets FOR UPDATE USING (auth.uid() = author_id) WITH CHECK (auth.uid() = author_id);
 CREATE POLICY "Keepers can view all tickets" ON keeper_tickets FOR SELECT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
 CREATE POLICY "Keepers can update all tickets" ON keeper_tickets FOR UPDATE USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
 
-CREATE POLICY "Authenticated users can manage keeper broadcasts" ON keeper_system_broadcasts FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated users can manage keeper dispatch poll votes" ON keeper_dispatch_poll_votes FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated users can manage system broadcasts" ON system_broadcasts FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated users can manage dispatch poll votes" ON dispatch_poll_votes FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Keepers can manage keeper broadcasts" ON keeper_system_broadcasts FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper')) WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
+CREATE POLICY "Authenticated users can vote on keeper dispatch polls" ON keeper_dispatch_poll_votes FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
+CREATE POLICY "Authenticated users can remove own keeper dispatch poll votes" ON keeper_dispatch_poll_votes FOR DELETE USING (auth.role() = 'authenticated' AND auth.uid() = user_id);
+CREATE POLICY "Keepers can manage system broadcasts" ON system_broadcasts FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper')) WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
+CREATE POLICY "Authenticated users can vote on dispatch polls" ON dispatch_poll_votes FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
+CREATE POLICY "Authenticated users can remove own dispatch poll votes" ON dispatch_poll_votes FOR DELETE USING (auth.role() = 'authenticated' AND auth.uid() = user_id);
 
 SELECT 'Sanctuary OS Core Hub Schema V0.5.7 Initialized Successfully' AS status;

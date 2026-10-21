@@ -48,7 +48,7 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
       const start = performance.now();
       supabaseAuth
         .from("sanctuary_games")
-        .select("*")
+        .select("id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor")
         .order("name", { ascending: true })
         .then(({ data }) => {
           const elapsed = Math.max(8, Math.round(performance.now() - start));

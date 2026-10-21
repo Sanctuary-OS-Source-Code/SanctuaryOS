@@ -209,7 +209,7 @@ export const ThemeProvider = ({ children }: any) => {
 
         // 1. Fetch Community Defaults from public Spoke databases
         try {
-          const { data: publicGames } = await supabase.from('sanctuary_games').select('*').eq('is_active', true);
+          const { data: publicGames } = await supabase.from('sanctuary_games').select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active').eq('is_active', true);
           if (publicGames) {
             for (const game of publicGames) {
               if (!isValidHttpUrl(game.supabase_url) || !game.supabase_anon_key) continue;

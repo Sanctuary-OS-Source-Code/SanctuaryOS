@@ -28,7 +28,7 @@ export default function WebLandingPage() {
   useEffect(() => {
     const fetchGames = async () => {
       const [{ data }, pipelineCfg, supState] = await Promise.all([
-        supabase.from('sanctuary_games').select('*'),
+        supabase.from('sanctuary_games').select('id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor'),
         getKeepersPipelineConfig(),
         getSupporterState('web', session?.user?.id),
       ]);

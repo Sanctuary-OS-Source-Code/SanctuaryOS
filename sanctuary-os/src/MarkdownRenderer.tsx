@@ -21,7 +21,7 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
 
   return (
     <div className="prose prose-invert max-w-none text-[var(--text)] opacity-90 leading-relaxed marker:text-[var(--subtext)]">
-      <ReactMarkdown urlTransform={(uri) => uri}
+      <ReactMarkdown urlTransform={(uri) => /^(https?:\/\/|mailto:|asset:\/\/|icon:\/\/)/i.test((uri || '').trim()) ? uri : ''}
         remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
           h1: ({ node, ...props }) => <h1 className={`text-3xl font-black capitalize tracking-tighter mt-6 mb-4 ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`} {...props} />,
@@ -118,7 +118,7 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
                 href={href} 
                 onClick={(e) => {
                   e.preventDefault();
-                  if (href) {
+                  if (href && /^https?:\/\//i.test(href)) {
                     if (useInternalBrowser) {
                       setSideBrowserUrl(href);
                       setIsSideBrowserOpen(true);

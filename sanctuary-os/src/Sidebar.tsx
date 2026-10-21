@@ -95,7 +95,7 @@ export function Sidebar({
 
   React.useEffect(() => {
     import('./supabase').then(({ supabase }) => {
-      supabase.from('sanctuary_games').select('*').then(({ data }) => {
+      supabase.from('sanctuary_games').select('id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor').then(({ data }) => {
         if (data) setGlobalGames(data);
       });
     });

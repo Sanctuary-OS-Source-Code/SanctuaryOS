@@ -8,6 +8,65 @@ const corsHeaders = {
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SUPABASE_URL_REGEX = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i;
+
+const STAFF_ROLES = ['wayfinder', 'oversight', 'architect', 'senior_architect', 'admin'];
+const CREATOR_OR_STAFF_ROLES = [...STAFF_ROLES, 'mason'];
+
+const STAFF_ONLY_TABLES = new Set([
+  'global_network_status',
+  'global_security',
+  'heuristic_signatures',
+  'sanctuary_schemas',
+  'sanctuary_lexicons',
+  'sanctuary_support_categories',
+  'sanctuary_telemetry_sources',
+  'dlc_registry',
+  'game_versions',
+  'taxonomy',
+  'tracked_template_files',
+  'system_broadcasts',
+  'logical_conflicts',
+]);
+
+const CREATOR_OR_STAFF_TABLES = new Set([
+  'mods',
+  'mod_versions',
+  'mod_bundles',
+  'mod_dependencies',
+  'mod_relationships',
+  'version_dependencies',
+  'flavor_groups',
+  'flavor_group_members',
+  'community_groups',
+  'community_group_members',
+  'collections',
+  'collection_members',
+  'mason_posts',
+  'masons',
+  'homestead_workbench_templates',
+]);
+
+const CITIZEN_TABLES = new Set([
+  'audit_logs',
+  'mason_post_comments',
+  'mason_post_likes',
+  'mason_post_views',
+  'dispatch_poll_votes',
+  'blueprints',
+  'blueprint_reports',
+  'nexus_assets',
+  'nexus_reports',
+  'content_flags',
+  'sanctuary_tickets',
+  'scout_suggestions',
+  'notifications',
+  'homestead_lab_logs',
+  'malware_reports',
+  'hardware_bans',
+  'sanctuary_themes',
+  'citizen_staging_queue',
+]);
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -99,14 +158,21 @@ serve(async (req) => {
 
     // Special Hub-wide action: test Spoke connection, verify schema.sql tables, seed network status, and bootstrap Founding Wayfinder
     if (action === 'verify_and_bootstrap_spoke') {
+      if (hubRole !== 'keeper') {
+        throw new Error('Forbidden: Only Keepers can verify and bootstrap Spoke uplinks')
+      }
       const { supabase_url, supabase_anon_key, supabase_service_key, founder_identifier } = payload || {}
-      const targetKey = supabase_service_key || supabase_anon_key
-      if (!supabase_url || !targetKey) {
+      const cleanSpokeUrl = String(supabase_url || '').trim().replace(/\/+$/, '')
+      const targetKey = (supabase_service_key || supabase_anon_key || '').trim()
+      if (!cleanSpokeUrl || !targetKey) {
         throw new Error('Missing Spoke Supabase URL or Key')
+      }
+      if (!SUPABASE_URL_REGEX.test(cleanSpokeUrl)) {
+        throw new Error('Invalid Spoke Supabase URL: must be a valid https://<project>.supabase.co endpoint')
       }
 
       const startPing = Date.now()
-      const testDb = createClient(supabase_url, targetKey)
+      const testDb = createClient(cleanSpokeUrl, targetKey)
       const requiredTables = ['mods', 'profiles', 'system_broadcasts', 'dispatch_poll_votes', 'global_network_status', 'audit_logs']
       const missingTables: string[] = []
 
@@ -120,7 +186,6 @@ serve(async (req) => {
       const latencyMs = Date.now() - startPing
 
       if (missingTables.length === 0 && supabase_service_key) {
-        // Ensure global_network_status row 1 exists
         await testDb.from('global_network_status').upsert({
           id: 1,
           defcon_level: 5,
@@ -129,17 +194,34 @@ serve(async (req) => {
       }
 
       let wayfinderProvisioned: string | null = null
-      if (founder_identifier && String(founder_identifier).trim() && supabase_service_key && hubRole === 'keeper' && missingTables.length === 0) {
+      if (founder_identifier && String(founder_identifier).trim() && supabase_service_key && missingTables.length === 0) {
         const cleanFounder = String(founder_identifier).trim()
-        let founderQuery = supabaseAdmin
-          .from('profiles')
-          .select('id, username, is_banned, blacklist_reason')
+        let founderHub: any = null
         if (UUID_REGEX.test(cleanFounder)) {
-          founderQuery = founderQuery.eq('id', cleanFounder)
+          const { data } = await supabaseAdmin
+            .from('profiles')
+            .select('id, username, is_banned, blacklist_reason')
+            .eq('id', cleanFounder)
+            .maybeSingle()
+          founderHub = data
         } else {
-          founderQuery = founderQuery.or(`username.ilike.${cleanFounder},email.ilike.${cleanFounder}`)
+          // Safe parameterized lookups without .or() string interpolation
+          const { data: byUsername } = await supabaseAdmin
+            .from('profiles')
+            .select('id, username, is_banned, blacklist_reason')
+            .ilike('username', cleanFounder)
+            .maybeSingle()
+          if (byUsername) {
+            founderHub = byUsername
+          } else {
+            const { data: byEmail } = await supabaseAdmin
+              .from('profiles')
+              .select('id, username, is_banned, blacklist_reason')
+              .ilike('email', cleanFounder)
+              .maybeSingle()
+            founderHub = byEmail
+          }
         }
-        const { data: founderHub } = await founderQuery.maybeSingle()
         if (founderHub) {
           const { error: wfErr } = await testDb.from('profiles').upsert({
             id: founderHub.id,
@@ -241,16 +323,16 @@ serve(async (req) => {
       }
     } else if (
       existingSpokeProfile.username !== hubUsername ||
-      Boolean(existingSpokeProfile.is_banned) !== Boolean(hubIsBanned) ||
-      (existingSpokeProfile.blacklist_reason || null) !== (hubBlacklistReason || null)
+      (hubIsBanned && !existingSpokeProfile.is_banned)
     ) {
+      const syncFields: Record<string, any> = { username: hubUsername }
+      if (hubIsBanned) {
+        syncFields.is_banned = true
+        syncFields.blacklist_reason = hubBlacklistReason
+      }
       const { data: updatedProfile, error: syncErr } = await gameDb
         .from('profiles')
-        .update({
-          username: hubUsername,
-          is_banned: hubIsBanned,
-          blacklist_reason: hubBlacklistReason
-        })
+        .update(syncFields)
         .eq('id', v_user_id)
         .select('id, username, role, is_banned, blacklist_reason, is_comm_banned, comm_blacklist_reason')
         .maybeSingle()
@@ -259,6 +341,9 @@ serve(async (req) => {
     }
 
     const callerSpokeRole = (callerSpokeProfile?.role || 'citizen').toLowerCase()
+    const isCallerBanned = Boolean(hubIsBanned || callerSpokeProfile?.is_banned)
+    const isCallerStaff = hubRole === 'keeper' || STAFF_ROLES.includes(callerSpokeRole)
+    const isCallerCreatorOrStaff = hubRole === 'keeper' || CREATOR_OR_STAFF_ROLES.includes(callerSpokeRole)
 
     let resultData = null;
 
@@ -278,13 +363,12 @@ serve(async (req) => {
         const isSelfBan = target_user_id === v_user_id && updates.is_banned === true && Object.keys(updates).every(k => ['is_banned', 'blacklist_reason'].includes(k))
         const isKeeperOrWayfinder = hubRole === 'keeper' || callerSpokeRole === 'wayfinder'
         const isOversight = callerSpokeRole === 'oversight'
-        const isArchitectMasonPromote = callerSpokeRole === 'architect' && Object.keys(updates).length === 1 && updates.role === 'mason'
+        const isArchitectMasonPromote = (callerSpokeRole === 'architect' || callerSpokeRole === 'senior_architect') && Object.keys(updates).length === 1 && updates.role === 'mason'
 
         if (!isSelfBan && !isKeeperOrWayfinder && !isOversight && !isArchitectMasonPromote) {
           throw new Error('Forbidden: Insufficient permissions to update Spoke profile')
         }
 
-        // Ensure target user exists in Spoke profiles (if they exist in Hub, pull them in first)
         const { data: targetSpoke } = await gameDb
           .from('profiles')
           .select('id, role')
@@ -315,7 +399,7 @@ serve(async (req) => {
         }
 
         const allowedFields: Record<string, any> = {}
-        if (updates.role !== undefined) allowedFields.role = updates.role
+        if (updates.role !== undefined && !isSelfBan) allowedFields.role = updates.role
         if (updates.is_banned !== undefined) allowedFields.is_banned = updates.is_banned
         if (updates.blacklist_reason !== undefined) allowedFields.blacklist_reason = updates.blacklist_reason
         if (updates.is_comm_banned !== undefined) allowedFields.is_comm_banned = updates.is_comm_banned
@@ -329,8 +413,8 @@ serve(async (req) => {
 
         if (updateErr) throw updateErr
 
-        // If Global Ban (is_banned / blacklist_reason) was updated, synchronize back to Core OS Hub
-        if (updates.is_banned !== undefined || updates.blacklist_reason !== undefined) {
+        // Only a Core OS Keeper (or automated local self-quarantine) can escalate a ban to the global Hub profiles table
+        if ((hubRole === 'keeper' || isSelfBan) && (updates.is_banned !== undefined || updates.blacklist_reason !== undefined)) {
           const hubBanUpdate: Record<string, any> = {}
           if (updates.is_banned !== undefined) hubBanUpdate.is_banned = updates.is_banned
           if (updates.blacklist_reason !== undefined) hubBanUpdate.blacklist_reason = updates.blacklist_reason
@@ -344,12 +428,13 @@ serve(async (req) => {
         break;
       }
       case 'follow_mason': {
+        if (isCallerBanned) throw new Error('Forbidden: Account is suspended')
         const { mason_id } = payload
         const { error } = await gameDb.from('mason_followers').insert({
           user_id: v_user_id,
           mason_id: mason_id
         })
-        if (error && error.code !== '23505') throw error // ignore unique violation
+        if (error && error.code !== '23505') throw error
         resultData = { success: true, following: true }
         break;
       }
@@ -362,45 +447,94 @@ serve(async (req) => {
         break;
       }
       case 'update_mason_profile': {
-        const { mason_id, profile_data } = payload
-        
-        // Verify ownership
+        if (isCallerBanned) throw new Error('Forbidden: Account is suspended')
+        const { mason_id, profile_data } = payload || {}
+        if (!mason_id || !profile_data || typeof profile_data !== 'object') {
+          throw new Error('Missing mason_id or profile_data')
+        }
+
         const { data: mason, error: masonError } = await gameDb
           .from('masons')
           .select('profile_id')
           .eq('id', mason_id)
           .single()
-          
+
         if (masonError || !mason) throw new Error('Mason not found')
-        if (mason.profile_id !== v_user_id) throw new Error('Forbidden: You do not own this mason profile')
-        
+        const isOwner = mason.profile_id === v_user_id
+        if (!isOwner && !isCallerStaff) {
+          throw new Error('Forbidden: You do not own this mason profile')
+        }
+
+        // Prevent Masons from self-escalating is_verified, followers_count, or profile_id unless caller is Staff/Keeper
+        const sanitizedData: Record<string, any> = {}
+        const ownerAllowedKeys = [
+          'name',
+          'bio',
+          'avatar_url',
+          'patreon_url',
+          'donation_url',
+          'payment_processor',
+          'patreon_campaign_id',
+          'website_url',
+          'discord_url',
+          'pinned_mod_id',
+          'pinned_asset_id',
+          'pinned_blueprint_id',
+          'pinned_ccset_id',
+        ]
+        const staffExtraKeys = ['is_verified', 'profile_id', 'followers_count']
+        const allowedKeys = isCallerStaff ? [...ownerAllowedKeys, ...staffExtraKeys] : ownerAllowedKeys
+
+        for (const k of allowedKeys) {
+          if (profile_data[k] !== undefined) {
+            sanitizedData[k] = profile_data[k]
+          }
+        }
+
         const { data: updatedMason, error: updateError } = await gameDb
           .from('masons')
-          .update(profile_data)
+          .update(sanitizedData)
           .eq('id', mason_id)
           .select()
           .single()
-          
+
         if (updateError) throw updateError
         resultData = updatedMason
         break;
       }
       case 'upsert_cloud_file': {
-        const { target_table, payload_data } = payload
-        
-        // This is a generic upsert, ensure it's not trying to update sensitive tables
+        if (isCallerBanned) throw new Error('Forbidden: Account is suspended')
+        const { target_table, payload_data } = payload || {}
+        const cleanTable = String(target_table || '').trim().toLowerCase()
+
+        if (!cleanTable || !payload_data) {
+          throw new Error('Missing target_table or payload_data')
+        }
+
         const restrictedTables = ['profiles', 'auth.users']
-        if (restrictedTables.includes(target_table)) {
+        if (restrictedTables.includes(cleanTable)) {
           throw new Error('Forbidden table target')
         }
 
+        if (STAFF_ONLY_TABLES.has(cleanTable)) {
+          if (!isCallerStaff) {
+            throw new Error(`Forbidden: Insufficient permissions to modify ${cleanTable}`)
+          }
+        } else if (CREATOR_OR_STAFF_TABLES.has(cleanTable)) {
+          if (!isCallerCreatorOrStaff) {
+            throw new Error(`Forbidden: Creator or Staff role required to modify ${cleanTable}`)
+          }
+        } else if (!CITIZEN_TABLES.has(cleanTable)) {
+          throw new Error(`Forbidden: Table ${cleanTable} is not in the allowed gateway registry`)
+        }
+
         const { data, error } = await gameDb
-          .from(target_table)
+          .from(cleanTable)
           .upsert(payload_data)
           .select()
-          
+
         if (error) {
-          if (error.code === '23505' && target_table === 'mason_post_views') {
+          if (error.code === '23505' && cleanTable === 'mason_post_views') {
             resultData = [payload_data]
           } else {
             throw error
@@ -411,18 +545,62 @@ serve(async (req) => {
         break;
       }
       case 'delete_cloud_file': {
-        const { target_table, id_value } = payload
-        
-        const restrictedTables = ['profiles', 'auth.users']
-        if (restrictedTables.includes(target_table)) {
+        if (isCallerBanned) throw new Error('Forbidden: Account is suspended')
+        const { target_table, id_value } = payload || {}
+        const cleanTable = String(target_table || '').trim().toLowerCase()
+
+        if (!cleanTable || id_value === undefined || id_value === null) {
+          throw new Error('Missing target_table or id_value')
+        }
+
+        const restrictedTables = ['profiles', 'auth.users', 'audit_logs']
+        if (restrictedTables.includes(cleanTable)) {
           throw new Error('Forbidden table target')
         }
-        
+
+        if (STAFF_ONLY_TABLES.has(cleanTable)) {
+          if (!isCallerStaff) {
+            throw new Error(`Forbidden: Staff role required to delete from ${cleanTable}`)
+          }
+        } else if (CREATOR_OR_STAFF_TABLES.has(cleanTable)) {
+          if (!isCallerCreatorOrStaff) {
+            throw new Error(`Forbidden: Creator or Staff role required to delete from ${cleanTable}`)
+          }
+        } else if (CITIZEN_TABLES.has(cleanTable)) {
+          // If not staff, verify ownership on user-owned tables before deletion
+          if (!isCallerStaff) {
+            const ownerColumnMap: Record<string, string> = {
+              mason_post_comments: 'author_id',
+              mason_post_likes: 'user_id',
+              dispatch_poll_votes: 'user_id',
+              blueprints: 'mason_id',
+              nexus_assets: 'author_id',
+              sanctuary_tickets: 'author_id',
+              notifications: 'user_id',
+            }
+            const ownerCol = ownerColumnMap[cleanTable]
+            if (ownerCol) {
+              const { data: existingRow } = await gameDb
+                .from(cleanTable)
+                .select(ownerCol)
+                .eq('id', id_value)
+                .maybeSingle()
+              if (!existingRow || existingRow[ownerCol] !== v_user_id) {
+                throw new Error(`Forbidden: You can only delete your own records in ${cleanTable}`)
+              }
+            } else if (cleanTable !== 'citizen_staging_queue') {
+              throw new Error(`Forbidden: Staff role required to delete from ${cleanTable}`)
+            }
+          }
+        } else {
+          throw new Error(`Forbidden: Table ${cleanTable} is not in the allowed gateway registry`)
+        }
+
         const { error } = await gameDb
-          .from(target_table)
+          .from(cleanTable)
           .delete()
           .eq('id', id_value)
-          
+
         if (error) throw error
         resultData = { success: true }
         break;
@@ -485,7 +663,6 @@ serve(async (req) => {
         const severReason = payload?.reason?.trim() || (callerSpokeRole === 'wayfinder' ? 'Community Executed Cut the Cord (Bilateral Sovereignty Severance)' : 'Keeper Severed Spoke Uplink')
         const actionTitle = callerSpokeRole === 'wayfinder' ? 'Community Executed Cut the Cord (Severed Uplink)' : 'Keeper Severed Spoke Uplink'
 
-        // 1. Log in Spoke audit_logs before scrubbing the service key
         try {
           await gameDb.from('audit_logs').insert({
             action: actionTitle,
@@ -498,7 +675,6 @@ serve(async (req) => {
           console.warn('Spoke audit log insert warning on sever:', e)
         }
 
-        // 2. Log in Hub audit_logs
         try {
           await supabaseAdmin.from('audit_logs').insert({
             action: actionTitle,
@@ -512,7 +688,6 @@ serve(async (req) => {
           console.warn('Hub audit log insert warning on sever:', e)
         }
 
-        // 3. Deactivate Spoke and scrub service key on Hub
         const { error: severErr } = await supabaseAdmin
           .from('sanctuary_games')
           .update({
@@ -534,15 +709,17 @@ serve(async (req) => {
         if (hubRole !== 'keeper' && callerSpokeRole !== 'wayfinder') {
           throw new Error('Forbidden: Only the Spoke Wayfinder or a Core OS Keeper can update Spoke uplink keys.')
         }
-        const newUrl = payload?.supabase_url?.trim() || game.supabase_url
+        const newUrl = (payload?.supabase_url?.trim() || game.supabase_url || '').replace(/\/+$/, '')
         const newAnonKey = payload?.supabase_anon_key?.trim() || game.supabase_anon_key
         const newServiceKey = payload?.supabase_service_key?.trim() || game.supabase_service_key
 
         if (!newUrl || !newAnonKey || !newServiceKey) {
           throw new Error('Missing required Spoke URL, Anon Key, or Service Key.')
         }
+        if (!SUPABASE_URL_REGEX.test(newUrl)) {
+          throw new Error('Invalid Spoke Supabase URL: must be a valid https://<project>.supabase.co endpoint')
+        }
 
-        // Verify the new credentials can reach the Spoke profiles table
         const verifyClient = createClient(newUrl, newServiceKey)
         const { error: pingErr } = await verifyClient.from('profiles').select('id', { head: true, count: 'exact' }).limit(1)
         if (pingErr) {
@@ -590,4 +767,3 @@ serve(async (req) => {
     })
   }
 })
-

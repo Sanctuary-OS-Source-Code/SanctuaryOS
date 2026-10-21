@@ -629,31 +629,40 @@ CREATE INDEX idx_tickets_status ON sanctuary_tickets(status);
 -- 9. FUNCTIONS & TRIGGERS
 -- ============================================================================
 
-CREATE OR REPLACE FUNCTION update_modified_column()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.update_modified_column()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     NEW.last_updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER update_mods_modtime
 BEFORE UPDATE ON mods
-FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+FOR EACH ROW EXECUTE FUNCTION public.update_modified_column();
 
-CREATE OR REPLACE FUNCTION prevent_audit_modifications()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.prevent_audit_modifications()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     RAISE EXCEPTION 'Audit logs are append-only. Modification or deletion is strictly forbidden.';
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER ensure_audit_log_immutability
 BEFORE UPDATE OR DELETE ON audit_logs
-FOR EACH ROW EXECUTE FUNCTION prevent_audit_modifications();
+FOR EACH ROW EXECUTE FUNCTION public.prevent_audit_modifications();
 
-CREATE OR REPLACE FUNCTION purge_flagged_hash_from_blueprints()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.purge_flagged_hash_from_blueprints()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     IF (TG_OP = 'INSERT' AND NEW.compliance_tier BETWEEN 1 AND 5) OR 
        (TG_OP = 'UPDATE' AND NEW.compliance_tier BETWEEN 1 AND 5 AND OLD.compliance_tier IS DISTINCT FROM NEW.compliance_tier) THEN
@@ -673,73 +682,102 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trg_purge_flagged_hash_from_blueprints
 AFTER INSERT OR UPDATE OF compliance_tier ON mods
-FOR EACH ROW EXECUTE FUNCTION purge_flagged_hash_from_blueprints();
+FOR EACH ROW EXECUTE FUNCTION public.purge_flagged_hash_from_blueprints();
 
-CREATE OR REPLACE FUNCTION get_blueprints_premium_status(b_ids bigint[])
+CREATE OR REPLACE FUNCTION public.get_blueprints_premium_status(b_ids bigint[])
 RETURNS TABLE(id bigint, is_paid boolean, is_early_access boolean)
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
   RETURN QUERY
   SELECT b.id,
          COALESCE(bool_or(m.is_paid), false) AS is_paid,
          COALESCE(bool_or(m.is_early_access), false) AS is_early_access
-  FROM blueprints b
+  FROM public.blueprints b
   CROSS JOIN LATERAL jsonb_array_elements(b.artifacts) AS arr(elem)
-  LEFT JOIN mod_versions mv ON mv.dna_hash = (elem->>'hash')
-  LEFT JOIN mods m ON m.id = mv.mod_id
+  LEFT JOIN public.mod_versions mv ON mv.dna_hash = (elem->>'hash')
+  LEFT JOIN public.mods m ON m.id = mv.mod_id
   WHERE b.id = ANY(b_ids)
   GROUP BY b.id;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION get_flavor_group_members_by_hashes(p_hashes text[])
-RETURNS SETOF flavor_group_members LANGUAGE sql STABLE AS $$
-  SELECT * FROM flavor_group_members WHERE mod_hash = ANY(p_hashes);
+CREATE OR REPLACE FUNCTION public.get_flavor_group_members_by_hashes(p_hashes text[])
+RETURNS SETOF flavor_group_members
+LANGUAGE sql STABLE
+SET search_path = public
+AS $$
+  SELECT * FROM public.flavor_group_members WHERE mod_hash = ANY(p_hashes);
 $$;
 
-CREATE OR REPLACE FUNCTION get_flavor_groups_by_ids(p_ids uuid[])
-RETURNS SETOF flavor_groups LANGUAGE sql STABLE AS $$
-  SELECT * FROM flavor_groups WHERE id = ANY(p_ids);
+CREATE OR REPLACE FUNCTION public.get_flavor_groups_by_ids(p_ids uuid[])
+RETURNS SETOF flavor_groups
+LANGUAGE sql STABLE
+SET search_path = public
+AS $$
+  SELECT * FROM public.flavor_groups WHERE id = ANY(p_ids);
 $$;
 
-CREATE OR REPLACE FUNCTION get_mod_dependencies_by_ids(p_ids uuid[])
-RETURNS SETOF mod_dependencies LANGUAGE sql STABLE AS $$
-  SELECT * FROM mod_dependencies WHERE child_id = ANY(p_ids) OR parent_id = ANY(p_ids);
+CREATE OR REPLACE FUNCTION public.get_mod_dependencies_by_ids(p_ids uuid[])
+RETURNS SETOF mod_dependencies
+LANGUAGE sql STABLE
+SET search_path = public
+AS $$
+  SELECT * FROM public.mod_dependencies WHERE child_id = ANY(p_ids) OR parent_id = ANY(p_ids);
 $$;
 
-CREATE OR REPLACE FUNCTION get_mod_relationships_by_ids(p_ids uuid[])
-RETURNS SETOF mod_relationships LANGUAGE sql STABLE AS $$
-  SELECT * FROM mod_relationships WHERE child_id = ANY(p_ids) OR parent_id = ANY(p_ids);
+CREATE OR REPLACE FUNCTION public.get_mod_relationships_by_ids(p_ids uuid[])
+RETURNS SETOF mod_relationships
+LANGUAGE sql STABLE
+SET search_path = public
+AS $$
+  SELECT * FROM public.mod_relationships WHERE child_id = ANY(p_ids) OR parent_id = ANY(p_ids);
 $$;
 
-CREATE OR REPLACE FUNCTION get_mod_versions_by_hashes(p_hashes text[])
-RETURNS SETOF mod_versions LANGUAGE sql STABLE AS $$
-  SELECT * FROM mod_versions WHERE dna_hash = ANY(p_hashes);
+CREATE OR REPLACE FUNCTION public.get_mod_versions_by_hashes(p_hashes text[])
+RETURNS SETOF mod_versions
+LANGUAGE sql STABLE
+SET search_path = public
+AS $$
+  SELECT * FROM public.mod_versions WHERE dna_hash = ANY(p_hashes);
 $$;
 
-CREATE OR REPLACE FUNCTION get_mods_by_ids(p_ids uuid[])
-RETURNS SETOF mods LANGUAGE sql STABLE AS $$
-  SELECT * FROM mods WHERE id = ANY(p_ids);
+CREATE OR REPLACE FUNCTION public.get_mods_by_ids(p_ids uuid[])
+RETURNS SETOF mods
+LANGUAGE sql STABLE
+SET search_path = public
+AS $$
+  SELECT * FROM public.mods WHERE id = ANY(p_ids);
 $$;
 
-CREATE OR REPLACE FUNCTION increment_asset_downloads(asset_id uuid)
-RETURNS void LANGUAGE sql AS $$
-  UPDATE nexus_assets SET downloads = COALESCE(downloads, 0) + 1 WHERE id = asset_id;
+CREATE OR REPLACE FUNCTION public.increment_asset_downloads(asset_id uuid)
+RETURNS void
+LANGUAGE sql
+SET search_path = public
+AS $$
+  UPDATE public.nexus_assets SET downloads = COALESCE(downloads, 0) + 1 WHERE id = asset_id;
 $$;
 
-CREATE OR REPLACE FUNCTION increment_blueprint_downloads(blueprint_id bigint)
-RETURNS void LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION public.increment_blueprint_downloads(blueprint_id bigint)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
-  UPDATE blueprints SET downloads = COALESCE(downloads, 0) + 1 WHERE id = blueprint_id;
+  UPDATE public.blueprints SET downloads = COALESCE(downloads, 0) + 1 WHERE id = blueprint_id;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION hide_mason_comment(p_comment_id uuid)
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+CREATE OR REPLACE FUNCTION public.hide_mason_comment(p_comment_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER SET search_path = public
+AS $$
 BEGIN
   UPDATE public.mason_post_comments SET is_hidden = true WHERE id = p_comment_id;
 END;
@@ -823,13 +861,57 @@ CREATE TRIGGER on_auth_user_created_spoke
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_spoke_user();
 
+CREATE OR REPLACE FUNCTION public.protect_spoke_profile_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+    IF COALESCE(current_setting('request.jwt.claim.role', true), '') IS DISTINCT FROM 'service_role'
+       AND session_user NOT IN ('postgres', 'supabase_admin')
+       AND NOT EXISTS (
+           SELECT 1 FROM public.profiles
+           WHERE id = auth.uid()
+             AND role IN ('wayfinder', 'oversight', 'architect', 'senior_architect', 'admin')
+       )
+    THEN
+        IF TG_OP = 'INSERT' THEN
+            IF EXISTS (SELECT 1 FROM public.profiles WHERE role = 'wayfinder') THEN
+                NEW.role := 'citizen';
+            END IF;
+            NEW.is_banned := false;
+            NEW.blacklist_reason := NULL;
+            NEW.is_comm_banned := false;
+            NEW.comm_blacklist_reason := NULL;
+        ELSE
+            NEW.role := OLD.role;
+            IF OLD.is_banned = true OR NEW.is_banned IS DISTINCT FROM true THEN
+                NEW.is_banned := OLD.is_banned;
+                NEW.blacklist_reason := OLD.blacklist_reason;
+            END IF;
+            NEW.is_comm_banned := OLD.is_comm_banned;
+            NEW.comm_blacklist_reason := OLD.comm_blacklist_reason;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.cleanup_expired_staging_queue() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.handle_new_spoke_user() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.protect_spoke_profile_fields() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS ensure_spoke_profile_integrity ON public.profiles;
+CREATE TRIGGER ensure_spoke_profile_integrity
+BEFORE INSERT OR UPDATE ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.protect_spoke_profile_fields();
+
 -- ============================================================================
 -- 10. TURNKEY ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================================================
 -- Note: Spoke databases are queried by clients using the Spoke Anon Key (or
 -- authenticated session JWTs in Standalone Fork mode) while Hub-and-Spoke
--- role mutations route through the Hub API Gateway (Service Role).
--- These policies ensure immediate turnkey operation out of the box for both modes.
+-- role and administrative mutations route through the Hub API Gateway (Service Role).
 -- ============================================================================
 
 DO $$
@@ -845,13 +927,64 @@ BEGIN
     END LOOP;
 END $$;
 
--- Allow client-side operational writes on Spoke tables (audit_logs is append-only via trigger)
+-- 10a. Strictly lock down profiles to Service Role (Hub Gateway) or Authenticated self/staff (Standalone Mode)
+DROP POLICY IF EXISTS "Sanctuary Spoke Operational Write" ON public.profiles;
+DROP POLICY IF EXISTS "Allow user to insert own spoke profile" ON public.profiles;
+DROP POLICY IF EXISTS "Allow user or staff to update spoke profile" ON public.profiles;
+CREATE POLICY "Allow user to insert own spoke profile" ON public.profiles
+    FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+CREATE POLICY "Allow user or staff to update spoke profile" ON public.profiles
+    FOR UPDATE TO authenticated
+    USING (
+        auth.uid() = id
+        OR EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role IN ('wayfinder', 'oversight', 'architect', 'senior_architect', 'admin'))
+    )
+    WITH CHECK (
+        auth.uid() = id
+        OR EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role IN ('wayfinder', 'oversight', 'architect', 'senior_architect', 'admin'))
+    );
+
+-- 10b. Append-only audit_logs (no UPDATE or DELETE policies)
+DROP POLICY IF EXISTS "Sanctuary Spoke Operational Write" ON public.audit_logs;
+DROP POLICY IF EXISTS "Allow spoke insert audit logs" ON public.audit_logs;
+CREATE POLICY "Allow spoke insert audit logs" ON public.audit_logs
+    FOR INSERT TO public WITH CHECK (action IS NOT NULL);
+
+-- 10c. Gateway-managed / Staff-managed Spoke tables (Service Role bypasses RLS in Hub-and-Spoke; Authenticated Staff in Standalone)
+DO $$
+DECLARE
+    staff_tbl TEXT;
+BEGIN
+    FOREACH staff_tbl IN ARRAY ARRAY[
+        'dlc_registry',
+        'game_versions',
+        'global_network_status',
+        'global_security',
+        'heuristic_signatures',
+        'homestead_workbench_templates',
+        'mod_bundles',
+        'sanctuary_support_categories',
+        'sanctuary_telemetry_sources',
+        'system_broadcasts',
+        'taxonomy',
+        'version_dependencies'
+    ]
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS "Sanctuary Spoke Operational Write" ON public.%I;', staff_tbl);
+        EXECUTE format('DROP POLICY IF EXISTS "Sanctuary Spoke Staff Write" ON public.%I;', staff_tbl);
+        EXECUTE format(
+            'CREATE POLICY "Sanctuary Spoke Staff Write" ON public.%I FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role IN (''wayfinder'', ''oversight'', ''architect'', ''senior_architect'', ''admin'', ''mason''))) WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role IN (''wayfinder'', ''oversight'', ''architect'', ''senior_architect'', ''admin'', ''mason'')));',
+            staff_tbl
+        );
+    END LOOP;
+END $$;
+
+-- 10d. Operational Spoke tables (used by client sync & Hub Gateway)
 DO $$
 DECLARE
     writable_tbl TEXT;
 BEGIN
     FOREACH writable_tbl IN ARRAY ARRAY[
-        'audit_logs',
         'blueprint_reports',
         'blueprints',
         'citizen_staging_queue',
@@ -861,16 +994,10 @@ BEGIN
         'community_groups',
         'content_flags',
         'dispatch_poll_votes',
-        'dlc_registry',
         'flavor_group_members',
         'flavor_groups',
-        'game_versions',
-        'global_network_status',
-        'global_security',
         'hardware_bans',
-        'heuristic_signatures',
         'homestead_lab_logs',
-        'homestead_workbench_templates',
         'logical_conflicts',
         'malware_reports',
         'mason_followers',
@@ -879,7 +1006,6 @@ BEGIN
         'mason_post_views',
         'mason_posts',
         'masons',
-        'mod_bundles',
         'mod_dependencies',
         'mod_relationships',
         'mod_versions',
@@ -887,18 +1013,12 @@ BEGIN
         'nexus_assets',
         'nexus_reports',
         'notifications',
-        'profiles',
         'sanctuary_lexicons',
         'sanctuary_schemas',
-        'sanctuary_support_categories',
-        'sanctuary_telemetry_sources',
         'sanctuary_themes',
         'sanctuary_tickets',
         'scout_suggestions',
-        'system_broadcasts',
-        'taxonomy',
-        'tracked_template_files',
-        'version_dependencies'
+        'tracked_template_files'
     ]
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS "Sanctuary Spoke Operational Write" ON public.%I;', writable_tbl);

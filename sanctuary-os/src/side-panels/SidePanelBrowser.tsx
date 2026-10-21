@@ -65,6 +65,7 @@ export default function SidePanelBrowser() {
 
   const webviewsRef = useRef<Map<string, Webview>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
+  const bridgeTokenRef = useRef<string>(crypto.randomUUID());
 
   const [hasInitialized, setHasInitialized] = useState(false);
 
@@ -116,13 +117,19 @@ export default function SidePanelBrowser() {
             if (url.includes('#sanctuary-action=')) {
               const parts = url.split('#sanctuary-action=');
               if (parts.length > 1) {
-                const action = parts[1];
+                const rawAction = parts[1];
+                const expectedPrefix = `${bridgeTokenRef.current}:`;
+                if (!rawAction.startsWith(expectedPrefix)) {
+                  invoke('webview_eval', { label: activeLabel, script: "window.history.replaceState(null, '', window.location.pathname + window.location.search);" }).catch(console.error);
+                  return;
+                }
+                const action = rawAction.slice(expectedPrefix.length);
                 if (action === 'paste') {
                   import("@tauri-apps/plugin-clipboard-manager").then(({ readText }) => {
                     readText().then((clipText) => {
                       if (clipText) {
-                        const escaped = clipText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\\n/g, '\\\\n').replace(/\\r/g, '');
-                        invoke('webview_eval', { label: activeLabel, script: `document.execCommand('insertText', false, '${escaped}')` }).catch(console.error);
+                        const escaped = JSON.stringify(clipText);
+                        invoke('webview_eval', { label: activeLabel, script: `document.execCommand('insertText', false, ${escaped})` }).catch(console.error);
                       }
                     });
                   });
@@ -137,7 +144,7 @@ export default function SidePanelBrowser() {
                     const parsed = JSON.parse(rawPayload);
                     const sessionId = String(parsed.sessionId || '').trim();
                     const amountUsd = Math.max(5, Number(parsed.amountUsd || 5));
-                    if (sessionId) {
+                    if (/^cs_[a-zA-Z0-9_]+$/.test(sessionId) && /^https:\/\/([a-z0-9-]+\.)*stripe\.com\//i.test(url)) {
                       setTimeout(() => {
                         import('../utils/supporterManager').then(({ stackGlobalDevBuildDonation, presentSupporterCelebrationModal }) => {
                           stackGlobalDevBuildDonation({
@@ -197,7 +204,7 @@ export default function SidePanelBrowser() {
 
             if (displayUrl !== 'about:blank') {
               const osBgColor = currentTheme.bg || '#000000';
-              const script = INJECTED_BROWSER_SCRIPT.replace(/__OS_BG_COLOR__/g, osBgColor);
+              const script = INJECTED_BROWSER_SCRIPT.replace(/__OS_BG_COLOR__/g, osBgColor).replace(/__SANCTUARY_BRIDGE_TOKEN__/g, bridgeTokenRef.current);
               invoke('webview_eval', { label: activeLabel, script }).catch(console.error);
             }
           }).catch(() => { });
@@ -351,7 +358,7 @@ export default function SidePanelBrowser() {
           webviewsRef.current.set(label, wv);
           wv.once('tauri://created', () => {
             setTimeout(() => {
-              invoke('webview_eval', { label, script: `window.location.href = "${tab.url}";` }).catch(() => { });
+              invoke('webview_eval', { label, script: `window.location.href = ${JSON.stringify(tab.url)};` }).catch(() => { });
             }, 100);
           });
         } else {
@@ -429,7 +436,7 @@ export default function SidePanelBrowser() {
     const label = `side-browser-tab-${activeBrowserTabId}`;
     const navigateWebview = (retries = 3) => {
       if (webviewsRef.current.has(label)) {
-        invoke('webview_eval', { label, script: `window.location.href = "${finalUrl}";` })
+        invoke('webview_eval', { label, script: `window.location.href = ${JSON.stringify(finalUrl)};` })
           .catch(e => {
             if (retries > 0) setTimeout(() => navigateWebview(retries - 1), 200);
             else console.error(e);
@@ -468,7 +475,7 @@ export default function SidePanelBrowser() {
         if (activeTab && activeTab.url === finalUrl) {
           // Already on this URL but webview might have navigated away. Force a navigation.
           const label = `side-browser-tab-${activeBrowserTabId}`;
-          invoke('webview_eval', { label, script: `window.location.href = "${finalUrl}";` }).catch(() => { });
+          invoke('webview_eval', { label, script: `window.location.href = ${JSON.stringify(finalUrl)};` }).catch(() => { });
         } else {
           // New URL, create a new tab.
           const newId = crypto.randomUUID();

@@ -316,10 +316,10 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
             const newId = renameInput.trim();
             const client = (await import('../supabase')).supabase;
             
-            const { data: oldData, error: fetchErr } = await client.from(internalCloudTarget).select('*').eq('id', oldId).maybeSingle();
+            const { data: oldData, error: fetchErr } = await client.from(internalCloudTarget).select(internalCloudTarget === 'sanctuary_games' ? 'id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor' : '*').eq('id', oldId).maybeSingle();
             if (fetchErr) throw fetchErr;
             
-            const newData = { ...oldData, id: newId, name: newId };
+            const newData = { ...(oldData as any), id: newId, name: newId };
             const token = session?.access_token;
             
             if (!isKeepers && token) {

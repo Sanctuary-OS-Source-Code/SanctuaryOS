@@ -44,7 +44,7 @@ export default function KeepersActiveGames() {
 
   const fetchGames = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('sanctuary_games').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('sanctuary_games').select('id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor').order('created_at', { ascending: false });
     if (!error && data) {
       setGames(data);
     }
@@ -171,7 +171,7 @@ export default function KeepersActiveGames() {
         schema_id: formData.schema_id.trim().toUpperCase(),
         supabase_url: formData.supabase_url.trim(),
         supabase_anon_key: formData.supabase_anon_key.trim(),
-        supabase_service_key: formData.supabase_service_key?.trim() || null,
+        ...(formData.supabase_service_key?.trim() ? { supabase_service_key: formData.supabase_service_key.trim() } : {}),
         icon: formData.icon,
         is_active: formData.is_active
       }]);
@@ -184,7 +184,7 @@ export default function KeepersActiveGames() {
         schema_id: formData.schema_id.trim().toUpperCase(),
         supabase_url: formData.supabase_url.trim(),
         supabase_anon_key: formData.supabase_anon_key.trim(),
-        supabase_service_key: formData.supabase_service_key?.trim() || null,
+        ...(formData.supabase_service_key?.trim() ? { supabase_service_key: formData.supabase_service_key.trim() } : {}),
         icon: formData.icon,
         is_active: formData.is_active
       }).eq('id', formData.id);

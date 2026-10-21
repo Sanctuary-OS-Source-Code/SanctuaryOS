@@ -401,18 +401,6 @@ export async function stackGlobalDevBuildDonation(params: {
         if (typeof rpcData.months_added === "number") {
           finalMonthsAdded = rpcData.months_added;
         }
-      } else if (rpcErr) {
-        // Fallback direct profile update if RPC not yet applied on Hub DB
-        await client
-          .from("profiles")
-          .update({
-            dev_build_until:
-              finalUntil > 0 ? new Date(finalUntil * 1000).toISOString() : null,
-            donation_credit_cents: finalCredit,
-            total_months_unlocked: finalTotalMonths,
-            last_donation_at: new Date().toISOString(),
-          })
-          .eq("id", userId);
       }
     } catch {
       // Continue with local SQLite persistence
@@ -1420,7 +1408,7 @@ export async function loadPartnerCommunitiesList(
     const client = supabaseAuth || supabase;
     const { data: games } = await client
       .from("sanctuary_games")
-      .select("*")
+      .select("id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor")
       .eq("is_active", true)
       .order("name", { ascending: true });
     if (Array.isArray(games)) {

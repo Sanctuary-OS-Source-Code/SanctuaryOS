@@ -450,11 +450,14 @@ pub fn extract_sandbox_zip_in_place(zip_path: &Path, target_dir: &Path) -> usize
             for i in 0..archive.len() {
                 if let Ok(mut zf) = archive.by_index(i) {
                     if zf.is_file() {
-                        let raw_name = zf.name().to_string();
+                        let Some(enclosed) = zf.enclosed_name() else {
+                            continue;
+                        };
+                        let raw_name = enclosed.to_string_lossy().to_string();
                         if raw_name.contains("__MACOSX") {
                             continue;
                         }
-                        if let Some(fname) = Path::new(&raw_name).file_name() {
+                        if let Some(fname) = enclosed.file_name() {
                             let fname_str = fname.to_string_lossy().to_string();
                             if fname_str.starts_with('.')
                                 || fname_str.eq_ignore_ascii_case("desktop.ini")
@@ -771,7 +774,10 @@ pub fn ingest_dropped_file(
             let mut zip_override_json: Option<String> = None;
             for i in 0..archive.len() {
                 if let Ok(mut zf) = archive.by_index(i) {
-                    if zf.is_file() && std::path::Path::new(zf.name()).file_name().unwrap_or_default() == "override.json" {
+                    let Some(enclosed) = zf.enclosed_name() else {
+                        continue;
+                    };
+                    if zf.is_file() && enclosed.file_name().unwrap_or_default() == "override.json" {
                         let mut buf = String::new();
                         use std::io::Read;
                         if zf.read_to_string(&mut buf).is_ok() {
@@ -784,8 +790,10 @@ pub fn ingest_dropped_file(
             for i in 0..archive.len() {
                 if let Ok(mut zf) = archive.by_index(i) {
                     if zf.is_file() {
-                        let name = zf.name().to_string();
-                        let p = Path::new(&name);
+                        let Some(enclosed) = zf.enclosed_name() else {
+                            continue;
+                        };
+                        let p = enclosed.as_path();
                         let zf_ext = p
                             .extension()
                             .and_then(|e| e.to_str())
@@ -1059,12 +1067,30 @@ pub fn ingest_dropped_file(
             let cache = load_cache(&config.vault_path);
             let _ = std::fs::create_dir_all(&target_base);
 
+            let canonical_tmp = std::fs::canonicalize(&tmp_extract).unwrap_or_else(|_| tmp_extract.clone());
             for entry in walkdir::WalkDir::new(&tmp_extract)
                 .into_iter()
                 .filter_map(|e| e.ok())
             {
+                if entry.file_type().is_symlink() {
+                    continue;
+                }
                 if entry.file_type().is_file() {
                     let p = entry.path();
+                    if let Ok(canon_p) = std::fs::canonicalize(p) {
+                        if !canon_p.starts_with(&canonical_tmp) {
+                            continue;
+                        }
+                    }
+                    let Ok(rel_path) = p.strip_prefix(&tmp_extract) else {
+                        continue;
+                    };
+                    if rel_path
+                        .components()
+                        .any(|c| !matches!(c, std::path::Component::Normal(_)))
+                    {
+                        continue;
+                    }
                     let zf_ext = p
                         .extension()
                         .and_then(|e| e.to_str())
@@ -1073,7 +1099,6 @@ pub fn ingest_dropped_file(
                     if vault_visible_exts.contains(&zf_ext) || p.file_name().unwrap_or_default().to_string_lossy().to_lowercase().contains("override") && zf_ext == "json" {
                         if let Some(zf_file_name) = p.file_name() {
                             let file_name_str = zf_file_name.to_string_lossy().to_string();
-                            let rel_path = p.strip_prefix(&tmp_extract).unwrap_or(p);
 
                             let mut file_target = target_base.clone();
                             if let Some(parent) = rel_path.parent() {

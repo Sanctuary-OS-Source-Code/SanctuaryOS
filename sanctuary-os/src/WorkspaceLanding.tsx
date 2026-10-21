@@ -44,7 +44,7 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
 
   useEffect(() => {
     const fetchGames = async () => {
-      const { data } = await supabase.from('sanctuary_games').select('*').order('name');
+      const { data } = await supabase.from('sanctuary_games').select('id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor').order('name');
       if (data) setGlobalGames(data);
     };
     fetchGames();

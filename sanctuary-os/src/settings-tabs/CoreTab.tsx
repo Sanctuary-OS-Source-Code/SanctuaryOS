@@ -577,7 +577,13 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
                 </p>
               </div>
               
-              <div className="bg-white p-4 rounded-2xl shadow-lg" dangerouslySetInnerHTML={{ __html: qrCode }} />
+              <div className="bg-white p-4 rounded-2xl shadow-lg flex items-center justify-center">
+                <img
+                  src={qrCode.startsWith('data:') ? qrCode : `data:image/svg+xml;utf8,${encodeURIComponent(qrCode)}`}
+                  alt={t("auth_2fa_scan_qr", "Scan QR Code")}
+                  className="w-44 h-44 object-contain"
+                />
+              </div>
 
               {totpSecret && (
                 <div className="w-full glass-surface border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] rounded-2xl p-4 flex flex-col gap-2.5">

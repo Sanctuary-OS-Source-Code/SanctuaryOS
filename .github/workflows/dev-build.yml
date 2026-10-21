@@ -43,17 +43,19 @@ jobs:
       - name: Sync Dev version metadata from tag
         shell: pwsh
         env:
-          RAW_TAG: ${{ github.event.inputs.dev_version_label || github.ref_name }}
+          INPUT_DEV_VERSION: ${{ github.event.inputs.dev_version_label }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          $tag = "$env:RAW_TAG".Trim()
-          if (-not $tag -or $tag -eq "main" -or $tag -eq "master") {
+          $raw = if ($env:INPUT_DEV_VERSION) { $env:INPUT_DEV_VERSION } else { $env:REF_NAME }
+          $tag = "$raw".Trim()
+          if (-not $tag -or $tag -eq "main" -or $tag -eq "master" -or ($tag -notmatch '^v?\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$')) {
             $tag = "v0.5.8-dev.1"
           }
           $cleanDevVer = ($tag -replace '^[vV]', '') -replace '^(\d+\.\d+\.\d+)\.([a-zA-Z])', '$1-$2'
           $cleanDevVer = $cleanDevVer.ToLower()
           $msiMatch = [regex]::Match($cleanDevVer, '\d+\.\d+\.\d+')
           $msiVer = if ($msiMatch.Success) { $msiMatch.Value } else { "0.5.8" }
-          if ($cleanDevVer -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+          if ($cleanDevVer -notmatch '^v?\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$') {
             $cleanDevVer = "$msiVer-dev.1"
           }
 
@@ -105,11 +107,13 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          RAW_TAG: ${{ github.event.inputs.dev_version_label || github.ref_name }}
+          INPUT_DEV_VERSION: ${{ github.event.inputs.dev_version_label }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          $tag = "$env:RAW_TAG".Trim()
+          $raw = if ($env:INPUT_DEV_VERSION) { $env:INPUT_DEV_VERSION } else { $env:REF_NAME }
+          $tag = "$raw".Trim()
           try {
-            if ($tag) {
+            if ($tag -and ($tag -match '^v?\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$')) {
               Write-Host "Ensuring $tag is marked as pre-release..."
               gh release edit $tag --prerelease 2>$null
             }

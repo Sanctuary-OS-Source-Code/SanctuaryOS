@@ -1,6 +1,8 @@
 export const INJECTED_BROWSER_CSS = ``;
 
 export const INJECTED_BROWSER_SCRIPT = `
+(function() {
+const SANC_BRIDGE_TOKEN = "__SANCTUARY_BRIDGE_TOKEN__";
 if (!window.__sanctuary_fs_injected) {
     window.__sanctuary_fs_injected = true;
 
@@ -64,6 +66,7 @@ if (!window.__sanctuary_fs_injected) {
 
     // Context Menu Handler
     const ctxHandler = e => {
+        if (!e.isTrusted) return;
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -109,38 +112,23 @@ if (!window.__sanctuary_fs_injected) {
             b.innerHTML = getIcon(action) + '<span>' + text + '</span>';
             b.onmouseover = () => { b.style.background = "rgba(255,255,255,0.1)"; const svg = b.querySelector('svg'); if(svg) svg.style.opacity = "1"; };
             b.onmouseout = () => { b.style.background = "transparent"; const svg = b.querySelector('svg'); if(svg) svg.style.opacity = "0.5"; };
-            b.onclick = () => {
-                const doCopy = (text) => {
-                    let success = false;
-                    try {
-                        const el = document.createElement('textarea');
-                        el.value = text;
-                        document.body.appendChild(el);
-                        el.select();
-                        success = document.execCommand('copy');
-                        document.body.removeChild(el);
-                    } catch(e) {}
-                    
-                    if (!success && navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(text).catch(console.error);
-                    }
-                };
-
-                if (action === 'paste') window.location.hash = "sanctuary-action=paste";
+            b.onclick = (clickEv) => {
+                if (!clickEv.isTrusted) return;
+                if (action === 'paste') window.location.hash = "sanctuary-action=" + SANC_BRIDGE_TOKEN + ":paste";
                 else if (action === 'reload') window.location.reload();
                 else if (action === 'back') window.history.back();
                 else if (action === 'newTab' && isLink) {
                     window.location.hash = "sanctuary-new-tab=" + encodeURIComponent(a.href);
                     setTimeout(() => window.history.replaceState(null, '', window.location.pathname + window.location.search), 50);
                 } else if (action === 'copyLink' && isLink) {
-                    window.location.hash = "sanctuary-action=copyText=" + encodeURIComponent(a.href);
+                    window.location.hash = "sanctuary-action=" + SANC_BRIDGE_TOKEN + ":copyText=" + encodeURIComponent(a.href);
                     setTimeout(() => window.history.replaceState(null, '', window.location.pathname + window.location.search), 50);
                 } else if (action === 'copyVideo' && isVideo) {
                     let videoUrl = window.location.href;
                     if (isLink && a && a.href && (a.href.includes('/watch') || a.href.includes('/shorts'))) {
                         videoUrl = a.href;
                     }
-                    window.location.hash = "sanctuary-action=copyText=" + encodeURIComponent(videoUrl);
+                    window.location.hash = "sanctuary-action=" + SANC_BRIDGE_TOKEN + ":copyText=" + encodeURIComponent(videoUrl);
                     setTimeout(() => window.history.replaceState(null, '', window.location.pathname + window.location.search), 50);
                 }
                 else document.execCommand(action);
@@ -313,12 +301,13 @@ if (!window.__sanctuary_checkout_watcher_v1) {
                 sessionId: sessionId,
                 amountUsd: amountUsd
             });
-            window.location.hash = 'sanctuary-action=stripeCheckoutSuccess=' + encodeURIComponent(payload);
+            window.location.hash = 'sanctuary-action=' + SANC_BRIDGE_TOKEN + ':stripeCheckoutSuccess=' + encodeURIComponent(payload);
         } catch (e) {}
     };
 
     setInterval(checkStripeDonationCompletion, 900);
     checkStripeDonationCompletion();
 }
+})();
 `;
 

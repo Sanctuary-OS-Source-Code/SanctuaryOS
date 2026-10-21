@@ -54,7 +54,7 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
       const { count: wayfindersCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'wayfinder');
       const latency = Date.now() - start;
 
-      const { count: gamesCount } = await supabase.from('sanctuary_games').select('*', { count: 'exact', head: true });
+      const { count: gamesCount } = await supabase.from('sanctuary_games').select('id', { count: 'exact', head: true });
       const { count: ticketsCount } = await supabase.from('keeper_tickets').select('*', { count: 'exact', head: true }).in('status', ['open', 'in_progress']);
 
       const { count: themesCount } = await supabase.from('sanctuary_themes').select('*', { count: 'exact', head: true });

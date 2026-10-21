@@ -415,16 +415,75 @@ pub fn deploy_air_gap(source: &Path, target: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+pub fn is_safe_user_file_path(path: &std::path::Path) -> bool {
+    let raw = path.to_string_lossy();
+    if raw.trim().is_empty() {
+        return false;
+    }
+    if path
+        .components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return false;
+    }
+    let normalized = raw.replace('/', "\\").to_lowercase();
+    let trimmed = normalized.trim_end_matches('\\');
+    if trimmed.is_empty() || trimmed.ends_with(':') {
+        return false;
+    }
+    let blocked_win_prefixes = [
+        "c:\\windows",
+        "c:\\program files",
+        "c:\\program files (x86)",
+        "c:\\programdata\\microsoft",
+        "c:\\system volume information",
+    ];
+    for prefix in &blocked_win_prefixes {
+        if trimmed == *prefix || trimmed.starts_with(&format!("{}\\", prefix)) {
+            return false;
+        }
+    }
+    let unix_norm = raw.replace('\\', "/");
+    let unix_trimmed = unix_norm.trim_end_matches('/');
+    if unix_trimmed.is_empty() {
+        return false;
+    }
+    let blocked_unix_prefixes = [
+        "/bin", "/sbin", "/usr", "/etc", "/System", "/lib", "/proc", "/sys", "/dev",
+    ];
+    for prefix in &blocked_unix_prefixes {
+        if unix_trimmed.eq_ignore_ascii_case(prefix)
+            || unix_trimmed
+                .to_lowercase()
+                .starts_with(&format!("{}/", prefix.to_lowercase()))
+        {
+            return false;
+        }
+    }
+    true
+}
+
 pub fn deploy_junction(source: &Path, target: &Path) -> std::io::Result<()> {
     #[cfg(target_os = "windows")]
     {
-        let cmd_str = format!(
-            "mklink /J \"{}\" \"{}\"",
-            target.to_str().unwrap(),
-            source.to_str().unwrap()
-        );
+        let target_str = target.to_str().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid target path")
+        })?;
+        let source_str = source.to_str().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid source path")
+        })?;
+        let has_unsafe_chars = |s: &str| {
+            s.chars()
+                .any(|c| matches!(c, '"' | '&' | '|' | '<' | '>' | '^' | '\r' | '\n' | '\0'))
+        };
+        if has_unsafe_chars(target_str) || has_unsafe_chars(source_str) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Path contains unsafe shell metacharacters",
+            ));
+        }
         let status = std::process::Command::new("cmd")
-            .args(&["/C", &cmd_str])
+            .args(["/C", "mklink", "/J", target_str, source_str])
             .status()?;
 
         if !status.success() {

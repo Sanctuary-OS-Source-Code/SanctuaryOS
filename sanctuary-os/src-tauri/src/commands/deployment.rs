@@ -392,8 +392,38 @@ pub fn launch_external_tool(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let exe_path = PathBuf::from(tool_path.trim());
-    if !exe_path.exists() {
+    if !exe_path.exists() || !exe_path.is_file() {
         return Err("backend_exe_not_found".to_string());
+    }
+
+    let ext_lower = exe_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.to_lowercase())
+        .unwrap_or_default();
+    if !matches!(ext_lower.as_str(), "exe" | "bat" | "cmd" | "app") {
+        return Err("Invalid external tool extension.".to_string());
+    }
+
+    let file_name_lower = exe_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.to_lowercase())
+        .unwrap_or_default();
+    let blocked_lolbins = [
+        "cmd.exe",
+        "powershell.exe",
+        "pwsh.exe",
+        "wscript.exe",
+        "cscript.exe",
+        "mshta.exe",
+        "rundll32.exe",
+        "regsvr32.exe",
+        "certutil.exe",
+        "bitsadmin.exe",
+    ];
+    if blocked_lolbins.contains(&file_name_lower.as_str()) {
+        return Err("Blocked system shell or binary.".to_string());
     }
 
     let game_schema = state.active_schema.lock().unwrap().clone();

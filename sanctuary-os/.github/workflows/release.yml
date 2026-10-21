@@ -41,36 +41,43 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          RAW_TAG: ${{ github.event.inputs.tag_name || github.ref_name }}
+          INPUT_TAG_NAME: ${{ github.event.inputs.tag_name }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          $tag = "$env:RAW_TAG".Trim()
-          if (-not $tag -or $tag -eq "main" -or $tag -eq "master") {
+          $raw = if ($env:INPUT_TAG_NAME) { $env:INPUT_TAG_NAME } else { $env:REF_NAME }
+          $tag = "$raw".Trim()
+          if (-not $tag -or $tag -eq "main" -or $tag -eq "master" -or ($tag -notmatch '^v?\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$')) {
             $pkg = Get-Content "./sanctuary-os/package.json" -Raw | ConvertFrom-Json
             $tag = "v$($pkg.version)"
           }
           $cleanVer = $tag -replace '^[vV]', ''
+          if ($cleanVer -notmatch '^v?\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$') {
+            $cleanVer = "0.5.8"
+          }
           $msiMatch = [regex]::Match($cleanVer, '^\d+\.\d+\.\d+')
           $msiVer = if ($msiMatch.Success) { $msiMatch.Value } else { "0.5.8" }
 
           Write-Host "Syncing Stable build version: package=$cleanVer, msi=$msiVer (tag=$tag)"
 
-          node -e "
-            const fs = require('fs');
-            const pkgPath = './sanctuary-os/package.json';
-            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-            pkg.version = '$cleanVer';
-            fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+          $env:PKG_VER = $cleanVer
+          $env:MSI_VER = $msiVer
+          @'
+          const fs = require("fs");
+          const pkgPath = "./sanctuary-os/package.json";
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+          pkg.version = process.env.PKG_VER;
+          fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 
-            const tauriPath = './sanctuary-os/src-tauri/tauri.conf.json';
-            const tauri = JSON.parse(fs.readFileSync(tauriPath, 'utf8'));
-            tauri.version = '$msiVer';
-            fs.writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + '\n');
+          const tauriPath = "./sanctuary-os/src-tauri/tauri.conf.json";
+          const tauri = JSON.parse(fs.readFileSync(tauriPath, "utf8"));
+          tauri.version = process.env.MSI_VER;
+          fs.writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + "\n");
 
-            const cargoPath = './sanctuary-os/src-tauri/Cargo.toml';
-            let cargo = fs.readFileSync(cargoPath, 'utf8');
-            cargo = cargo.replace(/^version\s*=\s*\"[^\"]*\"/m, 'version = \"$cleanVer\"');
-            fs.writeFileSync(cargoPath, cargo);
-          "
+          const cargoPath = "./sanctuary-os/src-tauri/Cargo.toml";
+          let cargo = fs.readFileSync(cargoPath, "utf8");
+          cargo = cargo.replace(/^version\s*=\s*"[^"]*"/m, `version = "${process.env.MSI_VER}"`);
+          fs.writeFileSync(cargoPath, cargo);
+          '@ | node -
 
       - name: install dependencies
         run: npm install

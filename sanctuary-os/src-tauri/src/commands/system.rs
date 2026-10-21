@@ -26,6 +26,9 @@ use tauri::{Emitter, Manager};
 #[tauri::command]
 pub fn delete_local_file(path: String) -> Result<String, String> {
     let p = std::path::Path::new(&path);
+    if !crate::utils::is_safe_user_file_path(p) {
+        return Err("Refusing to delete protected or unsafe path.".into());
+    }
     if p.exists() {
         if p.is_dir() {
             std::fs::remove_dir_all(p).map_err(|e| e.to_string())?;
@@ -103,6 +106,9 @@ pub fn webview_eval(
     script: String,
 ) -> Result<(), String> {
     use tauri::Manager;
+    if label == "main" || !label.starts_with("side-browser-tab-") {
+        return Err("webview_eval is restricted to side-browser-tab-* webviews.".into());
+    }
     if let Some(webview) = app_handle.get_webview(&label) {
         webview.eval(&script).map_err(|e| e.to_string())
     } else {
@@ -204,6 +210,13 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
 
 #[tauri::command]
 pub fn overwrite_local_schema(schema_id: String, schema_data: String) -> Result<(), String> {
+    if schema_id.is_empty()
+        || !schema_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err("Invalid schema_id.".into());
+    }
     // Development-only tool: write the schema out to src/data/schemas/
     let path = format!("../src/data/schemas/{}.json", schema_id);
     std::fs::write(&path, schema_data).map_err(|e| e.to_string())

@@ -146,7 +146,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         }
       } else if (action === 'ban') {
         if (selectedReport.metadata?.author) {
-          await supabase.rpc('admin_ban_author', {
+          await supabase.rpc('secure_update_spoke_profile', { p_target_user_id: selectedReport.metadata.author, p_updates: { is_banned: true, blacklist_reason: resolutionReason || 'Moderation Ban' },
             target_author: selectedReport.metadata.author,
             duration_days: banDuration === 'permanent' ? -1 : parseInt(banDuration)
           });

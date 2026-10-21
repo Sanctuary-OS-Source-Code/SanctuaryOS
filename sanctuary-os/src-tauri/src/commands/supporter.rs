@@ -430,6 +430,35 @@ pub async fn download_and_install_update(
     use std::io::Write;
     use tauri::Emitter;
 
+    let validate_github_update_url = |raw_url: &str| -> Result<reqwest::Url, String> {
+        let parsed = reqwest::Url::parse(raw_url.trim())
+            .map_err(|_| "Invalid update URL.".to_string())?;
+        if parsed.scheme() != "https" {
+            return Err("Update URL must use https:// scheme.".to_string());
+        }
+        let host = parsed.host_str().unwrap_or("");
+        match host {
+            "github.com" | "api.github.com" => {
+                let path = parsed.path();
+                if !path.starts_with("/Sanctuary-OS-Source-Code/SanctuaryOS/")
+                    && !path.starts_with("/repos/Sanctuary-OS-Source-Code/SanctuaryOS/")
+                {
+                    return Err(
+                        "Update URL path must belong to Sanctuary-OS-Source-Code/SanctuaryOS."
+                            .to_string(),
+                    );
+                }
+            }
+            "objects.githubusercontent.com" => {}
+            _ => {
+                return Err(format!("Untrusted update URL host: {}", host));
+            }
+        }
+        Ok(parsed)
+    };
+
+    validate_github_update_url(&download_url)?;
+
     let client = Client::builder()
         .user_agent("Sanctuary-OS-Updater")
         .timeout(std::time::Duration::from_secs(600))
@@ -557,6 +586,8 @@ pub async fn download_and_install_update(
         return Err("No direct Windows installer asset (.exe or .msi) found on GitHub Releases for this build.".into());
     }
 
+    validate_github_update_url(&resolved_url)?;
+
     let mut resp = client
         .get(&resolved_url)
         .send()
@@ -639,28 +670,12 @@ pub async fn download_and_install_update(
         const CREATE_NO_WINDOW: u32 = 0x08000000;
 
         if is_msi {
-            let current_exe = std::env::current_exe()
-                .ok()
-                .and_then(|p| p.to_str().map(|s| s.to_string()))
-                .unwrap_or_default();
-            let msi_str = installer_path.to_string_lossy().to_string();
-            if !current_exe.is_empty() {
-                let cmd_line = format!(
-                    "msiexec /i \"{}\" /qn /norestart & start \"\" \"{}\"",
-                    msi_str, current_exe
-                );
-                std::process::Command::new("cmd")
-                    .args(["/C", &cmd_line])
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .spawn()
-                    .map_err(|e| format!("Failed to launch silent MSI installer: {}", e))?;
-            } else {
-                std::process::Command::new("msiexec")
-                    .args(["/i", &msi_str, "/qn", "/norestart"])
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .spawn()
-                    .map_err(|e| format!("Failed to launch silent MSI installer: {}", e))?;
-            }
+            let installer_str = installer_path.to_string_lossy().to_string();
+            std::process::Command::new("msiexec")
+                .args(["/i", &installer_str, "/passive"])
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn()
+                .map_err(|e| format!("Failed to launch silent MSI installer: {}", e))?;
         } else {
             // /UPDATE skips uninstall.exe + WebView2/shortcut steps, /S runs NSIS completely silently (no Windows dialog), and /R relaunches Sanctuary OS on completion
             std::process::Command::new(&installer_path)
