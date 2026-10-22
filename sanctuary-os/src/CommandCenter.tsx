@@ -13,7 +13,8 @@ import { dispatchSanctuaryNotification } from "./utils/notificationHelper";
 import CommandAlertsPanel from "./side-panels/CommandAlertsPanel";
 import CommandRadarSweepPanel from "./side-panels/CommandRadarSweepPanel";
 import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
-import { UpdatesSidePanel } from './side-panels/CommandCenterSidePanels';
+import { UpdatesSidePanel, groupUpdateMods } from './side-panels/CommandCenterSidePanels';
+import { evaluateModIssues, groupBrokenMods } from "./side-panels/CommandIncompatiblePanel";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { CommandScreenStats, CommandScreenSectionHeading, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 import { SanctuaryAlertsSidePanel } from "./side-panels/SanctuaryAlertsSidePanel";
@@ -183,73 +184,39 @@ export default function CommandCenter({
   }, [activePlaySet, modList, activeGameSchema]);
 
   const activeUpdates = React.useMemo(() => {
-    const rawUpdates = activeBlueprintMods.filter((m: any) => m.hasUpdate).map((m: any) => ({
-      ...m,
-      dbId: m.dbId,
-    }));
-    return Object.values(rawUpdates.reduce((acc: any, update: any) => {
-      const key = update.dbId || update.displayName || update.name;
-      if (!acc[key]) acc[key] = update;
-      return acc;
-    }, {}));
+    const rawUpdates = activeBlueprintMods
+      .filter((m: any) => m.hasUpdate)
+      .map((m: any) => ({
+        ...m,
+        dbId: m.dbId,
+      }));
+    return groupUpdateMods(rawUpdates);
   }, [activeBlueprintMods]);
   const { applyConflictOverride } = usePlaySetLogic();
   const activeBrokenCounts = React.useMemo(() => {
-    const activeModNamesSet = new Set<string>();
-    activeBlueprintMods.forEach((am: any) => {
-      const name = (am._originalSetName || am.name);
-      if (name) activeModNamesSet.add(String(name).toLowerCase());
-    });
+    const evaluated = activeBlueprintMods
+      .map((mod: any) =>
+        evaluateModIssues(mod, {
+          activeMods: activeBlueprintMods,
+          selectedVersion,
+          ownedDLC,
+          maskedDLC,
+          t,
+          activeGameSchema,
+        })
+      )
+      .filter(Boolean);
 
-    return activeBlueprintMods.reduce((acc: { broken: number, unstable: number }, m: any) => {
-      if (!m || m.isFallback) return acc;
-      let isBroken = typeof m.status === 'string' && m.status.toLowerCase() === 'broken';
-      if (isBroken && m.compatible_versions && m.compatible_versions.length > 0 && selectedVersion) {
-        if (selectedVersion !== getHighestVersion(m.compatible_versions)) {
-          isBroken = false;
-        }
-      }
-      const isUnstable = typeof m.status === 'string' && m.status.toLowerCase() === 'unstable';
-      const isMismatch = m.isGhosted === true && m.ghostReason === "VERSION_MISMATCH" || (m.compatible_versions && m.compatible_versions.length > 0 && selectedVersion && !isVersionMatch(m.compatible_versions, selectedVersion));
-
-      let hasMissingDLC = false;
-      if (m.requiredDLC) {
-        let rawDLC: string[] = [];
-        if (typeof m.requiredDLC === 'string') {
-          rawDLC = m.requiredDLC.split(',').map((s: string) => s.trim());
-        } else if (Array.isArray(m.requiredDLC)) {
-          rawDLC = [...m.requiredDLC];
-        }
-        const activeDLC = ownedDLC.filter((d: string) => !maskedDLC.includes(d));
-        hasMissingDLC = rawDLC.some((req: string) => {
-          const cleanReq = req.toUpperCase().trim();
-          if (cleanReq === 'BASE') return false;
-          return !activeDLC.some((owned: string) => owned.toUpperCase() === cleanReq);
-        });
-      }
-
-      let hasMissingDeps = false;
-      if (m.dependencies) {
-        let rawDeps: string[] = [];
-        if (typeof m.dependencies === 'string') {
-          rawDeps = m.dependencies.split(',').map((s: string) => s.trim());
-        } else if (Array.isArray(m.dependencies)) {
-          rawDeps = [...m.dependencies];
-        }
-        if (rawDeps.length > 0) {
-          hasMissingDeps = rawDeps.some((req: string) => !activeModNamesSet.has(req.toLowerCase()));
-        }
-      }
-
-      if (isBroken || isMismatch || hasMissingDLC || hasMissingDeps) {
-        acc.broken += 1;
-      } else if (isUnstable) {
-        acc.unstable += 1;
-      }
-
-      return acc;
-    }, { broken: 0, unstable: 0 }) || { broken: 0, unstable: 0 };
-  }, [activeBlueprintMods, selectedVersion, ownedDLC, maskedDLC]);
+    const grouped = groupBrokenMods(evaluated);
+    return grouped.reduce(
+      (acc: { broken: number; unstable: number }, m: any) => {
+        if (m._alert_type === "red") acc.broken += 1;
+        else if (m._alert_type === "amber") acc.unstable += 1;
+        return acc;
+      },
+      { broken: 0, unstable: 0 }
+    );
+  }, [activeBlueprintMods, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
 
   const activeConflictCount = React.useMemo(() => {
     let tier3Count = 0;
@@ -552,7 +519,7 @@ export default function CommandCenter({
       })()}
 
       {/* Main Content Area: Feed and Quick Actions */}
-      <div className="flex flex-col xl:flex-row gap-6 mt-8 relative z-20 transform-gpu will-change-transform">
+      <div className="flex flex-col xl:flex-row gap-6 mt-8 relative z-20">
 
         {/* Left Column: Feed & Alerts */}
         <div className="flex-1 min-w-0 flex flex-col gap-6">

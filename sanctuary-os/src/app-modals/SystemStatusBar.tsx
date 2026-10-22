@@ -283,15 +283,13 @@ export function SystemStatusBar({
               onMouseEnter={handleDockEnter}
               onMouseLeave={handleDockLeave}
               style={{
-                marginBottom: shouldTuckToRim ? '-28px' : '10px',
+                marginBottom: shouldTuckToRim ? '-36px' : '12px',
                 transitionProperty: 'margin-bottom, border-color, box-shadow',
                 transitionDuration: '400ms',
                 transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
               }}
-              className="pointer-events-auto glass-panel backdrop-blur-[var(--glassBlur,36px)] backdrop-saturate-[140%] firefox-safe-glass h-10 rounded-full flex items-center px-3 gap-1 relative"
+              className="pointer-events-auto glass-panel portal-glass-fix h-9 !rounded-full flex items-center px-3 gap-1 relative"
             >
-              {/* Subtle top specular glass highlight */}
-              <div className="absolute inset-x-3 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_28%,transparent)] to-transparent opacity-85 pointer-events-none z-0" />
               {/* 1. INLINE STATUS SEGMENT (Morphs inside the same pill on Save / Scan / Error) */}
               <div
                 onClick={(e) => {
@@ -300,12 +298,12 @@ export function SystemStatusBar({
                 }}
                 className={`flex items-center gap-2 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer rounded-full ${
                   showToast
-                    ? 'max-w-[380px] opacity-100 px-2 py-1 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'
+                    ? 'max-w-[380px] opacity-100 px-2 py-1 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
                     : 'max-w-0 opacity-0 px-0 py-0 pointer-events-none'
                 }`}
               >
                 <span
-                  className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                  className={`material-symbols-outlined !text-[15px] shrink-0 ${
                     isScanning
                       ? 'animate-spin text-[var(--accent)]'
                       : isErrorStatus
@@ -332,7 +330,7 @@ export function SystemStatusBar({
 
               {/* Divider between active Status and Alerts/Tools */}
               {showToast && (hasQueueAlerts || isDockHovered) && (
-                <div className="w-[1px] h-4 bg-[color-mix(in_srgb,var(--text)_14%,transparent)] mx-1 shrink-0" />
+                <div className="w-[1px] h-3.5 bg-[color-mix(in_srgb,var(--text)_12%,transparent)] mx-1 shrink-0" />
               )}
 
               {/* 2. ACTIVE ALERT ITEMS (Clean icon + count sitting directly on the glass, no inner bubbles) */}
@@ -344,9 +342,9 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setShowQuarantineModal(true);
                       }}
-                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--danger)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative"
+                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--danger)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
                     >
-                      <span className="material-symbols-outlined !text-[17px]">{t("icon_warning_amber") || "warning_amber"}</span>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_warning_amber") || "warning_amber"}</span>
                       <span className="text-[11px] font-black leading-none">{quarantineCount}</span>
                       <HoverTooltip
                         title={<><span className="font-black text-[var(--danger)]">{quarantineCount}</span> {t("quarantine_modal_title") || "Malware Detected"}</>}
@@ -365,11 +363,11 @@ export function SystemStatusBar({
                       }}
                       className={`h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--warning)] group/btn relative ${
                         isDnaModalOpen
-                          ? 'bg-[color-mix(in_srgb,var(--warning)_16%,transparent)] opacity-100'
-                          : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'
+                          ? 'bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] opacity-100'
+                          : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
                       }`}
                     >
-                      <span className="material-symbols-outlined !text-[17px]">{t("icon_radar") || "radar"}</span>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_radar") || "radar"}</span>
                       <span className="text-[11px] font-black leading-none">{dnaCount}</span>
                       <HoverTooltip
                         title={<><span className="font-black text-[var(--warning)]">{dnaCount}</span> {t("radar_title") || "Conflict Radar"}</>}
@@ -388,11 +386,11 @@ export function SystemStatusBar({
                       }}
                       className={`h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--success)] group/btn relative ${
                         isSignatureQueueOpen
-                          ? 'bg-[color-mix(in_srgb,var(--success)_16%,transparent)] opacity-100'
-                          : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'
+                          ? 'bg-[color-mix(in_srgb,var(--success)_14%,transparent)] opacity-100'
+                          : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
                       }`}
                     >
-                      <span className="material-symbols-outlined !text-[17px]">{t("icon_phonelink_ring") || "phonelink_ring"}</span>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_phonelink_ring") || "phonelink_ring"}</span>
                       <span className="text-[11px] font-black leading-none">{sigQueueCount}</span>
                       <HoverTooltip
                         title={<><span className="font-black text-[var(--success)]">{sigQueueCount}</span> {t("sig_queue_title") || "Signature Queue"}</>}
@@ -411,11 +409,11 @@ export function SystemStatusBar({
                       }}
                       className={`h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] group/btn relative ${
                         isScoutPanelOpen
-                          ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] opacity-100'
-                          : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'
+                          ? 'bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] opacity-100'
+                          : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
                       }`}
                     >
-                      <span className="material-symbols-outlined !text-[17px]">{t("icon_biotech") || "biotech"}</span>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_biotech") || "biotech"}</span>
                       <span className="text-[11px] font-black leading-none">{scoutCount}</span>
                       <HoverTooltip
                         title={<><span className="font-black text-[var(--accent)]">{scoutCount}</span> {t("queue_title") || "Scout Queue"}</>}
@@ -432,9 +430,9 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsNexusUpdatesPanelOpen(true);
                       }}
-                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative"
+                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
                     >
-                      <span className="material-symbols-outlined !text-[17px]">{t("icon_cloud_download") || "cloud_download"}</span>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_cloud_download") || "cloud_download"}</span>
                       <span className="text-[11px] font-black leading-none">{nexusCount}</span>
                       <HoverTooltip
                         title={<>{nexusCount} {t("updates_ready") || "Updates Ready"}</>}
@@ -451,9 +449,9 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsUpdatePanelOpen(true);
                       }}
-                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative"
+                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
                     >
-                      <span className="material-symbols-outlined !text-[17px]">{t("icon_system_update_alt") || "system_update_alt"}</span>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_system_update_alt") || "system_update_alt"}</span>
                       <span className="text-[11px] font-black leading-none">1</span>
                       <HoverTooltip
                         title={
@@ -475,9 +473,9 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsNotificationSidebarOpen(!isNotificationSidebarOpen);
                       }}
-                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative"
+                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
                     >
-                      <span className="material-symbols-outlined !text-[17px]">{t("icon_notifications_active") || "notifications_active"}</span>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_notifications_active") || "notifications_active"}</span>
                       <span className="text-[11px] font-black leading-none">{notifCount}</span>
                     </button>
                   )}

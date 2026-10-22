@@ -320,13 +320,13 @@ export function DnaMatchQueueSidePanel({
                   <div className="flex w-full mt-2 mb-1 pointer-events-auto rounded-lg overflow-hidden border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-sm">
                     <button
                       onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleEdgeResolve([match], "ignore"); }}
-                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all text-[9px] font-black tracking-widest uppercase border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1"
+                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center justify-center transition-all text-[9px] font-black tracking-wider uppercase border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 cursor-pointer"
                     >
                       <span className="truncate">{t("btn_reject") || "Deny"}</span>
                     </button>
                     <button
                       onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleEdgeResolve([match], "replace"); }}
-                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all text-[9px] font-black tracking-widest uppercase px-1"
+                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all text-[9px] font-black tracking-wider uppercase px-1.5 cursor-pointer"
                     >
                       <span className="truncate">{t("ui_btn_approve") || "Authorize"}</span>
                     </button>
@@ -358,14 +358,14 @@ export function DnaMatchQueueSidePanel({
               className="relative group/actionbtn w-8 h-8 rounded-lg border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)]"
             >
               <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
-              <HoverTooltip title={t("btn_keep_all_old")} variant="danger" className="!hidden group-hover/actionbtn:!flex z-[100]" />
+              <HoverTooltip title={t("dna_btn_keep_all_existing", "Keep All Existing")} className="!hidden group-hover/actionbtn:!flex z-[100]" />
             </button>
             <button
               onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve(group, "replace"); }}
               className="relative group/actionbtn w-8 h-8 rounded-lg border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
             >
               <span className="material-symbols-outlined !text-[16px]">{t("icon_done_all")}</span>
-              <HoverTooltip title={t("btn_replace_all")} variant="accent" className="!hidden group-hover/actionbtn:!flex z-[100]" />
+              <HoverTooltip title={t("dna_btn_overwrite_all", "Overwrite All")} variant="accent" className="!hidden group-hover/actionbtn:!flex z-[100]" />
             </button>
             <span className="material-symbols-outlined !text-[18px] opacity-50 group-open/details:rotate-180 transition-transform duration-300 ml-2">expand_more</span>
           </div>
@@ -406,7 +406,7 @@ export function DnaMatchQueueSidePanel({
                           <span className="material-symbols-outlined !text-[12px]">{t("icon_call_received")}</span>
                           {t("overlay_dna_incoming")}
                         </span>
-                        <span className="text-[9px] truncate">Existing: {oldName}</span>
+                        <span className="text-[9px] truncate">{t("overlay_dna_existing", "Existing")}: {oldName}</span>
                       </>
                     )}
                   </div>
@@ -421,15 +421,15 @@ export function DnaMatchQueueSidePanel({
                   <div className="flex w-full mt-2 mb-1 pointer-events-auto rounded-lg overflow-hidden border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-sm">
                     <button
                       onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve([match], "ignore"); }}
-                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all text-[9px] font-black tracking-widest uppercase border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1"
+                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center justify-center transition-all text-[9px] font-black tracking-wider uppercase border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 cursor-pointer"
                     >
-                      <span className="truncate">{overrideData ? t("btn_keep_local") : t("defcon_btn_skip")}</span>
+                      <span className="truncate">{overrideData ? t("btn_keep_local", "Keep Local") : t("dna_btn_keep_existing", "Keep Existing")}</span>
                     </button>
                     <button
                       onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve([match], "replace"); }}
-                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all text-[9px] font-black tracking-widest uppercase px-1"
+                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all text-[9px] font-black tracking-wider uppercase px-1.5 cursor-pointer"
                     >
-                      <span className="truncate">{overrideData ? t("btn_import_override") : t("btn_keep_new")}</span>
+                      <span className="truncate">{overrideData ? t("btn_import_override", "Import Override") : t("dna_btn_overwrite", "Overwrite")}</span>
                     </button>
                   </div>
                 }

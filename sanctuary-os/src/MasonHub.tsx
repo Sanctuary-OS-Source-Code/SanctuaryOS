@@ -1,39 +1,16 @@
-
 import { useState, useEffect } from "react";
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { Markdown } from 'tiptap-markdown';
-import Image from '@tiptap/extension-image';
-import Link from '@tiptap/extension-link';
-import { IconPlugin } from './IconPlugin';
-import { isVersionMatch, deriveHumanReadableVersion, getHighestVersion, CustomComplianceDropdown, extractPostImage, stripMarkdown, DashboardStatTile, ActionButton } from "./shared";
-import MarkdownRenderer from "./MarkdownRenderer";
-import IconPicker from "./IconPicker";
+import { ActionButton, ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, LoadingScreen } from "./shared";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { supabase } from "./supabase";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
-import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
-import { ViewHeader, SidePanel, GameVersionMultiSelect, CustomDropdown, ModSearchDropdown, CustomDatePicker, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, standardButtonClass, standardPrimaryButtonClass, standardDangerButtonClass, standardSuccessButtonClass, standardAccentGlassButtonClass, EmptyState, LoadingScreen } from "./shared";
-import { WayfinderPostsEditor } from "./hub-components/WayfinderPostsEditor";
-import ProtocolVisualizer from "./ProtocolVisualizer";
-import StructureVisualizer from "./StructureVisualizer";
-import ModStructureBuilder from "./ModStructureBuilder";
-import MasonIDE from "./MasonIDE";
 import { useLexicon } from "./LexiconContext";
-import { open } from "@tauri-apps/plugin-dialog";
-import { readTextFile } from "@tauri-apps/plugin-fs";
-import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "./utils/envUtils";
-import { isRootDomain } from "./utils/routingUtils";
-import MasonConflictsManager from "./MasonConflictsManager";
 import MasonBugReports from "./MasonBugReports";
 import MasonNotepadSidePanel from './side-panels/MasonNotepadSidePanel';
 import MasonRecentRepliesSidePanel from './side-panels/MasonRecentRepliesSidePanel';
 import CitizenTicketsSidePanel from './side-panels/CitizenTicketsSidePanel';
 import { SharedMetadataEditorSidePanel } from './side-panels/SharedMetadataEditorSidePanel';
 import { useStore } from "./store";
-import { ArtifactCard, VaultCard } from "./Cards";
-import { MasonRegistry, CustomClassificationDropdown } from "./hub-components/SharedRegistry";
 import { MasonCommandScreen } from "./hub-components/CommandScreens";
 import { MasonCollectionBuilder } from "./hub-components/SharedCollections";
 import { MasonPostsEditor } from "./MasonPostsEditor";
@@ -41,9 +18,13 @@ import { MasonSettingsSidePanel } from './side-panels/MasonSettingsSidePanel';
 import { MasonSandbox } from "./MasonSandbox";
 import { MasonNexus } from "./MasonNexus";
 import { MasonChameleons } from "./MasonChameleons";
+
+const VERIFIED_ONLY_TABS = ["collections", "posts", "bug_reports"];
+
 export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handleOpenMasonProfile }: { sandboxMod?: any, clearSandboxMod?: () => void, vaultPath?: string, handleOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
   const { t } = useLexicon();
   const userRole = useStore((state) => state.userRole);
+  const osRole = useStore((state) => state.osRole);
   const session = useStore((state) => state.session);
   const masonActiveTab = useStore((state) => state.masonActiveTab);
   const setMasonActiveTab = useStore((state) => state.setMasonActiveTab);
@@ -59,6 +40,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [activeAsset, setActiveAsset] = useState<{ type: string, id: string } | null>(null);
   const [registryTargetMod, setRegistryTargetMod] = useState<string | null>(null);
+  const [protocolTargetMod, setProtocolTargetMod] = useState<any | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -76,7 +58,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           setMasonProfile({
             id: session.user.id,
             profile_id: session.user.id,
-            name: session.user.user_metadata?.mason_name || session.user.user_metadata?.username || session.user.email?.split('@')[0] || (t("citizen_creator") || "Citizen Creator"),
+            name: session.user.user_metadata?.mason_name || session.user.user_metadata?.username || session.user.email?.split('@')[0] || (t("citizen_creator", "Citizen Creator")),
             isUnverifiedLocal: true
           });
         }
@@ -86,19 +68,29 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
     fetchMasonProfile();
   }, []);
 
-  if (loading) return <LoadingScreen title={t("verifying")} />;
+  const isVerifiedMason = !masonProfile?.isUnverifiedLocal && (
+    masonProfile?.is_verified === true ||
+    ["mason", "architect", "senior_architect", "oversight", "wayfinder", "admin"].includes(userRole) ||
+    ["core_dev", "admin", "keeper"].includes(osRole)
+  );
+
+  useEffect(() => {
+    if (!loading && !isVerifiedMason && VERIFIED_ONLY_TABS.includes(masonActiveTab)) {
+      setMasonActiveTab("command_center");
+    }
+  }, [loading, isVerifiedMason, masonActiveTab, setMasonActiveTab]);
+
+  if (loading) return <LoadingScreen title={t("verifying", "Verifying...")} />;
 
   if (!masonProfile) return (
     <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
       <div className="w-24 h-24 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
-        <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_construction")}</span>
+        <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_construction", "construction")}</span>
       </div>
-      <h2 className="text-2xl font-black capitalize tracking-widest text-[var(--text)]">{t("unlinked")}</h2>
-      <p className="text-sm font-bold capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("unlinked_desc")}</p>
+      <h2 className="text-2xl font-black capitalize tracking-widest text-[var(--text)]">{t("unlinked", "Unlinked")}</h2>
+      <p className="text-sm font-bold capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("unlinked_desc", "Account not linked.")}</p>
     </div>
   );
-
-  const isVerifiedMason = !masonProfile?.isUnverifiedLocal && ["mason", "architect", "oversight", "wayfinder", "admin"].includes(userRole);
 
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
@@ -168,22 +160,19 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           }
         >
           <VerticalTabButton id="command_center" icon={t("icon_desktop_windows") || "desktop_windows"} label={(t("wf_tab_command") || "Command Center").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="registry" icon={t("icon_deployed_code") || "deployed_code"} label={(t("items") || "Registry").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          <VerticalTabButton id="sandbox" icon={isVerifiedMason ? (t("icon_deployed_code") || "deployed_code") : (t("icon_handyman") || "handyman")} label={(isVerifiedMason ? (t("items") || "Mods") : (t("filter_dev") || "Sandbox")).replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab === "registry" ? "sandbox" : masonActiveTab} setTab={setMasonActiveTab} />
           <VerticalTabButton id="nexus" icon={t("icon_hub") || "hub"} label={(t("tab_nexus") || "Nexus").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           {isDesktop() && (
-            <>
-              <VerticalTabButton id="sandbox" icon={t("icon_handyman") || "handyman"} label={(t("filter_dev") || "Sandbox").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-              <VerticalTabButton id="chameleons" icon="palette" label={(t("tab_chameleons") || "Chameleons").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-              <VerticalTabButton id="ide" icon={t("icon_code") || "code"} label={(t("ide_tab") || "IDE").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-            </>
+            <VerticalTabButton id="chameleons" icon="palette" label={(t("tab_chameleons") || "Chameleons").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
           )}
 
-          <VerticalTabButton id="collections" icon={t("icon_collections_bookmark") || "collections_bookmark"} label={(t("tab_cc") || "Collections").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="protocols" icon={t("icon_link") || "link"} label={(t("tab_protocols") || "Protocols").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="structure" icon={t("icon_architecture") || "architecture"} label={(t("tab_structure") || "Structure").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="conflicts" icon={t("icon_security") || "security"} label={(t("tab_matrix") || "Conflicts").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="posts" icon={t("icon_edit_document") || "edit_document"} label={(t("tab_posts") || "Posts").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-          <VerticalTabButton id="bug_reports" icon={t("icon_bug_report") || "bug_report"} label={(t("stat_bugs") || "Bug Reports").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+          {isVerifiedMason && (
+            <>
+              <VerticalTabButton id="collections" icon={t("icon_collections_bookmark") || "collections_bookmark"} label={(t("tab_cc") || "Collections").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+              <VerticalTabButton id="posts" icon={t("icon_edit_document") || "edit_document"} label={(t("tab_posts") || "Posts").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+              <VerticalTabButton id="bug_reports" icon={t("icon_bug_report") || "bug_report"} label={(t("stat_bugs") || "Bug Reports").replace(/^[^\w]*/, '').trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+            </>
+          )}
         </HoverTabDrawer>
       </div>
 
@@ -191,27 +180,35 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         {masonActiveTab === "command_center" && <MasonCommandScreen 
           onNavigate={setMasonActiveTab} 
           masonId={masonProfile.id} 
+          isVerifiedMason={isVerifiedMason}
           session={session} 
           onOpenRecentReplies={() => setIsRecentRepliesOpen(true)} 
           onOpenSupportDesk={() => { setSupportTicketInitialId(undefined); setIsSupportDeskOpen(true); }} 
           setViewingPost={setViewingPost} 
-          onOpenMetadataEditor={(id: string) => { setMetadataEditorInitialId(id); setIsMetadataEditorOpen(true); }}
+          onOpenMetadataEditor={(id: string) => { setRegistryTargetMod(id); setMasonActiveTab("registry"); }}
           onOpenBugReport={(bugId: string) => { setSupportTicketInitialId(bugId); setIsSupportDeskOpen(true); }}
         />}
-        {masonActiveTab === "registry" && <MasonRegistry masonId={masonProfile.id} initialActiveMod={registryTargetMod} onClearActiveMod={() => setRegistryTargetMod(null)} isActiveTab={masonActiveTab === "registry"} />}
-        {masonActiveTab === "collections" && <MasonCollectionBuilder masonId={masonProfile.id} masonName={masonProfile.name} />}
-        {masonActiveTab === "bug_reports" && <MasonBugReports masonId={masonProfile?.id} onEditMetadata={(hash) => {
+        {(masonActiveTab === "sandbox" || masonActiveTab === "registry") && (
+          <MasonSandbox
+            masonId={masonProfile.id}
+            masonName={masonProfile.name}
+            isVerifiedMason={isVerifiedMason}
+            initialSandboxMod={sandboxMod}
+            onClear={clearSandboxMod}
+            vaultPath={vaultPath}
+            initialActiveModId={registryTargetMod}
+            onClearActiveMod={() => setRegistryTargetMod(null)}
+            initialViewTab={masonActiveTab === "registry" ? "nexus" : "overview"}
+          />
+        )}
+        {isVerifiedMason && masonActiveTab === "collections" && <MasonCollectionBuilder masonId={masonProfile.id} masonName={masonProfile.name} />}
+        {isVerifiedMason && masonActiveTab === "bug_reports" && <MasonBugReports masonId={masonProfile?.id} onEditMetadata={(hash) => {
           setMetadataEditorInitialId(hash);
           setIsMetadataEditorOpen(true);
         }} />}
         {masonActiveTab === "nexus" && <MasonNexus masonProfile={masonProfile} isVerifiedMason={isVerifiedMason} />}
-        {masonActiveTab === "protocols" && <ProtocolVisualizer masonId={masonProfile.id} isArchitect={false} />}
-        {masonActiveTab === "structure" && <StructureVisualizer masonId={masonProfile.id} isArchitect={false} />}
-        {masonActiveTab === "posts" && <MasonPostsEditor masonId={masonProfile.id} masonProfileId={masonProfile.profile_id} handleOpenMasonProfile={handleOpenMasonProfile} />}
-        {isDesktop() && masonActiveTab === "sandbox" && <MasonSandbox masonId={masonProfile.id} masonName={masonProfile.name} isVerifiedMason={isVerifiedMason} initialSandboxMod={sandboxMod} onClear={clearSandboxMod} vaultPath={vaultPath} />}
-        {masonActiveTab === "conflicts" && <MasonConflictsManager masonId={masonProfile.id} />}
-        {isDesktop() && masonActiveTab === "ide" && <MasonIDE vaultPath={vaultPath} isVerifiedMason={isVerifiedMason} />}
-        {isDesktop() && masonActiveTab === "chameleons" && <MasonChameleons masonProfile={masonProfile} isVerifiedMason={isVerifiedMason} />}
+        {isVerifiedMason && masonActiveTab === "posts" && <MasonPostsEditor masonId={masonProfile.id} masonProfileId={masonProfile.profile_id} handleOpenMasonProfile={handleOpenMasonProfile} />}
+        {isDesktop() && masonActiveTab === "chameleons" && <MasonChameleons masonProfile={masonProfile} isVerifiedMason={isVerifiedMason} vaultPath={vaultPath} />}
       </div>
 
       {isVerifiedMason && (
@@ -224,61 +221,30 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
       )}
 
       <MasonNotepadSidePanel isOpen={isNotepadOpen} onClose={() => setIsNotepadOpen(false)} />
-      <MasonRecentRepliesSidePanel
-        isOpen={isRecentRepliesOpen}
-        onClose={() => setIsRecentRepliesOpen(false)}
-        masonId={masonProfile.id}
-        userProfileId={session?.user?.id}
-        onReplyClick={async (postId, replyId) => {
-          const { data } = await supabase.from('mason_posts').select('*').eq('id', postId).single();
-          if (data) {
-            setViewingPost({ ...data, scrollToCommentId: replyId });
-          }
-        }}
-      />
+      {isVerifiedMason && (
+        <MasonRecentRepliesSidePanel
+          isOpen={isRecentRepliesOpen}
+          onClose={() => setIsRecentRepliesOpen(false)}
+          masonId={masonProfile.id}
+          userProfileId={session?.user?.id}
+          onReplyClick={async (postId, replyId) => {
+            const { data } = await supabase.from('mason_posts').select('*').eq('id', postId).single();
+            if (data) {
+              setViewingPost({ ...data, scrollToCommentId: replyId });
+            }
+          }}
+        />
+      )}
       {session?.user?.id && <CitizenTicketsSidePanel isOpen={isSupportDeskOpen} onClose={() => { setIsSupportDeskOpen(false); setSupportTicketInitialId(undefined); }} userId={session.user.id} initialTicketId={supportTicketInitialId} />}
       {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId={session?.user?.id || masonProfile.id} onOpenMasonProfile={handleOpenMasonProfile} onAssetClick={(type, id) => setActiveAsset({ type, id })} />}
       {activeAsset && <AssetPreviewSidebar assetType={activeAsset.type} assetId={activeAsset.id} onClose={() => setActiveAsset(null)} />}
-      <SharedMetadataEditorSidePanel
-        isOpen={isMetadataEditorOpen}
-        onClose={() => setIsMetadataEditorOpen(false)}
-        initialModId={metadataEditorInitialId}
-      />
-    </div>
-  );
-}
-
-
-
-function ProtocolSearchModal({ isOpen, onClose, onSelect, cloudMods }: any) {
-  const { t } = useLexicon();
-  const [query, setQuery] = useState("");
-  const results = cloudMods.filter((m: any) =>
-    (m.name || '').toLowerCase().includes((query || '').toLowerCase()) ||
-    (m.master_author || '').toLowerCase().includes((query || '').toLowerCase())
-  ).slice(0, 15);
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/20 backdrop-blur-[3px] animate-in fade-in">
-      <div className="w-full max-w-lg bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-          <div className="flex justify-start items-center mb-4">
-            <h3 className="text-sm font-black capitalize tracking-widest theme-text-accent">{t("sel_artifact")}</h3>
-            <button onClick={onClose} className="text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] font-black"><span className="material-symbols-outlined">{t("icon_close")}</span></button>
-          </div>
-          <input autoFocus placeholder={t("ph_search_catalog")} value={query} onChange={(e) => setQuery(e.target.value)} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent" />
-        </div>
-        <div className="p-4 flex flex-col gap-2 max-h-96 overflow-y-auto custom-scrollbar">
-          {results.length > 0 ? results.map((mod: any) => (
-            <button key={mod.id} onClick={() => { onSelect(mod.id); }} className="flex justify-start items-center px-4 py-3 glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent hover:theme-panel-accent rounded-xl transition-all text-left group">
-              <div className="flex flex-col">
-                <span className="text-xs font-black text-[var(--text)] capitalize truncate">{mod.name}</span>
-                <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">{mod.master_author || "Unknown Architect"}</span>
-              </div>
-            </button>
-          )) : <div className="p-4 text-center text-[10px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("no_matches")}</div>}
-        </div>
-      </div>
+      {isVerifiedMason && (
+        <SharedMetadataEditorSidePanel
+          isOpen={isMetadataEditorOpen}
+          onClose={() => setIsMetadataEditorOpen(false)}
+          initialModId={metadataEditorInitialId}
+        />
+      )}
     </div>
   );
 }
@@ -290,7 +256,5 @@ export function MasonStatusDropdown({ value, onChange }: { value: string, onChan
     { id: 'unstable', label: t("status_tag_unstable") || "Unstable" },
     { id: 'corrupted', label: t("status_tag_corrupted") || "Corrupted" }
   ];
-  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("registry_label_status")} />;
+  return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("registry_label_status", "Status")} />;
 }
-
-

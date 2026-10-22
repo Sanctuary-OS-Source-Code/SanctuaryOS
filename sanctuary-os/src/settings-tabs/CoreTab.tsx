@@ -3,16 +3,19 @@ import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from '../utils/envUtils';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { supabase, supabaseAuth } from '../supabase';
+import { supabaseAuth } from '../supabase';
 import { TabContainer, SettingsGrid } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton } from '../shared';
 
-export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any) {
+export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
   const { t } = useLexicon();
   const { session } = useStore();
   const [emailInput, setEmailInput] = useState("");
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
+  const [pendingUnenrollFactorId, setPendingUnenrollFactorId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [activePanel, setActivePanel] = useState<'email' | 'password' | 'system_id' | '2fa' | null>(null);
 
@@ -24,6 +27,19 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
   const [verifyCode, setVerifyCode] = useState('');
   const [enrollError, setEnrollError] = useState('');
   const [enrolling, setEnrolling] = useState(false);
+
+  const resetSecurityInputs = () => {
+    setEmailInput("");
+    setCurrentPasswordInput("");
+    setPasswordInput("");
+    setConfirmPasswordInput("");
+    setPendingUnenrollFactorId(null);
+  };
+
+  const handleClosePanel = () => {
+    resetSecurityInputs();
+    setActivePanel(null);
+  };
 
   const loadFactors = async () => {
     setLoading2FA(true);
@@ -37,6 +53,30 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
   useEffect(() => {
     loadFactors();
   }, []);
+
+  const verifyCurrentPassword = async (): Promise<boolean> => {
+    const activeEmail = session?.user?.email;
+    if (!activeEmail) return false;
+    if (!currentPasswordInput) {
+      useStore.getState().pushStatus(
+        t("auth_current_password_required_err", "Please enter your current password to authorize this security change."),
+        "error"
+      );
+      return false;
+    }
+    const { error } = await supabaseAuth.auth.signInWithPassword({
+      email: activeEmail,
+      password: currentPasswordInput
+    });
+    if (error) {
+      useStore.getState().pushStatus(
+        t("auth_current_password_invalid_err", "Current password verification failed. Please check your password and try again."),
+        "error"
+      );
+      return false;
+    }
+    return true;
+  };
 
   const startEnrollment = async () => {
     setEnrolling(true);
@@ -117,27 +157,72 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
     loadFactors();
   };
 
-  const unenrollFactor = async (id: string) => {
-    await supabaseAuth.auth.mfa.unenroll({ factorId: id });
-    loadFactors();
+  const confirmUnenrollFactor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingUnenrollFactorId) return;
+    setAuthLoading(true);
+    try {
+      const verified = await verifyCurrentPassword();
+      if (!verified) {
+        setAuthLoading(false);
+        return;
+      }
+      const { error } = await supabaseAuth.auth.mfa.unenroll({ factorId: pendingUnenrollFactorId });
+      if (error) throw error;
+      setPendingUnenrollFactorId(null);
+      setCurrentPasswordInput("");
+      await loadFactors();
+    } catch (err: any) {
+      useStore.getState().pushStatus(err.message || String(err), 'error');
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   const updateAuth = async (type: 'email' | 'password') => {
     setAuthLoading(true);
     try {
-      if (type === 'email' && emailInput) {
-        const { error } = await supabase.auth.updateUser({ email: emailInput });
+      if (type === 'email') {
+        const cleanEmail = emailInput.trim();
+        if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+          useStore.getState().pushStatus(t("auth_email_invalid_err", "Please enter a valid email address."), "error");
+          setAuthLoading(false);
+          return;
+        }
+        const verified = await verifyCurrentPassword();
+        if (!verified) {
+          setAuthLoading(false);
+          return;
+        }
+        const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+        const { error } = await supabaseAuth.auth.updateUser(
+          { email: cleanEmail },
+          redirectTo ? { emailRedirectTo: redirectTo } : undefined
+        );
         if (error) throw error;
-        useStore.getState().pushStatus(t("auto_email_update_initiated_45", "Email update initiated."));
-        setEmailInput("");
-        setActivePanel(null);
+        useStore.getState().pushStatus(t("auto_email_update_initiated_45", "Email update initiated."), "success");
+        handleClosePanel();
       }
-      if (type === 'password' && passwordInput) {
-        const { error } = await supabase.auth.updateUser({ password: passwordInput });
+      if (type === 'password') {
+        if (passwordInput.length < 8) {
+          useStore.getState().pushStatus(t("auth_recovery_min_length_err", "Password must be at least 8 characters long."), "error");
+          setAuthLoading(false);
+          return;
+        }
+        if (passwordInput !== confirmPasswordInput) {
+          useStore.getState().pushStatus(t("auth_recovery_mismatch_err", "Passwords do not match."), "error");
+          setAuthLoading(false);
+          return;
+        }
+        const verified = await verifyCurrentPassword();
+        if (!verified) {
+          setAuthLoading(false);
+          return;
+        }
+        const { error } = await supabaseAuth.auth.updateUser({ password: passwordInput });
         if (error) throw error;
-        useStore.getState().pushStatus(t("auto_password_updated_successfully_34", "Password updated successfully."));
-        setPasswordInput("");
-        setActivePanel(null);
+        useStore.getState().pushStatus(t("auto_password_updated_successfully_34", "Password updated successfully."), "success");
+        handleClosePanel();
       }
     } catch (err: any) {
       useStore.getState().pushStatus(err.message || String(err), 'error');
@@ -192,7 +277,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
                 title={t("auth_user_id", "System ID")} 
                 subtitle={t("auth_user_id_desc", "Your permanent system identifier on the Sanctuary Network.")} 
                 icon={t("icon_badge", "badge")} 
-                onClick={() => setActivePanel('system_id')} 
+                onClick={() => { resetSecurityInputs(); setActivePanel('system_id'); }} 
               />
             )}
 
@@ -200,21 +285,21 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               title={t("auth_email", "Update Email")} 
               subtitle={session?.user?.email ? session.user.email.replace(/(.).*(@.*)/, '$1***$2') : t("path_not_set", "Not Set")} 
               icon={t("icon_mail", "mail")} 
-              onClick={() => setActivePanel('email')} 
+              onClick={() => { resetSecurityInputs(); setActivePanel('email'); }} 
             />
 
             <UniversalCard 
               title={t("auth_password", "Update Password")} 
               subtitle="••••••••••••" 
               icon={t("icon_key", "key")} 
-              onClick={() => setActivePanel('password')} 
+              onClick={() => { resetSecurityInputs(); setActivePanel('password'); }} 
             />
 
             <UniversalCard 
               title={t("auth_2fa_title", "Two-Factor Authentication (2FA)")} 
               subtitle={factors.length > 0 ? `${t("auth_2fa_active_devices", "Active Devices")}: ${factors.length}` : t("auth_2fa_subtitle", "Manage your 2FA settings")} 
               icon={t("icon_gpp_good", "gpp_good")} 
-              onClick={() => setActivePanel('2fa')} 
+              onClick={() => { resetSecurityInputs(); setActivePanel('2fa'); }} 
             />
           </SettingsGrid>
         </TabContainer>
@@ -262,7 +347,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
       {/* EMAIL SIDEPANEL */}
       <SidePanel
         isOpen={activePanel === 'email'}
-        onClose={() => setActivePanel(null)}
+        onClose={handleClosePanel}
         title={t("auth_email", "Update Email")}
         subtitle={t("settings_auth_title", "Identity & Security")}
         icon={t("icon_mail", "mail")}
@@ -273,7 +358,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               icon={t("icon_save", "save")}
               tooltip={t("btn_update", "Update")}
               variant="accent"
-              disabled={authLoading || !emailInput.trim()}
+              disabled={authLoading || !emailInput.trim() || !currentPasswordInput}
               onClick={() => updateAuth('email')}
             />
           </PanelHeaderGroup>
@@ -321,9 +406,23 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               />
             </div>
 
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                {t("auth_current_password_label", "Current Password (Required)")}
+              </label>
+              <input
+                type="password"
+                value={currentPasswordInput}
+                onChange={e => setCurrentPasswordInput(e.target.value)}
+                placeholder={t("auth_current_password_ph", "Enter your current password to verify...")}
+                autoComplete="current-password"
+                className="w-full glass-surface rounded-xl px-4 py-3.5 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shadow-inner"
+              />
+            </div>
+
             <ActionButton
               type="submit"
-              disabled={authLoading || !emailInput.trim()}
+              disabled={authLoading || !emailInput.trim() || !currentPasswordInput}
               variant="accent"
               icon={t("icon_save", "save")}
               label={t("btn_update", "Update")}
@@ -336,7 +435,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
       {/* PASSWORD SIDEPANEL */}
       <SidePanel
         isOpen={activePanel === 'password'}
-        onClose={() => setActivePanel(null)}
+        onClose={handleClosePanel}
         title={t("auth_password", "Update Password")}
         subtitle={t("settings_auth_title", "Identity & Security")}
         icon={t("icon_key", "key")}
@@ -347,7 +446,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
               icon={t("icon_save", "save")}
               tooltip={t("btn_update", "Update")}
               variant="accent"
-              disabled={authLoading || !passwordInput.trim()}
+              disabled={authLoading || passwordInput.length < 8 || !confirmPasswordInput || !currentPasswordInput}
               onClick={() => updateAuth('password')}
             />
           </PanelHeaderGroup>
@@ -379,21 +478,52 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
           >
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                {t("auth_password_new_label", "New Password")}
+                {t("auth_current_password_label", "Current Password (Required)")}
+              </label>
+              <input
+                type="password"
+                value={currentPasswordInput}
+                onChange={e => setCurrentPasswordInput(e.target.value)}
+                placeholder={t("auth_current_password_ph", "Enter your current password to verify...")}
+                autoComplete="current-password"
+                autoFocus
+                className="w-full glass-surface rounded-xl px-4 py-3.5 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shadow-inner"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                {t("auth_recovery_new_password_label", "New Password (Min. 8 Characters)")}
               </label>
               <input
                 type="password"
                 value={passwordInput}
                 onChange={e => setPasswordInput(e.target.value)}
                 placeholder="••••••••••••"
-                autoFocus
+                autoComplete="new-password"
+                minLength={8}
+                className="w-full glass-surface rounded-xl px-4 py-3.5 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shadow-inner"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                {t("auth_confirm_new_password_label", "Confirm New Password")}
+              </label>
+              <input
+                type="password"
+                value={confirmPasswordInput}
+                onChange={e => setConfirmPasswordInput(e.target.value)}
+                placeholder={t("auth_confirm_new_password_ph", "Re-enter new password...")}
+                autoComplete="new-password"
+                minLength={8}
                 className="w-full glass-surface rounded-xl px-4 py-3.5 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all shadow-inner"
               />
             </div>
 
             <ActionButton
               type="submit"
-              disabled={authLoading || !passwordInput.trim()}
+              disabled={authLoading || passwordInput.length < 8 || !confirmPasswordInput || !currentPasswordInput}
               variant="accent"
               icon={t("icon_save", "save")}
               label={t("btn_update", "Update")}
@@ -406,7 +536,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
       {/* SYSTEM ID SIDEPANEL */}
       <SidePanel
         isOpen={activePanel === 'system_id'}
-        onClose={() => setActivePanel(null)}
+        onClose={handleClosePanel}
         title={t("auth_user_id", "System ID")}
         subtitle={t("settings_auth_title", "Identity & Security")}
         icon={t("icon_badge", "badge")}
@@ -480,7 +610,7 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
       {/* 2FA SIDEPANEL */}
       <SidePanel
         isOpen={activePanel === '2fa'}
-        onClose={() => setActivePanel(null)}
+        onClose={handleClosePanel}
         title={t("auth_2fa_title", "Two-Factor Authentication (2FA)")}
         subtitle={t("auth_2fa_subtitle", "Manage your 2FA settings")}
         icon={t("icon_gpp_good", "gpp_good")}
@@ -527,7 +657,10 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
                     isActive={true}
                   >
                     <ActionButton
-                      onClick={() => unenrollFactor(f.id)}
+                      onClick={() => {
+                        setPendingUnenrollFactorId(f.id);
+                        setCurrentPasswordInput("");
+                      }}
                       variant="danger"
                       icon={t("icon_delete", "delete")}
                       label={t("btn_disable_2fa", "Disable 2FA")}
@@ -536,6 +669,52 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
                   </UniversalCard>
                 ))}
               </div>
+
+              {pendingUnenrollFactorId && (
+                <form
+                  onSubmit={confirmUnenrollFactor}
+                  className="glass-panel rounded-3xl p-5 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] flex flex-col gap-4"
+                >
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-black uppercase tracking-widest text-[var(--danger)]">
+                      {t("auth_mfa_disable_confirm_title", "Confirm Two-Factor Removal")}
+                    </span>
+                    <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                      {t("auth_mfa_disable_confirm_desc", "Enter your current password to confirm disabling Two-Factor Authentication.")}
+                    </p>
+                  </div>
+                  <input
+                    type="password"
+                    value={currentPasswordInput}
+                    onChange={e => setCurrentPasswordInput(e.target.value)}
+                    placeholder={t("auth_current_password_ph", "Enter your current password to verify...")}
+                    autoComplete="current-password"
+                    autoFocus
+                    className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] outline-none focus:border-[var(--danger)] transition-all"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <ActionButton
+                      type="button"
+                      onClick={() => {
+                        setPendingUnenrollFactorId(null);
+                        setCurrentPasswordInput("");
+                      }}
+                      variant="glass"
+                      icon={t("icon_close", "close")}
+                      label={t("cancel", "Cancel")}
+                      className="w-full"
+                    />
+                    <ActionButton
+                      type="submit"
+                      disabled={authLoading || !currentPasswordInput}
+                      variant="danger"
+                      icon={t("icon_delete", "delete")}
+                      label={t("btn_disable_2fa", "Disable 2FA")}
+                      className="w-full"
+                    />
+                  </div>
+                </form>
+              )}
 
               <div className="glass-panel rounded-3xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
                 <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
@@ -653,5 +832,3 @@ export default function CoreTab({ config, updateConfig, pickPath, pathMap }: any
     </>
   );
 }
-
-

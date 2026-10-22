@@ -270,14 +270,13 @@ export function LabVerificationBadge({
   if (!dnaHash) return null;
 
   const sizeClass = compact
-    ? "px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase flex items-center gap-1 shrink-0"
-    : "px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase flex items-center gap-1.5 shrink-0";
-  const iconClass = compact ? "material-symbols-outlined !text-[11px]" : "material-symbols-outlined !text-[12px]";
+    ? "px-2 py-0.5 rounded-md text-[8px] font-bold tracking-wider uppercase flex items-center gap-1.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)]"
+    : "px-2.5 py-1 rounded-lg text-[9px] font-bold tracking-wider uppercase flex items-center gap-1.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)]";
 
   if (state.verified) {
     return (
-      <span className={`${sizeClass} bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)]`}>
-        <span className={iconClass}>
+      <span className={sizeClass}>
+        <span className="material-symbols-outlined !text-[12px] text-[var(--success)] shrink-0">
           {t("icon_verified", "verified")}
         </span>
         {compact
@@ -289,9 +288,9 @@ export function LabVerificationBadge({
 
   if (state.failed) {
     return (
-      <span className={`${sizeClass} bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)]`}>
-        <span className={iconClass}>
-          {t("icon_gpp_bad", "gpp_bad")}
+      <span className={sizeClass}>
+        <span className="material-symbols-outlined !text-[12px] text-[var(--danger)] shrink-0">
+          {t("icon_error", "error")}
         </span>
         {compact
           ? t("lab_badge_short_failed", "Lab Failed")
@@ -303,9 +302,9 @@ export function LabVerificationBadge({
   if (!required) return null;
 
   return (
-    <span className={`${sizeClass} bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]`}>
-      <span className={iconClass}>
-        {t("icon_timer", "timer")}
+    <span className={sizeClass}>
+      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)] shrink-0">
+        {t("icon_science", "science")}
       </span>
       {compact
         ? t("lab_badge_short_required", "Lab Test Required")
@@ -638,30 +637,12 @@ export function LabVerificationGate({
   };
 
   return (
-    <div
-      className={`w-full shrink-0 rounded-2xl p-5 glass-surface border transition-all flex flex-col gap-4 ${
-        verifiedCert
-          ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
-          : failedError || activeSession?.stage === "FAILED"
-          ? "border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
-          : isRunning
-          ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-          : "border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
-      }`}
-    >
+    <div className="w-full shrink-0 rounded-2xl p-4 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] transition-all flex flex-col gap-3">
       {/* Top Header Row */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 ${
-              verifiedCert
-                ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)]"
-                : failedError
-                ? "border-[color-mix(in_srgb,var(--danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)]"
-                : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]"
-            }`}
-          >
-            <span className="material-symbols-outlined !text-[20px]">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] shrink-0">
+            <span className="material-symbols-outlined !text-[18px]">
               {verifiedCert
                 ? t("icon_verified", "verified")
                 : failedError
@@ -670,21 +651,53 @@ export function LabVerificationGate({
             </span>
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-black text-[var(--text)] tracking-wider uppercase leading-snug">
-              {t("lab_gate_title", "Live Simulation Verification Gate")}
-            </span>
-            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 leading-snug">
-              {t("lab_gate_subtitle", "4-Stage Hardware & Save-Cycle Telemetry Contract")}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-black text-[var(--text)] tracking-wider uppercase leading-snug">
+                {t("lab_gate_title", "Live Simulation Verification Gate")}
+              </span>
+              <LabVerificationBadge dnaHash={dnaHash} required={isGateRequired} compact />
+            </div>
+            <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-80 leading-snug">
+              {!isRunning && (!verifiedCert || failedError)
+                ? getLockedNotice()
+                : t("lab_gate_subtitle", "4-Stage Hardware & Save-Cycle Telemetry Contract")}
             </span>
           </div>
         </div>
 
-        <LabVerificationBadge dnaHash={dnaHash} required={isGateRequired} />
+        {!isRunning && isDesktop() && (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleStartInlineTimedTest}
+              disabled={isStarting}
+              className="h-9 px-3.5 rounded-xl text-[10px] font-bold tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--text)] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                {t("icon_play_circle", "play_circle")}
+              </span>
+              {t("lab_btn_start_timed_test", "Run Timed Lab Verification")}
+            </button>
+
+            {onOpenInFullLab && (
+              <button
+                type="button"
+                onClick={onOpenInFullLab}
+                className="h-9 px-3.5 rounded-xl text-[10px] font-bold tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--text)] transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[16px]">
+                  {t("icon_science", "science")}
+                </span>
+                {t("lab_btn_open_full_lab", "Open in Homestead Lab")}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Verified Receipt Display */}
       {verifiedCert && !isRunning && (
-        <div className="rounded-xl p-4 glass-surface border border-[color-mix(in_srgb,var(--success)_30%,transparent)] flex flex-col gap-3">
+        <div className="rounded-xl p-3.5 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2 text-[var(--success)] text-xs font-black tracking-wider uppercase">
               <span className="material-symbols-outlined !text-[16px]">
@@ -902,55 +915,13 @@ export function LabVerificationGate({
         </div>
       )}
 
-      {/* Gate Notice & Action Buttons when not running */}
-      {!isRunning && (
+      {/* Error Log when failed and not running */}
+      {!isRunning && (failedError || activeSession?.error_log) && (
         <div className="flex flex-col gap-3">
-          {(!verifiedCert || failedError) && (
-            <p
-              className={`text-[11px] font-bold leading-relaxed ${
-                failedError ? "text-[var(--danger)]" : "text-[var(--subtext)]"
-              }`}
-            >
-              {getLockedNotice()}
-            </p>
-          )}
-          {(failedError || activeSession?.error_log) && (
-            <div className="flex flex-col gap-3">
-              <KnownErrorDiagnosisBanner logText={failedError || activeSession?.error_log} />
-              <pre className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[10px] font-mono text-[var(--danger)] whitespace-pre-wrap max-h-28 overflow-y-auto custom-scrollbar">
-                {failedError || activeSession?.error_log}
-              </pre>
-            </div>
-          )}
-
-          {isDesktop() && (
-            <div className="flex items-center gap-2.5 flex-wrap pt-1">
-              <button
-                type="button"
-                onClick={handleStartInlineTimedTest}
-                disabled={isStarting}
-                className="px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined !text-[16px]">
-                  {t("icon_play_circle", "play_circle")}
-                </span>
-                {t("lab_btn_start_timed_test", "Run Timed Lab Verification")}
-              </button>
-
-              {onOpenInFullLab && (
-                <button
-                  type="button"
-                  onClick={onOpenInFullLab}
-                  className="px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest uppercase glass-surface border border-[rgba(var(--text-rgb),0.15)] text-[var(--text)] hover:border-[var(--accent)] transition-all flex items-center gap-2 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[16px]">
-                    {t("icon_science", "science")}
-                  </span>
-                  {t("lab_btn_open_full_lab", "Open in Homestead Lab")}
-                </button>
-              )}
-            </div>
-          )}
+          <KnownErrorDiagnosisBanner logText={failedError || activeSession?.error_log} />
+          <pre className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[10px] font-mono text-[var(--danger)] whitespace-pre-wrap max-h-28 overflow-y-auto custom-scrollbar">
+            {failedError || activeSession?.error_log}
+          </pre>
         </div>
       )}
 

@@ -71,60 +71,6 @@ export const DeferredRender = ({ children }: { children: React.ReactNode }) => {
   );
 };
 export function PixelSnapper() {
-  React.useEffect(() => {
-    let timeout: any;
-    const snap = () => {
-      const elements = document.querySelectorAll(
-        ".glass-panel, .glass-surface",
-      );
-      elements.forEach((el: any) => {
-        if (el.closest("#sa-portals")) return;
-        const computedPos = window.getComputedStyle(el).position;
-        if (computedPos === "fixed" || computedPos === "absolute") return;
-
-        const rect = el.getBoundingClientRect();
-        // Calculate the difference between the actual fractional position and the nearest integer
-        const shiftX = Math.round(rect.x) - rect.x;
-        const shiftY = Math.round(rect.y) - rect.y;
-
-        // If there is a meaningful subpixel gap (e.g. > 0.05px), we bridge it using `left` / `top`
-        // We use relative positioning shifts so we don't interfere with flex/grid calculations,
-        // and we don't touch `transform` so we don't clobber Tailwind hover states.
-        if (Math.abs(shiftX) > 0.05) {
-          el.style.left = `${shiftX}px`;
-        } else {
-          el.style.left = "";
-        }
-        if (Math.abs(shiftY) > 0.05) {
-          el.style.top = `${shiftY}px`;
-        } else {
-          el.style.top = "";
-        }
-
-        // We intentionally do not forcefully set inline width/height here anymore.
-        // Forcing exact pixel heights via inline styles overrides flex layout and causes
-        // catastrophic content clipping on mobile viewports when text needs to wrap.
-      });
-    };
-
-    // Run heavily debounced to ensure layout is completely settled, but only run
-    // when the window actually resizes.
-    const observer = new ResizeObserver(() => {
-      clearTimeout(timeout);
-      timeout = setTimeout(snap, 50);
-    });
-
-    // Observe the document body for major layout shifts
-    observer.observe(document.body);
-
-    // Initial run
-    setTimeout(snap, 100);
-
-    return () => {
-      clearTimeout(timeout);
-      observer.disconnect();
-    };
-  }, []);
   return null;
 }
 export const AccordionDrawer = ({
@@ -285,8 +231,8 @@ export function SidePanel({
 
   if (!shouldRender && !keepMounted) return null;
 
-  const calculatedBackdropZ = 40000 + depth * 10;
-  const calculatedPanelZ = 40000 + depth * 10 + 1;
+  const calculatedBackdropZ = 50000 + depth * 100;
+  const calculatedPanelZ = 50000 + depth * 100 + 1;
   const parsedBackdropZ = parseInt(backdropZ.replace(/\D/g, "")) || 40000;
   const parsedPanelZ = parseInt(panelZ.replace(/\D/g, "")) || 40001;
   const finalBackdropZ =
@@ -325,9 +271,7 @@ export function SidePanel({
               zIndex: finalBackdropZ,
               ...(depth === 0 && !noBackdropDim
                 ? {
-                    backgroundColor: "rgba(0, 0, 0, 0.08)",
-                    backdropFilter: "blur(6px)",
-                    WebkitBackdropFilter: "blur(6px)",
+                    backgroundColor: "var(--glass-backdrop-dim, rgba(0, 0, 0, 0.14))",
                   }
                 : {}),
             }}
@@ -335,19 +279,24 @@ export function SidePanel({
           />
           <div
             ref={panelRef}
-            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-[0px] bottom-[0px] ${position === "left" ? "left-0 md:left-[var(--sidebarWidth,288px)]" : "right-0"} overflow-hidden ${isResizable ? "" : widthClass} max-md:!w-full max-md:!max-w-[100vw] ${position === "left" ? "!rounded-r-3xl !rounded-l-none !border-y-0 !border-l-0 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl" : "!rounded-l-3xl !rounded-r-none !border-y-0 !border-r-0 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[[-20px_0_50px_rgba(0,0,0,0.2)]]"} flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
+            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-0 bottom-0 md:top-3 md:bottom-3 ${position === "left" ? "left-0 md:left-[calc(var(--sidebarWidth,260px)+2.25rem)]" : "right-0 md:right-3"} overflow-hidden ${isResizable ? "" : widthClass} max-md:!w-full max-md:!max-w-[100vw] max-md:!rounded-none md:!rounded-3xl border flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
             style={{
               zIndex: finalPanelZ,
+              borderTopColor: "var(--glass-border-top)",
+              borderLeftColor: "var(--glass-border-left)",
+              borderRightColor: "var(--glass-border-right)",
+              borderBottomColor: "var(--glass-border-bottom)",
               ...(noPanelBlur
                 ? {}
                 : {
                     backdropFilter:
-                      "blur(var(--glassBlur, 36px)) saturate(160%)",
+                      "blur(max(var(--glassBlur, 36px), 42px)) saturate(var(--glassSaturation, 195%))",
                     WebkitBackdropFilter:
-                      "blur(var(--glassBlur, 36px)) saturate(160%)",
+                      "blur(max(var(--glassBlur, 36px), 42px)) saturate(var(--glassSaturation, 195%))",
                   }),
-              background: `linear-gradient(135deg, rgba(var(--panelTint-rgb, 255, 255, 255), 0.08) 0%, rgba(var(--panelTint-rgb, 255, 255, 255), 0.02) 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal, 0.1) * 100%), transparent)`,
-              boxShadow: `-20px 0 50px rgba(0, 0, 0, 0.25), inset 1px 1px 0 0 rgba(var(--text-rgb, 255, 255, 255), 0.22), inset 0 -1px 0 0 rgba(var(--text-rgb, 255, 255, 255), 0.06)`,
+              backgroundColor: "var(--glass-drawer-bg, rgba(15, 23, 42, 0.24))",
+              backgroundImage: "var(--glass-drawer-sheen, var(--glass-sheen))",
+              boxShadow: "var(--glass-drawer-shadow)",
               ...(isResizable
                 ? {
                     width: `${isResizing ? dragWidthRef.current : panelWidth}px`,
@@ -358,6 +307,9 @@ export function SidePanel({
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Liquid Glass Specular Edge Catchlights */}
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/35 to-transparent z-40" />
+            <div className="pointer-events-none absolute inset-y-8 left-0 w-[1px] bg-gradient-to-b from-white/25 via-white/10 to-transparent z-40" />
             {theme.ambientNoise && (
               <div
                 className="absolute inset-0 z-[-1] opacity-[0.05] mix-blend-overlay pointer-events-none"
@@ -367,7 +319,6 @@ export function SidePanel({
                 }}
               />
             )}
-
             {isResizable && (
               <div
                 className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
@@ -379,14 +330,14 @@ export function SidePanel({
 
             {ambientGlows && (
               <div
-                className={`absolute inset-0 overflow-hidden pointer-events-none z-[-1] ${position === "left" ? "rounded-r-[var(--radius)]" : "rounded-l-[var(--radius)]"}`}
+                className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-[inherit]"
               >
                 {ambientGlows}
               </div>
             )}
 
             {hideHeader && (forceShowCloseBtn || headerActions) && (
-              <div className="absolute top-8 right-8 z-[10000] flex items-center bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1 gap-1 shrink-0">
+              <div className="absolute top-6 right-6 z-[10000] flex items-center glass-surface !rounded-full p-1 gap-1 shrink-0">
                 {headerActions}
                 {headerActions && forceShowCloseBtn && (
                   <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
@@ -406,10 +357,10 @@ export function SidePanel({
 
             {!hideHeader && (
               <div
-                className={`pt-6 px-6 pb-4 md:pt-8 md:px-10 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${coverImage ? "pt-48" : ""} flex flex-col-reverse md:flex-row items-start md:justify-between gap-4 md:gap-6 w-full`}
+                className={`px-6 py-5 md:px-7 md:py-5 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.16))] ${coverImage ? "pt-48" : ""} flex flex-col-reverse md:flex-row items-start md:items-center md:justify-between gap-4 md:gap-5 w-full`}
               >
                 {coverImage && (
-                  <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[var(--radius)] rounded-tr-[var(--radius)]">
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[inherit] rounded-tr-[inherit]">
                     <div
                       className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-100 opacity-60"
                       style={{ backgroundImage: `url('${coverImage}')` }}
@@ -418,26 +369,25 @@ export function SidePanel({
                   </div>
                 )}
 
-                <div className="flex flex-col justify-center gap-4 md:gap-6 relative z-10 flex-1 min-w-0">
-                  <h2 className="text-lg md:text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-4 md:gap-6 min-w-0 w-full">
+                <div className="flex flex-col justify-center gap-3 relative z-10 flex-1 min-w-0">
+                  <h2 className="text-lg md:text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-3.5 md:gap-4 min-w-0 w-full">
                     {icon && (
                       <div
-                        className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[1.25rem] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shadow-lg shrink-0 relative group/iconbox ${iconColorClass || ""}`}
+                        className="w-11 h-11 md:w-12 md:h-12 rounded-2xl glass-surface flex items-center justify-center shrink-0 relative group/iconbox"
                       >
-                        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/10 to-transparent opacity-50 group-hover/iconbox:opacity-100 transition-opacity duration-500"></div>
                         <span
-                          className={`material-symbols-outlined !text-2xl md:!text-3xl opacity-80 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 ${iconColorClass || "theme-text-accent"}`}
+                          className={`material-symbols-outlined !text-[22px] md:!text-[24px] opacity-90 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 ${(iconColorClass || "theme-text-accent").split(" ").filter((c: string) => !c.startsWith("border-") && !c.startsWith("bg-")).join(" ")}`}
                         >
                           {icon}
                         </span>
                       </div>
                     )}
                     <div className="flex flex-col min-w-0 w-full justify-center">
-                      <span className="leading-tight text-xl md:text-3xl tracking-tight truncate w-full drop-shadow-md">
+                      <span className="leading-tight text-xl md:text-2xl tracking-tight truncate w-full">
                         {title}
                       </span>
                       {subtitle && (
-                        <span className="text-[9px] md:text-[10px] font-black text-[var(--subtext)] opacity-50 mt-1 capitalize tracking-[0.25em] line-clamp-2 break-words">
+                        <span className="text-[9px] md:text-[10px] font-black text-[var(--subtext)] opacity-70 mt-0.5 capitalize tracking-[0.22em] line-clamp-2 break-words">
                           {subtitle}
                         </span>
                       )}
@@ -446,7 +396,7 @@ export function SidePanel({
                 </div>
 
                 {(headerActions || !hideCloseButton) && (
-                  <div className="flex items-center z-50 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full shadow-xl p-1 gap-1 shrink-0 self-end md:self-auto">
+                  <div className="flex items-center z-50 glass-surface !rounded-full p-1 gap-1 shrink-0 self-end md:self-auto">
                     {headerActions}
                     {headerActions && !hideCloseButton && (
                       <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
@@ -467,14 +417,14 @@ export function SidePanel({
             )}
 
             <div
-              className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-x-hidden ${noScroll ? "" : "overflow-y-auto custom-scrollbar"} ${noPadding ? "" : "p-8"} ${isResizing ? "pointer-events-none select-none overflow-hidden" : ""}`}
+              className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-x-hidden ${noScroll ? "" : "overflow-y-auto custom-scrollbar"} ${noPadding ? "" : "p-6 md:p-7"} ${isResizing ? "pointer-events-none select-none overflow-hidden" : ""}`}
             >
               {children}
             </div>
 
             {(footer || actions) && (
               <div
-                className={`px-8 pb-8 pt-10 flex justify-center items-center gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${footerClass || ""}`}
+                className={`px-6 pb-6 pt-5 md:px-7 md:pb-7 flex justify-center items-center gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.14))] ${footerClass || ""}`}
               >
                 {footer}
                 {actions}
@@ -525,12 +475,11 @@ export function ViewHeader({
       <div className="flex items-start gap-3 md:gap-4 shrink-0 min-w-0 md:max-w-[50%]">
         {icon && (
           <div
-            className={`w-8 h-8 md:w-10 md:h-10 ${shapeClass} flex items-center justify-center shrink-0 border glass-panel relative group shadow-md hidden sm:flex`}
+            className={`w-8 h-8 md:w-10 md:h-10 ${shapeClass} flex items-center justify-center shrink-0 glass-panel relative group hidden sm:flex`}
           >
-            <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             {typeof icon === "string" ? (
               <span
-                className={`material-symbols-outlined !text-[16px] md:!text-[20px] relative z-10 ${iconColorClass}`}
+                className={`material-symbols-outlined !text-[16px] md:!text-[20px] relative z-10 ${(iconColorClass || "text-[var(--accent)]").split(" ").filter((c: string) => !c.startsWith("border-") && !c.startsWith("bg-")).join(" ")}`}
               >
                 {icon}
               </span>
@@ -717,14 +666,19 @@ export function DashboardStatTile({
 
   const cleanColorClass =
     typeof colorClass === "string"
-      ? disableBgStrip
-        ? colorClass
-        : colorClass
-            .split(" ")
-            .filter(
-              (c: string) => !c.startsWith("bg-") && !c.startsWith("hover:bg-"),
-            )
-            .join(" ")
+      ? colorClass
+          .split(" ")
+          .filter(
+            (c: string) =>
+              !c.startsWith("bg-") &&
+              !c.startsWith("!bg-") &&
+              !c.startsWith("hover:bg-") &&
+              !c.startsWith("border-") &&
+              !c.startsWith("!border-") &&
+              !c.startsWith("shadow-") &&
+              !c.startsWith("!shadow-"),
+          )
+          .join(" ")
       : "";
 
   const strVal = String(displayValue);
@@ -736,11 +690,11 @@ export function DashboardStatTile({
   let sizeClass = "text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
   const activeStyles = isActive
     ? isModal
-      ? "border border-[color-mix(in_srgb,currentColor_50%,rgba(var(--text-rgb),0.25))] z-10 hover:brightness-110"
+      ? "!border-[color-mix(in_srgb,currentColor_55%,rgba(255,255,255,0.35))] z-10"
       : isSpecial
-        ? "border border-[color-mix(in_srgb,var(--accent)_50%,rgba(var(--text-rgb),0.25))] z-10"
-        : "border border-[currentColor] z-10"
-    : "hover:border-[rgba(var(--text-rgb,255,255,255),0.28)] hover:brightness-110";
+        ? "!border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.35))] z-10"
+        : "!border-[currentColor] z-10"
+    : "hover:!border-[rgba(var(--text-rgb,255,255,255),0.28)]";
 
   if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
   else if (strVal.length > 10) sizeClass = "text-lg xl:text-xl";
@@ -756,7 +710,7 @@ export function DashboardStatTile({
   const iconTextClass = isFilter
     ? "!text-[20px] md:!text-[24px]"
     : "!text-[20px] md:!text-[32px]";
-  const shadowClass = "[--tw-shadow:0_0_#0000]";
+  const shadowClass = "shadow-none";
   const activeTint =
     isActive && isSpecial
       ? "var(--accent)"
@@ -778,9 +732,13 @@ export function DashboardStatTile({
       ? "flex-1 min-w-0 min-h-[64px] md:min-h-[76px]"
       : "flex-1 min-w-0 min-h-[68px] md:min-h-[88px]";
 
-  const mergedStyle = isModal
-    ? ({ "--glassBeforeDisplay": "none", backgroundImage: "none", ...style } as React.CSSProperties)
-    : style;
+  const mergedStyle = {
+    "--glass-outer-shadow": "0 0 #0000",
+    "--glass-nested-shadow": "0 0 #0000",
+    boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12))",
+    ...(isModal ? { "--glassBeforeDisplay": "none" } : {}),
+    ...style,
+  } as React.CSSProperties;
 
   return (
     <div
@@ -790,15 +748,15 @@ export function DashboardStatTile({
       style={mergedStyle}
       className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-3xl glass-panel ${isModal ? "before:!hidden" : ""} ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
     >
-      <div
-        className="absolute inset-0 rounded-[inherit] pointer-events-none"
-        style={{
-          background: isActive
-            ? `linear-gradient(135deg, color-mix(in srgb, ${activeTint} 16%, rgba(var(--text-rgb, 255, 255, 255), 0.08)) 0%, color-mix(in srgb, ${activeTint} 4%, transparent) 100%)`
-            : `linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.05) 0%, transparent 100%)`,
-        }}
-      />
-      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[inherit]" />
+      {isActive && (
+        <div
+          className="absolute inset-0 rounded-[inherit] pointer-events-none"
+          style={{
+            background: `linear-gradient(135deg, color-mix(in srgb, ${activeTint} 18%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, ${activeTint} 4%, transparent) 60%, transparent 100%)`,
+          }}
+        />
+      )}
+      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[inherit]" />
 
       {icon && (
         <div

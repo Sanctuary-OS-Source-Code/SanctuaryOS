@@ -1,16 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLexicon } from '../LexiconContext';
-import { CustomDropdown } from '../shared';
+import { CustomDropdown, HoverTooltip } from '../shared';
 
 interface WorkbenchVisualEditorProps {
    settings: any[];
    dataSource: any;
+   savedDataSource?: any;
    isPreview?: boolean;
    isNested?: boolean;
    parentPath?: string;
    selectedCategory: string;
    searchQuery: string;
+   onlyModified?: boolean;
+   onlyUnsaved?: boolean;
    onVisualChange: (key: string, value: any) => void;
+   onUndoToSaved?: (key: string) => void;
    highlightedKey?: string | null;
 }
 
@@ -21,95 +25,407 @@ const clampNumber = (v: number, min?: number, max?: number) => {
    return v;
 };
 
-const SettingNode = React.memo(({ setting, val, dataPath, isHighlighted, isPreview, onVisualChange, t }: any) => {
+export const isNumericTupleValue = (val: any): boolean => {
+   if (typeof val !== "string") return false;
+   return /^\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*$/.test(val);
+};
+
+export const parseNumericTuple = (val: any, fallbackMin = 0, fallbackMax = 0): [number, number] => {
+   if (typeof val === "string" && val.includes(",")) {
+      const parts = val.split(",");
+      const a = parseFloat(parts[0]?.trim() || "");
+      const b = parseFloat(parts[1]?.trim() || "");
+      return [isNaN(a) ? fallbackMin : a, isNaN(b) ? fallbackMax : b];
+   }
+   return [fallbackMin, fallbackMax];
+};
+
+export const countSettingsByCategory = (settings: any[]): Record<string, number> => {
+   const counts: Record<string, number> = { ALL: 0 };
+   if (!Array.isArray(settings)) return counts;
+   for (const s of settings) {
+      if (!s) continue;
+      const cat = s.category || "UNCATEGORIZED";
+      const weight = s.type === "group" && Array.isArray(s.settings) ? s.settings.length : 1;
+      counts.ALL = (counts.ALL || 0) + weight;
+      counts[cat] = (counts[cat] || 0) + weight;
+   }
+   return counts;
+};
+
+export const humanizeConfigLabel = (raw: string): string => {
+   if (!raw) return "";
+   return raw
+      .replace(/_/g, " ")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+      .replace(/\s+/g, " ")
+      .trim();
+};
+
+export const isSettingModified = (setting: any, dataSource: any, parentPath = ""): boolean => {
+   if (!setting || !dataSource) return false;
+   const localPath = setting.path || setting.key;
+   if (!localPath) return false;
+   const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
+
+   if (setting.type === "group" && Array.isArray(setting.settings)) {
+      return setting.settings.some((child: any) => isSettingModified(child, dataSource, dataPath));
+   }
+
+   if (setting.default === undefined) return false;
+   const val = dataPath.split('.').reduce((o: any, i: string) => o?.[i], dataSource);
+   if (val === undefined) return false;
+   return JSON.stringify(val) !== JSON.stringify(setting.default);
+};
+
+export const countModifiedSettings = (settings: any[], dataSource: any, parentPath = ""): number => {
+   if (!Array.isArray(settings) || !dataSource) return 0;
+   let count = 0;
+   for (const s of settings) {
+      const localPath = s?.path || s?.key;
+      if (!localPath) continue;
+      const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
+      if (s.type === "group" && Array.isArray(s.settings)) {
+         count += countModifiedSettings(s.settings, dataSource, dataPath);
+      } else if (isSettingModified(s, dataSource, parentPath)) {
+         count++;
+      }
+   }
+   return count;
+};
+
+export const isSettingEditedFromSaved = (setting: any, dataSource: any, savedDataSource: any, parentPath = ""): boolean => {
+   if (!setting || !dataSource || !savedDataSource) return false;
+   const localPath = setting.path || setting.key;
+   if (!localPath) return false;
+   const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
+
+   if (setting.type === "group" && Array.isArray(setting.settings)) {
+      return setting.settings.some((child: any) => isSettingEditedFromSaved(child, dataSource, savedDataSource, dataPath));
+   }
+
+   const val = dataPath.split('.').reduce((o: any, i: string) => o?.[i], dataSource);
+   const savedVal = dataPath.split('.').reduce((o: any, i: string) => o?.[i], savedDataSource);
+   if (val === undefined && savedVal === undefined) return false;
+   return JSON.stringify(val) !== JSON.stringify(savedVal);
+};
+
+export const countEditedFromSavedSettings = (settings: any[], dataSource: any, savedDataSource: any, parentPath = ""): number => {
+   if (!Array.isArray(settings) || !dataSource || !savedDataSource) return 0;
+   let count = 0;
+   for (const s of settings) {
+      const localPath = s?.path || s?.key;
+      if (!localPath) continue;
+      const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
+      if (s.type === "group" && Array.isArray(s.settings)) {
+         count += countEditedFromSavedSettings(s.settings, dataSource, savedDataSource, dataPath);
+      } else if (isSettingEditedFromSaved(s, dataSource, savedDataSource, parentPath)) {
+         count++;
+      }
+   }
+   return count;
+};
+
+const getCleanDescription = (rawDesc: string, label: string) => {
+   if (!rawDesc) return "";
+   const trimmed = rawDesc.trim();
+   if (!trimmed || trimmed.toLowerCase() === "no description provided.") return "";
+   const lowerDesc = trimmed.toLowerCase().replace(/\.$/, "");
+   const lowerLabel = (label || "").trim().toLowerCase();
+   if (
+      lowerDesc === `enable or disable ${lowerLabel}` ||
+      lowerDesc === `configure the setting for ${lowerLabel}` ||
+      lowerDesc === `configure ${lowerLabel}` ||
+      lowerDesc === lowerLabel
+   ) {
+      return "";
+   }
+   return trimmed;
+};
+
+const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighted, isPreview, isNested, onVisualChange, onUndoToSaved, t }: any) => {
    const resolveText = (k?: string, fallback?: string) => {
       if (!k) return fallback || "";
-      const tr = t(k);
+      const tr = t(k, k);
       if (tr === `[${k}]`) return k;
       return tr;
    };
 
+   const rawLabel = resolveText(setting.label_key, setting.key);
+   const label = humanizeConfigLabel(rawLabel);
+   const rawDesc = resolveText(setting.desc_key, "");
+   const cleanDesc = getCleanDescription(rawDesc, label);
+
+   const effectiveVal = val !== undefined ? val : setting.default;
+   const hasDefault = setting.default !== undefined;
+   const isModified = hasDefault && val !== undefined && JSON.stringify(val) !== JSON.stringify(setting.default);
+   const isUnsavedEdit = savedVal !== undefined && val !== undefined && JSON.stringify(val) !== JSON.stringify(savedVal);
+
+   const isTupleControl =
+      setting.type === "tuple" ||
+      (setting.type === "number" && (isNumericTupleValue(effectiveVal) || isNumericTupleValue(setting.default)));
+   const isInlineControl = setting.type === "boolean" || (setting.type === "number" && !isTupleControl);
+
    return (
-      <div data-setting-key={setting.key} className={`rounded-2xl border p-4 sm:p-6 flex justify-start group hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all duration-500 gap-4 sm:gap-6 transform-gpu backface-hidden relative overflow-hidden ${isPreview ? 'flex-col' : 'flex-col flex-wrap md:flex-row md:items-center'} ${isHighlighted ? 'z-10 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-transparent'}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '80px' }}>
-         {isHighlighted && (
-            <>
-               <div className="absolute inset-0 rounded-[inherit] z-0 pointer-events-none" style={{ background: `linear-gradient(90deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent)` }} />
-               <div className="absolute top-0 right-0 w-32 h-32 blur-[50px] rounded-full pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 15%, transparent)` }} />
-            </>
-         )}
-         <div className="flex flex-col gap-1.5 flex-1 min-w-0 relative z-10">
-            <div className="flex flex-wrap items-center gap-3">
-               <span className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{resolveText(setting.label_key, setting.key)}</span>
-               {setting.risk === "advanced" && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] text-[8px] font-black tracking-widest capitalize border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">{t("advanced_badge")}</span>
-               )}
-               {!isPreview && setting.type === 'boolean' && (
-                  <span className={`text-[8px] font-black tracking-widest capitalize px-2 py-0.5 rounded-md border ${val ? 'text-[var(--success)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                     {val ? 'ENABLED' : 'DISABLED'}
+      <div
+         data-setting-key={setting.key}
+         style={{ contentVisibility: 'auto', containIntrinsicSize: isNested ? '52px' : '60px' }}
+         className={`rounded-2xl border ${isNested ? 'px-3.5 py-2.5' : 'px-4 py-3'} flex flex-col justify-center group transition-colors duration-200 gap-2 relative overflow-hidden ${
+            isHighlighted
+               ? 'z-10 bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_24px_rgba(var(--accent-rgb),0.15)]'
+               : isNested
+                  ? 'glass-surface border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_16%,transparent)]'
+                  : 'glass-panel border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)]'
+         }`}
+      >
+         <div className={`flex ${isInlineControl ? 'items-center justify-between gap-2.5' : 'flex-col gap-2'} relative z-10 w-full`}>
+            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+               <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                  <span className="text-[12px] font-black tracking-wide text-[var(--text)] leading-snug" title={label}>
+                     {label}
+                  </span>
+                  {setting.risk === "advanced" && (
+                     <span className="px-2 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)] text-[9px] font-bold shrink-0">
+                        {t("advanced_badge", "Advanced")}
+                     </span>
+                  )}
+                  {isUnsavedEdit ? (
+                     <span className="px-2 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] text-[9px] font-bold shrink-0">
+                        {t("workbench_unsaved_edit_badge", "Unsaved")}
+                     </span>
+                  ) : isModified ? (
+                     <span className="px-2 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] text-[var(--accent)] text-[9px] font-bold shrink-0">
+                        {t("workbench_modified_badge", "Modified")}
+                     </span>
+                  ) : null}
+               </div>
+
+               {cleanDesc && (
+                  <span className="text-[10px] text-[var(--subtext)] opacity-75 font-medium leading-relaxed line-clamp-2">
+                     {cleanDesc}
                   </span>
                )}
             </div>
-            <span className="text-[10px] text-[var(--subtext)] opacity-80 font-medium leading-relaxed max-w-2xl">{resolveText(setting.desc_key, "No description provided.")}</span>
-         </div>
-         <div className="shrink-0 flex items-center justify-end relative z-10">
-            {setting.type === "boolean" && (
-               <div className={`w-14 h-8 rounded-full transition-all duration-300 relative flex items-center px-1 cursor-pointer ${val ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'glass-surface'}`} onClick={() => !isPreview && onVisualChange(dataPath, !val)}>
-                  <div className={`w-6 h-6 rounded-full shadow-md transition-all duration-300 ${val ? 'translate-x-6 bg-[var(--accent)]' : 'translate-x-0 bg-[var(--text)] opacity-40'}`}></div>
-               </div>
-            )}
-            {setting.type === "number" && (
-               <div className="flex items-stretch overflow-hidden glass-surface rounded-xl shrink-0">
-                  <button type="button" onClick={() => !isPreview && onVisualChange(dataPath, clampNumber((val !== undefined ? parseFloat(val as any) : setting.default || 0) - (setting.step || 1), setting.min, setting.max))} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                     <span className="material-symbols-outlined !text-[16px]">{t("icon_remove")}</span>
+
+            <div className={`shrink-0 flex items-center gap-1.5 ${isInlineControl ? 'justify-end' : 'w-full justify-between pt-0.5'}`}>
+               {isUnsavedEdit && (
+                  <div className="relative flex shrink-0">
+                     <button
+                        type="button"
+                        onClick={() => onUndoToSaved ? onUndoToSaved(dataPath) : onVisualChange(dataPath, savedVal)}
+                        className="w-7 h-7 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_42%,transparent)] text-[var(--warning)] hover:!border-[color-mix(in_srgb,var(--warning)_65%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+                     >
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_undo", "undo")}</span>
+                     </button>
+                     <HoverTooltip title={`${t("workbench_undo_to_saved", "Undo to Saved")}: ${String(savedVal)}`} />
+                  </div>
+               )}
+
+               {isModified && (
+                  <div className="relative flex shrink-0">
+                     <button
+                        type="button"
+                        onClick={() => onVisualChange(dataPath, setting.default)}
+                        className="w-7 h-7 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+                     >
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_restart_alt", "restart_alt")}</span>
+                     </button>
+                     <HoverTooltip title={`${t("workbench_reset_default", "Reset to Default")}: ${String(setting.default)}`} />
+                  </div>
+               )}
+
+               {setting.type === "boolean" && (
+                  <button
+                     type="button"
+                     onClick={() => onVisualChange(dataPath, !Boolean(effectiveVal))}
+                     className={`w-11 h-6 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 border ${
+                        effectiveVal
+                           ? 'bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.22)]'
+                           : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)]'
+                     }`}
+                  >
+                     <div
+                        className={`w-4.5 h-4.5 rounded-full shadow-sm transition-transform duration-200 ${
+                           effectiveVal ? 'translate-x-5 bg-[var(--accent)]' : 'translate-x-0 bg-[var(--text)] opacity-40'
+                        }`}
+                     />
                   </button>
-                  <input type="text" value={val !== undefined ? val : setting.default || 0} onChange={(e) => {
-                     if (isPreview) return;
-                     const str = e.target.value;
-                     const isDecimalAllowed = setting.allow_decimals !== false;
-                     
-                     if (str === "" || str === "-") {
-                        onVisualChange(dataPath, str);
-                     } else if (isDecimalAllowed && (str.endsWith(".") || (str.includes(".") && str.endsWith("0")))) {
-                        onVisualChange(dataPath, str);
-                     } else {
-                        const parsed = isDecimalAllowed ? parseFloat(str) : parseInt(str, 10);
-                        if (!isNaN(parsed)) {
-                           onVisualChange(dataPath, clampNumber(parsed, setting.min, setting.max));
-                        } else {
-                           onVisualChange(dataPath, str);
+               )}
+
+               {setting.type === "number" && !isTupleControl && (
+                  <div className="flex items-center overflow-hidden glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-0.5 shrink-0">
+                     <button
+                        type="button"
+                        onClick={() =>
+                           onVisualChange(
+                              dataPath,
+                              clampNumber(
+                                 (effectiveVal !== undefined ? parseFloat(effectiveVal as any) : 0) - (setting.step || 1),
+                                 setting.min,
+                                 setting.max
+                              )
+                           )
                         }
-                     }
-                  }} readOnly={isPreview} className="w-16 bg-transparent text-[12px] font-black text-[var(--text)] focus:outline-none text-center" />
-                  <button type="button" onClick={() => !isPreview && onVisualChange(dataPath, clampNumber((val !== undefined ? parseFloat(val as any) : setting.default || 0) + (setting.step || 1), setting.min, setting.max))} className="w-8 h-8 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors">
-                     <span className="material-symbols-outlined !text-[16px]">{t("icon_add")}</span>
-                  </button>
-               </div>
-            )}
-            {setting.type === "string" && (
-               <input type="text" value={val || setting.default || ""} onChange={(e) => !isPreview && onVisualChange(dataPath, e.target.value)} readOnly={isPreview} className={`h-10 glass-surface rounded-xl px-4 text-[11px] font-black text-[var(--text)] focus:outline-none transition-colors w-full ${!isPreview && 'md:max-w-xs'}`} />
-            )}
-            {setting.type === "dropdown" && (
-               <div className={`w-full ${!isPreview && 'md:max-w-xs min-w-[200px]'}`}>
-                  <CustomDropdown
-                     disableTint={true}
-                     value={val !== undefined ? val : setting.default || ""}
-                     options={setting.options?.map((opt: any) => ({
-                        id: opt.value,
-                        label: resolveText(opt.label_key, opt.value)
-                     })) || []}
-                     onChange={(v: string[]) => !isPreview && onVisualChange(dataPath, v[0])}
+                        className="w-6.5 h-6.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                     >
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_remove", "remove")}</span>
+                     </button>
+                     <input
+                        type="text"
+                        value={effectiveVal !== undefined ? effectiveVal : 0}
+                        onChange={(e) => {
+                           const str = e.target.value;
+                           const isDecimalAllowed = setting.allow_decimals !== false;
+
+                           if (str === "" || str === "-") {
+                              onVisualChange(dataPath, str);
+                           } else if (isDecimalAllowed && (str.endsWith(".") || (str.includes(".") && str.endsWith("0")))) {
+                              onVisualChange(dataPath, str);
+                           } else {
+                              const parsed = isDecimalAllowed ? parseFloat(str) : parseInt(str, 10);
+                              if (!isNaN(parsed)) {
+                                 onVisualChange(dataPath, clampNumber(parsed, setting.min, setting.max));
+                              } else {
+                                 onVisualChange(dataPath, str);
+                              }
+                           }
+                        }}
+                        className="w-15 px-1 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center font-mono"
+                     />
+                     <button
+                        type="button"
+                        onClick={() =>
+                           onVisualChange(
+                              dataPath,
+                              clampNumber(
+                                 (effectiveVal !== undefined ? parseFloat(effectiveVal as any) : 0) + (setting.step || 1),
+                                 setting.min,
+                                 setting.max
+                              )
+                           )
+                        }
+                        className="w-6.5 h-6.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                     >
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_add", "add")}</span>
+                     </button>
+                  </div>
+               )}
+
+               {isTupleControl && (() => {
+                  const [defaultMin, defaultMax] = parseNumericTuple(setting.default, setting.min ?? -100, setting.max ?? 100);
+                  const [tupleMin, tupleMax] = parseNumericTuple(effectiveVal, defaultMin, defaultMax);
+                  const step = setting.step || 1;
+                  const updateTuple = (nextMin: number, nextMax: number) => {
+                     const clampedMin = clampNumber(nextMin, setting.min, setting.max);
+                     const clampedMax = clampNumber(nextMax, setting.min, setting.max);
+                     onVisualChange(dataPath, `${clampedMin},${clampedMax}`);
+                  };
+                  return (
+                     <div className="grid grid-cols-2 gap-2 w-full flex-1">
+                        <div className="flex items-center justify-between glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-2 py-0.5">
+                           <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-70 mr-1">
+                              {t("workbench_tuple_min", "Min")}
+                           </span>
+                           <div className="flex items-center">
+                              <button
+                                 type="button"
+                                 onClick={() => updateTuple(tupleMin - step, tupleMax)}
+                                 className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                              >
+                                 <span className="material-symbols-outlined !text-[13px]">{t("icon_remove", "remove")}</span>
+                              </button>
+                              <input
+                                 type="text"
+                                 value={tupleMin}
+                                 onChange={(e) => {
+                                    const parsed = parseFloat(e.target.value);
+                                    if (!isNaN(parsed)) updateTuple(parsed, tupleMax);
+                                 }}
+                                 className="w-12 px-0.5 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center font-mono"
+                              />
+                              <button
+                                 type="button"
+                                 onClick={() => updateTuple(tupleMin + step, tupleMax)}
+                                 className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                              >
+                                 <span className="material-symbols-outlined !text-[13px]">{t("icon_add", "add")}</span>
+                              </button>
+                           </div>
+                        </div>
+
+                        <div className="flex items-center justify-between glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-2 py-0.5">
+                           <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-70 mr-1">
+                              {t("workbench_tuple_max", "Max")}
+                           </span>
+                           <div className="flex items-center">
+                              <button
+                                 type="button"
+                                 onClick={() => updateTuple(tupleMin, tupleMax - step)}
+                                 className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                              >
+                                 <span className="material-symbols-outlined !text-[13px]">{t("icon_remove", "remove")}</span>
+                              </button>
+                              <input
+                                 type="text"
+                                 value={tupleMax}
+                                 onChange={(e) => {
+                                    const parsed = parseFloat(e.target.value);
+                                    if (!isNaN(parsed)) updateTuple(tupleMin, parsed);
+                                 }}
+                                 className="w-12 px-0.5 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center font-mono"
+                              />
+                              <button
+                                 type="button"
+                                 onClick={() => updateTuple(tupleMin, tupleMax + step)}
+                                 className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                              >
+                                 <span className="material-symbols-outlined !text-[13px]">{t("icon_add", "add")}</span>
+                              </button>
+                           </div>
+                        </div>
+                     </div>
+                  );
+               })()}
+
+               {setting.type === "string" && (
+                  <input
+                     type="text"
+                     value={effectiveVal !== undefined ? effectiveVal : ""}
+                     onChange={(e) => onVisualChange(dataPath, e.target.value)}
+                     placeholder={setting.default !== undefined ? String(setting.default) : ""}
+                     className="h-9 glass-surface rounded-xl px-3.5 text-[11px] font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] focus:outline-none transition-colors w-full"
                   />
-               </div>
-            )}
-            {setting.type === "keybinding" && (
-               <KeybindingField 
-                  val={val} 
-                  setting={setting} 
-                  isPreview={isPreview} 
-                  onVisualChange={(newVal: any) => !isPreview && onVisualChange(dataPath, newVal)}
-                  t={t}
-               />
-            )}
+               )}
+
+               {setting.type === "dropdown" && (
+                  <div className="w-full flex-1">
+                     <CustomDropdown
+                        disableTint={true}
+                        value={effectiveVal !== undefined ? effectiveVal : ""}
+                        options={
+                           setting.options?.map((opt: any) => ({
+                              id: opt.value,
+                              label: resolveText(opt.label_key, opt.value)
+                           })) || []
+                        }
+                        onChange={(v: string[]) => onVisualChange(dataPath, v[0])}
+                     />
+                  </div>
+               )}
+
+               {setting.type === "keybinding" && (
+                  <div className="w-full flex-1">
+                     <KeybindingField
+                        val={effectiveVal}
+                        setting={setting}
+                        isPreview={false}
+                        onVisualChange={(newVal: any) => onVisualChange(dataPath, newVal)}
+                        t={t}
+                     />
+                  </div>
+               )}
+            </div>
          </div>
       </div>
    );
@@ -117,8 +433,10 @@ const SettingNode = React.memo(({ setting, val, dataPath, isHighlighted, isPrevi
    return (
       prevProps.setting === nextProps.setting &&
       prevProps.val === nextProps.val &&
+      prevProps.savedVal === nextProps.savedVal &&
       prevProps.isHighlighted === nextProps.isHighlighted &&
-      prevProps.isPreview === nextProps.isPreview
+      prevProps.isPreview === nextProps.isPreview &&
+      prevProps.isNested === nextProps.isNested
    );
 });
 
@@ -132,7 +450,7 @@ const KeybindingField = React.memo(({ val, setting, isPreview, onVisualChange, t
          e.preventDefault();
          e.stopPropagation();
 
-         const format = setting.key_format || 'literal'; // 'literal' or 'keycode'
+         const format = setting.key_format || 'literal';
          let newKey: any;
 
          if (format === 'keycode') {
@@ -166,137 +484,357 @@ const KeybindingField = React.memo(({ val, setting, isPreview, onVisualChange, t
    const vals = isMultiple ? (Array.isArray(val) ? val : []) : (val !== undefined && val !== "" ? [val] : []);
 
    return (
-      <div className="flex flex-col gap-2 w-full md:max-w-xs">
-         <div className="flex flex-wrap gap-2">
-            {vals.map((v: any, idx: number) => (
-               <div key={idx} className="flex items-center gap-2 glass-surface rounded-lg px-3 py-1.5 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[12px] font-black text-[var(--text)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.1)]">
-                  <span className="tracking-widest">{v}</span>
-                  {!isPreview && (
-                     <button
-                        onClick={() => {
-                           if (isMultiple) {
-                              onVisualChange(vals.filter((_: any, i: number) => i !== idx));
-                           } else {
-                              onVisualChange("");
-                           }
-                        }}
-                        className="text-[var(--danger)] hover:text-red-400 opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center"
-                     >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_remove")}</span>
-                     </button>
-                  )}
-               </div>
-            ))}
-         </div>
-         
+      <div className="flex flex-wrap items-center gap-2 w-full">
+         {vals.map((v: any, idx: number) => (
+            <div key={idx} className="flex items-center gap-1.5 glass-surface rounded-lg px-2.5 py-1 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[11px] font-black text-[var(--text)]">
+               <span className="tracking-wider font-mono">{v}</span>
+               {!isPreview && (
+                  <button
+                     type="button"
+                     onClick={() => {
+                        if (isMultiple) {
+                           onVisualChange(vals.filter((_: any, i: number) => i !== idx));
+                        } else {
+                           onVisualChange("");
+                        }
+                     }}
+                     className="text-[var(--danger)] hover:text-red-400 opacity-70 hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                  >
+                     <span className="material-symbols-outlined !text-[13px]">{t("icon_close", "close")}</span>
+                  </button>
+               )}
+            </div>
+         ))}
+
          {!isPreview && (!vals.length || isMultiple) && (
             <button
+               type="button"
                onClick={() => setIsListening(!isListening)}
-               className={`h-10 rounded-xl px-4 text-[11px] font-black transition-all duration-300 flex items-center justify-center gap-2 capitalize tracking-widest ${isListening ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[var(--accent)] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] animate-pulse' : 'glass-surface border border-transparent text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
+               className={`h-8 rounded-xl px-3 text-[10px] font-black transition-all duration-300 flex items-center justify-center gap-1.5 capitalize tracking-widest cursor-pointer ${
+                  isListening
+                     ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[var(--accent)] text-[var(--accent)] animate-pulse'
+                     : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+               }`}
             >
-               <span className="material-symbols-outlined !text-[16px]">{isListening ? 'keyboard' : 'add'}</span>
-               {isListening ? (t("keybinding_listening")) : (isMultiple && vals.length ? (t("keybinding_add")) : (t("keybinding_set")))}
+               <span className="material-symbols-outlined !text-[15px]">{isListening ? t("icon_keyboard", "keyboard") : t("icon_add", "add")}</span>
+               {isListening ? t("keybinding_listening", "Listening...") : (isMultiple && vals.length ? t("keybinding_add", "Add Key") : t("keybinding_set", "Set Key"))}
             </button>
          )}
       </div>
    );
 });
 
+const GroupNode = ({
+   setting,
+   dataPath,
+   dataSource,
+   savedDataSource,
+   isPreview,
+   selectedCategory,
+   searchQuery,
+   onlyModified,
+   onlyUnsaved,
+   onVisualChange,
+   onUndoToSaved,
+   highlightedKey,
+   resolveText,
+   t
+}: any) => {
+   const [isCollapsed, setIsCollapsed] = useState(false);
+   const childSettings: any[] = Array.isArray(setting.settings) ? setting.settings : [];
+   const modifiedCount = countModifiedSettings(childSettings, dataSource, dataPath);
+   const unsavedCount = countEditedFromSavedSettings(childSettings, dataSource, savedDataSource, dataPath);
+
+   const rawLabel = resolveText(setting.label_key, setting.key);
+   const label = humanizeConfigLabel(rawLabel);
+   const rawDesc = resolveText(setting.desc_key, "");
+   const cleanDesc = getCleanDescription(rawDesc, label);
+
+   const handleResetGroup = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      for (const child of childSettings) {
+         const childLocal = child.path || child.key;
+         if (!childLocal || child.default === undefined) continue;
+         const childPath = dataPath && !childLocal.startsWith(dataPath + ".") ? `${dataPath}.${childLocal}` : childLocal;
+         onVisualChange(childPath, child.default);
+      }
+   };
+
+   const handleUndoGroup = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!savedDataSource) return;
+      for (const child of childSettings) {
+         const childLocal = child.path || child.key;
+         if (!childLocal) continue;
+         const childPath = dataPath && !childLocal.startsWith(dataPath + ".") ? `${dataPath}.${childLocal}` : childLocal;
+         const savedVal = childPath.split('.').reduce((o: any, i: string) => o?.[i], savedDataSource);
+         if (savedVal !== undefined) {
+            if (onUndoToSaved) {
+               onUndoToSaved(childPath);
+            } else {
+               onVisualChange(childPath, savedVal);
+            }
+         }
+      }
+   };
+
+   return (
+      <div
+         style={{ contentVisibility: 'auto', containIntrinsicSize: '120px' }}
+         className="col-span-full flex flex-col w-full glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden transition-colors duration-200"
+      >
+         <div
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="px-4 py-2.5 flex items-center justify-between gap-4 cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors select-none"
+         >
+            <div className="flex items-center gap-2.5 min-w-0">
+               <span className="material-symbols-outlined !text-[17px] text-[var(--accent)] shrink-0">
+                  {t("icon_account_tree", "account_tree")}
+               </span>
+               <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                     <span className="text-[12px] font-black capitalize tracking-wider text-[var(--text)]">{label}</span>
+                     {unsavedCount > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[10px] font-bold text-[var(--warning)]">
+                           {unsavedCount} {t("workbench_unsaved_edit_badge", "Unsaved")}
+                        </span>
+                     )}
+                     {modifiedCount > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] text-[10px] font-bold text-[var(--accent)]">
+                           {modifiedCount} {t("workbench_modified_badge", "Modified")}
+                        </span>
+                     )}
+                  </div>
+                  {cleanDesc && (
+                     <span className="text-[10px] text-[var(--subtext)] opacity-75 font-medium truncate">{cleanDesc}</span>
+                  )}
+               </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+               {isCollapsed && (
+                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">
+                     {childSettings.length}
+                  </span>
+               )}
+               {unsavedCount > 0 && (
+                  <div className="relative flex">
+                     <button
+                        type="button"
+                        onClick={handleUndoGroup}
+                        className="h-7 px-3 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_42%,transparent)] text-[var(--warning)] hover:!border-[color-mix(in_srgb,var(--warning)_65%,transparent)] flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer"
+                     >
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_undo", "undo")}</span>
+                        <span className="hidden sm:inline">{t("workbench_undo_group", "Undo Group")}</span>
+                     </button>
+                  </div>
+               )}
+               {modifiedCount > 0 && (
+                  <div className="relative flex">
+                     <button
+                        type="button"
+                        onClick={handleResetGroup}
+                        className="h-7 px-3 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer"
+                     >
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_restart_alt", "restart_alt")}</span>
+                        <span className="hidden sm:inline">{t("workbench_reset_group", "Reset Group")}</span>
+                     </button>
+                  </div>
+               )}
+               <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)]">
+                  {isCollapsed ? t("icon_expand_more", "expand_more") : t("icon_expand_less", "expand_less")}
+               </span>
+            </div>
+         </div>
+
+         {!isCollapsed && (
+            <div className="p-3 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_6%,transparent)] grid grid-cols-1 @[440px]:grid-cols-2 @[680px]:grid-cols-3 gap-2 items-start">
+               <WorkbenchVisualEditor
+                  settings={childSettings}
+                  dataSource={dataSource}
+                  savedDataSource={savedDataSource}
+                  isPreview={isPreview}
+                  isNested={true}
+                  parentPath={dataPath}
+                  selectedCategory={selectedCategory}
+                  searchQuery={searchQuery}
+                  onlyModified={onlyModified}
+                  onlyUnsaved={onlyUnsaved}
+                  onVisualChange={onVisualChange}
+                  onUndoToSaved={onUndoToSaved}
+                  highlightedKey={highlightedKey}
+               />
+            </div>
+         )}
+      </div>
+   );
+};
+
+const VISUAL_PAGE_BATCH = 60;
+
 export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
    settings,
    dataSource,
+   savedDataSource,
    isPreview = false,
    isNested = false,
    parentPath = "",
    selectedCategory,
    searchQuery,
+   onlyModified = false,
+   onlyUnsaved = false,
    onVisualChange,
+   onUndoToSaved,
    highlightedKey
 }) => {
    const { t } = useLexicon();
+   const [visibleLimit, setVisibleLimit] = useState(VISUAL_PAGE_BATCH);
+   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-   if (!settings) return null;
+   useEffect(() => {
+      if (!isNested) {
+         setVisibleLimit(VISUAL_PAGE_BATCH);
+      }
+   }, [selectedCategory, searchQuery, onlyModified, onlyUnsaved, isNested]);
 
    const resolveText = (k?: string, fallback?: string) => {
       if (!k) return fallback || "";
-      const tr = t(k);
+      const tr = t(k, k);
       if (tr === `[${k}]`) return k;
       return tr;
    };
 
-   let filteredSettings = settings;
-   if (selectedCategory !== "ALL" && !isPreview && !isNested) {
-      filteredSettings = filteredSettings.filter(s => s.category === selectedCategory);
-   }
+   const filteredSettings = React.useMemo(() => {
+      if (!settings || !Array.isArray(settings)) return [];
+      let list = settings;
+      if (selectedCategory !== "ALL" && !isNested) {
+         list = list.filter(s => s.category === selectedCategory);
+      }
 
-   if (searchQuery && !isPreview) {
-      filteredSettings = filteredSettings.filter(s => {
-         const lbl = resolveText(s.label_key, s.key);
-         const desc = resolveText(s.desc_key, "");
-         return lbl.toLowerCase().includes(searchQuery.toLowerCase()) || desc.toLowerCase().includes(searchQuery.toLowerCase());
-      });
+      if (searchQuery) {
+         const q = searchQuery.toLowerCase();
+         list = list.filter(s => {
+            const lbl = humanizeConfigLabel(resolveText(s.label_key, s.key)).toLowerCase();
+            const desc = resolveText(s.desc_key, "").toLowerCase();
+            const keyStr = (s.key || "").toLowerCase();
+            if (lbl.includes(q) || desc.includes(q) || keyStr.includes(q)) return true;
+            if (s.type === "group" && Array.isArray(s.settings)) {
+               return s.settings.some((child: any) =>
+                  humanizeConfigLabel(resolveText(child.label_key, child.key)).toLowerCase().includes(q) ||
+                  (child.key || "").toLowerCase().includes(q)
+               );
+            }
+            return false;
+         });
+      }
+
+      if (onlyModified) {
+         list = list.filter(s => isSettingModified(s, dataSource, parentPath));
+      }
+      if (onlyUnsaved) {
+         list = list.filter(s => isSettingEditedFromSaved(s, dataSource, savedDataSource, parentPath));
+      }
+      return list;
+   }, [settings, selectedCategory, isNested, searchQuery, onlyModified, onlyUnsaved, dataSource, savedDataSource, parentPath, t]);
+
+   useEffect(() => {
+      if (isNested || visibleLimit >= filteredSettings.length) return;
+      const el = loadMoreRef.current;
+      if (!el) return;
+      const observer = new IntersectionObserver(
+         (entries) => {
+            if (entries[0]?.isIntersecting) {
+               setVisibleLimit((prev) => Math.min(filteredSettings.length, prev + VISUAL_PAGE_BATCH));
+            }
+         },
+         { rootMargin: "300px" }
+      );
+      observer.observe(el);
+      return () => observer.disconnect();
+   }, [isNested, visibleLimit, filteredSettings.length]);
+
+   if (!settings || !Array.isArray(settings)) return null;
+
+   const displayedSettings = isNested ? filteredSettings : filteredSettings.slice(0, visibleLimit);
+
+   const nodes = displayedSettings.map((setting, idx) => {
+      const localPath = setting.path || setting.key;
+
+      if (!localPath) {
+         return (
+            <div key={idx} className="col-span-full p-4 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl">
+               <span className="text-red-400 text-xs font-black tracking-widest capitalize">{t("err_invalid_setting", "Invalid Setting Object")}</span>
+            </div>
+         );
+      }
+
+      const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
+      const val = dataSource && dataPath ? dataPath.split('.').reduce((o: any, i: string) => o?.[i], dataSource) : undefined;
+      const savedVal = savedDataSource && dataPath ? dataPath.split('.').reduce((o: any, i: string) => o?.[i], savedDataSource) : undefined;
+
+      if (setting.type === "group") {
+         return (
+            <GroupNode
+               key={dataPath || idx}
+               setting={setting}
+               dataPath={dataPath}
+               dataSource={dataSource}
+               savedDataSource={savedDataSource}
+               isPreview={isPreview}
+               selectedCategory={selectedCategory}
+               searchQuery={searchQuery}
+               onlyModified={onlyModified}
+               onlyUnsaved={onlyUnsaved}
+               onVisualChange={onVisualChange}
+               onUndoToSaved={onUndoToSaved}
+               highlightedKey={highlightedKey}
+               resolveText={resolveText}
+               t={t}
+            />
+         );
+      }
+
+      const actualHighlightKey = highlightedKey ? highlightedKey.split('::')[0] : null;
+      const isHighlighted = actualHighlightKey === dataPath;
+
+      return (
+         <SettingNode
+            key={dataPath || idx}
+            setting={setting}
+            val={val}
+            savedVal={savedVal}
+            dataPath={dataPath}
+            isHighlighted={isHighlighted}
+            isPreview={isPreview}
+            isNested={isNested}
+            onVisualChange={onVisualChange}
+            onUndoToSaved={onUndoToSaved}
+            t={t}
+         />
+      );
+   });
+
+   if (isNested) {
+      return <>{nodes}</>;
    }
 
    return (
-      <>
-         {filteredSettings.map((setting, idx) => {
-            const localPath = setting.path || setting.key;
-            
-            if (!localPath) {
-               return (
-                  <div key={idx} className="p-4 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl mb-4">
-                     <span className="text-red-400 text-xs font-black tracking-widest capitalize">{t("err_invalid_setting")}</span>
-                     <p className="text-[color-mix(in_srgb,var(--danger)_70%,transparent)] text-[10px] mt-1">A setting must contain at least a "key" or "path" property.</p>
-                  </div>
-               );
-            }
-
-            const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
-            const val = dataSource && dataPath ? dataPath.split('.').reduce((o: any, i: string) => o?.[i], dataSource) : undefined;
-
-            if (setting.type === "group") {
-               return (
-                  <div key={idx} className="flex flex-col gap-4 w-full mt-2 mb-4 bg-black/10 p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]" style={{ contentVisibility: 'auto', containIntrinsicSize: '200px' }}>
-                     <div className="flex flex-col gap-1 px-2">
-                        <span className="text-[12px] font-black capitalize tracking-widest text-[var(--accent)]">{resolveText(setting.label_key, setting.key)}</span>
-                        <span className="text-[10px] text-[var(--subtext)] opacity-80 font-medium">{resolveText(setting.desc_key, "")}</span>
-                     </div>
-                     <div className="flex flex-col gap-4">
-                        <WorkbenchVisualEditor
-                           settings={setting.settings}
-                           dataSource={dataSource}
-                           isPreview={isPreview}
-                           isNested={true}
-                           parentPath={dataPath}
-                           selectedCategory={selectedCategory}
-                           searchQuery={searchQuery}
-                           onVisualChange={onVisualChange}
-                           highlightedKey={highlightedKey}
-                        />
-                     </div>
-                  </div>
-               );
-            }
-
-            const actualHighlightKey = highlightedKey ? highlightedKey.split('::')[0] : null;
-            const isHighlighted = actualHighlightKey === dataPath;
-
-            return (
-               <SettingNode
-                  key={idx}
-                  setting={setting}
-                  val={val}
-                  dataPath={dataPath}
-                  isHighlighted={isHighlighted}
-                  isPreview={isPreview}
-                  onVisualChange={onVisualChange}
-                  t={t}
-               />
-            );
-         })}
-      </>
+      <div className="w-full @container flex flex-col gap-3">
+         <div className="grid grid-cols-1 @[620px]:grid-cols-2 gap-2.5 items-start w-full">
+            {nodes}
+         </div>
+         {visibleLimit < filteredSettings.length && (
+            <div ref={loadMoreRef} className="w-full py-4 flex items-center justify-center">
+               <button
+                  type="button"
+                  onClick={() => setVisibleLimit((prev) => Math.min(filteredSettings.length, prev + VISUAL_PAGE_BATCH * 2))}
+                  className="h-9 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+               >
+                  {displayedSettings.length} / {filteredSettings.length} {t("workbench_settings_count", "Settings")}
+               </button>
+            </div>
+         )}
+      </div>
    );
 };
-
-
 

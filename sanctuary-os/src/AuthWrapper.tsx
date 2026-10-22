@@ -13,6 +13,11 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
   const [isLogin, setIsLogin] = useState(true);
   const [isResetPassword, setIsResetPassword] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(() =>
+    typeof window !== "undefined" && (window.location.hash.includes("type=recovery") || window.location.search.includes("type=recovery"))
+  );
+  const [recoveryNewPassword, setRecoveryNewPassword] = useState("");
+  const [recoveryConfirmPassword, setRecoveryConfirmPassword] = useState("");
   const [showMfaChallenge, setShowMfaChallenge] = useState(false);
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
@@ -120,12 +125,53 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
     checkBanStatus();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setIsPasswordRecovery(true);
+        setShowLoginUI(true);
+        setStatus("");
+      }
       handleSessionUpdate(newSession).catch(console.error);
     });
 
     return () => subscription.unsubscribe();
   }, [invoke]);
+
+  const handlePasswordRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recoveryNewPassword || !recoveryConfirmPassword) {
+      setStatus(t("err_missing", "Please fill in all fields."));
+      return;
+    }
+    if (recoveryNewPassword.length < 8) {
+      setStatus(t("auth_recovery_min_length_err", "Password must be at least 8 characters long."));
+      return;
+    }
+    if (recoveryNewPassword !== recoveryConfirmPassword) {
+      setStatus(t("auth_recovery_mismatch_err", "Passwords do not match."));
+      return;
+    }
+    setIsProcessing(true);
+    setStatus(t("status_authenticating", "Authenticating..."));
+    try {
+      const { error } = await supabase.auth.updateUser({ password: recoveryNewPassword });
+      if (error) throw error;
+      const successMsg = t("auth_recovery_success", "Password updated successfully! Your account is now secured.");
+      setStatus(successMsg);
+      useStore.getState().pushStatus(successMsg, "success");
+      setRecoveryNewPassword("");
+      setRecoveryConfirmPassword("");
+      setIsPasswordRecovery(false);
+      setIsResetPassword(false);
+      if (typeof window !== "undefined" && (window.location.hash.includes("type=recovery") || window.location.search.includes("type=recovery"))) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch (err: any) {
+      setStatus(`${t("err_validation", "Error: ")}${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const finalizeLogin = async (user: any) => {
     try {
@@ -175,12 +221,12 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     e.preventDefault();
     if (!mfaFactorId || !mfaCode) return;
     setIsProcessing(true);
-    setStatus("DEBUG: Starting challenge...");
+    setStatus(t("auth_mfa_verifying_challenge", "Starting 2FA verification challenge..."));
     try {
       const challenge = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
       if (challenge.error) throw challenge.error;
 
-      setStatus("DEBUG: Starting verify...");
+      setStatus(t("auth_mfa_verifying_code", "Verifying authenticator code..."));
       const verify = await supabase.auth.mfa.verify({
         factorId: mfaFactorId,
         challengeId: challenge.data.id,
@@ -188,17 +234,15 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       });
       if (verify.error) throw verify.error;
 
-      setStatus("DEBUG: Getting user...");
+      setStatus(t("status_authenticating", "Authenticating..."));
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user) {
-        setStatus("DEBUG: Finalizing login...");
         await finalizeLogin(userData.user);
-        setStatus("DEBUG: Getting session...");
         const { data: sessionData } = await supabase.auth.getSession();
         if (sessionData.session) setSession(sessionData.session);
       }
     } catch (err: any) {
-      setStatus(`${t("err_validation") || "Error: "}${err.message}`);
+      setStatus(`${t("err_validation", "Error: ")}${err.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -209,17 +253,18 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
     if (isResetPassword) {
       if (!email) {
-        setStatus(t("err_missing"));
+        setStatus(t("err_missing", "Please fill in all fields."));
         return;
       }
       setIsProcessing(true);
-      setStatus(t("status_authenticating"));
+      setStatus(t("status_authenticating", "Authenticating..."));
       try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+        const { error } = await supabase.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
         if (error) throw error;
-        setStatus(t("status_reset_sent"));
+        setStatus(t("status_reset_sent", "Password reset email sent!"));
       } catch (err: any) {
-        setStatus(`${t("err_validation")}${err.message}`);
+        setStatus(`${t("err_validation", "Error: ")}${err.message}`);
       } finally {
         setIsProcessing(false);
       }
@@ -227,12 +272,12 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     }
 
     if (!email || !password || (!isLogin && !username)) {
-      setStatus(t("err_missing"));
+      setStatus(t("err_missing", "Please fill in all fields."));
       return;
     }
 
     setIsProcessing(true);
-    setStatus(t("status_authenticating"));
+    setStatus(t("status_authenticating", "Authenticating..."));
 
     try {
       if (isLogin) {
@@ -248,7 +293,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               setMfaFactorId(totpFactor.id);
               setShowMfaChallenge(true);
               setIsProcessing(false);
-              setStatus("MFA Required");
+              setStatus(t("auth_mfa_required_title", "Two-Factor Authentication Required"));
               return;
             }
           }
@@ -266,7 +311,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         if (error) throw error;
       }
     } catch (err: any) {
-      setStatus(`${t("err_validation")}${err.message}`);
+      setStatus(`${t("err_validation", "Error: ")}${err.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -304,7 +349,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     );
   }
 
-  if (session || ((!showLoginUI || !navigator.onLine) && (!isHwidBanned || sandboxAccepted))) {
+  if (!isPasswordRecovery && (session || ((!showLoginUI || !navigator.onLine) && (!isHwidBanned || sandboxAccepted)))) {
     return <>{children}</>;
   }
 
@@ -381,10 +426,10 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
            backgroundAttachment: 'fixed',
            color: 'var(--text)' 
          }}>
-      <div className={`relative z-10 w-[90%] ${(!isLogin && !isResetPassword) ? 'max-w-5xl' : 'max-w-xl'} bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[60px] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[2rem] shadow-[0_0_50px_rgba(0,0,0,0.5),inset_0_0_20px_color-mix(in_srgb,var(--accent)_5%,transparent)] flex flex-col group transition-all duration-500 overflow-hidden max-h-[95dvh]`}>
+      <div className={`relative z-10 w-[90%] ${(!isLogin && !isResetPassword && !isPasswordRecovery) ? 'max-w-5xl' : 'max-w-xl'} bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[60px] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-[2rem] shadow-[0_0_50px_rgba(0,0,0,0.5),inset_0_0_20px_color-mix(in_srgb,var(--accent)_5%,transparent)] flex flex-col group transition-all duration-500 overflow-hidden max-h-[95dvh]`}>
         <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-[color-mix(in_srgb,var(--bg)_20%,transparent)] pointer-events-none" />
-        <div className={`flex w-full h-full ${(!isLogin && !isResetPassword) ? 'flex-col md:flex-row' : 'flex-col'} overflow-y-auto overflow-x-hidden custom-scrollbar`}>
-          <div className={`flex flex-col w-full ${(!isLogin && !isResetPassword) ? 'md:w-1/2 p-8 md:p-14 border-b md:border-b-0 md:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]' : 'p-10 md:p-16'} shrink-0 relative z-20`}>
+        <div className={`flex w-full h-full ${(!isLogin && !isResetPassword && !isPasswordRecovery) ? 'flex-col md:flex-row' : 'flex-col'} overflow-y-auto overflow-x-hidden custom-scrollbar`}>
+          <div className={`flex flex-col w-full ${(!isLogin && !isResetPassword && !isPasswordRecovery) ? 'md:w-1/2 p-8 md:p-14 border-b md:border-b-0 md:border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]' : 'p-10 md:p-16'} shrink-0 relative z-20`}>
             <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_50%,transparent)] to-transparent opacity-50" />
 
             <div className="flex flex-col items-center justify-center text-center mb-10 relative z-20">
@@ -397,14 +442,66 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                 />
               </div>
               <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-[var(--headerText)] drop-shadow-md mb-2 transition-colors duration-500">
-                {t("sidebar_app_title")}
+                {isPasswordRecovery ? t("auth_recovery_title", "Set New Password") : t("sidebar_app_title")}
               </h1>
               <p className="text-[10px] font-black uppercase tracking-[0.3em] theme-text-accent opacity-80 transition-colors duration-500">
-                {t("subtitle")}
+                {isPasswordRecovery ? t("auth_recovery_subtitle", "Enter and confirm a new password to complete your account recovery.") : t("subtitle")}
               </p>
             </div>
 
-            {showMfaChallenge ? (
+            {isPasswordRecovery ? (
+              <form onSubmit={handlePasswordRecoverySubmit} className="flex flex-col gap-5 relative z-20" noValidate>
+                <div className="relative group/input">
+                  <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 group-focus-within/input:theme-text-accent group-focus-within/input:opacity-100 transition-all !text-[20px]">{t("icon_lock", "lock")}</span>
+                  <input
+                    type="password"
+                    value={recoveryNewPassword}
+                    onChange={(e) => setRecoveryNewPassword(e.target.value)}
+                    autoComplete="new-password"
+                    spellCheck="false"
+                    minLength={8}
+                    placeholder={t("auth_recovery_new_password_label", "New Password (Min. 8 Characters)")}
+                    className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] focus:shadow-md transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 placeholder:capitalize placeholder:tracking-widest placeholder:text-[10px]"
+                  />
+                </div>
+
+                <div className="relative group/input">
+                  <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 group-focus-within/input:theme-text-accent group-focus-within/input:opacity-100 transition-all !text-[20px]">{t("icon_verified_user", "verified_user")}</span>
+                  <input
+                    type="password"
+                    value={recoveryConfirmPassword}
+                    onChange={(e) => setRecoveryConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    spellCheck="false"
+                    minLength={8}
+                    placeholder={t("auth_recovery_confirm_password_label", "Confirm New Password")}
+                    className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] focus:shadow-md transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 placeholder:capitalize placeholder:tracking-widest placeholder:text-[10px]"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isProcessing || recoveryNewPassword.length < 8}
+                  className="w-full mt-2 py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all bg-transparent text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[var(--accent)] hover:shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_30%,transparent)] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+                >
+                  {t("auth_recovery_submit_btn", "Save New Password")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPasswordRecovery(false);
+                    setRecoveryNewPassword("");
+                    setRecoveryConfirmPassword("");
+                    if (typeof window !== "undefined") {
+                      window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                  }}
+                  className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center gap-2 w-full text-center mt-2"
+                >
+                  {t("auth_recovery_cancel_btn", "Cancel Recovery")}
+                </button>
+              </form>
+            ) : showMfaChallenge ? (
               <form onSubmit={handleMfaAuth} className="flex flex-col gap-5 relative z-20" noValidate>
                 <div className="relative group/input">
                   <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 group-focus-within/input:theme-text-accent group-focus-within/input:opacity-100 transition-all !text-[20px]">pin</span>
@@ -415,7 +512,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                     autoComplete="off"
                     spellCheck="false"
                     maxLength={6}
-                    placeholder="6-DIGIT AUTHENTICATOR CODE"
+                    placeholder={t("auth_mfa_code_label", "6-Digit Authenticator Code")}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] pl-14 pr-6 py-4 rounded-2xl text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] focus:shadow-md transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 placeholder:capitalize placeholder:tracking-widest placeholder:text-[10px]"
                   />
                 </div>
@@ -425,14 +522,14 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                   disabled={isProcessing || mfaCode.length < 6}
                   className="w-full mt-2 py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all bg-transparent text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[var(--accent)] hover:shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_30%,transparent)] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
                 >
-                  VERIFY 2FA
+                  {t("auth_mfa_verify_btn", "Verify 2FA")}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setShowMfaChallenge(false); supabase.auth.signOut(); }}
                   className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center gap-2 w-full text-center mt-2"
                 >
-                  CANCEL
+                  {t("auth_mfa_cancel_btn", "Cancel")}
                 </button>
               </form>
             ) : (
@@ -483,8 +580,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                   </div>
                 )}
 
-
-
                 <button
                   type="submit"
                   disabled={isProcessing}
@@ -495,53 +590,57 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               </form>
             )}
 
-            <div className="mt-4 relative z-20">
-              <button
-                onClick={() => { localStorage.removeItem("sanctuary_show_login"); setShowLoginUI(false); }}
-                className="w-full py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] active:scale-[0.98]"
-              >
-                {t("btn_skip")}
-              </button>
-            </div>
+            {!isPasswordRecovery && (
+              <div className="mt-4 relative z-20">
+                <button
+                  onClick={() => { localStorage.removeItem("sanctuary_show_login"); setShowLoginUI(false); }}
+                  className="w-full py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] active:scale-[0.98]"
+                >
+                  {t("btn_skip")}
+                </button>
+              </div>
+            )}
 
             <div className="flex items-center justify-center gap-2.5 mt-6 mb-2 relative z-20">
-              <span className={`text-[9px] font-mono capitalize tracking-widest truncate ${status.includes('Error') || status.includes('Missing') ? 'text-[var(--danger)]' : 'theme-text-accent opacity-80'}`}>
+              <span className={`text-[9px] font-mono capitalize tracking-widest truncate ${status.includes('Error') || status.includes('Missing') || status.includes('not match') || status.includes('least 8') ? 'text-[var(--danger)]' : 'theme-text-accent opacity-80'}`}>
                 {status || t("status_standby")}
               </span>
             </div>
 
-            <div className="mt-4 flex flex-col items-center gap-5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] pt-6 relative z-20">
-              {!isResetPassword && (
+            {!isPasswordRecovery && (
+              <div className="mt-4 flex flex-col items-center gap-5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] pt-6 relative z-20">
+                {!isResetPassword && (
+                  <button
+                    type="button"
+                    onClick={() => { setIsResetPassword(true); setStatus(""); }}
+                    className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center gap-2 w-full text-center"
+                  >
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_vpn_key")}</span>
+                    {t("toggle_to_reset")}
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={() => { setIsResetPassword(true); setStatus(""); }}
+                  onClick={() => {
+                    if (isResetPassword) {
+                      setIsResetPassword(false);
+                      setIsLogin(true);
+                    } else {
+                      setIsLogin(!isLogin);
+                    }
+                    setStatus("");
+                  }}
                   className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center gap-2 w-full text-center"
                 >
-                  <span className="material-symbols-outlined !text-[14px]">{t("icon_vpn_key")}</span>
-                  {t("toggle_to_reset")}
+                  <span className="material-symbols-outlined !text-[14px]">{t("icon_switch_account")}</span>
+                  {isResetPassword ? t("toggle_to_login_from_reset") : isLogin ? t("toggle_to_signup") : t("toggle_to_login")}
                 </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (isResetPassword) {
-                    setIsResetPassword(false);
-                    setIsLogin(true);
-                  } else {
-                    setIsLogin(!isLogin);
-                  }
-                  setStatus("");
-                }}
-                className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] hover:text-[var(--text)] transition-colors flex items-center justify-center gap-2 w-full text-center"
-              >
-                <span className="material-symbols-outlined !text-[14px]">{t("icon_switch_account")}</span>
-                {isResetPassword ? t("toggle_to_login_from_reset") : isLogin ? t("toggle_to_signup") : t("toggle_to_login")}
-              </button>
-            </div>
+              </div>
+            )}
           </div>
 
-          {!isLogin && !isResetPassword && (
+          {!isLogin && !isResetPassword && !isPasswordRecovery && (
             <div className="flex flex-col w-full md:w-1/2 p-8 md:p-14 justify-center gap-10 shrink-0 relative z-10 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
               <div className="flex flex-col items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-6">
                 <div className="relative mb-4 w-16 h-16 flex items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg">
@@ -599,7 +698,3 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     </div>
   );
 }
-
-
-
-

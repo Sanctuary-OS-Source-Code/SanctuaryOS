@@ -11,10 +11,7 @@ import { isRootDomain, scrollToLandingSection } from "./utils/routingUtils";
 function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false, badge = 0, setHoveredTooltip }: any) {
   const isActive = active;
   return (
-    <div className="px-4 relative group/navbtn">
-      {isActive && (
-        <div className="absolute -left-1 inset-y-0 w-0 bg-[var(--accent)] rounded-r-full" />
-      )}
+    <div className="px-3.5 relative group/navbtn">
       <button
         onMouseEnter={(e) => {
           if (isCollapsed) {
@@ -26,15 +23,25 @@ function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false
           if (isCollapsed) setHoveredTooltip(null);
         }}
         onClick={onClick}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group
+        style={
+          isActive
+            ? {
+                backgroundColor: 'var(--glass-nav-active-bg)',
+                boxShadow: 'var(--glass-nav-active-shadow)',
+              }
+            : undefined
+        }
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group border-0 cursor-pointer
           ${isActive
-            ? (isAccent ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] backdrop-blur-md" : "bg-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] text-[var(--sidebartext)]")
-            : (isAccent ? "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent" : "text-[var(--sidebartext)] opacity-60 hover:bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)] hover:opacity-100 border-transparent")
+            ? "text-[var(--sidebartext)] opacity-100"
+            : (isAccent
+                ? "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--sidebartext)_6%,transparent)]"
+                : "text-[var(--sidebartext)] opacity-60 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)]")
           } ${isCollapsed ? 'justify-center px-0' : ''}`}
       >
         <div className="relative flex items-center justify-center shrink-0">
           <span
-            className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${isActive ? "scale-110" : "group-hover:scale-110"}`}
+            className={`material-symbols-outlined !text-[20px] transition-all duration-300 shrink-0 relative z-10 ${isActive ? "text-[var(--accent)]" : "group-hover:text-[var(--accent)]"}`}
           >
             {icon}
           </span>
@@ -46,14 +53,14 @@ function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false
         </div>
         {!isCollapsed && (
           <span
-            className="font-black capitalize tracking-[0.15em] truncate pt-0.5 relative z-10 flex-1 text-left"
+            className="font-black capitalize tracking-[0.14em] truncate relative z-10 flex-1 text-left"
             style={{ fontSize: "var(--fontSizeSidebar, 11px)" }}
           >
             {label}
           </span>
         )}
         {!isCollapsed && badge > 0 && (
-          <span className="px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black text-[var(--accent)] shrink-0">
+          <span className="px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[9px] font-black text-[var(--accent)] shrink-0">
             {badge}
           </span>
         )}
@@ -85,6 +92,8 @@ export function Sidebar({
   const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = React.useState(false);
   const [hoveredTooltip, setHoveredTooltip] = React.useState<{ label: string, top: number } | null>(null);
   const [activeLandingSection, setActiveLandingSection] = React.useState<string>('workspaces');
+  const [hasLinkedMasonRecord, setHasLinkedMasonRecord] = React.useState<boolean>(false);
+  const [isMasonRecordVerified, setIsMasonRecordVerified] = React.useState<boolean>(false);
 
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const workspaces = useStore((state) => state.workspaces);
@@ -100,6 +109,26 @@ export function Sidebar({
       });
     });
   }, []);
+
+  React.useEffect(() => {
+    if (!session?.user?.id) {
+      setHasLinkedMasonRecord(false);
+      setIsMasonRecordVerified(false);
+      return;
+    }
+    import('./supabase').then(({ supabase }) => {
+      supabase.from('masons').select('id, is_verified').eq('profile_id', session.user.id).maybeSingle().then(({ data }) => {
+        setHasLinkedMasonRecord(!!data);
+        setIsMasonRecordVerified(!!data?.is_verified);
+      });
+    });
+  }, [session?.user?.id, activeWorkspaceId]);
+
+  const isVerifiedMason = hasLinkedMasonRecord && (
+    isMasonRecordVerified ||
+    ["mason", "architect", "senior_architect", "oversight", "wayfinder", "admin"].includes(userRole) ||
+    ["core_dev", "admin", "keeper"].includes(osRole)
+  );
 
   React.useEffect(() => {
     if (!(!isConfigured || (!isDesktop() && isRootDomain()))) return;
@@ -129,25 +158,25 @@ export function Sidebar({
 
   return (
     <nav
-      className={`hidden md:flex ${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex-col relative z-20 transition-all duration-500 rounded-3xl border border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)]`}
+      className={`hidden md:flex ${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex-col relative z-20 transition-all duration-500 rounded-3xl border overflow-hidden firefox-safe-glass`}
       style={{
         width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',
         minWidth: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',
-        boxShadow: 'none'
+        backgroundColor: 'var(--glass-sidebar-bg)',
+        backgroundImage: 'var(--glass-sheen)',
+        backdropFilter: 'blur(min(var(--glassBlur, 18px), 18px)) saturate(var(--glassSaturation, 185%))',
+        WebkitBackdropFilter: 'blur(min(var(--glassBlur, 18px), 18px)) saturate(var(--glassSaturation, 185%))',
+        borderTopColor: 'var(--glass-border-top)',
+        borderLeftColor: 'var(--glass-border-left)',
+        borderRightColor: 'var(--glass-border-right)',
+        borderBottomColor: 'var(--glass-border-bottom)',
+        boxShadow: 'var(--glass-outer-shadow), var(--glass-inset-highlight)'
       }}
     >
-      {/* Decoupled Blur & Background Layer */}
-      <div
-        className="absolute inset-0 rounded-[inherit] -z-10 pointer-events-none backdrop-blur-[var(--glassBlur)] firefox-safe-glass"
-        style={{
-          background: `linear-gradient(135deg, color-mix(in srgb, var(--text) 5%, transparent) 0%, transparent 100%), color-mix(in srgb, var(--sidebar) calc(var(--glassOpacityDecimal) * 100%), transparent)`,
-          boxShadow: 'none'
-        }}
-      />
-      <div className={`flex flex-col h-full w-full`}>
-        {/* Revolutionary Watermark Layout */}
+      <div className={`flex flex-col h-full w-full relative z-10`}>
+        {/* Brand Header */}
         <div
-          className="relative flex flex-col justify-center cursor-pointer hover:bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)] transition-colors duration-500 z-[100] shrink-0 group/logo overflow-hidden rounded-t-3xl h-[70px] mb-2"
+          className="relative flex flex-col justify-center cursor-pointer hover:bg-[color-mix(in_srgb,var(--sidebartext)_4%,transparent)] transition-colors duration-500 z-[100] shrink-0 group/logo overflow-hidden rounded-t-3xl h-[68px] border-b border-[color-mix(in_srgb,var(--sidebartext)_6%,rgba(255,255,255,0.12))] mb-1.5"
           onClick={() => {
             if (isRootDomain() && (!isDesktop() || !isConfigured)) {
               setView("landing");
@@ -186,14 +215,14 @@ export function Sidebar({
 
             {/* Explicit Collapse Action Button */}
             {!isSidebarCollapsed && (
-              <div className="ml-auto w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)] flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-all hover:bg-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--sidebartext)_20%,transparent)]">
+              <div className="ml-auto w-7 h-7 rounded-lg glass-surface flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-all">
                 <span className="material-symbols-outlined text-[16px] text-[var(--sidebartext)] opacity-70 group-hover/logo:opacity-100 transition-opacity">keyboard_double_arrow_left</span>
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex-1 pt-2 pb-24 md:pb-6 space-y-0.5 overflow-y-auto accent-scrollbar">
+        <div className="flex-1 pt-2 pb-24 md:pb-6 space-y-0.5 overflow-y-auto hide-scrollbar">
           {(!isConfigured || (!isDesktop() && isRootDomain())) ? (
             <>
               <NavButton
@@ -406,19 +435,18 @@ export function Sidebar({
                     setHoveredTooltip={setHoveredTooltip}
                   />
                   {view === "MasonHub" && !isSidebarCollapsed && (
-                    <div className="flex flex-col gap-0.5 mt-2 ml-4 pl-4 border-l border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                    <div className="flex flex-col gap-0.5 mt-1.5 ml-3 pl-2 border-l border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)]">
                       <NavButton active={useStore.getState().masonActiveTab === "command_center"} onClick={() => useStore.getState().setMasonActiveTab("command_center")} icon={t("icon_desktop_windows") as string} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim() || "Command Center"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "command_center"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().masonActiveTab === "registry"} onClick={() => useStore.getState().setMasonActiveTab("registry")} icon={t("icon_deployed_code") as string} label={t("items")?.replace(/^[^\w]*/, '').trim() || "Artifacts"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "registry"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "sandbox" || useStore.getState().masonActiveTab === "registry"} onClick={() => useStore.getState().setMasonActiveTab("sandbox")} icon={(isVerifiedMason ? t("icon_deployed_code") : t("icon_handyman")) as string} label={(isVerifiedMason ? t("items") : t("filter_dev"))?.replace(/^[^\w]*/, '').trim() || "Artifacts"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "sandbox" || useStore.getState().masonActiveTab === "registry"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().masonActiveTab === "nexus"} onClick={() => useStore.getState().setMasonActiveTab("nexus")} icon={t("icon_hub") as string} label={t("tab_nexus")?.replace(/^[^\w]*/, '').trim() || "Nexus"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "nexus"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().masonActiveTab === "sandbox"} onClick={() => useStore.getState().setMasonActiveTab("sandbox")} icon={t("icon_handyman") as string} label={t("filter_dev")?.replace(/^[^\w]*/, '').trim() || "Sandbox"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "sandbox"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().masonActiveTab === "chameleons"} onClick={() => useStore.getState().setMasonActiveTab("chameleons")} icon="palette" label={t("tab_chameleons")?.replace(/^[^\w]*/, '').trim() || "Chameleons"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "chameleons"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().masonActiveTab === "ide"} onClick={() => useStore.getState().setMasonActiveTab("ide")} icon={t("icon_code") as string} label={t("ide_tab")?.replace(/^[^\w]*/, '').trim() || "IDE"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "ide"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().masonActiveTab === "collections"} onClick={() => useStore.getState().setMasonActiveTab("collections")} icon={t("icon_collections_bookmark") as string} label={t("tab_cc")?.replace(/^[^\w]*/, '').trim() || "Collections"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "collections"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().masonActiveTab === "protocols"} onClick={() => useStore.getState().setMasonActiveTab("protocols")} icon={t("icon_link") as string} label={t("tab_protocols")?.replace(/^[^\w]*/, '').trim() || "Protocols"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "protocols"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().masonActiveTab === "structure"} onClick={() => useStore.getState().setMasonActiveTab("structure")} icon={t("icon_architecture") as string} label={t("tab_structure")?.replace(/^[^\w]*/, '').trim() || "Structure"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "structure"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().masonActiveTab === "conflicts"} onClick={() => useStore.getState().setMasonActiveTab("conflicts")} icon={t("icon_security") as string} label={t("tab_matrix")?.replace(/^[^\w]*/, '').trim() || "Conflicts"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "conflicts"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().masonActiveTab === "posts"} onClick={() => useStore.getState().setMasonActiveTab("posts")} icon={t("icon_edit_document") as string} label={t("tab_posts")?.replace(/^[^\w]*/, '').trim() || "Posts"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "posts"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().masonActiveTab === "bug_reports"} onClick={() => useStore.getState().setMasonActiveTab("bug_reports")} icon={t("icon_bug_report") as string} label={t("stat_bugs")?.replace(/^[^\w]*/, '').trim() || "Bug Reports"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "bug_reports"} setHoveredTooltip={setHoveredTooltip} />
+                      {isVerifiedMason && (
+                        <>
+                          <NavButton active={useStore.getState().masonActiveTab === "collections"} onClick={() => useStore.getState().setMasonActiveTab("collections")} icon={t("icon_collections_bookmark") as string} label={t("tab_cc")?.replace(/^[^\w]*/, '').trim() || "Collections"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "collections"} setHoveredTooltip={setHoveredTooltip} />
+                          <NavButton active={useStore.getState().masonActiveTab === "posts"} onClick={() => useStore.getState().setMasonActiveTab("posts")} icon={t("icon_edit_document") as string} label={t("tab_posts")?.replace(/^[^\w]*/, '').trim() || "Posts"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "posts"} setHoveredTooltip={setHoveredTooltip} />
+                          <NavButton active={useStore.getState().masonActiveTab === "bug_reports"} onClick={() => useStore.getState().setMasonActiveTab("bug_reports")} icon={t("icon_bug_report") as string} label={t("stat_bugs")?.replace(/^[^\w]*/, '').trim() || "Bug Reports"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "bug_reports"} setHoveredTooltip={setHoveredTooltip} />
+                        </>
+                      )}
                     </div>
                   )}</div>
               )}
@@ -442,15 +470,12 @@ export function Sidebar({
                     setHoveredTooltip={setHoveredTooltip}
                   />
                   {view === "ArchitectHub" && !isSidebarCollapsed && (
-                    <div className="flex flex-col gap-0.5 mt-2 ml-4 pl-4 border-l border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                    <div className="flex flex-col gap-0.5 mt-1.5 ml-3 pl-2 border-l border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)]">
                       <NavButton active={useStore.getState().architectActiveTab === "command_center"} onClick={() => useStore.getState().setArchitectActiveTab("command_center")} icon={t("icon_desktop_windows") as string} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim() || "Command Center"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "command_center"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().architectActiveTab === "registry"} onClick={() => useStore.getState().setArchitectActiveTab("registry")} icon={t("icon_inventory_2") as string} label={t("items")?.replace(/^[^\w]*/, '').trim() || "Artifacts"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "registry"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().architectActiveTab === "queue"} onClick={() => useStore.getState().setArchitectActiveTab("queue")} icon={t("icon_search") as string} label={t("tab_queue")?.replace(/^[^\w]*/, '').trim() || "Queue"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "queue"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().architectActiveTab === "lab"} onClick={() => useStore.getState().setArchitectActiveTab("lab")} icon={t("icon_monitor_heart") as string} label={t("tab_diagnostics")?.replace(/^[^\w]*/, '').trim() || "Diagnostics"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "lab"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().architectActiveTab === "collections"} onClick={() => useStore.getState().setArchitectActiveTab("collections")} icon={t("icon_collections_bookmark") as string} label={t("tab_cc")?.replace(/^[^\w]*/, '').trim() || "Collections"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "collections"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().architectActiveTab === "protocols"} onClick={() => useStore.getState().setArchitectActiveTab("protocols")} icon={t("icon_link") as string} label={t("tab_protocols")?.replace(/^[^\w]*/, '').trim() || "Protocols"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "protocols"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().architectActiveTab === "structure"} onClick={() => useStore.getState().setArchitectActiveTab("structure")} icon={t("icon_architecture") as string} label={t("tab_structure")?.replace(/^[^\w]*/, '').trim() || "Structure"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "structure"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().architectActiveTab === "matrix"} onClick={() => useStore.getState().setArchitectActiveTab("matrix")} icon={t("icon_security") as string} label={t("tab_matrix")?.replace(/^[^\w]*/, '').trim() || "Conflicts"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "matrix"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().architectActiveTab === "mason_queue"} onClick={() => useStore.getState().setArchitectActiveTab("mason_queue")} icon={t("icon_construction") as string} label={t("mason")?.replace(/^[^\w]*/, '').trim() || "Mason"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "mason_queue"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().architectActiveTab === "template_oversight"} onClick={() => useStore.getState().setArchitectActiveTab("template_oversight")} icon={t("icon_data_object") as string} label={t("ql_templates")?.replace(/^[^\w]*/, '').trim() || "Templates"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "template_oversight"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().architectActiveTab === "nexus_reports"} onClick={() => useStore.getState().setArchitectActiveTab("nexus_reports")} icon={t("icon_flag") as string} label={t("stat_bugs")?.replace(/^[^\w]*/, '').trim() || "Reports"} isCollapsed={false} isAccent={useStore.getState().architectActiveTab === "nexus_reports"} setHoveredTooltip={setHoveredTooltip} />
@@ -479,7 +504,7 @@ export function Sidebar({
                     setHoveredTooltip={setHoveredTooltip}
                   />
                   {view === "Oversight" && !isSidebarCollapsed && (
-                    <div className="flex flex-col gap-0.5 mt-2 ml-4 pl-4 border-l border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                    <div className="flex flex-col gap-0.5 mt-1.5 ml-3 pl-2 border-l border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)]">
                       <NavButton active={useStore.getState().oversightActiveTab === "command_center"} onClick={() => useStore.getState().setOversightActiveTab("command_center")} icon={t("icon_desktop_windows") as string} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim() || "Command Center"} isCollapsed={false} isAccent={useStore.getState().oversightActiveTab === "command_center"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().oversightActiveTab === "oversight_comms"} onClick={() => useStore.getState().setOversightActiveTab("oversight_comms")} icon={t("icon_satellite_alt") as string} label={t("wf_tab_dispatch")?.replace(/^[^\w]*/, '').trim() || "Dispatch"} isCollapsed={false} isAccent={useStore.getState().oversightActiveTab === "oversight_comms"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().oversightActiveTab === "identities"} onClick={() => useStore.getState().setOversightActiveTab("identities")} icon={t("icon_group") as string} label={t("tab_identities")?.replace(/^[^\w]*/, '').trim() || "Identities"} isCollapsed={false} isAccent={useStore.getState().oversightActiveTab === "identities"} setHoveredTooltip={setHoveredTooltip} />
@@ -516,7 +541,7 @@ export function Sidebar({
                     setHoveredTooltip={setHoveredTooltip}
                   />
                   {view === "WayfinderHub" && !isSidebarCollapsed && (
-                    <div className="flex flex-col gap-0.5 mt-2 ml-4 pl-4 border-l border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                    <div className="flex flex-col gap-0.5 mt-1.5 ml-3 pl-2 border-l border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)]">
                       <NavButton active={useStore.getState().wayfinderActiveTab === "command_center"} onClick={() => useStore.getState().setWayfinderActiveTab("command_center")} icon={t("icon_desktop_windows") as string} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim() || "Command Center"} isCollapsed={false} isAccent={useStore.getState().wayfinderActiveTab === "command_center"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().wayfinderActiveTab === "wf_comms_title"} onClick={() => useStore.getState().setWayfinderActiveTab("wf_comms_title")} icon={t("icon_satellite_alt") as string} label={t("wf_tab_dispatch")?.replace(/^[^\w]*/, '').trim() || "Dispatch"} isCollapsed={false} isAccent={useStore.getState().wayfinderActiveTab === "wf_comms_title"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().wayfinderActiveTab === "sanctuary_tickets"} onClick={() => useStore.getState().setWayfinderActiveTab("sanctuary_tickets")} icon={t("icon_local_activity") as string} label={t("wf_tab_tickets")?.replace(/^[^\w]*/, '').trim() || "Support"} isCollapsed={false} isAccent={useStore.getState().wayfinderActiveTab === "sanctuary_tickets"} setHoveredTooltip={setHoveredTooltip} />
@@ -557,7 +582,7 @@ export function Sidebar({
                     setHoveredTooltip={setHoveredTooltip}
                   />
                   {view === "KeepersCore" && !isSidebarCollapsed && (
-                    <div className="flex flex-col gap-0.5 mt-2 ml-4 pl-4 border-l border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                    <div className="flex flex-col gap-0.5 mt-1.5 ml-3 pl-2 border-l border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)]">
                       <NavButton active={useStore.getState().keepersActiveTab === "command_center"} onClick={() => useStore.getState().setKeepersActiveTab("command_center")} icon={t("icon_desktop_windows") as string} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim() || "Command Center"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "command_center"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().keepersActiveTab === "keepers_comms"} onClick={() => useStore.getState().setKeepersActiveTab("keepers_comms")} icon={t("icon_satellite_alt") as string} label={t("wf_tab_dispatch")?.replace(/^[^\w]*/, '').trim() || "Dispatch"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "keepers_comms"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().keepersActiveTab === "web_directives"} onClick={() => useStore.getState().setKeepersActiveTab("web_directives")} icon="folder_special" label="Directives" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "web_directives"} setHoveredTooltip={setHoveredTooltip} />
@@ -599,10 +624,8 @@ export function Sidebar({
         </div>
 
         {schemaFeatures?.has_launch !== false && isDesktop() && (
-          <div className="p-4 pb-4 relative z-30">
-            <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_20%,transparent)] to-transparent opacity-50" />
-
-            <div className="relative group/nav mt-2">
+          <div className="px-3.5 pb-3.5 pt-2 relative z-30">
+            <div className="relative group/nav">
               <button
                 onMouseEnter={(e) => {
                   if (isSidebarCollapsed) {
@@ -622,19 +645,26 @@ export function Sidebar({
                   handleQuickLaunch(e);
                 }}
                 disabled={!isConfigured}
-                className={`relative w-full py-4 rounded-2xl bg-transparent text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3 group/btn overflow-hidden border ${!isConfigured
-                  ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-30 cursor-not-allowed"
+                style={
+                  isConfigured
+                    ? {
+                        boxShadow: 'var(--glass-nav-active-shadow)',
+                      }
+                    : undefined
+                }
+                className={`relative w-full py-3 rounded-xl text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2.5 group/btn overflow-hidden border-0 cursor-pointer ${!isConfigured
+                  ? "bg-[color-mix(in_srgb,var(--text)_4%,transparent)] text-[var(--text)] opacity-30 cursor-not-allowed"
                   : isPatchDetected || showDefconAlert
-                    ? "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:-translate-y-1 active:scale-95"
-                    : "border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:-translate-y-1 active:scale-95"
+                    ? "bg-[color-mix(in_srgb,var(--danger)_12%,var(--glass-nav-active-bg))] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_18%,var(--glass-nav-active-bg))]"
+                    : "bg-[color-mix(in_srgb,var(--success)_12%,var(--glass-nav-active-bg))] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_18%,var(--glass-nav-active-bg))]"
                   }`}
               >
                 {/* Dynamic Sweep effect inside button */}
                 {isConfigured && (
-                  <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-in-out" />
+                  <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-in-out" />
                 )}
 
-                <span className="relative z-10 material-symbols-outlined !text-[18px] transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:scale-110">
+                <span className="relative z-10 material-symbols-outlined !text-[17px] transition-transform group-hover/btn:scale-110">
                   {t("icon_rocket_launch")}
                 </span>
                 {!isSidebarCollapsed && (
@@ -646,10 +676,6 @@ export function Sidebar({
             </div>
           </div>
         )}
-
-
-
-
 
       </div>
 

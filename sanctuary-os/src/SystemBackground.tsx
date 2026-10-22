@@ -8,7 +8,7 @@ export function SystemBackground() {
 
   return (
     <div
-      className="fixed inset-0 w-full h-full pointer-events-none z-[0] overflow-hidden transform-gpu"
+      className="fixed inset-0 w-full h-full pointer-events-none z-[0] overflow-hidden"
       style={{
         top: 'calc(-1 * env(safe-area-inset-top, 0px))',
         bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))',
@@ -21,17 +21,16 @@ export function SystemBackground() {
 
       {/* 
         Layer 1: The Deep Mesh Gradient or Wallpaper
-        Provides an intermediate stacking context so Chromium backdrop-filter can blur it.
+        Uses a decoded <img> texture quad for wallpaper themes so Chromium's compositor
+        uploads a single GPU texture instead of slicing high-contrast artwork into 512x512 PictureLayer tiles.
       */}
       {currentTheme.bgImage ? (
-        <div
-          className="absolute inset-0 rounded-[inherit] w-full h-full opacity-100 transition-all duration-1000"
-          style={{
-            backgroundImage: `url("${currentTheme.bgImage}")`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-          }}
+        <img
+          src={currentTheme.bgImage}
+          alt=""
+          decoding="async"
+          draggable={false}
+          className="absolute inset-0 w-full h-full object-cover object-center opacity-100 pointer-events-none select-none"
         />
       ) : (
         <div
@@ -80,4 +79,3 @@ export function SystemBackground() {
     </div>
   );
 }
-

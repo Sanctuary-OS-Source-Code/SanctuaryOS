@@ -1,15 +1,21 @@
 import { useStore } from '../store';
-import { useLexicon } from '../LexiconContext';
-import { useTheme } from '../ThemeContext';
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { openUrl } from '@tauri-apps/plugin-opener';
-import { useModalStore } from '../store/modalStore';
-import { useTooltipStore } from '../store/tooltipStore';
-import { supabase } from '../supabase';
-import { UniversalCard } from '../components/universal/UniversalCard';
-
 import { getExtensionRegex } from "./modUtils";
+
+export const compareVersions = (v1: string, v2: string) => {
+  if (!v1 && !v2) return 0;
+  if (!v1) return -1;
+  if (!v2) return 1;
+  const p1 = v1.replace(/^V\.?/i, "").trim().split(".").map(Number);
+  const p2 = v2.replace(/^V\.?/i, "").trim().split(".").map(Number);
+  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+    const n1 = p1[i] || 0;
+    const n2 = p2[i] || 0;
+    if (n1 > n2) return 1;
+    if (n1 < n2) return -1;
+  }
+  return 0;
+};
+
 export const isVersionMatch = (reqs: string[] | string, userVer: string) => {
   if (!reqs || reqs.length === 0) return true;
   if (typeof reqs === "string") {
@@ -46,17 +52,33 @@ export const isVersionMatch = (reqs: string[] | string, userVer: string) => {
       cleanReq.toLowerCase() === "all"
     )
       return true;
+    if (cleanReq.includes(" - ") || cleanReq.includes("..")) {
+      const parts = cleanReq
+        .split(/\s*-\s*|\.\./)
+        .map((p) => p.replace(/^V\.?/i, "").trim())
+        .filter(Boolean);
+      if (parts.length === 2) {
+        const low = compareVersions(parts[0], parts[1]) <= 0 ? parts[0] : parts[1];
+        const high = compareVersions(parts[0], parts[1]) <= 0 ? parts[1] : parts[0];
+        return userVerArray.some(
+          (uv) => compareVersions(uv, low) >= 0 && compareVersions(uv, high) <= 0,
+        );
+      }
+    }
     return userVerArray.some(
       (uv) => uv === cleanReq || uv.startsWith(cleanReq + "."),
     );
   });
 };
+
 export const getHighestVersion = (reqs: string[] | string) => {
   if (!reqs || reqs.length === 0) return "Unknown";
   if (reqs.includes("ALL")) return "ALL";
   const reqArray =
     typeof reqs === "string" ? reqs.split(",").map((s) => s.trim()) : reqs;
-  const flatReqs = reqArray.flatMap((r) => r.split(",").map((s) => s.trim()));
+  const flatReqs = reqArray.flatMap((r) =>
+    r.split(/,|\s+-\s+|\.\./).map((s) => s.trim()).filter(Boolean)
+  );
   const sorted = [...flatReqs].sort((a, b) => {
     const partsA = a.split(".").map(Number);
     const partsB = b.split(".").map(Number);
@@ -69,26 +91,18 @@ export const getHighestVersion = (reqs: string[] | string) => {
   });
   return sorted[0];
 };
+
 export const isValidVersion = (version: string) => {
   return /^\d+\.\d+\.\d+$/.test(version);
 };
-export const compareVersions = (v1: string, v2: string) => {
-  if (!v1 && !v2) return 0;
-  if (!v1) return -1;
-  if (!v2) return 1;
-  const p1 = v1.split(".").map(Number);
-  const p2 = v2.split(".").map(Number);
-  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
-    const n1 = p1[i] || 0;
-    const n2 = p2[i] || 0;
-    if (n1 > n2) return 1;
-    if (n1 < n2) return -1;
-  }
-  return 0;
-};
+
 export const getLowestVersion = (versions: string[]): string => {
   if (!versions || versions.length === 0) return "";
-  return versions.reduce((a, b) => {
+  const expanded = versions.flatMap((v) =>
+    v.split(/,|\s+-\s+|\.\./).map((s) => s.trim()).filter(Boolean)
+  );
+  if (expanded.length === 0) return "";
+  return expanded.reduce((a, b) => {
     const aParts = a.split(".").map(Number);
     const bParts = b.split(".").map(Number);
     for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
@@ -100,6 +114,7 @@ export const getLowestVersion = (versions: string[]): string => {
     return a;
   });
 };
+
 export const deriveHumanReadableVersion = (
   path: string | undefined | null,
   fallbackHash: string | undefined | null,
@@ -136,4 +151,3 @@ export const deriveHumanReadableVersion = (
 
   return extractedVersion;
 };
-

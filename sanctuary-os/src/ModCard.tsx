@@ -187,18 +187,18 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
               if (mod.name?.startsWith('LOCAL_SET_')) {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'copy';
-                e.currentTarget.classList.add('scale-[1.02]', 'shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
+                e.currentTarget.classList.add('shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
               }
             }}
             onDragLeave={(e) => {
               if (mod.name?.startsWith('LOCAL_SET_')) {
-                e.currentTarget.classList.remove('scale-[1.02]', 'shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
+                e.currentTarget.classList.remove('shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
               }
             }}
             onDrop={(e) => {
               if (mod.name?.startsWith('LOCAL_SET_')) {
                 e.preventDefault();
-                e.currentTarget.classList.remove('scale-[1.02]', 'shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
+                e.currentTarget.classList.remove('shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
                 const droppedHash = e.dataTransfer.getData('sanctuary/mod-hash');
                 if (droppedHash) {
                   const localSts = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");

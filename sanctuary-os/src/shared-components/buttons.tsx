@@ -84,12 +84,12 @@ export function ActionButton({
     case "primary":
     case "default":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--accent)_35%,rgba(var(--text-rgb,255,255,255),0.18))] !bg-[color-mix(in_srgb,var(--accent)_10%,rgba(var(--text-rgb,255,255,255),0.05))] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--accent)_55%,rgba(var(--text-rgb,255,255,255),0.25))] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,rgba(var(--text-rgb,255,255,255),0.08))] shadow-[0_8px_20px_-4px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.22)]";
+        "!border-[color-mix(in_srgb,var(--accent)_38%,rgba(255,255,255,0.45))] !bg-[color-mix(in_srgb,var(--accent)_12%,var(--glass-surface-fill,rgba(255,255,255,0.08)))] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--accent)_58%,rgba(255,255,255,0.65))] hover:!bg-[color-mix(in_srgb,var(--accent)_22%,var(--glass-surface-fill,rgba(255,255,255,0.12)))] shadow-[0_8px_20px_-4px_rgba(0,0,0,0.12),inset_0_1px_1px_rgba(255,255,255,0.48)]";
       borderColorVar = "--accent";
       break;
     case "glass":
       variantClasses =
-        "!border-[rgba(var(--text-rgb,255,255,255),0.16)] !bg-[color-mix(in_srgb,var(--text)_7%,transparent)] !text-[var(--text)] hover:!border-[rgba(var(--text-rgb,255,255,255),0.28)] hover:!bg-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[0_8px_20px_-4px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.22)]";
+        "glass-surface !text-[var(--text)] hover:!bg-[color-mix(in_srgb,var(--accent)_10%,var(--glass-surface-fill,rgba(255,255,255,0.12)))]";
       borderColorVar = "--text";
       break;
   }
@@ -331,16 +331,16 @@ export function PanelHeaderButton({
   } else {
     if (resolvedVariant === "error" || resolvedVariant === "danger") {
       colorClass =
-        "border border-transparent text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]";
+        "border border-transparent text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
     } else if (resolvedVariant === "success") {
       colorClass =
-        "border border-transparent text-[var(--success)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]";
+        "border border-transparent text-[var(--success)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
     } else if (resolvedVariant === "warning") {
       colorClass =
-        "border border-transparent text-[var(--warning)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]";
+        "border border-transparent text-[var(--warning)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
     } else if (resolvedVariant === "accent") {
       colorClass =
-        "border border-transparent text-[var(--accent)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]";
+        "border border-transparent text-[var(--accent)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
     }
   }
 

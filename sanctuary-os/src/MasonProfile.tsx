@@ -209,6 +209,11 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
         }
       }
 
+      if (!mData || !mData.is_verified) {
+        setLoading(false);
+        return;
+      }
+
       const { data: modsDataRaw } = await supabase.from('mods').select('*').eq('mason_id', masonId).order('name');
 
       const [
@@ -274,7 +279,7 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
                 id: b.id,
                 name: b.name,
                 author: mData.name,
-                description: (artifacts.length || 0) + (t("items")),
+                description: (artifacts.length || 0) + (t("items", "Items")),
                 created_at: b.created_at,
                 asset_type: 'blueprint',
                 is_paid: isPaid,
@@ -354,7 +359,6 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
       setIsFollowing(nowFollowing);
       const nextCount = Math.max(0, followerCount + (nowFollowing ? 1 : -1));
       setFollowerCount(nextCount);
-      // Update aggregate anonymous counter without storing a central user_id <-> mason_id honeypot
       await supabase.from('masons').update({ followers_count: nextCount }).eq('id', masonId);
     } catch {
       useStore.getState().pushStatus(t("err_follow_mason", "Failed to follow Mason."));
@@ -401,6 +405,17 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
 
   if (loading) return <LoadingScreen title={t("accessing", "Accessing...")} />;
   if (!mason) return <div className="p-12 text-center text-[var(--subtext)] opacity-60 font-black tracking-widest capitalize">{t("not_found", "Not Found")}</div>;
+  if (!mason.is_verified) {
+    return (
+      <div className="p-12 flex items-center justify-center min-h-[50vh] w-full">
+        <EmptyState
+          icon={t("icon_verified", "verified")}
+          title={t("mason_verified_only_title", "Verified Masons Only")}
+          subtitle={t("mason_profile_verified_only_desc", "Public Mason Profiles are exclusively available for Verified Masons.")}
+        />
+      </div>
+    );
+  }
 
   const filteredMods = mods.filter(m => {
     if (hidePaid && m.is_paid) return false;
@@ -818,6 +833,3 @@ export default function MasonProfile({ masonId, initialPostId, onModClick, syncB
     </div>
   );
 }
-
-
-

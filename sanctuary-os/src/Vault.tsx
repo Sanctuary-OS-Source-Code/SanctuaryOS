@@ -536,7 +536,7 @@ const Vault = React.memo(function Vault(props: any) {
                       const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
                       return !folderExists;
                     }).slice(0, 20).map((item: any, idx: number) => (
-                      <div key={`recent-${idx}`} className="relative flex flex-col h-full glass-panel rounded-[inherit] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group" onClick={() => {
+                      <div key={`recent-${idx}`} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group" onClick={() => {
                         if (item.isVirtual && item.isLocalOverride && !item.isCollection) {
                           const targetId = item.dbId || item.familyId || item.setId;
                           if (targetId) window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: targetId }));
@@ -545,7 +545,7 @@ const Vault = React.memo(function Vault(props: any) {
                         }
                       }}>
                         <div
-                          className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden [transform:translateZ(0)]"
+                          className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-transparent transition-colors duration-700 overflow-hidden"
                           style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
                         >
                           {(showImages !== false && (item.meta_image || item.image_url)) ? (
@@ -563,7 +563,7 @@ const Vault = React.memo(function Vault(props: any) {
                           )}
 
                           <div className="absolute top-3 right-3 flex gap-2 z-30">
-                            <span className="text-[8px] font-black px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] capitalize tracking-widest">
+                            <span className="text-[8px] font-black px-2 py-1 bg-[color-mix(in_srgb,var(--bg)_65%,transparent)] rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] capitalize tracking-widest">
                               {t("tab_mods")}
                             </span>
                           </div>

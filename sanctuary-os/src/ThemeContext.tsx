@@ -100,6 +100,277 @@ const DEFAULT_CORE_THEMES: any = {
   }
 };
 
+export function computeGlassOpticalVars(currentTheme: any): Record<string, string> {
+  const parseHexToRgb = (hexStr: string, fallback: [number, number, number]): [number, number, number] => {
+    if (!hexStr || hexStr === 'transparent') return fallback;
+    const clean = hexStr.replace('#', '').trim();
+    if (clean.length === 6) {
+      const r = parseInt(clean.substring(0, 2), 16);
+      const g = parseInt(clean.substring(2, 4), 16);
+      const b = parseInt(clean.substring(4, 6), 16);
+      if (!isNaN(r) && !isNaN(g) && !isNaN(b)) return [r, g, b];
+    } else if (clean.length === 3) {
+      const r = parseInt(clean[0] + clean[0], 16);
+      const g = parseInt(clean[1] + clean[1], 16);
+      const b = parseInt(clean[2] + clean[2], 16);
+      if (!isNaN(r) && !isNaN(g) && !isNaN(b)) return [r, g, b];
+    }
+    return fallback;
+  };
+
+  const parseUnitOrPercent = (val: any, fallbackDecimal: number): number => {
+    if (val === undefined || val === null || val === '') return fallbackDecimal;
+    const str = String(val).trim();
+    if (str.endsWith('%')) {
+      const p = parseFloat(str);
+      return isNaN(p) ? fallbackDecimal : Math.max(0, Math.min(1, p / 100));
+    }
+    const n = parseFloat(str);
+    if (isNaN(n)) return fallbackDecimal;
+    return n > 1 ? Math.max(0, Math.min(1, n / 100)) : Math.max(0, Math.min(1, n));
+  };
+
+  const rawBg = currentTheme.bg && currentTheme.bg !== 'transparent' ? currentTheme.bg : '#0a0d14';
+  const [bgR, bgG, bgB] = parseHexToRgb(rawBg, [10, 13, 20]);
+  const [sbR, sbG, sbB] = parseHexToRgb(currentTheme.sidebar || rawBg, [bgR, bgG, bgB]);
+  const [txtR, txtG, txtB] = parseHexToRgb(currentTheme.text || '#ffffff', [255, 255, 255]);
+  const [subR, subG, subB] = parseHexToRgb(currentTheme.subtext || '#94a3b8', [148, 163, 184]);
+  const [accR, accG, accB] = parseHexToRgb(currentTheme.accent || '#38bdf8', [56, 189, 248]);
+  const [sucR, sucG, sucB] = parseHexToRgb(currentTheme.success || '#10b981', [16, 185, 129]);
+  const [wrnR, wrnG, wrnB] = parseHexToRgb(currentTheme.warning || '#f59e0b', [245, 158, 11]);
+  const [dngR, dngG, dngB] = parseHexToRgb(currentTheme.danger || '#ef4444', [239, 68, 68]);
+  const [tr, tg, tb] = parseHexToRgb(currentTheme.panelTint || '#ffffff', [255, 255, 255]);
+
+  const rawOpacity = parseUnitOrPercent(currentTheme.glassOpacity, 0.20);
+  const surfaceOpacity = Number((rawOpacity * 0.72).toFixed(4));
+  const borderOpacity = parseUnitOrPercent(currentTheme.glassBorderOpacity, 0.14);
+  const specularOpacity = parseUnitOrPercent(currentTheme.glassSpecular, 0.25);
+  const shadowOpacity = parseUnitOrPercent(currentTheme.glassShadow, 0.40);
+  const glassSaturation = currentTheme.glassSaturation || '185%';
+
+  const yiq = ((bgR * 299) + (bgG * 587) + (bgB * 114)) / 1000;
+  const isLight = yiq >= 128;
+
+  const vars: Record<string, string> = {
+    '--bg-rgb': `${bgR}, ${bgG}, ${bgB}`,
+    '--sidebar-rgb': `${sbR}, ${sbG}, ${sbB}`,
+    '--text-rgb': `${txtR}, ${txtG}, ${txtB}`,
+    '--subtext-rgb': `${subR}, ${subG}, ${subB}`,
+    '--accent-rgb': `${accR}, ${accG}, ${accB}`,
+    '--success-rgb': `${sucR}, ${sucG}, ${sucB}`,
+    '--warning-rgb': `${wrnR}, ${wrnG}, ${wrnB}`,
+    '--danger-rgb': `${dngR}, ${dngG}, ${dngB}`,
+    '--panelTint-rgb': `${tr}, ${tg}, ${tb}`,
+    '--panelTint-rgb-spaces': `${tr} ${tg} ${tb}`,
+    '--glassOpacityDecimal': rawOpacity.toString(),
+    '--glassOpacitySurfaceDecimal': surfaceOpacity.toString(),
+    '--glassOpacitySurfacePercent': `${surfaceOpacity * 100}%`,
+    '--glass-panel-bg': `rgba(${tr}, ${tg}, ${tb}, ${rawOpacity})`,
+    '--glass-surface-bg': `rgba(${tr}, ${tg}, ${tb}, ${surfaceOpacity})`,
+    '--glassSaturation': glassSaturation,
+    '--glassBorderOpacityDecimal': borderOpacity.toString(),
+    '--glassBorderOpacitySurfaceDecimal': Number((borderOpacity * 0.70).toFixed(4)).toString(),
+    '--glassSpecularDecimal': specularOpacity.toString(),
+    '--glassShadowDecimal': shadowOpacity.toString(),
+  };
+
+  if (isLight) {
+    // 3D Crystal Quartz Optical Model for Light Themes:
+    // Genuinely translucent (14%–22% base tint) with soft, borderless-feeling edges (zero dark 1px rings!)
+    const lightPanelAlpha = Math.max(0.12, Math.min(0.28, rawOpacity * 0.55));
+    const lightSurfaceAlpha = Math.max(0.08, Math.min(0.20, surfaceOpacity * 0.45));
+    const lightShadowScale = Math.max(0.05, Math.min(0.14, shadowOpacity * 0.18));
+
+    vars['--glass-base-fill'] = `rgba(${tr}, ${tg}, ${tb}, ${lightPanelAlpha.toFixed(3)})`;
+    vars['--glass-surface-fill'] = `rgba(${tr}, ${tg}, ${tb}, ${lightSurfaceAlpha.toFixed(3)})`;
+    vars['--glass-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(${accR}, ${accG}, ${accB}, 0.03) 100%)`;
+    vars['--glass-surface-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.02) 60%, transparent 100%)`;
+
+    // Delicate, semi-translucent white glass bevel (never a solid white or dark outline)
+    vars['--glass-border-top'] = `rgba(255, 255, 255, 0.46)`;
+    vars['--glass-border-left'] = `rgba(255, 255, 255, 0.36)`;
+    vars['--glass-border-right'] = `rgba(255, 255, 255, 0.20)`;
+    vars['--glass-border-bottom'] = `rgba(255, 255, 255, 0.16)`;
+    vars['--glass-surface-border'] = `rgba(255, 255, 255, 0.24)`;
+
+    // Whisper-soft top catchlight (no thick 1.5px white frame or dark bottom rim)
+    vars['--glass-inset-highlight'] = `inset 0 1px 0 0 rgba(255, 255, 255, 0.36)`;
+    vars['--glass-surface-inset-highlight'] = `inset 0 1px 0 0 rgba(255, 255, 255, 0.22)`;
+
+    // Pure soft ambient elevation shadows (NO 0 0 0 1px dark slate ring!)
+    vars['--glass-outer-shadow'] = `0 14px 34px -8px rgba(15, 23, 42, ${lightShadowScale.toFixed(3)}), 0 4px 12px -2px rgba(15, 23, 42, ${(lightShadowScale * 0.50).toFixed(3)})`;
+    vars['--glass-surface-outer-shadow'] = `0 4px 12px -2px rgba(15, 23, 42, ${(lightShadowScale * 0.42).toFixed(3)})`;
+
+    // Nested Glass inside SidePanels / Modals
+    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.30)`;
+    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.22)`;
+    vars['--glass-nested-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.05) 55%, rgba(255, 255, 255, 0.15) 100%)`;
+    vars['--glass-nested-shadow'] = `0 8px 22px -6px rgba(15, 23, 42, 0.07), 0 2px 6px -1px rgba(15, 23, 42, 0.04), inset 0 1px 0 0 rgba(255, 255, 255, 0.55)`;
+
+    // Chrome & Containers (Sidebar, SidePanel Drawer, Floating Pills, Card Banner/Icon)
+    vars['--glass-sidebar-bg'] = `rgba(${sbR}, ${sbG}, ${sbB}, ${Math.max(0.14, Math.min(0.28, rawOpacity * 0.55)).toFixed(3)})`;
+    vars['--glass-drawer-bg'] = `rgba(255, 255, 255, ${Math.max(0.24, Math.min(0.42, rawOpacity * 0.72)).toFixed(3)})`;
+    vars['--glass-drawer-sheen'] = `radial-gradient(120% 60% at 0% 0%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.12) 45%, transparent 75%), radial-gradient(90% 50% at 100% 100%, rgba(${accR}, ${accG}, ${accB}, 0.06) 0%, transparent 70%), linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.18) 100%)`;
+    vars['--glass-drawer-shadow'] = `-20px 0 50px rgba(15, 23, 42, 0.12), 0 20px 50px rgba(15, 23, 42, 0.10), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.65), inset 1.5px 0 1px 0 rgba(255, 255, 255, 0.40)`;
+    vars['--glass-portal-bg'] = `rgba(255, 255, 255, 0.38)`;
+    vars['--glass-portal-sheen'] = `radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.60) 0%, transparent 65%), linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.08) 55%, rgba(${accR}, ${accG}, ${accB}, 0.05) 100%)`;
+    vars['--glass-portal-shadow'] = `0 18px 40px -8px rgba(15, 23, 42, 0.14), 0 6px 16px -4px rgba(15, 23, 42, 0.08), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.65)`;
+    vars['--glass-backdrop-dim'] = `rgba(15, 23, 42, 0.06)`;
+    vars['--glass-card-banner-bg'] = `transparent`;
+    vars['--glass-card-icon-bg'] = `rgba(255, 255, 255, 0.28)`;
+    vars['--glass-card-icon-border'] = `rgba(255, 255, 255, 0.34)`;
+    vars['--glass-card-icon-shadow'] = `0 4px 12px -2px rgba(15, 23, 42, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.42)`;
+    vars['--glass-nav-active-bg'] = `rgba(255, 255, 255, 0.38)`;
+    vars['--glass-nav-active-shadow'] = `0 4px 12px -2px rgba(15, 23, 42, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.48)`;
+  } else {
+    // 3D Smoked Crystal Optical Model for Dark Themes:
+    // Sheer smoked crystal (12%–22% base tint) + subtle luminous edge
+    const tintYiq = ((tr * 299) + (tg * 587) + (tb * 114)) / 1000;
+    const isBrightTint = tintYiq >= 160;
+    const darkPanelAlpha = currentTheme.bg === 'transparent'
+      ? Math.max(0.05, Math.min(0.18, rawOpacity))
+      : Math.max(0.12, Math.min(0.26, 0.10 + rawOpacity * 0.45));
+    const darkSurfaceAlpha = Math.max(0.07, darkPanelAlpha * 0.68);
+    const sheenTopAlpha = Math.max(0.07, Math.min(0.18, rawOpacity * 0.72));
+    const surfaceSheenTopAlpha = Math.max(0.05, sheenTopAlpha * 0.70);
+
+    const topBorderAlpha = Math.max(0.12, Math.min(0.22, borderOpacity * 1.15));
+    const leftBorderAlpha = Math.max(0.09, Math.min(0.18, borderOpacity * 0.90));
+    const rightBorderAlpha = Math.max(0.05, Math.min(0.10, borderOpacity * 0.50));
+    const bottomBorderAlpha = Math.max(0.04, Math.min(0.08, borderOpacity * 0.40));
+    const outerShadowMain = Math.min(0.62, shadowOpacity * 1.05);
+    const outerShadowAmbient = Math.min(0.38, shadowOpacity * 0.60);
+
+    vars['--glass-base-fill'] = isBrightTint
+      ? `rgba(${bgR}, ${bgG}, ${bgB}, ${darkPanelAlpha.toFixed(3)})`
+      : `rgba(${tr}, ${tg}, ${tb}, ${darkPanelAlpha.toFixed(3)})`;
+    vars['--glass-surface-fill'] = isBrightTint
+      ? `rgba(${bgR}, ${bgG}, ${bgB}, ${darkSurfaceAlpha.toFixed(3)})`
+      : `rgba(${tr}, ${tg}, ${tb}, ${darkSurfaceAlpha.toFixed(3)})`;
+    vars['--glass-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${sheenTopAlpha.toFixed(3)}) 0%, rgba(255, 255, 255, 0.015) 50%, rgba(${accR}, ${accG}, ${accB}, 0.02) 100%)`;
+    vars['--glass-surface-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${surfaceSheenTopAlpha.toFixed(3)}) 0%, rgba(255, 255, 255, 0.01) 55%, transparent 100%)`;
+
+    // Subtle crystal borders
+    vars['--glass-border-top'] = `rgba(255, 255, 255, ${topBorderAlpha.toFixed(3)})`;
+    vars['--glass-border-left'] = `rgba(255, 255, 255, ${leftBorderAlpha.toFixed(3)})`;
+    vars['--glass-border-right'] = `rgba(255, 255, 255, ${rightBorderAlpha.toFixed(3)})`;
+    vars['--glass-border-bottom'] = `rgba(255, 255, 255, ${bottomBorderAlpha.toFixed(3)})`;
+    vars['--glass-surface-border'] = `rgba(255, 255, 255, ${Math.min(0.12, borderOpacity * 0.60).toFixed(3)})`;
+
+    // Delicate Top Catchlight
+    vars['--glass-inset-highlight'] = `inset 0 1px 0 0 rgba(255, 255, 255, ${(specularOpacity * 0.42).toFixed(3)})`;
+    vars['--glass-surface-inset-highlight'] = `inset 0 1px 0 0 rgba(255, 255, 255, ${(specularOpacity * 0.26).toFixed(3)})`;
+
+    // Deep External 3D Elevation Shadow
+    vars['--glass-outer-shadow'] = `0 18px 40px -10px rgba(0, 0, 0, ${outerShadowMain.toFixed(3)}), 0 6px 16px -4px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)})`;
+    vars['--glass-surface-outer-shadow'] = `0 6px 16px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 0.70).toFixed(3)})`;
+
+    // Nested Glass inside SidePanels / Modals (Sheer luminous Liquid Glass!)
+    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.055)`;
+    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.045)`;
+    vars['--glass-nested-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.015) 50%, rgba(255, 255, 255, 0.035) 100%)`;
+    vars['--glass-nested-shadow'] = `0 12px 28px -6px rgba(0, 0, 0, 0.34), 0 4px 10px -2px rgba(0, 0, 0, 0.20), inset 0 1px 0 0 rgba(255, 255, 255, 0.18), inset 1px 0 0 0 rgba(255, 255, 255, 0.08)`;
+
+    // Chrome & Containers (Sidebar, SidePanel Drawer, Floating Pills, Card Banner/Icon)
+    const drawerTintR = isBrightTint ? bgR : tr;
+    const drawerTintG = isBrightTint ? bgG : tg;
+    const drawerTintB = isBrightTint ? bgB : tb;
+    vars['--glass-sidebar-bg'] = `rgba(${sbR}, ${sbG}, ${sbB}, ${Math.max(0.14, Math.min(0.24, darkPanelAlpha)).toFixed(3)})`;
+    vars['--glass-drawer-bg'] = `rgba(${drawerTintR}, ${drawerTintG}, ${drawerTintB}, ${Math.max(0.16, Math.min(0.26, darkPanelAlpha + 0.02)).toFixed(3)})`;
+    vars['--glass-drawer-sheen'] = `radial-gradient(120% 60% at 0% 0%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 45%, transparent 75%), radial-gradient(90% 50% at 100% 100%, rgba(${accR}, ${accG}, ${accB}, 0.06) 0%, transparent 70%), linear-gradient(135deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0.04) 100%)`;
+    vars['--glass-drawer-shadow'] = `-24px 0 60px rgba(0, 0, 0, 0.52), 0 24px 60px rgba(0, 0, 0, 0.42), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.28), inset 1.5px 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.07)`;
+    vars['--glass-portal-bg'] = `rgba(${drawerTintR}, ${drawerTintG}, ${drawerTintB}, 0.28)`;
+    vars['--glass-portal-sheen'] = `radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.16) 0%, transparent 65%), linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(${accR}, ${accG}, ${accB}, 0.04) 100%)`;
+    vars['--glass-portal-shadow'] = `0 22px 48px -8px rgba(0, 0, 0, 0.58), 0 8px 20px -4px rgba(0, 0, 0, 0.36), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.28), inset 1px 0 1px 0 rgba(255, 255, 255, 0.14)`;
+    vars['--glass-backdrop-dim'] = `rgba(0, 0, 0, 0.22)`;
+    vars['--glass-card-banner-bg'] = `transparent`;
+    vars['--glass-card-icon-bg'] = `rgba(255, 255, 255, 0.065)`;
+    vars['--glass-card-icon-border'] = `rgba(255, 255, 255, ${Math.min(0.18, borderOpacity * 0.85).toFixed(3)})`;
+    vars['--glass-card-icon-shadow'] = `0 6px 14px -4px rgba(0, 0, 0, 0.28), inset 0 1px 0 0 rgba(255, 255, 255, 0.18)`;
+    vars['--glass-nav-active-bg'] = `rgba(255, 255, 255, 0.08)`;
+    vars['--glass-nav-active-shadow'] = `0 4px 12px -2px rgba(0, 0, 0, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.14)`;
+  }
+
+  return vars;
+}
+
+const refractedWallpaperCache = new Map<string, string>();
+
+function generateRefractedWallpaperDataUrl(
+  bgImage: string,
+  blurPx: number,
+  saturation: string,
+  fallbackBg: string
+): Promise<string> {
+  const cacheKey = `${bgImage}::${blurPx}::${saturation}::${fallbackBg}`;
+  const cached = refractedWallpaperCache.get(cacheKey);
+  if (cached) return Promise.resolve(cached);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const nw = img.naturalWidth || 1920;
+        const nh = img.naturalHeight || 1080;
+        const W = 640;
+        const H = Math.max(1, Math.round(W * (nh / nw)));
+        const scaleRatio = W / 1920;
+        const scaledBlur = Math.max(4, Math.min(24, Math.round(blurPx * scaleRatio * 1.35)));
+        const pad = Math.max(36, scaledBlur * 3);
+
+        const padCanvas = document.createElement('canvas');
+        padCanvas.width = W + pad * 2;
+        padCanvas.height = H + pad * 2;
+        const padCtx = padCanvas.getContext('2d');
+        if (!padCtx) {
+          resolve(`url("${bgImage}")`);
+          return;
+        }
+
+        padCtx.fillStyle = fallbackBg;
+        padCtx.fillRect(0, 0, padCanvas.width, padCanvas.height);
+
+        // Draw clamped border strips and corners so Gaussian blur has zero dark edge vignette
+        padCtx.drawImage(img, 0, 0, nw, 1, pad, 0, W, pad);
+        padCtx.drawImage(img, 0, nh - 1, nw, 1, pad, pad + H, W, pad);
+        padCtx.drawImage(img, 0, 0, 1, nh, 0, pad, pad, H);
+        padCtx.drawImage(img, nw - 1, 0, 1, nh, pad + W, pad, pad, H);
+        padCtx.drawImage(img, 0, 0, 1, 1, 0, 0, pad, pad);
+        padCtx.drawImage(img, nw - 1, 0, 1, 1, pad + W, 0, pad, pad);
+        padCtx.drawImage(img, 0, nh - 1, 1, 1, 0, pad + H, pad, pad);
+        padCtx.drawImage(img, nw - 1, nh - 1, 1, 1, pad + W, pad + H, pad, pad);
+        // Center image
+        padCtx.drawImage(img, 0, 0, nw, nh, pad, pad, W, H);
+
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = W;
+        outCanvas.height = H;
+        const outCtx = outCanvas.getContext('2d');
+        if (!outCtx) {
+          resolve(`url("${bgImage}")`);
+          return;
+        }
+
+        outCtx.fillStyle = fallbackBg;
+        outCtx.fillRect(0, 0, W, H);
+        outCtx.filter = `blur(${scaledBlur}px) saturate(${saturation})`;
+        outCtx.drawImage(padCanvas, -pad, -pad, padCanvas.width, padCanvas.height);
+
+        const dataUrl = `url("${outCanvas.toDataURL('image/jpeg', 0.92)}")`;
+        refractedWallpaperCache.set(cacheKey, dataUrl);
+        resolve(dataUrl);
+      } catch {
+        resolve(`url("${bgImage}")`);
+      }
+    };
+    img.onerror = () => {
+      resolve(`url("${bgImage}")`);
+    };
+    img.src = bgImage;
+  });
+}
+
 const ThemeContext = createContext<any>(null);
 
 export const ThemeProvider = ({ children }: any) => {
@@ -362,78 +633,56 @@ export const ThemeProvider = ({ children }: any) => {
       }
     });
 
+    const opticalVars = computeGlassOpticalVars(currentTheme);
+    Object.entries(opticalVars).forEach(([k, v]) => {
+      root.style.setProperty(k, v);
+    });
+
+    const rawBg = currentTheme.bg && currentTheme.bg !== 'transparent' ? currentTheme.bg : '#0a0d14';
+    const blurPx = parseFloat(String(currentTheme.glassBlur || '28px')) || 28;
+    const saturation = opticalVars['--glassSaturation'] || '185%';
+
+    let isCancelled = false;
+
     if (currentTheme.bgImage) {
       root.style.setProperty(`--bgGradient`, `url("${currentTheme.bgImage}")`);
-      root.style.setProperty(`--glassBgImage`, `url("${currentTheme.bgImage}")`);
-      root.style.setProperty(`--glassBeforeDisplay`, `block`);
-      root.style.setProperty(`--glassFilter`, `blur(var(--glassBlur, 24px)) saturate(140%)`);
-      root.style.setProperty(`--glassFilterSurface`, `blur(calc(var(--glassBlur, 24px) * 0.7)) saturate(120%)`);
+      root.style.setProperty(`--glassBgImage`, `none`);
+      root.style.setProperty(`--glassBgImageSurface`, `none`);
+      root.style.setProperty(`--glassBeforeDisplay`, `none`);
+      root.style.setProperty(`--glassFilter`, `none`);
+      root.style.setProperty(`--glassFilterSurface`, `none`);
+
+      const cacheKey = `${currentTheme.bgImage}::${blurPx}::${saturation}::${rawBg}`;
+      const cached = refractedWallpaperCache.get(cacheKey);
+      if (cached) {
+        root.style.setProperty(`--glass-refracted-wallpaper`, cached);
+      } else {
+        generateRefractedWallpaperDataUrl(currentTheme.bgImage, blurPx, saturation, rawBg).then((dataUrl) => {
+          if (!isCancelled) {
+            root.style.setProperty(`--glass-refracted-wallpaper`, dataUrl);
+          }
+        });
+      }
     } else if (currentTheme.bgGradient && currentTheme.bgGradient !== 'transparent' && currentTheme.bgGradient !== 'none' && currentTheme.bgGradient !== currentTheme.bg) {
       root.style.setProperty(`--bgGradient`, currentTheme.bgGradient);
-      // For CSS gradients, Chromium breaks background-attachment: fixed. 
-      // But gradients are already smooth, so we don't need to blur them!
-      // We just use 'none' and let the native gradient shine through.
+      root.style.setProperty(`--glass-refracted-wallpaper`, currentTheme.bgGradient);
       root.style.setProperty(`--glassBgImage`, `none`);
+      root.style.setProperty(`--glassBgImageSurface`, `none`);
       root.style.setProperty(`--glassBeforeDisplay`, `none`);
       root.style.setProperty(`--glassFilter`, `none`);
       root.style.setProperty(`--glassFilterSurface`, `none`);
     } else {
       root.style.setProperty(`--bgGradient`, `none`);
+      root.style.setProperty(`--glass-refracted-wallpaper`, `none`);
       root.style.setProperty(`--glassBgImage`, `none`);
+      root.style.setProperty(`--glassBgImageSurface`, `none`);
       root.style.setProperty(`--glassBeforeDisplay`, `none`);
       root.style.setProperty(`--glassFilter`, `none`);
       root.style.setProperty(`--glassFilterSurface`, `none`);
     }
 
-    const rawBg = currentTheme.bg && currentTheme.bg !== 'transparent' ? currentTheme.bg : '#0a0d14';
-    const bgHex = rawBg.replace('#', '');
-    if (bgHex.length === 6) {
-      const r = parseInt(bgHex.substring(0, 2), 16);
-      const g = parseInt(bgHex.substring(2, 4), 16);
-      const b = parseInt(bgHex.substring(4, 6), 16);
-      root.style.setProperty('--bg-rgb', `${r}, ${g}, ${b}`);
-    }
-
-    const tintHex = (currentTheme.panelTint || '#ffffff').replace('#', '');
-    if (tintHex.length === 6) {
-      const tr = parseInt(tintHex.substring(0, 2), 16);
-      const tg = parseInt(tintHex.substring(2, 4), 16);
-      const tb = parseInt(tintHex.substring(4, 6), 16);
-      root.style.setProperty('--panelTint-rgb', `${tr}, ${tg}, ${tb}`);
-      root.style.setProperty('--panelTint-rgb-spaces', `${tr} ${tg} ${tb}`);
-
-      // Calculate opacity
-      let finalOpacityStr = String(currentTheme.glassOpacity || "0.35");
-      if (finalOpacityStr.endsWith('%')) {
-        finalOpacityStr = (parseFloat(finalOpacityStr) / 100).toString();
-      }
-      let rawOpacity = parseFloat(finalOpacityStr);
-
-      // Pre-compute the exact CSS strings to bypass ALL CSS minifier and browser parsing bugs
-      root.style.setProperty('--glass-panel-bg', `rgba(${tr}, ${tg}, ${tb}, ${rawOpacity})`);
-      root.style.setProperty('--glass-surface-bg', `rgba(${tr}, ${tg}, ${tb}, ${rawOpacity * 0.7})`);
-    }
-
-    const textHex = (currentTheme.text || '#ffffff').replace('#', '');
-    if (textHex.length === 6) {
-      const tr = parseInt(textHex.substring(0, 2), 16);
-      const tg = parseInt(textHex.substring(2, 4), 16);
-      const tb = parseInt(textHex.substring(4, 6), 16);
-      root.style.setProperty('--text-rgb', `${tr}, ${tg}, ${tb}`);
-    }
-
-    // Provide bulletproof decimal values for App.css rgba() injection
-    let finalOpacityStr = String(currentTheme.glassOpacity || "0.35");
-    if (finalOpacityStr.endsWith('%')) {
-      finalOpacityStr = (parseFloat(finalOpacityStr) / 100).toString();
-    }
-    let rawOpacity = parseFloat(finalOpacityStr);
-
-    root.style.setProperty('--glassOpacityDecimal', rawOpacity.toString());
-    root.style.setProperty('--glassOpacitySurfaceDecimal', (rawOpacity * 0.7).toString());
-    root.style.setProperty('--glassOpacitySurfacePercent', `${rawOpacity * 0.7 * 100}%`);
-
-    const yiq = (((parseInt(bgHex.substring(0, 2), 16) || 0) * 299) + ((parseInt(bgHex.substring(2, 4), 16) || 0) * 587) + ((parseInt(bgHex.substring(4, 6), 16) || 0) * 114)) / 1000;
+    const [bgR, bgG, bgB] = (opticalVars['--bg-rgb'] || '10, 13, 20').split(',').map((s) => parseInt(s.trim(), 10));
+    const yiq = ((bgR * 299) + (bgG * 587) + (bgB * 114)) / 1000;
     const isLight = yiq >= 128;
     const scheme = isLight ? 'light' : 'dark';
     root.style.colorScheme = scheme;
@@ -450,6 +699,10 @@ export const ThemeProvider = ({ children }: any) => {
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
       getCurrentWindow().setTheme(scheme).catch(() => { });
     }).catch(() => { });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [activeThemeIdState, currentTheme]);
 
   const saveThemeToVault = (id: string, json: any, isDev: boolean = false) => {

@@ -91,7 +91,7 @@ export function AlertStatTile({ broadcast, alertType, onClick, active, className
 
 export function CommandScreenLayout({ children }: any) {
     return (
-        <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pr-0 md:pr-4 pb-36 md:pb-32">
+        <div className="flex flex-col gap-10 w-full pr-0 md:pr-4 pb-36 md:pb-32">
             {children}
         </div>
     );
@@ -148,7 +148,8 @@ export function CommandScreenSectionHeading({
 }
 
 export function CommandScreenStats({ children, gridClassOverride }: any) {
-    const validCount = React.Children.toArray(children).filter(Boolean).length;
+    const flatChildren = React.Children.toArray(children).flatMap((child: any) => React.isValidElement(child) && child.type === React.Fragment ? React.Children.toArray((child.props as any).children) : [child]).filter(Boolean);
+    const validCount = flatChildren.length;
     
     let gridClass = "grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
     if (gridClassOverride) gridClass = gridClassOverride;
@@ -307,16 +308,16 @@ export function CommandScreenMetricTile({ icon, value, label, valueColorClass = 
 
 export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "", isAlert = false }: any) {
     return (
-        <button onClick={onClick} className={`w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 shadow-md ${isAlert ? 'border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'border border-transparent hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
-            <div className={`absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none  overflow-hidden ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-radial-[at_0%_0%] from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent'}`} />
+        <button onClick={onClick} className="w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 cursor-pointer">
+            <div className={`absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_8%,transparent)]' : 'bg-radial-[at_0%_0%] from-white/15 to-transparent'}`} />
 
             <div className="flex items-center gap-4 h-full relative z-10">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-110 shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_5%,transparent)] border ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:shadow-[0_0_20px_color-mix(in_srgb,var(--text)_15%,transparent)]'}`}>
-                    <span className={`material-symbols-outlined !text-[28px] opacity-80 group-hover:opacity-100 transition-all duration-300 ${isAlert ? 'animate-pulse drop-shadow-[0_0_10px_currentColor]' : 'group-hover:drop-shadow-[0_0_10px_currentColor]'}`}>{icon}</span>
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-105 ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]' : 'bg-[var(--glass-nested-surface-bg)] text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
+                    <span className={`material-symbols-outlined !text-[25px] opacity-85 group-hover:opacity-100 transition-all duration-300 ${isAlert ? 'animate-pulse' : ''}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
                     <h3 className={`text-[11px] font-[900] uppercase tracking-widest transition-colors duration-500 truncate ${isAlert ? 'text-[var(--danger)] group-hover:brightness-125' : 'text-[var(--text)] group-hover:brightness-125'}`}>{title}</h3>
-                    <span className={`text-[9px] capitalize font-bold opacity-70 group-hover:opacity-100 transition-opacity duration-500 tracking-widest flex items-center gap-2 truncate ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--subtext)]'}`}>{subtitle}</span>
+                    <span className={`text-[9px] capitalize font-bold opacity-75 group-hover:opacity-100 transition-opacity duration-500 tracking-widest flex items-center gap-2 truncate ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--subtext)]'}`}>{subtitle}</span>
                 </div>
             </div>
         </button>

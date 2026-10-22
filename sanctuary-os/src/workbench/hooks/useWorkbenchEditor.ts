@@ -3,26 +3,44 @@ import { useStore } from '../../store';
 import { useLexicon } from '../../LexiconContext';
 import { readDir, readTextFile, exists } from '@tauri-apps/plugin-fs';
 
-export function useWorkbenchEditor() {
-   const parseIni = (content: string) => {
-      const obj: any = {};
-      const lines = content.split('\n');
-      for (const line of lines) {
-         const match = line.match(/^\s*([^#;=\s]+)\s*=\s*(.*)/);
-         if (match) {
-            const key = match[1];
-            let val: any = match[2].trim();
-            if (val.toLowerCase() === 'true') val = true;
-            else if (val.toLowerCase() === 'false') val = false;
-            else if (!isNaN(Number(val)) && val !== '') val = Number(val);
-            if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
-               val = val.substring(1, val.length - 1);
-            }
-            obj[key] = val;
+export function parseIniConfig(content: string) {
+   const obj: any = {};
+   const lines = (content || "").split('\n');
+   for (const line of lines) {
+      const match = line.match(/^\s*([^#;=\s]+)\s*=\s*(.*)/);
+      if (match) {
+         const key = match[1];
+         let val: any = match[2].trim();
+         if (val.toLowerCase() === 'true') val = true;
+         else if (val.toLowerCase() === 'false') val = false;
+         else if (!isNaN(Number(val)) && val !== '') val = Number(val);
+         if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
+            val = val.substring(1, val.length - 1);
          }
+         obj[key] = val;
       }
-      return obj;
-   };
+   }
+   return obj;
+}
+
+export function parseConfigContent(content: string, fileName?: string): any {
+   const trimmed = content ? content.trim() : '';
+   const isJson =
+      Boolean(fileName && fileName.toLowerCase().endsWith('.json')) ||
+      Boolean(trimmed && (trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.endsWith('}') || trimmed.startsWith('"')));
+   if (isJson) {
+      try {
+         const sanitized = content.replace(/,\s*([\]}])/g, '$1');
+         return JSON.parse(sanitized);
+      } catch {
+         return null;
+      }
+   }
+   return parseIniConfig(content || '');
+}
+
+export function useWorkbenchEditor() {
+   const parseIni = parseIniConfig;
 
    const stringifyIni = (data: any, originalContent: string) => {
       const lines = originalContent.split('\n');
@@ -63,36 +81,52 @@ export function useWorkbenchEditor() {
 
    const [rawText, setRawText] = useState("");
    const [parsedData, setParsedData] = useState<any>(null);
+   const [savedRawText, setSavedRawText] = useState("");
+   const [savedParsedData, setSavedParsedData] = useState<any>(null);
    const [problemsList, setProblemsList] = useState<any[]>([]);
    const [targetFileContent, setTargetFileContent] = useState<string>("");
    const [editorRef, setEditorRef] = useState<any>(null);
    const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
 
+   const savedRawTextRef = useRef("");
+   const savedParsedDataRef = useRef<any>(null);
    const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
    const rawUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
    const monacoDecorationsRef = useRef<string[]>([]);
-   
-   // This jump ref is also used by scroll sync, so we might need to expose it or move it.
-   // We'll keep it here since `handleVisualChange` uses it to pause scroll sync.
+   const skipNextValidateRef = useRef<boolean>(false);
    const isJumping = useRef(0);
 
    const isTemplateMode = selectedFile?.name.toLowerCase().endsWith('.json');
+
+   const syncSavedBaseline = useCallback((content: string, fileNameOverride?: string) => {
+      const fName = fileNameOverride || selectedFile?.name;
+      savedRawTextRef.current = content;
+      setSavedRawText(content);
+      const parsed = parseConfigContent(content, fName);
+      savedParsedDataRef.current = parsed;
+      setSavedParsedData(parsed);
+   }, [selectedFile?.name]);
 
    useEffect(() => {
       if (selectedFile) {
          const loadFile = async () => {
             const unsaved = useStore.getState().cwUnsavedEdits;
-            let currentContent = '';
-            if (unsaved[selectedFile.path] !== undefined) {
-               currentContent = unsaved[selectedFile.path];
-            } else {
-               try {
-                  currentContent = await readTextFile(selectedFile.path);
-               } catch (e) {
-                  pushStatus("Error reading file", "error");
+            let diskContent = '';
+            try {
+               diskContent = await readTextFile(selectedFile.path);
+            } catch (e) {
+               if (unsaved[selectedFile.path] === undefined) {
+                  pushStatus(t("alert_error", "Error reading file"), "error");
                   return;
                }
             }
+            savedRawTextRef.current = diskContent;
+            setSavedRawText(diskContent);
+            const diskParsed = parseConfigContent(diskContent, selectedFile.name);
+            savedParsedDataRef.current = diskParsed;
+            setSavedParsedData(diskParsed);
+
+            const currentContent = unsaved[selectedFile.path] !== undefined ? unsaved[selectedFile.path] : diskContent;
             setRawText(currentContent);
             const trimmedContent = currentContent ? currentContent.trim() : '';
             const isJson = selectedFile.name.toLowerCase().endsWith('.json') || (trimmedContent && (trimmedContent.startsWith('{') || trimmedContent.startsWith('[') || trimmedContent.endsWith('}') || trimmedContent.startsWith('"')));
@@ -107,7 +141,6 @@ export function useWorkbenchEditor() {
                   let col = 1;
                   const match = e.message.match(/at position (\d+)/);
                   if (match) {
-                     // Approximate line/col since we don't have monaco model here easily
                      const pos = parseInt(match[1], 10);
                      const upToError = currentContent.substring(0, pos);
                      const lines = upToError.split('\n');
@@ -123,7 +156,7 @@ export function useWorkbenchEditor() {
          };
          loadFile();
       }
-   }, [selectedFile, pushStatus]);
+   }, [selectedFile, pushStatus, t]);
 
    const validateContent = useCallback((text: string, monaco: any, model: any) => {
       let problems: any[] = [];
@@ -173,6 +206,10 @@ export function useWorkbenchEditor() {
 
    useEffect(() => {
       if (rawText === undefined) return;
+      if (skipNextValidateRef.current) {
+         skipNextValidateRef.current = false;
+         return;
+      }
       if (editorRef && (window as any).monaco) {
          validateContent(rawText, (window as any).monaco, editorRef.getModel());
       } else {
@@ -213,12 +250,29 @@ export function useWorkbenchEditor() {
       }
    }, [highlightedKey, editorRef]);
 
-   const handleRawChange = useCallback((value: string | undefined) => {
+   const handleRawChange = useCallback((value: string | undefined, syncMonaco = false, preParsedData?: any) => {
       if (value === undefined) return;
+      if (preParsedData !== undefined) {
+         skipNextValidateRef.current = true;
+         setParsedData(preParsedData);
+         setProblemsList([]);
+      }
       setRawText(value);
+      if (syncMonaco && editorRef && editorRef.getModel()) {
+         const model = editorRef.getModel();
+         if (value !== model.getValue()) {
+            editorRef.executeEdits("template-builder", [{
+               range: model.getFullModelRange(),
+               text: value,
+               forceMoveMarkers: true
+            }]);
+         }
+      }
       if (selectedFile) {
          setUnsavedEdits(prev => ({ ...prev, [selectedFile.path]: value }));
       }
+      if (preParsedData !== undefined) return;
+
       const trimmedValue = value ? value.trim() : '';
       const isJson = selectedFile?.name.toLowerCase().endsWith('.json') || (trimmedValue && (trimmedValue.startsWith('{') || trimmedValue.startsWith('[') || trimmedValue.endsWith('}') || trimmedValue.startsWith('"')));
 
@@ -232,13 +286,26 @@ export function useWorkbenchEditor() {
       } else if (selectedFile) {
          setParsedData(parseIni(value));
       }
-   }, [selectedFile, setUnsavedEdits]);
+   }, [selectedFile, setUnsavedEdits, editorRef]);
 
    const handleInsertSnippet = useCallback((snippet: string) => {
+      const appendToParsed = () => {
+         try {
+            const parsed = JSON.parse(rawText || '{}');
+            if (!parsed.settings || !Array.isArray(parsed.settings)) parsed.settings = [];
+            parsed.settings.push(JSON.parse(snippet));
+            handleRawChange(JSON.stringify(parsed, null, 2), true);
+            return true;
+         } catch (e) {
+            return false;
+         }
+      };
+
       if (editorRef) {
          const position = editorRef.getPosition() || { lineNumber: 1, column: 1 };
          if (position.lineNumber === 1 && position.column === 1) {
-            pushStatus(t("err_no_focus"), "warning");
+            if (appendToParsed()) return;
+            pushStatus(t("err_no_focus", "Click inside the editor first"), "warning");
             return;
          }
          editorRef.executeEdits("insert-snippet", [{
@@ -247,8 +314,10 @@ export function useWorkbenchEditor() {
             forceMoveMarkers: true
          }]);
          editorRef.focus();
+      } else {
+         appendToParsed();
       }
-   }, [editorRef, pushStatus, t]);
+   }, [editorRef, rawText, handleRawChange, pushStatus, t]);
 
    const triggerHighlight = useCallback((key: string) => {
       setHighlightedKey(key + "::" + Date.now());
@@ -328,6 +397,25 @@ export function useWorkbenchEditor() {
       });
    }, [editorRef, triggerHighlight]);
 
+   const handleUndoSettingToSaved = useCallback((dataPath: string) => {
+      if (savedParsedDataRef.current && dataPath in savedParsedDataRef.current) {
+         handleVisualChange(dataPath, savedParsedDataRef.current[dataPath]);
+      }
+   }, [handleVisualChange]);
+
+   const handleUndoAllUnsaved = useCallback(() => {
+      const sf = selectedFile || useStore.getState().cwSelectedFile;
+      if (!sf) return;
+      const baseline = savedRawTextRef.current;
+      handleRawChange(baseline, true);
+      useStore.getState().setCwUnsavedEdits(prev => {
+         const next = { ...prev };
+         delete next[sf.path];
+         return next;
+      });
+      pushStatus(t("cw_reverted_to_saved", "Reverted all unsaved edits to last saved state"), "info");
+   }, [selectedFile, handleRawChange, pushStatus, t]);
+
    useEffect(() => {
       const loadTarget = async () => {
          if (isTemplateMode && selectedFile && parsedData?.target_file && vaultPath) {
@@ -374,14 +462,14 @@ export function useWorkbenchEditor() {
 
    const handleAutoMap = useCallback(async () => {
       if (!parsedData || !parsedData.target_file) {
-         pushStatus(t("err_select_target_first"), "error");
+         pushStatus(t("err_select_target_first", "Select a target file first"), "error");
          return;
       }
       
       const content = targetFileContent;
       
       if (!content || content.includes('// Target file not found locally')) {
-         pushStatus(t("err_no_content_to_map"), "error");
+         pushStatus(t("err_no_content_to_map", "Target file content not found locally"), "error");
          return;
       }
 
@@ -405,6 +493,30 @@ export function useWorkbenchEditor() {
             newParsedData.settings = [];
          }
          
+         const formatKeyLabel = (rawKey: string) =>
+            rawKey
+               .replace(/_/g, ' ')
+               .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+               .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+               .replace(/\s+/g, ' ')
+               .trim();
+
+         const isTupleString = (v: any): boolean =>
+            typeof v === 'string' && /^\s*-?\d+(?:\.\d+)?\s*(?:,\s*-?\d+(?:\.\d+)?\s*)+$/.test(v);
+
+         const applyNumericTupleBounds = (settingObj: any, rawTupleStr: string) => {
+            const nums = rawTupleStr
+               .split(',')
+               .map((s) => parseFloat(s.trim()))
+               .filter((n) => !isNaN(n));
+            const hasNegative = nums.some((n) => n < 0);
+            const maxAbs = Math.max(100, ...nums.map((n) => Math.ceil(Math.abs(n))));
+            settingObj.min = hasNegative ? -maxAbs : Math.min(0, ...nums);
+            settingObj.max = maxAbs;
+            settingObj.step = 1;
+            settingObj.allow_decimals = nums.some((n) => !Number.isInteger(n));
+         };
+
          if (isJson && parsed && typeof parsed === 'object') {
             const defaultCategory = newParsedData.categories[0]?.id || "general";
             
@@ -422,6 +534,8 @@ export function useWorkbenchEditor() {
                      type = "boolean";
                   } else if (typeof val === 'number') {
                      type = "number";
+                  } else if (isTupleString(val)) {
+                     type = "tuple";
                   } else if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
                      type = "group";
                      defaultVal = undefined;
@@ -432,7 +546,7 @@ export function useWorkbenchEditor() {
                      key: key,
                      path: currentPath,
                      type: type,
-                     label_key: key.replace(/_/g, ' '),
+                     label_key: formatKeyLabel(key),
                      desc_key: "",
                      category: defaultCategory
                   };
@@ -444,9 +558,13 @@ export function useWorkbenchEditor() {
                   }
                   
                   if (type === 'number') {
-                     newSetting.min = 0;
-                     newSetting.max = 100;
-                     newSetting.allow_decimals = !Number.isInteger(defaultVal);
+                     const numDef = typeof defaultVal === 'number' ? defaultVal : 0;
+                     newSetting.min = numDef < 0 ? Math.min(-100, Math.floor(numDef * 2)) : 0;
+                     newSetting.max = Math.max(100, Math.ceil(Math.abs(numDef) * 2));
+                     newSetting.step = 1;
+                     newSetting.allow_decimals = !Number.isInteger(numDef);
+                  } else if (type === 'tuple') {
+                     applyNumericTupleBounds(newSetting, String(defaultVal));
                   }
                   
                   settings.push(newSetting);
@@ -464,10 +582,16 @@ export function useWorkbenchEditor() {
                } else if (genSet.type === 'group' && (!existing.settings || existing.settings.length === 0) && genSet.settings && genSet.settings.length > 0) {
                   existing.settings = genSet.settings;
                   addedCount++;
+               } else if (genSet.type === 'tuple' && existing.type !== 'tuple') {
+                  existing.type = 'tuple';
+                  existing.min = genSet.min;
+                  existing.max = genSet.max;
+                  existing.step = genSet.step;
+                  existing.allow_decimals = genSet.allow_decimals;
+                  addedCount++;
                }
             }
          } else {
-            // INI Parsing (flat)
             const lines = content.split('\n');
             for (const line of lines) {
                const match = line.match(/^([a-zA-Z0-9_]+)\s*=(.*)/);
@@ -491,6 +615,9 @@ export function useWorkbenchEditor() {
                   } else if (valStr.toLowerCase() === 'true' || valStr.toLowerCase() === 'false') {
                      type = "boolean";
                      defVal = valStr.toLowerCase() === 'true';
+                  } else if (isTupleString(valStr)) {
+                     type = "tuple";
+                     defVal = valStr;
                   } else if (!isNaN(Number(valStr)) && valStr !== "") {
                      type = "number";
                      defVal = Number(valStr);
@@ -501,7 +628,7 @@ export function useWorkbenchEditor() {
             }
             
             if (keyData.length === 0 && !isJson) {
-               pushStatus(t("err_no_keys_found"), "info");
+               pushStatus(t("err_no_keys_found", "No mappable keys found"), "info");
                return;
             }
 
@@ -511,16 +638,20 @@ export function useWorkbenchEditor() {
                      key: item.key,
                      path: item.key,
                      type: item.type,
-                     label_key: item.key.replace(/_/g, ' '),
+                     label_key: formatKeyLabel(item.key),
                      desc_key: "",
                      category: newParsedData.categories[0]?.id || "general"
                   };
                   
                   newSetting.default = item.default;
                   if (item.type === 'number') {
-                     newSetting.min = 0;
-                     newSetting.max = 100;
-                     newSetting.allow_decimals = !Number.isInteger(item.default);
+                     const numDef = typeof item.default === 'number' ? item.default : 0;
+                     newSetting.min = numDef < 0 ? Math.min(-100, Math.floor(numDef * 2)) : 0;
+                     newSetting.max = Math.max(100, Math.ceil(Math.abs(numDef) * 2));
+                     newSetting.step = 1;
+                     newSetting.allow_decimals = !Number.isInteger(numDef);
+                  } else if (item.type === 'tuple') {
+                     applyNumericTupleBounds(newSetting, String(item.default));
                   }
                   if (item.type === 'keybinding') {
                      newSetting.key_format = typeof item.default === 'number' ? 'keycode' : 'literal';
@@ -534,24 +665,28 @@ export function useWorkbenchEditor() {
          }
          
          if (addedCount > 0) {
-            handleRawChange(JSON.stringify(newParsedData, null, 2));
-            pushStatus(`${t("success_auto_map")} ${addedCount} keys.`, "success");
+            handleRawChange(JSON.stringify(newParsedData, null, 2), true, newParsedData);
+            pushStatus(`${t("success_auto_map", "Auto-mapped")}: ${addedCount}`, "success");
          } else {
-            pushStatus(t("info_all_mapped"), "info");
+            pushStatus(t("info_all_mapped", "All keys are already mapped"), "info");
          }
       } catch (e) {
-         pushStatus(t("err_auto_map"), "error");
+         pushStatus(t("err_auto_map", "Failed to auto-map keys"), "error");
       }
    }, [parsedData, targetFileContent, rawText, pushStatus, t, handleRawChange]);
 
    return {
       rawText, setRawText,
       parsedData, setParsedData,
+      savedRawText, savedParsedData,
+      savedRawTextRef, savedParsedDataRef,
+      syncSavedBaseline,
       problemsList, setProblemsList,
       targetFileContent, setTargetFileContent,
       editorRef, setEditorRef,
       highlightedKey, triggerHighlight,
       handleRawChange, handleInsertSnippet, handleAutoMap, handleVisualChange,
+      handleUndoSettingToSaved, handleUndoAllUnsaved,
       isJumping
    };
 }

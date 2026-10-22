@@ -17,6 +17,7 @@ import {
   ActionPill,
   InlineFilterGroup,
 } from "../shared";
+import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -91,7 +92,7 @@ export function evaluateModIssues(
       type: "red",
       icon: t("icon_broken_image", "broken_image"),
       title: t("status_broken", "Corrupted"),
-      detail: formatDisplayName(mod.displayName || mod.name),
+      detail: mod.status_reason || "",
     });
   }
 
@@ -196,7 +197,7 @@ export function evaluateModIssues(
       type: "amber",
       icon: t("icon_warning_amber", "warning_amber"),
       title: t("bp_status_unstable", "Unstable"),
-      detail: mod.status_reason || formatDisplayName(mod.displayName || mod.name),
+      detail: mod.status_reason || "",
     });
   }
 
@@ -217,13 +218,65 @@ export function evaluateModIssues(
   };
 }
 
+export function normalizeModGroupTitle(rawTitle: string): string {
+  return rawTitle
+    .replace(
+      /(\s+scripts|\s+script|_scripts|_script|\s+addons|\s+addon|\s+add-on|_addon|\s+modules|\s+module|_module|\s+core|_core|\s+base|_base|\s+main|_main|\s+part\s*\d+|\s+pt\s*\d+)$/i,
+      ""
+    )
+    .trim();
+}
+
+export function isKnownCreatorName(val: any): boolean {
+  if (!val || typeof val !== "string") return false;
+  const clean = val.trim().toLowerCase();
+  return (
+    clean.length > 0 &&
+    clean !== "unknown" &&
+    clean !== "unknown creator" &&
+    clean !== "unknown mason" &&
+    clean !== "unknown architect" &&
+    clean !== "null" &&
+    clean !== "undefined"
+  );
+}
+
+export function extractValidCreator(...candidates: any[]): string | null {
+  for (const c of candidates) {
+    if (!c) continue;
+    if (typeof c === "string") {
+      if (isKnownCreatorName(c)) return c.trim();
+      continue;
+    }
+    const direct =
+      (Array.isArray(c.masons) ? c.masons[0]?.name : c.masons?.name) ||
+      c.author ||
+      c.master_author ||
+      c.creator_name ||
+      c.suggested_author;
+    if (isKnownCreatorName(direct)) return String(direct).trim();
+  }
+  return null;
+}
+
 export function groupBrokenMods(rawList: any[]): any[] {
   if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
   const allVaultMods: any[] = useStore.getState().modList || [];
   const vaultUpdateLookup = new Map<string, any>();
+  const virtualByFamilyId = new Map<string, any>();
+  const parentByDbId = new Map<string, any>();
+
   for (const vm of allVaultMods) {
     if (!vm) continue;
+    if (vm.isVirtual && !vm.isCollection) {
+      if (vm.dbId) virtualByFamilyId.set(String(vm.dbId).split("@")[0], vm);
+      if (vm.baseFamilyId) virtualByFamilyId.set(String(vm.baseFamilyId).split("@")[0], vm);
+      continue;
+    }
+    if (vm.dbId) {
+      parentByDbId.set(String(vm.dbId), vm);
+    }
     if (vm.name) vaultUpdateLookup.set(String(vm.name).toLowerCase(), vm);
     if (vm.displayName) vaultUpdateLookup.set(String(vm.displayName).toLowerCase(), vm);
   }
@@ -239,37 +292,73 @@ export function groupBrokenMods(rawList: any[]): any[] {
     const matchedVault =
       vaultUpdateLookup.get(String(rawMod?.name || "").toLowerCase()) ||
       vaultUpdateLookup.get(String(rawMod?.displayName || "").toLowerCase());
-    const mod = matchedVault
-      ? {
-          ...matchedVault,
-          ...rawMod,
-          hasUpdate: Boolean(rawMod.hasUpdate || matchedVault.hasUpdate),
-          newVersion: rawMod.newVersion || matchedVault.newVersion,
-          newGameVersion: rawMod.newGameVersion || matchedVault.newGameVersion,
-          download_url: rawMod.download_url || matchedVault.download_url,
-          url: rawMod.url || matchedVault.url,
-          author:
-            rawMod.author && String(rawMod.author).toLowerCase() !== "unknown"
-              ? rawMod.author
-              : matchedVault.author || rawMod.author,
-        }
-      : rawMod;
+
+    const famIdRaw = String(
+      rawMod?.baseFamilyId ||
+        rawMod?.familyId ||
+        matchedVault?.baseFamilyId ||
+        matchedVault?.familyId ||
+        ""
+    ).split("@")[0];
+    const hasRealFamily = Boolean(
+      famIdRaw &&
+        famIdRaw !== "null" &&
+        famIdRaw !== "undefined" &&
+        !famIdRaw.startsWith("local_")
+    );
+    const familyParent = hasRealFamily
+      ? parentByDbId.get(famIdRaw) || virtualByFamilyId.get(famIdRaw)
+      : null;
+
+    const resolvedAuthor = extractValidCreator(rawMod, matchedVault, familyParent);
+
+    const mod = {
+      ...(familyParent && !familyParent.isVirtual ? familyParent : {}),
+      ...(matchedVault || {}),
+      ...rawMod,
+      hasUpdate: Boolean(
+        rawMod.hasUpdate || matchedVault?.hasUpdate || familyParent?.hasUpdate
+      ),
+      newVersion:
+        rawMod.newVersion || matchedVault?.newVersion || familyParent?.newVersion,
+      newGameVersion:
+        rawMod.newGameVersion ||
+        matchedVault?.newGameVersion ||
+        familyParent?.newGameVersion,
+      download_url:
+        rawMod.download_url ||
+        matchedVault?.download_url ||
+        familyParent?.download_url,
+      url: rawMod.url || matchedVault?.url || familyParent?.url,
+      author: resolvedAuthor || undefined,
+    };
 
     const rawTitle = formatDisplayName(mod?.displayName || mod?.name || "").trim();
-    const isMc = mcCount > 1 && (/^mc[\s_-]/i.test(rawTitle) || /mc\s*command\s*center/i.test(rawTitle));
+    const isMc =
+      mcCount > 1 && (/^mc[\s_-]/i.test(rawTitle) || /mc\s*command\s*center/i.test(rawTitle));
+    const twinNormalized = normalizeModGroupTitle(rawTitle) || rawTitle;
 
     let groupKey: string;
-    let displayTitle = rawTitle;
+    let displayTitle = twinNormalized;
 
     if (isMc) {
       groupKey = "__suite_mc_command_center__";
       displayTitle = "MC Command Center";
+    } else if (hasRealFamily) {
+      groupKey = `__family_${famIdRaw}__`;
+      const canonicalParentTitle = familyParent
+        ? formatDisplayName(familyParent.displayName || familyParent.name || "").trim()
+        : "";
+      displayTitle =
+        normalizeModGroupTitle(canonicalParentTitle) ||
+        canonicalParentTitle ||
+        twinNormalized;
+    } else if (mod.flavorGroupId) {
+      groupKey = `__flavor_${mod.flavorGroupId}__`;
+      displayTitle = formatDisplayName(mod.flavorGroupName || twinNormalized).trim();
     } else {
-      const twinNormalized = rawTitle
-        .replace(/(\s+scripts|\s+script|_scripts|_script)$/i, "")
-        .trim();
-      groupKey = (twinNormalized || rawTitle).toLowerCase();
-      displayTitle = twinNormalized || rawTitle;
+      groupKey = twinNormalized.toLowerCase();
+      displayTitle = twinNormalized;
     }
 
     const modIssues: StackedModIssue[] = Array.isArray(mod._issues)
@@ -277,7 +366,9 @@ export function groupBrokenMods(rawList: any[]): any[] {
       : mod._alert_reason
         ? [
             {
-              category: mod._alert_category || (mod._alert_type === "amber" ? "unstable" : "corrupted"),
+              category:
+                mod._alert_category ||
+                (mod._alert_type === "amber" ? "unstable" : "corrupted"),
               type: mod._alert_type === "amber" ? "amber" : "red",
               icon: mod._alert_type === "amber" ? "warning_amber" : "broken_image",
               title: mod._alert_type === "amber" ? "Unstable" : "Corrupted",
@@ -308,6 +399,11 @@ export function groupBrokenMods(rawList: any[]): any[] {
       existing._groupedMods.push(mod);
       existing._groupOriginalNames.push(mod.name);
 
+      // If this item is the parent/boss mod itself, prefer its clean title
+      if (hasRealFamily && String(mod.dbId) === famIdRaw) {
+        existing._groupedTitle = twinNormalized;
+      }
+
       for (const cat of modCategories) {
         if (!existing._categories.includes(cat)) {
           existing._categories.push(cat);
@@ -334,7 +430,7 @@ export function groupBrokenMods(rawList: any[]): any[] {
         .map((i: StackedModIssue) => `${i.title}: ${i.detail}`)
         .join(" • ");
 
-      if ((!existing.author || existing.author === "Unknown") && mod.author) {
+      if (!isKnownCreatorName(existing.author) && isKnownCreatorName(mod.author)) {
         existing.author = mod.author;
       }
       if (mod.hasUpdate) existing.hasUpdate = true;
@@ -357,7 +453,91 @@ export function groupBrokenMods(rawList: any[]): any[] {
     }
   }
 
-  return Array.from(grouped.values());
+  // Second pass: merge prefix-based Addons/Modules into their parent mod card if present
+  const entries = Array.from(grouped.values());
+  const mergedOut = new Set<number>();
+
+  for (let i = 0; i < entries.length; i++) {
+    if (mergedOut.has(i)) continue;
+    const parent = entries[i];
+    const pTitle = String(parent._groupedTitle || "").trim();
+    if (pTitle.length < 5) continue;
+    const pLower = pTitle.toLowerCase();
+
+    for (let j = 0; j < entries.length; j++) {
+      if (i === j || mergedOut.has(j)) continue;
+      const candidate = entries[j];
+      const cTitle = String(candidate._groupedTitle || "").trim();
+      const cLower = cTitle.toLowerCase();
+
+      const isPrefixAddon =
+        cLower.length > pLower.length &&
+        cLower.startsWith(pLower) &&
+        /^(\s*[-:–_(\[]|\s+(addon|add-on|module|pack|part|script|scripts)\b)/i.test(
+          cTitle.slice(pTitle.length)
+        );
+
+      if (isPrefixAddon) {
+        mergedOut.add(j);
+        parent._moduleCount = (parent._moduleCount || 1) + (candidate._moduleCount || 1);
+        parent._groupedMods.push(...(candidate._groupedMods || [candidate]));
+        parent._groupOriginalNames.push(...(candidate._groupOriginalNames || [candidate.name]));
+        for (const cat of candidate._categories || []) {
+          if (!parent._categories.includes(cat)) parent._categories.push(cat);
+        }
+        for (const iss of candidate._issues || []) {
+          const existsAlready = parent._issues.some(
+            (e: StackedModIssue) =>
+              e.category === iss.category &&
+              e.title === iss.title &&
+              e.detail.toLowerCase() === iss.detail.toLowerCase()
+          );
+          if (!existsAlready) parent._issues.push(iss);
+        }
+        if (candidate._alert_type === "red") parent._alert_type = "red";
+        if (candidate.hasUpdate) parent.hasUpdate = true;
+        if (!parent.newVersion && candidate.newVersion) parent.newVersion = candidate.newVersion;
+        if (!isKnownCreatorName(parent.author) && isKnownCreatorName(candidate.author)) {
+          parent.author = candidate.author;
+        }
+      }
+    }
+  }
+
+  return entries.filter((_, idx) => !mergedOut.has(idx));
+}
+
+export function formatAddonModuleName(rawMod: any, activeGameSchema?: any): string {
+  const base = formatDisplayName(
+    rawMod?.displayName || rawMod?.name || "",
+    undefined,
+    activeGameSchema
+  ).trim();
+  if (!base) return "";
+
+  const spaced = base
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (/^mc\s+cmd\s+center$/i.test(spaced)) {
+    return "MC Command Center";
+  }
+
+  const ACRONYMS = new Set(["MC", "CAS", "UI", "DLC", "HQ", "XML", "NPC", "VIP"]);
+  return spaced
+    .split(" ")
+    .map((word) => {
+      const upper = word.toUpperCase();
+      if (ACRONYMS.has(upper)) return upper;
+      if (word.length <= 1) return upper;
+      if (word === word.toLowerCase()) {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }
+      return word;
+    })
+    .join(" ");
 }
 
 export function IncompatibleModCard({
@@ -370,9 +550,9 @@ export function IncompatibleModCard({
   allow_write,
   t,
   activeGameSchema,
+  sectionKey,
 }: any) {
   const [isExpanded, setIsExpanded] = useState(false);
-
   const showImages = useStore((state: any) => state.showImages);
   const image =
     showImages &&
@@ -397,21 +577,29 @@ export function IncompatibleModCard({
       String(mod.version).toLowerCase() !== "local" &&
       String(mod.version).toLowerCase() !== "unknown"
   );
-  const realAuthor =
-    mod.author &&
-    String(mod.author).trim() !== "" &&
-    String(mod.author).toLowerCase() !== "unknown"
-      ? String(mod.author)
-      : null;
+  const cleanInstalledVer = hasRealVersion
+    ? String(mod.version).replace(/^v\.?/i, "").trim()
+    : null;
+
+  const validCreator = extractValidCreator(mod, ...groupedMods);
+  const hasScriptFile = groupedMods.some((gm) =>
+    /\.ts4script$/i.test(String(gm?.name || gm?._originalSetName || ""))
+  );
+  const fallbackTypeLabel = hasScriptFile
+    ? t("card_file_script", "Script")
+    : t("card_file_package", "Package");
 
   const hasUpdate = Boolean(mod.hasUpdate && mod.newVersion);
+  const cleanNewVer = mod.newVersion
+    ? String(mod.newVersion).replace(/^v\.?/i, "").trim()
+    : null;
+
   const resolvedFallbackUrl = getModFallbackUrl(
     title || mod.name || "",
     mod.hash,
     activeGameSchema,
     { url: mod.download_url || mod.url }
   );
-  const hasDirectUrl = Boolean(mod.download_url || mod.url);
 
   const openModUpdate = (e?: React.MouseEvent) => {
     if (e) {
@@ -435,255 +623,386 @@ export function IncompatibleModCard({
             category: categories[0],
             type: isAmber ? "amber" : "red",
             icon: isAmber
-              ? t("icon_warning_amber", "warning_amber")
-              : t("icon_broken_image", "broken_image"),
+              ? t("icon_warning", "warning")
+              : t("icon_error", "error"),
             title: isAmber
-              ? t("bp_pill_unstable", "Unstable")
-              : t("bp_pill_corrupted", "Corrupted"),
-            detail: mod._alert_reason || title,
+              ? t("status_tag_unstable", "Unstable")
+              : t("status_tag_corrupted", "Corrupted"),
+            detail: mod.status_reason || "",
           },
         ];
 
-  const canOfferUpdate =
-    hasUpdate ||
-    categories.includes("version_mismatch") ||
-    categories.includes("unstable") ||
-    hasDirectUrl;
+  const issueRows: {
+    icon: string;
+    issueLabel: string;
+    detailValue?: string;
+  }[] = stackedIssues.map((iss) => {
+    const hasCustomDetail = Boolean(
+      iss.detail &&
+        iss.detail.toLowerCase() !== title.toLowerCase() &&
+        iss.detail.toLowerCase() !== iss.title.toLowerCase()
+    );
+
+    if (iss.category === "corrupted") {
+      return {
+        icon: t("icon_gpp_bad", "gpp_bad"),
+        issueLabel: iss.title,
+        detailValue: hasCustomDetail ? iss.detail : undefined,
+      };
+    }
+    if (iss.category === "unstable") {
+      return {
+        icon: t("icon_warning_amber", "warning_amber"),
+        issueLabel: iss.title,
+        detailValue: hasCustomDetail ? iss.detail : undefined,
+      };
+    }
+    if (iss.category === "version_mismatch") {
+      return {
+        icon: t("icon_sports_esports", "sports_esports"),
+        issueLabel: t("modal_version_mismatch", "Version Mismatch"),
+        detailValue: hasCustomDetail ? iss.detail : undefined,
+      };
+    }
+    return {
+      icon: iss.icon || t("icon_error", "error"),
+      issueLabel: iss.title,
+      detailValue: hasCustomDetail ? iss.detail : undefined,
+    };
+  });
+
+  const panelResetStyle = {
+    "--glass-outer-shadow": "0 0 #0000",
+    "--glass-nested-shadow": "0 0 #0000",
+    boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.14))",
+  } as React.CSSProperties;
 
   return (
-    <div
-      className={`glass-panel rounded-[var(--radius)] p-4 flex flex-col justify-between gap-3 transition-all duration-300 relative border ${
-        effectiveIgnored
-          ? "opacity-50 grayscale-[40%] border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
-          : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
-      }`}
-    >
-      {/* Row 1: Icon Squircle (Left) + Action Controls (Right) */}
-      <div className="flex items-center justify-between gap-2">
-        <div
-          className={`w-9 h-9 rounded-[10px] glass-surface border flex items-center justify-center shrink-0 overflow-hidden ${
-            effectiveIgnored
-              ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]"
-              : isAmber
-                ? "border-[color-mix(in_srgb,var(--warning)_28%,transparent)] text-[var(--warning)]"
-                : "border-[color-mix(in_srgb,var(--danger)_28%,transparent)] text-[var(--danger)]"
-          }`}
-        >
-          {image ? (
-            <img src={image} alt={title} className="w-full h-full object-cover" />
-          ) : (
-            <span className="material-symbols-outlined !text-[19px]">{modIcon}</span>
+    <>
+      <div
+        style={panelResetStyle}
+        className={`glass-panel shadow-none rounded-3xl p-5 flex flex-col justify-between gap-3 transition-all duration-300 relative group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] ${
+          effectiveIgnored ? "opacity-50 grayscale-[40%]" : ""
+        }`}
+      >
+        {/* Top Row: Mod Icon & Metadata on Left + Unified Ignore/Remove Capsule on Right */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {image ? (
+              <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0">
+                <img src={image} alt={title} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-8 h-8 flex items-center justify-center shrink-0 text-[var(--text)] opacity-80 group-hover:opacity-100 transition-opacity">
+                <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+              <span className="truncate opacity-85">{validCreator || fallbackTypeLabel}</span>
+              {groupedMods.length > 1 && (
+                <>
+                  <span className="opacity-40 shrink-0">&bull;</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsExpanded((prev) => !prev);
+                    }}
+                    className="relative group/modpill inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-bold text-[var(--text)] opacity-90 hover:opacity-100 transition-all cursor-pointer shrink-0"
+                  >
+                    <span>
+                      {groupedMods.length} {t("card_files_linked", "Linked Files")}
+                    </span>
+                    <span
+                      className={`material-symbols-outlined !text-[13px] opacity-75 transition-transform duration-300 ${
+                        isExpanded ? "rotate-180" : ""
+                      }`}
+                    >
+                      {t("icon_expand_more", "expand_more")}
+                    </span>
+
+                    {!isExpanded && (
+                      <HoverTooltip
+                        align="left"
+                        vAlign="bottom"
+                        content={
+                          <div className="glass-panel rounded-2xl p-3.5 min-w-[230px] max-w-[300px] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl flex flex-col gap-2 pointer-events-none">
+                            <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
+                                {groupedMods.length} {t("card_files_linked", "Linked Files")}
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              {groupedMods.slice(0, 14).map((gm: any, gIdx: number) => {
+                                const gmName =
+                                  formatAddonModuleName(gm, activeGameSchema) ||
+                                  formatDisplayName(gm.displayName || gm.name);
+                                const isScript = /\.ts4script$/i.test(
+                                  String(gm?.name || gm?._originalSetName || "")
+                                );
+                                return (
+                                  <div
+                                    key={`${gm.name || gIdx}-${gIdx}`}
+                                    className="flex items-center justify-between gap-3 text-[11px]"
+                                  >
+                                    <span className="font-bold text-[var(--text)] truncate">
+                                      {gmName}
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-75 shrink-0">
+                                      {isScript
+                                        ? t("card_file_script", "Script")
+                                        : t("card_file_package", "Package")}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        }
+                      />
+                    )}
+                  </button>
+                </>
+              )}
+              {!hasUpdate && cleanInstalledVer && (
+                <>
+                  <span className="opacity-40 shrink-0">&bull;</span>
+                  <span className="font-mono shrink-0 opacity-85">v{cleanInstalledVer}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Unified Capsule Action Pill (Ignore / Remove) */}
+          {((setIgnoredBroken && ignoredBroken instanceof Set) ||
+            (allow_write && toggleInActiveSet)) && (
+            <div className="flex items-center glass-surface !rounded-full p-0.5 gap-0.5 shrink-0">
+              {setIgnoredBroken && ignoredBroken instanceof Set && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const next = new Set(ignoredBroken);
+                    if (effectiveIgnored) {
+                      groupedMods.forEach((m) => next.delete(m.name));
+                    } else {
+                      groupedMods.forEach((m) => next.add(m.name));
+                    }
+                    setIgnoredBroken(next);
+                  }}
+                  className="relative group/actionbtn w-7 h-7 rounded-full border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {effectiveIgnored
+                      ? t("icon_visibility", "visibility")
+                      : t("icon_visibility_off", "visibility_off")}
+                  </span>
+                  <HoverTooltip
+                    className="z-[100] !right-0 !translate-x-0 !left-auto"
+                    title={
+                      effectiveIgnored
+                        ? t("bp_restore_alert", "Restore")
+                        : t("btn_ignore", "Ignore")
+                    }
+                    icon={
+                      effectiveIgnored
+                        ? t("icon_visibility", "visibility")
+                        : t("icon_visibility_off", "visibility_off")
+                    }
+                  />
+                </button>
+              )}
+
+              {allow_write && toggleInActiveSet && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    groupedMods.forEach((m) => {
+                      toggleInActiveSet(m._originalSetName || m.name, true, true);
+                    });
+                  }}
+                  className="relative group/actionbtn w-7 h-7 rounded-full border border-transparent hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {t("icon_delete", "delete")}
+                  </span>
+                  <HoverTooltip
+                    className="z-[100] !right-0 !translate-x-0 !left-auto"
+                    title={t("btn_remove", "Remove")}
+                    icon={t("icon_delete", "delete")}
+                    variant="danger"
+                  />
+                </button>
+              )}
+            </div>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          {canOfferUpdate && (
-            <button
-              type="button"
-              onClick={openModUpdate}
-              className="relative group/actionbtn px-2.5 h-8 rounded-[10px] glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] text-[var(--accent)] text-[11px] font-bold inline-flex items-center gap-1 transition-all cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[15px]">
-                {hasDirectUrl
-                  ? t("icon_download", "download")
-                  : t("icon_open_in_new", "open_in_new")}
-              </span>
-              <span>{t("comms_btn_update", "Update")}</span>
-            </button>
-          )}
-
-          {setIgnoredBroken && ignoredBroken instanceof Set && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                const next = new Set(ignoredBroken);
-                if (effectiveIgnored) {
-                  groupedMods.forEach((m) => next.delete(m.name));
-                } else {
-                  groupedMods.forEach((m) => next.add(m.name));
-                }
-                setIgnoredBroken(next);
-              }}
-              className="relative group/actionbtn w-8 h-8 rounded-[10px] glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center transition-all cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[16px]">
-                {effectiveIgnored
-                  ? t("icon_visibility", "visibility")
-                  : t("icon_visibility_off", "visibility_off")}
-              </span>
-              <HoverTooltip
-                className="z-[100] !right-0 !translate-x-0 !left-auto"
-                title={
-                  effectiveIgnored
-                    ? t("bp_restore_alert", "Restore")
-                    : t("btn_ignore", "Ignore")
-                }
-                icon={
-                  effectiveIgnored
-                    ? t("icon_visibility", "visibility")
-                    : t("icon_visibility_off", "visibility_off")
-                }
-              />
-            </button>
-          )}
-
-          {allow_write && toggleInActiveSet && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                groupedMods.forEach((m) => {
-                  toggleInActiveSet(m._originalSetName || m.name, true, true);
-                });
-              }}
-              className="relative group/actionbtn w-8 h-8 rounded-[10px] glass-surface border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_22%,transparent)] flex items-center justify-center transition-all cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[16px]">
-                {t("icon_delete", "delete")}
-              </span>
-              <HoverTooltip
-                className="z-[100] !right-0 !translate-x-0 !left-auto"
-                title={t("btn_remove", "Remove")}
-                icon={t("icon_delete", "delete")}
-                variant="danger"
-              />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Row 2: Full-Width Title & Clean Subtitle Metadata */}
-      <div className="flex flex-col min-w-0">
+        {/* Middle Row: Full-Width Mod Title */}
         <span
-          className="text-[14px] font-bold text-[var(--text)] tracking-tight leading-snug truncate"
+          className="text-[15px] font-black text-[var(--text)] tracking-tight leading-snug truncate"
           title={title}
         >
           {title}
         </span>
 
-        <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] mt-1 min-w-0 flex-wrap">
-          {realAuthor && <span className="truncate max-w-[140px]">{realAuthor}</span>}
-          {realAuthor && (hasUpdate || hasRealVersion || groupedMods.length > 1) && (
-            <span className="opacity-40">•</span>
-          )}
+        {/* Bottom Section: Issues Stack (1 or Multiple) + Version Update Bar (only when hasUpdate is true) */}
+        <div className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-2">
+          {issueRows.map((row, idx) => (
+            <div key={idx} className="flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-1.5 min-w-0 font-bold text-[var(--text)]">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] opacity-85 shrink-0">
+                  {row.icon}
+                </span>
+                <span className="truncate">{row.issueLabel}</span>
+              </div>
+              {row.detailValue && (
+                <span
+                  className="font-mono text-[11px] font-semibold text-[var(--subtext)] opacity-90 shrink-0 truncate max-w-[160px]"
+                  title={row.detailValue}
+                >
+                  {row.detailValue}
+                </span>
+              )}
+            </div>
+          ))}
 
-          {hasUpdate ? (
-            <span className="font-mono text-[11px] font-semibold text-[var(--accent)]">
-              {hasRealVersion ? `${mod.version} → ${mod.newVersion}` : String(mod.newVersion)}
-            </span>
-          ) : (
-            hasRealVersion && (
-              <span className="font-mono text-[11px] opacity-80">{mod.version}</span>
-            )
-          )}
+          {hasUpdate && cleanNewVer && (
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <span className="font-mono text-xs font-bold truncate">
+                {cleanInstalledVer ? (
+                  <>
+                    <span className="text-[var(--subtext)]">v{cleanInstalledVer} &rarr; </span>
+                    <span className="text-[var(--text)]">v{cleanNewVer}</span>
+                  </>
+                ) : (
+                  <span className="text-[var(--text)]">v{cleanNewVer}</span>
+                )}
+              </span>
 
-          {(hasUpdate || hasRealVersion) && groupedMods.length > 1 && (
-            <span className="opacity-40">•</span>
-          )}
-
-          {groupedMods.length > 1 ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsExpanded((prev) => !prev);
-              }}
-              className="inline-flex items-center gap-0.5 text-[var(--accent)] hover:underline font-semibold cursor-pointer"
-            >
-              <span>
-                {groupedMods.length} {t("staging_btn_view_suite", "Modules")}
-              </span>
-              <span className="material-symbols-outlined !text-[14px] leading-none">
-                {isExpanded
-                  ? t("icon_expand_less", "expand_less")
-                  : t("icon_expand_more", "expand_more")}
-              </span>
-            </button>
-          ) : (
-            !realAuthor &&
-            !hasRealVersion &&
-            !hasUpdate && (
-              <span className="truncate opacity-65 font-mono text-[10px]">
-                {(mod.name || "").split(/[\\/]/).pop()}
-              </span>
-            )
+              <button
+                type="button"
+                onClick={openModUpdate}
+                className="px-3 h-7 rounded-full glass-surface hover:bg-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <span>{t("comms_btn_update", "Update")}</span>
+                <span className="text-xs leading-none">&rarr;</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Row 3: Clean Hairline-Separated Diagnostic Footer (No Sausage Pills) */}
-      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-1.5">
-        {stackedIssues.map((iss, idx) => {
-          const isWarn = iss.type === "amber";
-          const showDetail =
-            iss.category !== "corrupted" &&
-            iss.detail &&
-            iss.detail.toLowerCase() !== title.toLowerCase();
-
-          return (
-            <div
-              key={`${iss.category}-${idx}`}
-              className="flex items-center justify-between gap-2 text-[11px] min-w-0"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-
-                <span
-                  className={`font-semibold truncate ${
-                    isWarn ? "text-[var(--warning)]" : "text-[var(--danger)]"
-                  }`}
-                >
-                  {iss.title}
-                </span>
-              </div>
-              {showDetail && (
-                <span
-                  className="font-mono font-semibold text-[var(--text)] opacity-90 truncate max-w-[55%] text-right"
-                  title={iss.detail}
-                >
-                  {iss.detail}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Expandable Grouped Modules List */}
+      {/* Full-Width Addon / Linked Modules Drawer (Spans across both grid columns below the card row) */}
       {isExpanded && groupedMods.length > 1 && (
-        <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-1">
-          <div className="flex flex-col gap-1 max-h-[135px] overflow-y-auto custom-scrollbar pr-1">
-            {groupedMods.map((gm: any, idx: number) => {
-              const rawFile =
-                String(gm.name || gm._originalSetName || "").split(/[\\/]/).pop() || gm.name;
-              const isScript = /\.ts4script$/i.test(rawFile);
+        <div
+          style={panelResetStyle}
+          className="col-span-full glass-panel shadow-none rounded-3xl p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-1 duration-200"
+        >
+          <div className="flex items-center justify-between gap-2 px-1 pb-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">
+                {t("icon_extension", "extension")}
+              </span>
+              <span className="text-xs font-black text-[var(--text)] truncate">
+                {title} &bull; {groupedMods.length} {t("card_files_linked", "Linked Files")}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsExpanded(false)}
+              className="w-7 h-7 rounded-full glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_close", "close")}
+              </span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {groupedMods.map((gm: any, gIdx: number) => {
+              const gmName =
+                formatAddonModuleName(gm, activeGameSchema) ||
+                formatDisplayName(gm.displayName || gm.name);
+              const isScript = /\.ts4script$/i.test(
+                String(gm?.name || gm?._originalSetName || "")
+              );
+              const gmIgnored =
+                ignoredBroken instanceof Set ? ignoredBroken.has(gm.name) : false;
+
               return (
                 <div
-                  key={`${gm.name}-${idx}`}
-                  className="flex items-center justify-between gap-2 py-0.5 text-[11px]"
+                  key={`${gm.name || gIdx}-${gIdx}`}
+                  className={`glass-surface rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2 transition-all ${
+                    gmIgnored ? "opacity-50 grayscale-[40%]" : ""
+                  }`}
                 >
-                  <span
-                    className="font-mono text-[var(--text)] opacity-85 truncate"
-                    title={rawFile}
-                  >
-                    {rawFile}
-                  </span>
-                  <span
-                    className={`text-[10px] font-semibold shrink-0 ${
-                      isScript ? "text-[var(--accent)]" : "text-[var(--subtext)] opacity-60"
-                    }`}
-                  >
-                    {isScript
-                      ? t("card_file_script", "Script")
-                      : t("card_file_package", "Package")}
-                  </span>
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] shrink-0">
+                      {getModIcon(gm, activeGameSchema, t)}
+                    </span>
+                    <div className="flex flex-col min-w-0">
+                      <span
+                        className="text-xs font-bold text-[var(--text)] truncate"
+                        title={gmName}
+                      >
+                        {gmName}
+                      </span>
+                      <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-75">
+                        {isScript
+                          ? t("card_file_script", "Script")
+                          : t("card_file_package", "Package")}
+                      </span>
+                    </div>
+                  </div>
+
+                  {((setIgnoredBroken && ignoredBroken instanceof Set) ||
+                    (allow_write && toggleInActiveSet)) && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {setIgnoredBroken && ignoredBroken instanceof Set && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const next = new Set(ignoredBroken);
+                            if (gmIgnored) next.delete(gm.name);
+                            else next.add(gm.name);
+                            setIgnoredBroken(next);
+                          }}
+                          className="relative group/actionbtn w-6 h-6 rounded-full hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined !text-[14px]">
+                            {gmIgnored
+                              ? t("icon_visibility", "visibility")
+                              : t("icon_visibility_off", "visibility_off")}
+                          </span>
+                        </button>
+                      )}
+                      {allow_write && toggleInActiveSet && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleInActiveSet(gm._originalSetName || gm.name, true, true);
+                          }}
+                          className="relative group/actionbtn w-6 h-6 rounded-full hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined !text-[14px]">
+                            {t("icon_delete", "delete")}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -696,71 +1015,27 @@ export function renderGroupedIncompatibleSections({
   t,
   activeGameSchema,
 }: any) {
-  const corruptedList = groupedBrokenMods.filter(
-    (m: any) => m._alert_type === "red" && (!m._alert_category || m._alert_category === "corrupted")
-  );
-  const versionMismatchList = groupedBrokenMods.filter(
-    (m: any) => m._alert_category === "version_mismatch"
-  );
-  const missingReqsList = groupedBrokenMods.filter(
-    (m: any) => m._alert_category === "missing_dlc" || m._alert_category === "missing_deps"
-  );
-  const unstableList = groupedBrokenMods.filter((m: any) => m._alert_type === "amber");
-
-  const sections = [
-    {
-      key: "corrupted",
-      title: `${t("bp_status_broken_noncompliant", "Corrupted")} (${corruptedList.length})`,
-      icon: t("icon_gpp_bad", "gpp_bad"),
-      items: corruptedList,
-    },
-    {
-      key: "version_mismatch",
-      title: `${t("bp_status_version_mismatch", "Game Version Incompatibility")} (${versionMismatchList.length})`,
-      icon: t("icon_update", "update"),
-      items: versionMismatchList,
-    },
-    {
-      key: "missing_reqs",
-      title: `${t("missing_deps", "Missing Requirements")} (${missingReqsList.length})`,
-      icon: t("icon_extension", "extension"),
-      items: missingReqsList,
-    },
-    {
-      key: "unstable",
-      title: `${t("bp_status_unstable", "Unstable")} (${unstableList.length})`,
-      icon: t("icon_warning_amber", "warning_amber"),
-      items: unstableList,
-    },
-  ].filter((s) => s.items.length > 0);
-
   return (
-    <div className="flex flex-col gap-6 w-full">
-      {sections.map((section) => (
-        <UniversalGroup key={section.key} title={section.title} icon={section.icon}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-start">
-            {section.items.map((mod: any) => {
-              const groupNames: string[] = mod._groupOriginalNames || [mod.name];
-              const isGroupIgnored =
-                ignoredBroken instanceof Set ? groupNames.every((n) => ignoredBroken.has(n)) : false;
-              return (
-                <IncompatibleModCard
-                  key={mod._groupedTitle || mod.name}
-                  mod={mod}
-                  isIgnored={isGroupIgnored}
-                  isAmber={mod._alert_type === "amber"}
-                  setIgnoredBroken={setIgnoredBroken}
-                  ignoredBroken={ignoredBroken}
-                  toggleInActiveSet={toggleInActiveSet}
-                  allow_write={allow_write}
-                  t={t}
-                  activeGameSchema={activeGameSchema}
-                />
-              );
-            })}
-          </div>
-        </UniversalGroup>
-      ))}
+    <div className="grid grid-flow-row-dense grid-cols-1 sm:grid-cols-2 gap-3.5 items-start w-full">
+      {groupedBrokenMods.map((mod: any) => {
+        const groupNames: string[] = mod._groupOriginalNames || [mod.name];
+        const isGroupIgnored =
+          ignoredBroken instanceof Set ? groupNames.every((n) => ignoredBroken.has(n)) : false;
+        return (
+          <IncompatibleModCard
+            key={mod._groupedTitle || mod.name}
+            mod={mod}
+            isIgnored={isGroupIgnored}
+            isAmber={mod._alert_type === "amber"}
+            setIgnoredBroken={setIgnoredBroken}
+            ignoredBroken={ignoredBroken}
+            toggleInActiveSet={toggleInActiveSet}
+            allow_write={allow_write}
+            t={t}
+            activeGameSchema={activeGameSchema}
+          />
+        );
+      })}
     </div>
   );
 }

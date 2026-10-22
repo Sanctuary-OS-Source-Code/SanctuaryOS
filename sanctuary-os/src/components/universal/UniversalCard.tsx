@@ -68,12 +68,12 @@ export function UniversalCard({
   switch (layout) {
     case "horizontal":
       layoutClasses = "flex-row items-center p-4 gap-4 min-h-[80px]";
-      imageContainerClasses = "w-12 h-12 shrink-0 flex items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] group-hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] transition-all duration-500 overflow-hidden relative";
+      imageContainerClasses = "w-12 h-12 shrink-0 flex items-center justify-center rounded-xl group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.5))] group-hover:bg-[color-mix(in_srgb,var(--accent)_12%,var(--glass-card-icon-bg))] transition-all duration-500 overflow-hidden relative";
       contentClasses = "flex-col justify-center grow min-w-0";
       break;
     case "compact":
-      layoutClasses = "flex-row items-center p-3 gap-4 min-h-[64px] hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] transition-colors rounded-xl";
-      imageContainerClasses = "w-11 h-11 shrink-0 flex items-center justify-center rounded-xl glass-panel bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all duration-300 overflow-hidden relative";
+      layoutClasses = "flex-row items-center p-3 gap-4 min-h-[64px] transition-colors rounded-xl";
+      imageContainerClasses = "w-11 h-11 shrink-0 flex items-center justify-center rounded-xl group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.5))] group-hover:bg-[color-mix(in_srgb,var(--accent)_12%,var(--glass-card-icon-bg))] transition-all duration-300 overflow-hidden relative";
       contentClasses = "flex-col justify-center grow min-w-0";
       break;
     case "vertical-compact":
@@ -96,15 +96,15 @@ export function UniversalCard({
 
   const cleanStatusColor = statusColor ? statusColor.split(' ').filter((c: string) => !c.startsWith('border-') && !c.startsWith('theme-border-')).join(' ') : "";
   const activeClasses = isActive
-    ? "border border-[color-mix(in_srgb,var(--accent)_45%,rgba(var(--text-rgb),0.25))] shadow-[0_12px_32px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(var(--text-rgb),0.25)] z-10"
-    : `${cleanStatusColor} hover:border-[rgba(var(--text-rgb,255,255,255),0.26)]`;
+    ? "ring-1 ring-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.5))] z-10"
+    : `${cleanStatusColor}`;
 
   // For ghosted or disabled states
   const opacityClasses = isGhosted ? "opacity-50 grayscale-[0.8]" : isDisabled ? "opacity-50 cursor-not-allowed grayscale" : "";
 
   // The hover effect should only apply if the card is interactive
   const isInteractive = !!onClick || !!onContextMenu;
-  const hoverClasses = !isDisabled && isInteractive ? "group-hover/card:shadow-[0_16px_44px_rgba(0,0,0,0.4)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]" : "transition-all duration-500";
+  const hoverClasses = !isDisabled && isInteractive ? "hover:-translate-y-0.5 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]" : "transition-all duration-500";
 
   const containerClasses = `glass-panel rounded-[var(--radius)] relative flex group group/card shrink-0 ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
 
@@ -160,10 +160,20 @@ export function UniversalCard({
             }}
           />
         ) : (
-          <div className="absolute inset-0 rounded-t-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_6%,transparent)] via-[color-mix(in_srgb,var(--text)_2%,transparent)] to-transparent border-b border-[color-mix(in_srgb,var(--text)_6%,transparent)] flex items-center justify-center transition-colors duration-500 overflow-hidden">
+          <div
+            className="absolute inset-0 rounded-t-[inherit] border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] flex items-center justify-center transition-colors duration-500 overflow-hidden"
+            style={{ background: 'var(--glass-card-banner-bg)' }}
+          >
             {customIcon ? customIcon : (
-              <div className={`rounded-2xl bg-[color-mix(in_srgb,var(--text)_7%,transparent)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.22),0_8px_20px_rgba(0,0,0,0.2)] flex items-center justify-center transition-all duration-500 group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(var(--text-rgb,255,255,255),0.2))] group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,rgba(var(--text-rgb,255,255,255),0.06))] ${layout === 'vertical-compact' ? 'w-12 h-12' : 'w-16 h-16'}`}>
-                <span className={`material-symbols-outlined text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm relative z-10 ${layout === 'vertical-compact' ? '!text-[24px]' : '!text-[34px]'}`}>
+              <div
+                className={`rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105 ${layout === 'vertical-compact' ? 'w-12 h-12' : 'w-16 h-16'}`}
+                style={{
+                  backgroundColor: 'var(--glass-card-icon-bg)',
+                  borderColor: 'var(--glass-card-icon-border)',
+                  boxShadow: 'var(--glass-card-icon-shadow)',
+                }}
+              >
+                <span className={`material-symbols-outlined text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm relative z-10 ${layout === 'vertical-compact' ? '!text-[24px]' : '!text-[34px]'}`}>
                   {icon || t("icon_folder", "folder")}
                 </span>
               </div>
@@ -175,12 +185,21 @@ export function UniversalCard({
     );
   };
 
+  const mergedStyle = layout === "stat"
+    ? ({
+        "--glass-outer-shadow": "0 0 #0000",
+        "--glass-nested-shadow": "0 0 #0000",
+        boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12))",
+        ...style,
+      } as React.CSSProperties)
+    : style;
+
   return (
     <div
       className={containerClasses}
       onClick={isDisabled ? undefined : onClick}
       onContextMenu={isDisabled ? undefined : onContextMenu}
-      style={style}
+      style={mergedStyle}
       {...restProps}
     >
 

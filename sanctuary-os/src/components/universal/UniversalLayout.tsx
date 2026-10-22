@@ -478,7 +478,12 @@ export function StatBox({
   return (
     <div
       onClick={onClick}
-      className={`glass-panel rounded-3xl py-3.5 px-4 md:py-4 md:px-5 hover:border-[rgba(var(--text-rgb),0.28)] flex items-center gap-3 md:gap-3.5 relative overflow-hidden transition-all duration-300 group ${
+      style={{
+        "--glass-outer-shadow": "0 0 #0000",
+        "--glass-nested-shadow": "0 0 #0000",
+        boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12))",
+      } as React.CSSProperties}
+      className={`glass-panel shadow-none rounded-3xl py-3.5 px-4 md:py-4 md:px-5 hover:border-[rgba(var(--text-rgb),0.28)] flex items-center gap-3 md:gap-3.5 relative overflow-hidden transition-all duration-300 group ${
         onClick ? "cursor-pointer active:scale-[0.99]" : "cursor-default"
       } ${className}`}
     >

@@ -522,7 +522,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         ] = await Promise.all([
           supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_market_listed', true).order('created_at', { ascending: false }).limit(1000),
           supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(1000),
-          supabase.from('masons').select('id, name')
+          supabase.from('masons').select('id, name, is_verified')
         ]);
 
         if (bpError) throw bpError;
@@ -534,7 +534,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         }
 
         if (masonData) {
-          setMasonMap(masonData.reduce((acc: any, m: any) => { acc[m.name.toLowerCase()] = m.id; return acc; }, {}));
+          setMasonMap(masonData.reduce((acc: any, m: any) => { if (m.is_verified && m.name) acc[m.name.toLowerCase()] = m.id; return acc; }, {}));
         }
 
         const processedBlueprints = blueprints?.map(b => {
@@ -1634,7 +1634,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       const isFolder = item.feed_type === 'artifact' && (item.isVirtual || item.isParent || item.familyCount > 1);
 
                       const renderedCard = (
-                        <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[inherit] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`} onClick={() => {
+                        <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`} onClick={() => {
                           if (item.feed_type === 'artifact') {
                             if (onOpenDossier) onOpenDossier({ ...item, isNexusView: true });
                           } else if (item.feed_type === 'blueprint') {
@@ -1648,7 +1648,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           }
                         }}>
                           <div
-                            className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden [transform:translateZ(0)]"
+                            className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-transparent transition-colors duration-700 overflow-hidden"
                             style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
                           >
                             {(showImages !== false && item.image_url) ? (
@@ -1667,7 +1667,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             )}
 
                             <div className="absolute top-3 right-3 flex gap-2 z-30">
-                              <span className="text-[8px] font-black px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-lg border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] capitalize tracking-widest">
+                              <span className="text-[8px] font-black px-2 py-1 bg-[color-mix(in_srgb,var(--bg)_65%,transparent)] rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] capitalize tracking-widest">
                                 {item.category_override || item.feed_type}
                               </span>
                             </div>
@@ -1767,7 +1767,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                             onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
                                             className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02]  hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
                                           >
-                                            <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
+                                            <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-transparent transition-colors duration-700 overflow-hidden">
                                               {(showImages !== false && flavor.image_url) ? (
                                                 <img
                                                   src={flavor.image_url}

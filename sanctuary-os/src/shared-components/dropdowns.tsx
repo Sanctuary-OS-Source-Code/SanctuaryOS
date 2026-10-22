@@ -71,12 +71,14 @@ export function CustomDropdown({
     const updatePosition = () => {
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
-        const shouldDropUp = rect.bottom + 200 > window.innerHeight;
+        const shouldDropUp = rect.bottom + 260 > window.innerHeight && rect.top > 260;
+        const menuWidth = Math.min(Math.max(rect.width, 220), window.innerWidth - 24);
+        const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
         setCoords({
           top: shouldDropUp ? rect.top - 4 : rect.bottom + 4,
-          left: rect.left >= window.innerWidth / 2 ? rect.right : rect.left,
-          width: rect.width,
-          isRight: rect.left >= window.innerWidth / 2,
+          left: clampedLeft,
+          width: menuWidth,
+          isRight: false,
           isDropUp: shouldDropUp,
         } as any);
       }
@@ -166,11 +168,10 @@ export function CustomDropdown({
               bottom: (coords as any).isDropUp
                 ? window.innerHeight - coords.top + 8
                 : "auto",
-              left: coords.isRight ? "auto" : coords.left,
-              right: coords.isRight ? window.innerWidth - coords.left : "auto",
+              left: coords.left,
               transition: "none",
-              width: coords.width || "max-content",
-              minWidth: Math.max(coords.width, 200),
+              width: coords.width || 240,
+              maxWidth: "calc(100vw - 24px)",
             }}
           >
             {searchable && (
@@ -339,7 +340,7 @@ export function CustomDropdown({
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? "bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90" : isPill ? `h-10 px-5 rounded-full text-[10px] font-black uppercase tracking-widest ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]" : "glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"}` : `${className?.includes("h-") ? "h-full px-4" : "h-12 px-5"} rounded-[var(--radius)] text-sm font-bold ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] shadow-md" : "glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-inner hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--text)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"}`} ${buttonClassName || ""}`}
+        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100" : isPill ? `h-10 px-5 rounded-full text-[10px] font-black uppercase tracking-widest ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]" : "glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"}` : `${className?.includes("h-") ? "h-full px-4" : "h-12 px-5"} rounded-[var(--radius)] text-sm font-bold ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] shadow-md" : "glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-inner hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--text)]"}`} ${buttonClassName || ""}`}
       >
         <span className="pr-4 flex-1 text-left flex items-center h-full capitalize overflow-hidden whitespace-nowrap text-ellipsis min-w-0">
           {getSelectedLabel()}
@@ -372,12 +373,14 @@ export function GameVersionMultiSelect({
   selectedVersions = Array.isArray(selectedVersions)
     ? selectedVersions
     : typeof selectedVersions === "string"
-      ? [selectedVersions]
+      ? (selectedVersions as string).split(",").map((s: string) => s.trim()).filter(Boolean)
       : [];
   const { t } = useLexicon();
   const [query, setQuery] = useState("");
   const [versions, setVersions] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [, forceUpdate] = useState({});
 
@@ -403,7 +406,9 @@ export function GameVersionMultiSelect({
         .from("game_versions")
         .select("version")
         .order("version", { ascending: false });
-      if (data) setVersions(data);
+      if (data) {
+        setVersions(data);
+      }
     }
     fetchVersions();
   }, []);
@@ -413,130 +418,251 @@ export function GameVersionMultiSelect({
       const newVersions = selectedVersions.filter((ver) => ver !== v);
       onChange(newVersions);
     } else {
-      const newVersions = [...selectedVersions, v];
+      const newVersions = [...selectedVersions.filter((ver) => ver !== "ALL"), v];
       onChange(newVersions);
     }
   };
 
+  const applyRangeChange = (fromVal: string, toVal: string) => {
+    setRangeFrom(fromVal);
+    setRangeTo(toVal);
+    const f = fromVal.trim();
+    const to = toVal.trim();
+    if (!f || !to) return;
+    const withoutOldRanges = selectedVersions.filter(
+      (ver) => ver !== "ALL" && !ver.includes(" - ")
+    );
+    if (f === to) {
+      if (!withoutOldRanges.includes(f)) onChange([...withoutOldRanges, f]);
+      return;
+    }
+    const rangeTag = `${f} - ${to}`;
+    onChange([...withoutOldRanges, rangeTag]);
+  };
+
+  const latestPatch = versions[0]?.version;
+
   const filtered = versions
-    .filter((v) => v.version && v.version.includes(query))
-    .slice(0, 10);
+    .filter((v) => v.version && v.version.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 40);
   const rect = containerRef.current?.getBoundingClientRect();
-  const isRightHalf = rect ? rect.left >= window.innerWidth / 2 : false;
+  const popWidth = rect ? Math.min(Math.max(rect.width, 420), window.innerWidth - 24) : 420;
+  const clampedLeft = rect
+    ? Math.max(12, Math.min(rect.left, window.innerWidth - popWidth - 12))
+    : 12;
+  const shouldDropUp =
+    dropUp || (rect ? window.innerHeight - rect.bottom < 360 && rect.top > 320 : false);
+
+  const summaryLabel =
+    selectedVersions.length === 0
+      ? t("shared_search_versions", "Select game versions...")
+      : selectedVersions.includes("ALL")
+        ? t("ver_btn_all", "All Versions")
+        : selectedVersions.join(", ");
 
   return (
     <div
       className={`relative ${variant === "pill" ? "h-full flex items-center" : "w-full"}`}
       ref={containerRef}
     >
-      {variant !== "pill" && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {selectedVersions.map((v) => (
-            <span
-              key={v}
-              className="px-2.5 py-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-md text-[9px] font-black capitalize flex items-center gap-2"
-            >
-              {v}{" "}
-              <button
-                type="button"
-                onClick={() => toggleVersion(v)}
-                className="text-[var(--danger)] hover:brightness-125 flex items-center justify-center"
-              >
-                <span className="material-symbols-outlined !text-[12px]">
-                  {t("icon_close")}
-                </span>
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      <input
-        placeholder={
-          variant === "pill" && selectedVersions.length > 0
-            ? `VERSIONS (${selectedVersions.length})`
-            : t("shared_search_versions")
-        }
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setIsOpen(true);
-        }}
-        onFocus={() => setIsOpen(true)}
-        onBlur={(e) => {
-          setTimeout(() => setIsOpen(false), 200);
-        }}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
         className={
           variant === "pill"
-            ? "bg-transparent text-[11px] font-bold text-[var(--text)] tracking-wider outline-none w-[160px] px-2 h-full placeholder:opacity-50"
-            : "w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-5 h-12 text-[var(--text)] text-[11px] font-black capitalize tracking-widest focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:opacity-30"
+            ? "flex items-center justify-between gap-2 bg-transparent text-[11px] font-bold text-[var(--text)] tracking-wider outline-none min-w-[160px] px-2 h-full cursor-pointer"
+            : `w-full h-12 px-5 rounded-[var(--radius)] glass-surface border ${
+                isOpen
+                  ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]"
+              } shadow-inner text-sm font-bold text-[var(--text)] flex items-center justify-between gap-2 transition-all cursor-pointer`
         }
-      />
+      >
+        <span
+          className={`flex-1 text-left truncate ${
+            selectedVersions.length === 0 ? "text-[var(--subtext)] opacity-60" : "text-[var(--text)]"
+          }`}
+        >
+          {variant === "pill" && selectedVersions.length > 0
+            ? `VERSIONS (${selectedVersions.length})`
+            : summaryLabel}
+        </span>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {selectedVersions.length > 0 && variant !== "pill" && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setRangeFrom("");
+                setRangeTo("");
+                onChange([]);
+              }}
+              className="material-symbols-outlined !text-[16px] text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer"
+            >
+              {t("icon_close", "close")}
+            </span>
+          )}
+          <span className="material-symbols-outlined !text-[20px] text-[var(--subtext)] opacity-60">
+            {isOpen ? t("icon_expand_less", "expand_less") : t("icon_expand_more", "expand_more")}
+          </span>
+        </div>
+      </button>
+
       {isOpen &&
         createPortal(
           <>
             <div
-              className="fixed inset-0 pointer-events-auto"
+              className="!fixed inset-0 pointer-events-auto"
               style={{ zIndex: 100000000 }}
               onClick={() => setIsOpen(false)}
             />
             <div
-              className="fixed pointer-events-none"
+              onClick={(e) => e.stopPropagation()}
+              className="!fixed pointer-events-auto glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] shadow-2xl animate-in fade-in zoom-in-95 duration-150 flex flex-col text-[var(--text)] overflow-hidden"
               style={{
                 zIndex: 100000001,
-                top: rect ? (dropUp ? undefined : rect.bottom) : 0,
-                bottom: rect ? (dropUp ? window.innerHeight - rect.top : undefined) : undefined,
-                left: rect ? (isRightHalf ? undefined : rect.left) : 0,
-                right: rect
-                  ? isRightHalf
-                    ? window.innerWidth - rect.right
-                    : undefined
-                  : undefined,
-                width: rect ? rect.width : "max-content",
+                top: shouldDropUp ? "auto" : (rect ? rect.bottom + 6 : 0),
+                bottom: shouldDropUp ? (rect ? window.innerHeight - rect.top + 6 : 0) : "auto",
+                left: clampedLeft,
+                width: popWidth,
+                maxWidth: "calc(100vw - 24px)",
               }}
             >
-              <div className={`absolute ${dropUp ? 'bottom-0' : 'top-0'} left-0 w-full pointer-events-auto ${dropUp ? 'mb-2' : 'mt-2'} glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 duration-150 flex flex-col text-[var(--text)]`}>
-                <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-0.5">
-                  {filtered.map((v) => (
+              {/* Search & Quick Actions Row */}
+              <div className="flex items-center justify-between gap-3 px-3.5 py-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] shrink-0">
+                <div className="flex items-center flex-1 min-w-0">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70 mr-2 shrink-0">
+                    {t("icon_search", "search")}
+                  </span>
+                  <input
+                    autoFocus
+                    placeholder={t("shared_search_versions", "Search game versions...")}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="w-full bg-transparent border-none py-1 text-xs font-semibold focus:outline-none text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  {latestPatch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedVersions.includes(latestPatch)) {
+                          onChange([...selectedVersions.filter((ver) => ver !== "ALL"), latestPatch]);
+                        }
+                      }}
+                      className="text-[10px] font-bold text-[var(--accent)] hover:text-[var(--text)] transition-colors uppercase tracking-wider cursor-pointer"
+                    >
+                      {t("ver_btn_latest", "Latest")}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onChange(["ALL"])}
+                    className="text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--text)] transition-colors uppercase tracking-wider cursor-pointer"
+                  >
+                    {t("ver_btn_all", "All")}
+                  </button>
+                  {selectedVersions.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRangeFrom("");
+                        setRangeTo("");
+                        onChange([]);
+                      }}
+                      className="text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--danger)] transition-colors uppercase tracking-wider cursor-pointer"
+                    >
+                      {t("ver_clear_all", "Clear")}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Inline Patch Range Row (always visible above list, auto-applies) */}
+              {versions.length > 1 && (
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3.5 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0">
+                  <CustomDropdown
+                    disableTint={true}
+                    className="h-9"
+                    buttonClassName="!h-9 !px-3 !text-xs !rounded-xl"
+                    placeholder={t("ver_range_from", "From Patch")}
+                    value={rangeFrom}
+                    onChange={(val: string[]) => applyRangeChange(val[0] || "", rangeTo || latestPatch || "")}
+                    options={[
+                      { id: "", label: t("ver_range_from", "From Patch") },
+                      ...versions.map((v) => ({ id: v.version, label: v.version })),
+                    ]}
+                  />
+                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 px-1">→</span>
+                  <CustomDropdown
+                    disableTint={true}
+                    className="h-9"
+                    buttonClassName="!h-9 !px-3 !text-xs !rounded-xl"
+                    placeholder={t("ver_range_to", "To Patch")}
+                    value={rangeTo}
+                    onChange={(val: string[]) => applyRangeChange(rangeFrom || versions[Math.min(5, versions.length - 1)]?.version || "", val[0] || "")}
+                    options={[
+                      { id: "", label: t("ver_range_to", "To Patch") },
+                      ...versions.map((v) => ({ id: v.version, label: v.version })),
+                    ]}
+                  />
+                </div>
+              )}
+
+              {/* Always-Visible Checkable Version List */}
+              <div className="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-0.5 p-1.5">
+                {filtered.map((v) => {
+                  const isSelected = selectedVersions.includes(v.version);
+                  return (
                     <button
                       key={v.version}
                       type="button"
                       onMouseDown={(e) => {
                         e.preventDefault();
                         toggleVersion(v.version);
-                        setQuery("");
-                        setIsOpen(false);
                       }}
-                      className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-semibold capitalize text-[var(--text)] flex justify-between items-center cursor-pointer transition-colors"
+                      className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide flex items-center gap-2.5 group transition-colors cursor-pointer ${
+                        isSelected
+                          ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] font-bold"
+                          : "text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+                      }`}
                     >
-                      <span>{v.version}</span>
-                      {selectedVersions.includes(v.version) && (
-                        <span className="text-[var(--success)] flex items-center justify-center">
-                          <span className="material-symbols-outlined !text-[15px]">
-                            {t("icon_check") || "check"}
+                      <div
+                        className={`w-4 h-4 rounded-[5px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${
+                          isSelected
+                            ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]"
+                            : "border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]"
+                        }`}
+                      >
+                        {isSelected && (
+                          <span className="material-symbols-outlined !text-[12px] font-bold">
+                            {t("icon_check", "check")}
                           </span>
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                  {query && !versions.some((v) => v.version === query) && (
-                    <button
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        toggleVersion(query);
-                        setQuery("");
-                        setIsOpen(false);
-                      }}
-                      className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-semibold capitalize text-[var(--success)] cursor-pointer transition-colors"
-                    >
-                      + {t("cc_btn_add") || "Add"} "{query}"
-                    </button>
-                  )}
-                </div>
-              </div>
+                        )}
+                      </div>
+                          <span className="flex-1 truncate">{v.version}</span>
+                        </button>
+                      );
+                    })}
+                    {query && !versions.some((v) => v.version === query) && (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          toggleVersion(query);
+                          setQuery("");
+                        }}
+                        className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-semibold text-[var(--accent)] cursor-pointer transition-colors"
+                      >
+                        + {t("cc_btn_add", "Add")} "{query}"
+                      </button>
+                    )}
+                  </div>
             </div>
           </>,
-          document.getElementById("sa-portals") || document.body,
+          document.getElementById("sa-portals") || document.body
         )}
     </div>
   );
@@ -639,7 +765,7 @@ export function CustomDatePicker({
           e.preventDefault();
           setIsOpen(!isOpen);
         }}
-        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all group ${flat ? "bg-transparent border-b-2 border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90" : "h-12 px-5 rounded-[var(--radius)] glass-surface shadow-inner text-sm font-bold text-[var(--text)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
+        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all group ${flat ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100" : "h-12 px-5 rounded-[var(--radius)] glass-surface shadow-inner text-sm font-bold text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
       >
         <span
           className={`flex-1 text-left flex items-center h-full overflow-hidden ${flat ? "" : "truncate pr-4"} ${!value ? "text-[var(--subtext)] opacity-75" : "text-[var(--text)]"}`}
@@ -807,13 +933,15 @@ export function ModSearchDropdown({
       if (inputRef.current) {
         const rect = inputRef.current.getBoundingClientRect();
         const spaceBelow = window.innerHeight - rect.bottom;
-        const shouldDropUp = dropUp !== undefined ? dropUp : spaceBelow < 300;
+        const shouldDropUp = dropUp !== undefined ? dropUp : (spaceBelow < 280 && rect.top > 260);
+        const menuWidth = Math.min(Math.max(rect.width, 260), window.innerWidth - 24);
+        const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
         setCoords({
           top: shouldDropUp
             ? window.innerHeight - rect.top + 8
             : rect.bottom + 8,
-          left: rect.left,
-          width: rect.width,
+          left: clampedLeft,
+          width: menuWidth,
           isDropUp: shouldDropUp,
         });
       }
@@ -1052,13 +1180,15 @@ export function CustomTierDropdown({ value, onChange }: any) {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         const spaceBelow = window.innerHeight - rect.bottom;
-        const shouldDropUp = spaceBelow < 200;
+        const shouldDropUp = spaceBelow < 200 && rect.top > 200;
+        const menuWidth = Math.min(Math.max(rect.width, 260), window.innerWidth - 24);
+        const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
         setCoords({
           top: shouldDropUp
             ? window.innerHeight - rect.top + 8
             : rect.bottom + 8,
-          left: rect.left,
-          width: rect.width,
+          left: clampedLeft,
+          width: menuWidth,
           isDropUp: shouldDropUp,
         });
       }
@@ -1076,16 +1206,16 @@ export function CustomTierDropdown({ value, onChange }: any) {
     {
       id: 4,
       label: t("tier4") || "Severity 4: Fatal Collision",
+      icon: t("icon_error") || "error",
       color: "theme-text-danger",
-      glow: "theme-bg-danger",
       activeBg:
         "bg-[color-mix(in_srgb,var(--danger)_14%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]",
     },
     {
       id: 3,
       label: t("tier3") || "Severity 3: Tuning Overlap",
+      icon: t("icon_warning") || "warning",
       color: "theme-text-warning",
-      glow: "theme-bg-warning",
       activeBg:
         "bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]",
     },
@@ -1101,11 +1231,15 @@ export function CustomTierDropdown({ value, onChange }: any) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-12 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] px-5 text-xs font-bold capitalize tracking-wide focus:outline-none flex justify-start items-center transition-all ${selected.color}`}
+        className={`w-full h-12 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] px-4 text-xs font-bold capitalize tracking-wide focus:outline-none flex justify-start items-center gap-2 transition-all ${selected.color}`}
       >
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${selected.glow}`} />
-          {selected.label}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="material-symbols-outlined !text-[16px] shrink-0">
+            {selected.icon}
+          </span>
+          <span className="truncate whitespace-nowrap text-left">
+            {selected.label}
+          </span>
         </div>
         <span className="transition-colors shrink-0 flex items-center justify-center text-[var(--subtext)] opacity-60 ml-auto">
           <span className="material-symbols-outlined !text-[20px]">
@@ -1147,12 +1281,12 @@ export function CustomTierDropdown({ value, onChange }: any) {
                         onChange(opt.id);
                         setIsOpen(false);
                       }}
-                      className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-colors flex items-center gap-3 ${value === opt.id ? opt.activeBg + " " + opt.color : "text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] opacity-85 hover:opacity-100"}`}
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-colors flex items-center gap-2.5 ${value === opt.id ? opt.activeBg + " " + opt.color : "text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] opacity-85 hover:opacity-100"}`}
                     >
-                      <div
-                        className={`w-2 h-2 rounded-full ${opt.glow} ${value === opt.id ? "animate-pulse" : ""}`}
-                      />
-                      <span className="text-xs font-semibold capitalize tracking-wide">
+                      <span className={`material-symbols-outlined !text-[16px] shrink-0 ${opt.color}`}>
+                        {opt.icon}
+                      </span>
+                      <span className="text-xs font-semibold capitalize tracking-wide truncate">
                         {opt.label}
                       </span>
                     </button>

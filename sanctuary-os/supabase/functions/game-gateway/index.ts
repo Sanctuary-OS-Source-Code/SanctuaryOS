@@ -26,7 +26,6 @@ const STAFF_ONLY_TABLES = new Set([
   'taxonomy',
   'tracked_template_files',
   'system_broadcasts',
-  'logical_conflicts',
 ]);
 
 const CREATOR_OR_STAFF_TABLES = new Set([
@@ -42,6 +41,7 @@ const CREATOR_OR_STAFF_TABLES = new Set([
   'community_group_members',
   'collections',
   'collection_members',
+  'logical_conflicts',
   'mason_posts',
   'masons',
   'homestead_workbench_templates',

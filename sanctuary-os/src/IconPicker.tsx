@@ -1578,9 +1578,38 @@ export const ICON_CATEGORIES = [
   }
 ];
 
+import { createPortal } from 'react-dom';
+
 export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: string) => void, onClose: () => void }) {
   const [search, setSearch] = useState('');
   const { t } = useLexicon();
+  const anchorRef = React.useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; isDropUp: boolean } | null>(null);
+
+  React.useLayoutEffect(() => {
+    const updatePosition = () => {
+      const targetEl = anchorRef.current?.parentElement || anchorRef.current;
+      if (targetEl) {
+        const rect = targetEl.getBoundingClientRect();
+        const pickerWidth = Math.min(360, window.innerWidth - 24);
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const shouldDropUp = spaceBelow < 360 && rect.top > 360;
+        const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - pickerWidth - 12));
+        setCoords({
+          top: shouldDropUp ? rect.top : rect.bottom + 8,
+          left: clampedLeft,
+          isDropUp: shouldDropUp,
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, []);
 
   const filteredCategories = useMemo(() => {
     if (!search.trim()) return ICON_CATEGORIES;
@@ -1592,49 +1621,82 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
     })).filter(cat => cat.icons.length > 0);
   }, [search]);
 
+  const portalRoot = typeof document !== "undefined" ? (document.getElementById("sa-portals") || document.body) : null;
+
   return (
-  <div className="absolute top-full mt-2 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl pointer-events-auto w-[360px] z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col ">
-
-      <div className="p-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent shrink-0">
-        <div className="relative">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm">search</span>
-          <input
-            type="text"
-            placeholder={t("search")}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:text-[color-mix(in_srgb,var(--subtext)_50%,transparent)]"
-            autoFocus
+    <>
+      <div ref={anchorRef} className="w-0 h-0 pointer-events-none" />
+      {coords && portalRoot && createPortal(
+        <>
+          <div
+            className="!fixed inset-0 pointer-events-auto"
+            style={{ zIndex: 100000000 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
           />
-        </div>
-      </div>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              zIndex: 100000001,
+              top: coords.isDropUp ? "auto" : coords.top,
+              bottom: coords.isDropUp ? window.innerHeight - coords.top + 8 : "auto",
+              left: coords.left,
+            }}
+            className="!fixed rounded-2xl glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] shadow-2xl pointer-events-auto w-[360px] max-w-[calc(100vw-24px)] animate-in fade-in zoom-in-95 duration-150 flex flex-col text-[var(--text)]"
+          >
+            <div className="p-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent shrink-0">
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm">
+                  {t("icon_search", "search")}
+                </span>
+                <input
+                  type="text"
+                  placeholder={t("search", "Search icons...")}
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:text-[color-mix(in_srgb,var(--subtext)_50%,transparent)]"
+                  autoFocus
+                />
+              </div>
+            </div>
 
-      <div className="p-4 max-h-[300px] overflow-y-auto custom-scrollbar">
-        {filteredCategories.length === 0 ? (
-          <div className="text-center text-[var(--subtext)] text-xs py-8 opacity-50">{t("no_icons")}</div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {filteredCategories.map(cat => (
-              <div key={cat.name} className="flex flex-col gap-2">
-                <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60 ml-1">{cat.name}</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {cat.icons.map(icon => (
-                    <button
-                      key={icon}
-                      type="button"
-                      onClick={() => onSelect(icon)}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--text)] hover:text-[var(--accent)] transition-all hover:scale-110 shadow-sm shrink-0"
-                    >
-                      <span className="material-symbols-outlined !text-[20px]">{icon}</span>
-                    </button>
+            <div className="p-3.5 max-h-[300px] overflow-y-auto custom-scrollbar">
+              {filteredCategories.length === 0 ? (
+                <div className="text-center text-[var(--subtext)] text-xs py-8 opacity-50">
+                  {t("no_icons", "No matching icons found")}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-5">
+                  {filteredCategories.map(cat => (
+                    <div key={cat.name} className="flex flex-col gap-2">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 ml-1">
+                        {cat.name}
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {cat.icons.map(icon => (
+                          <button
+                            key={icon}
+                            type="button"
+                            onClick={() => onSelect(icon)}
+                            title={icon}
+                            className="w-9 h-9 flex items-center justify-center rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_55%,transparent)] text-[var(--text)] hover:text-[var(--accent)] transition-all hover:scale-105 cursor-pointer shrink-0"
+                          >
+                            <span className="material-symbols-outlined !text-[19px]">{icon}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+        </>,
+        portalRoot
+      )}
+    </>
   );
 }
 

@@ -1,9 +1,6 @@
-import { useState } from "react";
-import { createPortal } from "react-dom";
+import React, { useState, useMemo, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { MasonPostsEditor } from "./MasonPostsEditor";
-import { ModSearchDropdown, standardAccentGlassButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, SidePanel, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex} from "./shared";
-import { useStore } from "./store";
+import { CustomDropdown, HoverTooltip } from "./shared";
 
 export interface StructureNode {
   id: string;
@@ -15,389 +12,857 @@ export interface StructureNode {
   children?: StructureNode[];
 }
 
-interface ModStructureBuilderProps {
+interface ModFileItem {
+  id: string;
+  name: string;
+  role: "core" | "twin" | "addon" | "flavor" | "beta" | "config";
+  ext: string;
+  modId?: string;
+  rawModName?: string;
+  rawRef?: any;
+}
+
+export interface ModStructureBuilderProps {
   structure: StructureNode[];
   onChange: (newStructure: StructureNode[]) => void;
   targetMod?: any;
+  parentRel?: any;
   availableMods?: any[];
+  familyMods?: any[];
+  configFiles?: Array<{ name: string; path?: string }>;
+  onOpenConfigInIde?: (cfg: { name: string; path: string }) => void;
+  onDetachConfig?: (name: string) => void;
+  onDeleteConfigFile?: (cfg: { name: string; path?: string }) => void;
+  onChangeFamilyRole?: (rel: any, role: "twin" | "addon" | "flavor" | "beta") => void;
+  onUnlinkFamilyMod?: (rel: any) => void;
+  childRels?: any[];
 }
 
-export default function ModStructureBuilder({ structure, onChange, targetMod, availableMods }: ModStructureBuilderProps) {
-  const activeGameSchema = useStore(state => state.activeGameSchema);
+const ROOT_MODS_ID = "__root_mods__";
+
+const isFolderNode = (n: any): boolean =>
+  n?.type === "folder" || n?.node_type === "folder" || Array.isArray(n?.children);
+
+function resolveModFileName(m: any): { fileName: string; ext: string; rawModName: string } {
+  const rawModName = String(m?.file_name || m?.name || "")
+    .split(/[\\/]/)
+    .pop()
+    ?.trim() || "";
+  if (!rawModName) return { fileName: "", ext: ".package", rawModName: "" };
+
+  const hasKnownExt = /\.(package|ts4script|cfg|ini|json|xml|txt|dat|log)$/i.test(rawModName);
+  if (hasKnownExt) {
+    const dotIdx = rawModName.lastIndexOf(".");
+    const ext = dotIdx !== -1 ? rawModName.slice(dotIdx).toLowerCase() : ".package";
+    return { fileName: rawModName, ext, rawModName };
+  }
+
+  const rawExt = String(
+    m?.file_extension || (m?.is_script ? ".ts4script" : ".package")
+  )
+    .trim()
+    .toLowerCase();
+  const ext = rawExt ? (rawExt.startsWith(".") ? rawExt : `.${rawExt}`) : ".package";
+  return {
+    fileName: `${rawModName}${ext}`,
+    ext,
+    rawModName,
+  };
+}
+
+export default function ModStructureBuilder({
+  structure,
+  onChange,
+  targetMod,
+  parentRel,
+  familyMods = [],
+  configFiles = [],
+  onOpenConfigInIde,
+  onDetachConfig,
+  onDeleteConfigFile,
+  onChangeFamilyRole,
+  onUnlinkFamilyMod,
+  childRels = [],
+}: ModStructureBuilderProps) {
   const { t } = useLexicon();
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [availablePage, setAvailablePage] = useState(0);
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState("");
+  const [addingChildToFolderId, setAddingChildToFolderId] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
 
-  const generateId = () => Math.random().toString(36).substr(2, 9);
+  const defaultModFolderName = useMemo(() => {
+    const raw = (targetMod?.name || "Mod").split(/[\\/]/).pop() || "Mod";
+    return (
+      raw
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[_\-\s]+v?\d+(\.\d+)+[a-z]?$/i, "")
+        .trim() || "Mod"
+    );
+  }, [targetMod?.name]);
 
-  const getAssignedModIds = (nodes: StructureNode[]): Set<string> => {
-    let ids = new Set<string>();
-    for (const node of nodes) {
-      if (node.assignedModId) ids.add(node.assignedModId);
-      if (node.children) {
-        const childIds = getAssignedModIds(node.children);
-        for (const id of childIds) ids.add(id);
+  const modFiles: ModFileItem[] = useMemo(() => {
+    const list: ModFileItem[] = [];
+    const seenNames = new Set<string>();
+    const seenModIds = new Set<string>();
+
+    const pushModItem = (
+      modObj: any,
+      role: ModFileItem["role"],
+      rawRef?: any
+    ) => {
+      if (!modObj) return;
+      const { fileName, ext, rawModName } = resolveModFileName(modObj);
+      if (!fileName) return;
+      const lower = fileName.toLowerCase();
+      if (lower === "manifest.json" || lower === "override.json" || lower === "resource.cfg") return;
+      const modId = modObj.id ? String(modObj.id) : undefined;
+      if (modId && seenModIds.has(modId)) return;
+      if (seenNames.has(lower)) return;
+      seenNames.add(lower);
+      if (modId) seenModIds.add(modId);
+
+      list.push({
+        id: lower,
+        name: fileName,
+        role,
+        ext,
+        modId,
+        rawModName,
+        rawRef: rawRef || modObj,
+      });
+    };
+
+    if (parentRel?.mod?.name) {
+      pushModItem(parentRel.mod, "core", parentRel.mod);
+    }
+
+    if (targetMod?.name) {
+      const targetRole: ModFileItem["role"] = parentRel
+        ? ((parentRel.relationship_type as ModFileItem["role"]) || "twin")
+        : "core";
+      pushModItem(targetMod, targetRole, targetMod);
+    }
+
+    for (const rel of childRels) {
+      if (rel?.mod?.name) {
+        const role = (rel.relationship_type as ModFileItem["role"]) || "addon";
+        pushModItem(rel.mod, role, rel.mod);
       }
     }
-    return ids;
-  };
 
-  const toggleExpand = (id: string) => {
-    const next = new Set(expandedNodes);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setExpandedNodes(next);
-  };
+    for (const fm of familyMods) {
+      if (fm?.name) {
+        pushModItem(fm, (fm._familyRole as ModFileItem["role"]) || "addon", fm);
+      }
+    }
 
-  const handleAddFolder = (parentId?: string) => {
-    const newFolder: StructureNode = { id: generateId(), name: t("structure_new_folder"), type: "folder", children: [] };
-    if (!parentId) {
-      onChange([...structure, newFolder]);
+    for (const cfg of configFiles) {
+      if (!cfg?.name) continue;
+      pushModItem(cfg, "config", cfg);
+    }
+
+    // Preserve any existing file nodes already present in structure so they are never stripped
+    const walkExistingFiles = (nodes: any[]) => {
+      for (const n of nodes || []) {
+        if (!n) continue;
+        if (isFolderNode(n)) {
+          if (Array.isArray(n.children)) walkExistingFiles(n.children);
+        } else if (n.name || n.assignedModName) {
+          const rawNodeName = String(n.name || n.assignedModName).trim();
+          if (!rawNodeName) continue;
+          const matchedExisting = list.some(
+            (item) =>
+              (n.assignedModId && item.modId === String(n.assignedModId)) ||
+              item.name.toLowerCase() === rawNodeName.toLowerCase() ||
+              (item.rawModName && item.rawModName.toLowerCase() === rawNodeName.toLowerCase())
+          );
+          if (!matchedExisting) {
+            pushModItem(
+              {
+                id: n.assignedModId,
+                name: rawNodeName,
+                file_extension: /\.[a-z0-9]+$/i.test(rawNodeName) ? undefined : ".package",
+              },
+              "addon",
+              n
+            );
+          }
+        }
+      }
+    };
+    walkExistingFiles(Array.isArray(structure) ? structure : []);
+
+    return list;
+  }, [targetMod, parentRel, childRels, familyMods, configFiles, structure]);
+
+  // Synchronize modFiles with structure tree while preserving folder assignments
+  useEffect(() => {
+    if (modFiles.length === 0) return;
+
+    const findMatchingModFile = (n: any): ModFileItem | undefined => {
+      const nModId = n?.assignedModId ? String(n.assignedModId) : undefined;
+      if (nModId) {
+        const byId = modFiles.find((f) => f.modId === nModId);
+        if (byId) return byId;
+      }
+      const nNameLower = String(n?.name || "").trim().toLowerCase();
+      if (nNameLower) {
+        const byExact = modFiles.find((f) => f.name.toLowerCase() === nNameLower);
+        if (byExact) return byExact;
+      }
+      const nBaseLower = String(n?.assignedModName || n?.name || "")
+        .replace(/\.(package|ts4script)$/i, "")
+        .trim()
+        .toLowerCase();
+      if (nBaseLower) {
+        const candidates = modFiles.filter(
+          (f) =>
+            (f.rawModName || f.name.replace(/\.(package|ts4script)$/i, ""))
+              .trim()
+              .toLowerCase() === nBaseLower
+        );
+        if (candidates.length === 1) return candidates[0];
+      }
+      return undefined;
+    };
+
+    const placedSet = new Set<string>();
+    let changed = false;
+
+    const syncNodes = (nodes: StructureNode[]): StructureNode[] => {
+      const out: StructureNode[] = [];
+      for (const n of nodes) {
+        if (!n) continue;
+        if (isFolderNode(n)) {
+          const nextChildren = syncNodes(n.children || []);
+          const folderId = n.id || `folder_${n.name}`;
+          if (n.type !== "folder" || n.id !== folderId) {
+            changed = true;
+          }
+          const normalizedFolder: StructureNode = {
+            ...n,
+            id: folderId,
+            type: "folder",
+            children: nextChildren,
+          };
+          out.push(normalizedFolder);
+        } else {
+          const matched = findMatchingModFile(n);
+          if (matched && !placedSet.has(matched.id)) {
+            placedSet.add(matched.id);
+            const expectedId = n.id || `file_${matched.id}`;
+            const expectedModId = matched.modId || n.assignedModId;
+            const expectedModName = matched.rawModName || n.assignedModName;
+            const needsUpdate =
+              n.type !== "file" ||
+              n.id !== expectedId ||
+              n.name !== matched.name ||
+              n.assignedModId !== expectedModId ||
+              n.assignedModName !== expectedModName;
+            if (needsUpdate) {
+              changed = true;
+              out.push({
+                ...n,
+                id: expectedId,
+                name: matched.name,
+                type: "file",
+                assignedModId: expectedModId,
+                assignedModName: expectedModName,
+              });
+            } else {
+              out.push(n);
+            }
+          } else if (!matched && n.name) {
+            // Preserve unknown file nodes instead of deleting them
+            if (n.type !== "file") changed = true;
+            out.push({ ...n, type: "file" });
+          } else {
+            changed = true;
+          }
+        }
+      }
+      return out;
+    };
+
+    const nextTree = syncNodes(Array.isArray(structure) ? structure : []);
+    const missingFiles = modFiles.filter((f) => !placedSet.has(f.id));
+
+    if (missingFiles.length > 0) {
+      changed = true;
+      const firstFolderIdx = nextTree.findIndex((n) => isFolderNode(n));
+      if (firstFolderIdx !== -1) {
+        const firstFolder = nextTree[firstFolderIdx];
+        nextTree[firstFolderIdx] = {
+          ...firstFolder,
+          type: "folder",
+          children: [
+            ...(firstFolder.children || []),
+            ...missingFiles.map((mf) => ({
+              id: `file_${mf.id}`,
+              name: mf.name,
+              type: "file" as const,
+              assignedModId: mf.modId,
+              assignedModName: mf.rawModName,
+            })),
+          ],
+        };
+      } else {
+        for (const mf of missingFiles) {
+          nextTree.push({
+            id: `file_${mf.id}`,
+            name: mf.name,
+            type: "file" as const,
+            assignedModId: mf.modId,
+            assignedModName: mf.rawModName,
+          });
+        }
+      }
+    }
+
+    if (changed && JSON.stringify(nextTree) !== JSON.stringify(Array.isArray(structure) ? structure : [])) {
+      onChange(nextTree);
+    }
+  }, [modFiles]);
+
+  const allFolders = useMemo(() => {
+    const list: Array<{ id: string; name: string; path: string }> = [
+      {
+        id: ROOT_MODS_ID,
+        name: "Mods/",
+        path: "Mods/",
+      },
+    ];
+    const walk = (nodes: StructureNode[], prefix: string) => {
+      for (const n of nodes) {
+        if (n.type === "folder") {
+          const currentPath = `${prefix}${n.name}/`;
+          list.push({ id: n.id, name: currentPath, path: currentPath });
+          if (n.children) walk(n.children, currentPath);
+        }
+      }
+    };
+    walk(structure || [], "Mods/");
+    return list;
+  }, [structure]);
+
+  const fileFolderLocationMap = useMemo(() => {
+    const map = new Map<string, { folderId: string; folderPath: string }>();
+    const walk = (nodes: StructureNode[], folderId: string, folderPath: string) => {
+      for (const n of nodes) {
+        if (n.type === "file") {
+          map.set(n.name.toLowerCase(), { folderId, folderPath });
+        } else if (n.type === "folder" && n.children) {
+          walk(n.children, n.id, `${folderPath}${n.name}/`);
+        }
+      }
+    };
+    walk(structure || [], ROOT_MODS_ID, "Mods/");
+    return map;
+  }, [structure]);
+
+  const moveFileToFolder = (fileName: string, targetFolderId: string) => {
+    const lower = fileName.toLowerCase();
+    const stripFile = (nodes: StructureNode[]): StructureNode[] =>
+      nodes
+        .filter((n) => !(n.type === "file" && n.name.toLowerCase() === lower))
+        .map((n) => (n.type === "folder" ? { ...n, children: stripFile(n.children || []) } : n));
+
+    const cleaned = stripFile(structure || []);
+    const fileNode: StructureNode = {
+      id: `file_${lower}`,
+      name: fileName,
+      type: "file",
+    };
+
+    if (targetFolderId === ROOT_MODS_ID) {
+      onChange([...cleaned, fileNode]);
       return;
     }
-    const updateNode = (nodes: StructureNode[]): StructureNode[] => {
-      return nodes.map(n => {
-        if (n.id === parentId) {
-          if (!expandedNodes.has(parentId)) toggleExpand(parentId);
-          return { ...n, children: [...(n.children || []), newFolder] };
+
+    const insertInto = (nodes: StructureNode[]): StructureNode[] =>
+      nodes.map((n) => {
+        if (n.type === "folder" && n.id === targetFolderId) {
+          return { ...n, children: [...(n.children || []), fileNode] };
         }
-        if (n.children) return { ...n, children: updateNode(n.children) };
-        return n;
-      });
-    };
-    onChange(updateNode(structure));
-  };
-
-  const handleAddFile = (parentId: string) => {
-    const newFile: StructureNode = { id: generateId(), name: t("structure_new_file"), type: "file" };
-    const updateNode = (nodes: StructureNode[]): StructureNode[] => {
-      return nodes.map(n => {
-        if (n.id === parentId) {
-          if (!expandedNodes.has(parentId)) toggleExpand(parentId);
-          return { ...n, children: [...(n.children || []), newFile] };
+        if (n.type === "folder" && n.children) {
+          return { ...n, children: insertInto(n.children) };
         }
-        if (n.children) return { ...n, children: updateNode(n.children) };
         return n;
       });
-    };
-    onChange(updateNode(structure));
+
+    onChange(insertInto(cleaned));
   };
 
-  const handleUpdateName = (id: string, name: string) => {
-    const updateNode = (nodes: StructureNode[]): StructureNode[] => {
-      return nodes.map(n => {
-        if (n.id === id) return { ...n, name, assignedModId: undefined, assignedModName: undefined };
-        if (n.children) return { ...n, children: updateNode(n.children) };
-        return n;
-      });
+  const handleAddFolder = (parentFolderId: string | null, rawName?: string) => {
+    const hasAnyFolder = (structure || []).some((n) => n.type === "folder");
+    const clean = (rawName ?? newFolderName).trim() || (!hasAnyFolder ? defaultModFolderName : "Subfolder");
+    const newFolder: StructureNode = {
+      id: `folder_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: clean,
+      type: "folder",
+      children: [],
     };
-    onChange(updateNode(structure));
-  };
 
-  const scriptExt = Object.keys(activeGameSchema?.extensions?.labels || {}).find(k => activeGameSchema.extensions.labels[k] === "SCRIPT") || ".ts4script";
-  const pkgExt = Object.keys(activeGameSchema?.extensions?.labels || {}).find(k => activeGameSchema.extensions.labels[k] === "PACKAGE") || ".package";
-
-  const handleAssignMod = (id: string, mod: any, ext?: string) => {
-    
-    let assignedName = mod.name;
-    if (ext) {
-      const baseName = mod.name.replace(getExtensionRegex(activeGameSchema), '');
-      assignedName = `${baseName}.${ext}`;
-    } else if (mod.is_script !== undefined && getFileLabel(mod.name, activeGameSchema) !== "PACKAGE" && getFileLabel(mod.name, activeGameSchema) !== "SCRIPT" && !mod.name.toLowerCase().endsWith('.tmcatalog')) {
-      assignedName = mod.is_script ? `${mod.name}${scriptExt}` : `${mod.name}${pkgExt}`;
+    if (!parentFolderId || parentFolderId === ROOT_MODS_ID) {
+      // If this is the very first folder created in Mods/, automatically move root-level mod files into it
+      if (!hasAnyFolder) {
+        const rootFiles = (structure || []).filter((n) => n.type === "file");
+        const remaining = (structure || []).filter((n) => n.type !== "file");
+        onChange([...remaining, { ...newFolder, children: rootFiles }]);
+      } else {
+        onChange([...(structure || []), newFolder]);
+      }
+    } else {
+      const insertSubfolder = (nodes: StructureNode[]): StructureNode[] =>
+        nodes.map((n) => {
+          if (n.type === "folder" && n.id === parentFolderId) {
+            return { ...n, children: [...(n.children || []), newFolder] };
+          }
+          if (n.type === "folder" && n.children) {
+            return { ...n, children: insertSubfolder(n.children) };
+          }
+          return n;
+        });
+      onChange(insertSubfolder(structure || []));
     }
 
-    const assignedExt = assignedName.split('.').pop()?.toLowerCase();
-    const isPackage = assignedExt === pkgExt.replace('.', '');
-    const isTs4script = assignedExt === scriptExt.replace('.', '');
-    
-    let twinName: string | null = null;
-    let twinExt: string | null = null;
-    if (isPackage) {
-        twinName = assignedName.replace(/\.[^/.]+$/, scriptExt);
-        twinExt = scriptExt.replace('.', '');
-    } else if (isTs4script) {
-        twinName = assignedName.replace(/\.[^/.]+$/, pkgExt);
-        twinExt = pkgExt.replace('.', '');
+    setNewFolderName("");
+    setAddingChildToFolderId(null);
+  };
+
+  const handleRenameFolder = (folderId: string) => {
+    const clean = editingFolderName.trim();
+    if (!clean) {
+      setEditingFolderId(null);
+      return;
     }
-
-    const updateNode = (nodes: StructureNode[]): StructureNode[] => {
-      return nodes.map(n => {
-        if (n.id === id) return { ...n, name: assignedName, assignedModId: mod.id, assignedModName: assignedName };
-        if (twinName && !n.assignedModId && n.type === 'file' && n.name.toLowerCase() === twinName.toLowerCase()) {
-            return { ...n, name: twinName, assignedModId: mod.id, assignedModName: twinName };
+    const updateTree = (nodes: StructureNode[]): StructureNode[] =>
+      nodes.map((n) => {
+        if (n.type === "folder" && n.id === folderId) {
+          return { ...n, name: clean };
         }
-        if (n.children) return { ...n, children: updateNode(n.children) };
+        if (n.type === "folder" && n.children) {
+          return { ...n, children: updateTree(n.children) };
+        }
         return n;
       });
-    };
-    onChange(updateNode(structure));
+    onChange(updateTree(structure || []));
+    setEditingFolderId(null);
   };
 
-  const handleDelete = (id: string) => {
-    const filterNode = (nodes: StructureNode[]): StructureNode[] => {
-      return nodes.filter(n => n.id !== id).map(n => {
-        if (n.children) return { ...n, children: filterNode(n.children) };
-        return n;
-      });
+  const handleDeleteFolder = (folderId: string) => {
+    const rescuedFiles: StructureNode[] = [];
+    const collectFiles = (nodes: StructureNode[]) => {
+      for (const n of nodes) {
+        if (n.type === "file") rescuedFiles.push(n);
+        if (n.type === "folder" && n.children) collectFiles(n.children);
+      }
     };
-    onChange(filterNode(structure));
+
+    const removeFolderNode = (nodes: StructureNode[]): StructureNode[] => {
+      const out: StructureNode[] = [];
+      for (const n of nodes) {
+        if (n.type === "folder" && n.id === folderId) {
+          collectFiles(n.children || []);
+          continue;
+        }
+        if (n.type === "folder" && n.children) {
+          out.push({ ...n, children: removeFolderNode(n.children) });
+        } else {
+          out.push(n);
+        }
+      }
+      return out;
+    };
+
+    const next = removeFolderNode(structure || []);
+    onChange([...next, ...rescuedFiles]);
   };
 
-  const renderNode = (node: StructureNode, depth: number = 0, isLastChild: boolean = false) => {
-    const isExpanded = expandedNodes.has(node.id);
-    const isConfigFile = node.name.toLowerCase().endsWith('.cfg') || 
-                         node.name.toLowerCase().endsWith('.ini') || 
-                         node.name.toLowerCase().endsWith('.xml') ||
-                         node.name.toLowerCase().endsWith('.json') ||
-                         node.name.toLowerCase().endsWith('.tmcatalog');
+  const toggleCollapse = (folderId: string) => {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  };
 
-    const isPackage = getFileLabel(node.name, activeGameSchema) === "PACKAGE";
-    const isTs4script = getFileLabel(node.name, activeGameSchema) === "SCRIPT";
+  const renderFileRow = (file: ModFileItem) => {
+    const loc = fileFolderLocationMap.get(file.name.toLowerCase()) || {
+      folderId: ROOT_MODS_ID,
+      folderPath: "Mods/",
+    };
+    const isCore = file.role === "core";
+    const isConfig = file.role === "config";
+
+    const iconName = isCore
+      ? "deployed_code"
+      : isConfig
+        ? "tune"
+        : file.ext === ".ts4script"
+          ? "terminal"
+          : "extension";
+
+    const roleLabel =
+      file.role === "core"
+        ? t("studio_file_role_core", "Core")
+        : file.role === "twin"
+          ? t("studio_badge_twin", "Twin")
+          : file.role === "flavor"
+            ? t("studio_badge_flavor", "Flavor")
+            : file.role === "beta"
+              ? t("studio_badge_beta", "Beta")
+              : file.role === "config"
+                ? t("studio_file_role_config", "Config")
+                : t("studio_badge_addon", "Add-on");
 
     return (
-      <div key={node.id} className="flex flex-col items-start relative group/node hover:z-[100]">
-        
-        {depth > 0 && (
-          <div className="absolute left-[-2rem] top-6 w-8 h-px bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)] rounded-r-full" />
-        )}
-
-        <div className="relative group/card z-10 shrink-0 hover:z-[100] w-max">
-          <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-3xl p-4 pr-6 flex items-center justify-start shadow-xl hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 relative z-10 shrink-0 backdrop-blur-xl min-w-[280px]">
-            
-            <div className="flex items-center gap-4 w-full">
-            {node.type === "folder" ? (
-              <button 
-                onClick={() => toggleExpand(node.id)} 
-                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:text-[var(--accent)] transition-all text-[var(--text)] shrink-0 shadow-inner group-hover/node:border-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
-              >
-                <span className="material-symbols-outlined !text-[24px] drop-shadow-md transition-transform duration-300 group-hover/node:scale-110">{isExpanded ? "folder_open" : "folder"}</span>
-              </button>
-            ) : (
-              <div className={`w-12 h-12 flex items-center justify-center rounded-2xl border shrink-0 shadow-inner ${isConfigFile ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]'}`}>
-                 <span className="material-symbols-outlined !text-[24px] drop-shadow-md">{isConfigFile ? "settings" : "description"}</span>
-              </div>
-            )}
-
-            <div className="flex flex-col justify-center flex-1 min-w-0">
-              {node.assignedModName ? (
-                <div className="flex items-center gap-2">
-                   <span className={`text-[13px] font-black capitalize tracking-widest truncate leading-tight ${isConfigFile ? 'text-[var(--warning)]' : 'text-[var(--text)] group-hover/node:text-[var(--accent)] transition-colors'}`}>
-                     {isConfigFile ? node.assignedModName.replace(/^\[|\]$/g, '') : `[${node.assignedModName.replace(/^\[|\]$/g, '')}]`}
-                   </span>
-                   {isPackage && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] font-black tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] leading-none shrink-0">PKG</span>}
-                   {isTs4script && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] font-black tracking-widest border border-[color-mix(in_srgb,var(--success)_30%,transparent)] leading-none shrink-0">TS4</span>}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 w-full">
-                  <input 
-                    value={node.name}
-                    onChange={(e) => handleUpdateName(node.id, e.target.value)}
-                    className="bg-transparent border-b border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:theme-border-accent outline-none text-[13px] font-black capitalize tracking-widest text-[var(--text)] transition-all flex-1 min-w-[120px] py-1 placeholder-[color-mix(in_srgb,var(--text)_30%,transparent)]"
-                    placeholder={node.type === "folder" ? "DIR NAME..." : "FILE PATTERN..."}
-                  />
-                  {isPackage && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] font-black tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] leading-none shrink-0">PKG</span>}
-                  {isTs4script && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] font-black tracking-widest border border-[color-mix(in_srgb,var(--success)_30%,transparent)] leading-none shrink-0">TS4</span>}
-                </div>
-              )}
+      <div
+        key={file.id}
+        className="min-h-[46px] px-3.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] flex flex-wrap items-center justify-between gap-3 transition-colors"
+      >
+        {/* Left: Icon + Filename + Full Install Path */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <span
+            className={`material-symbols-outlined !text-[18px] shrink-0 ${
+              isCore ? "text-[var(--accent)]" : "text-[var(--subtext)]"
+            }`}
+          >
+            {iconName}
+          </span>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xs font-bold text-[var(--text)] truncate">{file.name}</span>
+              <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] shrink-0">
+                {roleLabel}
+              </span>
             </div>
-          </div>
-          </div>
-            
-          <div className="absolute top-1/2 -translate-y-1/2 left-full pl-4 opacity-0 pointer-events-none group-hover/card:opacity-100 group-hover/card:pointer-events-auto transition-all scale-95 group-hover/card:scale-100 w-52 h-max z-[60] origin-left">
-            <div className="w-full h-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl flex flex-col py-1">
-              {node.type === "file" && availableMods && (
-                <button onClick={() => setActiveDropdown(activeDropdown === node.id ? null : node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--accent)] group">
-                  <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">link</span>
-                  {t("auto_assign_binding")}
-                </button>
-              )}
-              
-              {node.type === "folder" && (
-                <>
-                  <button onClick={() => handleAddFolder(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group">
-                    <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_create_new_folder")}</span>
-                    {t("auto_directory")}
-                  </button>
-                  <button onClick={() => handleAddFile(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group">
-                    <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_note_add")}</span>
-                    {t("auto_file")}
-                  </button>
-                  <div className="h-px w-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] my-1" />
-                </>
-              )}
-              
-              <button onClick={() => handleDelete(node.id)} className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--danger)] group">
-                <span className="material-symbols-outlined !text-[16px] opacity-70 group-hover:opacity-100">{t("icon_delete")}</span>
-                DELETE
-              </button>
-            </div>
+            <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70 truncate">
+              {loc.folderPath}
+              {file.name}
+            </span>
           </div>
         </div>
 
-        {node.type === "folder" && isExpanded && node.children && node.children.length > 0 && (
-          <div className="flex flex-col gap-4 pl-8 relative mt-2 pb-2">
-            <div className="absolute top-[-1rem] left-4 bottom-4 w-px bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-b-full shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]" />
-            
-            {node.children.map((child, idx) => 
-              renderNode(child, depth + 1, idx === node.children!.length - 1)
-            )}
-          </div>
-        )}
+        {/* Right: Folder Placement + Config Actions (Family Logic is never mixed into Folder Structure) */}
+        <div className="flex items-center gap-2 shrink-0">
+          {allFolders.length > 1 && (
+            <div className="w-44">
+              <CustomDropdown
+                disableTint={true}
+                className="h-8"
+                buttonClassName="!h-8 !px-3 !text-xs !rounded-lg"
+                value={loc.folderId}
+                onChange={(val: string[]) => {
+                  if (val[0]) moveFileToFolder(file.name, val[0]);
+                }}
+                options={allFolders.map((f) => ({
+                  id: f.id,
+                  label: f.path,
+                }))}
+              />
+            </div>
+          )}
+
+          {isConfig && onOpenConfigInIde && (
+            <button
+              type="button"
+              onClick={() =>
+                onOpenConfigInIde({
+                  name: file.name,
+                  path: file.rawRef?.path || file.name,
+                })
+              }
+              className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[11px] font-bold text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                {t("icon_code", "code")}
+              </span>
+              {t("studio_configs_btn_open_ide", "Edit in IDE")}
+            </button>
+          )}
+
+          {isConfig && onDetachConfig && (
+            <button
+              type="button"
+              onClick={() => onDetachConfig(file.name)}
+              className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_link_off", "link_off")}
+              </span>
+              <HoverTooltip title={t("nav_unlink", "Unlink")} />
+            </button>
+          )}
+
+          {isConfig && onDeleteConfigFile && (
+            <button
+              type="button"
+              onClick={() =>
+                onDeleteConfigFile({
+                  name: file.name,
+                  path: file.rawRef?.path,
+                })
+              }
+              className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_delete", "delete")}
+              </span>
+              <HoverTooltip title={t("lineage_btn_delete", "Delete")} variant="danger" />
+            </button>
+          )}
+        </div>
       </div>
     );
   };
 
-  const assignedModIds = getAssignedModIds(structure);
-  const isTargetModAssigned = targetMod && assignedModIds.has(targetMod.id);
-  const filteredAvailableMods = availableMods
-    ? availableMods
-        .filter(m => !assignedModIds.has(m.id))
-        .filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    : [];
-  
-  const displayAvailableMods = filteredAvailableMods.slice(0, (availablePage + 1) * 20);
-  const hasMoreAvailable = filteredAvailableMods.length > displayAvailableMods.length;
+  const renderFolderTree = (nodes: StructureNode[], parentPath: string): React.ReactNode => {
+    const folders = nodes.filter((n) => isFolderNode(n));
+    const filesInThisNode = nodes
+      .filter((n) => !isFolderNode(n))
+      .map((n) =>
+        modFiles.find(
+          (mf) =>
+            mf.name.toLowerCase() === (n.name || "").toLowerCase() ||
+            (n.assignedModId && mf.modId === String(n.assignedModId))
+        )
+      )
+      .filter(Boolean) as ModFileItem[];
 
-  return (
-    <div className="flex flex-col gap-8 w-full p-2 h-full">
-      <div className="flex flex-wrap gap-12 w-full min-h-[400px] items-start pb-20 pt-8 pl-8 flex-1">
-        {structure.length === 0 ? (
-          <div className="w-full h-full flex flex-col items-center justify-center relative mt-20">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[var(--accent)] rounded-full blur-[120px] opacity-20 pointer-events-none" />
-            <span className="material-symbols-outlined !text-6xl mb-4 text-[var(--accent)] drop-shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)]">{t("icon_folder_off")}</span>
-            <span className="text-[10px] font-black text-[var(--text)] capitalize tracking-[0.2em] relative z-10">{t("structure_no_structure")}</span>
-          </div>
-        ) : (
-          structure.map(node => renderNode(node, 0))
-        )}
-      </div>
-      <SidePanel
-        isOpen={!!activeDropdown}
-        onClose={() => { setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }}
-        title={t("structure_assign_title")}
-        icon="account_tree"
-        widthClass="w-[90vw] max-w-[800px]"
-        noPadding
-      >
-        <div className="flex flex-col h-[calc(100vh-100px)] w-full overflow-hidden p-8">
-          <div className="flex-1 flex flex-col h-full min-w-0 relative z-10">
+    return (
+      <div className="flex flex-col gap-2">
+        {folders.map((folder) => {
+          const isCollapsed = collapsedFolders.has(folder.id);
+          const isEditing = editingFolderId === folder.id;
+          const isAddingSub = addingChildToFolderId === folder.id;
+          const currentPath = `${parentPath}${folder.name}/`;
 
-            {/* Header for Right Pane */}
-            <div className="shrink-0 flex flex-col md:flex-row md:items-center justify-between pb-4 mb-6 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 mt-2 gap-4 h-auto min-h-[56px]">
-              <h3 className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)] flex items-center gap-2 shrink-0">
-                <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">apps</span>
-                {t("available_lists")}
-              </h3>
+          return (
+            <div key={folder.id} className="flex flex-col gap-1.5">
+              {/* Folder Row */}
+              <div className="h-11 px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleCollapse(folder.id)}
+                    className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0"
+                  >
+                    <span className="material-symbols-outlined !text-[18px]">
+                      {isCollapsed ? "chevron_right" : "expand_more"}
+                    </span>
+                  </button>
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
+                    {isCollapsed ? "folder" : "folder_open"}
+                  </span>
 
-              <div className="w-full md:w-auto flex-1 max-w-[280px]">
-                <input 
-                  type="text" 
-                  autoFocus 
-                  placeholder={t("search_ph")} 
-                  value={searchQuery} 
-                  onChange={e => { setSearchQuery(e.target.value); setAvailablePage(0); }} 
-                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl text-[12px] font-mono text-[var(--text)] px-4 py-2 outline-none focus:theme-border-accent shadow-inner transition-all bg-black/20" 
-                />
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 transform-gpu" onScroll={(e) => {
-              const el = e.currentTarget;
-              if (el.scrollHeight - el.scrollTop - el.clientHeight < 50 && hasMoreAvailable) {
-                setAvailablePage(p => p + 1);
-              }
-            }}>
-              {(!targetMod || isTargetModAssigned) && displayAvailableMods.length === 0 ? (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-6 opacity-30">
-                  <span className="material-symbols-outlined !text-[48px] text-[var(--text)]">apps</span>
-                  <span className="text-[12px] font-black capitalize tracking-[0.3em] text-center max-w-sm leading-relaxed">{t("no_artifact")}</span>
+                  {isEditing ? (
+                    <div className="flex items-center gap-2 flex-1 max-w-sm">
+                      <input
+                        autoFocus
+                        value={editingFolderName}
+                        onChange={(e) => setEditingFolderName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleRenameFolder(folder.id);
+                          if (e.key === "Escape") setEditingFolderId(null);
+                        }}
+                        className="h-7 px-2.5 rounded-lg glass-surface border border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRenameFolder(folder.id)}
+                        className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[10px] font-bold text-[var(--text)] hover:border-[var(--accent)] cursor-pointer"
+                      >
+                        {t("hub_save", "Save")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingFolderId(null)}
+                        className="h-7 px-2 rounded-lg text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                      >
+                        {t("btn_cancel", "Cancel")}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs font-bold text-[var(--text)] truncate">
+                        {folder.name}/
+                      </span>
+                      <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 truncate hidden sm:inline">
+                        ({currentPath})
+                      </span>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="flex flex-col gap-6 pb-4">
-                  
-                  {/* Primary Artifact */}
-                  {targetMod && !isTargetModAssigned && (!searchQuery || targetMod.name.toLowerCase().includes(searchQuery.toLowerCase())) && (
-                    <div className="flex flex-col gap-4">
-                      <h4 className="text-[10px] font-black capitalize text-[var(--accent)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">stars</span> {t("structure_assign_primary")}</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="relative group/item flex flex-col p-5 rounded-[24px] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate min-h-[140px] cursor-pointer" onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }}>
-                          
-                          <div className="flex items-start justify-between mb-4 w-full gap-4">
-                            <div className="w-10 h-10 flex items-center justify-center shrink-0 rounded-[14px] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
-                              {targetMod.image_url ? <img src={targetMod.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[20px] text-[var(--text)] opacity-40">extension</span>}
-                            </div>
-                            <div className="flex flex-col items-end gap-1.5 shrink-0">
-                              <span className="px-2.5 py-1 rounded-lg bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--accent)] text-right">
-                                PRIMARY
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="flex flex-col min-w-0 flex-1 justify-start relative z-10 mb-4">
-                            <span className="text-[14px] font-black text-[var(--text)] tracking-wider leading-snug group-hover/item:text-[var(--accent)] transition-colors duration-300 line-clamp-2">{targetMod.name}</span>
-                          </div>
 
-                          {(targetMod.sub_type === 'TS4SCRIPT' || targetMod.sub_type === 'PACKAGE') && (
-                            <div className="flex bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] rounded-xl overflow-hidden mt-auto border border-[color-mix(in_srgb,var(--text)_5%,transparent)]" onClick={(e) => e.stopPropagation()}>
-                              {targetMod.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, pkgExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)] cursor-pointer border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">{t("auto_pkg")}</div>}
-                              {targetMod.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, targetMod, scriptExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)] cursor-pointer transition-all">{t("auto_script")}</div>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                {/* Folder Actions: Rename, + Subfolder, Delete */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingFolderId(folder.id);
+                      setEditingFolderName(folder.name);
+                    }}
+                    className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+                  >
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {t("icon_edit", "edit")}
+                    </span>
+                    <HoverTooltip title={t("lineage_btn_edit", "Rename Folder")} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddingChildToFolderId(isAddingSub ? null : folder.id);
+                      setNewFolderName("");
+                    }}
+                    className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+                  >
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {t("icon_create_new_folder", "create_new_folder")}
+                    </span>
+                    <HoverTooltip title={t("studio_structure_btn_add_subfolder", "Add Subfolder")} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteFolder(folder.id)}
+                    className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+                  >
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {t("icon_delete", "delete")}
+                    </span>
+                    <HoverTooltip title={t("lineage_btn_delete", "Delete Folder")} variant="danger" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Inline Add Subfolder Input */}
+              {isAddingSub && (
+                <div className="pl-6 ml-3 border-l border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-2 py-1">
+                  <input
+                    autoFocus
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAddFolder(folder.id);
+                      if (e.key === "Escape") setAddingChildToFolderId(null);
+                    }}
+                    placeholder={t("studio_structure_subfolder_ph", "Subfolder name...")}
+                    className="h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus:border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 max-w-xs outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddFolder(folder.id)}
+                    className="h-9 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--text)] cursor-pointer"
+                  >
+                    {t("cc_btn_add", "Add")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddingChildToFolderId(null)}
+                    className="h-9 px-2.5 text-xs font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                  >
+                    {t("btn_cancel", "Cancel")}
+                  </button>
+                </div>
+              )}
+
+              {/* Folder Children (Subfolders + Files inside this folder) */}
+              {!isCollapsed && (
+                <div className="pl-6 ml-3 border-l border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
+                  {folder.children && folder.children.length > 0 ? (
+                    renderFolderTree(folder.children, currentPath)
+                  ) : (
+                    <div className="py-2 px-3 text-[11px] font-semibold text-[var(--subtext)] opacity-50">
+                      {t("empty", "Empty folder")}
                     </div>
                   )}
-
-                  {/* Family Artifacts */}
-                  {displayAvailableMods.length > 0 && (
-                    <div className="flex flex-col gap-4">
-                      <h4 className="text-[10px] font-black capitalize text-[var(--subtext)] tracking-[0.2em] flex items-center gap-2"><span className="material-symbols-outlined !text-[16px]">folder_shared</span> {t("structure_assign_family")}</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 min-[2000px]:grid-cols-3 gap-4">
-                        {displayAvailableMods.map(m => (
-                          <div key={m.id} className="relative group/item flex flex-col p-5 rounded-[24px] glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all duration-300 isolate min-h-[140px] cursor-pointer" onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }}>
-                            
-                            <div className="flex items-start justify-between mb-4 w-full gap-4">
-                              <div className="w-10 h-10 flex items-center justify-center shrink-0 rounded-[14px] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-hidden">
-                                {m.image_url ? <img src={m.image_url} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined !text-[20px] text-[var(--text)] opacity-40">extension</span>}
-                              </div>
-                              <div className="flex flex-col items-end gap-1.5 shrink-0">
-                                <span className="px-2.5 py-1 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--text)] opacity-80 text-right">
-                                  {m.file_extension ? m.file_extension.replace(".", "") : (m.sub_type || 'PACKAGE')}
-                                </span>
-                                {m.latest_version && (
-                                   <span className="text-[10px] font-bold text-[var(--subtext)] opacity-50 capitalize">v{m.latest_version}</span>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div className="flex flex-col min-w-0 flex-1 justify-start relative z-10 mb-4">
-                              <span className="text-[14px] font-black text-[var(--text)] tracking-wider leading-snug group-hover/item:text-[var(--accent)] transition-colors duration-300 line-clamp-2">{m.name}</span>
-                            </div>
-
-                            {(m.sub_type === 'TS4SCRIPT' || m.sub_type === 'PACKAGE') && (
-                              <div className="flex bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] rounded-xl overflow-hidden mt-auto border border-[color-mix(in_srgb,var(--text)_5%,transparent)]" onClick={(e) => e.stopPropagation()}>
-                                {m.sub_type !== 'TS4SCRIPT' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, pkgExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)] cursor-pointer border-r border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">{t("auto_pkg")}</div>}
-                                {m.sub_type !== 'PACKAGE' && <div onClick={() => { activeDropdown && handleAssignMod(activeDropdown, m, scriptExt.replace('.', '')); setActiveDropdown(null); setSearchQuery(""); setAvailablePage(0); }} className="flex-1 text-center py-2.5 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:text-[var(--accent)] cursor-pointer transition-all">{t("auto_script")}</div>}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                 </div>
               )}
             </div>
-          </div>
+          );
+        })}
+
+        {/* Files at this level */}
+        {filesInThisNode.map((file) => renderFileRow(file))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="w-full rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden flex flex-col">
+      {/* Root Directory Bar: Mods/ */}
+      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="material-symbols-outlined !text-[20px] text-[var(--accent)]">
+            folder_open
+          </span>
+          <span className="text-xs font-black font-mono tracking-wider text-[var(--text)]">
+            Mods/
+          </span>
+          <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-75">
+            ({modFiles.length} {t("label_files", "Files")} • {allFolders.length - 1}{" "}
+            {t("studio_folders_label", "Folders")})
+          </span>
         </div>
-      </SidePanel>
+
+        <div className="flex items-center gap-2">
+          {addingChildToFolderId === ROOT_MODS_ID ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddFolder(ROOT_MODS_ID);
+                  if (e.key === "Escape") setAddingChildToFolderId(null);
+                }}
+                placeholder={defaultModFolderName}
+                className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] focus:border-[var(--accent)] text-xs font-bold text-[var(--text)] w-44 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => handleAddFolder(ROOT_MODS_ID)}
+                className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--text)] cursor-pointer"
+              >
+                {t("cc_btn_add", "Add")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddingChildToFolderId(null)}
+                className="h-8 px-2 text-xs font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+              >
+                {t("btn_cancel", "Cancel")}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setAddingChildToFolderId(ROOT_MODS_ID);
+                setNewFolderName(
+                  allFolders.length === 1 ? defaultModFolderName : ""
+                );
+              }}
+              className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-xs font-bold text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                create_new_folder
+              </span>
+              {t("structure_new_folder", "New Folder")}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Directory Tree Contents */}
+      <div className="p-4 flex flex-col gap-2 max-h-[320px] overflow-y-auto custom-scrollbar">
+        {renderFolderTree(structure || [], "Mods/")}
+      </div>
     </div>
   );
 }
-
-
-

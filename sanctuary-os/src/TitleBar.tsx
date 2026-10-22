@@ -44,7 +44,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
       />
 
       {/* Container for pills */}
-      <div className="fixed top-0 left-0 right-0 h-[70px] pointer-events-none flex items-center z-[999998] px-6">
+      <div className="fixed top-0 left-0 right-0 h-[56px] pointer-events-none flex items-center z-[999998] px-5">
 
         {/* Spacer to respect sidebar width */}
         <div className="shrink-0 transition-all duration-500 hidden md:block" style={{ width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)' }} />
@@ -54,29 +54,29 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
           {workspaces?.length > 0 ? (
             <button
               type="button"
-              className="pointer-events-auto glass-panel portal-glass-fix h-10 px-4 rounded-full flex items-center gap-2.5 cursor-pointer group/launcher hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-all duration-200"
+              className="pointer-events-auto glass-panel portal-glass-fix h-8 px-3.5 !rounded-full flex items-center gap-2 cursor-pointer group/launcher hover:-translate-y-0.5 transition-all duration-300"
               onClick={() => setIsWorkspacePanelOpen(true)}
             >
               {activeGameIcon ? (
-                <img src={activeGameIcon} alt="" className="w-4 h-4 object-contain opacity-85 group-hover/launcher:opacity-100 transition-opacity pointer-events-none drop-shadow-sm" />
+                <img src={activeGameIcon} alt="" className="w-4 h-4 object-contain opacity-90 group-hover/launcher:opacity-100 transition-opacity pointer-events-none" />
               ) : (
-                <span className="material-symbols-outlined !text-[17px] text-[var(--accent)] opacity-85 group-hover/launcher:opacity-100 transition-opacity pointer-events-none">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] opacity-90 group-hover/launcher:opacity-100 transition-opacity pointer-events-none">
                   {t("icon_sports_esports") || "sports_esports"}
                 </span>
               )}
-              <span className="text-[13px] tracking-wide font-extrabold capitalize text-[var(--text)] opacity-95 group-hover/launcher:opacity-100 transition-opacity pointer-events-none">
+              <span className="text-[11px] tracking-wider font-extrabold capitalize text-[var(--text)] opacity-90 group-hover/launcher:opacity-100 transition-opacity pointer-events-none">
                 {activeGameName}
               </span>
-              <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-60 group-hover/launcher:opacity-100 group-hover/launcher:text-[var(--accent)] transition-all pointer-events-none">
+              <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-65 group-hover/launcher:opacity-100 group-hover/launcher:text-[var(--accent)] transition-all pointer-events-none">
                 {t("icon_expand_more") || "expand_more"}
               </span>
             </button>
           ) : (
-            <div className="pointer-events-none glass-panel portal-glass-fix h-10 px-4 rounded-full flex items-center gap-2.5">
-              <span className="material-symbols-outlined !text-[17px] text-[var(--accent)] opacity-85">
+            <div className="pointer-events-none glass-panel portal-glass-fix h-8 px-3.5 !rounded-full flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] opacity-90">
                 {t("icon_sports_esports") || "sports_esports"}
               </span>
-              <span className="text-[13px] tracking-wide font-extrabold capitalize text-[var(--text)] opacity-95">
+              <span className="text-[11px] tracking-wider font-extrabold capitalize text-[var(--text)] opacity-90">
                 {activeGameName}
               </span>
             </div>
@@ -86,7 +86,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
         {/* Right Window Controls Pill */}
         {isDesktop() && (
           <div
-            className="pointer-events-auto glass-panel portal-glass-fix h-10 px-1.5 rounded-full flex items-center gap-0.5"
+            className="pointer-events-auto glass-panel portal-glass-fix h-8 px-1 !rounded-full flex items-center gap-1"
             data-tauri-drag-region
             onMouseDown={async (e) => {
               if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
@@ -103,11 +103,11 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
             <button
               type="button"
               onClick={async () => { await getCurrentWebviewWindow().minimize(); }}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[var(--text)] opacity-75 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_12%,transparent)] transition-all outline-none group/btn"
+              className="w-6 h-6 !rounded-full flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[15px] leading-none transition-transform group-active/btn:scale-90">
-                {t("icon_remove") || "remove"}
-              </span>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-[var(--text)] opacity-70 group-hover/btn:text-[var(--accent)] group-hover/btn:opacity-100 transition-all group-active/btn:scale-90">
+                <path d="M1.75 5H8.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
             </button>
 
             <button
@@ -117,21 +117,21 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
                 await getCurrentWebviewWindow().toggleMaximize();
                 setTimeout(() => { (window as any).__sanc_manual_max = false; }, 1000);
               }}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[var(--text)] opacity-75 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] transition-all outline-none group/btn"
+              className="w-6 h-6 !rounded-full flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[13px] leading-none transition-transform group-active/btn:scale-90">
-                {t("icon_crop_square") || "crop_square"}
-              </span>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-[var(--text)] opacity-70 group-hover/btn:text-[var(--warning)] group-hover/btn:opacity-100 transition-all group-active/btn:scale-90">
+                <rect x="2" y="2" width="6" height="6" rx="1.4" stroke="currentColor" strokeWidth="1.4" />
+              </svg>
             </button>
 
             <button
               type="button"
               onClick={async () => { await getCurrentWebviewWindow().close(); }}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[var(--text)] opacity-75 hover:opacity-100 hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_18%,transparent)] transition-all outline-none group/btn"
+              className="w-6 h-6 !rounded-full flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[15px] leading-none transition-transform group-active/btn:scale-90">
-                {t("icon_close") || "close"}
-              </span>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-[var(--text)] opacity-70 group-hover/btn:text-[var(--danger)] group-hover/btn:opacity-100 transition-all group-active/btn:scale-90">
+                <path d="M2.5 2.5L7.5 7.5M7.5 2.5L2.5 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
             </button>
           </div>
         )}

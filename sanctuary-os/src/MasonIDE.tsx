@@ -15,6 +15,8 @@ import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTit
 import MasonEditorPanel from "./hub-components/MasonEditorPanel";
 import { deepCountKeys, deepCompare, createEmptyClone, deepAddMissing, deepPurgeDeprecated } from "./lib/MasonValidation";
 import { useMasonFiles } from "./hooks/useMasonFiles";
+import { useTheme } from "./ThemeContext";
+import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from "./utils/monacoTheme";
 
 export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctuary_schemas", isKeepers = false, isVerifiedMason = true }: { vaultPath?: string, isCloudMode?: boolean, cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons" | "sanctuary_games", isKeepers?: boolean, isVerifiedMason?: boolean }) {
    const mason = useMasonFiles({ vaultPath, isCloudMode, cloudTarget, isKeepers });
@@ -247,130 +249,11 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
       }
    };
 
-   // Actively inject backdrop-filter directly onto Monaco's floating widgets
-   useEffect(() => {
-      const applyGlass = () => {
-         const processRoot = (root: Document | ShadowRoot) => {
-            const widgets = root.querySelectorAll('.quick-input-widget, .monaco-editor .find-widget, .suggest-widget, .monaco-hover');
-            widgets.forEach((w: any) => {
-               // Apply glassmorphism directly inline
-               w.style.setProperty('background', 'rgba(15, 23, 42, 0.4)', 'important');
-               w.style.setProperty('background-color', 'rgba(15, 23, 42, 0.4)', 'important');
-               w.style.setProperty('backdrop-filter', 'blur(24px) saturate(1.5)', 'important');
-               w.style.setProperty('-webkit-backdrop-filter', 'blur(24px) saturate(1.5)', 'important');
-               w.style.setProperty('border-radius', '12px', 'important');
-               w.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.1)', 'important');
-               w.style.setProperty('box-shadow', '0 20px 50px rgba(0,0,0,0.5)', 'important');
-
-               // Find internal wrappers and force them to be transparent
-               const internals = w.querySelectorAll('.quick-input-header, .quick-input-and-more, .quick-input-list, .monaco-list, .monaco-list-rows, .find-part, .replace-part');
-               internals.forEach((inner: any) => {
-                  inner.style.setProperty('background', 'transparent', 'important');
-                  inner.style.setProperty('background-color', 'transparent', 'important');
-               });
-            });
-         };
-
-         processRoot(document);
-         document.body.querySelectorAll('*').forEach(el => {
-            if (el.shadowRoot) processRoot(el.shadowRoot);
-         });
-      };
-
-      const interval = setInterval(applyGlass, 100);
-      return () => clearInterval(interval);
-   }, []);
+   const { currentTheme } = useTheme();
+   useSanctuaryMonacoTheme(currentTheme, isLight);
 
    const handleEditorWillMount = (monaco: any) => {
-      const bgCol = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0f172a';
-      const accentCol = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#38bdf8';
-      const getHex = (c: string, alpha: string) => {
-         if (!c || c === 'transparent') return `#0f172a${alpha}`;
-         if (c.startsWith('#') && c.length === 7) return `${c}${alpha}`;
-         return `#0f172a${alpha}`;
-      };
-
-      monaco.editor.defineTheme('sanctuary-glass-dark', {
-         base: 'vs-dark',
-         inherit: true,
-         rules: [
-            { token: 'string', foreground: '#e2e8f0' },
-            { token: 'string.key.json', foreground: '#38bdf8' },
-            { token: 'string.value.json', foreground: '#f8fafc' },
-            { token: 'keyword', foreground: '#38bdf8' },
-            { token: 'number', foreground: '#a78bfa' },
-            { token: 'boolean', foreground: '#818cf8' },
-            { token: 'comment', foreground: '#64748b', fontStyle: 'italic' },
-            { token: 'type', foreground: '#2dd4bf' },
-            { token: 'identifier', foreground: '#f8fafc' },
-         ],
-         colors: {
-            'editor.background': '#00000000',
-            'editor.lineHighlightBackground': '#ffffff0a',
-            'editorLineNumber.foreground': '#ffffff40',
-            'editorLineNumber.activeForeground': '#38bdf8',
-            'editorIndentGuide.background': '#ffffff10',
-            'editorSuggestWidget.background': getHex(bgCol, '80'),
-            'editorSuggestWidget.border': getHex(textCol, '1a'),
-            'editorSuggestWidget.selectedBackground': getHex(accentCol, '40'),
-            'editorHoverWidget.background': getHex(bgCol, '80'),
-            'editorHoverWidget.border': getHex(textCol, '1a'),
-            'editorWidget.background': getHex(bgCol, '80'),
-            'editorWidget.border': getHex(textCol, '1a'),
-            'quickInput.background': getHex(bgCol, '80'),
-            'quickInputList.focusBackground': getHex(accentCol, '40'),
-            'list.activeSelectionBackground': getHex(accentCol, '40'),
-            'list.hoverBackground': getHex(accentCol, '1a'),
-            'editorWidget.foreground': textCol,
-            'input.background': getHex(textCol, '0a'),
-            'input.foreground': textCol,
-            'inputOption.activeBorder': getHex(accentCol, '80'),
-            'minimap.background': '#00000000',
-            'minimapSlider.background': '#ffffff10',
-            'minimapSlider.hoverBackground': '#ffffff20',
-            'minimapSlider.activeBackground': '#ffffff30',
-            'scrollbarSlider.background': '#ffffff00',
-            'scrollbarSlider.hoverBackground': '#ffffff10',
-            'scrollbarSlider.activeBackground': '#ffffff20',
-         }
-      });
-      monaco.editor.defineTheme('sanctuary-glass-light', {
-         base: 'vs',
-         inherit: true,
-         rules: [
-            { token: 'string', foreground: '#475569' },
-            { token: 'string.key.json', foreground: '#0284c7' },
-            { token: 'string.value.json', foreground: '#0f172a' },
-            { token: 'keyword', foreground: '#0284c7' },
-            { token: 'number', foreground: '#7c3aed' },
-            { token: 'boolean', foreground: '#4f46e5' },
-            { token: 'comment', foreground: '#94a3b8', fontStyle: 'italic' },
-            { token: 'type', foreground: '#0d9488' },
-            { token: 'identifier', foreground: '#0f172a' },
-         ],
-         colors: {
-            'editor.background': '#00000000',
-            'editor.lineHighlightBackground': '#0000000a',
-            'editorLineNumber.foreground': '#00000040',
-            'editorLineNumber.activeForeground': '#0284c7',
-            'editorIndentGuide.background': '#00000010',
-            'editorSuggestWidget.background': '#00000000',
-            'editorSuggestWidget.border': '#00000000',
-            'editorWidget.background': '#00000000',
-            'editorWidget.border': '#00000000',
-            'editorWidget.foreground': textCol,
-            'input.background': '#00000000',
-            'input.foreground': textCol,
-            'inputOption.activeBorder': '#00000000',
-            'minimap.background': '#00000000',
-            'minimapSlider.background': '#00000010',
-            'minimapSlider.hoverBackground': '#00000020',
-            'minimapSlider.activeBackground': '#00000030',
-            'scrollbarSlider.background': '#00000000',
-            'scrollbarSlider.hoverBackground': '#00000010',
-            'scrollbarSlider.activeBackground': '#00000020',
-         }
-      });
+      defineSanctuaryMonacoThemes(monaco, currentTheme);
    };
 
    const activeFile = activeFileIndex >= 0 ? openFiles[activeFileIndex] : null;

@@ -1197,9 +1197,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem("sanctuary_anarchy", JSON.stringify(anarchyRules));
   }, [anarchyRules]);
-  const handleOpenMasonProfile = (masonId: string, postId?: string) => {
+  const handleOpenMasonProfile = async (masonId: string, postId?: string) => {
     if (!masonId) {
       alert(t("alert_error_mason_profile_missing"));
+      return;
+    }
+    const { data: mVer } = await supabase.from("masons").select("is_verified").eq("id", masonId).maybeSingle();
+    if (!mVer || !mVer.is_verified) {
+      useStore.getState().pushStatus(t("mason_profile_verified_only_desc", "Public Mason Profiles are exclusively available for Verified Masons."), "info");
       return;
     }
     setActiveMasonProfileId(masonId);

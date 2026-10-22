@@ -1,87 +1,80 @@
-# Sanctuary OS — Version 0.5.8-Dev.1 Update
-## *"The Homestead Lab, Phone-to-PC Mod Staging & True System Alerts"*
+# Sanctuary OS — Version 0.5.8-Dev.2 Update
+## *"Liquid Glass Optics, Reimagined Citizen's Workbench, Unified Artifact Studio & Silent In-App Updates"*
 
-**Release Date:** October 17, 2026 | **Version:** 0.5.8-1 (Dev Channel)
+**Release Date:** October 22, 2026 | **Version:** 0.5.8-2 (Dev Channel)
 
-Welcome to **Sanctuary OS 0.5.8-1**! This update transforms how you test unstable mods, browse and queue modpacks from your phone, receive real-time alerts on your desktop or mobile PWA, and support the communities and creators who keep your favorite games alive. Here is everything new in plain English.
+Welcome to **Sanctuary OS 0.5.8-2**! This update brings a top-to-bottom visual and performance overhaul with our new **Zero-Tearing Liquid Glass Optics Engine**, a completely redesigned **Citizen's Workbench** (with a 2-column Visual Config Editor, Visual Template Builder, and interactive Timeline Diff Panel), a unified **3-Tile Artifact Studio** across both the Creator Hub and Architect Console, **1-Click Silent In-App Updates**, and a comprehensive full-stack security hardening sweep. Here is everything new in plain English.
 
 ---
 
 ## ⚡ TL;DR — The 60-Second Summary
 
-* **Phone-to-PC Mod & Modpack Staging:** Browse the Nexus on your phone or tablet, build a Modpack (or queue individual Mods, Themes, and Translations), and send it to your PC with end-to-end encryption. When you sit down at your desk, click **Sign & Deploy** to install everything in one go.
-* **The New Homestead Lab & Physical Save Shield:** Test risky mods with zero fear of corrupting your saves. Sanctuary physically moves your real saves into a locked vault, seeds a disposable sandbox with your latest save so you can click *"Resume Game"* immediately, and tracks your live in-game play session with an on-screen HUD overlay.
-* **Plain-English Crash Diagnoses & Privacy Scrubbing:** Cryptic game crash logs (`lastException.txt`) now display plain-English *"What the Community Knows"* explanations right at the top, and Sanctuary automatically strips 100% of your personal PC file paths, usernames, and hardware IDs (`[REDACTED BY SANCTUARY]`) before any log is viewed, saved, or shared.
-* **True System & PWA Notifications:** Get real Windows/macOS/Linux desktop notifications (fully branded as **Sanctuary OS** with the Sanctuary icon) and opt-in mobile PWA push alerts. Choose **System (OS)**, **In-App Only**, or **None (Muted)** for each alert category, with a strict single-send guarantee so you never get pinged twice.
-* **0%-Fee Community Support & Daily Dev Builds:** Donate directly to any Partner Community (0% platform cut) to unlock **+30 Days of Global Daily Dev Builds per \$5** across the entire app, and verify creator Patreon/Ko-fi passes locally on your own PC for priority support routing.
+* **Zero-Tearing Liquid Glass & Theme Forge Optics:** Every card, side panel, and floating menu now refracts your background wallpaper smoothly with zero scroll seams on both Dark and Light themes—plus 6 new **Liquid Glass Optics** sliders in Theme Forge so you can tune glass opacity, blur, saturation, rim lighting, glare, and depth in real time.
+* **Reimagined Citizen's Workbench & Visual Timeline Diff:** Edit massive mod config files (like `mc_settings.cfg` with 430+ settings) with zero lag using a compact 2-column Visual Editor, 1-click Category Pill Bar, dual `Min` / `Max` range steppers, per-setting **Undo to Saved** and **Reset to Default**, and a full **2-Column Interactive Timeline & Diff Workspace** comparing your live unsaved edits or historical snapshots in either **Visual Diff** or **Raw Code Diff**.
+* **No-Code Visual Template Builder:** Create and edit `.json` config templates visually without touching raw JSON—auto-map keys directly from any `.cfg` or `.ini` file in one click, pick category icons visually with the built-in **Icon Picker**, and add Booleans, Numbers, Ranges, Text, Dropdowns, Keybinds, and Groups from a single row.
+* **Unified 3-Tile Artifact Studio & Mod Family Grouping:** We consolidated the fragmented `Protocols`, `Folder Structure`, and `Conflicts` screens in both the **Creator Hub** and **Architect Console** into a unified **3-Tile Artifact Studio** (`Details & Versions`, `Files & Folders`, and `Rules & Upload`), and grouped multi-part mod suites (like *MC Command Center* and its 13 modules) into a single clean Parent Card.
+* **1-Click Silent In-App Updater & Single Morphing Dock:** Clicking **Install & Restart** now downloads and installs updates right inside Sanctuary OS with a live progress bar and automatic relaunch—no browser redirects or Windows installer popups—while the bottom status bars have been merged into a single sleek, auto-tucking **Morphing Status Pill**.
 
 ---
 
 ## 🎮 For Players (Citizens)
 
-### 1. Browse on Your Phone, Install on Your PC (Remote Queue & Modpack Builder)
-Ever see a cool mod or modpack while scrolling on your phone away from your gaming PC? Now you can queue it up from anywhere:
-* **End-to-End Encrypted Remote Queue:** Add mods, full modpacks, Chameleon themes, or Lexicon translation packs to your queue from the Sanctuary web app or mobile PWA. Your list is encrypted on your device using your account password before it ever touches the cloud—meaning nobody (not even server admins) can see what you're queuing.
-* **1-Click Desktop Deployment:** When you open Sanctuary OS on your PC, a notification pill lets you review your incoming queue. Mods already in your Vault are linked immediately, and any missing mods open their official creator download pages in the Side Browser so you can grab them safely.
-* **Streamlined 4-Tab Modpack Builder:** We reorganized the Modpack Builder into four clean tabs—**Included Mods**, **Modpack Settings**, **Saved Drafts**, and **Active PC Queue**—and unified the catalog with the main **Nexus** so you never have to bounce between two different search screens.
-* **Smart Parent Dependency Detection:** Adding an add-on module like *MC Woohoo* now automatically detects and pulls in its required master mod (*MC Command Center* set to Core Priority) instead of cluttering your list with optional sub-modules. Twin `.package` + `.ts4script` files are also merged into a single clean card.
+### 1. Reimagined Citizen's Workbench & Visual Config Editor
+Tweaking complex mod settings files shouldn't mean hunting through hundreds of lines of raw text or losing track of what you changed:
+* **Compact 2-Column Visual Editor:** Settings are now organized into a responsive 2-column grid of Liquid Glass cards with automatic readable label formatting (`AgeSpanCatLong` automatically becomes `Age Span Cat Long`) and collapsible multi-column Group cards.
+* **1-Click Category Pill Bar:** Switch between setting categories (`General`, `Gameplay`, `CAS`, `Occult`, etc.) directly from the interactive Category Pill Bar right below the search bar—complete with icons, live setting counts, and an expand/compact row toggle.
+* **Dual `Min` / `Max` Range Steppers:** Comma-separated slider bounds (like MCCC's `-100,100` CAS sliders) are automatically detected and rendered as side-by-side **Min** and **Max** numeric steppers.
+* **Unsaved vs. Modified Tracking & 1-Click Undo:** Every setting now tracks both **Unsaved** changes (edits since your last save, highlighted with an amber outline pill and **Undo to Saved** button) and **Modified** changes (values that differ from the mod's default, with a **Reset to Default** button). Filter by **Unsaved** or **Modified**—or revert all unsaved edits—directly from the filter toolbar.
+* **Instant Performance on 430+ Setting Files:** Progressive windowed rendering keeps massive configuration files like `mc_settings.cfg` scrolling and editing at a locked 60+ FPS.
 
-### 2. Homestead Lab: Physical Save Airgap & Live In-Game Proving
-We completely rebuilt the **Homestead Lab** so testing new or updated mods is effortless and 100% safe for your saves:
-* **Physical Save Airgap Shield:** Instead of just marking your saves read-only, Sanctuary now physically evacuates your live save folders into a protected backup vault and swaps in an isolated Sandbox folder whenever a Lab test starts. Even better, it automatically copies your most recent save into the sandbox so you can click **Resume Game** right away without creating a throwaway character!
-* **4-Stage Live Simulation Watcher:** Sanctuary now knows the difference between sitting on the Main Menu and actually playing:
-  1. **Booting:** Waits for the game process to stabilize.
-  2. **Waiting for World:** Keeps the test timer paused until it detects your save world actually loading into memory.
-  3. **Active Testing:** Only ticks the countdown while the game window is focused and actively unpaused—if you press `Esc` to open the pause menu, pause simulation speed (`0`, `P`, or `~`), or alt-tab away, the timer automatically pauses and waits for you.
-  4. **Save Checkpoint:** Once the timer hits `0:00`, save your game once in the sandbox to confirm save stability and earn a verified certificate.
-* **Single-Monitor Over-Game HUD & Audio Chimes:** Playing on a single monitor in fullscreen or borderless mode? Sanctuary now projects a sleek, click-through translucent HUD banner over the top of your game (with an audio chime and OS notification) when your test timer finishes!
-* **External Tool Linker:** Link external modding utilities (like *Sims 4 Studio*, *Create-a-World*, or *xEdit*) right inside the Homestead Lab to launch them inside the save-protected sandbox environment.
+### 2. Interactive 2-Column Timeline & Diff Workspace
+We replaced the tiny 500-character timeline preview box with a full **2-Column Timeline & Diff Workspace**:
+* **Compare Unsaved Edits or Historical Snapshots:** The left timeline column features a live **"Current Edits vs. Saved"** card at the top right above your saved historical snapshots, with a high-contrast accent border so you always know which version you're inspecting.
+* **Visual Diff & Raw Code Diff Modes:** Switch between **Visual Diff** (which shows human-readable `Saved/Snapshot → Current` setting cards with individual 1-click **Undo** / **Restore** buttons and wraps long values cleanly across two rows) and **Raw Code Diff** (a side-by-side Monaco code diff with **Previous / Next Change** jump buttons).
+* **Filter & Search Changes:** Toggle between **Changed Only** and **All Settings**, search for specific keys, or restore an entire snapshot in one click.
 
-### 3. Plain-English Crash Diagnoses & Automatic Privacy Scrubbing
-Game exception logs shouldn't require a computer science degree to read—or leak your real name when you share them for help:
-* **"What the Community Knows" Banners:** When a game error log is detected, Sanctuary cross-references it against community **Known Error Rules** and shows a plain-English diagnosis card explaining what broke, which mod likely caused it, and how to fix it.
-* **Smart Normal-Bug Filtering:** Error logs are now classified into **Corrupted (Game Crash)**, **Unstable (UI / Random Bugs)**, and **Unrelated (Normal Game Bug)**. Harmless vanilla game bugs are automatically ignored during Lab runs so they never falsely fail your mod test.
-* **Automatic `[REDACTED BY SANCTUARY]` Privacy Scrubber:** Before any crash log is displayed on screen, saved to disk, or attached to a support ticket, Sanctuary automatically scrubs your Windows/Mac username, file paths (`C:\Users\YourName\...`), OneDrive folders, machine IDs, and session GUIDs right on disk.
-* **Dual Log Export (`Lab_Report_#.txt`):** Clicking **Download Report** now saves both the formatted Sanctuary Lab Report (complete with exact `[extension] (Version)` labels, loaded dependencies, and active conflicts) and the scrubbed raw game exception log right alongside it.
+### 3. True Liquid Glass Optics, Single Morphing Dock & Clean Alert Cards
+* **Zero-Tearing Liquid Glass Engine:** We re-engineered how Sanctuary renders frosted glass across scrolling pages (`Nexus`, `Vault`, `Command Center`, `Workbench`). Cards now refract your theme wallpaper as a single continuous sheet of 3D glass without tile seams, double borders, or dark slate rings—automatically adapting to both Dark and Light themes.
+* **Theme Forge Optical Sliders:** Open **Theme Forge** to customize 6 live optical controls—**Glass Opacity**, **Refractive Blur**, **Refractive Saturation**, **Rim Light Intensity**, **Specular Glare**, and **Elevation Depth**—with a 1-click **Reset Optics** button.
+* **Single Morphing Dock Pill:** We merged the separate Status Bar, Notification Dock, and Main Dock into a single centered **Morphing Status Pill** that displays inline save/scan status updates and flat alert counters, and automatically tucks out of the way when a SidePanel opens or when you scroll to the bottom of a page.
+* **Clean 2-Column Alert & Update Cards with Expandable Modules:** Incompatible Mod and Available Update panels now use a spacious 2-column card layout where mod suites (like *MC Command Center* or `.package` + `.ts4script` twins) coalesce into a single parent card with an interactive **`{N} Linked Modules ▾`** drawer.
+* **Centered Beacon Alert Modals:** Confirmation dialogs, DEFCON alerts, Quarantine prompts, and Time Capsule restore modals have been redesigned into sleek, centered Beacon Glass cards.
 
-### 4. True System (OS) & Mobile PWA Notifications
-* **Native Desktop & Phone Alerts:** Sanctuary OS now delivers real operating system notifications on Desktop (branded as **Sanctuary OS** with the official app icon—no more *"Windows PowerShell"* headers!) and supports opt-in push notifications on installed mobile PWAs.
-* **Per-Category Delivery Controls:** Head to **System Preferences → Notifications** to choose **System (OS)**, **In-App Only**, or **None (Muted)** individually for:
-  * **DEFCON Alerts** (Emergency patch/mod-breaking alerts)
-  * **Urgent Global Alerts**
-  * **System Dispatches**
-  * **Comm-Link Posts** (including a compact new **Per-Creator Alert** manager with search and Verified filters)
-  * **Comm-Link Replies**
-  * **Support Ticket Replies**
-* **Single-Send Guarantee:** Every notification is tracked locally so you will only ever be notified **once** per event—never spammed on startup or page refresh.
-
-### 5. Instant Blueprint Matrix, Full Load Orders & Multi-Drive Backups
-* **Instant Blueprint Matrix:** Opening the Blueprint Matrix on massive mod folders (1,000+ mods) used to freeze the screen for up to 10 seconds. We replaced the old search loop with an instant lookup index—it now opens in milliseconds, and scrolling through the **Load Order** screen is buttery smooth.
-* **Blueprints Now Remember Your Load Order:** Exporting, importing, cloning, or cloud-syncing a **Blueprint** now packages your entire Load Order configuration—including your ordering strategy, Priority Tiers (`1_Core` through `4_Overrides`), and custom Load Rules. Even if a friend's local mod file has a slightly different filename, Sanctuary matches it by DNA hash and heals the load order automatically.
-* **Multi-Drive Time Capsule Fix:** If you keep your Sanctuary Vault on a secondary drive (`D:\` or `E:\`) while your game saves live on `C:\Documents`, **Time Capsule** now stores World State snapshots on the same physical drive as your Documents folder so ultra-fast, zero-duplication hardlinks work every time.
-* **Edge-to-Edge Mobile PWA:** Fixed the solid white bar beneath the bottom navigation dock on mobile phones so your theme background extends cleanly behind the phone's gesture bar.
+### 4. 1-Click Silent In-App Updates & Account Security
+* **Silent In-App Auto-Installer:** Updating Sanctuary OS no longer opens your web browser or pops up Windows setup wizards. Clicking **Install & Restart** inside the **Update Panel** streams the update in the background with a live progress bar (`Downloading Update...` → `Installing Update...` → `Restarting Sanctuary OS...`) and relaunches the app automatically.
+* **2-Column Bento Release Notes:** Both the in-app **Update Panel** and **Release Notes Showcase** now display updates in a clean 2-column Bento grid with a 4-box telemetry header.
+* **Password Recovery & Account Re-Authentication:** Added a complete in-app **Set New Password** recovery flow and required current-password verification before changing your account email, changing your password, or disabling Two-Factor Authentication (2FA) in **System Preferences**.
 
 ---
 
 ## 💖 Supporting Communities & Creators (0% Platform Cut)
 
-### 1. Support Any Partner Community → Unlock Daily Dev Builds Everywhere
-Sanctuary OS takes **0% cut** on community and creator donations—payments go straight to the community's own Stripe or Ko-fi account.
-* **Cumulative Global Daily Dev Builds (\$5 = +30 Days):** Whenever you donate to *any* Partner Game Community, your account is automatically credited with **+30 days per \$5** of access to the **Daily Dev Build** update channel across all of Sanctuary OS. Donating again simply stacks more days onto your existing timer—it never resets early.
-* **Seamless Channel Switching & Cloud-Verified Dev Gate:** Flip on the **Daily Dev Build** toggle in **Settings → Supporter** (or from the **Support & Perks** quick action on the Command Center) to get the latest nightly features as soon as they ship. Daily Dev Build installers verify your active Supporter clearance (or staff role) on launch—and if someone downloads the Dev `.exe` by mistake without an active pass, a 1-click button lets them unlock Dev Builds or grab the free **Public Stable** installer right from the screen.
-
-### 2. Zero-Honeypot Creator Supporter Vault & Priority Support
-* **100% Local Privacy:** Following creators and linking your Patreon or Ko-fi **Supporter Passes** happens strictly inside a private database on your own PC. Sanctuary never builds a central cloud list of who you follow or who you financially support.
-* **Expedited Support Routing:** When you submit a support ticket for a mod whose creator you support, Sanctuary attaches a cryptographic proof that flags your ticket for the **Expedited Support Path** without exposing your financial details.
+* **Instant In-App Browser Auto-Stacking & Celebration Panel:** When you support a Partner Community through the in-app **Side Panel Browser** (including 100% Promo Code redemptions), Sanctuary automatically detects checkout completion, closes the checkout drawer, and slides open the **Supporter Celebration Panel** showing your **Time Added**, **Active Timer**, and **New Expiration Date** (supporting 3- and 4-digit day balances without text cutoff).
+* **Instant Dev / Stable Channel Switching:** Flipping the **Daily Dev Build Channel** toggle in **System Preferences → Support & Perks** now immediately offers the latest Dev Build (when switching to Dev) or the latest Public Stable release (when switching back to Stable) right in your status dock and Update Panel.
 
 ---
 
 ## 🛠️ For Mod Creators, Scouts & Community Leaders
 
-* **Live Verification Gates for Publishing & Moderation:** Communities can now require a passing **Homestead Lab Verification Certificate** (matched by the file's exact SHA-256 `dna_hash`) before a mod can be published from the **Mason Workshop** or approved in the **Scout & Architect Queues**—complete with an inline test runner right inside the review panel.
-* **Multi-Folder "Installer" File Routing:** Mods that need files placed outside the standard `Mods` folder (such as custom `.world` files that belong in the game's installation `Data/Shared/Worlds/Areas` directory) are now routed and linked automatically via the game schema, while safely backing up any vanilla game files they replace and restoring them when unequipped.
-* **Zero-False-Positive Malware Heuristics:** We upgraded the security scanner from noisy single-word checks (which could flag legitimate mods like *MC Command Center* or *Better Exceptions*) to **Compound Behavioral Rules** (`subprocess + powershell`, `base64 + exec`, Discord webhook exfiltration, browser token stealers) and automatic whitelisting for verified Registry hashes.
-* **Architect Known-Error Rule Extractor:** Community Architects can now paste any raw `lastException.txt` stack trace into the **Homestead Diagnostics** editor and click **Quick Extract** to automatically pull out the error signature, title, and file hint in one click—or click **Add Normal Game Bug** directly from a crash report banner.
-* **In-Memory `override.json` Handling:** Dropping or exporting mods with decentralized `override.json` update manifests now processes and stores the update link directly in Sanctuary's local database without leaving stray `override.json` files cluttering your mod folders.
-* **Lighter Custom Game Translations:** Game communities creating their own **Lexicon** flavor packs no longer need to translate all 2,000+ app strings—just override the 50–100 game-specific terms you want to theme, and Sanctuary automatically fills in the rest with clean Standard English.
-* **Live Release Blog & GitHub Sync:** The **Web Landing Page** and **Keepers Core** now feature side-by-side **Public Release** and **Daily Dev Build** blog cards with a 2x2 Release Info Panel and live GitHub Release Notes / Full Changelog switching.
+### 1. Unified 3-Tile Artifact Studio (Creator Hub & Architect Console)
+We simplified mod management for both Creators and Community Architects by removing the separate `Protocols`, `Folder Structure`, and `Conflicts` navigation screens and bringing everything into a single unified **3-Tile Artifact Studio** (`Details & Versions`, `Files & Folders`, and `Rules & Upload`):
+* **Single-Card Mod Family Grouping:** Multi-hop mod suites (such as a Core `.package` $\rightarrow$ Script Twin `.ts4script` $\rightarrow$ 12 Add-on modules) now collapse into a single **Core Mod** card (`+13 Modules`) across the Creator Workshop, Architect Registry, and Search results.
+* **Smart Sandbox Entry Choice & Auto-Pull:** Clicking an unlinked file in your local Sandbox lets you choose **Make a New Mod** or **Link to Existing Mod**. Choosing **New Version / Update** automatically pulls over your previous version's Title, Category, Description, Cover Art, URL, Paid/Early Access flags, Required DLC, Dependencies, Conflicts, Collections, Folder Structure, and Family Modules while archiving the old SHA-256 hash into version history!
+* **Always-Visible Mod Family Card & Family-Aware Folder Tree:** Tile 2 (`Files & Folders`) now features a dedicated **Mod Family Modules** card at the top (resolving real mod titles and `.package`/`.ts4script` badges for every linked Twin, Add-on, Flavor, and Beta) right above a family-aware `Mods/` folder tree where you can assign install subfolders for every file in the suite.
+* **Symmetrical 2x2 Rules Grid & Single-View Patch Range Picker:** Tile 3 (`Rules & Upload`) organizes **Required EA Packs (DLC)**, **Required Mods (Dependencies)**, **Incompatible Mods (Conflicts)**, and **Collections** into a clean 2x2 grid with compact 2-column scroll wells, while the **Game Version Picker** now includes an inline `From Patch → To Patch` range selector right above the version checklist.
+* **Expanded Local `manifest.json` & `override.json` Exports for All Citizens:** All registered users can now author and export complete local `manifest.json` and `override.json` packages in the Sandbox—including Protocol Flavors, Local Collections, Virtual Folder Structures, DLC requirements, Dependencies, and Conflicts—while cloud publishing and public Creator Profiles remain gated to **Verified Creators**.
+
+### 2. Visual Template Builder for Config Authors
+* **Author Templates Visually:** Switching a `.json` template to **Author Mode** in the Citizen's Workbench opens the new **Visual Template Builder** side-by-side with a live **Visual Preview**.
+* **1-Click Auto-Map & Visual Icon Picker:** Select a target config file and click **Auto-Map Target Keys** to automatically generate categorized controls from the file's keys and values, use the portaled **Icon Picker** to choose Material Symbol icons for your categories, and add `Boolean`, `Number`, `Range`, `Text`, `Dropdown`, `Keybind`, or `Group` fields from a single compact row.
+
+### 3. Full-Stack Security Hardening
+* **Database, Gateway & Desktop Hardening:** Locked down column-level security and Row-Level Security (RLS) across Hub and Spoke databases, enforced fail-closed HMAC-SHA256 webhook verification and role/ownership checks in Edge Functions, scoped Tauri v2 IPC capabilities strictly to the main OS windows, added Zip-Slip path traversal protection across all archive extractors, and secured the Side Panel Browser bridge with per-session cryptographic tokens.
+
+### 2. Visual Template Builder for Config Authors
+* **Author Templates Visually:** Switching a `.json` template to **Author Mode** in the Citizen's Workbench opens the new **Visual Template Builder** side-by-side with a live **Visual Preview**.
+* **1-Click Auto-Map & Visual Icon Picker:** Select a target config file and click **Auto-Map Target Keys** to automatically generate categorized controls from the file's keys and values, use the portaled **Icon Picker** to choose Material Symbol icons for your categories, and add `Boolean`, `Number`, `Range`, `Text`, `Dropdown`, `Keybind`, or `Group` fields from a single compact row.
+
+### 3. Full-Stack Security Hardening
+* **Database, Gateway & Desktop Hardening:** Locked down column-level security and Row-Level Security (RLS) across Hub and Spoke databases, enforced fail-closed HMAC-SHA256 webhook verification and role/ownership checks in Edge Functions, scoped Tauri v2 IPC capabilities strictly to the main OS windows, added Zip-Slip path traversal protection across all archive extractors, and secured the Side Panel Browser bridge with per-session cryptographic tokens.
+

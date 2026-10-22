@@ -126,7 +126,6 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
             ].map((tab) => {
               const isActive = activeSubTab === tab.id;
               const activeBorder = isEngine ? 'border-rose-500/30' : 'border-indigo-500/30';
-              const activeShadow = isEngine ? 'shadow-[0_0_20px_rgba(244,63,94,0.15)]' : 'shadow-[0_0_20px_rgba(99,102,241,0.15)]';
               const activeBg = isEngine ? 'bg-rose-500/10' : 'bg-indigo-500/10';
               const hoverBorder = isEngine ? 'hover:border-rose-500/20' : 'hover:border-indigo-500/20';
               const hoverBg = isEngine ? 'hover:bg-rose-500/5' : 'hover:bg-indigo-500/5';
@@ -137,7 +136,12 @@ export function TimeCapsuleSidePanel({ isOpen, onClose, selectedBackup, config }
                 <div
                   key={tab.id}
                   onClick={() => setActiveSubTab(tab.id)}
-                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border transition-all duration-300 cursor-pointer group ${isActive ? `glass-panel ${activeBorder} ${activeShadow} ${activeBg}` : `bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${hoverBorder} ${hoverBg}`}`}
+                  style={{
+                    "--glass-outer-shadow": "0 0 #0000",
+                    "--glass-nested-shadow": "0 0 #0000",
+                    boxShadow: isActive ? "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12))" : "none",
+                  } as React.CSSProperties}
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border shadow-none transition-all duration-300 cursor-pointer group ${isActive ? `glass-panel ${activeBorder} ${activeBg}` : `bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] ${hoverBorder} ${hoverBg}`}`}
                 >
                   <span className={`material-symbols-outlined !text-[24px] transition-colors ${isActive ? textColor : `text-[var(--subtext)] ${hoverText}`}`}>{tab.icon}</span>
                   <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${isActive ? textColor : `text-[var(--subtext)] ${hoverText}`}`}>{tab.label}</span>

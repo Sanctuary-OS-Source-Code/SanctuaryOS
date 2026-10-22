@@ -88,8 +88,7 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
       if (selectedFile && files.length > 0) {
          const loadMatchingTemplates = async () => {
             const matches: any[] = [];
-            let hasCommunityDefault = false;
-            
+
             if (communityDefaults && communityDefaults.length > 0) {
                const commTmpl = communityDefaults.find((d: any) => {
                   const tData = Array.isArray(d.template_data) ? d.template_data[0] : d.template_data;
@@ -98,14 +97,26 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
                });
                if (commTmpl) {
                   const tData = Array.isArray(commTmpl.template_data) ? commTmpl.template_data[0] : commTmpl.template_data;
-                  matches.push({ id: commTmpl.id, label: commTmpl.name || t("template_builtin"), data: tData, isCommunity: true, author: commTmpl.author || tData.template_author || "Unknown Mason", authorId: commTmpl.author_id });
-                  hasCommunityDefault = true;
+                  matches.push({
+                     id: commTmpl.id,
+                     label: commTmpl.name || t("template_builtin", "Sanctuary Default"),
+                     data: tData,
+                     isCommunity: true,
+                     author: commTmpl.author || tData.template_author || t("label_unknown_author", "Unknown Author"),
+                     authorId: commTmpl.author_id
+                  });
                }
             }
 
-            const templatesArray = Array.isArray(workbenchTemplates) ? workbenchTemplates : (workbenchTemplates as any).default || [];
-            const builtInMatch = templatesArray.find((t: any) => t.target_file?.toLowerCase() === selectedFile.name.toLowerCase());
-            if (builtInMatch) matches.push({ id: "built_in", label: t("template_builtin"), data: builtInMatch });
+            const templatesArray = Array.isArray(workbenchTemplates)
+               ? workbenchTemplates
+               : Array.isArray((workbenchTemplates as any)?.default)
+                  ? (workbenchTemplates as any).default
+                  : workbenchTemplates
+                     ? [workbenchTemplates]
+                     : [];
+            const builtInMatch = templatesArray.find((tItem: any) => tItem?.target_file?.toLowerCase() === selectedFile.name.toLowerCase());
+            if (builtInMatch) matches.push({ id: "built_in", label: t("template_builtin", "Sanctuary Default"), data: builtInMatch });
 
             for (const f of files.filter(f => f.name.toLowerCase().endsWith('.json'))) {
                try {
@@ -116,7 +127,7 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
                   } else {
                      content = await readTextFile(f.path);
                   }
-                  
+
                   const parsed = JSON.parse(content);
                   const tData = Array.isArray(parsed) ? parsed[0] : parsed;
                   if (tData?.target_file?.toLowerCase() === selectedFile.name.toLowerCase()) {
@@ -131,13 +142,17 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
       } else {
          setAvailableTemplates([]);
       }
-   }, [selectedFile, files, vaultPath, communityDefaults]);
+   }, [selectedFile, files, vaultPath, communityDefaults, t]);
 
-   const handleNewTemplate = async () => {
+   const handleNewTemplate = async (openAfterCreate = true, targetFileOverride?: string) => {
       if (!vaultPath) return;
       try {
          const shortId = Math.random().toString(36).substring(2, 6).toUpperCase();
-         const newFileName = `TEMPLATE_${shortId}.json`;
+         const targetFileName = targetFileOverride || (selectedFile && !isTemplateMode ? selectedFile.name : "my_mod_settings.cfg");
+         const baseTargetStem = targetFileOverride
+            ? targetFileOverride.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_")
+            : `TEMPLATE_${shortId}`;
+         const newFileName = targetFileOverride ? `${baseTargetStem}_template_${shortId}.json` : `TEMPLATE_${shortId}.json`;
          const sep = vaultPath.includes('\\') ? '\\' : '/';
          const tmplPath = vaultPath.endsWith(sep) ? `${vaultPath}Data${sep}Templates` : `${vaultPath}${sep}Data${sep}Templates`;
 
@@ -149,22 +164,22 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
             "template_id": "custom_template_" + shortId.toLowerCase(),
             "schema_version": 2,
             "supported_mod_versions": ["1.0.0"],
-            "target_file": selectedFile && !isTemplateMode ? selectedFile.name : "my_mod_settings.cfg",
+            "target_file": targetFileName,
             "parser_type": "json",
             "write_scope": "active_mod_folder",
             "mod_author": "Unknown",
             "template_author": "Sanctuary OS Citizen",
             "template_version": "1.0.0",
             "categories": [
-               { "id": "general", "name_key": "category_general", "icon_key": "icon_tune" }
+               { "id": "general", "name_key": "General", "icon_key": "tune" }
             ],
             "settings": [
                {
                   "key": "My_Boolean_Setting",
                   "path": "My_Boolean_Setting",
                   "type": "boolean",
-                  "label_key": "author_boilerplate_label",
-                  "desc_key": "author_boilerplate_desc",
+                  "label_key": "Enable Custom Feature",
+                  "desc_key": "Toggle this setting on or off.",
                   "category": "general",
                   "default": false
                },
@@ -172,8 +187,8 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
                   "key": "My_Number_Setting",
                   "path": "My_Number_Setting",
                   "type": "number",
-                  "label_key": "author_boilerplate_label",
-                  "desc_key": "author_boilerplate_desc",
+                  "label_key": "Numeric Value",
+                  "desc_key": "Adjust the numeric value within the allowed range.",
                   "category": "general",
                   "allow_decimals": false,
                   "min": 0,
@@ -184,8 +199,8 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
                   "key": "My_String_Setting",
                   "path": "My_String_Setting",
                   "type": "string",
-                  "label_key": "author_boilerplate_label",
-                  "desc_key": "author_boilerplate_desc",
+                  "label_key": "Custom Text",
+                  "desc_key": "Enter a custom text value.",
                   "category": "general",
                   "default": "Default Text"
                },
@@ -193,23 +208,28 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
                   "key": "My_Dropdown_Setting",
                   "path": "My_Dropdown_Setting",
                   "type": "dropdown",
-                  "label_key": "author_boilerplate_label",
-                  "desc_key": "author_boilerplate_desc",
+                  "label_key": "Preset Mode",
+                  "desc_key": "Choose from the available preset options.",
                   "category": "general",
                   "options": [
-                     { "value": "A", "label_key": "cat_all" },
-                     { "value": "B", "label_key": "category_system" }
+                     { "value": "A", "label_key": "Option A" },
+                     { "value": "B", "label_key": "Option B" }
                   ],
                   "default": "A"
                }
             ]
          };
          await writeTextFile(newFilePath, JSON.stringify(defaultContent, null, 2));
+         const createdFile = { name: newFileName, path: newFilePath };
+         setFiles(prev => [...prev, createdFile].sort((a, b) => a.name.localeCompare(b.name)));
          setRefreshTrigger(prev => prev + 1);
-         pushStatus(t("msg_template_created"), "success");
+         pushStatus(t("msg_template_created", "New template created."), "success");
+         if (openAfterCreate) {
+            setSelectedFile(createdFile);
+         }
       } catch (e) {
          console.error("Error creating template", e);
-         pushStatus(t("msg_template_create_failed"), "error");
+         pushStatus(t("msg_template_create_failed", "Failed to create template."), "error");
       }
    };
 
@@ -218,12 +238,12 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
          await remove(path);
          if (useStore.getState().cwSelectedFile?.path === path) useStore.getState().setCwSelectedFile(null);
          setRefreshTrigger(prev => prev + 1);
-         useStore.getState().pushStatus("Template deleted", "success");
+         useStore.getState().pushStatus(t("msg_template_deleted", "Template deleted."), "success");
       } catch (e) {
          console.error("Error deleting template", e);
-         useStore.getState().pushStatus("Failed to delete template", "error");
+         useStore.getState().pushStatus(t("msg_template_delete_failed", "Failed to delete template."), "error");
       }
-   }, []);
+   }, [t]);
 
    const handleRenameSubmit = useCallback(async (oldPath: string, oldName: string) => {
       const lastDot = oldName.lastIndexOf('.');
@@ -235,8 +255,9 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
       }
       try {
          let newName = renameInput.trim() + ext;
-         const dirPath = oldPath.substring(0, oldPath.lastIndexOf('\\'));
-         const newPath = `${dirPath}\\${newName}`;
+         const sep = oldPath.includes('\\') ? '\\' : '/';
+         const dirPath = oldPath.substring(0, oldPath.lastIndexOf(sep));
+         const newPath = `${dirPath}${sep}${newName}`;
          const oldContent = await readTextFile(oldPath);
          await writeTextFile(newPath, oldContent);
          await remove(oldPath);
@@ -245,12 +266,12 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
          }
          setRenamingFile(null);
          setRefreshTrigger(prev => prev + 1);
-         useStore.getState().pushStatus("Template renamed", "success");
+         useStore.getState().pushStatus(t("alert_saved", "Saved"), "success");
       } catch (e) {
          console.error("Error renaming template", e);
-         useStore.getState().pushStatus("Failed to rename template", "error");
+         useStore.getState().pushStatus(t("alert_error", "Error"), "error");
       }
-   }, [renameInput]);
+   }, [renameInput, t]);
 
    const openFile = useCallback(async (file: { name: string, path: string }) => {
       try {
@@ -259,12 +280,12 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
             useStore.getState().setCwActiveTab("visual");
          }
       } catch (e) {
-         useStore.getState().pushStatus("Error opening file", "error");
+         useStore.getState().pushStatus(t("alert_error", "Error"), "error");
       }
-   }, []);
+   }, [t]);
 
-   const saveConfig = async (rawText: string) => {
-      if (!selectedFile) return;
+   const saveConfig = async (rawText: string, onSaved?: (savedContent: string) => void) => {
+      if (!selectedFile) return false;
       setIsSaving(true);
       try {
          await invoke('save_file_with_history', { path: selectedFile.path, content: rawText });
@@ -273,11 +294,14 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
             delete next[selectedFile.path];
             return next;
          });
+         if (onSaved) onSaved(rawText);
          setActiveVersionTimestamp(null);
          setRefreshTrigger(prev => prev + 1);
-         pushStatus(t("alert_saved"), "success");
+         pushStatus(t("alert_saved", "Saved"), "success");
+         return true;
       } catch (e) {
-         pushStatus(t("alert_error"), "error");
+         pushStatus(t("alert_error", "Error"), "error");
+         return false;
       } finally {
          setIsSaving(false);
       }

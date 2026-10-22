@@ -331,80 +331,240 @@ export function ChameleonControlDashboard({
           </div>
         )}
 
-        {activeTab === 'structure' && (
-          <div className="flex flex-col gap-12 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="flex flex-col gap-3 w-full">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-1 mb-2">{t("forge_glass_opacity")}</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4 w-full">
-                <UniversalCard
-                  layout="horizontal"
-                  icon="opacity"
-                  title={t("forge_glass_opacity")}
-                  subtitle={
-                    <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
-                      {currentTheme.glassOpacity || "3%"}
-                    </span>
-                  }
-                  className="w-full h-full"
-                >
-                  <div className="w-full pt-2">
-                    <input
-                      type="range"
-                      min={0} max={100} step={1}
-                      value={parseFloat(currentTheme.glassOpacity || '3')}
-                      onChange={(e) => handleUpdateTheme({ glassOpacity: `${e.target.value}%` })}
-                      className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
-                    />
-                  </div>
-                </UniversalCard>
+        {activeTab === 'structure' && (() => {
+          const toPercentInt = (rawVal: any, fallbackPercent: number) => {
+            if (rawVal === undefined || rawVal === null || rawVal === '') return fallbackPercent;
+            const str = String(rawVal).trim();
+            if (str.endsWith('%')) {
+              const p = parseFloat(str);
+              return isNaN(p) ? fallbackPercent : Math.round(p);
+            }
+            const n = parseFloat(str);
+            if (isNaN(n)) return fallbackPercent;
+            return n <= 1 && n >= 0 && !str.includes('%') && str.includes('.')
+              ? Math.round(n * 100)
+              : Math.round(n);
+          };
 
-                <UniversalCard
-                  layout="horizontal"
-                  icon="blur_on"
-                  title={t("forge_glass_blur")}
-                  subtitle={
-                    <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
-                      {currentTheme.glassBlur || "16px"}
-                    </span>
-                  }
-                  className="w-full h-full"
-                >
-                  <div className="w-full pt-2">
-                    <input
-                      type="range"
-                      min={0} max={64} step={1}
-                      value={parseInt(currentTheme.glassBlur || "16") || 16}
-                      onChange={(e) => handleUpdateTheme({ glassBlur: `${e.target.value}px` })}
-                      className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
-                    />
-                  </div>
-                </UniversalCard>
+          const opacityPct = toPercentInt(currentTheme.glassOpacity, 28);
+          const blurPx = parseInt(String(currentTheme.glassBlur || '36'), 10) || 36;
+          const saturationPct = parseInt(String(currentTheme.glassSaturation || '165'), 10) || 165;
+          const borderPct = toPercentInt(currentTheme.glassBorderOpacity, 14);
+          const specularPct = toPercentInt(currentTheme.glassSpecular, 22);
+          const shadowPct = toPercentInt(currentTheme.glassShadow, 40);
 
-                <UniversalCard
-                  layout="horizontal"
-                  icon="rounded_corner"
-                  title={t("forge_radius")}
-                  subtitle={
-                    <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
-                      {currentTheme.radius || "1.5rem"}
-                    </span>
-                  }
-                  className="w-full h-full"
-                >
-                  <div className="w-full pt-2">
-                    <input
-                      type="range"
-                      min={0} max={4} step={0.125}
-                      value={parseFloat(currentTheme.radius || "1.5") || 1.5}
-                      onChange={(e) => handleUpdateTheme({ radius: `${e.target.value}rem` })}
-                      className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
-                    />
-                  </div>
-                </UniversalCard>
+          return (
+            <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex items-center justify-between px-1 mb-1">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-[0.2em]">
+                    {t("forge_section_optics", "Liquid Glass Optics")}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateTheme({
+                      glassOpacity: "28%",
+                      glassBlur: "36px",
+                      glassSaturation: "165%",
+                      glassBorderOpacity: "14%",
+                      glassSpecular: "22%",
+                      glassShadow: "40%"
+                    })}
+                    className="glass-surface px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all flex items-center gap-1.5"
+                  >
+                    <span className="material-symbols-outlined !text-[12px]">restart_alt</span>
+                    {t("forge_reset_glass", "Reset Optics")}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4 w-full">
+                  <UniversalCard
+                    layout="horizontal"
+                    icon="opacity"
+                    title={t("forge_glass_opacity", "Glass Opacity")}
+                    subtitle={
+                      <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                        {`${opacityPct}%`}
+                      </span>
+                    }
+                    className="w-full h-full"
+                  >
+                    <div className="w-full pt-2">
+                      <input
+                        type="range"
+                        min={0} max={100} step={1}
+                        value={opacityPct}
+                        onChange={(e) => handleUpdateTheme({ glassOpacity: `${e.target.value}%` })}
+                        className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                      />
+                    </div>
+                  </UniversalCard>
+
+                  <UniversalCard
+                    layout="horizontal"
+                    icon="blur_on"
+                    title={t("forge_glass_blur", "Refractive Blur")}
+                    subtitle={
+                      <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                        {`${blurPx}px`}
+                      </span>
+                    }
+                    className="w-full h-full"
+                  >
+                    <div className="w-full pt-2">
+                      <input
+                        type="range"
+                        min={0} max={64} step={1}
+                        value={blurPx}
+                        onChange={(e) => handleUpdateTheme({ glassBlur: `${e.target.value}px` })}
+                        className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                      />
+                    </div>
+                  </UniversalCard>
+
+                  <UniversalCard
+                    layout="horizontal"
+                    icon="invert_colors"
+                    title={t("forge_glass_saturation", "Refractive Saturation")}
+                    subtitle={
+                      <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                        {`${saturationPct}%`}
+                      </span>
+                    }
+                    className="w-full h-full"
+                  >
+                    <div className="w-full pt-2">
+                      <input
+                        type="range"
+                        min={80} max={240} step={5}
+                        value={saturationPct}
+                        onChange={(e) => handleUpdateTheme({ glassSaturation: `${e.target.value}%` })}
+                        className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                      />
+                    </div>
+                  </UniversalCard>
+
+                  <UniversalCard
+                    layout="horizontal"
+                    icon="border_style"
+                    title={t("forge_glass_border", "Rim Light Intensity")}
+                    subtitle={
+                      <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                        {`${borderPct}%`}
+                      </span>
+                    }
+                    className="w-full h-full"
+                  >
+                    <div className="w-full pt-2">
+                      <input
+                        type="range"
+                        min={0} max={60} step={1}
+                        value={borderPct}
+                        onChange={(e) => handleUpdateTheme({ glassBorderOpacity: `${e.target.value}%` })}
+                        className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                      />
+                    </div>
+                  </UniversalCard>
+
+                  <UniversalCard
+                    layout="horizontal"
+                    icon="flare"
+                    title={t("forge_glass_specular", "Specular Glare")}
+                    subtitle={
+                      <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                        {`${specularPct}%`}
+                      </span>
+                    }
+                    className="w-full h-full"
+                  >
+                    <div className="w-full pt-2">
+                      <input
+                        type="range"
+                        min={0} max={75} step={1}
+                        value={specularPct}
+                        onChange={(e) => handleUpdateTheme({ glassSpecular: `${e.target.value}%` })}
+                        className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                      />
+                    </div>
+                  </UniversalCard>
+
+                  <UniversalCard
+                    layout="horizontal"
+                    icon="layers"
+                    title={t("forge_glass_shadow", "Elevation Depth")}
+                    subtitle={
+                      <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                        {`${shadowPct}%`}
+                      </span>
+                    }
+                    className="w-full h-full"
+                  >
+                    <div className="w-full pt-2">
+                      <input
+                        type="range"
+                        min={0} max={85} step={1}
+                        value={shadowPct}
+                        onChange={(e) => handleUpdateTheme({ glassShadow: `${e.target.value}%` })}
+                        className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                      />
+                    </div>
+                  </UniversalCard>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 w-full">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-[0.2em] ml-1 mb-1">
+                  {t("forge_section_geometry", "Surface Geometry & Density")}
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4 w-full">
+                  <UniversalCard
+                    layout="horizontal"
+                    icon="rounded_corner"
+                    title={t("forge_radius", "Corner Radius")}
+                    subtitle={
+                      <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                        {currentTheme.radius || "1.25rem"}
+                      </span>
+                    }
+                    className="w-full h-full"
+                  >
+                    <div className="w-full pt-2">
+                      <input
+                        type="range"
+                        min={0} max={3} step={0.125}
+                        value={parseFloat(currentTheme.radius || "1.25") || 0}
+                        onChange={(e) => handleUpdateTheme({ radius: `${e.target.value}rem` })}
+                        className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                      />
+                    </div>
+                  </UniversalCard>
+
+                  <UniversalCard
+                    layout="horizontal"
+                    icon="width"
+                    title={t("forge_sidebar_width", "Sidebar Width")}
+                    subtitle={
+                      <span className="text-[10px] text-[var(--accent)] font-bold font-mono">
+                        {currentTheme.sidebarWidth || "260px"}
+                      </span>
+                    }
+                    className="w-full h-full"
+                  >
+                    <div className="w-full pt-2">
+                      <input
+                        type="range"
+                        min={200} max={420} step={4}
+                        value={parseInt(currentTheme.sidebarWidth || "260", 10) || 260}
+                        onChange={(e) => handleUpdateTheme({ sidebarWidth: `${e.target.value}px` })}
+                        className="w-full h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)]"
+                      />
+                    </div>
+                  </UniversalCard>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {activeTab === 'backgrounds' && (
           <div className="flex flex-col gap-12 animate-in fade-in slide-in-from-bottom-4 duration-300">
