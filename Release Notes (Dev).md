@@ -1,9 +1,17 @@
-# Sanctuary OS — Version 0.5.8-Dev.2 Update
+# Sanctuary OS — Version 0.5.8-Dev.3 Update
 ## *"Liquid Glass Optics, Reimagined Citizen's Workbench, Unified Artifact Studio & Silent In-App Updates"*
 
-**Release Date:** October 22, 2026 | **Version:** 0.5.8-2 (Dev Channel)
+**Release Date:** October 22, 2026 | **Version:** 0.5.8-3 (Dev Channel)
 
-Welcome to **Sanctuary OS 0.5.8-2**! This update brings a top-to-bottom visual and performance overhaul with our new **Zero-Tearing Liquid Glass Optics Engine**, a completely redesigned **Citizen's Workbench** (with a 2-column Visual Config Editor, Visual Template Builder, and interactive Timeline Diff Panel), a unified **3-Tile Artifact Studio** across both the Creator Hub and Architect Console, **1-Click Silent In-App Updates**, and a comprehensive full-stack security hardening sweep. Here is everything new in plain English.
+Welcome to **Sanctuary OS 0.5.8-3**! This update brings a top-to-bottom visual and performance overhaul with our new **Zero-Tearing Liquid Glass Optics Engine**, a completely redesigned **Citizen's Workbench** (with a 2-column Visual Config Editor, Visual Template Builder, and interactive Timeline Diff Panel), a unified **3-Tile Artifact Studio** across both the Creator Hub and Architect Console, **1-Click Silent In-App Updates**, and a comprehensive full-stack security hardening sweep. Here is everything new in plain English.
+
+---
+
+## 🛡️ Security Hotfix Patch (v0.5.8-Dev.3)
+
+Following this week's global internet security advisories surrounding the compromised **eMudhra / emSign** Certificate Authority keys and the **October 2026 Node.js Security Release**, we pushed an immediate preventive security patch across Sanctuary OS and our build pipeline:
+* **Trusted Certificate Store Hardening:** Updated Sanctuary OS's internal HTTPS networking and auto-updater security libraries (`rustls` & `webpki`) to explicitly block the compromised eMudhra / emSign certificates, ensuring all background downloads and update checks remain protected against spoofing or interception.
+* **Build Pipeline Security Update:** Upgraded our automated GitHub release builders to the newly patched **Node.js 24 LTS** security release (which fixes recent compression, DNS, and TLS verification vulnerabilities and removes the affected certificate authorities during builds).
 
 ---
 
@@ -70,11 +78,3 @@ We simplified mod management for both Creators and Community Architects by remov
 
 ### 3. Full-Stack Security Hardening
 * **Database, Gateway & Desktop Hardening:** Locked down column-level security and Row-Level Security (RLS) across Hub and Spoke databases, enforced fail-closed HMAC-SHA256 webhook verification and role/ownership checks in Edge Functions, scoped Tauri v2 IPC capabilities strictly to the main OS windows, added Zip-Slip path traversal protection across all archive extractors, and secured the Side Panel Browser bridge with per-session cryptographic tokens.
-
-### 2. Visual Template Builder for Config Authors
-* **Author Templates Visually:** Switching a `.json` template to **Author Mode** in the Citizen's Workbench opens the new **Visual Template Builder** side-by-side with a live **Visual Preview**.
-* **1-Click Auto-Map & Visual Icon Picker:** Select a target config file and click **Auto-Map Target Keys** to automatically generate categorized controls from the file's keys and values, use the portaled **Icon Picker** to choose Material Symbol icons for your categories, and add `Boolean`, `Number`, `Range`, `Text`, `Dropdown`, `Keybind`, or `Group` fields from a single compact row.
-
-### 3. Full-Stack Security Hardening
-* **Database, Gateway & Desktop Hardening:** Locked down column-level security and Row-Level Security (RLS) across Hub and Spoke databases, enforced fail-closed HMAC-SHA256 webhook verification and role/ownership checks in Edge Functions, scoped Tauri v2 IPC capabilities strictly to the main OS windows, added Zip-Slip path traversal protection across all archive extractors, and secured the Side Panel Browser bridge with per-session cryptographic tokens.
-

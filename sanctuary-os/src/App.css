@@ -664,10 +664,10 @@ body,
 #sanctuary-main-scroll .glass-panel:not(.portal-glass-fix):hover,
 #sanctuary-main-scroll .glass-surface:not(.portal-glass-fix),
 #sanctuary-main-scroll .glass-surface:not(.portal-glass-fix):hover {
-  transform: none !important;
-  translate: none !important;
-  scale: none !important;
-  rotate: none !important;
+  transform: var(--sanctuary-no-transform, none) !important;
+  translate: var(--sanctuary-no-transform, none) !important;
+  scale: var(--sanctuary-no-transform, none) !important;
+  rotate: var(--sanctuary-no-transform, none) !important;
   perspective: none !important;
   filter: none !important;
   contain: none !important;
@@ -741,9 +741,9 @@ body,
 
 /* Prevent `.animate-in` from leaving a transform Backdrop Root */
 .animate-in {
-  transform: none !important;
-  translate: none !important;
-  scale: none !important;
+  transform: var(--sanctuary-no-transform, none) !important;
+  translate: var(--sanctuary-no-transform, none) !important;
+  scale: var(--sanctuary-no-transform, none) !important;
 }
 
 /* Mobile Performance Optimizations (strictly small screens, not desktop touchscreens) */
