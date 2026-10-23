@@ -581,7 +581,7 @@ const Vault = React.memo(function Vault(props: any) {
                             <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">
                               {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
                             </span>
-                            <span className="text-[9px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300">{t("btn_view")} &rarr;</span>
+                            <span className="text-[9px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-opacity duration-300">{t("btn_view")} &rarr;</span>
                           </div>
                         </div>
                       </div>

@@ -109,112 +109,20 @@ export function FilterTabButton({
 }: any) {
   return <></>;
 }
+/**
+ * @deprecated BLACKLISTED COMPONENT — DO NOT USE PillTabs anywhere in Sanctuary OS.
+ * Use StatTileCarousel / DashboardStatTile for main tabs or SidePanel switchers,
+ * or ActionPill primaryPopover for sub-filters.
+ */
 export function PillTabs({
   children,
   className = "",
   buttonClassName = "",
-  variant = "default",
 }: any) {
-  const childrenArray = React.Children.toArray(children).filter(
-    React.isValidElement,
-  );
-  if (childrenArray.length === 0) return null;
-
-  const [highlightStyle, setHighlightStyle] = React.useState({
-    left: 4,
-    width: 0,
-    opacity: 0,
-  });
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    // Need a small timeout to allow layout to settle before calculating widths
-    const timer = setTimeout(() => {
-      if (!containerRef.current) return;
-      const activeIndex = childrenArray.findIndex(
-        (c: any) => c.props.activeTab === c.props.id,
-      );
-      if (activeIndex >= 0) {
-        const btns = containerRef.current.querySelectorAll("button");
-        const activeBtn = btns[activeIndex];
-        if (activeBtn) {
-          setHighlightStyle({
-            left: activeBtn.offsetLeft,
-            width: activeBtn.offsetWidth,
-            opacity: 1,
-          });
-        }
-      }
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [childrenArray.map((c: any) => c.props.activeTab).join(",")]);
-
   return (
-    <div
-      ref={containerRef}
-      className={`relative flex items-center gap-1 ${variant === "flat" ? "" : "p-1 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner rounded-full"} w-fit shrink-0 ${className}`}
-    >
-      {/* Sliding Highlight */}
-      <div
-        className={`absolute ${variant === "flat" ? "top-0 bottom-0" : "top-1 bottom-1"} rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none`}
-        style={{
-          left: highlightStyle.left,
-          width: highlightStyle.width,
-          opacity: highlightStyle.opacity,
-        }}
-      />
-
-      {childrenArray.map((child: any) => {
-        const isActive = child.props.activeTab === child.props.id;
-        let cIcon = child.props.icon;
-
-        if (cIcon === undefined && typeof child.props.id === "string") {
-          const cId = child.props.id.toLowerCase();
-          if (cId.includes("pending") || cId.includes("review"))
-            cIcon = "schedule";
-          else if (
-            cId.includes("live") ||
-            cId.includes("active") ||
-            cId.includes("published")
-          )
-            cIcon = "public";
-          else if (cId.includes("archive")) cIcon = "archive";
-          else if (
-            cId.includes("reject") ||
-            cId.includes("corrupt") ||
-            cId.includes("error")
-          )
-            cIcon = "block";
-          else if (cId.includes("all")) cIcon = "all_inclusive";
-          else if (cId.includes("draft")) cIcon = "edit_document";
-        }
-
-        return (
-          <button
-            key={child.props.id}
-            onClick={() =>
-              child.props.setTab && child.props.setTab(child.props.id)
-            }
-            className={`relative z-10 h-8 px-4 flex items-center justify-center gap-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-              isActive
-                ? "text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]"
-                : "text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-            } ${buttonClassName} ${child.props.className || ""}`}
-          >
-            {cIcon && (
-              <span className="material-symbols-outlined !text-[14px] transition-transform duration-300 group-hover:scale-110">
-                {cIcon}
-              </span>
-            )}
-            <span className="leading-none pt-0.5 whitespace-nowrap">
-              {child.props.label ||
-                child.props.children ||
-                String(child.props.id)}
-            </span>
-          </button>
-        );
-      })}
-    </div>
+    <FilterTabs className={className} buttonClassName={buttonClassName}>
+      {children}
+    </FilterTabs>
   );
 }
 export function PillTabButton({

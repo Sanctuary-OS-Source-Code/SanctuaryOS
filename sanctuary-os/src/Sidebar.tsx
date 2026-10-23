@@ -27,7 +27,12 @@ function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false
           isActive
             ? {
                 backgroundColor: 'var(--glass-nav-active-bg)',
+                backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%)',
                 boxShadow: 'var(--glass-nav-active-shadow)',
+                borderTop: '1px solid rgba(255, 255, 255, 0.22)',
+                borderLeft: '1px solid rgba(255, 255, 255, 0.14)',
+                borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
               }
             : undefined
         }
@@ -158,19 +163,16 @@ export function Sidebar({
 
   return (
     <nav
-      className={`hidden md:flex ${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex-col relative z-20 transition-all duration-500 rounded-3xl border overflow-hidden firefox-safe-glass`}
+      className={`hidden md:flex ${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex-col relative z-20 transition-[width,min-width,border-color,box-shadow] duration-500 rounded-3xl border overflow-hidden firefox-safe-glass`}
       style={{
         width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',
         minWidth: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',
         backgroundColor: 'var(--glass-sidebar-bg)',
-        backgroundImage: 'var(--glass-sheen)',
-        backdropFilter: 'blur(min(var(--glassBlur, 18px), 18px)) saturate(var(--glassSaturation, 185%))',
-        WebkitBackdropFilter: 'blur(min(var(--glassBlur, 18px), 18px)) saturate(var(--glassSaturation, 185%))',
         borderTopColor: 'var(--glass-border-top)',
         borderLeftColor: 'var(--glass-border-left)',
         borderRightColor: 'var(--glass-border-right)',
         borderBottomColor: 'var(--glass-border-bottom)',
-        boxShadow: 'var(--glass-outer-shadow), var(--glass-inset-highlight)'
+        boxShadow: 'var(--glass-sidebar-shadow, var(--glass-outer-shadow), var(--glass-inset-highlight))'
       }}
     >
       <div className={`flex flex-col h-full w-full relative z-10`}>
@@ -648,15 +650,16 @@ export function Sidebar({
                 style={
                   isConfigured
                     ? {
-                        boxShadow: 'var(--glass-nav-active-shadow)',
+                        backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 50%, transparent 100%)',
+                        boxShadow: '0 8px 20px -4px rgba(0, 0, 0, 0.36), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.26), inset 1px 0 1px 0 rgba(255, 255, 255, 0.12)',
                       }
                     : undefined
                 }
-                className={`relative w-full py-3 rounded-xl text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2.5 group/btn overflow-hidden border-0 cursor-pointer ${!isConfigured
-                  ? "bg-[color-mix(in_srgb,var(--text)_4%,transparent)] text-[var(--text)] opacity-30 cursor-not-allowed"
+                className={`relative w-full py-3 rounded-xl text-[10px] font-black capitalize tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2.5 group/btn overflow-hidden border cursor-pointer ${!isConfigured
+                  ? "bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-transparent text-[var(--text)] opacity-30 cursor-not-allowed"
                   : isPatchDetected || showDefconAlert
-                    ? "bg-[color-mix(in_srgb,var(--danger)_12%,var(--glass-nav-active-bg))] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_18%,var(--glass-nav-active-bg))]"
-                    : "bg-[color-mix(in_srgb,var(--success)_12%,var(--glass-nav-active-bg))] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_18%,var(--glass-nav-active-bg))]"
+                    ? "bg-[color-mix(in_srgb,var(--danger)_10%,var(--glass-nav-active-bg))] border-[color-mix(in_srgb,var(--danger)_32%,rgba(255,255,255,0.22))] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_16%,var(--glass-nav-active-bg))]"
+                    : "bg-[color-mix(in_srgb,var(--success)_10%,var(--glass-nav-active-bg))] border-[color-mix(in_srgb,var(--success)_32%,rgba(255,255,255,0.22))] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_16%,var(--glass-nav-active-bg))]"
                   }`}
               >
                 {/* Dynamic Sweep effect inside button */}

@@ -286,16 +286,7 @@ export function SidePanel({
               borderLeftColor: "var(--glass-border-left)",
               borderRightColor: "var(--glass-border-right)",
               borderBottomColor: "var(--glass-border-bottom)",
-              ...(noPanelBlur
-                ? {}
-                : {
-                    backdropFilter:
-                      "blur(max(var(--glassBlur, 36px), 42px)) saturate(var(--glassSaturation, 195%))",
-                    WebkitBackdropFilter:
-                      "blur(max(var(--glassBlur, 36px), 42px)) saturate(var(--glassSaturation, 195%))",
-                  }),
-              backgroundColor: "var(--glass-drawer-bg, rgba(15, 23, 42, 0.24))",
-              backgroundImage: "var(--glass-drawer-sheen, var(--glass-sheen))",
+              backgroundColor: "var(--glass-drawer-bg, rgba(15, 23, 42, 0.18))",
               boxShadow: "var(--glass-drawer-shadow)",
               ...(isResizable
                 ? {
@@ -696,7 +687,11 @@ export function DashboardStatTile({
         : "!border-[currentColor] z-10"
     : "hover:!border-[rgba(var(--text-rgb,255,255,255),0.28)]";
 
-  if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
+  if (isModal) {
+    if (strVal.length > 13) sizeClass = "text-sm md:text-base";
+    else if (strVal.length > 9) sizeClass = "text-base md:text-lg";
+    else sizeClass = "text-lg md:text-xl";
+  } else if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
   else if (strVal.length > 10) sizeClass = "text-lg xl:text-xl";
   else if (strVal.length > 5) sizeClass = "text-xl lg:text-2xl xl:text-3xl";
 
@@ -735,7 +730,7 @@ export function DashboardStatTile({
   const mergedStyle = {
     "--glass-outer-shadow": "0 0 #0000",
     "--glass-nested-shadow": "0 0 #0000",
-    boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12))",
+    boxShadow: "var(--glass-inset-highlight, inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.24), inset 1px 0 1px 0 rgba(255, 255, 255, 0.12))",
     ...(isModal ? { "--glassBeforeDisplay": "none" } : {}),
     ...style,
   } as React.CSSProperties;
@@ -752,11 +747,11 @@ export function DashboardStatTile({
         <div
           className="absolute inset-0 rounded-[inherit] pointer-events-none"
           style={{
-            background: `linear-gradient(135deg, color-mix(in srgb, ${activeTint} 18%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, ${activeTint} 4%, transparent) 60%, transparent 100%)`,
+            background: `linear-gradient(135deg, color-mix(in srgb, ${activeTint} 16%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, ${activeTint} 4%, transparent) 55%, transparent 100%)`,
           }}
         />
       )}
-      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[inherit]" />
+      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[inherit]" />
 
       {icon && (
         <div
@@ -772,7 +767,7 @@ export function DashboardStatTile({
 
       <div className={`flex flex-col flex-1 min-w-0 relative z-10 py-1 items-start justify-center`}>
         <span
-          className={`${hasValue ? "text-[9px] md:text-xs mb-0 md:mb-1" : "text-xs md:text-sm"} uppercase tracking-widest font-black group-hover:text-current transition-colors duration-500 truncate w-full pr-2 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : isModal && isActive ? "text-current" : hasValue ? "text-[var(--subtext)]" : "text-[var(--text)] opacity-90"}`}
+          className={`${hasValue ? (isModal ? "text-[10px] mb-0.5 tracking-wider" : "text-[9px] md:text-xs mb-0 md:mb-1 tracking-widest") : "text-xs md:text-sm tracking-widest"} uppercase font-black group-hover:text-current transition-colors duration-500 truncate w-full pr-2 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : isModal && isActive ? "text-current" : hasValue ? "text-[var(--subtext)]" : "text-[var(--text)] opacity-90"}`}
         >
           {label}
         </span>

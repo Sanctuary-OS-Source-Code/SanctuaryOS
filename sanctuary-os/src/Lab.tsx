@@ -6,13 +6,13 @@ import {
   CustomDropdown,
   ActionButton,
   FilterTabs,
-  FilterTabButton,
   SidePanel,
   getExtensionRegex,
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionPill,
   GlassSegmentedControl,
+  StatBox,
 } from "./shared";
 import {
   CommandScreenLayout,
@@ -35,6 +35,7 @@ import {
   LabVerificationGate,
   LabVerificationBadge,
   LabVerificationStatus,
+  LabTestSaveStatus,
   recordVerifiedCertificate,
   loadLabSessionMemory,
   saveLabSessionMemory,
@@ -55,7 +56,9 @@ import {
   inferRealLogFileName,
   resolveLabReportNumber,
   buildFormattedLabReportText,
+  extractReportLoadoutFromLogAndContext,
   formatModWithExtAndVersion,
+  getCleanModBaseName,
   getModExtensionLabel,
   getModVersionLabel,
   resolveRealReportMod,
@@ -114,13 +117,40 @@ export default function Lab({
     protected_files_count: 0,
   });
 
+  const [testSaveStatus, setTestSaveStatus] = useState<LabTestSaveStatus | null>(null);
+  const [showTestSaveModal, setShowTestSaveModal] = useState(false);
+  const [isConfiguringSave, setIsConfiguringSave] = useState(false);
+  const [pendingLaunchAfterSaveSetup, setPendingLaunchAfterSaveSetup] = useState<{
+    customToolPath?: string;
+  } | null>(null);
+  const [copiedLogState, setCopiedLogState] = useState(false);
+  const freshSaveArmedKey = `sanctuary_lab_fresh_save_armed_${gameKey}`;
+  const [freshSaveArmed, setFreshSaveArmed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(`sanctuary_lab_fresh_save_armed_${activeGameSchema?.game_id || "ts4"}`) === "1";
+    } catch {
+      return false;
+    }
+  });
+
   const refreshAirgapStatus = async () => {
     try {
-      const res: any = await invoke("get_airgap_status", {
-        docsPath: docsPath || modsPath || "",
-      });
+      const targetDocs = docsPath || modsPath || "";
+      const [res, saveRes]: any = await Promise.all([
+        invoke("get_airgap_status", { docsPath: targetDocs }).catch(() => null),
+        invoke("get_lab_test_save_status", { docsPath: targetDocs }).catch(() => null),
+      ]);
       if (res) {
         setAirgapStatus(res);
+      }
+      if (saveRes) {
+        setTestSaveStatus(saveRes);
+        if (saveRes.has_test_save) {
+          setFreshSaveArmed(false);
+          try {
+            localStorage.removeItem(freshSaveArmedKey);
+          } catch {}
+        }
       }
     } catch {
       // Ignore in web mode
@@ -376,6 +406,17 @@ export default function Lab({
           );
           if (!modObj) return;
 
+          const extractedLoadout = extractReportLoadoutFromLogAndContext({
+            targetMod: modObj,
+            testerNote: log.tester_note,
+            logText: log.log_text || log.log_snippet,
+            explicitDependencies: parsedStagedExtras,
+            explicitConflictTarget: parsedConflictTarget,
+            explicitConflictExtras: parsedConflictExtras,
+            modList,
+            activeGameSchema,
+          });
+
           recordRealTestEntry({
             id: `cloud_${log.id}`,
             sessionKey: `cloud_${log.id}`,
@@ -384,9 +425,9 @@ export default function Lab({
             verified: false,
             time: log.created_at || new Date().toISOString(),
             logSnippet: snippet,
-            conflictTarget: parsedConflictTarget,
-            stagedExtras: parsedStagedExtras,
-            conflictExtras: parsedConflictExtras,
+            conflictTarget: extractedLoadout.conflictTarget,
+            stagedExtras: extractedLoadout.dependencies,
+            conflictExtras: extractedLoadout.conflictExtras,
           });
         });
       } catch {}
@@ -398,6 +439,8 @@ export default function Lab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modList?.length]);
 
+  const handledTerminalKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     let mounted = true;
     const poll = async () => {
@@ -405,24 +448,44 @@ export default function Lab({
       try {
         const st = await invoke<LabVerificationStatus | null>("poll_lab_verification_session");
         if (mounted && st && !memoryDismissedRef.current) {
-          setLabSessionStatus(st);
+          setLabSessionStatus((prev) => {
+            if (
+              prev &&
+              prev.active === st.active &&
+              prev.stage === st.stage &&
+              prev.dna_hash === st.dna_hash &&
+              prev.elapsed_active_seconds === st.elapsed_active_seconds &&
+              prev.current_ram_mb === st.current_ram_mb &&
+              prev.current_idle_seconds === st.current_idle_seconds &&
+              prev.is_focused === st.is_focused &&
+              prev.pause_reason === st.pause_reason &&
+              prev.error_log === st.error_log
+            ) {
+              return prev;
+            }
+            return st;
+          });
           if (st.stage === "VERIFIED" && st.certificate) {
-            await recordVerifiedCertificate(st.certificate);
-            if (activeLabMod) {
-              recordRealTestEntry({
-                id: `verified_${st.certificate.dna_hash}_${st.certificate.verified_at}`,
-                sessionKey: `verified_${st.certificate.dna_hash}`,
-                mod: activeLabMod,
-                errorFound: false,
-                verified: true,
-                time: st.certificate.verified_at || new Date().toISOString(),
-                logSnippet: `Verified 4-stage live simulation (${st.certificate.active_seconds}s active, peak RAM ${st.certificate.peak_ram_mb} MB, save checkpoint: ${st.certificate.save_file_verified}).`,
-                conflictTarget,
-                stagedExtras,
-                conflictExtras,
-                missingDeps,
-                linkedFiles: st.linked_files || [],
-              });
+            const termKey = `VERIFIED_${st.certificate.dna_hash}_${st.certificate.verified_at}`;
+            if (handledTerminalKeyRef.current !== termKey) {
+              handledTerminalKeyRef.current = termKey;
+              await recordVerifiedCertificate(st.certificate);
+              if (activeLabMod) {
+                recordRealTestEntry({
+                  id: `verified_${st.certificate.dna_hash}_${st.certificate.verified_at}`,
+                  sessionKey: `verified_${st.certificate.dna_hash}`,
+                  mod: activeLabMod,
+                  errorFound: false,
+                  verified: true,
+                  time: st.certificate.verified_at || new Date().toISOString(),
+                  logSnippet: `Verified 4-stage live simulation (${st.certificate.active_seconds}s active, peak RAM ${st.certificate.peak_ram_mb} MB, save checkpoint: ${st.certificate.save_file_verified}).`,
+                  conflictTarget,
+                  stagedExtras,
+                  conflictExtras,
+                  missingDeps,
+                  linkedFiles: st.linked_files || [],
+                });
+              }
             }
           } else if (
             st.stage === "FAILED" &&
@@ -431,28 +494,32 @@ export default function Lab({
             !isUnrelatedGameBugLog(st.error_log, activeGameSchema)
           ) {
             const scrubbedErr = scrubLogUserData(st.error_log);
-            const failObj = {
-              id: `failed_${st.dna_hash}`,
-              sessionKey: `failed_${st.dna_hash}_${scrubbedErr.slice(0, 48)}`,
-              mod: activeLabMod,
-              errorFound: true,
-              verified: false,
-              time: new Date().toISOString(),
-              logSnippet: scrubbedErr,
-              conflictTarget,
-              stagedExtras,
-              conflictExtras,
-              missingDeps,
-              linkedFiles: st.linked_files || [],
-              isConcluding: true,
-            };
-            recordRealTestEntry(failObj);
-            setLastConcludingReport(failObj);
+            const termKey = `FAILED_${st.dna_hash}_${scrubbedErr.slice(0, 48)}`;
+            if (handledTerminalKeyRef.current !== termKey) {
+              handledTerminalKeyRef.current = termKey;
+              const failObj = {
+                id: `failed_${st.dna_hash}`,
+                sessionKey: `failed_${st.dna_hash}_${scrubbedErr.slice(0, 48)}`,
+                mod: activeLabMod,
+                errorFound: true,
+                verified: false,
+                time: new Date().toISOString(),
+                logSnippet: scrubbedErr,
+                conflictTarget,
+                stagedExtras,
+                conflictExtras,
+                missingDeps,
+                linkedFiles: st.linked_files || [],
+                isConcluding: true,
+              };
+              recordRealTestEntry(failObj);
+              setLastConcludingReport(failObj);
+            }
           }
         } else if (mounted && !shelterActive) {
           const mem = loadLabSessionMemory();
           if (!mem?.active) {
-            setLabSessionStatus(null);
+            setLabSessionStatus((prev) => (prev === null ? null : null));
           }
         }
       } catch (e) {}
@@ -464,7 +531,7 @@ export default function Lab({
       clearInterval(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shelterActive, activeLabMod]);
+  }, [shelterActive, activeLabMod, conflictTarget, stagedExtras, conflictExtras, missingDeps]);
 
   const handleToggleAirgap = async (enable: boolean) => {
     try {
@@ -638,12 +705,13 @@ export default function Lab({
     let depsToStage: any[] = [];
     let missing: any[] = [];
 
+    const extRegex = getExtensionRegex(activeGameSchema);
     const cleanName = (name: string) =>
       name
         ? name
           .replace(/['"]/g, "")
           .replace(/_/g, " ")
-          .replace(getExtensionRegex(activeGameSchema), "")
+          .replace(extRegex, "")
           .trim()
           .toUpperCase()
         : "";
@@ -663,6 +731,8 @@ export default function Lab({
 
       const foundDeps = rawDeps
         .map((depName) => {
+          const targetDepClean = cleanName(depName);
+          const isDBScript = depName.toLowerCase().includes("script");
           const found = modList.find((m: any) => {
             if (m.isVirtual) return false;
             if (m === activeLabMod) return false;
@@ -673,13 +743,12 @@ export default function Lab({
 
             if (!m.name) return false;
 
-            const isDBScript = depName.toLowerCase().includes("script");
             const isLocalScript = m.name.toLowerCase().includes("script");
             if (isDBScript !== isLocalScript) return false;
 
             return (
-              cleanName(m.name) === cleanName(depName) ||
-              cleanName(m.displayName) === cleanName(depName) ||
+              cleanName(m.name) === targetDepClean ||
+              cleanName(m.displayName) === targetDepClean ||
               (m.path && m.path.includes(depName) && depName.length > 3)
             );
           });
@@ -693,8 +762,25 @@ export default function Lab({
     }
 
     if (activeLabMod && associatedMods && associatedMods.length > 0) {
+      const assocCleanName = (name: string) =>
+        name
+          ? name
+            .replace(/_/g, " ")
+            .replace(
+              /(\.| |-)*(\(|\[)?(package|ts4scripts?|scripts?|zip)(\)|\])?/gi,
+              "",
+            )
+            .trim()
+            .toUpperCase()
+          : "";
+
       const extraDeps = associatedMods
         .map((am: any) => {
+          const targetAmClean = assocCleanName(am.name);
+          const isDBScript =
+            Boolean(am.file_extension && am.file_extension.toLowerCase().includes("script")) ||
+            Boolean(am.name && am.name.toLowerCase().includes("script"));
+
           const found = modList.find((m: any) => {
             if (m.isVirtual) return false;
             if (m === activeLabMod) return false;
@@ -708,26 +794,10 @@ export default function Lab({
 
             if (!am.name || !m.name) return false;
 
-            const isDBScript =
-              (am.file_extension &&
-                am.file_extension.toLowerCase().includes("script")) ||
-              (am.name && am.name.toLowerCase().includes("script"));
-            const isLocalScript =
-              m.name && m.name.toLowerCase().includes("script");
+            const isLocalScript = Boolean(m.name && m.name.toLowerCase().includes("script"));
             if (isDBScript !== isLocalScript) return false;
 
-            const cleanName = (name: string) =>
-              name
-                ? name
-                  .replace(/_/g, " ")
-                  .replace(
-                    /(\.| |-)*(\(|\[)?(package|ts4scripts?|scripts?|zip)(\)|\])?/gi,
-                    "",
-                  )
-                  .trim()
-                  .toUpperCase()
-                : "";
-            if (cleanName(m.displayName || m.name) === cleanName(am.name))
+            if (assocCleanName(m.displayName || m.name) === targetAmClean)
               return true;
 
             return false;
@@ -776,7 +846,7 @@ export default function Lab({
       setStagedExtras([]);
       setMissingDeps([]);
     }
-  }, [activeLabMod, associatedMods, modList]);
+  }, [activeLabMod, associatedMods, modList, activeGameSchema]);
 
   const handleExportLogs = async () => {
     try {
@@ -791,6 +861,16 @@ export default function Lab({
         const rawLog = selectedReport ? selectedReport.logSnippet : testLogSnippet;
         const scrubbedLog = scrubLogUserData(rawLog || "");
         const matchedRules = matchExceptionRules(scrubbedLog, exceptionRules || []);
+        const resolvedExportLoadout = extractReportLoadoutFromLogAndContext({
+          targetMod: reportTarget,
+          logText: scrubbedLog,
+          explicitDependencies: selectedReport ? selectedReport.stagedExtras : stagedExtras,
+          explicitConflictTarget: selectedReport ? selectedReport.conflictTarget : conflictTarget,
+          explicitConflictExtras: selectedReport ? selectedReport.conflictExtras : conflictExtras,
+          linkedFiles: selectedReport?.linkedFiles || labSessionStatus?.linked_files || [],
+          modList,
+          activeGameSchema,
+        });
 
         const finalLabReport = buildFormattedLabReportText({
           reportNumber: reportNum,
@@ -799,9 +879,9 @@ export default function Lab({
             : new Date().toLocaleString(),
           gameVersion: selectedVersion || "Local",
           targetMod: reportTarget,
-          conflictTarget: selectedReport ? selectedReport.conflictTarget : conflictTarget,
-          stagedExtras: selectedReport ? selectedReport.stagedExtras : stagedExtras,
-          conflictExtras: selectedReport ? selectedReport.conflictExtras : conflictExtras,
+          conflictTarget: resolvedExportLoadout.conflictTarget,
+          stagedExtras: resolvedExportLoadout.dependencies,
+          conflictExtras: resolvedExportLoadout.conflictExtras,
           missingDeps: selectedReport?.missingDeps || missingDeps,
           linkedFiles: selectedReport?.linkedFiles || labSessionStatus?.linked_files || [],
           matchedRules,
@@ -840,7 +920,7 @@ export default function Lab({
     }
   };
 
-  const runCombinedHotSwap = async (customToolPath?: string) => {
+  const executeHotSwapNow = async (customToolPath?: string) => {
     memoryDismissedRef.current = false;
     const extraNames = [...stagedExtras, ...conflictExtras].map((m) => m.name);
     await executeHotSwap(extraNames, customToolPath);
@@ -848,16 +928,136 @@ export default function Lab({
     setShowTestPanel(true);
   };
 
+  const runCombinedHotSwap = async (customToolPath?: string) => {
+    // First-time setup: if no dedicated Lab Test Save exists yet and user hasn't armed a clean sandbox, prompt setup first
+    if (testSaveStatus && !testSaveStatus.has_test_save && !freshSaveArmed) {
+      setPendingLaunchAfterSaveSetup({ customToolPath });
+      setShowTestSaveModal(true);
+      return;
+    }
+    await executeHotSwapNow(customToolPath);
+  };
+
+  const handleCopyLiveSaveForLab = async (saveFileName: string) => {
+    setIsConfiguringSave(true);
+    try {
+      const targetDocs = docsPath || modsPath || "";
+      const updated = await invoke<LabTestSaveStatus>("configure_lab_test_save", {
+        docsPath: targetDocs,
+        mode: "copy_live_save",
+        sourceSaveName: saveFileName,
+      });
+      setTestSaveStatus(updated);
+      setFreshSaveArmed(false);
+      try {
+        localStorage.removeItem(freshSaveArmedKey);
+      } catch {}
+      setStatus(`${t("lab_test_save_status_copied", "Dedicated Lab Test Save updated:")} ${saveFileName}`);
+      if (pendingLaunchAfterSaveSetup) {
+        const pending = pendingLaunchAfterSaveSetup;
+        setPendingLaunchAfterSaveSetup(null);
+        setShowTestSaveModal(false);
+        await executeHotSwapNow(pending.customToolPath);
+      }
+    } catch (err: any) {
+      setStatus(`${t("status_lab_error", "Lab Error:")} ${err?.message || String(err)}`);
+    } finally {
+      setIsConfiguringSave(false);
+    }
+  };
+
+  const handleResetForFreshSave = async (launchNow = false) => {
+    setIsConfiguringSave(true);
+    try {
+      const targetDocs = docsPath || modsPath || "";
+      const updated = await invoke<LabTestSaveStatus>("configure_lab_test_save", {
+        docsPath: targetDocs,
+        mode: "reset_for_fresh_save",
+      });
+      setTestSaveStatus(updated);
+      setFreshSaveArmed(true);
+      try {
+        localStorage.setItem(freshSaveArmedKey, "1");
+      } catch {}
+      setStatus(
+        t(
+          "lab_test_save_status_reset",
+          "Lab Sandbox reset to clean state. Create & save a new game during your next Lab run."
+        )
+      );
+      if (pendingLaunchAfterSaveSetup) {
+        const pending = pendingLaunchAfterSaveSetup;
+        setPendingLaunchAfterSaveSetup(null);
+        setShowTestSaveModal(false);
+        await executeHotSwapNow(pending.customToolPath);
+      } else if (launchNow) {
+        setShowTestSaveModal(false);
+        if (activeLabMod) {
+          await executeHotSwapNow();
+        } else {
+          await invoke("airgap_saves", { docsPath: targetDocs, enable: true });
+          const coords: any = await invoke("get_saved_coordinates");
+          await invoke("launch_game", {
+            livePath: coords?.live_path || "",
+            modsPath: coords?.mods_path || modsPath || "",
+          });
+          await refreshAirgapStatus();
+        }
+      }
+    } catch (err: any) {
+      setStatus(`${t("status_lab_error", "Lab Error:")} ${err?.message || String(err)}`);
+    } finally {
+      setIsConfiguringSave(false);
+    }
+  };
+
   const getModName = (mod: any, extraDeps?: any[]) => {
     if (!mod) return "UNKNOWN";
-    const resolved = resolveRealReportMod(mod, extraDeps, modList);
     return formatModWithExtAndVersion(
-      resolved,
+      mod,
       activeGameSchema,
       modList,
       extraDeps
     );
   };
+
+  const builderBaseMods = React.useMemo(
+    () => (modList || []).filter((m: any) => !m?.isVirtual),
+    [modList]
+  );
+
+  const builderSymbioticMods = React.useMemo(() => {
+    const conflictHashes = new Set(
+      conflictExtras.map((e: any) => e?.hash).filter(Boolean)
+    );
+    return builderBaseMods.filter(
+      (m: any) =>
+        m.hash !== activeLabMod?.hash &&
+        !(m.hash && conflictHashes.has(m.hash))
+    );
+  }, [builderBaseMods, activeLabMod?.hash, conflictExtras]);
+
+  const builderPrimaryAdversaryMods = React.useMemo(() => {
+    if (activeTab !== "BUILDER" || conflictTarget) return [];
+    return builderBaseMods
+      .filter((m: any) => m.hash !== activeLabMod?.hash)
+      .map((m: any) => ({
+        ...m,
+        displayName: formatModWithExtAndVersion(m, activeGameSchema, modList),
+      }));
+  }, [activeTab, conflictTarget, builderBaseMods, activeLabMod?.hash, activeGameSchema, modList]);
+
+  const builderExtraAdversaryMods = React.useMemo(() => {
+    const stagedHashes = new Set(
+      stagedExtras.map((e: any) => e?.hash).filter(Boolean)
+    );
+    return builderBaseMods.filter(
+      (m: any) =>
+        m.hash !== activeLabMod?.hash &&
+        m.hash !== conflictTarget?.hash &&
+        !(m.hash && stagedHashes.has(m.hash))
+    );
+  }, [builderBaseMods, activeLabMod?.hash, conflictTarget?.hash, stagedExtras]);
 
   const abortLab = () => {
     handleClearLabMemory();
@@ -1055,6 +1255,18 @@ export default function Lab({
     });
   }
 
+  headerPillActions.push({
+    id: "lab_test_save_config",
+    icon: t("icon_saves", "save"),
+    label: testSaveStatus?.active_test_save
+      ? `${t("lab_test_save_title", "Dedicated Lab Test Save")}: ${testSaveStatus.active_test_save.file_name}`
+      : (t("lab_test_save_btn_setup", "Set Up Test Save") as string),
+    onClick: () => setShowTestSaveModal(true),
+    activeClassName: testSaveStatus?.has_test_save
+      ? "text-[var(--accent)]"
+      : "text-[var(--warning)]",
+  });
+
   if (activeTab === "BUILDER" && activeLabMod) {
     if (!shelterActive) {
       headerPillActions.push({
@@ -1084,6 +1296,70 @@ export default function Lab({
   }
 
   const showHeaderSearch = activeTab === "REPORTS" || activeTab === "KNOWN_ERRORS";
+
+  const labFilterPopoverContent =
+    activeTab === "REPORTS" ? (
+      <div className="flex flex-col w-[360px] p-4 max-w-[calc(100vw-40px)] text-left">
+        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+          {t("filter_status") || "Status"}
+          <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "all", label: `${t("ql_all", "All")} (${reportsToList.length})` },
+            { id: "pass", label: `${t("verified", "Stable")} (${realStats.passed})` },
+            { id: "fail", label: `${t("fatal", "Fatal")} (${realStats.failed})` },
+          ].map((opt) => {
+            const active = logFilter === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setLogFilter(opt.id)}
+                className={`rounded-full px-4 py-1.5 transition-all flex items-center justify-center text-[10px] font-bold capitalize tracking-widest border cursor-pointer ${
+                  active
+                    ? "border-[var(--accent)] text-[var(--accent)] bg-transparent"
+                    : "border-transparent bg-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    ) : activeTab === "KNOWN_ERRORS" ? (
+      <div className="flex flex-col w-[420px] p-4 max-w-[calc(100vw-40px)] text-left">
+        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+          {t("filter_status") || "Status"}
+          <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "all", label: `${t("filter_all", "All")} (${spokeExceptionRulesCount})` },
+            { id: "corrupted", label: `${t("exc_rules_filter_corrupted", "Corrupted")} (${knownErrorCounts.corrupted})` },
+            { id: "unstable", label: `${t("exc_rules_filter_unstable", "Unstable")} (${knownErrorCounts.unstable})` },
+            { id: "unrelated", label: `${t("exc_rules_filter_unrelated", "Unrelated")} (${knownErrorCounts.unrelated})` },
+          ].map((opt) => {
+            const active = knownErrorFilter === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setKnownErrorFilter(opt.id as "all" | NormalizedRuleSeverity)}
+                className={`rounded-full px-4 py-1.5 transition-all flex items-center justify-center text-[10px] font-bold capitalize tracking-widest border cursor-pointer ${
+                  active
+                    ? "border-[var(--accent)] text-[var(--accent)] bg-transparent"
+                    : "border-transparent bg-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    ) : null;
 
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 w-full relative z-10 pr-4">
@@ -1127,6 +1403,15 @@ export default function Lab({
                   ? (t("exc_rules_search_placeholder", "Search exception patterns, error codes, or fixes...") as string)
                   : (t("search_logs") as string)
               }
+              primaryPopover={
+                labFilterPopoverContent
+                  ? {
+                      icon: "tune",
+                      label: t("filters", "Filters") as string,
+                      content: labFilterPopoverContent,
+                    }
+                  : undefined
+              }
               actions={headerPillActions}
             />
           )}
@@ -1168,91 +1453,51 @@ export default function Lab({
             isActive={activeTab === "KNOWN_ERRORS"}
           />
         </StatTileCarousel>
-      
-        {activeTab === "REPORTS" && (
-          <div className="w-full animate-in fade-in slide-in-from-top-4 duration-500">
-            <StatTileCarousel>
-              <DashboardStatTile
-                variant="filter"
-                icon="list"
-                label={t("ql_all") || "All"}
-                number={reportsToList.length}
-                onClick={() => setLogFilter("all")}
-                isActive={logFilter === "all"}
-              />
-              <DashboardStatTile
-                variant="filter"
-                icon="check_circle"
-                label={t("verified") || "Stable"}
-                colorClass="text-[var(--success)]"
-                number={realStats.passed}
-                onClick={() => setLogFilter("pass")}
-                isActive={logFilter === "pass"}
-              />
-              <DashboardStatTile
-                variant="filter"
-                icon="warning"
-                label={t("fatal") || "Fatal"}
-                colorClass="text-[var(--danger)]"
-                number={realStats.failed}
-                onClick={() => setLogFilter("fail")}
-                isActive={logFilter === "fail"}
-              />
-            </StatTileCarousel>
-          </div>
-        )}
-
-        {activeTab === "KNOWN_ERRORS" && (
-          <div className="w-full animate-in fade-in slide-in-from-top-4 duration-500">
-            <StatTileCarousel>
-              <DashboardStatTile
-                variant="filter"
-                icon={t("icon_psychology", "psychology")}
-                label={t("ql_all", "All")}
-                number={spokeExceptionRulesCount}
-                onClick={() => setKnownErrorFilter("all")}
-                isActive={knownErrorFilter === "all"}
-              />
-              <DashboardStatTile
-                variant="filter"
-                icon={t("icon_gpp_maybe", "gpp_maybe")}
-                label={t("exc_rules_filter_corrupted", "Corrupted")}
-                colorClass="text-[var(--danger)]"
-                number={knownErrorCounts.corrupted}
-                onClick={() =>
-                  setKnownErrorFilter(knownErrorFilter === "corrupted" ? "all" : "corrupted")
-                }
-                isActive={knownErrorFilter === "corrupted"}
-              />
-              <DashboardStatTile
-                variant="filter"
-                icon={t("icon_warning", "warning")}
-                label={t("exc_rules_filter_unstable", "Unstable")}
-                colorClass="text-[var(--warning)]"
-                number={knownErrorCounts.unstable}
-                onClick={() =>
-                  setKnownErrorFilter(knownErrorFilter === "unstable" ? "all" : "unstable")
-                }
-                isActive={knownErrorFilter === "unstable"}
-              />
-              <DashboardStatTile
-                variant="filter"
-                icon={t("icon_bug_report", "bug_report")}
-                label={t("exc_rules_filter_unrelated", "Unrelated")}
-                colorClass="text-[var(--success)]"
-                number={knownErrorCounts.unrelated}
-                onClick={() =>
-                  setKnownErrorFilter(knownErrorFilter === "unrelated" ? "all" : "unrelated")
-                }
-                isActive={knownErrorFilter === "unrelated"}
-              />
-            </StatTileCarousel>
-          </div>
-        )}
       </div>
 
       {activeTab === "DASHBOARD" && (
-        <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full">
+        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full">
+          {testSaveStatus && !testSaveStatus.has_test_save && (
+            <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                <div className="w-11 h-11 rounded-xl border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[22px]">
+                    {t("icon_saves", "save")}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                      {t("lab_test_save_unconfigured_title", "First-Time Lab Save Setup")}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md text-[9px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] bg-transparent flex items-center gap-1">
+                      <span className="material-symbols-outlined !text-[11px]">
+                        {t("icon_science", "science")}
+                      </span>
+                      {t("lab_test_save_none_badge", "CLEAN SANDBOX (CREATE SAVE IN-GAME)")}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+                    {t(
+                      "lab_test_save_unconfigured_desc",
+                      "Instead of using your last played save, the Lab uses a dedicated testing save that is only active when the Lab is running. Create a new save in-game or copy an existing save below."
+                    )}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTestSaveModal(true)}
+                className="px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] bg-transparent hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all flex items-center gap-2 cursor-pointer shrink-0"
+              >
+                <span className="material-symbols-outlined !text-[15px]">
+                  {t("icon_saves", "save")}
+                </span>
+                {t("lab_test_save_btn_setup", "Set Up Test Save")}
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col gap-10 w-full">
             <CommandScreenBody>
               <CommandScreenMain>
@@ -1261,52 +1506,95 @@ export default function Lab({
                     title={t("recent_tests_title")}
                     icon="history"
                   />
-                  <div className="grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {testHistory.length > 0 ? (
                       testHistory
                         .slice(0, 10)
-                        .map((test: any, index: number) => (
-                          <UniversalCard
-                            key={test.id || index}
-                            onClick={() => setSelectedReport(test)}
-                            layout="vertical"
-                            icon={test.errorFound ? "warning" : "check_circle"}
-                            statusColor={
-                              test.errorFound
-                                ? "border-rose-500"
-                                : "border-emerald-500"
-                            }
-                            title={
-                              test.mod
-                                ? getModName(test.mod, test.stagedExtras)
-                                : t("ecosystem_forge")
-                            }
-                            subtitle={
-                              test.conflictTarget
-                                ? `vs ${getModName(test.conflictTarget)}`
-                                : t("target_engine_core")
-                            }
-                            badges={[
-                              <span
-                                key="status"
-                                className={`px-2 py-1 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner ${test.errorFound ? "text-rose-500 border-rose-500/30 bg-rose-500/10" : "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"}`}
-                              >
-                                {test.errorFound
-                                  ? t("fatal_collision")
-                                  : t("successful_injection")}
-                              </span>,
-                              <span
-                                key="time"
-                                className="ml-auto text-[10px] font-bold opacity-50"
-                              >
-                                {new Date(test.time).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>,
-                            ]}
-                          />
-                        ))
+                        .map((test: any, index: number) => {
+                          const isError = Boolean(test.errorFound);
+                          const cardReportNum = resolveLabReportNumber(test, reportsToList);
+                          const resolvedTestMod = resolveRealReportMod(
+                            test.mod,
+                            test.stagedExtras,
+                            modList
+                          );
+                          const modVer = test.mod
+                            ? getModVersionLabel(resolvedTestMod, modList, test.stagedExtras)
+                            : null;
+                          const modExt = test.mod
+                            ? getModExtensionLabel(
+                                resolvedTestMod,
+                                activeGameSchema,
+                                modList,
+                                test.stagedExtras
+                              )
+                            : null;
+                          return (
+                            <div
+                              key={test.id || index}
+                              onClick={() => setSelectedReport(test)}
+                              className="relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 shadow-xl overflow-hidden group cursor-pointer border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:-translate-y-0.5 hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-300"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div
+                                  className={`w-10 h-10 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
+                                    isError
+                                      ? "text-rose-400 border-rose-500/35"
+                                      : "text-emerald-400 border-emerald-500/35"
+                                  }`}
+                                >
+                                  <span className="material-symbols-outlined !text-[20px]">
+                                    {isError ? "warning" : "check_circle"}
+                                  </span>
+                                </div>
+                                <span
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 shrink-0 ${
+                                    isError
+                                      ? "text-rose-400 border-rose-500/45"
+                                      : "text-emerald-400 border-emerald-500/45"
+                                  }`}
+                                >
+                                  {isError ? t("fatal_collision") : t("successful_injection")}
+                                </span>
+                              </div>
+
+                              <div className="flex flex-col gap-1 min-w-0">
+                                <span className="text-[10px] font-black font-mono uppercase tracking-[0.18em] text-[var(--accent)]">
+                                  {`Lab_Report_${cardReportNum}`}
+                                </span>
+                                <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug truncate">
+                                  {test.mod
+                                    ? getCleanModBaseName(resolvedTestMod)
+                                    : t("ecosystem_forge")}
+                                </h3>
+                                <p className="text-xs font-semibold text-[var(--subtext)] truncate">
+                                  {test.conflictTarget
+                                    ? `vs ${getCleanModBaseName(test.conflictTarget)}`
+                                    : t("target_engine_core")}
+                                </p>
+                              </div>
+
+                              <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[11px] font-bold text-[var(--subtext)] opacity-75">
+                                <span className="font-mono truncate">
+                                  {modExt ? `${modExt} • ` : ""}
+                                  {modVer ? `v${modVer} • ` : ""}
+                                  {selectedVersion || t("vlocal")}
+                                </span>
+                                <span className="shrink-0">
+                                  {new Date(test.time).toLocaleDateString([], {
+                                    month: "short",
+                                    day: "numeric",
+                                  })}{" "}
+                                  &bull;{" "}
+                                  {new Date(test.time).toLocaleTimeString([], {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
                     ) : (
                       <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center opacity-50 space-y-4 shadow-inner">
                         <span className="material-symbols-outlined !text-[48px] text-[var(--subtext)]">
@@ -1362,6 +1650,56 @@ export default function Lab({
                     hoverTextColorClass="group-hover:text-[var(--danger)]"
                     iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
                   />
+
+                  {/* DEDICATED LAB TEST SAVE CONFIGURATOR */}
+                  <button
+                    type="button"
+                    onClick={() => setShowTestSaveModal(true)}
+                    className={`w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 shadow-md cursor-pointer ${
+                      testSaveStatus?.has_test_save
+                        ? "border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                        : "border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4 h-full relative z-10">
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-110 bg-transparent border ${
+                          testSaveStatus?.has_test_save
+                            ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
+                            : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined !text-[26px]">
+                          {t("icon_saves", "save")}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
+                        <h3 className="text-[11px] font-[900] uppercase tracking-widest truncate text-[var(--text)] m-0">
+                          {testSaveStatus?.has_test_save
+                            ? t("lab_test_save_title", "Dedicated Lab Test Save")
+                            : t("lab_test_save_unconfigured_title", "First-Time Lab Save Setup")}
+                        </h3>
+                        <span
+                          className={`text-[9px] font-bold tracking-wider flex items-center gap-1.5 truncate ${
+                            testSaveStatus?.has_test_save
+                              ? "text-[var(--accent)]"
+                              : "text-[var(--warning)]"
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                              testSaveStatus?.has_test_save
+                                ? "bg-[var(--accent)]"
+                                : "bg-[var(--warning)]"
+                            }`}
+                          />
+                          {testSaveStatus?.active_test_save
+                            ? `${testSaveStatus.active_test_save.file_name} • ${t("lab_test_save_btn_change", "Change Test Save")}`
+                            : t("lab_test_save_unconfigured_sub", "No test save configured — click to set up")}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
 
                   {/* SAVE AIRGAP SHIELD */}
                   <button
@@ -1519,7 +1857,7 @@ export default function Lab({
                 <div className="p-8 flex-1 flex flex-col justify-center relative z-10">
                   {!activeLabMod ? (
                     <ModSearchDropdown
-                      modList={modList.filter((m: any) => !m.isVirtual)}
+                      modList={builderBaseMods}
                       selectedItem={null}
                       onSelect={(m: any) => {
                         memoryDismissedRef.current = false;
@@ -1641,8 +1979,11 @@ export default function Lab({
                                   });
                                 }
                               }}
-                              className="text-[10px] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] px-2 py-1 rounded font-mono text-[var(--danger)] cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:text-white transition-all"
+                              className="text-[10px] bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] px-2.5 py-1 rounded-lg font-mono text-[var(--danger)] cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] transition-all inline-flex items-center gap-1"
                             >
+                              <span className="material-symbols-outlined !text-[12px]">
+                                warning
+                              </span>
                               {depName}
                             </span>
                           );
@@ -1651,12 +1992,7 @@ export default function Lab({
                     </div>
                   )}
                   <ModSearchDropdown
-                    modList={modList.filter(
-                      (m: any) =>
-                        !m.isVirtual &&
-                        m.hash !== activeLabMod?.hash &&
-                        !conflictExtras.find((e) => e.hash === m.hash),
-                    )}
+                    modList={builderSymbioticMods}
                     selectedItem={null}
                     onSelect={(m: any) => {
                       if (m && !stagedExtras.find((e) => e.hash === m.hash))
@@ -1717,15 +2053,7 @@ export default function Lab({
                 <div className="relative z-20 mb-6 flex-none">
                   {!conflictTarget ? (
                     <ModSearchDropdown
-                      modList={modList
-                        .filter(
-                          (m: any) =>
-                            !m.isVirtual && m.hash !== activeLabMod?.hash,
-                        )
-                        .map((m: any) => ({
-                          ...m,
-                          displayName: getModName(m),
-                        }))}
+                      modList={builderPrimaryAdversaryMods}
                       selectedItem={conflictTarget}
                       onSelect={setConflictTarget}
                       onClear={() => setConflictTarget(null)}
@@ -1733,13 +2061,7 @@ export default function Lab({
                     />
                   ) : (
                     <ModSearchDropdown
-                      modList={modList.filter(
-                        (m: any) =>
-                          !m.isVirtual &&
-                          m.hash !== activeLabMod?.hash &&
-                          m.hash !== conflictTarget?.hash &&
-                          !stagedExtras.find((e) => e.hash === m.hash),
-                      )}
+                      modList={builderExtraAdversaryMods}
                       selectedItem={null}
                       onSelect={(m: any) => {
                         if (m && !conflictExtras.find((e) => e.hash === m.hash))
@@ -1813,68 +2135,100 @@ export default function Lab({
       )}
 
       {activeTab === "REPORTS" && (
-        <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full h-full min-h-[500px]">
+        <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full h-full min-h-[500px]">
+          <CommandScreenSectionHeading
+            title={t("tab_lab_reports")}
+            icon="terminal"
+          />
+
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-32">
             {filteredReports.map((report: any) => {
-              const isError = report.errorFound;
+              const isError = Boolean(report.errorFound);
               const cardReportNum = resolveLabReportNumber(report, reportsToList);
               const resolvedCardMod = resolveRealReportMod(
                 report.mod,
                 report.stagedExtras,
                 modList
               );
+              const modVer = getModVersionLabel(
+                resolvedCardMod,
+                modList,
+                report.stagedExtras
+              );
+              const modExt = getModExtensionLabel(
+                resolvedCardMod,
+                activeGameSchema,
+                modList,
+                report.stagedExtras
+              );
               return (
-                <UniversalCard
+                <div
                   key={report.id}
                   onClick={() => setSelectedReport(report)}
-                  layout="vertical"
-                  icon={isError ? "warning" : "check_circle"}
-                  statusColor={
-                    isError ? "border-rose-500" : "border-emerald-500"
-                  }
-                  title={getModName(resolvedCardMod, report.stagedExtras)}
-                  subtitle={
-                    report.conflictTarget
-                      ? `vs ${getModName(report.conflictTarget)}`
-                      : t("target_engine_core")
-                  }
-                  badges={[
-                    <span
-                      key="report-num"
-                      className="px-2 py-1 rounded-lg text-[9px] font-black tracking-widest border shadow-inner border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] font-mono"
+                  className="relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 shadow-xl overflow-hidden group cursor-pointer border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:-translate-y-0.5 hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-300"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
+                        isError
+                          ? "text-rose-400 border-rose-500/35"
+                          : "text-emerald-400 border-emerald-500/35"
+                      }`}
                     >
+                      <span className="material-symbols-outlined !text-[20px]">
+                        {isError ? "warning" : "check_circle"}
+                      </span>
+                    </div>
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 shrink-0 ${
+                        isError
+                          ? "text-rose-400 border-rose-500/45"
+                          : "text-emerald-400 border-emerald-500/45"
+                      }`}
+                    >
+                      {isError ? t("fatal_collision") : t("successful_injection")}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <span className="text-[10px] font-black font-mono uppercase tracking-[0.18em] text-[var(--accent)]">
                       {`Lab_Report_${cardReportNum}`}
-                    </span>,
-                    <span
-                      key="status"
-                      className={`px-2 py-1 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner ${isError ? "text-rose-500 border-rose-500/30 bg-rose-500/10" : "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"}`}
-                    >
-                      {isError
-                        ? t("fatal_collision")
-                        : t("successful_injection")}
-                    </span>,
-                    <span
-                      key="game-version"
-                      className="px-2 py-1 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner border-[var(--text)]/10 text-[var(--subtext)]"
-                    >
-                      {selectedVersion || "vLocal"}
-                    </span>,
-                    <span
-                      key="mod-version"
-                      className="px-2 py-1 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner border-[var(--text)]/10 text-[var(--subtext)]"
-                    >
-                      M: {getModVersionLabel(resolvedCardMod, modList, report.stagedExtras)}
-                    </span>,
-                    report.isConcluding && (
-                      <span
-                        key="pending"
-                        className="ml-auto text-[10px] font-bold opacity-50 text-amber-400 animate-pulse"
-                      >
+                    </span>
+                    <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug truncate">
+                      {getCleanModBaseName(resolvedCardMod)}
+                    </h3>
+                    <p className="text-xs font-semibold text-[var(--subtext)] truncate">
+                      {report.conflictTarget
+                        ? `vs ${getCleanModBaseName(report.conflictTarget)}`
+                        : t("target_engine_core")}
+                    </p>
+                  </div>
+
+                  <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[11px] font-bold text-[var(--subtext)] opacity-75">
+                    <span className="font-mono truncate">
+                      {modExt ? `${modExt} • ` : ""}
+                      {modVer ? `v${modVer} • ` : ""}
+                      {selectedVersion || t("vlocal")}
+                    </span>
+                    {report.isConcluding ? (
+                      <span className="shrink-0 text-[10px] font-black text-amber-400 animate-pulse">
                         {t("status_pending_review")}
                       </span>
-                    ),
-                  ]}
-                />
+                    ) : (
+                      <span className="shrink-0">
+                        {new Date(report.time).toLocaleDateString([], {
+                          month: "short",
+                          day: "numeric",
+                        })}{" "}
+                        &bull;{" "}
+                        {new Date(report.time).toLocaleTimeString([], {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                </div>
               );
             })}
 
@@ -1916,17 +2270,27 @@ export default function Lab({
           const reportNum = resolveLabReportNumber(selectedReport, reportsToList);
           const rawLogData = scrubLogUserData(selectedReport.logSnippet || "");
           const matchedRules = matchExceptionRules(rawLogData, exceptionRules || []);
-          const reportStagedDeps = (selectedReport.stagedExtras || []).map((m: any) =>
-            resolveRealReportMod(m, undefined, modList)
-          );
+          const resolvedLoadout = extractReportLoadoutFromLogAndContext({
+            targetMod: selectedReport.mod,
+            logText: rawLogData,
+            explicitDependencies: selectedReport.stagedExtras,
+            explicitConflictTarget: selectedReport.conflictTarget,
+            explicitConflictExtras: selectedReport.conflictExtras,
+            linkedFiles: selectedReport.linkedFiles || labSessionStatus?.linked_files || [],
+            modList,
+            activeGameSchema,
+          });
+          const reportStagedDeps = resolvedLoadout.dependencies;
+          const resolvedConflictTarget = resolvedLoadout.conflictTarget;
+          const resolvedConflictExtras = resolvedLoadout.conflictExtras;
           const resolvedTargetMod = resolveRealReportMod(
             selectedReport.mod,
             reportStagedDeps,
             modList
           );
           const reportConflicts = [
-            ...(selectedReport.conflictTarget ? [selectedReport.conflictTarget] : []),
-            ...(selectedReport.conflictExtras || []),
+            ...(resolvedConflictTarget ? [resolvedConflictTarget] : []),
+            ...(resolvedConflictExtras || []),
           ];
 
           const formattedLabReportText = buildFormattedLabReportText({
@@ -1936,9 +2300,9 @@ export default function Lab({
               : new Date().toLocaleString(),
             gameVersion: selectedVersion || "Local",
             targetMod: resolvedTargetMod,
-            conflictTarget: selectedReport.conflictTarget,
+            conflictTarget: resolvedConflictTarget,
             stagedExtras: reportStagedDeps,
-            conflictExtras: selectedReport.conflictExtras,
+            conflictExtras: resolvedConflictExtras,
             missingDeps: selectedReport.missingDeps || missingDeps,
             linkedFiles: selectedReport.linkedFiles || labSessionStatus?.linked_files || [],
             matchedRules,
@@ -1971,430 +2335,363 @@ export default function Lab({
               secureCardState !== "idle"
           );
 
+          const realLogFileName =
+            liveRealLogs[0]?.fileName ||
+            liveRealLogs[0]?.file_name ||
+            "lastException.txt";
+
+          const activeLogTextToCopy =
+            reportLogViewTab === "REAL_LOG"
+              ? realLogDisplayContent || ""
+              : formattedLabReportText || formatHumanReadableLogText(rawLogData) || "";
+
           return (
             <SidePanel
               isOpen={true}
               onClose={() => setSelectedReport(null)}
-              title={<span className="normal-case">{getModName(resolvedTargetMod, selectedReport.stagedExtras)}</span>}
-              subtitle={`${isError ? t("status_broken") : t("verified")} • Lab_Report_${reportNum}`}
+              title={<span className="normal-case font-mono">{`Lab_Report_${reportNum}`}</span>}
+              subtitle={`${isError ? t("fatal_collision") : t("successful_injection")} • ${t("tab_lab_reports")}`}
               icon={isError ? "warning" : "science"}
               iconColorClass={
                 isError ? "text-[var(--danger)]" : "text-[var(--success)]"
               }
-              widthClass="w-[90vw] md:w-[860px]"
+              widthClass="w-[90vw] md:w-[820px]"
+              headerActions={
+                <PanelHeaderGroup>
+                  {isError && submitLabReport && (
+                    <PanelHeaderButton
+                      icon={
+                        submitCardState === "done"
+                          ? "check_circle"
+                          : submitCardState === "working"
+                            ? t("icon_sync", "sync")
+                            : t("icon_send", "send")
+                      }
+                      variant={submitCardState === "done" ? "success" : "warning"}
+                      disabled={
+                        isSubmittingReport ||
+                        submitCardState === "working" ||
+                        submitCardState === "done"
+                      }
+                      tooltip={
+                        submitCardState === "done"
+                          ? (t("lab_action_submit_diag_done_title", "Submitted To Architect Lab") as string)
+                          : (t("lab_action_submit_diag_title", "Submit To Diagnostics") as string)
+                      }
+                      onClick={async () => {
+                        if (submitCardState === "working" || submitCardState === "done") return;
+                        setSubmitCardState("working");
+                        const ok = await submitLabReport({
+                          ...selectedReport,
+                          stagedExtras: reportStagedDeps,
+                          conflictTarget: resolvedConflictTarget,
+                          conflictExtras: resolvedConflictExtras,
+                        });
+                        setSubmitCardState(ok ? "done" : "error");
+                      }}
+                    />
+                  )}
+                  <PanelHeaderButton
+                    icon={
+                      downloadCardState === "done"
+                        ? "check_circle"
+                        : t("icon_download", "download")
+                    }
+                    variant={downloadCardState === "done" ? "success" : "accent"}
+                    tooltip={
+                      downloadCardState === "done"
+                        ? (t("lab_action_download_done_title", "Report Saved Locally") as string)
+                        : (t("lab_action_download_title", "Download Report") as string)
+                    }
+                    onClick={handleExportLogs}
+                  />
+                </PanelHeaderGroup>
+              }
             >
-              <div className="flex flex-col gap-6 mt-4 w-full">
-                {/* Report Action Cards (replaces header & footer buttons) */}
-                <div className="flex flex-col gap-3">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                    {t("lab_report_actions_heading", "Report Actions & Resolution")}
-                  </h3>
-                  <div
-                    className={`grid grid-cols-1 ${
-                      canSecureReport && isError && submitLabReport
-                        ? "md:grid-cols-3"
-                        : canSecureReport || (isError && submitLabReport)
-                          ? "md:grid-cols-2"
-                          : "md:grid-cols-1"
-                    } gap-3`}
-                  >
-                    {canSecureReport && (
-                      <button
-                        type="button"
-                        onClick={handleConcludeTest}
-                        disabled={secureCardState === "working" || secureCardState === "done"}
-                        className={`text-left rounded-2xl p-4 border transition-all flex items-start gap-3.5 group cursor-pointer shadow-sm disabled:cursor-default ${
-                          secureCardState === "done"
-                            ? "border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_16%,transparent)]"
-                            : isError
-                              ? "border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_18%,transparent)] hover:border-[var(--danger)]"
-                              : "border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_18%,transparent)] hover:border-[var(--success)]"
-                        }`}
-                      >
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                            secureCardState === "done"
-                              ? "bg-[color-mix(in_srgb,var(--success)_22%,transparent)] border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                              : isError
-                                ? "bg-[color-mix(in_srgb,var(--danger)_18%,transparent)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]"
-                                : "bg-[color-mix(in_srgb,var(--success)_18%,transparent)] border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
-                          }`}
-                        >
-                          <span
-                            className={`material-symbols-outlined !text-[20px] ${
-                              secureCardState === "working" ? "animate-spin" : ""
-                            }`}
-                          >
-                            {secureCardState === "done"
-                              ? "check_circle"
-                              : secureCardState === "working"
-                                ? t("icon_sync", "sync")
-                                : isError
-                                  ? "shield"
-                                  : "verified_user"}
-                          </span>
-                        </div>
-                        <div className="flex flex-col gap-1 min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span
-                              className={`text-xs font-black uppercase tracking-wider ${
-                                secureCardState === "done"
-                                  ? "text-[var(--success)]"
-                                  : isError
-                                    ? "text-[var(--danger)]"
-                                    : "text-[var(--success)]"
-                              }`}
-                            >
-                              {secureCardState === "done"
-                                ? isError
-                                  ? t("lab_action_secure_broken_done_title", "Removed From Blueprint")
-                                  : t("lab_action_secure_verified_done_title", "Artifact Verified & Restored")
-                                : secureCardState === "working"
-                                  ? t("lab_action_securing_title", "Securing Sandbox...")
-                                  : isError
-                                    ? t("lab_action_secure_broken_title", "Secure Corrupted Artifact")
-                                    : t("lab_action_secure_verified_title", "Secure Verified Artifact")}
-                            </span>
-                            <span
-                              className={`material-symbols-outlined !text-[16px] transition-all ${
-                                secureCardState === "done"
-                                  ? "text-[var(--success)] opacity-100"
-                                  : `opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 ${
-                                      isError ? "text-[var(--danger)]" : "text-[var(--success)]"
-                                    }`
-                              }`}
-                            >
-                              {secureCardState === "done"
-                                ? "check_circle"
-                                : t("icon_arrow_forward", "arrow_forward")}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-[var(--subtext)] leading-relaxed">
-                            {secureCardState === "done"
-                              ? isError
-                                ? t(
-                                    "lab_action_secure_broken_done_desc",
-                                    "Sandbox closed, live saves restored, and mod unequipped from active Blueprint."
-                                  )
-                                : t(
-                                    "lab_action_secure_verified_done_desc",
-                                    "Sandbox closed, live saves restored, and mod signed off as verified."
-                                  )
-                              : isError
-                                ? t(
-                                    "lab_action_secure_broken_desc",
-                                    "End sandbox session, restore live saves, and quarantine or flag this mod."
-                                  )
-                                : t(
-                                    "lab_action_secure_verified_desc",
-                                    "End sandbox session, restore live saves, and sign off on this mod as verified."
-                                  )}
-                          </p>
-                        </div>
-                      </button>
-                    )}
-
-                    {isError && submitLabReport && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (submitCardState === "working" || submitCardState === "done") return;
-                          setSubmitCardState("working");
-                          const ok = await submitLabReport(selectedReport);
-                          setSubmitCardState(ok ? "done" : "error");
-                        }}
-                        disabled={isSubmittingReport || submitCardState === "working" || submitCardState === "done"}
-                        className={`text-left rounded-2xl p-4 border transition-all flex items-start gap-3.5 group cursor-pointer shadow-sm disabled:cursor-default ${
-                          submitCardState === "done"
-                            ? "border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_16%,transparent)]"
-                            : submitCardState === "error"
-                              ? "border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_14%,transparent)]"
-                              : "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_18%,transparent)] hover:border-[var(--warning)]"
-                        }`}
-                      >
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                            submitCardState === "done"
-                              ? "bg-[color-mix(in_srgb,var(--success)_22%,transparent)] border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                              : submitCardState === "error"
-                                ? "bg-[color-mix(in_srgb,var(--danger)_22%,transparent)] border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]"
-                                : "bg-[color-mix(in_srgb,var(--warning)_18%,transparent)] border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
-                          }`}
-                        >
-                          <span
-                            className={`material-symbols-outlined !text-[20px] ${
-                              submitCardState === "working" ? "animate-spin" : ""
-                            }`}
-                          >
-                            {submitCardState === "done"
-                              ? "check_circle"
-                              : submitCardState === "working"
-                                ? t("icon_sync", "sync")
-                                : submitCardState === "error"
-                                  ? t("icon_error", "error")
-                                  : t("icon_send", "send")}
-                          </span>
-                        </div>
-                        <div className="flex flex-col gap-1 min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span
-                              className={`text-xs font-black uppercase tracking-wider ${
-                                submitCardState === "done"
-                                  ? "text-[var(--success)]"
-                                  : submitCardState === "error"
-                                    ? "text-[var(--danger)]"
-                                    : "text-[var(--warning)]"
-                              }`}
-                            >
-                              {submitCardState === "done"
-                                ? t("lab_action_submit_diag_done_title", "Submitted To Architect Lab")
-                                : submitCardState === "working"
-                                  ? t("lab_action_submit_diag_working_title", "Transmitting Telemetry...")
-                                  : submitCardState === "error"
-                                    ? t("lab_action_submit_diag_error_title", "Transmission Failed — Retry")
-                                    : t("lab_action_submit_diag_title", "Submit To Diagnostics")}
-                            </span>
-                            <span
-                              className={`material-symbols-outlined !text-[16px] transition-all ${
-                                submitCardState === "done"
-                                  ? "text-[var(--success)] opacity-100"
-                                  : "text-[var(--warning)] opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5"
-                              }`}
-                            >
-                              {submitCardState === "done"
-                                ? "check_circle"
-                                : t("icon_arrow_forward", "arrow_forward")}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-[var(--subtext)] leading-relaxed">
-                            {submitCardState === "done"
-                              ? t(
-                                  "lab_action_submit_diag_done_desc",
-                                  "Crash report and payload telemetry queued in Spoke Architect Diagnostics."
-                                )
-                              : t(
-                                  "lab_action_submit_diag_desc",
-                                  "Transmit this crash report and payload telemetry to the Spoke Diagnostics queue."
-                                )}
-                          </p>
-                        </div>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleExportLogs}
-                      className={`text-left rounded-2xl p-4 border transition-all flex items-start gap-3.5 group cursor-pointer shadow-sm ${
-                        downloadCardState === "done"
-                          ? "border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_16%,transparent)]"
-                          : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] hover:border-[var(--accent)]"
+              <div className="flex flex-col gap-4 mt-2 w-full pb-8">
+                {/* Tested Mod Banner on Panel Body */}
+                <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div
+                      className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
+                        isError
+                          ? "text-rose-400 border-rose-500/35"
+                          : "text-emerald-400 border-emerald-500/35"
                       }`}
                     >
-                      <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                          downloadCardState === "done"
-                            ? "bg-[color-mix(in_srgb,var(--success)_22%,transparent)] border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                            : "bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
+                      <span className="material-symbols-outlined !text-[22px]">
+                        {isError ? "warning" : "check_circle"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                        {t("subject_isolation")}
+                      </span>
+                      <h3 className="text-base md:text-lg font-black text-[var(--text)] tracking-tight truncate">
+                        {getCleanModBaseName(resolvedTargetMod)}
+                      </h3>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 ${
+                        isError
+                          ? "text-rose-400 border-rose-500/45"
+                          : "text-emerald-400 border-emerald-500/45"
+                      }`}
+                    >
+                      {isError ? t("fatal_collision") : t("successful_injection")}
+                    </span>
+                    <span className="text-[11px] font-mono font-bold text-[var(--subtext)]">
+                      {getModExtensionLabel(
+                        resolvedTargetMod,
+                        activeGameSchema,
+                        modList,
+                        reportStagedDeps
+                      )}{" "}
+                      &bull; v{getModVersionLabel(resolvedTargetMod, modList, reportStagedDeps)}
+                    </span>
+                  </div>
+                </div>
+                {canSecureReport && (
+                  <button
+                    type="button"
+                    onClick={handleConcludeTest}
+                    disabled={secureCardState === "working" || secureCardState === "done"}
+                    className={`text-left rounded-2xl p-3.5 border transition-all flex items-start gap-3 group cursor-pointer shadow-sm disabled:cursor-default bg-transparent ${
+                      secureCardState === "done"
+                        ? "border-[var(--success)]"
+                        : isError
+                          ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_8%,transparent)]"
+                          : "border-[color-mix(in_srgb,var(--success)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_8%,transparent)]"
+                    }`}
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border bg-transparent ${
+                        secureCardState === "done"
+                          ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                          : isError
+                            ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]"
+                            : "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                      }`}
+                    >
+                      <span
+                        className={`material-symbols-outlined !text-[18px] ${
+                          secureCardState === "working" ? "animate-spin" : ""
                         }`}
                       >
-                        <span className="material-symbols-outlined !text-[20px]">
-                          {downloadCardState === "done"
+                        {secureCardState === "done"
+                          ? "check_circle"
+                          : secureCardState === "working"
+                            ? t("icon_sync", "sync")
+                            : isError
+                              ? "shield"
+                              : "verified_user"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`text-[11px] font-black uppercase tracking-wider ${
+                            secureCardState === "done"
+                              ? "text-[var(--success)]"
+                              : isError
+                                ? "text-[var(--danger)]"
+                                : "text-[var(--success)]"
+                          }`}
+                        >
+                          {secureCardState === "done"
+                            ? isError
+                              ? t("lab_action_secure_broken_done_title", "Removed From Blueprint")
+                              : t("lab_action_secure_verified_done_title", "Artifact Verified & Restored")
+                            : secureCardState === "working"
+                              ? t("lab_action_securing_title", "Securing Sandbox...")
+                              : isError
+                                ? t("lab_action_secure_broken_title", "Secure Corrupted Artifact")
+                                : t("lab_action_secure_verified_title", "Secure Verified Artifact")}
+                        </span>
+                        <span
+                          className={`material-symbols-outlined !text-[15px] transition-all ${
+                            secureCardState === "done"
+                              ? "text-[var(--success)] opacity-100"
+                              : `opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 ${
+                                  isError ? "text-[var(--danger)]" : "text-[var(--success)]"
+                                }`
+                          }`}
+                        >
+                          {secureCardState === "done"
                             ? "check_circle"
-                            : t("icon_download", "download")}
+                            : t("icon_arrow_forward", "arrow_forward")}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-1 min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className={`text-xs font-black uppercase tracking-wider ${
-                              downloadCardState === "done"
-                                ? "text-[var(--success)]"
-                                : "text-[var(--accent)]"
-                            }`}
-                          >
-                            {downloadCardState === "done"
-                              ? t("lab_action_download_done_title", "Report Saved Locally")
-                              : t("lab_action_download_title", "Download Report")}
-                          </span>
-                          <span
-                            className={`material-symbols-outlined !text-[16px] transition-all ${
-                              downloadCardState === "done"
-                                ? "text-[var(--success)] opacity-100"
-                                : "text-[var(--accent)] opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5"
-                            }`}
-                          >
-                            {downloadCardState === "done"
-                              ? "check_circle"
-                              : t("icon_arrow_forward", "arrow_forward")}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[var(--subtext)] leading-relaxed">
-                          {downloadCardState === "done"
+                      <p className="text-[11px] text-[var(--subtext)] leading-snug">
+                        {secureCardState === "done"
+                          ? isError
                             ? t(
-                                "lab_action_download_done_desc_with_real",
-                                "Lab_Report_#.txt and scrubbed real game log saved to disk."
+                                "lab_action_secure_broken_done_desc",
+                                "Sandbox closed, live saves restored, and mod unequipped from active Blueprint."
                               )
                             : t(
-                                "lab_action_download_desc_with_real",
-                                "Save Lab_Report_#.txt along with the scrubbed real game log."
+                                "lab_action_secure_verified_done_desc",
+                                "Sandbox closed, live saves restored, and mod signed off as verified."
+                              )
+                          : isError
+                            ? t(
+                                "lab_action_secure_broken_desc",
+                                "End sandbox session, restore live saves, and quarantine or flag this mod."
+                              )
+                            : t(
+                                "lab_action_secure_verified_desc",
+                                "End sandbox session, restore live saves, and sign off on this mod as verified."
                               )}
-                        </p>
-                      </div>
-                    </button>
-                  </div>
+                      </p>
+                    </div>
+                  </button>
+                )}
+
+                {/* Session Telemetry StatBoxes (No Table Grid) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <StatBox
+                    icon={t("icon_sell", "sell")}
+                    iconColorClass="text-[var(--accent)]"
+                    label={t("game_version") || "Game Version"}
+                    value={selectedVersion || t("vlocal")}
+                  />
+                  <StatBox
+                    icon={t("icon_memory", "memory")}
+                    iconColorClass="text-[var(--accent)]"
+                    label={t("mod_version") || "Mod Version"}
+                    value={getModVersionLabel(resolvedTargetMod, modList, reportStagedDeps)}
+                  />
+                  <StatBox
+                    icon={t("icon_schedule", "schedule")}
+                    iconColorClass="text-[var(--accent)]"
+                    label={t("date_created") || "Time"}
+                    tooltipSubtitle={new Date(selectedReport.time).toLocaleString()}
+                    value={
+                      <span className="text-xs md:text-sm font-black tracking-tight">
+                        {new Date(selectedReport.time).toLocaleDateString([], {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}{" "}
+                        &bull;{" "}
+                        {new Date(selectedReport.time).toLocaleTimeString([], {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    }
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="glass-panel p-4 rounded-xl flex flex-col gap-1 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                    <span className="text-[10px] font-black tracking-widest text-[var(--subtext)] capitalize">
-                      {t("game_version") || "Game Version"}
-                    </span>
-                    <span className="text-sm font-bold text-[var(--text)]">
-                      {selectedVersion || t("vlocal")}
-                    </span>
-                  </div>
-                  <div className="glass-panel p-4 rounded-xl flex flex-col gap-1 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                    <span className="text-[10px] font-black tracking-widest text-[var(--subtext)] capitalize">
-                      {t("mod_version") || "Mod Version"}
-                    </span>
-                    <span className="text-sm font-bold text-[var(--text)]">
-                      {getModVersionLabel(resolvedTargetMod, modList, reportStagedDeps)}
-                    </span>
-                  </div>
-                  <div className="glass-panel p-4 rounded-xl flex flex-col gap-1 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                    <span className="text-[10px] font-black tracking-widest text-[var(--subtext)] capitalize">
-                      {t("mod_id") || "Mod ID"}
-                    </span>
-                    <span
-                      className="text-xs font-mono text-[var(--text)] truncate"
-                      title={resolvedTargetMod?.hash || resolvedTargetMod?.id}
-                    >
-                      {resolvedTargetMod?.hash ||
-                        resolvedTargetMod?.id ||
-                        "N/A"}
-                    </span>
-                  </div>
-                  <div className="glass-panel p-4 rounded-xl flex flex-col gap-1 border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                    <span className="text-[10px] font-black tracking-widest text-[var(--subtext)] capitalize">
-                      {t("date_created") || "Time"}
-                    </span>
-                    <span className="text-xs font-bold text-[var(--text)]">
-                      {new Date(selectedReport.time).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                  <h3 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">
-                    {t("payload_composition")}
-                  </h3>
-
-                  {/* Core Artifact Tested */}
-                  <div className="glass-panel rounded-xl p-3 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center gap-3 relative group">
-                    <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-50" />
-                    <span className="material-symbols-outlined text-[var(--accent)] !text-[18px] relative z-10">
-                      science
-                    </span>
-                    <span className="text-[var(--text)] text-xs font-bold tracking-widest truncate relative z-10">
-                      {getModName(resolvedTargetMod, reportStagedDeps)}
-                    </span>
-                    <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--accent)] capitalize tracking-widest relative z-10">
-                      {t("payload_core")}
-                    </span>
-                  </div>
-
-                  {/* Explicit Dependencies & Conflicts Loaded for Test */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* Dependencies Loaded for Test */}
-                    <div className="glass-panel rounded-xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
-                          <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                            extension
-                          </span>
-                          {t("lab_report_deps_loaded_title", "Dependencies Loaded for Test")}
+                {/* Dependencies & Conflicts Loaded for Test (Side-by-Side Cards with Full-Width Rows) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                          extension
                         </span>
-                        <span className="text-[10px] font-mono font-bold text-[var(--accent)]">
-                          {reportStagedDeps.length}
-                        </span>
-                      </div>
-                      {reportStagedDeps.length > 0 ? (
-                        <div className="flex flex-col gap-1.5">
-                          {reportStagedDeps.map((m: any) => (
-                            <div
-                              key={m.hash || m.name}
-                              className="rounded-lg px-2.5 py-1.5 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center gap-2"
-                            >
-                              <span className="material-symbols-outlined text-[var(--subtext)] !text-[14px]">
+                        {t("lab_report_deps_loaded_title", "Dependencies Loaded for Test")}
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-[var(--accent)]">
+                        {reportStagedDeps.length}
+                      </span>
+                    </div>
+                    {reportStagedDeps.length > 0 ? (
+                      <div className="flex flex-col gap-1.5">
+                        {reportStagedDeps.map((m: any) => (
+                          <div
+                            key={m.hash || m.name}
+                            className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
                                 extension
                               </span>
-                              <span className="text-[var(--text)] text-xs font-bold truncate">
-                                {getModName(m)}
-                              </span>
-                              <span className="ml-auto text-[9px] font-black opacity-60 text-[var(--text)] capitalize tracking-widest">
-                                {t("payload_injected")}
+                              <span className="text-xs font-bold text-[var(--text)] truncate">
+                                {getCleanModBaseName(m)}
                               </span>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-[11px] font-semibold text-[var(--subtext)] opacity-60 py-1">
+                            <span className="text-[10px] font-mono font-bold text-[var(--subtext)] shrink-0">
+                              {getModExtensionLabel(m, activeGameSchema, modList, reportStagedDeps)}{" "}
+                              &bull; v{getModVersionLabel(m, modList, reportStagedDeps)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-dashed border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-60">
                           {t("lab_report_none_loaded", "None Loaded")}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Conflicts Loaded for Test */}
-                    <div className="glass-panel rounded-xl p-3.5 border border-[color-mix(in_srgb,var(--warning)_22%,transparent)] flex flex-col gap-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
-                          <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">
-                            warning
-                          </span>
-                          {t("lab_report_conflicts_loaded_title", "Conflicts Loaded for Test")}
-                        </span>
-                        <span className="text-[10px] font-mono font-bold text-[var(--warning)]">
-                          {reportConflicts.length}
                         </span>
                       </div>
-                      {reportConflicts.length > 0 ? (
-                        <div className="flex flex-col gap-1.5">
-                          {selectedReport.conflictTarget && (
-                            <div className="rounded-lg px-2.5 py-1.5 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center gap-2">
-                              <span className="material-symbols-outlined text-[var(--danger)] !text-[14px]">
+                    )}
+                  </div>
+
+                  <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--warning)_25%,transparent)] flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">
+                          warning
+                        </span>
+                        {t("lab_report_conflicts_loaded_title", "Conflicts Loaded for Test")}
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-[var(--warning)]">
+                        {reportConflicts.length}
+                      </span>
+                    </div>
+                    {reportConflicts.length > 0 ? (
+                      <div className="flex flex-col gap-1.5">
+                        {resolvedConflictTarget && (
+                          <div className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--danger)_4%,transparent)] border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0">
                                 warning
                               </span>
-                              <span className="text-[var(--text)] text-xs font-bold truncate">
-                                {getModName(selectedReport.conflictTarget)}
-                              </span>
-                              <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--danger)] capitalize tracking-widest">
-                                {t("payload_adversary")}
+                              <span className="text-xs font-bold text-[var(--text)] truncate">
+                                {getCleanModBaseName(resolvedConflictTarget)}
                               </span>
                             </div>
-                          )}
-                          {selectedReport.conflictExtras?.map((m: any) => (
-                            <div
-                              key={m.hash || m.name}
-                              className="rounded-lg px-2.5 py-1.5 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_25%,transparent)] flex items-center gap-2"
-                            >
-                              <span className="material-symbols-outlined text-[var(--warning)] !text-[14px]">
+                            <span className="text-[10px] font-mono font-bold text-[var(--danger)] shrink-0">
+                              {getModExtensionLabel(
+                                resolvedConflictTarget,
+                                activeGameSchema,
+                                modList
+                              )}{" "}
+                              &bull; v
+                              {getModVersionLabel(resolvedConflictTarget, modList)}
+                            </span>
+                          </div>
+                        )}
+                        {resolvedConflictExtras?.map((m: any) => (
+                          <div
+                            key={m.hash || m.name}
+                            className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border border-[color-mix(in_srgb,var(--warning)_25%,transparent)] flex items-center justify-between gap-2"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="material-symbols-outlined !text-[14px] text-[var(--warning)] shrink-0">
                                 extension
                               </span>
-                              <span className="text-[var(--text)] text-xs font-bold truncate">
-                                {getModName(m)}
-                              </span>
-                              <span className="ml-auto text-[9px] font-black opacity-80 text-[var(--warning)] capitalize tracking-widest">
-                                {t("payload_injected")}
+                              <span className="text-xs font-bold text-[var(--text)] truncate">
+                                {getCleanModBaseName(m)}
                               </span>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-[11px] font-semibold text-[var(--subtext)] opacity-60 py-1">
+                            <span className="text-[10px] font-mono font-bold text-[var(--warning)] shrink-0">
+                              {getModExtensionLabel(m, activeGameSchema, modList)} &bull; v
+                              {getModVersionLabel(m, modList)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-dashed border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-60">
                           {t("lab_report_none_loaded", "None Loaded")}
-                        </div>
-                      )}
-                    </div>
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -2407,9 +2704,9 @@ export default function Lab({
                   />
                 )}
 
-                {/* StatTile Switcher: Lab Report Log vs Scrubbed Real Game Log */}
+                {/* 2-Column StatTile Log Switcher */}
                 {hasRealLogContent && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                     <DashboardStatTile
                       variant="filter"
                       className="!w-full"
@@ -2432,63 +2729,60 @@ export default function Lab({
                         </span>
                       }
                       label={t("lab_report_tab_real_log", "Real Game Log (Scrubbed)")}
-                      number={
-                        liveRealLogs[0]?.fileName ||
-                        liveRealLogs[0]?.file_name ||
-                        "lastException.txt"
-                      }
+                      number={realLogFileName}
                       isActive={reportLogViewTab === "REAL_LOG"}
                       onClick={() => setReportLogViewTab("REAL_LOG")}
                     />
                   </div>
                 )}
 
-                <div className="flex-1 min-h-[400px] glass-panel backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl p-6 font-mono text-[13px] text-[var(--text)] overflow-y-auto custom-scrollbar shadow-inner relative flex flex-col mb-10">
-                  <div className="flex flex-wrap items-center gap-2.5 mb-5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-4 shrink-0">
-                    <span className="material-symbols-outlined text-[var(--subtext)] opacity-50 !text-[18px]">
-                      {t("icon_terminal")}
-                    </span>
-                    <span className="text-[var(--subtext)] opacity-70 capitalize tracking-widest text-[11px] font-black">
-                      {[
-                        reportLogViewTab === "REAL_LOG"
-                          ? liveRealLogs[0]?.fileName ||
-                            liveRealLogs[0]?.file_name ||
-                            "lastException.txt"
-                          : `Lab_Report_${reportNum}.txt`,
-                        String(t("execution_logs", "Execution Logs")).replace(/^\/\/\s*/, ""),
-                        String(t("system_stdout", "System_stdout")).replace(/^\/\/\s*/, ""),
-                      ]
-                        .filter(Boolean)
-                        .join(" // ")}
-                    </span>
-
-                    {/* Scrubbed & Stamped Badges */}
-                    <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--success)_12%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] flex items-center gap-1">
-                      <span className="material-symbols-outlined !text-[12px]">
-                        verified_user
+                {/* Log Terminal Card */}
+                <div className="flex-1 min-h-[420px] glass-panel backdrop-blur-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl overflow-hidden shadow-inner relative flex flex-col">
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[var(--accent)] !text-[16px]">
+                        {reportLogViewTab === "REAL_LOG"
+                          ? t("icon_terminal", "terminal")
+                          : t("icon_description", "description")}
                       </span>
-                      {t("lab_report_pii_scrubbed_badge", "USER DATA SCRUBBED")}
-                    </span>
+                      <span className="text-xs font-black font-mono text-[var(--text)]">
+                        {reportLogViewTab === "REAL_LOG"
+                          ? realLogFileName
+                          : `Lab_Report_${reportNum}.txt`}
+                      </span>
+                    </div>
 
-                    {matchedRules.length > 0 && (
-                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[var(--warning)] flex items-center gap-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center gap-1">
                         <span className="material-symbols-outlined !text-[12px]">
-                          verified
+                          verified_user
                         </span>
-                        {t("lab_report_known_error_stamp_badge", "KNOWN ERROR STAMPED")}
+                        {t("lab_report_pii_scrubbed_badge", "USER DATA SCRUBBED")}
                       </span>
-                    )}
 
-                    {isError && !hasRealLogContent && (
-                      <div className="ml-auto flex items-center gap-2 text-[10px] font-bold text-[var(--danger)] capitalize tracking-widest bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] px-3 py-1.5 rounded-lg">
-                        <span className="material-symbols-outlined !text-[14px]">
-                          warning
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!activeLogTextToCopy) return;
+                          navigator.clipboard?.writeText(activeLogTextToCopy);
+                          setCopiedLogState(true);
+                          setTimeout(() => setCopiedLogState(false), 1800);
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all flex items-center gap-1 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {copiedLogState
+                            ? "check"
+                            : t("icon_content_copy", "content_copy")}
                         </span>
-                        CRITICAL FAILURE
-                      </div>
-                    )}
+                        {copiedLogState
+                          ? t("lab_report_copied_btn", "Copied")
+                          : t("lab_report_copy_btn", "Copy Log")}
+                      </button>
+                    </div>
                   </div>
-                  <pre className="whitespace-pre-wrap break-all leading-relaxed flex-1 opacity-85 font-mono">
+
+                  <pre className="p-5 font-mono text-[12px] text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed flex-1 overflow-y-auto custom-scrollbar opacity-90">
                     {reportLogViewTab === "REAL_LOG"
                       ? realLogDisplayContent || t("no_logs")
                       : formattedLabReportText || formatHumanReadableLogText(rawLogData) || t("no_logs")}
@@ -2524,7 +2818,7 @@ export default function Lab({
           <div className="flex flex-col items-center justify-start gap-4 opacity-95 p-2 w-full">
             <div className="glass-surface w-full rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-4">
               <div className="relative flex items-center justify-center shrink-0">
-                <div className="w-14 h-14 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] shadow-md relative z-10">
+                <div className="w-14 h-14 rounded-full bg-transparent flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] shadow-md relative z-10">
                   <span className="material-symbols-outlined !text-[28px] text-[var(--accent)] animate-pulse drop-shadow-lg">
                     {t("icon_radar", "radar")}
                   </span>
@@ -2539,7 +2833,7 @@ export default function Lab({
                   {getModName(activeLabMod)}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] text-[9px] font-black tracking-widest uppercase">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-transparent text-[var(--success)] text-[9px] font-black tracking-widest uppercase">
                     <span className="material-symbols-outlined !text-[12px]">
                       {t("icon_shield_lock", "shield_lock")}
                     </span>
@@ -2551,7 +2845,7 @@ export default function Lab({
                     <button
                       type="button"
                       onClick={handleLaunchExternalToolStandalone}
-                      className="px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all inline-flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all inline-flex items-center gap-1 cursor-pointer"
                     >
                       <span className="material-symbols-outlined !text-[12px]">
                         {t("icon_launch", "launch")}
@@ -2576,6 +2870,237 @@ export default function Lab({
 
             <div className="text-[10px] capitalize font-bold text-[var(--subtext)] tracking-widest text-center">
               {t("test_running_wait")}
+            </div>
+          </div>
+        </SidePanel>
+      )}
+
+      {/* Dedicated Lab Test Save Setup & Switcher SidePanel */}
+      {showTestSaveModal && (
+        <SidePanel
+          isOpen={showTestSaveModal}
+          onClose={() => {
+            setShowTestSaveModal(false);
+            setPendingLaunchAfterSaveSetup(null);
+          }}
+          title={t("lab_test_save_modal_title", "Lab Test Save Configuration")}
+          subtitle={t(
+            "lab_test_save_modal_subtitle",
+            "Manage the isolated save file that is only active when the Homestead Lab is running"
+          )}
+          icon={t("icon_saves", "save")}
+          iconColorClass="text-[var(--accent)]"
+          widthClass="w-[92vw] md:w-[640px]"
+        >
+          <div className="flex flex-col gap-5 mt-3 w-full pb-12">
+            {/* Current Status Banner */}
+            <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border bg-transparent ${
+                    testSaveStatus?.has_test_save
+                      ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                      : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[20px]">
+                    {testSaveStatus?.has_test_save
+                      ? "verified_user"
+                      : t("icon_saves", "save")}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("lab_test_save_current_label", "Active Lab Test Save")}
+                  </span>
+                  <span className="text-sm font-black text-[var(--text)] truncate">
+                    {testSaveStatus?.active_test_save
+                      ? testSaveStatus.active_test_save.file_name
+                      : t(
+                          "lab_test_save_none_badge",
+                          "CLEAN SANDBOX (CREATE SAVE IN-GAME)"
+                        )}
+                  </span>
+                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80">
+                    {t(
+                      "lab_test_save_active_sub",
+                      "Only active while Lab is running"
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <span
+                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-transparent flex items-center gap-1 ${
+                  testSaveStatus?.has_test_save
+                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                    : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
+                }`}
+              >
+                <span className="material-symbols-outlined !text-[12px]">
+                  {testSaveStatus?.has_test_save ? "check_circle" : "science"}
+                </span>
+                {testSaveStatus?.has_test_save
+                  ? t("lab_test_save_active_badge", "ISOLATED TEST SAVE READY")
+                  : t(
+                      "lab_test_save_none_badge",
+                      "CLEAN SANDBOX (CREATE SAVE IN-GAME)"
+                    )}
+              </span>
+            </div>
+
+            {/* Option 1: Create a Fresh Test Save In-Game */}
+            <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[20px]">
+                    {t("icon_add_circle", "add_circle")}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 min-w-0 flex-1">
+                  <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                    {t(
+                      "lab_test_save_option_fresh_title",
+                      "Create New Test Save In-Game"
+                    )}
+                  </span>
+                  <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+                    {t(
+                      "lab_test_save_option_fresh_desc",
+                      "Starts the Lab with an empty saves folder so you can start a new game and save it as your dedicated testing world. Your normal saves remain untouched."
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-wrap pt-1">
+                <button
+                  type="button"
+                  disabled={isConfiguringSave}
+                  onClick={() => handleResetForFreshSave(false)}
+                  className="px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] bg-transparent hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_saves", "save")}
+                  </span>
+                  {t(
+                    "lab_test_save_btn_use_fresh",
+                    "Use Clean Sandbox (Create Save In-Game)"
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isConfiguringSave}
+                  onClick={() => handleResetForFreshSave(true)}
+                  className="px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] bg-transparent hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_launch", "rocket_launch")}
+                  </span>
+                  {t(
+                    "lab_test_save_btn_launch_create",
+                    "Launch Game Now to Create Test Save"
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Option 2: Pick / Copy From Existing Live Save Files */}
+            <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3.5">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--text)_25%,transparent)] bg-transparent text-[var(--text)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[20px]">
+                    {t("icon_swap_horiz", "swap_horiz")}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 min-w-0 flex-1">
+                  <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                    {t(
+                      "lab_test_save_option_copy_title",
+                      "Select or Change From Existing Saves"
+                    )}
+                  </span>
+                  <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+                    {t(
+                      "lab_test_save_option_copy_desc",
+                      "Copy one of your existing save files into the isolated Lab sandbox. Any changes made during testing stay in the Lab and never overwrite your original save."
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {testSaveStatus?.available_live_saves &&
+              testSaveStatus.available_live_saves.length > 0 ? (
+                <div className="flex flex-col gap-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+                  {testSaveStatus.available_live_saves.map((saveItem) => {
+                    const isCurrentActive =
+                      testSaveStatus.active_test_save?.file_name?.toLowerCase() ===
+                      saveItem.file_name.toLowerCase();
+                    return (
+                      <div
+                        key={saveItem.file_name}
+                        className={`rounded-xl p-3 border flex items-center justify-between gap-3 transition-all ${
+                          isCurrentActive
+                            ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
+                            : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <span
+                            className={`material-symbols-outlined !text-[18px] shrink-0 ${
+                              isCurrentActive
+                                ? "text-[var(--success)]"
+                                : "text-[var(--subtext)]"
+                            }`}
+                          >
+                            {t("icon_saves", "save")}
+                          </span>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="text-xs font-black font-mono text-[var(--text)] truncate">
+                              {saveItem.file_name}
+                            </span>
+                            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75">
+                              {`${(saveItem.size_kb / 1024).toFixed(1)} MB • ${
+                                saveItem.modified_epoch
+                                  ? new Date(
+                                      saveItem.modified_epoch * 1000
+                                    ).toLocaleString()
+                                  : ""
+                              }`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={isConfiguringSave}
+                          onClick={() => handleCopyLiveSaveForLab(saveItem.file_name)}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-transparent transition-all flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50 ${
+                            isCurrentActive
+                              ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                              : "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {isCurrentActive ? "check_circle" : "content_copy"}
+                          </span>
+                          {isCurrentActive
+                            ? t("lab_test_save_btn_active", "Active Test Save")
+                            : t("lab_test_save_btn_use_this", "Set as Test Save")}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--subtext)] text-center">
+                  {t(
+                    "lab_test_save_no_live_saves",
+                    "No existing .save files found in your game saves folder. Use the option above to create a new test save in-game."
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </SidePanel>

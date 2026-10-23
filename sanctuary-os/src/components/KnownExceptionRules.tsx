@@ -10,17 +10,16 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
 } from "../shared";
-import {
-  DashboardStatTile,
-  StatTileCarousel,
-} from "../hub-components/SharedCommandScreenLayout";
 import { SidePanelTitleInput } from "./layouts/ElevatedHubLayout";
+import { UniversalCard } from "./universal/UniversalCard";
 import {
   UniversalGroup,
   UniversalInput,
   UniversalTextArea,
   UniversalToggle,
+  StatBox,
 } from "./universal/UniversalLayout";
+import { scrubLogUserData, formatHumanReadableLogText } from "../utils/logScrubber";
 
 export type NormalizedRuleSeverity = "corrupted" | "unstable" | "unrelated";
 
@@ -449,30 +448,30 @@ export function KnownErrorDiagnosisBanner({
 
   return (
     <div className="flex flex-col gap-3 w-full" data-rules-v={rulesVersion}>
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
-            {t("icon_psychology", "psychology")}
-          </span>
-          <div className="flex flex-col">
-            <span className="text-xs font-black tracking-wider uppercase text-[var(--text)]">
-              {t("exc_rules_section_title", "Community Known Error Diagnosis")}
+      {effectiveAllowEdit && (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+              {t("icon_psychology", "psychology")}
             </span>
-            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80">
-              {t(
-                "exc_rules_section_subtitle",
-                "Matched against community-maintained exception log rules for this game"
-              )}
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xs font-black tracking-wider uppercase text-[var(--text)]">
+                {t("exc_rules_section_title", "Community Known Error Diagnosis")}
+              </span>
+              <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80">
+                {t(
+                  "exc_rules_section_subtitle",
+                  "Matched against community-maintained exception log rules for this game"
+                )}
+              </span>
+            </div>
           </div>
-        </div>
 
-        {effectiveAllowEdit && (
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => handleOpenCreateFromLog(true)}
-              className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_22%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-transparent text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[14px]">
                 {t("icon_bug_report", "bug_report")}
@@ -482,7 +481,7 @@ export function KnownErrorDiagnosisBanner({
             <button
               type="button"
               onClick={() => handleOpenCreateFromLog(false)}
-              className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-transparent text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[14px]">
                 {t("icon_edit_note", "edit_note")}
@@ -490,42 +489,48 @@ export function KnownErrorDiagnosisBanner({
               {t("exc_rules_btn_create_from_log", "Explain / Edit Known Error Rule")}
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {matchedRules.length > 0 && (
         <div className="flex flex-col gap-3">
           {matchedRules.map((rule) => {
             let normSev = normalizeRuleSeverity(rule);
-            // If this rule is being rendered inside a failed report (or logText has an explicit stamp), never show a contradictory "WON'T FAIL TEST / UNRELATED" green badge
             if (normSev === "unrelated" && reportFailed) {
               normSev = "unstable";
             }
             const isCrit = normSev === "corrupted";
             const isBenign = normSev === "unrelated";
             const borderClass = isCrit
-              ? "border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
+              ? "border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
               : isBenign
-              ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
-              : "border-[color-mix(in_srgb,var(--warning)_40%,transparent)]";
+              ? "border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
+              : "border-[color-mix(in_srgb,var(--warning)_35%,transparent)]";
 
             const badgeColor = isCrit
-              ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)]"
+              ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_45%,transparent)] bg-transparent"
               : isBenign
-              ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_15%,transparent)]"
-              : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_40%,transparent)] bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]";
+              ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-transparent"
+              : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-transparent";
 
             return (
               <div
                 key={rule.id}
-                className={`rounded-2xl p-4 glass-surface border ${borderClass} flex flex-col gap-3 shadow-md`}
+                className={`rounded-2xl p-4 glass-panel border ${borderClass} flex flex-col gap-3.5 shadow-md`}
               >
                 <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div className="flex flex-col gap-1 min-w-0 flex-1">
+                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase border ${badgeColor}`}
+                        className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black tracking-widest uppercase border flex items-center gap-1 ${badgeColor}`}
                       >
+                        <span className="material-symbols-outlined !text-[11px]">
+                          {isCrit
+                            ? t("icon_gpp_maybe", "gpp_maybe")
+                            : isBenign
+                            ? t("icon_bug_report", "bug_report")
+                            : t("icon_warning", "warning")}
+                        </span>
                         {isCrit
                           ? t("exc_rules_badge_corrupted", "CORRUPTED • GAME CRASH")
                           : isBenign
@@ -533,7 +538,7 @@ export function KnownErrorDiagnosisBanner({
                           : t("exc_rules_badge_unstable", "UNSTABLE • UI / RANDOM BUGS")}
                       </span>
                       {isBenign && (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-widest uppercase text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-transparent flex items-center gap-1">
                           <span className="material-symbols-outlined !text-[11px]">
                             {t("icon_verified", "verified")}
                           </span>
@@ -541,12 +546,12 @@ export function KnownErrorDiagnosisBanner({
                         </span>
                       )}
                       {rule.file_hint && (
-                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-mono text-[var(--subtext)] glass-surface border border-[rgba(var(--text-rgb),0.12)]">
+                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-mono text-[var(--subtext)] bg-transparent border border-[rgba(var(--text-rgb),0.12)]">
                           {rule.file_hint}
                         </span>
                       )}
                     </div>
-                    <span className="text-sm font-black text-[var(--text)] leading-snug mt-0.5">
+                    <span className="text-sm font-black text-[var(--text)] leading-snug">
                       {rule.title}
                     </span>
                   </div>
@@ -555,7 +560,7 @@ export function KnownErrorDiagnosisBanner({
                     <button
                       type="button"
                       onClick={() => handleOpenEdit(rule)}
-                      className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase glass-surface border border-[rgba(var(--text-rgb),0.15)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                      className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase bg-transparent border border-[rgba(var(--text-rgb),0.15)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] transition-all flex items-center gap-1 cursor-pointer shrink-0"
                     >
                       <span className="material-symbols-outlined !text-[13px]">
                         {t("icon_edit", "edit")}
@@ -565,31 +570,35 @@ export function KnownErrorDiagnosisBanner({
                   )}
                 </div>
 
-                {rule.diagnosis && (
-                  <div className="p-3 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.1)] flex flex-col gap-1">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5">
-                      <span className="material-symbols-outlined !text-[13px]">
-                        {t("icon_psychology", "psychology")}
-                      </span>
-                      {t("exc_rules_what_it_means", "What the Community Knows (Cause & Diagnosis)")}
-                    </span>
-                    <p className="text-xs font-bold text-[var(--text)] leading-relaxed">
-                      {rule.diagnosis}
-                    </p>
-                  </div>
-                )}
+                {(rule.diagnosis || rule.resolution) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-[rgba(var(--text-rgb),0.08)]">
+                    {rule.diagnosis && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1.5">
+                          <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                            {t("icon_psychology", "psychology")}
+                          </span>
+                          {t("exc_rules_what_it_means", "What the Community Knows (Cause & Diagnosis)")}
+                        </span>
+                        <p className="text-xs font-medium text-[var(--text)] opacity-90 leading-relaxed whitespace-pre-line">
+                          {rule.diagnosis.replace(/\s*•\s*/g, "\n• ").trim()}
+                        </p>
+                      </div>
+                    )}
 
-                {rule.resolution && (
-                  <div className="p-3 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.1)] flex flex-col gap-1">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-[var(--success)] flex items-center gap-1.5">
-                      <span className="material-symbols-outlined !text-[13px]">
-                        {t("icon_lightbulb", "lightbulb")}
-                      </span>
-                      {t("exc_rules_recommended_fix", "Recommended Fix / Resolution")}
-                    </span>
-                    <p className="text-xs font-bold text-[var(--subtext)] leading-relaxed">
-                      {rule.resolution}
-                    </p>
+                    {rule.resolution && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1.5">
+                          <span className="material-symbols-outlined !text-[13px] text-[var(--success)]">
+                            {t("icon_lightbulb", "lightbulb")}
+                          </span>
+                          {t("exc_rules_recommended_fix", "Recommended Fix / Resolution")}
+                        </span>
+                        <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed whitespace-pre-line">
+                          {rule.resolution.replace(/\s*•\s*/g, "\n• ").trim()}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -643,14 +652,16 @@ export function KnownErrorRuleEditorSidePanel({
     enabled: true,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [copiedRawLog, setCopiedRawLog] = useState(false);
 
   useEffect(() => {
     if (initialRule) {
       const normSev = normalizeRuleSeverity(initialRule);
       const def = DEFAULT_SIMS4_EXCEPTION_RULES.find((d) => d.id === initialRule.id);
+      const rawLogText = initialRule.raw_log || def?.raw_log || "";
       setRule({
         ...initialRule,
-        raw_log: initialRule.raw_log || def?.raw_log || "",
+        raw_log: rawLogText ? formatHumanReadableLogText(rawLogText) : "",
         severity: normSev,
         ignore_in_lab: normSev === "unrelated" ? true : !!initialRule.ignore_in_lab,
       });
@@ -676,11 +687,12 @@ export function KnownErrorRuleEditorSidePanel({
   const isExisting = existingRules.some((r) => r.id === rule.id);
 
   const handleExtractFromRawLog = () => {
-    const raw = (rule.raw_log || "").trim();
+    const raw = scrubLogUserData((rule.raw_log || "").trim());
     if (!raw) return;
     const suggested = extractSuggestedPatternFromLog(raw);
     setRule((prev) => ({
       ...prev,
+      raw_log: formatHumanReadableLogText(raw),
       title: prev.title.trim() ? prev.title : suggested.title,
       pattern: suggested.pattern || prev.pattern,
       file_hint: suggested.fileHint || prev.file_hint,
@@ -694,6 +706,7 @@ export function KnownErrorRuleEditorSidePanel({
       const normSev = normalizeRuleSeverity(rule);
       const finalizedRule: SchemaExceptionRule = {
         ...rule,
+        raw_log: rule.raw_log ? scrubLogUserData(rule.raw_log) : "",
         severity: normSev,
         ignore_in_lab: normSev === "unrelated" ? true : !!rule.ignore_in_lab,
       };
@@ -734,30 +747,26 @@ export function KnownErrorRuleEditorSidePanel({
   const severityOptions = [
     {
       id: "corrupted",
-      label: t(
-        "exc_rules_sev_corrupted_option",
-        "Corrupted (Game Crash / Fatal Mod Error)"
-      ),
+      label: t("exc_rules_filter_corrupted", "Corrupted"),
     },
     {
       id: "unstable",
-      label: t(
-        "exc_rules_sev_unstable_option",
-        "Unstable (UI Issues / Works with Random Bugs)"
-      ),
+      label: t("exc_rules_filter_unstable", "Unstable"),
     },
     {
       id: "unrelated",
-      label: t(
-        "exc_rules_sev_unrelated_option",
-        "Unrelated (Normal Game Bug — Not Caused by Mod)"
-      ),
+      label: t("exc_rules_filter_unrelated", "Unrelated"),
     },
   ];
 
   const normSev = normalizeRuleSeverity(rule);
   const isCrit = normSev === "corrupted";
   const isBenign = normSev === "unrelated";
+  const sevIcon = isCrit
+    ? t("icon_gpp_maybe", "gpp_maybe")
+    : isBenign
+    ? t("icon_bug_report", "bug_report")
+    : t("icon_warning", "warning");
 
   return (
     <SidePanel
@@ -781,7 +790,7 @@ export function KnownErrorRuleEditorSidePanel({
       }
       icon={readOnly ? t("icon_psychology", "psychology") : t("icon_rule", "rule")}
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[92vw] md:w-[680px]"
+      widthClass="w-[90vw] md:w-[820px]"
       headerActions={
         !readOnly ? (
           <PanelHeaderGroup>
@@ -805,266 +814,379 @@ export function KnownErrorRuleEditorSidePanel({
         ) : undefined
       }
     >
-      <div className="flex flex-col gap-8 pb-24">
-        <SidePanelTitleInput
-          value={rule.title}
-          onChange={
-            readOnly
-              ? undefined
-              : (v: string) => setRule((prev) => ({ ...prev, title: v }))
-          }
-          readOnly={readOnly}
-          placeholder={t(
-            "exc_rules_field_title_ph",
-            "e.g. StoreUtils / VirtualCurrencyWallet UI Desync"
-          )}
-          subtitle={t("exc_rules_field_title", "Rule Name / Issue Title")}
-        />
+      <div className="flex flex-col gap-4 mt-2 w-full pb-8">
+        {/* Top Rule Banner on Panel Body */}
+        <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <div
+              className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
+                isCrit
+                  ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
+                  : isBenign
+                  ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
+                  : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[22px]">{sevIcon}</span>
+            </div>
+            <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <span className="text-[10px] font-black font-mono uppercase tracking-[0.18em] text-[var(--accent)]">
+                {rule.file_hint || "lastException.txt"}
+              </span>
+              {readOnly ? (
+                <h3 className="text-base md:text-lg font-black text-[var(--text)] tracking-tight leading-snug break-words">
+                  {rule.title}
+                </h3>
+              ) : (
+                <input
+                  value={rule.title}
+                  onChange={(e) => setRule((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder={
+                    t(
+                      "exc_rules_field_title_ph",
+                      "e.g. StoreUtils / VirtualCurrencyWallet UI Desync"
+                    ) as string
+                  }
+                  className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--text)_15%,transparent)] focus:border-[var(--accent)] pb-1 text-base md:text-lg font-black text-[var(--text)] tracking-tight focus:outline-none transition-colors"
+                />
+              )}
+            </div>
+          </div>
 
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <span
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 ${
+                isCrit
+                  ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_45%,transparent)]"
+                  : isBenign
+                  ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
+                  : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_45%,transparent)]"
+              }`}
+            >
+              {isCrit
+                ? t("exc_rules_filter_corrupted", "Corrupted")
+                : isBenign
+                ? t("exc_rules_filter_unrelated", "Unrelated")
+                : t("exc_rules_filter_unstable", "Unstable")}
+            </span>
+            <span
+              className={`text-[10px] font-black uppercase tracking-wider ${
+                isBenign || rule.ignore_in_lab
+                  ? "text-[var(--success)]"
+                  : "text-[var(--warning)]"
+              }`}
+            >
+              {isBenign || rule.ignore_in_lab
+                ? t("exc_rules_badge_no_autofail", "Won't Fail Test")
+                : t("exc_rules_lab_fails_test", "Fails Lab Test")}
+            </span>
+          </div>
+        </div>
+
+        {/* 3-Column Telemetry / Rule Config Row */}
         {readOnly ? (
-          <>
-            <UniversalGroup
-              title={t("exc_rules_matched_pattern", "Matched Log Signature")}
-              icon={t("icon_rule", "rule")}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border ${
-                    isCrit
-                      ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
-                      : isBenign
-                      ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
-                      : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_12%,transparent)]"
-                  }`}
-                >
-                  {isCrit
-                    ? t("exc_rules_badge_corrupted", "CORRUPTED • GAME CRASH")
-                    : isBenign
-                    ? t("exc_rules_badge_unrelated", "UNRELATED • NORMAL GAME BUG")
-                    : t("exc_rules_badge_unstable", "UNSTABLE • UI / RANDOM BUGS")}
-                </span>
-                {(isBenign || rule.ignore_in_lab) && (
-                  <span className="px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] flex items-center gap-1">
-                    <span className="material-symbols-outlined !text-[12px]">
-                      {t("icon_verified", "verified")}
-                    </span>
-                    {t("exc_rules_badge_no_autofail", "WON'T FAIL TEST")}
-                  </span>
-                )}
-                {rule.file_hint && (
-                  <span className="px-3 py-1 rounded-full text-[10px] font-mono text-[var(--subtext)] glass-surface border border-[rgba(var(--text-rgb),0.15)]">
-                    {rule.file_hint}
-                  </span>
-                )}
-              </div>
-
-              <div className="p-4 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.12)] font-mono text-xs text-[var(--text)] break-words leading-relaxed">
-                {rule.pattern}
-              </div>
-
-              {rule.raw_log && (
-                <div className="flex flex-col gap-1.5 mt-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
-                    {t("exc_rules_raw_log_label", "Raw Exception / Stack Trace Snippet")}
-                  </span>
-                  <pre className="p-4 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.12)] font-mono text-[11px] text-[var(--subtext)] whitespace-pre-wrap break-words max-h-56 overflow-y-auto custom-scrollbar leading-relaxed">
-                    {rule.raw_log}
-                  </pre>
-                </div>
-              )}
-            </UniversalGroup>
-
-            <UniversalGroup
-              title={t("exc_rules_what_it_means", "What the Community Knows (Cause & Diagnosis)")}
-              icon={t("icon_psychology", "psychology")}
-            >
-              <div className="p-5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-sm font-bold text-[var(--text)] leading-relaxed whitespace-pre-wrap">
-                {rule.diagnosis || "--"}
-              </div>
-            </UniversalGroup>
-
-            <UniversalGroup
-              title={t("exc_rules_recommended_fix", "Recommended Fix / Resolution")}
-              icon={t("icon_lightbulb", "lightbulb")}
-            >
-              <div className="p-5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-sm font-bold text-[var(--text)] leading-relaxed whitespace-pre-wrap">
-                {rule.resolution || "--"}
-              </div>
-            </UniversalGroup>
-          </>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <StatBox
+              icon={sevIcon}
+              iconColorClass={
+                isCrit
+                  ? "text-[var(--danger)]"
+                  : isBenign
+                  ? "text-[var(--success)]"
+                  : "text-[var(--warning)]"
+              }
+              label={t("exc_rules_col_classification", "Issue Classification")}
+              value={
+                isCrit
+                  ? t("exc_rules_filter_corrupted", "Corrupted")
+                  : isBenign
+                  ? t("exc_rules_filter_unrelated", "Unrelated")
+                  : t("exc_rules_filter_unstable", "Unstable")
+              }
+            />
+            <StatBox
+              icon={t("icon_description", "description")}
+              iconColorClass="text-[var(--accent)]"
+              label={t("exc_rules_col_log_source", "Log File Source")}
+              value={rule.file_hint || "lastException.txt"}
+            />
+            <StatBox
+              icon={
+                isBenign || rule.ignore_in_lab
+                  ? t("icon_verified", "verified")
+                  : t("icon_science", "science")
+              }
+              iconColorClass={
+                isBenign || rule.ignore_in_lab
+                  ? "text-[var(--success)]"
+                  : "text-[var(--warning)]"
+              }
+              label={t("exc_rules_col_lab_behavior", "Lab Test Behavior")}
+              value={
+                isBenign || rule.ignore_in_lab
+                  ? t("exc_rules_badge_no_autofail", "Won't Fail Test")
+                  : t("exc_rules_lab_fails_test", "Fails Lab Test")
+              }
+            />
+          </div>
         ) : (
-          <>
-            <UniversalGroup
-              title={t("exc_rules_raw_log_group_title", "Raw Exception / Error Log Code")}
-              icon={t("icon_terminal", "terminal")}
-            >
-              <UniversalTextArea
-                label={t(
-                  "exc_rules_raw_log_label",
-                  "Raw Exception / Stack Trace Snippet"
-                )}
-                value={rule.raw_log || ""}
-                onChange={(v: any) =>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2">
+              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 truncate">
+                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
+                  {sevIcon}
+                </span>
+                <span className="truncate">
+                  {t("exc_rules_col_classification", "Issue Classification")}
+                </span>
+              </label>
+              <CustomDropdown
+                disableTint={true}
+                value={normSev}
+                options={severityOptions}
+                onChange={(vals: any) => {
+                  const rawVal = Array.isArray(vals) ? vals[0] : vals;
+                  const chosen = (rawVal || "unstable") as NormalizedRuleSeverity;
                   setRule((prev) => ({
                     ...prev,
-                    raw_log: typeof v === "string" ? v : v?.target?.value || "",
-                  }))
-                }
-                placeholder={t(
-                  "exc_rules_paste_log_ph",
-                  "Paste a raw lastException.txt or lastUIException.txt snippet here to auto-extract its signature..."
-                )}
-                rows={6}
+                    severity: chosen,
+                    ignore_in_lab: chosen === "unrelated",
+                  }));
+                }}
               />
-              {(rule.raw_log || "").trim().length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleExtractFromRawLog}
-                  className="self-start px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[14px]">
-                    {t("icon_auto_fix", "auto_fix_high")}
-                  </span>
-                  {t("exc_rules_btn_extract_pattern", "Auto-Extract Signature from Log")}
-                </button>
-              )}
-            </UniversalGroup>
+            </div>
 
-            <UniversalGroup
-              title={t("exc_rules_matched_pattern", "Matched Log Signature")}
-              icon={t("icon_rule", "rule")}
-            >
-              <UniversalInput
-                label={t(
-                  "exc_rules_field_pattern",
-                  "Log Match Pattern (Substring, Category ID, or Error Code)"
-                )}
-                value={rule.pattern}
-                onChange={(v: any) =>
-                  setRule((prev) => ({
-                    ...prev,
-                    pattern: typeof v === "string" ? v : v?.target?.value || "",
-                  }))
+            <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2">
+              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 truncate">
+                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
+                  {t("icon_description", "description")}
+                </span>
+                <span className="truncate">
+                  {t("exc_rules_col_log_source", "Log File Source")}
+                </span>
+              </label>
+              <input
+                value={rule.file_hint || ""}
+                onChange={(e) => setRule((prev) => ({ ...prev, file_hint: e.target.value }))}
+                placeholder={
+                  t(
+                    "exc_rules_field_file_hint_ph",
+                    "lastUIException.txt or lastException.txt"
+                  ) as string
                 }
-                placeholder={t(
+                className="w-full h-10 glass-surface rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+
+            <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2">
+              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 truncate">
+                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
+                  {t("icon_science", "science")}
+                </span>
+                <span className="truncate">
+                  {t("exc_rules_col_lab_behavior", "Lab Test Behavior")}
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  !isBenign &&
+                  setRule((prev) => ({ ...prev, ignore_in_lab: !prev.ignore_in_lab }))
+                }
+                className={`w-full h-10 rounded-xl px-3.5 border bg-transparent flex items-center justify-between text-xs font-black transition-all cursor-pointer ${
+                  isBenign || rule.ignore_in_lab
+                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                    : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
+                }`}
+              >
+                <span className="truncate">
+                  {isBenign || rule.ignore_in_lab
+                    ? t("exc_rules_badge_no_autofail", "Won't Fail Test")
+                    : t("exc_rules_lab_fails_test", "Fails Lab Test")}
+                </span>
+                <span className="material-symbols-outlined !text-[16px] shrink-0">
+                  {isBenign || rule.ignore_in_lab
+                    ? t("icon_verified", "verified")
+                    : t("icon_warning", "warning")}
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Matched Log Signature Bar */}
+        <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-wrap">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
+              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                {t("icon_rule", "rule")}
+              </span>
+              {t("exc_rules_header_pattern", "Matched Log Signature")}
+            </span>
+            {!readOnly && (rule.raw_log || "").trim().length > 0 && (
+              <button
+                type="button"
+                onClick={handleExtractFromRawLog}
+                className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[12px]">
+                  {t("icon_auto_fix", "auto_fix_high")}
+                </span>
+                {t("exc_rules_btn_extract_pattern", "Auto-Extract Signature from Log")}
+              </button>
+            )}
+          </div>
+          {readOnly ? (
+            <div className="px-4 py-3 font-mono text-xs font-bold text-[var(--text)] break-words leading-relaxed">
+              {rule.pattern}
+            </div>
+          ) : (
+            <input
+              value={rule.pattern}
+              onChange={(e) => setRule((prev) => ({ ...prev, pattern: e.target.value }))}
+              placeholder={
+                t(
                   "exc_rules_field_pattern_ph",
                   "e.g. StoreUtils/StoreDisabledByFeatureParameter | Error #1006"
-                )}
-              />
+                ) as string
+              }
+              className="w-full bg-transparent px-4 py-3 font-mono text-xs font-bold text-[var(--text)] focus:outline-none"
+            />
+          )}
+        </div>
 
-              <UniversalInput
-                label={t("exc_rules_field_file_hint", "Log File Source (Optional)")}
-                value={rule.file_hint || ""}
-                onChange={(v: any) =>
-                  setRule((prev) => ({
-                    ...prev,
-                    file_hint: typeof v === "string" ? v : v?.target?.value || "",
-                  }))
-                }
-                placeholder={t(
-                  "exc_rules_field_file_hint_ph",
-                  "e.g. lastUIException.txt or lastException.txt"
-                )}
-              />
-
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest ml-1">
-                  {t("exc_rules_field_severity", "Issue Classification")}
-                </label>
-                <CustomDropdown
-                  disableTint={true}
-                  value={normSev}
-                  options={severityOptions}
-                  onChange={(vals: any) => {
-                    const rawVal = Array.isArray(vals) ? vals[0] : vals;
-                    const chosen = (rawVal || "unstable") as NormalizedRuleSeverity;
-                    setRule((prev) => ({
-                      ...prev,
-                      severity: chosen,
-                      ignore_in_lab: chosen === "unrelated",
-                    }));
-                  }}
-                />
-                {isBenign && (
-                  <div className="p-3 rounded-xl border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] flex items-start gap-2 mt-1">
-                    <span className="material-symbols-outlined !text-[16px] text-[var(--success)] shrink-0 mt-0.5">
-                      {t("icon_verified", "verified")}
-                    </span>
-                    <span className="text-[11px] font-bold text-[var(--text)] leading-relaxed">
-                      {t(
-                        "exc_rules_unrelated_lab_notice",
-                        "Unrelated (Normal Game Bug) rules automatically bypass Lab Test auto-failure so vanilla game bugs never falsely fail a mod test."
-                      )}
-                    </span>
-                  </div>
-                )}
+        {/* Side-by-Side Community Diagnosis (Cause) + Recommended Fix / Resolution */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5 truncate">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                  {t("icon_psychology", "psychology")}
+                </span>
+                <span className="truncate">
+                  {t("exc_rules_header_cause", "Community Diagnosis (Cause)")}
+                </span>
+              </span>
+            </div>
+            {readOnly ? (
+              <div className="p-4 text-xs font-medium text-[var(--text)] leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto custom-scrollbar">
+                {rule.diagnosis || "--"}
               </div>
-            </UniversalGroup>
-
-            <UniversalGroup
-              title={t("exc_rules_what_it_means", "What the Community Knows (Cause & Diagnosis)")}
-              icon={t("icon_lightbulb", "lightbulb")}
-            >
-              <UniversalTextArea
-                label={t("exc_rules_field_diagnosis", "Community Diagnosis (What Causes This Error?)")}
+            ) : (
+              <textarea
+                rows={6}
                 value={rule.diagnosis}
-                onChange={(v: any) =>
-                  setRule((prev) => ({
-                    ...prev,
-                    diagnosis: typeof v === "string" ? v : v?.target?.value || "",
-                  }))
+                onChange={(e) => setRule((prev) => ({ ...prev, diagnosis: e.target.value }))}
+                placeholder={
+                  t(
+                    "exc_rules_field_diagnosis_ph",
+                    "Explain what the community knows about this exception in plain language..."
+                  ) as string
                 }
-                placeholder={t(
-                  "exc_rules_field_diagnosis_ph",
-                  "Explain what the community knows about this exception in plain language..."
-                )}
-                rows={4}
+                className="w-full p-4 bg-transparent text-xs font-medium text-[var(--text)] leading-relaxed focus:outline-none resize-y overflow-y-auto min-h-[150px] custom-scrollbar"
               />
+            )}
+          </div>
 
-              <UniversalTextArea
-                label={t("exc_rules_field_resolution", "Recommended Resolution / Fix Steps")}
+          <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5 truncate">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--success)] shrink-0">
+                  {t("icon_lightbulb", "lightbulb")}
+                </span>
+                <span className="truncate">
+                  {t("exc_rules_recommended_fix", "Recommended Fix / Resolution")}
+                </span>
+              </span>
+            </div>
+            {readOnly ? (
+              <div className="p-4 text-xs font-medium text-[var(--text)] leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto custom-scrollbar">
+                {rule.resolution || "--"}
+              </div>
+            ) : (
+              <textarea
+                rows={6}
                 value={rule.resolution}
-                onChange={(v: any) =>
-                  setRule((prev) => ({
-                    ...prev,
-                    resolution: typeof v === "string" ? v : v?.target?.value || "",
-                  }))
+                onChange={(e) => setRule((prev) => ({ ...prev, resolution: e.target.value }))}
+                placeholder={
+                  t(
+                    "exc_rules_field_resolution_ph",
+                    "Explain what the player or creator should do to fix or verify this issue..."
+                  ) as string
                 }
-                placeholder={t(
-                  "exc_rules_field_resolution_ph",
-                  "Explain what the player or creator should do to fix or verify this issue..."
-                )}
-                rows={3}
+                className="w-full p-4 bg-transparent text-xs font-medium text-[var(--text)] leading-relaxed focus:outline-none resize-y overflow-y-auto min-h-[150px] custom-scrollbar"
               />
+            )}
+          </div>
+        </div>
 
-              <div className="flex flex-col gap-1.5">
-                <UniversalToggle
-                  label={t(
-                    "exc_rules_field_ignore_lab",
-                    "Ignore During Timed Lab Verification (Do Not Fail Test)"
-                  )}
-                  checked={isBenign ? true : rule.ignore_in_lab}
-                  onChange={(val: boolean) =>
-                    setRule((prev) => ({ ...prev, ignore_in_lab: val }))
-                  }
-                />
-                <span className="text-[10px] text-[var(--subtext)] opacity-75 px-2 leading-relaxed">
-                  {t(
-                    "exc_rules_field_ignore_lab_desc",
-                    "Enable for harmless vanilla game errors (like EA Store/Wallet UI desyncs) so they do not falsely fail a Proving Run."
-                  )}
+        {/* Raw Exception / Stack Trace Terminal with Privacy Scrubber */}
+        {(readOnly ? Boolean(rule.raw_log) : true) && (
+          <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl overflow-hidden shadow-inner flex flex-col">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[var(--accent)] !text-[16px]">
+                  {t("icon_terminal", "terminal")}
+                </span>
+                <span className="text-xs font-black font-mono text-[var(--text)]">
+                  {t("exc_rules_raw_log_label", "Raw Exception / Stack Trace Snippet")}
                 </span>
               </div>
 
-              <UniversalToggle
-                label={t("exc_rules_field_enabled", "Rule Active")}
-                checked={rule.enabled}
-                onChange={(val: boolean) =>
-                  setRule((prev) => ({ ...prev, enabled: val }))
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center gap-1">
+                  <span className="material-symbols-outlined !text-[12px]">
+                    verified_user
+                  </span>
+                  {t("lab_report_pii_scrubbed_badge", "USER DATA SCRUBBED")}
+                </span>
+
+                {Boolean(rule.raw_log) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!rule.raw_log) return;
+                      navigator.clipboard?.writeText(formatHumanReadableLogText(rule.raw_log));
+                      setCopiedRawLog(true);
+                      setTimeout(() => setCopiedRawLog(false), 1800);
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {copiedRawLog ? "check" : t("icon_content_copy", "content_copy")}
+                    </span>
+                    {copiedRawLog
+                      ? t("lab_report_copied_btn", "Copied")
+                      : t("lab_report_copy_btn", "Copy Log")}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {readOnly ? (
+              <pre className="p-4 font-mono text-[11px] text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed max-h-64 overflow-y-auto custom-scrollbar opacity-90">
+                {formatHumanReadableLogText(rule.raw_log)}
+              </pre>
+            ) : (
+              <textarea
+                rows={7}
+                value={rule.raw_log || ""}
+                onChange={(e) =>
+                  setRule((prev) => ({
+                    ...prev,
+                    raw_log: formatHumanReadableLogText(e.target.value),
+                  }))
                 }
+                placeholder={
+                  t(
+                    "exc_rules_paste_log_ph",
+                    "Paste a raw lastException.txt or lastUIException.txt snippet here to auto-extract its signature..."
+                  ) as string
+                }
+                className="w-full p-4 bg-transparent font-mono text-[11px] text-[var(--text)] leading-relaxed focus:outline-none resize-y overflow-y-auto min-h-[160px] custom-scrollbar"
               />
-            </UniversalGroup>
-          </>
+            )}
+          </div>
         )}
       </div>
     </SidePanel>
@@ -1163,52 +1285,6 @@ export function KnownErrorRulesManager({
 
   return (
     <div className="flex flex-col gap-5 w-full pb-16">
-      {severityFilter === undefined && (
-        <StatTileCarousel>
-          <DashboardStatTile
-            variant="filter"
-            icon={t("icon_psychology", "psychology")}
-            label={t("filter_all", "All")}
-            number={counts.all}
-            isActive={activeFilter === "all"}
-            onClick={() => handleFilterChange("all")}
-          />
-          <DashboardStatTile
-            variant="filter"
-            icon={t("icon_gpp_maybe", "gpp_maybe")}
-            label={t("exc_rules_filter_corrupted", "Corrupted")}
-            number={counts.corrupted}
-            isActive={activeFilter === "corrupted"}
-            colorClass="text-[var(--danger)]"
-            onClick={() =>
-              handleFilterChange(activeFilter === "corrupted" ? "all" : "corrupted")
-            }
-          />
-          <DashboardStatTile
-            variant="filter"
-            icon={t("icon_warning", "warning")}
-            label={t("exc_rules_filter_unstable", "Unstable")}
-            number={counts.unstable}
-            isActive={activeFilter === "unstable"}
-            colorClass="text-[var(--warning)]"
-            onClick={() =>
-              handleFilterChange(activeFilter === "unstable" ? "all" : "unstable")
-            }
-          />
-          <DashboardStatTile
-            variant="filter"
-            icon={t("icon_bug_report", "bug_report")}
-            label={t("exc_rules_filter_unrelated", "Unrelated")}
-            number={counts.unrelated}
-            isActive={activeFilter === "unrelated"}
-            colorClass="text-[var(--success)]"
-            onClick={() =>
-              handleFilterChange(activeFilter === "unrelated" ? "all" : "unrelated")
-            }
-          />
-        </StatTileCarousel>
-      )}
-
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
@@ -1224,36 +1300,36 @@ export function KnownErrorRulesManager({
 
         {canEdit && !hideTopBarButton && (
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => {
-                setEditingRule(null);
-                setDefaultAsGameBug(true);
-                setIsEditorOpen(true);
-              }}
-              className="px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-[color-mix(in_srgb,var(--success)_14%,transparent)] text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_24%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[15px]">
-                {t("icon_bug_report", "bug_report")}
-              </span>
-              {t("exc_rules_btn_add_game_bug", "Add Normal Game Bug")}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEditingRule(null);
-                setDefaultAsGameBug(false);
-                setIsEditorOpen(true);
-              }}
-              className="px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[15px]">
-                {t("icon_add", "add")}
-              </span>
-              {t("exc_rules_btn_add_rule", "Add Known Error Rule")}
-            </button>
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingRule(null);
+                  setDefaultAsGameBug(true);
+                  setIsEditorOpen(true);
+                }}
+                className="px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-transparent text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[15px]">
+                  {t("icon_bug_report", "bug_report")}
+                </span>
+                {t("exc_rules_btn_add_game_bug", "Add Normal Game Bug")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingRule(null);
+                  setDefaultAsGameBug(false);
+                  setIsEditorOpen(true);
+                }}
+                className="px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[15px]">
+                  {t("icon_add", "add")}
+                </span>
+                {t("exc_rules_btn_add_rule", "Add Known Error Rule")}
+              </button>
+            </div>
+          )}
       </div>
 
       {filtered.length === 0 ? (
@@ -1272,7 +1348,7 @@ export function KnownErrorRulesManager({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((rule) => {
             const normSev = normalizeRuleSeverity(rule);
             const isCrit = normSev === "corrupted";
@@ -1284,11 +1360,11 @@ export function KnownErrorRulesManager({
               ? t("icon_bug_report", "bug_report")
               : t("icon_warning", "warning");
 
-            const accentColor = isCrit
-              ? "var(--danger)"
+            const iconColorClass = isCrit
+              ? "text-[var(--danger)]"
               : isBenign
-              ? "var(--success)"
-              : "var(--warning)";
+              ? "text-[var(--success)]"
+              : "text-[var(--warning)]";
 
             return (
               <div
@@ -1298,71 +1374,60 @@ export function KnownErrorRulesManager({
                   setDefaultAsGameBug(false);
                   setIsEditorOpen(true);
                 }}
-                className="group glass-panel rounded-2xl p-5 border border-[rgba(var(--text-rgb),0.1)] hover:border-[var(--accent)] transition-all duration-200 cursor-pointer flex flex-col justify-between gap-4 min-h-[180px] shadow-md hover:shadow-xl"
+                className="relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 shadow-xl overflow-hidden group cursor-pointer border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:-translate-y-0.5 hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-300"
               >
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-start gap-3.5 min-w-0">
-                    <div
-                      className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center border"
-                      style={{
-                        borderColor: `color-mix(in srgb, ${accentColor} 35%, transparent)`,
-                        backgroundColor: `color-mix(in srgb, ${accentColor} 12%, transparent)`,
-                        color: accentColor,
-                      }}
-                    >
-                      <span className="material-symbols-outlined !text-[22px]">
-                        {iconName}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col gap-1 min-w-0 flex-1">
-                      <span className="text-sm font-black text-[var(--text)] leading-snug line-clamp-1 group-hover:text-[var(--accent)] transition-colors">
-                        {rule.title}
-                      </span>
-                      <span className="text-[11px] font-mono text-[var(--subtext)] opacity-75 truncate">
-                        {rule.pattern}
-                      </span>
-                    </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
+                      isCrit
+                        ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
+                        : isBenign
+                        ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
+                        : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[20px]">
+                      {iconName}
+                    </span>
                   </div>
-
-                  {rule.diagnosis && (
-                    <p className="text-xs font-medium text-[var(--subtext)] opacity-90 line-clamp-2 leading-relaxed">
-                      {rule.diagnosis}
-                    </p>
-                  )}
+                  <span
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 shrink-0 ${
+                      isCrit
+                        ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_45%,transparent)]"
+                        : isBenign
+                        ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
+                        : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_45%,transparent)]"
+                    }`}
+                  >
+                    {isCrit
+                      ? t("exc_rules_filter_corrupted", "Corrupted")
+                      : isBenign
+                      ? t("exc_rules_filter_unrelated", "Unrelated")
+                      : t("exc_rules_filter_unstable", "Unstable")}
+                  </span>
                 </div>
 
-                <div className="pt-3.5 border-t border-[rgba(var(--text-rgb),0.08)] flex items-center justify-between gap-2 flex-wrap mt-auto">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className={`px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase border ${
-                        isCrit
-                          ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
-                          : isBenign
-                          ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
-                          : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_12%,transparent)]"
-                      }`}
-                    >
-                      {isCrit
-                        ? t("exc_rules_badge_corrupted", "CORRUPTED • GAME CRASH")
-                        : isBenign
-                        ? t("exc_rules_badge_unrelated", "UNRELATED • NORMAL GAME BUG")
-                        : t("exc_rules_badge_unstable", "UNSTABLE • UI / RANDOM BUGS")}
-                    </span>
-
-                    {(isBenign || rule.ignore_in_lab) && (
-                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] flex items-center gap-1">
-                        <span className="material-symbols-outlined !text-[12px]">
-                          {t("icon_verified", "verified")}
-                        </span>
-                        {t("exc_rules_badge_no_autofail", "WON'T FAIL TEST")}
-                      </span>
-                    )}
-                  </div>
-
+                <div className="flex flex-col gap-1 min-w-0">
                   {rule.file_hint && (
-                    <span className="px-2.5 py-1 rounded-lg text-[9px] font-mono text-[var(--subtext)] glass-surface border border-[rgba(var(--text-rgb),0.12)] shrink-0">
+                    <span className="text-[10px] font-black font-mono uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 truncate">
                       {rule.file_hint}
+                    </span>
+                  )}
+                  <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug line-clamp-1">
+                    {rule.title}
+                  </h3>
+                  <p className="text-xs font-medium text-[var(--subtext)] line-clamp-2 leading-relaxed">
+                    {rule.diagnosis || rule.pattern}
+                  </p>
+                </div>
+
+                <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[11px] font-bold text-[var(--subtext)] opacity-75">
+                  <span className="font-mono truncate max-w-[65%]">
+                    {rule.pattern}
+                  </span>
+                  {(isBenign || rule.ignore_in_lab) && (
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-[var(--success)]">
+                      {t("exc_rules_badge_no_autofail", "Won't Fail Test")}
                     </span>
                   )}
                 </div>

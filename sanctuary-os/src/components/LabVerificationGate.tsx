@@ -9,6 +9,21 @@ import {
   getExceptionRules,
   isUnrelatedGameBugLog,
 } from "./KnownExceptionRules";
+import { scrubLogUserData, formatHumanReadableLogText } from "../utils/logScrubber";
+
+export interface LabSaveFileInfo {
+  file_name: string;
+  modified_epoch: number;
+  size_kb: number;
+}
+
+export interface LabTestSaveStatus {
+  has_test_save: boolean;
+  active_test_save?: LabSaveFileInfo | null;
+  sandbox_saves: LabSaveFileInfo[];
+  available_live_saves: LabSaveFileInfo[];
+  airgap_active: boolean;
+}
 
 export interface LabVerificationCertificate {
   dna_hash: string;
@@ -145,7 +160,7 @@ export async function recordVerifiedCertificate(cert: LabVerificationCertificate
 export function recordFailedVerification(dnaHash: string, errorLog: string) {
   try {
     const failMap = getCachedFailedMap();
-    failMap[dnaHash] = errorLog;
+    failMap[dnaHash] = scrubLogUserData(errorLog);
     localStorage.setItem(LOCAL_FAIL_STORAGE_KEY, JSON.stringify(failMap));
     window.dispatchEvent(new CustomEvent("sanctuary-lab-cert-updated", { detail: { dna_hash: dnaHash } }));
   } catch (e) {}
@@ -224,7 +239,7 @@ export async function checkDnaHashVerification(dnaHash?: string | null): Promise
         // If latest log had an exception and no clean log exists
         const latest = logs[0];
         if (latest.log_snippet && latest.log_snippet !== "Clean") {
-          return { verified: false, failed: true, errorLog: latest.log_snippet };
+          return { verified: false, failed: true, errorLog: scrubLogUserData(latest.log_snippet) };
         }
       }
     }
@@ -233,7 +248,7 @@ export async function checkDnaHashVerification(dnaHash?: string | null): Promise
   // 4. Check local failed map
   const failMap = getCachedFailedMap();
   if (failMap[dnaHash]) {
-    return { verified: false, failed: true, errorLog: failMap[dnaHash] };
+    return { verified: false, failed: true, errorLog: scrubLogUserData(failMap[dnaHash]) };
   }
 
   return { verified: false, failed: false };
@@ -269,13 +284,13 @@ export function LabVerificationBadge({
 
   if (!dnaHash) return null;
 
-  const sizeClass = compact
-    ? "px-2 py-0.5 rounded-md text-[8px] font-bold tracking-wider uppercase flex items-center gap-1.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)]"
-    : "px-2.5 py-1 rounded-lg text-[9px] font-bold tracking-wider uppercase flex items-center gap-1.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)]";
+  const baseSizeClass = compact
+    ? "px-2 py-0.5 rounded-md text-[8px] font-black tracking-wider uppercase flex items-center gap-1.5 shrink-0 bg-transparent border"
+    : "px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase flex items-center gap-1.5 shrink-0 bg-transparent border";
 
   if (state.verified) {
     return (
-      <span className={sizeClass}>
+      <span className={`${baseSizeClass} border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]`}>
         <span className="material-symbols-outlined !text-[12px] text-[var(--success)] shrink-0">
           {t("icon_verified", "verified")}
         </span>
@@ -288,7 +303,7 @@ export function LabVerificationBadge({
 
   if (state.failed) {
     return (
-      <span className={sizeClass}>
+      <span className={`${baseSizeClass} border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]`}>
         <span className="material-symbols-outlined !text-[12px] text-[var(--danger)] shrink-0">
           {t("icon_error", "error")}
         </span>
@@ -302,7 +317,7 @@ export function LabVerificationBadge({
   if (!required) return null;
 
   return (
-    <span className={sizeClass}>
+    <span className={`${baseSizeClass} border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]`}>
       <span className="material-symbols-outlined !text-[12px] text-[var(--warning)] shrink-0">
         {t("icon_science", "science")}
       </span>
@@ -321,6 +336,7 @@ interface LabVerificationGateProps {
   roleContext: "mason" | "scout" | "architect" | "lab";
   isGateRequired: boolean;
   externalStatus?: LabVerificationStatus | null;
+  hideErrorLog?: boolean;
   onStatusChange?: (status: {
     verified: boolean;
     failed: boolean;
@@ -339,6 +355,7 @@ export function LabVerificationGate({
   roleContext,
   isGateRequired,
   externalStatus,
+  hideErrorLog = false,
   onStatusChange,
   onOpenInFullLab,
 }: LabVerificationGateProps) {
@@ -745,19 +762,19 @@ export function LabVerificationGate({
       {isRunning && activeSession && (
         <div className="flex flex-col gap-3.5">
           <div className="flex flex-col gap-2">
-            {activeSession.seeded_save_present && (
-              <div className="px-3.5 py-2 rounded-xl bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] text-[10px] font-black tracking-wide flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[15px] shrink-0">
-                  {t("icon_saves", "save")}
-                </span>
-                <span className="leading-snug">
-                  {t("lab_seed_save_badge", "Sandbox Seeded with Latest Save (Ready to Resume)")}
-                </span>
-              </div>
-            )}
+            <div className="px-3.5 py-2 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[10px] font-black tracking-wide flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[15px] shrink-0">
+                {t("icon_saves", "save")}
+              </span>
+              <span className="leading-snug">
+                {activeSession.seeded_save_present
+                  ? t("lab_test_save_active_badge", "ISOLATED TEST SAVE READY")
+                  : t("lab_test_save_none_badge", "CLEAN SANDBOX (CREATE SAVE IN-GAME)")}
+              </span>
+            </div>
 
             {activeSession.linked_files && activeSession.linked_files.length > 0 && (
-              <div className="px-3.5 py-2 rounded-xl bg-[color-mix(in_srgb,var(--success)_12%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] text-[10px] font-black tracking-wide flex items-center gap-2">
+              <div className="px-3.5 py-2 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] text-[10px] font-black tracking-wide flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[15px] shrink-0">
                   {t("icon_link", "link")}
                 </span>
@@ -782,12 +799,12 @@ export function LabVerificationGate({
               return (
                 <div
                   key={st.id}
-                  className={`px-3.5 py-2.5 rounded-xl border text-[10px] font-black tracking-wide flex items-center gap-2 transition-all ${
+                  className={`px-3.5 py-2.5 rounded-xl border text-[10px] font-black tracking-wide flex items-center gap-2 transition-all bg-transparent ${
                     isCurr
-                      ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] shadow-sm"
+                      ? "border-[var(--accent)] text-[var(--accent)] shadow-sm"
                       : isDone
-                      ? "border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)]"
-                      : "glass-surface border-[rgba(var(--text-rgb),0.12)] text-[var(--subtext)] opacity-75"
+                      ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                      : "border-[rgba(var(--text-rgb),0.14)] text-[var(--subtext)] opacity-75"
                   }`}
                 >
                   <span className="material-symbols-outlined !text-[15px] shrink-0">
@@ -820,7 +837,7 @@ export function LabVerificationGate({
               </span>
 
               {activeSession.pause_reason && (
-                <div className="mt-1.5 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--warning)_18%,transparent)] border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5">
+                <div className="mt-1.5 px-3 py-1.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5">
                   <span className="material-symbols-outlined !text-[14px] shrink-0">
                     {t("icon_pause_circle", "pause_circle")}
                   </span>
@@ -916,11 +933,11 @@ export function LabVerificationGate({
       )}
 
       {/* Error Log when failed and not running */}
-      {!isRunning && (failedError || activeSession?.error_log) && (
+      {!hideErrorLog && !isRunning && (failedError || activeSession?.error_log) && (
         <div className="flex flex-col gap-3">
-          <KnownErrorDiagnosisBanner logText={failedError || activeSession?.error_log} />
+          <KnownErrorDiagnosisBanner logText={scrubLogUserData(failedError || activeSession?.error_log)} />
           <pre className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[10px] font-mono text-[var(--danger)] whitespace-pre-wrap max-h-28 overflow-y-auto custom-scrollbar">
-            {failedError || activeSession?.error_log}
+            {formatHumanReadableLogText(failedError || activeSession?.error_log)}
           </pre>
         </div>
       )}
@@ -931,7 +948,7 @@ export function LabVerificationGate({
           <button
             type="button"
             onClick={handleStopInlineTimedTest}
-            className="px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] transition-all flex items-center gap-2 cursor-pointer"
+            className="px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] bg-transparent text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] transition-all flex items-center gap-2 cursor-pointer"
           >
             <span className="material-symbols-outlined !text-[15px]">
               {t("icon_stop_circle", "stop_circle")}

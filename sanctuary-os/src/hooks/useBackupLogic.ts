@@ -23,7 +23,7 @@ export function useBackupLogic(detectGameVersion: () => void) {
   }
 
   async function restoreGameBackup(filename: string) {
-    setStatus(`${t("status_restoring_prefix")}${filename}...`);
+    setStatus(`${t("status_restoring_prefix", "Restoring: ")}${filename}...`);
     useStore.getState().setBackupProgress(null);
     setIsRestoring(true);
     try {
@@ -36,7 +36,7 @@ export function useBackupLogic(detectGameVersion: () => void) {
       });
       setStatus(msg as string);
     } catch (err) {
-      setStatus(`${t("status_restore_failure")}${err}`);
+      setStatus(`${t("status_restore_failure", "Restore failed: ")}${err}`);
     } finally {
       setIsRestoring(false);
       detectGameVersion();
@@ -46,18 +46,18 @@ export function useBackupLogic(detectGameVersion: () => void) {
   const deleteBackup = async (fileName: string) => {
     try {
       const currentList = useStore.getState().backupList || [];
-      useStore.getState().setBackupList(currentList.filter(b => b.name !== fileName));
+      useStore.getState().setBackupList(currentList.filter((b) => b.name !== fileName));
       await invoke("delete_backup", { fileName });
       setTimeout(() => fetchBackups(), 500);
     } catch (err) {
       fetchBackups();
-      alert(`${t("alert_deletion_failed")}${err}`);
+      alert(`${t("alert_deletion_failed", "Deletion failed: ")}${err}`);
     }
   };
 
   const triggerFullEngineBackup = async () => {
     const config: any = await invoke("get_saved_coordinates");
-    useModalStore.getState().setBackupType('engine');
+    useModalStore.getState().setBackupType("engine");
     useStore.getState().setBackupProgress(null);
     setIsBackingUp(true);
     try {
@@ -67,7 +67,7 @@ export function useBackupLogic(detectGameVersion: () => void) {
       });
       fetchBackups();
     } catch (err) {
-      alert(`${t("alert_backup_failed")}${err}`);
+      alert(`${t("alert_backup_failed", "Backup failed: ")}${err}`);
     } finally {
       setIsBackingUp(false);
     }
@@ -76,8 +76,14 @@ export function useBackupLogic(detectGameVersion: () => void) {
   const triggerPrePatchSnapshot = async () => {
     const config: any = await invoke("get_saved_coordinates");
     const docsBase = config.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
-    setStatus(`${t("icon_inventory_2")} ${t("status_executing_prepatch_snapshot")}`);
-    useModalStore.getState().setBackupType('world');
+    setStatus(
+      `${t("icon_inventory_2", "inventory_2")} ${t(
+        "status_executing_prepatch_snapshot",
+        "Creating save snapshot..."
+      )}`
+    );
+    useModalStore.getState().setBackupType("world");
+    useStore.getState().setBackupProgress(null);
     setIsBackingUp(true);
     try {
       await invoke("backup_universe", {
@@ -85,14 +91,25 @@ export function useBackupLogic(detectGameVersion: () => void) {
         version: selectedVersion,
       });
       fetchBackups();
-      setStatus(`${t("icon_check_circle")} ${t("status_prepatch_snapshot_secured")}`);
+      setStatus(
+        `${t("icon_check_circle", "check_circle")} ${t(
+          "status_prepatch_snapshot_secured",
+          "Snapshot secured."
+        )}`
+      );
     } catch (err) {
       console.error(err);
-      alert(`${t("alert_backup_failed")}${err}`);
+      alert(`${t("alert_backup_failed", "Backup failed: ")}${err}`);
     } finally {
       setIsBackingUp(false);
     }
   };
 
-  return { fetchBackups, restoreGameBackup, deleteBackup, triggerFullEngineBackup, triggerPrePatchSnapshot };
+  return {
+    fetchBackups,
+    restoreGameBackup,
+    deleteBackup,
+    triggerFullEngineBackup,
+    triggerPrePatchSnapshot,
+  };
 }

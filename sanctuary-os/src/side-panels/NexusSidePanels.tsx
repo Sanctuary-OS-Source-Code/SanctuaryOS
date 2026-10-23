@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, PillTabs, PillTabButton, SidePanel, PanelHeaderGroup, PanelHeaderButton, ViewHeader, HoverTooltip, getNormalizedArtifactName, ActionPill, GlassSegmentedControl } from "../shared";
+import { CustomDropdown, standardAccentGlassButtonClass, FilterTabs, FilterTabButton, SidePanel, PanelHeaderGroup, PanelHeaderButton, ViewHeader, HoverTooltip, getNormalizedArtifactName, ActionPill, GlassSegmentedControl } from "../shared";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";

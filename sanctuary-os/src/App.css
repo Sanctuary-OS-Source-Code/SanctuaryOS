@@ -538,11 +538,11 @@ body,
     border-radius: var(--radius, 1.5rem);
     border-style: solid;
     border-width: 1px;
-    border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.16));
-    border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.12));
-    border-right-color: var(--glass-border-right, rgba(255, 255, 255, 0.07));
-    border-bottom-color: var(--glass-border-bottom, rgba(255, 255, 255, 0.05));
-    background-color: var(--glass-base-fill, rgba(10, 14, 24, 0.16));
+    border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.22));
+    border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.15));
+    border-right-color: var(--glass-border-right, rgba(255, 255, 255, 0.08));
+    border-bottom-color: var(--glass-border-bottom, rgba(255, 255, 255, 0.06));
+    background-color: var(--glass-base-fill, rgba(10, 14, 24, 0.14));
   }
 
   .glass-surface {
@@ -551,19 +551,21 @@ body,
     border-radius: max(0px, calc(var(--radius) - 6px));
     border-style: solid;
     border-width: 1px;
-    border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.14));
-    border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.10));
-    border-right-color: var(--glass-surface-border, rgba(255, 255, 255, 0.07));
+    border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.18));
+    border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.12));
+    border-right-color: var(--glass-surface-border, rgba(255, 255, 255, 0.08));
     border-bottom-color: var(--glass-surface-border, rgba(255, 255, 255, 0.06));
-    background-color: var(--glass-surface-fill, rgba(10, 14, 24, 0.12));
+    background-color: var(--glass-surface-fill, rgba(10, 14, 24, 0.10));
   }
 
+  nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
   .sa-side-panel-window .glass-panel:not(.portal-glass-fix),
   .sanctuary-modal-glass .glass-panel:not(.portal-glass-fix),
   .glass-panel .glass-panel:not(.portal-glass-fix) {
     background-color: var(--glass-nested-panel-bg, rgba(255, 255, 255, 0.055));
   }
 
+  nav.firefox-safe-glass .glass-surface:not(.portal-glass-fix),
   .sa-side-panel-window .glass-surface:not(.portal-glass-fix),
   .sanctuary-modal-glass .glass-surface:not(.portal-glass-fix),
   .glass-panel .glass-surface:not(.portal-glass-fix),
@@ -575,14 +577,23 @@ body,
 .glass-panel {
   overflow: hidden;
   color: var(--text);
-  background-image: var(--glass-sheen, linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%));
-  -webkit-backdrop-filter: blur(min(var(--glassBlur, 18px), 18px)) saturate(var(--glassSaturation, 185%));
-  backdrop-filter: blur(min(var(--glassBlur, 18px), 18px)) saturate(var(--glassSaturation, 185%));
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-image:
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.02) 38%, transparent 65%),
+    var(--glass-sheen, linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.02) 45%, transparent 70%)),
+    linear-gradient(0deg, var(--glass-base-fill, rgba(10, 14, 24, 0.14)), var(--glass-base-fill, rgba(10, 14, 24, 0.14))),
+    var(--glass-refracted-wallpaper, none);
+  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh);
+  background-position: 0 0, 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px));
+  background-origin: border-box, border-box, border-box, border-box;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+  background-attachment: scroll, scroll, scroll, scroll;
   transition-property: color, background-color, border-color, box-shadow, transform;
   transition-duration: 300ms;
   box-shadow:
-    var(--glass-outer-shadow, 0 18px 40px -10px rgba(0, 0, 0, 0.45)),
-    var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12));
+    var(--glass-outer-shadow, 0 18px 40px -10px rgba(0, 0, 0, 0.48)),
+    var(--glass-inset-highlight, inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.24), inset 1px 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.05));
 }
 
 .glass-panel.rounded-\[inherit\] {
@@ -598,14 +609,22 @@ body,
 .glass-surface {
   overflow: hidden;
   color: var(--text);
-  background-image: var(--glass-surface-sheen, linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.015) 100%));
-  -webkit-backdrop-filter: blur(min(calc(var(--glassBlur, 18px) * 0.75), 14px)) saturate(var(--glassSaturation, 185%));
-  backdrop-filter: blur(min(calc(var(--glassBlur, 18px) * 0.75), 14px)) saturate(var(--glassSaturation, 185%));
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-image:
+    var(--glass-surface-sheen, linear-gradient(135deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.015) 45%, transparent 75%)),
+    linear-gradient(0deg, var(--glass-surface-fill, rgba(10, 14, 24, 0.10)), var(--glass-surface-fill, rgba(10, 14, 24, 0.10))),
+    var(--glass-refracted-wallpaper, none);
+  background-size: 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh);
+  background-position: 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px));
+  background-origin: border-box, border-box, border-box;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-attachment: scroll, scroll, scroll;
   transition-property: color, background-color, border-color, box-shadow, opacity, transform;
   transition-duration: 300ms;
   box-shadow:
-    var(--glass-surface-outer-shadow, 0 6px 16px -4px rgba(0, 0, 0, 0.20)),
-    var(--glass-surface-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.08));
+    var(--glass-surface-outer-shadow, 0 6px 16px -4px rgba(0, 0, 0, 0.24)),
+    var(--glass-surface-inset-highlight, inset 0 1px 1px 0 rgba(255, 255, 255, 0.18), inset 1px 0 1px 0 rgba(255, 255, 255, 0.08));
 }
 
 .glass-surface.rounded-\[inherit\] {
@@ -618,75 +637,68 @@ body,
   display: none !important;
 }
 
-/* Scroll-container glass panels & surfaces:
-   Chromium's SkiaRenderer slices scrolling containers (#sanctuary-main-scroll) into 256px/512px GPU tiles
-   and clamps backdrop-filter blur kernels at tile boundaries, causing visible seams across high-contrast wallpapers.
-   By compositing the pre-blurred, pre-saturated theme wallpaper (--glass-refracted-wallpaper) via
-   viewport-locked `background-attachment: fixed` with `backdrop-filter: none`, every card and tile
-   across every page refracts the exact underlying wallpaper coordinates with 0.00 tile boundary seams. */
-#sanctuary-main-scroll .glass-panel:not(.portal-glass-fix):not(.glass-panel .glass-panel):not(.glass-surface .glass-panel):not(.sa-side-panel-window *):not(.sanctuary-modal-glass *) {
+textarea.glass-surface,
+textarea.glass-panel,
+pre.glass-surface,
+pre.glass-panel,
+.glass-surface.overflow-y-auto,
+.glass-panel.overflow-y-auto,
+.glass-surface.custom-scrollbar,
+.glass-panel.custom-scrollbar {
+  overflow-y: auto !important;
+}
+
+nav.firefox-safe-glass {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  background-color: var(--glass-base-fill, rgba(10, 14, 24, 0.16));
+  background-color: var(--glass-sidebar-bg) !important;
   background-image:
-    var(--glass-sheen, linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%)),
-    linear-gradient(0deg, var(--glass-base-fill, rgba(10, 14, 24, 0.16)), var(--glass-base-fill, rgba(10, 14, 24, 0.16))),
-    var(--glass-refracted-wallpaper, none);
-  background-size: 100% 100%, 100% 100%, cover;
-  background-position: 0 0, 0 0, center center;
-  background-repeat: no-repeat, no-repeat, no-repeat;
-  background-attachment: scroll, scroll, fixed;
+    radial-gradient(130% 60% at 0% 0%, rgba(255, 255, 255, 0.17) 0%, rgba(255, 255, 255, 0.04) 40%, transparent 70%),
+    var(--glass-sidebar-sheen, var(--glass-sheen)),
+    linear-gradient(0deg, var(--glass-sidebar-bg), var(--glass-sidebar-bg)),
+    var(--glass-refracted-wallpaper, none) !important;
+  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
+  background-position: 0 0, 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px)) !important;
+  background-origin: border-box, border-box, border-box, border-box !important;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
+  background-attachment: scroll, scroll, scroll, scroll !important;
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity, width, min-width !important;
 }
 
-#sanctuary-main-scroll .glass-surface:not(.portal-glass-fix):not(.glass-panel .glass-surface):not(.glass-surface .glass-surface):not(.sa-side-panel-window *):not(.sanctuary-modal-glass *) {
+.sa-side-panel-window {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  background-color: var(--glass-surface-fill, rgba(10, 14, 24, 0.12));
+  background-color: var(--glass-drawer-bg, rgba(15, 23, 42, 0.18)) !important;
   background-image:
-    var(--glass-surface-sheen, linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.015) 100%)),
-    linear-gradient(0deg, var(--glass-surface-fill, rgba(10, 14, 24, 0.12)), var(--glass-surface-fill, rgba(10, 14, 24, 0.12))),
-    var(--glass-refracted-wallpaper, none);
-  background-size: 100% 100%, 100% 100%, cover;
-  background-position: 0 0, 0 0, center center;
-  background-repeat: no-repeat, no-repeat, no-repeat;
-  background-attachment: scroll, scroll, fixed;
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.025) 38%, transparent 65%),
+    var(--glass-drawer-sheen, var(--glass-sheen)),
+    linear-gradient(0deg, var(--glass-drawer-bg, rgba(15, 23, 42, 0.18)), var(--glass-drawer-bg, rgba(15, 23, 42, 0.18))),
+    var(--glass-refracted-wallpaper, none) !important;
+  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
+  background-position: 0 0, 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px)) !important;
+  background-origin: border-box, border-box, border-box, border-box !important;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
+  background-attachment: scroll, scroll, scroll, scroll !important;
 }
 
-/* Guarantee `background-attachment: fixed` on glass cards inside #sanctuary-main-scroll
-   always paints in root viewport coordinates (never local card coordinates on hover or animation) */
-html,
-body,
-#root,
-:has(#sanctuary-main-scroll),
-#sanctuary-main-scroll,
-#sanctuary-main-scroll :has(.glass-panel, .glass-surface),
-#sanctuary-main-scroll .glass-panel:not(.portal-glass-fix),
-#sanctuary-main-scroll .glass-panel:not(.portal-glass-fix):hover,
-#sanctuary-main-scroll .glass-surface:not(.portal-glass-fix),
-#sanctuary-main-scroll .glass-surface:not(.portal-glass-fix):hover {
-  transform: var(--sanctuary-no-transform, none) !important;
-  translate: var(--sanctuary-no-transform, none) !important;
-  scale: var(--sanctuary-no-transform, none) !important;
-  rotate: var(--sanctuary-no-transform, none) !important;
-  perspective: none !important;
-  filter: none !important;
-  contain: none !important;
-  will-change: auto !important;
-}
-
-/* Nested glass elements inside SidePanels, Modals, or parent cards sit over an already-blurred glass surface:
+/* Nested glass elements inside Sidebar, SidePanels, Modals, or parent cards sit over an already-blurred glass surface:
    skip redundant backdrop readbacks and use raised 3D Liquid Glass bevels & specular sheens */
+nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
 .sa-side-panel-window .glass-panel:not(.portal-glass-fix),
 .sanctuary-modal-glass .glass-panel:not(.portal-glass-fix),
-.glass-panel .glass-panel:not(.portal-glass-fix) {
+.glass-panel .glass-panel:not(.portal-glass-fix),
+.glass-surface .glass-panel:not(.portal-glass-fix) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background-image: var(--glass-nested-sheen, var(--glass-sheen)) !important;
+  background-size: 100% 100% !important;
+  background-position: 0 0 !important;
   box-shadow:
     var(--glass-nested-shadow, 0 12px 28px -6px rgba(0, 0, 0, 0.34)),
     var(--glass-inset-highlight) !important;
 }
 
+nav.firefox-safe-glass .glass-surface:not(.portal-glass-fix),
 .sa-side-panel-window .glass-surface:not(.portal-glass-fix),
 .sanctuary-modal-glass .glass-surface:not(.portal-glass-fix),
 .glass-panel .glass-surface:not(.portal-glass-fix),
@@ -694,18 +706,41 @@ body,
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background-image: var(--glass-surface-sheen) !important;
+  background-size: 100% 100% !important;
+  background-position: 0 0 !important;
   box-shadow:
     var(--glass-surface-outer-shadow),
     var(--glass-surface-inset-highlight) !important;
 }
 
+/* Prevent any nested Tailwind `backdrop-blur-*` badge, pill, or tooltip inside a glass card
+   from creating a secondary Chromium RenderPass that splits/tears the parent card's backdrop quad */
+nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
+.sa-side-panel-window [class*="backdrop-blur"]:not(.portal-glass-fix),
+.sanctuary-modal-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
+.glass-panel [class*="backdrop-blur"]:not(.portal-glass-fix),
+.glass-surface [class*="backdrop-blur"]:not(.portal-glass-fix) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 #root .portal-glass-fix,
 #sa-portals .portal-glass-fix,
 .portal-glass-fix {
-  background-color: var(--glass-portal-bg, rgba(15, 23, 42, 0.28)) !important;
-  background-image: var(--glass-portal-sheen, var(--glass-sheen)) !important;
-  -webkit-backdrop-filter: blur(max(var(--glassBlur, 36px), 40px)) saturate(var(--glassSaturation, 195%)) !important;
-  backdrop-filter: blur(max(var(--glassBlur, 36px), 40px)) saturate(var(--glassSaturation, 195%)) !important;
+  background-color: var(--glass-portal-bg, rgba(15, 23, 42, 0.24)) !important;
+  background-image:
+    radial-gradient(110% 100% at 20% 0%, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 44%, transparent 74%),
+    var(--glass-portal-sheen, var(--glass-sheen)),
+    linear-gradient(0deg, var(--glass-portal-bg, rgba(15, 23, 42, 0.24)), var(--glass-portal-bg, rgba(15, 23, 42, 0.24))),
+    var(--glass-refracted-wallpaper, none) !important;
+  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
+  background-position: 0 0, 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px)) !important;
+  background-origin: border-box, border-box, border-box, border-box !important;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
+  background-attachment: scroll, scroll, scroll, scroll !important;
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity, margin-bottom !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
   border-top-color: var(--glass-border-top) !important;
   border-left-color: var(--glass-border-left) !important;
   border-right-color: var(--glass-border-right) !important;
@@ -717,10 +752,19 @@ body,
 #root .portal-glass-fix.portal-glass-modal,
 #sa-portals .portal-glass-fix.portal-glass-modal,
 .portal-glass-fix.portal-glass-modal {
-  background-color: var(--glass-drawer-bg, rgba(15, 23, 42, 0.24)) !important;
-  background-image: var(--glass-drawer-sheen, var(--glass-sheen)) !important;
-  -webkit-backdrop-filter: blur(max(var(--glassBlur, 36px), 42px)) saturate(var(--glassSaturation, 195%)) !important;
-  backdrop-filter: blur(max(var(--glassBlur, 36px), 42px)) saturate(var(--glassSaturation, 195%)) !important;
+  background-color: var(--glass-drawer-bg, rgba(15, 23, 42, 0.18)) !important;
+  background-image:
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.025) 38%, transparent 65%),
+    var(--glass-drawer-sheen, var(--glass-sheen)),
+    linear-gradient(0deg, var(--glass-drawer-bg, rgba(15, 23, 42, 0.18)), var(--glass-drawer-bg, rgba(15, 23, 42, 0.18))),
+    var(--glass-refracted-wallpaper, none) !important;
+  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
+  background-position: 0 0, 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px)) !important;
+  background-origin: border-box, border-box, border-box, border-box !important;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
+  background-attachment: scroll, scroll, scroll, scroll !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
   box-shadow: var(--glass-drawer-shadow) !important;
 }
 
@@ -760,13 +804,13 @@ body,
 }
 
 .glass-panel.sanctuary-glass-intense {
-  -webkit-backdrop-filter: blur(min(var(--glassBlur, 18px), 20px)) saturate(180%);
-  backdrop-filter: blur(min(var(--glassBlur, 18px), 20px)) saturate(180%);
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 .glass-panel.sanctuary-glass-light {
-  -webkit-backdrop-filter: blur(min(calc(var(--glassBlur, 18px) * 0.8), 14px)) saturate(140%);
-  backdrop-filter: blur(min(calc(var(--glassBlur, 18px) * 0.8), 14px)) saturate(140%);
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 

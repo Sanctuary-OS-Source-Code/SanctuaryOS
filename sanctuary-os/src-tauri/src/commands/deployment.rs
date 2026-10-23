@@ -100,10 +100,133 @@ pub struct AirgapStatus {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct LabSaveFileInfo {
+    pub file_name: String,
+    pub modified_epoch: u64,
+    pub size_kb: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct LabTestSaveStatus {
+    pub has_test_save: bool,
+    pub active_test_save: Option<LabSaveFileInfo>,
+    pub sandbox_saves: Vec<LabSaveFileInfo>,
+    pub available_live_saves: Vec<LabSaveFileInfo>,
+    pub airgap_active: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RoutedFileRecord {
     pub target_path: String,
     pub backup_path: Option<String>,
     pub source_path: String,
+}
+
+fn resolve_save_extensions(game_schema: &Option<crate::schema::GameSchema>) -> Vec<String> {
+    game_schema
+        .as_ref()
+        .and_then(|s| s.lab_verification.as_ref())
+        .and_then(|lv| lv.save_extensions.clone())
+        .unwrap_or_else(|| vec![".save".to_string()])
+}
+
+fn list_saves_in_dir(dir: &Path, save_exts: &[String]) -> Vec<LabSaveFileInfo> {
+    let mut list = Vec::new();
+    if !dir.exists() {
+        return list;
+    }
+    for entry in walkdir::WalkDir::new(dir)
+        .max_depth(2)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let fname = entry.file_name().to_string_lossy().to_string();
+        let name_lower = fname.to_lowercase();
+        let matches_ext = save_exts
+            .iter()
+            .any(|ext| name_lower.ends_with(&ext.to_lowercase()));
+        if !matches_ext {
+            continue;
+        }
+        if let Ok(meta) = entry.metadata() {
+            let size_bytes = meta.len();
+            if size_bytes == 0 {
+                continue;
+            }
+            let modified_epoch = meta
+                .modified()
+                .ok()
+                .and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            list.push(LabSaveFileInfo {
+                file_name: fname,
+                modified_epoch,
+                size_kb: (size_bytes / 1024).max(1),
+            });
+        }
+    }
+    list.sort_by(|a, b| b.modified_epoch.cmp(&a.modified_epoch));
+    list
+}
+
+fn compute_lab_test_save_status(
+    docs_dir: &Path,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> LabTestSaveStatus {
+    let targets = resolve_save_airgap_targets(game_schema);
+    let primary_save_rel = targets
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "saves".to_string());
+    let save_exts = resolve_save_extensions(game_schema);
+
+    let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
+    let sandbox_root = docs_dir.join(".sanctuary_lab_sandbox");
+    let marker_file = airgap_root.join(".airgap_active.json");
+    let airgap_active = marker_file.exists() || airgap_root.join(&primary_save_rel).exists();
+
+    let (sandbox_saves_dir, live_saves_dir) = if airgap_active {
+        (
+            docs_dir.join(&primary_save_rel),
+            airgap_root.join(&primary_save_rel),
+        )
+    } else {
+        (
+            sandbox_root.join(&primary_save_rel),
+            docs_dir.join(&primary_save_rel),
+        )
+    };
+
+    let sandbox_saves = list_saves_in_dir(&sandbox_saves_dir, &save_exts);
+    let available_live_saves = list_saves_in_dir(&live_saves_dir, &save_exts);
+
+    let seeded_marker = sandbox_saves_dir.join(".sanctuary_seeded_save");
+    let preferred_name = std::fs::read_to_string(&seeded_marker)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    let active_test_save = if let Some(ref pref) = preferred_name {
+        sandbox_saves
+            .iter()
+            .find(|s| s.file_name.eq_ignore_ascii_case(pref))
+            .cloned()
+            .or_else(|| sandbox_saves.first().cloned())
+    } else {
+        sandbox_saves.first().cloned()
+    };
+
+    LabTestSaveStatus {
+        has_test_save: active_test_save.is_some(),
+        active_test_save,
+        sandbox_saves,
+        available_live_saves,
+        airgap_active,
+    }
 }
 
 fn resolve_save_airgap_targets(game_schema: &Option<crate::schema::GameSchema>) -> Vec<String> {
@@ -199,85 +322,38 @@ pub fn apply_save_airgap(
                 set_tree_readonly(&airgap_target, true);
             }
 
-            // Swap in the isolated Lab sandbox folder so test runs have their own clean save space
+            // Swap in the isolated Lab sandbox folder so test runs have their own dedicated test save space
             if !live_target.exists() {
                 if sandbox_target.exists() {
-                    let _ = std::fs::rename(&sandbox_target, &live_target);
+                    if std::fs::rename(&sandbox_target, &live_target).is_err() {
+                        let _ = deploy_air_gap(&sandbox_target, &live_target);
+                        set_tree_readonly(&sandbox_target, false);
+                        let _ = std::fs::remove_dir_all(&sandbox_target);
+                    }
                 }
                 let _ = std::fs::create_dir_all(&live_target);
             }
+            set_tree_readonly(&live_target, false);
 
-            // Seed sandbox from latest save if enabled and sandbox has no save files yet
-            let should_seed = game_schema
-                .as_ref()
-                .and_then(|s| s.lab_verification.as_ref())
-                .and_then(|lv| lv.seed_sandbox_from_latest_save)
-                .unwrap_or(true);
-            let save_exts: Vec<String> = game_schema
-                .as_ref()
-                .and_then(|s| s.lab_verification.as_ref())
-                .and_then(|lv| lv.save_extensions.clone())
-                .unwrap_or_else(|| vec![".save".to_string()]);
-
-            if should_seed && airgap_target.exists() && live_target.exists() {
-                let has_existing_save = walkdir::WalkDir::new(&live_target)
-                    .max_depth(2)
-                    .into_iter()
-                    .filter_map(|e| e.ok())
-                    .any(|e| {
-                        if !e.file_type().is_file() {
-                            return false;
-                        }
-                        let name_lower = e.file_name().to_string_lossy().to_lowercase();
-                        save_exts
+            // Sync .sanctuary_seeded_save marker with the dedicated test save in the sandbox (if one exists)
+            let save_exts = resolve_save_extensions(game_schema);
+            let current_sandbox_saves = list_saves_in_dir(&live_target, &save_exts);
+            let seeded_marker = live_target.join(".sanctuary_seeded_save");
+            if let Some(first_save) = current_sandbox_saves.first() {
+                let existing_marker_valid = std::fs::read_to_string(&seeded_marker)
+                    .ok()
+                    .map(|s| s.trim().to_string())
+                    .map(|m| {
+                        current_sandbox_saves
                             .iter()
-                            .any(|ext| name_lower.ends_with(&ext.to_lowercase()))
-                    });
-
-                if !has_existing_save {
-                    let mut newest_save: Option<(std::time::SystemTime, PathBuf)> = None;
-                    for entry in walkdir::WalkDir::new(&airgap_target)
-                        .max_depth(2)
-                        .into_iter()
-                        .filter_map(|e| e.ok())
-                    {
-                        if !entry.file_type().is_file() {
-                            continue;
-                        }
-                        let name_lower = entry.file_name().to_string_lossy().to_lowercase();
-                        let matches_ext = save_exts
-                            .iter()
-                            .any(|ext| name_lower.ends_with(&ext.to_lowercase()));
-                        if matches_ext {
-                            if let Ok(meta) = entry.metadata() {
-                                if meta.len() > 0 {
-                                    if let Ok(mtime) = meta.modified() {
-                                        if newest_save.as_ref().map_or(true, |(best, _)| mtime > *best) {
-                                            newest_save = Some((mtime, entry.path().to_path_buf()));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if let Some((_, src_save)) = newest_save {
-                        if let Some(fname) = src_save.file_name() {
-                            let dst_save = live_target.join(fname);
-                            if std::fs::copy(&src_save, &dst_save).is_ok() {
-                                if let Ok(meta) = std::fs::metadata(&dst_save) {
-                                    let mut perms = meta.permissions();
-                                    perms.set_readonly(false);
-                                    let _ = std::fs::set_permissions(&dst_save, perms);
-                                }
-                                let _ = std::fs::write(
-                                    live_target.join(".sanctuary_seeded_save"),
-                                    fname.to_string_lossy().as_bytes(),
-                                );
-                            }
-                        }
-                    }
+                            .any(|s| s.file_name.eq_ignore_ascii_case(&m))
+                    })
+                    .unwrap_or(false);
+                if !existing_marker_valid {
+                    let _ = std::fs::write(&seeded_marker, first_save.file_name.as_bytes());
                 }
+            } else {
+                let _ = std::fs::remove_file(&seeded_marker);
             }
 
             let _ = std::fs::write(
@@ -313,8 +389,9 @@ pub fn apply_save_airgap(
                         set_tree_readonly(&sandbox_target, false);
                         let _ = std::fs::remove_dir_all(&sandbox_target);
                     }
-                    // Move sandbox saves back to .sanctuary_lab_sandbox
+                    // Move sandbox saves back to .sanctuary_lab_sandbox so the dedicated test save persists
                     if std::fs::rename(&live_target, &sandbox_target).is_err() {
+                        let _ = deploy_air_gap(&live_target, &sandbox_target);
                         set_tree_readonly(&live_target, false);
                         let _ = std::fs::remove_dir_all(&live_target);
                     }
@@ -335,6 +412,141 @@ pub fn apply_save_airgap(
         let _ = std::fs::remove_file(&marker_file);
         Ok("Live saves restored from airgap".to_string())
     }
+}
+
+#[tauri::command]
+pub fn get_lab_test_save_status(
+    docs_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<LabTestSaveStatus, String> {
+    let game_schema = state.active_schema.lock().unwrap().clone();
+    let docs_dir = resolve_docs_root(&docs_path);
+    Ok(compute_lab_test_save_status(&docs_dir, &game_schema))
+}
+
+#[tauri::command]
+pub fn configure_lab_test_save(
+    docs_path: String,
+    mode: String,
+    source_save_name: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<LabTestSaveStatus, String> {
+    let game_schema = state.active_schema.lock().unwrap().clone();
+    let docs_dir = resolve_docs_root(&docs_path);
+    let targets = resolve_save_airgap_targets(&game_schema);
+    let primary_save_rel = targets
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "saves".to_string());
+    let save_exts = resolve_save_extensions(&game_schema);
+
+    let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
+    let sandbox_root = docs_dir.join(".sanctuary_lab_sandbox");
+    let marker_file = airgap_root.join(".airgap_active.json");
+    let airgap_active = marker_file.exists() || airgap_root.join(&primary_save_rel).exists();
+
+    let (sandbox_saves_dir, live_saves_dir) = if airgap_active {
+        (
+            docs_dir.join(&primary_save_rel),
+            airgap_root.join(&primary_save_rel),
+        )
+    } else {
+        (
+            sandbox_root.join(&primary_save_rel),
+            docs_dir.join(&primary_save_rel),
+        )
+    };
+
+    let _ = std::fs::create_dir_all(&sandbox_saves_dir);
+    set_tree_readonly(&sandbox_saves_dir, false);
+    let seeded_marker = sandbox_saves_dir.join(".sanctuary_seeded_save");
+
+    match mode.as_str() {
+        "reset_for_fresh_save" => {
+            for entry in walkdir::WalkDir::new(&sandbox_saves_dir)
+                .max_depth(2)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if entry.file_type().is_file() {
+                    let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+                    if fname_lower.contains(".save") || fname_lower == ".sanctuary_seeded_save" {
+                        let _ = std::fs::remove_file(entry.path());
+                    }
+                }
+            }
+            let _ = std::fs::remove_file(&seeded_marker);
+        }
+        "select_sandbox_save" => {
+            if let Some(target_name) = source_save_name.filter(|s| !s.trim().is_empty()) {
+                let _ = std::fs::write(&seeded_marker, target_name.trim().as_bytes());
+            }
+        }
+        "copy_live_save" => {
+            let target_name = source_save_name
+                .filter(|s| !s.trim().is_empty())
+                .or_else(|| {
+                    list_saves_in_dir(&live_saves_dir, &save_exts)
+                        .first()
+                        .map(|s| s.file_name.clone())
+                })
+                .ok_or_else(|| "No save file selected or available in live saves.".to_string())?;
+
+            let mut found_src: Option<PathBuf> = None;
+            if live_saves_dir.exists() {
+                for entry in walkdir::WalkDir::new(&live_saves_dir)
+                    .max_depth(2)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
+                    if entry.file_type().is_file()
+                        && entry
+                            .file_name()
+                            .to_string_lossy()
+                            .eq_ignore_ascii_case(&target_name)
+                    {
+                        found_src = Some(entry.path().to_path_buf());
+                        break;
+                    }
+                }
+            }
+
+            let src_path = found_src.ok_or_else(|| {
+                format!("Could not locate save file '{}' in live saves.", target_name)
+            })?;
+
+            // Remove old .save files in sandbox so only the selected dedicated test save is active
+            for entry in walkdir::WalkDir::new(&sandbox_saves_dir)
+                .max_depth(2)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if entry.file_type().is_file() {
+                    let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+                    if fname_lower.contains(".save") {
+                        let _ = std::fs::remove_file(entry.path());
+                    }
+                }
+            }
+
+            let clean_fname = src_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(&target_name)
+                .to_string();
+            let dst_path = sandbox_saves_dir.join(&clean_fname);
+            std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
+            if let Ok(meta) = std::fs::metadata(&dst_path) {
+                let mut perms = meta.permissions();
+                perms.set_readonly(false);
+                let _ = std::fs::set_permissions(&dst_path, perms);
+            }
+            let _ = std::fs::write(&seeded_marker, clean_fname.as_bytes());
+        }
+        _ => return Err(format!("Unsupported Lab Test Save mode: {}", mode)),
+    }
+
+    Ok(compute_lab_test_save_status(&docs_dir, &game_schema))
 }
 
 #[tauri::command]
@@ -1478,6 +1690,10 @@ fn detect_new_save_file(
                     let secs = dur.as_secs();
                     let prev = initial_mtimes.get(entry.path()).copied().unwrap_or(0);
                     if secs > prev && secs >= min_epoch {
+                        let _ = std::fs::write(
+                            saves_dir.join(".sanctuary_seeded_save"),
+                            fname.as_bytes(),
+                        );
                         return Some(fname);
                     }
                 }

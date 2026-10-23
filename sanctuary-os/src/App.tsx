@@ -59,7 +59,7 @@ import StagingPayloadEditor from "./components/StagingPayloadEditor";
 import { DevBuildClearanceGate } from "./components/DevBuildClearanceGate";
 import Vault from "./Vault";
 import Lab from "./Lab";
-import { scrubLogUserData, buildFormattedLabReportText } from "./utils/logScrubber";
+import { scrubLogUserData, buildFormattedLabReportText, extractReportLoadoutFromLogAndContext } from "./utils/logScrubber";
 import { matchExceptionRules } from "./components/KnownErrorDiagnosisBanner";
 import { isUnrelatedGameBugLog, getExceptionRules } from "./components/KnownExceptionRules";
 import TimeCapsule from "./TimeCapsule";
@@ -2518,17 +2518,18 @@ function App() {
         .update({ status: "under_review" })
         .eq("id", modId);
 
-      const stagedDepsList = (reportOverride?.stagedExtras || []).map((m: any) => m.name).filter(Boolean);
-      const conflictExtrasList = (reportOverride?.conflictExtras || []).map((m: any) => m.name).filter(Boolean);
+      const autoLoadout = extractReportLoadoutFromLogAndContext({ targetMod, logText: targetSnippet, explicitDependencies: [...(reportOverride?.stagedExtras || []), ...(associatedMods || [])], explicitConflictTarget: reportOverride?.conflictTarget || conflictTarget, explicitConflictExtras: reportOverride?.conflictExtras, linkedFiles: reportOverride?.linkedFiles, modList, activeGameSchema });
+      const stagedDepsList = (autoLoadout.dependencies || []).map((m: any) => m.name).filter(Boolean);
+      const conflictExtrasList = (autoLoadout.conflictExtras || []).map((m: any) => m.name).filter(Boolean);
       const hasContextPayload = Boolean(
-        reportOverride?.conflictTarget ||
+        autoLoadout.conflictTarget ||
           stagedDepsList.length > 0 ||
           conflictExtrasList.length > 0
       );
 
       const notePayload = hasContextPayload
         ? JSON.stringify({
-            conflictTarget: reportOverride?.conflictTarget?.name,
+            conflictTarget: autoLoadout.conflictTarget?.name,
             dependencies: stagedDepsList,
             conflictExtras: conflictExtrasList,
           })
@@ -2543,9 +2544,9 @@ function App() {
           : new Date().toLocaleString(),
         gameVersion: selectedVersion || "Local",
         targetMod,
-        conflictTarget: reportOverride?.conflictTarget,
-        stagedExtras: reportOverride?.stagedExtras,
-        conflictExtras: reportOverride?.conflictExtras,
+        conflictTarget: autoLoadout.conflictTarget,
+        stagedExtras: autoLoadout.dependencies,
+        conflictExtras: autoLoadout.conflictExtras,
         missingDeps: reportOverride?.missingDeps,
         linkedFiles: reportOverride?.linkedFiles,
         matchedRules,

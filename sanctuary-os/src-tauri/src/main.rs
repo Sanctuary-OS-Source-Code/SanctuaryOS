@@ -116,6 +116,8 @@ fn main() {
             launch_external_tool,
             airgap_saves,
             get_airgap_status,
+            get_lab_test_save_status,
+            configure_lab_test_save,
             deploy_mod_for_lab_test,
             start_lab_verification_session,
             poll_lab_verification_session,

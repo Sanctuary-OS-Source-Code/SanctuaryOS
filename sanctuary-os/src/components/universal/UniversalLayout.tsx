@@ -359,7 +359,7 @@ export function UniversalTextArea({
         {...rest}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all resize-none custom-scrollbar ${className}`}
+        className={`w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all resize-y overflow-y-auto min-h-[88px] custom-scrollbar ${className}`}
       />
     </div>
   );

@@ -107,13 +107,19 @@ export function formatHumanReadableLogText(rawText?: string | null): string {
 }
 
 /**
- * Strips any internal Sanctuary prefix ("⚠️ EXCEPTION DETECTED:") and returns the pure,
- * scrubbed real game log content (e.g., lastException.txt / lastUIException.txt XML)
+ * Strips any internal Sanctuary prefix ("⚠️ EXCEPTION DETECTED:") or outer Lab Report header
+ * and returns the pure, scrubbed real game log content (e.g., lastException.txt / lastUIException.txt XML)
  * with XML entities (`&#13;&#10;`) preserved for external XML parsers.
  */
 export function extractCleanRealLogContent(rawSnippet?: string | null): string {
   if (!rawSnippet) return "";
-  const cleaned = String(rawSnippet).replace(
+  let text = String(rawSnippet);
+  const execMarker = "--- EXECUTION LOG (SCRUBBED BY SANCTUARY) ---";
+  const markerIdx = text.lastIndexOf(execMarker);
+  if (markerIdx >= 0) {
+    text = text.slice(markerIdx + execMarker.length).replace(/^\r?\n/, "");
+  }
+  const cleaned = text.replace(
     /^(?:⚠️\s*)?EXCEPTION DETECTED(?:\s*\[[^\]]*\])?:\s*/i,
     ""
   );
@@ -198,6 +204,134 @@ function normalizeBaseKey(raw: string): string {
     .replace(/[_-\s]+scripts?$/i, "")
     .replace(/[^a-z0-9]/gi, "")
     .toLowerCase();
+}
+
+const objectBaseKeyCache = new WeakMap<object, string>();
+
+function getModBaseKey(m: any): string {
+  if (!m) return "";
+  if (typeof m === "string") return normalizeBaseKey(m);
+  if (typeof m === "object") {
+    const cached = objectBaseKeyCache.get(m);
+    if (cached !== undefined) return cached;
+    const computed = normalizeBaseKey(m.displayName || m.name || "");
+    objectBaseKeyCache.set(m, computed);
+    return computed;
+  }
+  return "";
+}
+
+interface ModListIndex {
+  nonVirtuals: any[];
+  byHash: Map<string, any>;
+  byId: Map<string, any>;
+  byLowerName: Map<string, any>;
+  byStrippedLowerName: Map<string, any>;
+  siblingsByFamilyId: Map<string, any[]>;
+  siblingsByBaseKey: Map<string, any[]>;
+  nonVirtualsByFamilyId: Map<string, any[]>;
+  nonVirtualsByBaseKey: Map<string, any[]>;
+  versionByMod: WeakMap<object, string>;
+  resolvedByMod: WeakMap<object, any>;
+}
+
+const modListIndexCache = new WeakMap<any[], ModListIndex>();
+
+function pushToMapList(map: Map<string, any[]>, key: string, item: any) {
+  if (!key) return;
+  let arr = map.get(key);
+  if (!arr) {
+    arr = [];
+    map.set(key, arr);
+  }
+  arr.push(item);
+}
+
+function getModListIndex(modList?: any[]): ModListIndex | null {
+  if (!Array.isArray(modList) || modList.length === 0) return null;
+  const existing = modListIndexCache.get(modList);
+  if (existing) return existing;
+
+  const nonVirtuals: any[] = [];
+  const byHash = new Map<string, any>();
+  const byId = new Map<string, any>();
+  const byLowerName = new Map<string, any>();
+  const byStrippedLowerName = new Map<string, any>();
+  const siblingsByFamilyId = new Map<string, any[]>();
+  const siblingsByBaseKey = new Map<string, any[]>();
+  const nonVirtualsByFamilyId = new Map<string, any[]>();
+  const nonVirtualsByBaseKey = new Map<string, any[]>();
+
+  for (let i = 0; i < modList.length; i++) {
+    const item = modList[i];
+    if (!item || typeof item !== "object") continue;
+
+    const isVirtual =
+      Boolean(item.isVirtual) || String(item.hash || "").startsWith("virtual_");
+    const baseKey = getModBaseKey(item);
+    if (baseKey) {
+      pushToMapList(siblingsByBaseKey, baseKey, item);
+    }
+
+    const famKeys = new Set<string>();
+    if (item.familyId) famKeys.add(String(item.familyId));
+    if (item.baseFamilyId) famKeys.add(String(item.baseFamilyId));
+    if (item.dbId) famKeys.add(String(item.dbId));
+    if (item.hash) famKeys.add(String(item.hash).replace(/^virtual_/, ""));
+    famKeys.forEach((fk) => {
+      if (fk) pushToMapList(siblingsByFamilyId, fk, item);
+    });
+
+    if (!isVirtual) {
+      nonVirtuals.push(item);
+      if (item.hash && !byHash.has(String(item.hash))) {
+        byHash.set(String(item.hash), item);
+      }
+      if (item.id && !byId.has(String(item.id))) {
+        byId.set(String(item.id), item);
+      }
+      if (item.name) {
+        const lowerName = String(item.name).toLowerCase();
+        if (!byLowerName.has(lowerName)) {
+          byLowerName.set(lowerName, item);
+        }
+        const leaf = lowerName.split(/[\\/]/).pop();
+        if (leaf && !byLowerName.has(leaf)) {
+          byLowerName.set(leaf, item);
+        }
+        const stripped = lowerName.replace(/\.[a-z0-9]{2,12}$/i, "");
+        if (stripped && !byStrippedLowerName.has(stripped)) {
+          byStrippedLowerName.set(stripped, item);
+        }
+      }
+      if (baseKey) {
+        pushToMapList(nonVirtualsByBaseKey, baseKey, item);
+      }
+      const nvFamKeys = new Set<string>();
+      if (item.familyId) nvFamKeys.add(String(item.familyId));
+      if (item.baseFamilyId) nvFamKeys.add(String(item.baseFamilyId));
+      if (item.dbId) nvFamKeys.add(String(item.dbId));
+      nvFamKeys.forEach((fk) => {
+        if (fk) pushToMapList(nonVirtualsByFamilyId, fk, item);
+      });
+    }
+  }
+
+  const built: ModListIndex = {
+    nonVirtuals,
+    byHash,
+    byId,
+    byLowerName,
+    byStrippedLowerName,
+    siblingsByFamilyId,
+    siblingsByBaseKey,
+    nonVirtualsByFamilyId,
+    nonVirtualsByBaseKey,
+    versionByMod: new WeakMap<object, string>(),
+    resolvedByMod: new WeakMap<object, any>(),
+  };
+  modListIndexCache.set(modList, built);
+  return built;
 }
 
 /**
@@ -293,15 +427,13 @@ export function getModExtensionLabel(
       return defaultScriptExt;
     }
 
-    // 5. If modList is provided, check matching non-virtual entry
-    if (Array.isArray(modList) && modList.length > 0) {
-      const matched = modList.find(
-        (item: any) =>
-          !item.isVirtual &&
-          ((m.hash && item.hash === m.hash) ||
-            (m.id && item.id === m.id) ||
-            (m.name && item.name === m.name))
-      );
+    // 5. If modList is provided, check matching non-virtual entry via O(1) index
+    const idx = getModListIndex(modList);
+    if (idx) {
+      const matched =
+        (m.hash && idx.byHash.get(String(m.hash))) ||
+        (m.id && idx.byId.get(String(m.id))) ||
+        (m.name && idx.byLowerName.get(String(m.name).toLowerCase()));
       if (matched && matched !== m) {
         return getModExtensionLabel(matched, activeGameSchema);
       }
@@ -314,12 +446,10 @@ export function getModExtensionLabel(
 
   // If companionMods (stagedExtras) has a twin with the same base name, ensure Subject & Injected twin have complementary extensions
   if (Array.isArray(companionMods) && companionMods.length > 0 && typeof m !== "string") {
-    const targetKey = normalizeBaseKey(m.displayName || m.name || "");
+    const targetKey = getModBaseKey(m);
     const twinCompanion = companionMods.find((c: any) => {
       if (!c || c === m) return false;
-      const cKey = normalizeBaseKey(
-        typeof c === "string" ? c : c.displayName || c.name || ""
-      );
+      const cKey = getModBaseKey(c);
       return Boolean(targetKey && cKey && targetKey === cKey);
     });
     if (twinCompanion) {
@@ -363,6 +493,13 @@ export function getModVersionLabel(
 
   if (!m || typeof m === "string") return "Local";
 
+  const hasCompanions = Array.isArray(companionMods) && companionMods.length > 0;
+  const idx = getModListIndex(modList);
+  if (!hasCompanions && idx && typeof m === "object") {
+    const cachedVer = idx.versionByMod.get(m);
+    if (cachedVer !== undefined) return cachedVer;
+  }
+
   const directCandidates = [
     m.version,
     m.mod_version,
@@ -370,26 +507,38 @@ export function getModVersionLabel(
     m.version_label,
   ];
   for (const c of directCandidates) {
-    if (isRealVersion(c)) return c.trim();
+    if (isRealVersion(c)) {
+      const res = c.trim();
+      if (!hasCompanions && idx && typeof m === "object") {
+        idx.versionByMod.set(m, res);
+      }
+      return res;
+    }
   }
 
   if (Array.isArray(m.flavors)) {
     for (const f of m.flavors) {
       const fv = f?.version || f?.mod_version || f?.latest_version;
-      if (isRealVersion(fv)) return fv.trim();
+      if (isRealVersion(fv)) {
+        const res = fv.trim();
+        if (!hasCompanions && idx && typeof m === "object") {
+          idx.versionByMod.set(m, res);
+        }
+        return res;
+      }
     }
   }
 
-  const targetKey = normalizeBaseKey(m.displayName || m.name || "");
+  const targetKey = getModBaseKey(m);
   const rawFamilyId = String(
     m.dbId || m.baseFamilyId || m.familyId || m.hash || ""
   ).replace(/^virtual_/, "");
 
   // Check companionMods (e.g. stagedExtras twin like UI CHEATS EXTENSION (1.54))
-  if (Array.isArray(companionMods) && companionMods.length > 0) {
-    for (const comp of companionMods) {
+  if (hasCompanions) {
+    for (const comp of companionMods!) {
       if (!comp || typeof comp === "string") continue;
-      const compKey = normalizeBaseKey(comp.displayName || comp.name || "");
+      const compKey = getModBaseKey(comp);
       const compFamId = String(
         comp.dbId || comp.baseFamilyId || comp.familyId || comp.hash || ""
       ).replace(/^virtual_/, "");
@@ -407,31 +556,45 @@ export function getModVersionLabel(
     }
   }
 
-  if (Array.isArray(modList) && modList.length > 0) {
-    const siblings = modList.filter((item: any) => {
-      if (!item) return false;
-      if (m.hash && item.hash === m.hash) return true;
-      if (m.id && item.id === m.id) return true;
-      if (
-        rawFamilyId &&
-        (String(item.familyId) === rawFamilyId ||
-          String(item.baseFamilyId) === rawFamilyId ||
-          String(item.dbId) === rawFamilyId ||
-          String(item.hash || "").replace(/^virtual_/, "") === rawFamilyId)
-      ) {
-        return true;
-      }
-      const itemKey = normalizeBaseKey(item.displayName || item.name || "");
-      return Boolean(targetKey && itemKey && targetKey === itemKey);
-    });
-    for (const sibling of siblings) {
+  if (idx) {
+    const candidateSet = new Set<any>();
+    if (m.hash) {
+      const byH = idx.byHash.get(String(m.hash));
+      if (byH) candidateSet.add(byH);
+    }
+    if (m.id) {
+      const byI = idx.byId.get(String(m.id));
+      if (byI) candidateSet.add(byI);
+    }
+    if (rawFamilyId) {
+      const famMatches = idx.siblingsByFamilyId.get(rawFamilyId);
+      if (famMatches) famMatches.forEach((s) => candidateSet.add(s));
+    }
+    if (targetKey) {
+      const keyMatches = idx.siblingsByBaseKey.get(targetKey);
+      if (keyMatches) keyMatches.forEach((s) => candidateSet.add(s));
+    }
+
+    for (const sibling of candidateSet) {
       const sv =
         sibling.version || sibling.mod_version || sibling.latest_version;
-      if (isRealVersion(sv)) return sv.trim();
+      if (isRealVersion(sv)) {
+        const res = sv.trim();
+        if (!hasCompanions && typeof m === "object") {
+          idx.versionByMod.set(m, res);
+        }
+        return res;
+      }
       if (Array.isArray(sibling.flavors)) {
         for (const f of sibling.flavors) {
           const fv = f?.version || f?.mod_version || f?.latest_version;
-          if (isRealVersion(fv)) return fv.trim();
+          if (isRealVersion(fv)) {
+            const res = fv.trim();
+            if (!hasCompanions && typeof m === "object") {
+              idx.versionByMod.set(m, res);
+            }
+            return res;
+          }
         }
       }
     }
@@ -439,7 +602,14 @@ export function getModVersionLabel(
 
   const fallback = m.version || m.mod_version || m.latest_version;
   if (typeof fallback === "string" && fallback.trim() && isRealVersion(fallback)) {
-    return fallback.trim();
+    const res = fallback.trim();
+    if (!hasCompanions && idx && typeof m === "object") {
+      idx.versionByMod.set(m, res);
+    }
+    return res;
+  }
+  if (!hasCompanions && idx && typeof m === "object") {
+    idx.versionByMod.set(m, "Local");
   }
   return "Local";
 }
@@ -456,68 +626,69 @@ export function resolveRealReportMod(
   modList?: any[]
 ): any {
   if (!m || typeof m === "string") return m;
-  if (!Array.isArray(modList) || modList.length === 0) return m;
+  const idx = getModListIndex(modList);
+  if (!idx) return m;
+
+  const hasStagedExtras = Array.isArray(stagedExtras) && stagedExtras.length > 0;
+  if (!hasStagedExtras && typeof m === "object") {
+    const cachedResolved = idx.resolvedByMod.get(m);
+    if (cachedResolved !== undefined) return cachedResolved;
+  }
 
   const isVirtualMod =
     Boolean(m.isVirtual) || String(m.hash || "").startsWith("virtual_");
 
-  const nonVirtuals = modList.filter(
-    (item: any) =>
-      item &&
-      !item.isVirtual &&
-      !String(item.hash || "").startsWith("virtual_")
-  );
-
   if (!isVirtualMod) {
     const lowerName = String(m.name || "").toLowerCase();
+    const leafName = lowerName ? lowerName.split(/[\\/]/).pop() || "" : "";
+    const strippedName = lowerName.replace(/\.[a-z0-9]{2,12}$/i, "");
     const exactMatch =
-      nonVirtuals.find((item: any) => m.hash && item.hash === m.hash) ||
-      nonVirtuals.find((item: any) => {
-        const iName = String(item.name || "").toLowerCase();
-        return (
-          Boolean(lowerName && iName) &&
-          (iName === lowerName ||
-            iName.endsWith("/" + lowerName) ||
-            iName.endsWith("\\" + lowerName) ||
-            iName.replace(/\.[a-z0-9]{2,12}$/i, "") === lowerName)
-        );
-      });
+      (m.hash && idx.byHash.get(String(m.hash))) ||
+      (lowerName && idx.byLowerName.get(lowerName)) ||
+      (leafName && idx.byLowerName.get(leafName)) ||
+      (strippedName && idx.byStrippedLowerName.get(strippedName));
+
     if (exactMatch) {
-      return {
+      const resolvedVer = getModVersionLabel(exactMatch, modList, stagedExtras);
+      const result = {
         ...exactMatch,
         ...m,
         name: exactMatch.name || m.name,
         physical_path: exactMatch.physical_path || m.physical_path || exactMatch.name,
         file_extension: exactMatch.file_extension || m.file_extension,
-        version:
-          getModVersionLabel(exactMatch, modList, stagedExtras) !== "Local"
-            ? getModVersionLabel(exactMatch, modList, stagedExtras)
-            : m.version,
+        version: resolvedVer !== "Local" ? resolvedVer : m.version,
         hash: exactMatch.hash || m.hash,
       };
+      if (!hasStagedExtras && typeof m === "object") {
+        idx.resolvedByMod.set(m, result);
+        idx.resolvedByMod.set(result, result);
+      }
+      return result;
+    }
+    if (!hasStagedExtras && typeof m === "object") {
+      idx.resolvedByMod.set(m, m);
     }
     return m;
   }
 
-  // If m is a virtual family card, find its physical family members
+  // If m is a virtual family card, find its physical family members via O(1) index
   const rawFamilyId = String(m.dbId || m.baseFamilyId || m.hash || "").replace(
     /^virtual_/,
     ""
   );
-  const targetKey = normalizeBaseKey(m.displayName || m.name || "");
+  const targetKey = getModBaseKey(m);
 
-  let candidates = nonVirtuals.filter((item: any) => {
-    if (
-      rawFamilyId &&
-      (String(item.familyId) === rawFamilyId ||
-        String(item.baseFamilyId) === rawFamilyId ||
-        String(item.dbId) === rawFamilyId)
-    ) {
-      return true;
-    }
-    const itemKey = normalizeBaseKey(item.displayName || item.name || "");
-    return Boolean(targetKey && itemKey && targetKey === itemKey);
-  });
+  const candidateSet = new Set<any>();
+  if (rawFamilyId) {
+    const famCandidates = idx.nonVirtualsByFamilyId.get(rawFamilyId);
+    if (famCandidates) famCandidates.forEach((c) => candidateSet.add(c));
+  }
+  if (targetKey) {
+    const keyCandidates = idx.nonVirtualsByBaseKey.get(targetKey);
+    if (keyCandidates) keyCandidates.forEach((c) => candidateSet.add(c));
+  }
+
+  let candidates = Array.from(candidateSet);
 
   if (
     candidates.length === 0 &&
@@ -528,10 +699,15 @@ export function resolveRealReportMod(
   }
 
   if (candidates.length === 0) return m;
-  if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 1) {
+    if (!hasStagedExtras && typeof m === "object") {
+      idx.resolvedByMod.set(m, candidates[0]);
+    }
+    return candidates[0];
+  }
 
-  if (Array.isArray(stagedExtras) && stagedExtras.length > 0) {
-    const resolvedExtras = stagedExtras.map((s: any) =>
+  if (hasStagedExtras) {
+    const resolvedExtras = stagedExtras!.map((s: any) =>
       resolveRealReportMod(s, [], modList)
     );
     const stagedHashes = new Set(
@@ -565,6 +741,9 @@ export function resolveRealReportMod(
     }
   }
 
+  if (!hasStagedExtras && typeof m === "object") {
+    idx.resolvedByMod.set(m, candidates[0]);
+  }
   return candidates[0];
 }
 
@@ -651,7 +830,7 @@ export function buildFormattedLabReportText(opts: BuildLabReportOptions): string
   const resolvedDate =
     date || (time ? new Date(time).toLocaleString() : new Date().toLocaleString());
 
-  const scrubbedLog = scrubLogUserData(resolvedRawLog);
+  const scrubbedLog = extractCleanRealLogContent(resolvedRawLog);
   const matchedRules: SchemaExceptionRule[] =
     Array.isArray(explicitMatchedRules) && explicitMatchedRules.length > 0
       ? explicitMatchedRules
@@ -767,5 +946,439 @@ export function buildFormattedLabReportText(opts: BuildLabReportOptions): string
 
   return lines.join("\n");
 }
+
+export interface ExtractReportLoadoutOptions {
+  targetMod?: any;
+  testerNote?: string | null;
+  logText?: string | null;
+  explicitDependencies?: any[];
+  explicitConflictTarget?: any;
+  explicitConflictExtras?: any[];
+  linkedFiles?: string[];
+  modList?: any[];
+  allMods?: any[];
+  activeGameSchema?: any;
+}
+
+export interface ExtractedReportLoadout {
+  dependencies: any[];
+  conflictTarget: any | null;
+  conflictExtras: any[];
+}
+
+/**
+ * Automatically pulls & resolves a report's Dependencies and Conflicts from multiple sources:
+ * 1. Explicit report props (`explicitDependencies`, `explicitConflictTarget`, `explicitConflictExtras`)
+ * 2. `testerNote` JSON (`{ dependencies, conflictTarget, conflictExtras }`)
+ * 3. `logText` (`SANCTUARY OS LAB REPORT` header lines: `Dependencies Loaded`, `Conflicts Loaded`, `Sandbox Deployed Files`)
+ * 4. `localStorage.getItem("sanctuary_test_history")` matching `targetMod`
+ * 5. Automatic twin/companion lookup in `modList` and `allMods` (e.g. pairing `.ts4script` with its `.package` twin)
+ */
+export function extractReportLoadoutFromLogAndContext(
+  opts: ExtractReportLoadoutOptions
+): ExtractedReportLoadout {
+  const {
+    targetMod,
+    testerNote,
+    logText,
+    explicitDependencies = [],
+    explicitConflictTarget = null,
+    explicitConflictExtras = [],
+    linkedFiles = [],
+    modList = [],
+    allMods = [],
+    activeGameSchema,
+  } = opts;
+
+  const idx = getModListIndex(modList);
+  const nonVirtuals = idx ? idx.nonVirtuals : modList.filter((m: any) => !m?.isVirtual);
+  const targetBaseKey = getModBaseKey(targetMod);
+  const targetOwnExt = targetMod
+    ? getModExtensionLabel(targetMod, activeGameSchema, modList)
+    : "";
+
+  const resolveEntry = (rawItem: any, preferredExtHint?: string): any | null => {
+    if (!rawItem) return null;
+    if (typeof rawItem === "object") {
+      const resolved = resolveRealReportMod(rawItem, undefined, modList);
+      return {
+        ...resolved,
+        id:
+          resolved.id ||
+          resolved.dbId ||
+          resolved.hash ||
+          `${getModBaseKey(resolved)}_${getModExtensionLabel(resolved, activeGameSchema, modList)}`,
+      };
+    }
+
+    let rawStr = String(rawItem).trim();
+    if (!rawStr || /^none loaded$/i.test(rawStr)) return null;
+
+    rawStr = rawStr
+      .replace(/^-\s*/, "")
+      .replace(/^\[(?:Primary|Additional)\s+Adversary\]\s*/i, "")
+      .replace(/^\[MISSING\]\s*/i, "")
+      .trim();
+    if (!rawStr || /^none loaded$/i.test(rawStr)) return null;
+
+    // Parse formatted report line like: UI CHEATS EXTENSION [package] (1.54)
+    let parsedExt = preferredExtHint || "";
+    let parsedVer = "";
+    const formattedMatch = rawStr.match(
+      /^(.*?)\s*\[([a-z0-9_.-]+)\]\s*(?:\(([^)]+)\))?$/i
+    );
+    let cleanRawName = rawStr;
+    if (formattedMatch) {
+      cleanRawName = formattedMatch[1].trim();
+      parsedExt = formattedMatch[2].trim().toLowerCase();
+      if (formattedMatch[3]) parsedVer = formattedMatch[3].trim();
+    } else {
+      const extSuffixMatch = rawStr.match(/\.([a-z0-9]{2,12})$/i);
+      if (extSuffixMatch) {
+        parsedExt = extSuffixMatch[1].toLowerCase();
+      } else if (/script/i.test(rawStr)) {
+        parsedExt = "ts4script";
+      }
+    }
+
+    const itemBaseKey = normalizeBaseKey(cleanRawName);
+    const lowerClean = cleanRawName.toLowerCase();
+
+    // 1. Search physical modList first
+    const localCandidates = nonVirtuals.filter((m: any) => {
+      if (!m) return false;
+      const mLower = String(m.name || "").toLowerCase();
+      const mDispLower = String(m.displayName || "").toLowerCase();
+      if (mLower === lowerClean || mDispLower === lowerClean) return true;
+      const mKey = getModBaseKey(m);
+      return Boolean(itemBaseKey && mKey && mKey === itemBaseKey);
+    });
+
+    if (localCandidates.length > 0) {
+      const extMatched = parsedExt
+        ? localCandidates.find(
+            (m: any) =>
+              getModExtensionLabel(m, activeGameSchema, modList).toLowerCase() ===
+              parsedExt
+          )
+        : null;
+      const chosen = extMatched || localCandidates[0];
+      return {
+        ...chosen,
+        id: chosen.id || chosen.dbId || chosen.hash || chosen.name,
+        file_extension:
+          chosen.file_extension ||
+          parsedExt ||
+          getModExtensionLabel(chosen, activeGameSchema, modList),
+        version:
+          getModVersionLabel(chosen, modList) !== "Local"
+            ? getModVersionLabel(chosen, modList)
+            : parsedVer || chosen.version || "Local",
+      };
+    }
+
+    // 2. Search cloud allMods
+    const cloudCandidates = (allMods || []).filter((m: any) => {
+      if (!m) return false;
+      const mLower = String(m.name || "").toLowerCase();
+      if (mLower === lowerClean) return true;
+      const mKey = getModBaseKey(m);
+      return Boolean(itemBaseKey && mKey && mKey === itemBaseKey);
+    });
+
+    if (cloudCandidates.length > 0) {
+      const extMatched = parsedExt
+        ? cloudCandidates.find(
+            (m: any) =>
+              getModExtensionLabel(m, activeGameSchema, modList).toLowerCase() ===
+              parsedExt
+          )
+        : null;
+      const chosen = extMatched || cloudCandidates[0];
+      return {
+        ...chosen,
+        id: chosen.id || chosen.hash || chosen.name,
+        file_extension:
+          chosen.file_extension ||
+          parsedExt ||
+          getModExtensionLabel(chosen, activeGameSchema, modList),
+        version:
+          getModVersionLabel(chosen, modList) !== "Local"
+            ? getModVersionLabel(chosen, modList)
+            : parsedVer || chosen.latest_version || "Local",
+      };
+    }
+
+    // 3. Construct fallback object so item is never dropped
+    return {
+      id: `${itemBaseKey || cleanRawName}_${parsedExt || "mod"}`,
+      hash: `${itemBaseKey || cleanRawName}_${parsedExt || "mod"}`,
+      name: cleanRawName,
+      displayName: getCleanModBaseName(cleanRawName),
+      file_extension: parsedExt || "package",
+      version: parsedVer || "Local",
+    };
+  };
+
+  const depsAcc: any[] = [];
+  let resolvedConflictTarget: any | null = null;
+  const conflictExtrasAcc: any[] = [];
+
+  const isSameAsTarget = (candidate: any): boolean => {
+    if (!targetMod || !candidate) return false;
+    if (
+      targetMod.id &&
+      candidate.id &&
+      String(targetMod.id) === String(candidate.id)
+    ) {
+      return true;
+    }
+    if (
+      targetMod.hash &&
+      candidate.hash &&
+      String(targetMod.hash) === String(candidate.hash)
+    ) {
+      return true;
+    }
+    const candKey = getModBaseKey(candidate);
+    const candExt = getModExtensionLabel(candidate, activeGameSchema, modList);
+    if (targetBaseKey && candKey && targetBaseKey === candKey) {
+      // If it shares the base key AND has the same file extension, it's the target mod itself.
+      // If it has a different extension (e.g. .package twin of a .ts4script target), it IS a companion dependency!
+      return Boolean(targetOwnExt && candExt && targetOwnExt === candExt);
+    }
+    return false;
+  };
+
+  const pushUniqueDep = (raw: any, extHint?: string) => {
+    const resolved = resolveEntry(raw, extHint);
+    if (!resolved || isSameAsTarget(resolved)) return;
+    const key = `${getModBaseKey(resolved)}_${getModExtensionLabel(
+      resolved,
+      activeGameSchema,
+      modList
+    )}`;
+    if (
+      !depsAcc.some(
+        (d) =>
+          `${getModBaseKey(d)}_${getModExtensionLabel(
+            d,
+            activeGameSchema,
+            modList
+          )}` === key
+      )
+    ) {
+      depsAcc.push(resolved);
+    }
+  };
+
+  const pushUniqueConflictExtra = (raw: any) => {
+    const resolved = resolveEntry(raw);
+    if (!resolved || isSameAsTarget(resolved)) return;
+    const key = `${getModBaseKey(resolved)}_${getModExtensionLabel(
+      resolved,
+      activeGameSchema,
+      modList
+    )}`;
+    if (
+      resolvedConflictTarget &&
+      `${getModBaseKey(resolvedConflictTarget)}_${getModExtensionLabel(
+        resolvedConflictTarget,
+        activeGameSchema,
+        modList
+      )}` === key
+    ) {
+      return;
+    }
+    if (
+      !conflictExtrasAcc.some(
+        (c) =>
+          `${getModBaseKey(c)}_${getModExtensionLabel(
+            c,
+            activeGameSchema,
+            modList
+          )}` === key
+      )
+    ) {
+      conflictExtrasAcc.push(resolved);
+    }
+  };
+
+  // 1. Explicit props
+  if (Array.isArray(explicitDependencies)) {
+    explicitDependencies.forEach((d) => pushUniqueDep(d));
+  }
+  if (explicitConflictTarget) {
+    resolvedConflictTarget = resolveEntry(explicitConflictTarget);
+  }
+  if (Array.isArray(explicitConflictExtras)) {
+    explicitConflictExtras.forEach((c) => pushUniqueConflictExtra(c));
+  }
+
+  // 2. Parse testerNote JSON
+  if (testerNote && typeof testerNote === "string") {
+    try {
+      const parsed = JSON.parse(testerNote);
+      if (parsed && typeof parsed === "object") {
+        if (!resolvedConflictTarget && parsed.conflictTarget) {
+          resolvedConflictTarget = resolveEntry(parsed.conflictTarget);
+        }
+        if (Array.isArray(parsed.dependencies)) {
+          parsed.dependencies.forEach((d: any) => pushUniqueDep(d));
+        }
+        if (Array.isArray(parsed.conflictExtras)) {
+          parsed.conflictExtras.forEach((c: any) => pushUniqueConflictExtra(c));
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Parse directly from SANCTUARY OS LAB REPORT text (logText)
+  if (logText && typeof logText === "string") {
+    const depBlockMatch = logText.match(
+      /Dependencies Loaded \(\d+\):\r?\n((?:  - .*\r?\n?)+)/i
+    );
+    if (depBlockMatch && depBlockMatch[1]) {
+      depBlockMatch[1]
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith("- ") && !/none loaded/i.test(l))
+        .forEach((l) => pushUniqueDep(l));
+    }
+
+    const conflictBlockMatch = logText.match(
+      /Conflicts Loaded \(\d+\):\r?\n((?:  - .*\r?\n?)+)/i
+    );
+    if (conflictBlockMatch && conflictBlockMatch[1]) {
+      conflictBlockMatch[1]
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith("- ") && !/none loaded/i.test(l))
+        .forEach((l) => {
+          if (/\[Primary Adversary\]/i.test(l) || !resolvedConflictTarget) {
+            const resolved = resolveEntry(l);
+            if (resolved && !isSameAsTarget(resolved)) {
+              if (!resolvedConflictTarget) {
+                resolvedConflictTarget = resolved;
+              } else {
+                pushUniqueConflictExtra(resolved);
+              }
+            }
+          } else {
+            pushUniqueConflictExtra(l);
+          }
+        });
+    }
+
+    const deployedBlockMatch = logText.match(
+      /Sandbox Deployed Files \(\d+\):\r?\n((?:  - .*\r?\n?)+)/i
+    );
+    if (deployedBlockMatch && deployedBlockMatch[1]) {
+      deployedBlockMatch[1]
+        .split(/\r?\n/)
+        .map((l) => l.trim().replace(/^-\s*/, ""))
+        .filter(Boolean)
+        .forEach((fileLine) => pushUniqueDep(fileLine));
+    }
+  }
+
+  // 3b. Linked files array
+  if (Array.isArray(linkedFiles) && linkedFiles.length > 0) {
+    linkedFiles.forEach((f) => pushUniqueDep(f));
+  }
+
+  // 4. Check localStorage sanctuary_test_history for matching mod
+  if ((depsAcc.length === 0 || !resolvedConflictTarget) && targetBaseKey) {
+    try {
+      const rawHist = JSON.parse(
+        localStorage.getItem("sanctuary_test_history") || "[]"
+      );
+      if (Array.isArray(rawHist)) {
+        const matchingHist = rawHist.find((entry: any) => {
+          if (!entry?.mod) return false;
+          if (
+            targetMod?.id &&
+            entry.mod.id &&
+            String(targetMod.id) === String(entry.mod.id)
+          ) {
+            return true;
+          }
+          if (
+            targetMod?.hash &&
+            entry.mod.hash &&
+            String(targetMod.hash) === String(entry.mod.hash)
+          ) {
+            return true;
+          }
+          return getModBaseKey(entry.mod) === targetBaseKey;
+        });
+        if (matchingHist) {
+          if (
+            depsAcc.length === 0 &&
+            Array.isArray(matchingHist.stagedExtras) &&
+            matchingHist.stagedExtras.length > 0
+          ) {
+            matchingHist.stagedExtras.forEach((d: any) => pushUniqueDep(d));
+          }
+          if (!resolvedConflictTarget && matchingHist.conflictTarget) {
+            resolvedConflictTarget = resolveEntry(matchingHist.conflictTarget);
+          }
+          if (
+            conflictExtrasAcc.length === 0 &&
+            Array.isArray(matchingHist.conflictExtras) &&
+            matchingHist.conflictExtras.length > 0
+          ) {
+            matchingHist.conflictExtras.forEach((c: any) =>
+              pushUniqueConflictExtra(c)
+            );
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 5. Automatic Twin / Companion lookup in modList and allMods when no explicit dependencies were attached
+  if (targetMod && targetBaseKey) {
+    // Check explicit targetMod.dependencies if present
+    if (targetMod.dependencies) {
+      const rawDeps = Array.isArray(targetMod.dependencies)
+        ? targetMod.dependencies
+        : String(targetMod.dependencies)
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+      rawDeps.forEach((d: any) => pushUniqueDep(d));
+    }
+
+    // Check local modList for complementary twin (e.g. .package companion for .ts4script or vice versa)
+    if (idx) {
+      const localTwins = idx.nonVirtualsByBaseKey.get(targetBaseKey) || [];
+      localTwins.forEach((twin: any) => {
+        const twinExt = getModExtensionLabel(twin, activeGameSchema, modList);
+        if (twinExt && targetOwnExt && twinExt !== targetOwnExt) {
+          pushUniqueDep(twin, twinExt);
+        }
+      });
+    }
+
+    // Check cloud allMods for complementary twin (e.g. UI Cheats Extension .package vs .ts4script)
+    if (Array.isArray(allMods) && allMods.length > 0) {
+      allMods.forEach((m: any) => {
+        if (!m || getModBaseKey(m) !== targetBaseKey) return;
+        const mExt = getModExtensionLabel(m, activeGameSchema, modList);
+        if (mExt && targetOwnExt && mExt !== targetOwnExt) {
+          pushUniqueDep(m, mExt);
+        }
+      });
+    }
+  }
+
+  return {
+    dependencies: depsAcc,
+    conflictTarget: resolvedConflictTarget,
+    conflictExtras: conflictExtrasAcc,
+  };
+}
+
 
 

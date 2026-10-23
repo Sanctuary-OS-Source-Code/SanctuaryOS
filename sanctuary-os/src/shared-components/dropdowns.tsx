@@ -955,15 +955,29 @@ export function ModSearchDropdown({
     };
   }, [isOpen, dropUp]);
 
-  const rawResults = (modList || []).filter(
-    (m: any) =>
-      !query ||
-      m.name.toLowerCase().includes(query.toLowerCase()) ||
-      m.displayName?.toLowerCase().includes(query.toLowerCase()),
-  );
-  const results = Array.from(
-    new Map(rawResults.map((m: any) => [m.id || m.name, m])).values(),
-  ).slice(0, 10);
+  const results = React.useMemo(() => {
+    if (!isOpen || selectedItem || !Array.isArray(modList)) return [];
+    const q = query.trim().toLowerCase();
+    const out: any[] = [];
+    const seen = new Set<string>();
+    for (let i = 0; i < modList.length; i++) {
+      const m = modList[i];
+      if (!m) continue;
+      if (
+        q &&
+        !String(m.name || "").toLowerCase().includes(q) &&
+        !String(m.displayName || "").toLowerCase().includes(q)
+      ) {
+        continue;
+      }
+      const key = String(m.id || m.hash || m.name || i);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(m);
+      if (out.length >= 10) break;
+    }
+    return out;
+  }, [isOpen, selectedItem, modList, query]);
 
   return (
     <div className="relative w-full">

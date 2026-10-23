@@ -1,16 +1,32 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, HubTabButton, CustomDropdown, CustomDatePicker, DashboardStatTile, ActionButton, HoverTabDrawer, VerticalTabButton, ActionPill } from "./shared";
+import {
+  ViewHeader,
+  CustomDropdown,
+  CustomDatePicker,
+  DashboardStatTile,
+  HoverTabDrawer,
+  VerticalTabButton,
+  ActionPill,
+  HoverTooltip,
+} from "./shared";
 import { TimeCapsuleSidePanel } from "./side-panels/TimeCapsuleSidePanels";
 import { useModalStore } from "./store/modalStore";
-import { CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
+import {
+  CommandScreenSectionHeading,
+  StatTileCarousel,
+} from "./hub-components/SharedCommandScreenLayout";
 
 export default function TimeCapsule({
-  selectedVersion, isBackingUp, triggerPrePatchSnapshot, triggerFullEngineBackup,
-  restoreGameBackup, renameGameBackup, deleteBackup, backupList, getBackupSignature
+  selectedVersion,
+  triggerPrePatchSnapshot,
+  triggerFullEngineBackup,
+  restoreGameBackup,
+  deleteBackup,
+  backupList,
+  getBackupSignature,
 }: any) {
-
   const { t } = useLexicon();
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [confirmRestoreBackup, setConfirmRestoreBackup] = useState<string | null>(null);
@@ -38,20 +54,37 @@ export default function TimeCapsule({
     fetchConfig();
   }, []);
 
-  const totalWorldSize = backupList?.reduce((acc: number, b: any) => acc + (b.name?.toLowerCase().includes('world') ? (b.size_mb || 0) : 0), 0) || 0;
-  const totalEngineSize = backupList?.reduce((acc: number, b: any) => acc + (b.name?.toLowerCase().includes('engine') ? (b.size_mb || 0) : 0), 0) || 0;
-  const totalSpace = totalWorldSize + totalEngineSize;
-  const vaultCapacityGb = config?.vault_capacity_gb || 0;
-  const vaultCapacityMb = vaultCapacityGb * 1024;
+  const getBackupTimestamp = (backup: any): number => {
+    const backupName = typeof backup === "string" ? backup : backup?.name || "";
+    const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+    if (sig?.timestamp && sig.timestamp !== "0") {
+      const parsed = Number(sig.timestamp);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+    const clean = backupName.replace(/\.tar\.zst$/i, "").replace(/\.zst$/i, "");
+    const parts = clean.includes("--") ? clean.split("--") : clean.split("_");
+    const last = parts[parts.length - 1];
+    const num = Number(last);
+    return !isNaN(num) ? num : 0;
+  };
 
-  const usagePercentage = vaultCapacityMb > 0 ? Math.min(100, (totalSpace / vaultCapacityMb) * 100) : 0;
-  const worldPercentage = vaultCapacityMb > 0 ? Math.min(100, (totalWorldSize / vaultCapacityMb) * 100) : 0;
-  const enginePercentage = vaultCapacityMb > 0 ? Math.min(100, (totalEngineSize / vaultCapacityMb) * 100) : 0;
+  const totalWorldSize =
+    backupList?.reduce(
+      (acc: number, b: any) =>
+        acc + (b.name?.toLowerCase().includes("world") ? b.size_mb || 0 : 0),
+      0
+    ) || 0;
+  const totalEngineSize =
+    backupList?.reduce(
+      (acc: number, b: any) =>
+        acc + (b.name?.toLowerCase().includes("engine") ? b.size_mb || 0 : 0),
+      0
+    ) || 0;
 
   const uniqueVersions = useMemo(() => {
     const versions = new Set<string>();
     (backupList || []).forEach((backup: any) => {
-      const backupName = typeof backup === 'string' ? backup : backup.name;
+      const backupName = typeof backup === "string" ? backup : backup.name;
       const sig = getBackupSignature ? getBackupSignature(backupName) : null;
       if (sig?.version) versions.add(sig.version);
     });
@@ -59,13 +92,20 @@ export default function TimeCapsule({
   }, [backupList, getBackupSignature]);
 
   const passesFilters = (backup: any) => {
-    const backupName = typeof backup === 'string' ? backup : backup.name;
+    const backupName = typeof backup === "string" ? backup : backup.name;
     const sig = getBackupSignature ? getBackupSignature(backupName) : null;
-    const title = sig?.alias || (sig?.isEngine ? t("engine_full") : t("world_state"));
+    const title =
+      sig?.alias ||
+      (sig?.isEngine ? t("engine_full", "Engine Core") : t("world_state", "World State"));
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      if (!title.toLowerCase().includes(q) && !backupName.toLowerCase().includes(q)) {
+      const ver = (sig?.version || "").toLowerCase();
+      if (
+        !title.toLowerCase().includes(q) &&
+        !backupName.toLowerCase().includes(q) &&
+        !ver.includes(q)
+      ) {
         return false;
       }
     }
@@ -94,111 +134,311 @@ export default function TimeCapsule({
     return true;
   };
 
-  const worldBackups = (backupList || []).filter((backup: any) => {
-    const backupName = typeof backup === 'string' ? backup : backup.name;
-    const sig = getBackupSignature ? getBackupSignature(backupName) : null;
-    const isWorld = sig ? !sig.isEngine : !backupName.toLowerCase().includes("engine");
-    return isWorld && passesFilters(backup);
-  });
+  // Sorted Newest to Oldest
+  const worldBackups = useMemo(() => {
+    return (backupList || [])
+      .filter((backup: any) => {
+        const backupName = typeof backup === "string" ? backup : backup.name;
+        const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+        const isWorld = sig ? !sig.isEngine : !backupName.toLowerCase().includes("engine");
+        return isWorld && passesFilters(backup);
+      })
+      .sort((a: any, b: any) => getBackupTimestamp(b) - getBackupTimestamp(a));
+  }, [backupList, searchQuery, versionFilter, startDate, endDate, getBackupSignature]);
 
-  const engineBackups = (backupList || []).filter((backup: any) => {
-    const backupName = typeof backup === 'string' ? backup : backup.name;
-    const sig = getBackupSignature ? getBackupSignature(backupName) : null;
-    const isEngine = sig ? sig.isEngine : backupName.toLowerCase().includes("engine");
-    return isEngine && passesFilters(backup);
-  });
+  const engineBackups = useMemo(() => {
+    return (backupList || [])
+      .filter((backup: any) => {
+        const backupName = typeof backup === "string" ? backup : backup.name;
+        const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+        const isEngine = sig ? sig.isEngine : backupName.toLowerCase().includes("engine");
+        return isEngine && passesFilters(backup);
+      })
+      .sort((a: any, b: any) => getBackupTimestamp(b) - getBackupTimestamp(a));
+  }, [backupList, searchQuery, versionFilter, startDate, endDate, getBackupSignature]);
 
-  const renderBackupCard = (backup: any) => {
-    const backupName = typeof backup === 'string' ? backup : backup.name;
-    const sizeMb = typeof backup === 'string' ? 0 : backup.size_mb;
-    const logicalSizeMb = typeof backup === 'string' ? 0 : (backup.logical_size_mb ?? backup.size_mb);
-    const sig = getBackupSignature ? getBackupSignature(backupName) : null;
-    const isEngine = sig ? sig.isEngine : backupName.toLowerCase().includes("engine");
-    const title = sig?.alias || (isEngine ? t("engine_full") : t("world_state"));
-    const icon = isEngine ? t("icon_settings") : t("icon_public");
-
-    const themeColor = isEngine ? 'text-rose-500' : 'text-indigo-500';
-    const themeBg = isEngine ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]';
-    const themeBorder = isEngine ? 'border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
-    const themeHoverBorder = isEngine ? 'hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' : 'hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]';
-    const themeGradient = isEngine ? 'from-rose-500/5' : 'from-indigo-500/5';
-    const themeLed = isEngine ? 'bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.8)]' : 'bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.8)]';
+  const renderSealCard = (isEngine: boolean) => {
+    const isConfirming = isEngine ? confirmSealEngine : confirmSealWorld;
+    const setConfirming = isEngine ? setConfirmSealEngine : setConfirmSealWorld;
+    const themeColor = isEngine ? "text-rose-400" : "text-indigo-400";
+    const themeBorderHover = isEngine
+      ? "hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)]"
+      : "hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]";
+    const themeGradient = isEngine ? "from-rose-500/10" : "from-indigo-500/10";
+    const confirmBtnClasses = isEngine
+      ? "text-rose-400 bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_25%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
+      : "text-indigo-400 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]";
 
     return (
-      <div key={backupName} className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-4 shadow-xl min-h-[13rem] overflow-hidden group ${themeHoverBorder} transition-colors duration-300`}>
-        <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${themeGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
+      <div
+        onClick={() => !isConfirming && setConfirming(true)}
+        className={`relative glass-panel p-5 rounded-2xl flex flex-col justify-center items-center gap-3 shadow-xl min-h-[13.5rem] overflow-hidden group cursor-pointer ${themeBorderHover} transition-all duration-300`}
+      >
+        <div
+          className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${themeGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`}
+        />
 
-        <div className="flex justify-between items-start relative z-10">
-          <div className={`w-12 h-12 rounded-xl theme-glass-panel border ${themeBorder} shadow-[inset_0_0_20px_rgba(255,255,255,0.1),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
-            <span className={`material-symbols-outlined !text-[24px] ${themeColor} drop-shadow-lg`}>{icon}</span>
+        {!isConfirming ? (
+          <div className="flex flex-col items-center gap-3 text-center z-10 transition-transform duration-300 group-hover:scale-105">
+            <div className="w-12 h-12 rounded-2xl glass-surface flex items-center justify-center shadow-inner transition-colors">
+              <span
+                className={`material-symbols-outlined !text-2xl text-[var(--subtext)] group-hover:${themeColor} transition-colors`}
+              >
+                {t("icon_add", "add")}
+              </span>
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-[var(--text)] uppercase tracking-widest transition-colors">
+                {isEngine
+                  ? t("btn_seal_engine", "Seal Engine Core")
+                  : t("btn_seal_state", "Seal World State")}
+              </h3>
+              <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest mt-1">
+                {t("create_new_snapshot", "Create New Snapshot")}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="flex flex-col items-center justify-center w-full h-full gap-3 z-20 animate-in fade-in zoom-in-95 duration-200 px-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className={`text-[10px] font-black uppercase tracking-widest ${themeColor} mb-1`}>
+              {isEngine
+                ? t("confirm_seal_engine_prompt", "Seal Engine Core?")
+                : t("confirm_seal_world_prompt", "Seal World State?")}
+            </span>
+            <div className="flex gap-2 w-full h-10">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isEngine) {
+                    triggerFullEngineBackup && triggerFullEngineBackup();
+                  } else {
+                    triggerPrePatchSnapshot && triggerPrePatchSnapshot(true);
+                  }
+                  setConfirming(false);
+                }}
+                className={`flex-[2] h-full border transition-colors text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm cursor-pointer ${confirmBtnClasses}`}
+              >
+                {t("btn_confirm", "Confirm")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                className="flex-[1] h-full text-[var(--text)] glass-surface hover:bg-white/10 transition-colors font-black text-[10px] uppercase tracking-widest rounded-xl shadow-sm cursor-pointer"
+              >
+                {t("btn_cancel", "Cancel")}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const formatSizeMb = (mb: number) => {
+    if (mb < 1000) {
+      return `${mb.toFixed(2)} ${t("unit_mb", "MB")}`;
+    }
+    return `${(mb / 1024).toFixed(2)} ${t("unit_gb", "GB")}`;
+  };
+
+  const renderBackupCard = (backup: any, index: number) => {
+    const backupName = typeof backup === "string" ? backup : backup.name;
+    const sizeMb = typeof backup === "string" ? 0 : backup.size_mb || 0;
+
+    const sig = getBackupSignature ? getBackupSignature(backupName) : null;
+    const isEngine = sig ? sig.isEngine : backupName.toLowerCase().includes("engine");
+    const rawAlias = sig?.alias || "";
+    const isDefaultAlias =
+      !rawAlias ||
+      rawAlias.toLowerCase() === "world state" ||
+      rawAlias.toLowerCase() === "engine core";
+    const title = isDefaultAlias
+      ? isEngine
+        ? t("engine_full", "Engine Core")
+        : t("world_state", "World State")
+      : rawAlias;
+    const icon = isEngine ? t("icon_settings", "settings") : t("icon_public", "public");
+
+    const themeColor = isEngine ? "text-rose-500" : "text-indigo-500";
+    const themeBg = isEngine
+      ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+      : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]";
+    const themeBorder = isEngine
+      ? "border-[color-mix(in_srgb,var(--danger)_25%,transparent)]"
+      : "border-[color-mix(in_srgb,var(--accent)_25%,transparent)]";
+    const themeHoverBorder = isEngine
+      ? "hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)]"
+      : "hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]";
+    const themeGradient = isEngine ? "from-rose-500/5" : "from-indigo-500/5";
+
+    const versionLabel = sig?.version || backupName.replace(".tar.zst", "");
+    const isLatest = index === 0;
+
+    return (
+      <div
+        key={backupName}
+        onClick={() => {
+          setSelectedBackupForInspection(backupName);
+          setIsSidePanelOpen(true);
+        }}
+        className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-4 shadow-xl min-h-[13.5rem] overflow-hidden group cursor-pointer ${themeHoverBorder} transition-colors duration-300`}
+      >
+        <div
+          className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${themeGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`}
+        />
+
+        {/* Top Row: Icon on Left, Latest + Size Badges on Right */}
+        <div className="flex justify-between items-start gap-3 relative z-10">
+          <div
+            className={`w-11 h-11 rounded-xl glass-surface border ${themeBorder} flex items-center justify-center shrink-0`}
+          >
+            <span className={`material-symbols-outlined !text-[22px] ${themeColor}`}>
+              {icon}
+            </span>
           </div>
 
-          <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 px-2.5 py-1 rounded-lg">
-            {sizeMb < 1 ? (sizeMb * 1024).toFixed(2) + " MB" : (sizeMb / 1024).toFixed(2) + " " + t("unit_gb")}
-          </span>
-        </div>
-
-        <div className="flex flex-col relative z-10 mt-1">
-          <h3 className="text-lg font-black text-[var(--text)] tracking-tighter capitalize leading-none mb-2.5 truncate">{title}</h3>
-          <div className="flex items-center gap-2">
-            <span className={`text-[9px] font-black ${themeColor} capitalize tracking-widest`}>{sig ? sig.version : backupName.replace(".tar.zst", "")}</span>
-            {sig?.timestamp && sig.timestamp !== "0" && (
-              <>
-                <span className="text-[var(--subtext)] opacity-50">&bull;</span>
-                <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest">{new Date(Number(sig.timestamp) * 1000).toLocaleDateString()}</span>
-              </>
+          <div className="flex items-center gap-2 shrink-0">
+            {isLatest && (
+              <span className="px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                {t("tc_badge_latest", "Latest")}
+              </span>
             )}
+            <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black font-mono text-[var(--subtext)] tracking-wider whitespace-nowrap">
+              {formatSizeMb(sizeMb)}
+            </span>
           </div>
         </div>
 
-        <div className="mt-auto relative z-20 h-10">
+        {/* Middle Block: Full-Width Category, Prominent Version Number, and Timestamp */}
+        <div className="flex flex-col gap-1 relative z-10 mt-0.5">
+          <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${themeColor}`}>
+            {title}
+          </span>
+          <h3 className="text-xl font-black font-mono text-[var(--text)] tracking-tight leading-tight">
+            {versionLabel}
+          </h3>
+          {sig?.timestamp && sig.timestamp !== "0" && (
+            <div className="flex items-center gap-1.5 mt-0.5 text-[var(--subtext)] opacity-80">
+              <span className="material-symbols-outlined !text-[13px]">
+                {t("icon_schedule", "schedule")}
+              </span>
+              <span className="text-[11px] font-bold tracking-wide">
+                {new Date(Number(sig.timestamp) * 1000).toLocaleDateString()} &bull;{" "}
+                {new Date(Number(sig.timestamp) * 1000).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+          )}
+        </div>
 
-          <div className={`grid grid-cols-[2fr_1fr_1fr] gap-2 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] p-1.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner rounded-xl transition-all duration-300 ${confirmRestoreBackup === backupName || confirmDeleteBackup === backupName ? 'opacity-0 translate-y-4 pointer-events-none absolute inset-x-0' : 'opacity-100 translate-y-0 relative'}`}>
+        {/* Bottom Action Tray */}
+        <div
+          className="mt-auto relative z-20 h-10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            className={`grid grid-cols-[2fr_1fr_1fr] gap-2 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] p-1.5 border border-[color-mix(in_srgb,var(--text)_6%,transparent)] shadow-inner rounded-xl transition-all duration-300 ${
+              confirmRestoreBackup === backupName || confirmDeleteBackup === backupName
+                ? "opacity-0 translate-y-4 pointer-events-none absolute inset-x-0"
+                : "opacity-100 translate-y-0 relative"
+            }`}
+          >
             <button
+              type="button"
               onClick={() => setConfirmRestoreBackup(backupName)}
-              className={`h-[32px] flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${themeColor} bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 rounded-lg group/rest hover:scale-[1.03] active:scale-95 shadow-sm hover:shadow-md`}
+              className={`h-[32px] flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${themeColor} bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_12%,transparent)] transition-all duration-300 rounded-lg cursor-pointer`}
             >
-              <span className={`material-symbols-outlined !text-[16px]`}>{t("icon_restore")}</span>
-              {t("btn_restore")}
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_restore", "restore")}
+              </span>
+              {t("btn_restore", "Restore")}
             </button>
             <button
-              onClick={() => { setSelectedBackupForInspection(backupName); setIsSidePanelOpen(true); }}
-              className="h-[32px] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 rounded-lg group/ins hover:scale-[1.03] active:scale-95 shadow-sm hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.15)]"
+              type="button"
+              onClick={() => {
+                setSelectedBackupForInspection(backupName);
+                setIsSidePanelOpen(true);
+              }}
+              className="h-[32px] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all duration-300 rounded-lg relative group/ins cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[16px]">search</span>
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_search", "search")}
+              </span>
+              <HoverTooltip title={t("tc_btn_inspect", "Inspect")} />
             </button>
             <button
+              type="button"
               onClick={() => setConfirmDeleteBackup(backupName)}
-              className="h-[32px] flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_60%,transparent)] hover:text-[var(--danger)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] transition-all duration-300 rounded-lg group/del hover:scale-[1.03] active:scale-95 shadow-sm hover:shadow-[0_0_15px_rgba(var(--danger-rgb),0.15)]"
+              className="h-[32px] flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_70%,transparent)] hover:text-[var(--danger)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] transition-all duration-300 rounded-lg relative group/del cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[16px]">{t("icon_delete")}</span>
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_delete", "delete")}
+              </span>
+              <HoverTooltip title={t("btn_delete", "Delete")} />
             </button>
           </div>
 
-          <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmRestoreBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+          <div
+            className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${
+              confirmRestoreBackup === backupName
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 -translate-y-4 pointer-events-none"
+            }`}
+          >
             <button
-              onClick={() => { setConfirmRestoreBackup(null); useModalStore.getState().setRestoreType(isEngine ? 'engine' : 'world'); if (restoreGameBackup) restoreGameBackup(backupName); }}
-              className={`flex-[2] h-full ${themeColor} ${themeBg} hover:brightness-110 border ${themeBorder} transition-colors duration-300 text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm`}
+              type="button"
+              onClick={() => {
+                setConfirmRestoreBackup(null);
+                useModalStore.getState().setRestoreType(isEngine ? "engine" : "world");
+                if (restoreGameBackup) restoreGameBackup(backupName);
+              }}
+              className={`flex-[2] h-full ${themeColor} ${themeBg} hover:brightness-110 border ${themeBorder} transition-colors duration-300 text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm cursor-pointer`}
             >
-              {isEngine ? t("confirm_restore_engine_card") : t("confirm_restore_state")}
+              {isEngine
+                ? t("confirm_restore_engine_card", "Confirm Engine Restore")
+                : t("confirm_restore_state", "Confirm Restore")}
             </button>
-            <button onClick={() => setConfirmRestoreBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors duration-300 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm">
-              {t("btn_cancel")}
-            </button>
-          </div>
-
-          <div className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${confirmDeleteBackup === backupName ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
             <button
-              onClick={() => { setConfirmDeleteBackup(null); if (deleteBackup) deleteBackup(backupName); }}
-              className="flex-[2] h-full text-red-500 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors duration-300 text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm"
+              type="button"
+              onClick={() => setConfirmRestoreBackup(null)}
+              className="flex-[1] h-full text-[var(--text)] glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors duration-300 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm cursor-pointer"
             >
-              {isEngine ? t("confirm_delete_engine_card") : t("confirm_delete_state")}
-            </button>
-            <button onClick={() => setConfirmDeleteBackup(null)} className="flex-[1] h-full text-[var(--text)] hover:text-[var(--text)] glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors duration-300 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm">
-              {t("btn_cancel")}
+              {t("btn_cancel", "Cancel")}
             </button>
           </div>
 
+          <div
+            className={`absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 ${
+              confirmDeleteBackup === backupName
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 -translate-y-4 pointer-events-none"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmDeleteBackup(null);
+                if (deleteBackup) deleteBackup(backupName);
+              }}
+              className="flex-[2] h-full text-red-500 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors duration-300 text-[10px] font-black capitalize tracking-widest rounded-xl shadow-sm cursor-pointer"
+            >
+              {isEngine
+                ? t("confirm_delete_engine_card", "Confirm Engine Delete")
+                : t("confirm_delete_state", "Confirm Delete")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteBackup(null)}
+              className="flex-[1] h-full text-[var(--text)] glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors duration-300 font-black text-[10px] capitalize tracking-widest rounded-xl shadow-sm cursor-pointer"
+            >
+              {t("btn_cancel", "Cancel")}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -207,31 +447,37 @@ export default function TimeCapsule({
   const FilterContent = () => (
     <div className="flex flex-col gap-4 min-w-[280px]">
       <div className="flex flex-col gap-2">
-        <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] uppercase">{t("game_version")}</label>
+        <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] uppercase">
+          {t("game_version", "Game Version")}
+        </label>
         <CustomDropdown
           disableTint={true}
           variant="panel"
           value={versionFilter}
           onChange={(val: string[]) => setVersionFilter(val[0])}
           options={[
-            { id: "ALL", label: t("ql_all") },
-            ...uniqueVersions.map((v: string) => ({ id: v, label: v }))
+            { id: "ALL", label: t("ql_all", "All") },
+            ...uniqueVersions.map((v: string) => ({ id: v, label: v })),
           ]}
         />
       </div>
       <div className="flex flex-col gap-2">
-        <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] uppercase">{t("date_range")}</label>
+        <label className="text-[10px] font-black tracking-widest text-[var(--subtext)] uppercase">
+          {t("date_range", "Date Range")}
+        </label>
         <div className="flex items-center gap-2">
           <CustomDatePicker
             value={startDate}
             onChange={setStartDate}
-            placeholder={t("filter_start_date")}
+            placeholder={t("filter_start_date", "Start Date")}
           />
-          <span className="text-[var(--subtext)] text-[10px] uppercase font-bold opacity-50 px-1">to</span>
+          <span className="text-[var(--subtext)] text-[10px] uppercase font-bold opacity-50 px-1">
+            {t("tc_date_to", "to")}
+          </span>
           <CustomDatePicker
             value={endDate}
             onChange={setEndDate}
-            placeholder={t("filter_end_date")}
+            placeholder={t("filter_end_date", "End Date")}
           />
         </div>
       </div>
@@ -241,259 +487,172 @@ export default function TimeCapsule({
   return (
     <div className="flex flex-col gap-0 animate-in fade-in duration-700 pb-32 w-full">
       <ViewHeader
-        title={t("backups_title")}
-        subtitle={t("backups_subtitle")}
-        icon={t("icon_history")}
+        title={t("backups_title", "Time Capsule")}
+        subtitle={t("backups_subtitle", "Backups, restores, and versioned world states")}
+        icon={t("icon_history", "history")}
         iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-        breadcrumb={activeTab !== "LANDING" ? (activeTab === "WORLD" ? t("world_state") : t("engine_core")) : undefined}
+        breadcrumb={
+          activeTab !== "LANDING"
+            ? activeTab === "WORLD"
+              ? t("world_state", "World State")
+              : t("engine_core", "Engine Core")
+            : undefined
+        }
         onTitleClick={() => setActiveTab("LANDING")}
       >
-        {activeTab !== "LANDING" && (
-          <div className="flex-1 xl:w-auto w-full mb-4 md:mb-0 max-w-sm">
-            <ActionPill
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              searchPlaceholder={t("timecapsule_search") as string || "Search Chronograms..."}
-              primaryPopover={{
-                icon: "tune",
-                label: t("filters") || "Filters",
-                content: <FilterContent />
-              }}
-            />
-          </div>
-        )}
+        <div className="flex-1 xl:w-auto w-full mb-4 md:mb-0 max-w-sm">
+          <ActionPill
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            searchPlaceholder={
+              (t("timecapsule_search", "Search Chronograms...") as string) ||
+              "Search Chronograms..."
+            }
+            primaryPopover={{
+              icon: t("icon_tune", "tune"),
+              label: t("filters", "Filters") || "Filters",
+              content: <FilterContent />,
+            }}
+          />
+        </div>
       </ViewHeader>
 
       <div className="md:hidden">
-        <HoverTabDrawer title="Time Capsule" activeTab={activeTab} setTab={setActiveTab}>
-          <VerticalTabButton id="LANDING" icon="dashboard" label={t("tab_landing")} activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="WORLD" icon="public" label={t("world_state")} activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="ENGINE" icon="settings" label={t("engine_full")} activeTab={activeTab} setTab={setActiveTab} />
+        <HoverTabDrawer
+          title={t("backups_title", "Time Capsule")}
+          activeTab={activeTab}
+          setTab={setActiveTab}
+        >
+          <VerticalTabButton
+            id="LANDING"
+            icon={t("icon_dashboard", "dashboard")}
+            label={t("tab_landing", "Overview")}
+            activeTab={activeTab}
+            setTab={setActiveTab}
+          />
+          <VerticalTabButton
+            id="WORLD"
+            icon={t("icon_public", "public")}
+            label={t("world_state", "World State")}
+            activeTab={activeTab}
+            setTab={setActiveTab}
+          />
+          <VerticalTabButton
+            id="ENGINE"
+            icon={t("icon_settings", "settings")}
+            label={t("engine_full", "Engine Core")}
+            activeTab={activeTab}
+            setTab={setActiveTab}
+          />
         </HoverTabDrawer>
       </div>
 
       <div className="hidden md:flex flex-col w-full gap-3 mb-6">
         <StatTileCarousel>
-          <DashboardStatTile variant="tab" icon="dashboard" label={t("tab_landing")} number={selectedVersion || ""} onClick={() => setActiveTab("LANDING")} isActive={activeTab === "LANDING"} />
-          <DashboardStatTile variant="tab" icon="public" label={t("world_state")} number={`${worldBackups.length} / ${(totalWorldSize / 1024).toFixed(2)} GB`} onClick={() => setActiveTab("WORLD")} isActive={activeTab === "WORLD"} />
-          <DashboardStatTile variant="tab" icon="settings" label={t("engine_full")} number={`${engineBackups.length} / ${(totalEngineSize / 1024).toFixed(2)} GB`} onClick={() => setActiveTab("ENGINE")} isActive={activeTab === "ENGINE"} />
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_dashboard", "dashboard")}
+            label={t("tab_landing", "Overview")}
+            number={selectedVersion || ""}
+            onClick={() => setActiveTab("LANDING")}
+            isActive={activeTab === "LANDING"}
+          />
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_public", "public")}
+            label={t("world_state", "World State")}
+            number={`${worldBackups.length} / ${formatSizeMb(totalWorldSize)}`}
+            onClick={() => setActiveTab("WORLD")}
+            isActive={activeTab === "WORLD"}
+          />
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_settings", "settings")}
+            label={t("engine_full", "Engine Core")}
+            number={`${engineBackups.length} / ${formatSizeMb(totalEngineSize)}`}
+            onClick={() => setActiveTab("ENGINE")}
+            isActive={activeTab === "ENGINE"}
+          />
         </StatTileCarousel>
       </div>
 
-
       <div className="flex flex-col gap-10 pt-4">
-        {backupList?.length > 0 ? (
-          <>
-            {activeTab === "LANDING" && (
-              <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {worldBackups.length > 0 && (
-                  <div className="flex flex-col gap-6">
-                    <CommandScreenSectionHeading
-                      title={t("recent_world_states")}
-                      icon="public"
-                      iconColorClass="text-indigo-400"
-                    />
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
-                      {!confirmSealWorld ? (
-                        <div
-                          onClick={() => setConfirmSealWorld(true)}
-                          className="flex flex-col items-center justify-center gap-4 p-6 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-[0_20px_40px_rgba(99,102,241,0.1)] hover:-translate-y-1 min-h-[14rem]"
-                        >
-                          <div className="w-14 h-14 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-indigo-500/30 shadow-inner">
-                            <span className="material-symbols-outlined !text-[28px] text-[var(--subtext)] group-hover:text-indigo-400 transition-colors">add</span>
-                          </div>
-                          <div className="flex flex-col items-center gap-1.5 text-center">
-                            <h4 className="text-[12px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-indigo-400 transition-colors">{t("btn_seal_state")}</h4>
-                            <p className="text-[9px] text-[var(--subtext)] font-black tracking-[0.2em] uppercase opacity-40 group-hover:opacity-60">{t("create_snapshot") || "CREATE NEW SNAPSHOT"}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center gap-4 p-6 rounded-3xl glass-panel border border-indigo-500/30 shadow-[0_0_30px_rgba(99,102,241,0.1),inset_0_0_20px_rgba(99,102,241,0.05)] min-h-[14rem] animate-in zoom-in-95 duration-300 relative overflow-hidden group">
-                          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent pointer-events-none"></div>
-                          <div className="relative z-10 w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse">
-                            <span className="material-symbols-outlined !text-[24px] text-indigo-400">help</span>
-                          </div>
-                          <h4 className="relative z-10 text-[11px] font-black uppercase tracking-[0.2em] text-indigo-400 text-center">{t("confirm_seal_long")}</h4>
-                          <div className="relative z-10 flex gap-2 w-full mt-2">
-                            <button onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }} className="flex-[2] py-2.5 flex items-center justify-center gap-2 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(var(--success-rgb),0.2)] hover:scale-[1.02] active:scale-95">
-                              <span className="material-symbols-outlined !text-[16px]">check_circle</span>
-                              {t("btn_confirm")}
-                            </button>
-                            <button onClick={() => setConfirmSealWorld(false)} className="flex-[1] py-2.5 flex items-center justify-center glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] rounded-xl transition-all hover:scale-[1.02] active:scale-95">
-                              <span className="material-symbols-outlined !text-[16px]">close</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      {worldBackups.slice(0, 5).map(renderBackupCard)}
-                    </div>
-                  </div>
-                )}
+        {activeTab === "LANDING" && (
+          <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* World States Section */}
+            <div className="flex flex-col gap-6">
+              <CommandScreenSectionHeading
+                title={t("recent_world_states", "Recent World States")}
+                icon={t("icon_public", "public")}
+                iconColorClass="text-indigo-400"
+                className="!mb-0"
+              />
 
-                {engineBackups.length > 0 && (
-                  <div className="flex flex-col gap-6">
-                    <CommandScreenSectionHeading
-                      title={t("recent_engine_cores")}
-                      icon="settings"
-                      iconColorClass="text-rose-400"
-                    />
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
-                      {!confirmSealEngine ? (
-                        <div
-                          onClick={() => setConfirmSealEngine(true)}
-                          className="flex flex-col items-center justify-center gap-4 p-6 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-rose-500/30 hover:bg-rose-500/5 transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-[0_20px_40px_rgba(244,63,94,0.1)] hover:-translate-y-1 min-h-[14rem]"
-                        >
-                          <div className="w-14 h-14 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:bg-rose-500/10 flex items-center justify-center group-hover:scale-110 transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-rose-500/30 shadow-inner">
-                            <span className="material-symbols-outlined !text-[28px] text-[var(--subtext)] group-hover:text-rose-400 transition-colors">add</span>
-                          </div>
-                          <div className="flex flex-col items-center gap-1.5 text-center">
-                            <h4 className="text-[12px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-rose-400 transition-colors">{t("btn_seal_engine")}</h4>
-                            <p className="text-[9px] text-[var(--subtext)] font-black tracking-[0.2em] uppercase opacity-40 group-hover:opacity-60">{t("create_snapshot") || "CREATE NEW SNAPSHOT"}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center gap-4 p-6 rounded-3xl glass-panel border border-rose-500/30 shadow-[0_0_30px_rgba(244,63,94,0.1),inset_0_0_20px_rgba(244,63,94,0.05)] min-h-[14rem] animate-in zoom-in-95 duration-300 relative overflow-hidden group">
-                          <div className="absolute inset-0 bg-gradient-to-br from-rose-500/10 to-transparent pointer-events-none"></div>
-                          <div className="relative z-10 w-12 h-12 rounded-2xl bg-rose-500/20 flex items-center justify-center border border-rose-500/40 shadow-[0_0_15px_rgba(244,63,94,0.3)] animate-pulse">
-                            <span className="material-symbols-outlined !text-[24px] text-rose-400">help</span>
-                          </div>
-                          <h4 className="relative z-10 text-[11px] font-black uppercase tracking-widest text-rose-400 text-center">{t("confirm_seal_long")}</h4>
-                          <div className="relative z-10 flex gap-2 w-full mt-2">
-                            <button onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }} className="flex-[2] py-2.5 flex items-center justify-center gap-2 bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(var(--warning-rgb),0.2)] hover:scale-[1.02] active:scale-95">
-                              <span className="material-symbols-outlined !text-[16px]">check_circle</span>
-                              {t("btn_confirm")}
-                            </button>
-                            <button onClick={() => setConfirmSealEngine(false)} className="flex-[1] py-2.5 flex items-center justify-center glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] rounded-xl transition-all hover:scale-[1.02] active:scale-95">
-                              <span className="material-symbols-outlined !text-[16px]">close</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      {engineBackups.slice(0, 5).map(renderBackupCard)}
-                    </div>
-                  </div>
-                )}
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
+                {renderSealCard(false)}
+                {worldBackups.slice(0, 5).map((b: any, idx: number) => renderBackupCard(b, idx))}
               </div>
-            )}
+            </div>
 
-            {activeTab === "WORLD" && worldBackups.length > 0 && (
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                  {!confirmSealWorld ? (
-                    <div
-                      onClick={() => setConfirmSealWorld(true)}
-                      className="flex flex-col items-center justify-center gap-4 p-6 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-[0_20px_40px_rgba(99,102,241,0.1)] hover:-translate-y-1 min-h-[14rem]"
-                    >
-                      <div className="w-14 h-14 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-indigo-500/30 shadow-inner">
-                        <span className="material-symbols-outlined !text-[28px] text-[var(--subtext)] group-hover:text-indigo-400 transition-colors">add</span>
-                      </div>
-                      <div className="flex flex-col items-center gap-1.5 text-center">
-                        <h4 className="text-[12px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-indigo-400 transition-colors">{t("btn_seal_state")}</h4>
-                        <p className="text-[9px] text-[var(--subtext)] font-black tracking-[0.2em] uppercase opacity-40 group-hover:opacity-60">{t("create_snapshot") || "CREATE NEW SNAPSHOT"}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center gap-4 p-6 rounded-3xl glass-panel border border-indigo-500/30 shadow-[0_0_30px_rgba(99,102,241,0.1),inset_0_0_20px_rgba(99,102,241,0.05)] min-h-[14rem] animate-in zoom-in-95 duration-300 relative overflow-hidden group">
-                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent pointer-events-none"></div>
-                      <div className="relative z-10 w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse">
-                        <span className="material-symbols-outlined !text-[24px] text-indigo-400">help</span>
-                      </div>
-                      <h4 className="relative z-10 text-[11px] font-black uppercase tracking-[0.2em] text-indigo-400 text-center">{t("confirm_seal_long")}</h4>
-                      <div className="relative z-10 flex gap-2 w-full mt-2">
-                        <button onClick={() => { triggerPrePatchSnapshot && triggerPrePatchSnapshot(true); setConfirmSealWorld(false); }} className="flex-[2] py-2.5 flex items-center justify-center gap-2 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(var(--success-rgb),0.2)] hover:scale-[1.02] active:scale-95">
-                          <span className="material-symbols-outlined !text-[16px]">check_circle</span>
-                          {t("btn_confirm")}
-                        </button>
-                        <button onClick={() => setConfirmSealWorld(false)} className="flex-[1] py-2.5 flex items-center justify-center glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] rounded-xl transition-all hover:scale-[1.02] active:scale-95">
-                          <span className="material-symbols-outlined !text-[16px]">close</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {worldBackups.map(renderBackupCard)}
-                </div>
-              </div>
-            )}
+            {/* Engine Cores Section */}
+            <div className="flex flex-col gap-6">
+              <CommandScreenSectionHeading
+                title={t("recent_engine_cores", "Recent Engine Cores")}
+                icon={t("icon_settings", "settings")}
+                iconColorClass="text-rose-400"
+                className="!mb-0"
+              />
 
-            {activeTab === "ENGINE" && engineBackups.length > 0 && (
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-                  {!confirmSealEngine ? (
-                    <div
-                      onClick={() => setConfirmSealEngine(true)}
-                      className="flex flex-col items-center justify-center gap-4 p-6 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-rose-500/30 hover:bg-rose-500/5 transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-[0_20px_40px_rgba(244,63,94,0.1)] hover:-translate-y-1 min-h-[14rem]"
-                    >
-                      <div className="w-14 h-14 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:bg-rose-500/10 flex items-center justify-center group-hover:scale-110 transition-all duration-500 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] group-hover:border-rose-500/30 shadow-inner">
-                        <span className="material-symbols-outlined !text-[28px] text-[var(--subtext)] group-hover:text-rose-400 transition-colors">add</span>
-                      </div>
-                      <div className="flex flex-col items-center gap-1.5 text-center">
-                        <h4 className="text-[12px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-rose-400 transition-colors">{t("btn_seal_engine")}</h4>
-                        <p className="text-[9px] text-[var(--subtext)] font-black tracking-[0.2em] uppercase opacity-40 group-hover:opacity-60">{t("create_snapshot") || "CREATE NEW SNAPSHOT"}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center gap-4 p-6 rounded-3xl glass-panel border border-rose-500/30 shadow-[0_0_30px_rgba(244,63,94,0.1),inset_0_0_20px_rgba(244,63,94,0.05)] min-h-[14rem] animate-in zoom-in-95 duration-300 relative overflow-hidden group">
-                      <div className="absolute inset-0 bg-gradient-to-br from-rose-500/10 to-transparent pointer-events-none"></div>
-                      <div className="relative z-10 w-12 h-12 rounded-2xl bg-rose-500/20 flex items-center justify-center border border-rose-500/40 shadow-[0_0_15px_rgba(244,63,94,0.3)] animate-pulse">
-                        <span className="material-symbols-outlined !text-[24px] text-rose-400">help</span>
-                      </div>
-                      <h4 className="relative z-10 text-[11px] font-black uppercase tracking-widest text-rose-400 text-center">{t("confirm_seal_long")}</h4>
-                      <div className="relative z-10 flex gap-2 w-full mt-2">
-                        <button onClick={() => { triggerFullEngineBackup && triggerFullEngineBackup(); setConfirmSealEngine(false); }} className="flex-[2] py-2.5 flex items-center justify-center gap-2 bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_25%,transparent)] border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(var(--warning-rgb),0.2)] hover:scale-[1.02] active:scale-95">
-                          <span className="material-symbols-outlined !text-[16px]">check_circle</span>
-                          {t("btn_confirm")}
-                        </button>
-                        <button onClick={() => setConfirmSealEngine(false)} className="flex-[1] py-2.5 flex items-center justify-center glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] rounded-xl transition-all hover:scale-[1.02] active:scale-95">
-                          <span className="material-symbols-outlined !text-[16px]">close</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {engineBackups.map(renderBackupCard)}
-                </div>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
+                {renderSealCard(true)}
+                {engineBackups.slice(0, 5).map((b: any, idx: number) => renderBackupCard(b, idx))}
               </div>
-            )}
+            </div>
+          </div>
+        )}
 
-            {activeTab === "LANDING" && worldBackups.length === 0 && engineBackups.length === 0 && (
-              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl w-full">
-                <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
-                  <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
-                  {t("timecapsule_no_backups")}
-                </span>
-              </div>
-            )}
+        {activeTab === "WORLD" && (
+          <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <CommandScreenSectionHeading
+              title={t("world_state", "World State")}
+              icon={t("icon_public", "public")}
+              iconColorClass="text-indigo-400"
+              className="!mb-0"
+            />
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6">
+              {renderSealCard(false)}
+              {worldBackups.map((b: any, idx: number) => renderBackupCard(b, idx))}
+            </div>
+          </div>
+        )}
 
-            {activeTab === "WORLD" && worldBackups.length === 0 && (
-              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl w-full">
-                <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
-                  <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
-                  {t("timecapsule_no_backups")}
-                </span>
-              </div>
-            )}
-
-            {activeTab === "ENGINE" && engineBackups.length === 0 && (
-              <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl w-full">
-                <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
-                  <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
-                  {t("timecapsule_no_backups")}
-                </span>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-64 theme-glass-panel border border-white/5 rounded-2xl shadow-xl">
-            <span className="text-[var(--subtext)] font-black capitalize tracking-widest opacity-60 flex items-center gap-4">
-              <span className="material-symbols-outlined !text-3xl opacity-50">{t("icon_hourglass_empty")}</span>
-              {t("timecapsule_no_backups")}
-            </span>
+        {activeTab === "ENGINE" && (
+          <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <CommandScreenSectionHeading
+              title={t("engine_full", "Engine Core")}
+              icon={t("icon_settings", "settings")}
+              iconColorClass="text-rose-400"
+              className="!mb-0"
+            />
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6">
+              {renderSealCard(true)}
+              {engineBackups.map((b: any, idx: number) => renderBackupCard(b, idx))}
+            </div>
           </div>
         )}
       </div>
-      <TimeCapsuleSidePanel isOpen={isSidePanelOpen} onClose={() => setIsSidePanelOpen(false)} selectedBackup={selectedBackupForInspection} config={config} />
+
+      <TimeCapsuleSidePanel
+        isOpen={isSidePanelOpen}
+        onClose={() => setIsSidePanelOpen(false)}
+        selectedBackup={selectedBackupForInspection}
+        config={config}
+        getBackupSignature={getBackupSignature}
+        onRestoreBackup={(name: string, isEng: boolean) => {
+          useModalStore.getState().setRestoreType(isEng ? "engine" : "world");
+          if (restoreGameBackup) restoreGameBackup(name);
+        }}
+      />
     </div>
   );
 }
-
-
-

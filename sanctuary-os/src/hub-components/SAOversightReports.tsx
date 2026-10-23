@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton, PillTabs, PillTabButton, ActionPill, HeaderActionPortal, DashboardStatTile } from "../shared";
+import { CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton, ActionPill, HeaderActionPortal, DashboardStatTile } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { StatTileCarousel } from "./SharedCommandScreenLayout";
@@ -280,26 +280,26 @@ export default function SAOversightReports() {
                  searchPlaceholder={t("oversight_search")}
                  rightContent={
                    <>
-                     <PillTabs>
-                       <PillTabButton
+                     <FilterTabs>
+                       <FilterTabButton
                          id="all"
                          label={t("ql_all")}
                          activeTab={groupFilterTab}
                          setTab={setGroupFilterTab}
                        />
-                       <PillTabButton
+                       <FilterTabButton
                          id="new"
                          label={t("badge_new")}
                          activeTab={groupFilterTab}
                          setTab={setGroupFilterTab}
                        />
-                       <PillTabButton
+                       <FilterTabButton
                          id="archive"
                          label={t("auto_archive")}
                          activeTab={groupFilterTab}
                          setTab={setGroupFilterTab}
                        />
-                     </PillTabs>
+                     </FilterTabs>
 
                      <CustomDropdown 
                        flat={true}

@@ -82,7 +82,7 @@ export function UniversalCard({
       contentClasses = `flex-col p-4`;
       break;
     case "stat":
-      layoutClasses = "flex-col items-center justify-center p-4 text-center min-h-[100px]";
+      layoutClasses = "flex-col items-center justify-center p-4 text-center min-h-[100px] shadow-none";
       imageContainerClasses = "hidden";
       contentClasses = "flex-col items-center justify-center w-full gap-1";
       break;
@@ -185,21 +185,21 @@ export function UniversalCard({
     );
   };
 
-  const mergedStyle = layout === "stat"
-    ? ({
-        "--glass-outer-shadow": "0 0 #0000",
-        "--glass-nested-shadow": "0 0 #0000",
-        boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12))",
-        ...style,
-      } as React.CSSProperties)
-    : style;
-
   return (
     <div
       className={containerClasses}
       onClick={isDisabled ? undefined : onClick}
       onContextMenu={isDisabled ? undefined : onContextMenu}
-      style={mergedStyle}
+      style={
+        layout === "stat"
+          ? ({
+              "--glass-outer-shadow": "0 0 #0000",
+              "--glass-nested-shadow": "0 0 #0000",
+              boxShadow: "var(--glass-inset-highlight, inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.24), inset 1px 0 1px 0 rgba(255, 255, 255, 0.12))",
+              ...style,
+            } as React.CSSProperties)
+          : style
+      }
       {...restProps}
     >
 
