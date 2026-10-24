@@ -274,11 +274,11 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
     vars['--glass-outer-shadow'] = `0 18px 40px -10px rgba(0, 0, 0, ${outerShadowMain.toFixed(3)}), 0 6px 16px -4px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)})`;
     vars['--glass-surface-outer-shadow'] = `0 6px 16px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 0.70).toFixed(3)})`;
 
-    // Nested Glass inside SidePanels / Modals (Sheer luminous Liquid Glass with rich dark-smoked depth)
-    vars['--glass-nested-panel-bg'] = `color-mix(in srgb, rgba(${baseR}, ${baseG}, ${baseB}, 0.34) 70%, rgba(255, 255, 255, 0.055))`;
-    vars['--glass-nested-surface-bg'] = `color-mix(in srgb, rgba(${baseR}, ${baseG}, ${baseB}, 0.26) 65%, rgba(255, 255, 255, 0.045))`;
-    vars['--glass-nested-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.015) 45%, rgba(${baseR}, ${baseG}, ${baseB}, 0.12) 100%)`;
-    vars['--glass-nested-shadow'] = `0 12px 28px -6px rgba(0, 0, 0, 0.36), 0 4px 10px -2px rgba(0, 0, 0, 0.22), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.22), inset 1px 0 1px 0 rgba(255, 255, 255, 0.10)`;
+    // Nested Glass inside SidePanels / Modals (Sheer luminous Liquid Glass!)
+    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.055)`;
+    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.045)`;
+    vars['--glass-nested-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.018) 45%, rgba(255, 255, 255, 0.03) 100%)`;
+    vars['--glass-nested-shadow'] = `0 12px 28px -6px rgba(0, 0, 0, 0.34), 0 4px 10px -2px rgba(0, 0, 0, 0.20), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.22), inset 1px 0 1px 0 rgba(255, 255, 255, 0.10)`;
 
     // Chrome & Containers (Sidebar, SidePanel Drawer, Floating Pills, Card Banner/Icon)
     const drawerTintR = isBrightTint ? baseR : tr;
@@ -319,7 +319,7 @@ function generateRefractedWallpaperDataUrl(
   const aspectBucket = Math.round(viewportAspect * 100) / 100;
   const isMobileViewport = vw <= 768;
   const modeTag = isMobileViewport ? 'mob' : 'desk';
-  const cacheKey = `${bgImage}::${blurPx}::${saturation}::${fallbackBg}::${aspectBucket}::${modeTag}::v5`;
+  const cacheKey = `${bgImage}::${blurPx}::${saturation}::${fallbackBg}::${aspectBucket}::${modeTag}::v6`;
   const cached = refractedWallpaperCache.get(cacheKey);
   if (cached) return Promise.resolve(cached);
 
@@ -413,15 +413,6 @@ function generateRefractedWallpaperDataUrl(
             outCtx.filter = `blur(${scaledBlur}px) saturate(135%)`;
             outCtx.drawImage(padCanvas, -pad, -pad, padCanvas.width, padCanvas.height);
           }
-
-          // Subtle dark-smoked optical dim on mobile portrait so 3x-zoomed center neon lines don't overpower card text
-          outCtx.filter = 'none';
-          const [bgR, bgG, bgB] = parseHexToRgb(fallbackBg, [10, 13, 20]);
-          const yiq = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
-          if (yiq < 128) {
-            outCtx.fillStyle = `rgba(${bgR}, ${bgG}, ${bgB}, 0.28)`;
-            outCtx.fillRect(0, 0, W, H);
-          }
         } else {
           outCtx.filter = `blur(${scaledBlur}px) saturate(135%)`;
           outCtx.drawImage(padCanvas, -pad, -pad, padCanvas.width, padCanvas.height);
@@ -441,7 +432,7 @@ function generateRefractedWallpaperDataUrl(
   });
 }
 
-const GLASS_OPTICS_REV = "rev_15";
+const GLASS_OPTICS_REV = "rev_16";
 
 const ThemeContext = createContext<any>(null);
 
@@ -733,7 +724,7 @@ export const ThemeProvider = ({ children }: any) => {
         const aspect = vw / Math.max(1, vh);
         const aspectBucket = Math.round(aspect * 100) / 100;
         const modeTag = vw <= 768 ? 'mob' : 'desk';
-        const cacheKey = `${currentTheme.bgImage}::${blurPx}::${saturation}::${rawBg}::${aspectBucket}::${modeTag}::v5`;
+        const cacheKey = `${currentTheme.bgImage}::${blurPx}::${saturation}::${rawBg}::${aspectBucket}::${modeTag}::v6`;
         const cached = refractedWallpaperCache.get(cacheKey);
         if (cached) {
           root.style.setProperty(`--glass-refracted-wallpaper`, cached);

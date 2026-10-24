@@ -141,7 +141,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     <>
       <PwaInstallPrompt />
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 min-h-[76px] h-[calc(72px+env(safe-area-inset-bottom,0px))] z-[999999] flex items-center justify-around px-2 glass-panel portal-glass-fix !rounded-none !border-x-0 !border-b-0 pb-[env(safe-area-inset-bottom,0px)]"
+        className="md:hidden fixed bottom-0 left-0 right-0 min-h-[76px] h-[calc(72px+env(safe-area-inset-bottom,0px))] z-[999999] flex items-center justify-around px-2.5 py-2 gap-1.5 glass-panel portal-glass-fix !rounded-none !border-x-0 !border-b-0 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]"
       >
         {tabs.map(tab => {
           const isLandingView = isLandingContext && view !== 'settings' && view !== 'KeepersCore';
@@ -153,13 +153,23 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             <button
               key={tab.id}
               onClick={() => handleTabClick(tab.id)}
-              className={`flex flex-col items-center justify-center flex-1 h-full px-1 py-1.5 gap-1 transition-all duration-300 relative min-w-0 ${isActive ? 'text-[var(--accent)] opacity-100' : 'text-[var(--text)] opacity-50 hover:opacity-80'}`}
+              style={
+                isActive
+                  ? {
+                      backgroundColor: 'var(--glass-nav-active-bg)',
+                      backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%)',
+                      boxShadow: 'var(--glass-nav-active-shadow)',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.22)',
+                      borderLeft: '1px solid rgba(255, 255, 255, 0.14)',
+                      borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                    }
+                  : undefined
+              }
+              className={`flex flex-col items-center justify-center h-full py-1.5 gap-1 rounded-2xl transition-all duration-300 relative ${isActive ? 'flex-[1.5] shrink-0 px-3 text-[var(--text)] opacity-100' : 'flex-1 min-w-0 px-1 text-[var(--text)] opacity-55 hover:opacity-85'}`}
             >
-              {isActive && (
-                <div className="absolute inset-0 m-auto w-12 h-12 bg-[var(--accent)] blur-[20px] opacity-20 rounded-full pointer-events-none" />
-              )}
               <div className="relative flex items-center justify-center">
-                <span className={`material-symbols-outlined relative z-10 leading-none shrink-0 transition-all duration-300 ${isActive ? '!text-[22px] drop-shadow-[0_0_8px_var(--accent)]' : '!text-[20px]'}`}>
+                <span className={`material-symbols-outlined relative z-10 leading-none shrink-0 transition-all duration-300 ${isActive ? '!text-[20px] text-[color-mix(in_srgb,var(--text)_78%,var(--accent))]' : '!text-[20px]'}`}>
                   {tab.icon}
                 </span>
                 {typeof tab.badge === "number" && tab.badge > 0 && (
@@ -169,7 +179,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                 )}
               </div>
               {isActive && (
-                <span className="text-[8.5px] font-black w-full text-center px-0.5 leading-[1.15] uppercase tracking-[0.06em] whitespace-normal break-words line-clamp-2 relative z-10">
+                <span className="text-[9.5px] font-bold text-center leading-tight capitalize tracking-[0.03em] text-[var(--text)] opacity-95 whitespace-nowrap relative z-10">
                   {tab.label}
                 </span>
               )}
@@ -307,9 +317,22 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   setMasonActiveTab(tab.id);
                   setIsHubNavOpen(false);
                 }}
-                className={`p-4 rounded-xl flex items-center gap-4 transition-all ${masonActiveTab === tab.id ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                style={
+                  masonActiveTab === tab.id
+                    ? {
+                        backgroundColor: 'var(--glass-nav-active-bg)',
+                        backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%)',
+                        boxShadow: 'var(--glass-nav-active-shadow)',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.22)',
+                        borderLeft: '1px solid rgba(255, 255, 255, 0.14)',
+                        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                      }
+                    : undefined
+                }
+                className={`p-3.5 rounded-xl flex items-center gap-4 transition-all ${masonActiveTab === tab.id ? 'text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
               >
-                <span className={`material-symbols-outlined text-[20px] ${masonActiveTab === tab.id ? 'text-[var(--accent)]' : ''}`}>{tab.icon}</span>
+                <span className={`material-symbols-outlined text-[20px] ${masonActiveTab === tab.id ? 'text-[color-mix(in_srgb,var(--text)_78%,var(--accent))]' : ''}`}>{tab.icon}</span>
                 <span className="font-black tracking-widest text-[12px] uppercase">{tab.label}</span>
               </button>
             ))}
@@ -334,9 +357,22 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   setArchitectActiveTab(tab.id);
                   setIsHubNavOpen(false);
                 }}
-                className={`p-4 rounded-xl flex items-center gap-4 transition-all ${architectActiveTab === tab.id ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                style={
+                  architectActiveTab === tab.id
+                    ? {
+                        backgroundColor: 'var(--glass-nav-active-bg)',
+                        backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%)',
+                        boxShadow: 'var(--glass-nav-active-shadow)',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.22)',
+                        borderLeft: '1px solid rgba(255, 255, 255, 0.14)',
+                        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                      }
+                    : undefined
+                }
+                className={`p-3.5 rounded-xl flex items-center gap-4 transition-all ${architectActiveTab === tab.id ? 'text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
               >
-                <span className={`material-symbols-outlined text-[20px] ${architectActiveTab === tab.id ? 'text-[var(--accent)]' : ''}`}>{tab.icon}</span>
+                <span className={`material-symbols-outlined text-[20px] ${architectActiveTab === tab.id ? 'text-[color-mix(in_srgb,var(--text)_78%,var(--accent))]' : ''}`}>{tab.icon}</span>
                 <span className="font-black tracking-widest text-[12px] uppercase">{tab.label}</span>
               </button>
             ))}
@@ -361,9 +397,22 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   setOversightActiveTab(tab.id);
                   setIsHubNavOpen(false);
                 }}
-                className={`p-4 rounded-xl flex items-center gap-4 transition-all ${oversightActiveTab === tab.id ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                style={
+                  oversightActiveTab === tab.id
+                    ? {
+                        backgroundColor: 'var(--glass-nav-active-bg)',
+                        backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%)',
+                        boxShadow: 'var(--glass-nav-active-shadow)',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.22)',
+                        borderLeft: '1px solid rgba(255, 255, 255, 0.14)',
+                        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                      }
+                    : undefined
+                }
+                className={`p-3.5 rounded-xl flex items-center gap-4 transition-all ${oversightActiveTab === tab.id ? 'text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
               >
-                <span className={`material-symbols-outlined text-[20px] ${oversightActiveTab === tab.id ? 'text-[var(--accent)]' : ''}`}>{tab.icon}</span>
+                <span className={`material-symbols-outlined text-[20px] ${oversightActiveTab === tab.id ? 'text-[color-mix(in_srgb,var(--text)_78%,var(--accent))]' : ''}`}>{tab.icon}</span>
                 <span className="font-black tracking-widest text-[12px] uppercase">{tab.label}</span>
               </button>
             ))}
@@ -389,9 +438,22 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   setWayfinderActiveTab(tab.id);
                   setIsHubNavOpen(false);
                 }}
-                className={`p-4 rounded-xl flex items-center gap-4 transition-all ${wayfinderActiveTab === tab.id ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                style={
+                  wayfinderActiveTab === tab.id
+                    ? {
+                        backgroundColor: 'var(--glass-nav-active-bg)',
+                        backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%)',
+                        boxShadow: 'var(--glass-nav-active-shadow)',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.22)',
+                        borderLeft: '1px solid rgba(255, 255, 255, 0.14)',
+                        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                      }
+                    : undefined
+                }
+                className={`p-3.5 rounded-xl flex items-center gap-4 transition-all ${wayfinderActiveTab === tab.id ? 'text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
               >
-                <span className={`material-symbols-outlined text-[20px] ${wayfinderActiveTab === tab.id ? 'text-[var(--accent)]' : ''}`}>{tab.icon}</span>
+                <span className={`material-symbols-outlined text-[20px] ${wayfinderActiveTab === tab.id ? 'text-[color-mix(in_srgb,var(--text)_78%,var(--accent))]' : ''}`}>{tab.icon}</span>
                 <span className="font-black tracking-widest text-[12px] uppercase">{tab.label}</span>
               </button>
             ))}
@@ -417,9 +479,22 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   setKeepersActiveTab(tab.id);
                   setIsHubNavOpen(false);
                 }}
-                className={`p-4 rounded-xl flex items-center gap-4 transition-all ${keepersActiveTab === tab.id ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_10%,transparent)]' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
+                style={
+                  keepersActiveTab === tab.id
+                    ? {
+                        backgroundColor: 'var(--glass-nav-active-bg)',
+                        backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%)',
+                        boxShadow: 'var(--glass-nav-active-shadow)',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.22)',
+                        borderLeft: '1px solid rgba(255, 255, 255, 0.14)',
+                        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                      }
+                    : undefined
+                }
+                className={`p-3.5 rounded-xl flex items-center gap-4 transition-all ${keepersActiveTab === tab.id ? 'text-[var(--text)] opacity-100' : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
               >
-                <span className={`material-symbols-outlined text-[20px] ${keepersActiveTab === tab.id ? 'text-[var(--accent)]' : ''}`}>{tab.icon}</span>
+                <span className={`material-symbols-outlined text-[20px] ${keepersActiveTab === tab.id ? 'text-[color-mix(in_srgb,var(--text)_78%,var(--accent))]' : ''}`}>{tab.icon}</span>
                 <span className="font-black tracking-widest text-[12px] uppercase">{tab.label}</span>
               </button>
             ))}
