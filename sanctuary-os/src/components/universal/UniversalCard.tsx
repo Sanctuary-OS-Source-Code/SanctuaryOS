@@ -99,24 +99,25 @@ export function UniversalCard({
     ? "ring-1 ring-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.5))] z-10"
     : `${cleanStatusColor}`;
 
-  // For ghosted or disabled states
-  const opacityClasses = isGhosted ? "opacity-50 grayscale-[0.8]" : isDisabled ? "opacity-50 cursor-not-allowed grayscale" : "";
+  // For ghosted or disabled states (keep filter off the .glass-panel host so fixed background attachment never breaks)
+  const opacityClasses = isDisabled ? "opacity-50 cursor-not-allowed" : "";
+  const innerGhostClasses = isGhosted || isDisabled ? "opacity-60 grayscale-[0.8]" : "";
 
   // The hover effect should only apply if the card is interactive
   const isInteractive = !!onClick || !!onContextMenu;
-  const hoverClasses = !isDisabled && isInteractive ? "hover:-translate-y-0.5 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]" : "transition-all duration-500";
+  const hoverClasses = !isDisabled && isInteractive ? "hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] transition-colors transition-shadow duration-300" : "transition-colors duration-300";
 
   const containerClasses = `glass-panel rounded-[var(--radius)] relative flex group group/card shrink-0 ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
 
   const renderMedia = () => {
-    if (!image && !icon && !customIcon) return null;
+    if (!image && !icon && !customIcon && !imageOverlay) return null;
 
     // Render banner for vertical layouts, using the icon if image is missing
 
     // For compact, we don't have the big abstract background
     if (layout === "compact" || layout === "horizontal") {
       return (
-        <div className={`relative flex items-center justify-center glass-surface ${imageContainerClasses}`}>
+        <div className={`relative flex items-center justify-center glass-surface ${imageContainerClasses} ${innerGhostClasses}`}>
           {(image && !imageError) ? (
             <img src={image} onError={() => setImageError(true)} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-300" />
           ) : customIcon ? (
@@ -133,7 +134,7 @@ export function UniversalCard({
 
     if (layout === "stat") {
       return (
-        <div className="flex items-center justify-center shrink-0 mb-1 relative z-10">
+        <div className={`flex items-center justify-center shrink-0 mb-1 relative z-10 ${innerGhostClasses}`}>
           {customIcon ? customIcon : (
             <span className={`material-symbols-outlined !text-[22px] transition-colors ${isActive ? 'theme-text-accent opacity-100' : 'opacity-50 group-hover:opacity-80'}`}>{icon}</span>
           )}
@@ -143,43 +144,51 @@ export function UniversalCard({
 
     return (
       <div
-        className={`relative flex flex-col items-center justify-center shrink-0 overflow-hidden ${imageContainerClasses}`}
+        className={`relative flex flex-col items-center justify-center shrink-0 ${imageContainerClasses}`}
         style={{
           borderTopLeftRadius: 'inherit',
           borderTopRightRadius: 'inherit'
         }}
       >
-        {(image && !imageError) ? (
-          <img
-            src={image}
-            onError={() => setImageError(true)}
-            className={`w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700`}
-            style={{
-              borderTopLeftRadius: 'inherit',
-              borderTopRightRadius: 'inherit'
-            }}
-          />
-        ) : (
-          <div
-            className="absolute inset-0 rounded-t-[inherit] border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] flex items-center justify-center transition-colors duration-500 overflow-hidden"
-            style={{ background: 'var(--glass-card-banner-bg)' }}
-          >
-            {customIcon ? customIcon : (
-              <div
-                className={`rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105 ${layout === 'vertical-compact' ? 'w-12 h-12' : 'w-16 h-16'}`}
-                style={{
-                  backgroundColor: 'var(--glass-card-icon-bg)',
-                  borderColor: 'var(--glass-card-icon-border)',
-                  boxShadow: 'var(--glass-card-icon-shadow)',
-                }}
-              >
-                <span className={`material-symbols-outlined text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm relative z-10 ${layout === 'vertical-compact' ? '!text-[24px]' : '!text-[34px]'}`}>
-                  {icon || t("icon_folder", "folder")}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
+        <div
+          className={`absolute inset-0 rounded-t-[inherit] overflow-hidden ${innerGhostClasses}`}
+          style={{
+            borderTopLeftRadius: 'inherit',
+            borderTopRightRadius: 'inherit'
+          }}
+        >
+          {(image && !imageError) ? (
+            <img
+              src={image}
+              onError={() => setImageError(true)}
+              className={`w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700`}
+              style={{
+                borderTopLeftRadius: 'inherit',
+                borderTopRightRadius: 'inherit'
+              }}
+            />
+          ) : (
+            <div
+              className="absolute inset-0 rounded-t-[inherit] border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] flex items-center justify-center transition-colors duration-500 overflow-hidden"
+              style={{ background: 'var(--glass-card-banner-bg)' }}
+            >
+              {customIcon ? customIcon : (
+                <div
+                  className={`rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105 ${layout === 'vertical-compact' ? 'w-12 h-12' : 'w-16 h-16'}`}
+                  style={{
+                    backgroundColor: 'var(--glass-card-icon-bg)',
+                    borderColor: 'var(--glass-card-icon-border)',
+                    boxShadow: 'var(--glass-card-icon-shadow)',
+                  }}
+                >
+                  <span className={`material-symbols-outlined text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm relative z-10 ${layout === 'vertical-compact' ? '!text-[24px]' : '!text-[34px]'}`}>
+                    {icon || t("icon_folder", "folder")}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         {imageOverlay}
       </div>
     );
@@ -217,7 +226,7 @@ export function UniversalCard({
       {/* Body & Footer Column (Fixes flex squishing in horizontal layout) */}
       <div className="flex flex-col min-w-0 self-stretch w-full grow">
         {/* Dividers (Removed for a cleaner glass look) */}
-        <div className={`flex flex-col min-w-0 self-stretch grow ${contentClasses}`}>
+        <div className={`flex flex-col min-w-0 self-stretch grow ${contentClasses} ${innerGhostClasses}`}>
           {/* Title & Subtitle */}
           <div className={`flex flex-col gap-1.5 w-full min-w-0 ${layout === 'stat' ? 'items-center' : ''}`}>
 

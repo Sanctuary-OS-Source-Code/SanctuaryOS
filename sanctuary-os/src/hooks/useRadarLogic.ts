@@ -9,6 +9,19 @@ import { useState } from "react";
 import { useModalStore } from "../store/modalStore";
 import { notifyOS } from "../utils/notificationHelper";
 
+const recentlyShreddedSet = new Set<string>();
+
+export function markQuarantineFileShredded(filename: string) {
+  if (!filename) return;
+  const base = filename.split(/[\\/]/).pop() || filename;
+  recentlyShreddedSet.add(base);
+  recentlyShreddedSet.add(filename);
+  setTimeout(() => {
+    recentlyShreddedSet.delete(base);
+    recentlyShreddedSet.delete(filename);
+  }, 3000);
+}
+
 export function useRadarLogic(checkNetworkUpdates: (currentModList: any[]) => Promise<void>) {
   const { 
     setQuarantineList, setShelterContents, 
@@ -21,17 +34,69 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[]) => Pr
 
 async function fetchVault() {
     if (!isDesktop()) return;
-    const qList = await invoke<string[]>("get_quarantine_list");
+    const rawQList = await invoke<string[]>("get_quarantine_list");
+    const qList = (rawQList || []).filter(
+      (q) => q && !q.startsWith(".shredding_") && !recentlyShreddedSet.has(q)
+    );
     setQuarantineList(qList);
     
-    if (qList && qList.length > 0) {
-      setMalwareAlert((prev: any[]) => {
-        const existingNames = (prev || []).map(p => p.name);
-        const newItems = qList.filter(q => !existingNames.includes(q)).map(q => ({
+    if (qList.length > 0) {
+      let vaultPath = useStore.getState().vaultPath;
+      if (!vaultPath) {
+        try {
+          const cfg: any = await invoke("get_saved_coordinates");
+          vaultPath = cfg?.vault_path || "";
+        } catch {}
+      }
+
+      const enrichedItems = await Promise.all(
+        qList.map(async (q) => {
+          if (vaultPath) {
+            try {
+              const sep = vaultPath.includes("/") ? "/" : "\\";
+              const manifestPath = `${vaultPath.replace(/[\\/]+$/, "")}${sep}Quarantine${sep}${q}.manifest.json`;
+              const rawJson = await invoke<string>("read_config_file", { path: manifestPath });
+              if (rawJson) {
+                const parsed = JSON.parse(rawJson);
+                return {
+                  hash: parsed.detected_hash || q,
+                  name: q,
+                  displayName: parsed.artifact_name || q,
+                  matched_signature: parsed.signature || undefined,
+                  original_path: parsed.original_path || undefined,
+                  original_exists: Boolean(parsed.original_exists),
+                  original_shredded: Boolean(parsed.original_shredded),
+                  quarantine_path: parsed.quarantine_path || undefined,
+                  status: "QUARANTINED",
+                  compliance_tier: 5,
+                };
+              }
+            } catch {}
+          }
+          return {
             hash: q,
             name: q,
-            displayName: q
-        }));
+            displayName: q,
+            status: "QUARANTINED",
+            compliance_tier: 5,
+          };
+        })
+      );
+
+      setMalwareAlert((prev: any[]) => {
+        const existingList = prev || [];
+        const updatedExisting = existingList.map((item) => {
+          const match = enrichedItems.find(
+            (e) => e.name === item.name || (e.hash && e.hash === item.hash)
+          );
+          return match ? { ...item, ...match } : item;
+        });
+        const newItems = enrichedItems.filter(
+          (e) =>
+            !updatedExisting.some(
+              (p) => p.name === e.name || (e.hash && p.hash === e.hash)
+            )
+        );
 
         if (newItems.length > 0) {
           if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
@@ -41,10 +106,10 @@ async function fetchVault() {
                 .map((m: any) => ({
                   artifact_name: m.displayName || m.name || 'Unknown',
                   detected_hash: m.hash || 'unknown-hash',
-                  signature: 'Persistent Quarantine Artifact',
+                  signature: m.matched_signature || 'Persistent Quarantine Artifact',
                   status: 'pending',
-                  original_exists: false,
-                  original_shredded: false
+                  original_exists: Boolean(m.original_exists),
+                  original_shredded: Boolean(m.original_shredded)
                 }));
               if (insertPayloads.length > 0) {
                 supabase.from('malware_reports').insert(insertPayloads).then(({ error }) => {
@@ -54,9 +119,9 @@ async function fetchVault() {
             }).then(undefined, (e: any) => console.error("Malware Report Insert Exception (fetchVault):", e));
           }
           notifyOS("Quarantine Lockdown", `Sanctuary OS has quarantined ${newItems.length} persistent dangerous artifacts on boot.`, 'MALWARE_ALERT');
-          return [...(prev || []), ...newItems];
+          return [...updatedExisting, ...newItems];
         }
-        return prev;
+        return updatedExisting;
       });
     }
 
@@ -90,6 +155,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
     }
     try {
       const config: any = await invoke("get_saved_coordinates");
+      await fetchVault();
       
       try {
         await invoke("sanitize_vault", { vaultPath: config.vault_path });

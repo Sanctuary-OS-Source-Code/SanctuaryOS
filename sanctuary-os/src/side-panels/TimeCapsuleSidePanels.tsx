@@ -8,44 +8,97 @@ import {
   StatBox,
   ActionButton,
   EmptyState,
-  HoverTooltip,
   PanelHeaderGroup,
   PanelHeaderButton,
 } from "../shared";
 import { useStore } from "../store";
 
-type ExtractCategory =
-  | "ALL"
-  | "SAVES"
-  | "TRAY"
-  | "CONFIGS"
-  | "BIN"
-  | "DATA"
-  | "DELTA"
-  | "PACKS";
+export function parseBackupSignatureFallback(
+  filename: string,
+  t: (k: string, f?: string) => string
+) {
+  const strippedPrefix = filename.replace(/^Secured:\s*/i, "").trim();
+  const cleanName = strippedPrefix
+    .replace(/\.tar\.zst$/i, "")
+    .replace(/\.tar$/i, "")
+    .replace(/\.zst$/i, "");
+  const isEngine = strippedPrefix.toLowerCase().includes("engine");
+  if (cleanName.includes("--")) {
+    const parts = cleanName.split("--");
+    return {
+      alias: parts[0].replace(/_/g, " "),
+      version: parts[1] ? `v.${parts[1].replace(/^v\.?/i, "")}` : "",
+      timestamp: parts[2] || "0",
+      isEngine,
+    };
+  }
+  const parts = cleanName.split("_");
+  const versionPart = parts.find((p) => p.includes(".")) || "LEGACY";
+  const versionIndex = parts.indexOf(versionPart);
+  const alias =
+    versionIndex > 0 ? parts.slice(0, versionIndex).join(" ") : parts[0];
+  return {
+    alias: alias || t("vlocal", "Local"),
+    version:
+      versionPart === "LEGACY"
+        ? isEngine
+          ? "v.CORE"
+          : "v.LEGACY"
+        : `v.${versionPart}`,
+    timestamp: parts[parts.length - 1] || "0",
+    isEngine,
+  };
+}
 
-type DiffStatusFilter = "CHANGES" | "MODIFIED" | "MISSING" | "IDENTICAL";
-
-export function TimeCapsuleSidePanel({
-  isOpen,
-  onClose,
+export function TimeCapsuleSnapshotDossier({
   selectedBackup,
-  config,
+  config: propConfig,
   getBackupSignature,
   onRestoreBackup,
+  onClosePanel,
+  isPostBackupSummary = false,
+  onLocationChange,
 }: {
-  isOpen: boolean;
-  onClose: () => void;
   selectedBackup: string | null;
-  config: any;
+  config?: any;
   getBackupSignature?: (name: string) => any;
   onRestoreBackup?: (name: string, isEngine: boolean) => void;
+  onClosePanel?: () => void;
+  isPostBackupSummary?: boolean;
+  onLocationChange?: (loc: string) => void;
 }) {
   const { t } = useLexicon();
-  const [activeView, setActiveView] = useState<"EXTRACT" | "DIFF">("EXTRACT");
+  const [localConfig, setLocalConfig] = useState<any>(propConfig || null);
+  const activeConfig = propConfig || localConfig;
+
+  const normalizedBackup = useMemo(
+    () =>
+      selectedBackup ? selectedBackup.replace(/^Secured:\s*/i, "").trim() : null,
+    [selectedBackup]
+  );
+
+  useEffect(() => {
+    if (propConfig) {
+      setLocalConfig(propConfig);
+      return;
+    }
+    invoke("get_saved_coordinates")
+      .then((c: any) => setLocalConfig(c))
+      .catch(() => {});
+  }, [propConfig]);
+
+  const [activeView, setActiveView] = useState<"DELTA" | "DIFF" | "EXTRACT">(
+    isPostBackupSummary ? "DELTA" : "DIFF"
+  );
   const [backupFiles, setBackupFiles] = useState<any[]>([]);
+  const [removedFromPrevious, setRemovedFromPrevious] = useState<any[]>([]);
+  const [previousBackupName, setPreviousBackupName] = useState<string | null>(
+    null
+  );
+  const [isBaseline, setIsBaseline] = useState<boolean>(false);
   const [logicalSize, setLogicalSize] = useState<number>(0);
   const [diffSize, setDiffSize] = useState<number>(0);
+  const [rawDiffSize, setRawDiffSize] = useState<number>(0);
   const [location, setLocation] = useState<string>("");
   const [diffEntries, setDiffEntries] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,46 +108,49 @@ export function TimeCapsuleSidePanel({
   const [extractedSet, setExtractedSet] = useState<Set<string>>(new Set());
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
 
-  // Two-step confirmation states so nothing is ever overwritten on a single click
   const [confirmFullRestore, setConfirmFullRestore] = useState<boolean>(false);
-  const [confirmExtractPath, setConfirmExtractPath] = useState<string | null>(null);
-  const [confirmBatchExtract, setConfirmBatchExtract] = useState<boolean>(false);
-  const [confirmRestoreAllDiff, setConfirmRestoreAllDiff] = useState<boolean>(false);
+  const [confirmExtractPath, setConfirmExtractPath] = useState<string | null>(
+    null
+  );
+  const [confirmBatchExtract, setConfirmBatchExtract] =
+    useState<boolean>(false);
+  const [confirmRestoreAllDiff, setConfirmRestoreAllDiff] =
+    useState<boolean>(false);
 
-  const [extractFilter, setExtractFilter] = useState<ExtractCategory>("ALL");
   const [showVerRevisions, setShowVerRevisions] = useState<boolean>(false);
-  const [diffFilter, setDiffFilter] = useState<DiffStatusFilter>("CHANGES");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set()
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [listLimit, setListLimit] = useState(100);
 
   const docsPath = useMemo(() => {
-    if (config?.mods_path) {
-      return config.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
+    if (activeConfig?.mods_path) {
+      return activeConfig.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
     }
     return "";
-  }, [config]);
+  }, [activeConfig]);
 
   useEffect(() => {
     setListLimit(100);
     setSearchQuery("");
-    setExtractFilter("ALL");
-    setDiffFilter("CHANGES");
-    setActiveView("EXTRACT");
+    setCollapsedGroups(new Set());
+    setActiveView(isPostBackupSummary ? "DELTA" : "DIFF");
     setSelectedPaths(new Set());
     setExtractedSet(new Set());
     setConfirmFullRestore(false);
     setConfirmExtractPath(null);
     setConfirmBatchExtract(false);
     setConfirmRestoreAllDiff(false);
-  }, [selectedBackup, isOpen]);
+  }, [normalizedBackup, isPostBackupSummary]);
 
   const refreshDiff = async () => {
-    if (!selectedBackup || !config?.vault_path) return;
+    if (!normalizedBackup || !activeConfig?.vault_path) return;
     try {
       const updatedDiff: any = await invoke("diff_backup", {
-        vaultPath: config?.vault_path,
+        vaultPath: activeConfig.vault_path,
         docsPath: docsPath,
-        backupName: selectedBackup,
+        backupName: normalizedBackup,
       });
       setDiffEntries(Array.isArray(updatedDiff) ? updatedDiff : []);
     } catch (e) {
@@ -103,30 +159,61 @@ export function TimeCapsuleSidePanel({
   };
 
   useEffect(() => {
-    if (!isOpen || !selectedBackup || !config?.vault_path) return;
+    if (!normalizedBackup || !activeConfig?.vault_path) return;
     setIsLoading(true);
+    setBackupFiles([]);
+    setRemovedFromPrevious([]);
+    setPreviousBackupName(null);
+    setDiffEntries([]);
     Promise.all([
       invoke("get_backup_contents", {
-        vaultPath: config?.vault_path,
-        backupName: selectedBackup,
+        vaultPath: activeConfig.vault_path,
+        backupName: normalizedBackup,
       }).catch(() => null),
       invoke("diff_backup", {
-        vaultPath: config?.vault_path,
+        vaultPath: activeConfig.vault_path,
         docsPath: docsPath,
-        backupName: selectedBackup,
+        backupName: normalizedBackup,
       }).catch(() => []),
     ])
       .then(([contentsRes, diffRes]: [any, any]) => {
         if (contentsRes) {
           setBackupFiles(contentsRes?.files || []);
+          setRemovedFromPrevious(contentsRes?.removed_from_previous || []);
+          setPreviousBackupName(contentsRes?.previous_backup_name || null);
+          const baseline = Boolean(contentsRes?.is_baseline);
+          setIsBaseline(baseline);
           setLogicalSize(contentsRes?.logical_size_bytes || 0);
           setDiffSize(contentsRes?.diff_size_bytes || 0);
-          setLocation(contentsRes?.location || "");
+          setRawDiffSize(
+            typeof contentsRes?.raw_diff_size_bytes === "number"
+              ? contentsRes.raw_diff_size_bytes
+              : contentsRes?.diff_size_bytes || 0
+          );
+          const loc = contentsRes?.location || "";
+          setLocation(loc);
+          if (onLocationChange) onLocationChange(loc);
         }
-        setDiffEntries(Array.isArray(diffRes) ? diffRes : []);
+        const diffs = Array.isArray(diffRes) ? diffRes : [];
+        setDiffEntries(diffs);
+
+        if (!isPostBackupSummary) {
+          const hasLiveDrift = diffs.some(
+            (d: any) =>
+              !String(d.path || "")
+                .split("/")
+                .some((p: string) => p.startsWith(".")) &&
+              d.status !== "Identical"
+          );
+          if (!hasLiveDrift) {
+            setActiveView("DELTA");
+          } else {
+            setActiveView("DIFF");
+          }
+        }
       })
       .finally(() => setIsLoading(false));
-  }, [isOpen, selectedBackup, config, docsPath]);
+  }, [normalizedBackup, activeConfig, docsPath, isPostBackupSummary]);
 
   const markFilesExtracted = (paths: string[]) => {
     setExtractedSet((prev) => {
@@ -143,15 +230,18 @@ export function TimeCapsuleSidePanel({
     }, 2500);
   };
 
-  const handleExtractSingle = async (filePath: string, shouldRefreshDiff = false) => {
-    if (!selectedBackup) return;
+  const handleExtractSingle = async (
+    filePath: string,
+    shouldRefreshDiff = false
+  ) => {
+    if (!normalizedBackup || !activeConfig?.vault_path) return;
     setConfirmExtractPath(null);
     setExtracting(filePath);
     try {
       await invoke("extract_backup_file", {
-        vaultPath: config?.vault_path,
+        vaultPath: activeConfig.vault_path,
         docsPath: docsPath,
-        backupName: selectedBackup,
+        backupName: normalizedBackup,
         filePath: filePath,
       });
       if (shouldRefreshDiff) {
@@ -165,8 +255,17 @@ export function TimeCapsuleSidePanel({
     }
   };
 
-  const handleBatchExtract = async (paths: string[], shouldRefreshDiff = false) => {
-    if (!selectedBackup || paths.length === 0 || isBatchExtracting) return;
+  const handleBatchExtract = async (
+    paths: string[],
+    shouldRefreshDiff = false
+  ) => {
+    if (
+      !normalizedBackup ||
+      !activeConfig?.vault_path ||
+      paths.length === 0 ||
+      isBatchExtracting
+    )
+      return;
     setConfirmBatchExtract(false);
     setConfirmRestoreAllDiff(false);
     setIsBatchExtracting(true);
@@ -174,9 +273,9 @@ export function TimeCapsuleSidePanel({
       for (const filePath of paths) {
         setExtracting(filePath);
         await invoke("extract_backup_file", {
-          vaultPath: config?.vault_path,
+          vaultPath: activeConfig.vault_path,
           docsPath: docsPath,
-          backupName: selectedBackup,
+          backupName: normalizedBackup,
           filePath: filePath,
         });
       }
@@ -192,10 +291,11 @@ export function TimeCapsuleSidePanel({
       const pushStatus = useStore.getState().pushStatus;
       if (pushStatus) {
         const toastMsg =
-          t("tc_panel_extract_toast", "Extracted {0} file(s) into active game folder!")?.replace(
-            "{0}",
-            String(paths.length)
-          ) || `Extracted ${paths.length} file(s)`;
+          t(
+            "tc_panel_extract_toast",
+            "Extracted {0} file(s) into active game folder!"
+          )?.replace("{0}", String(paths.length)) ||
+          `Extracted ${paths.length} file(s)`;
         pushStatus(toastMsg, "success");
       }
     } catch (e) {
@@ -203,15 +303,6 @@ export function TimeCapsuleSidePanel({
     } finally {
       setExtracting(null);
       setIsBatchExtracting(false);
-    }
-  };
-
-  const handleOpenFolder = async () => {
-    if (!location) return;
-    try {
-      await openPath(location);
-    } catch (e) {
-      console.error(e);
     }
   };
 
@@ -224,48 +315,38 @@ export function TimeCapsuleSidePanel({
     });
   };
 
-  const isEngine = Boolean(selectedBackup?.toLowerCase().includes("engine"));
-  const sig = useMemo(() => {
-    if (!selectedBackup) return null;
-    if (getBackupSignature) return getBackupSignature(selectedBackup);
-    const clean = selectedBackup.replace(".tar.zst", "");
-    if (clean.includes("--")) {
-      const parts = clean.split("--");
-      return {
-        alias: parts[0].replace(/_/g, " "),
-        version: `v.${parts[1]}`,
-        timestamp: parts[2] || "0",
-        isEngine,
-      };
-    }
-    return { alias: clean, version: "", timestamp: "0", isEngine };
-  }, [selectedBackup, getBackupSignature, isEngine]);
+  const toggleGroupCollapse = (groupId: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
 
-  const rawAlias = sig?.alias || "";
-  const isDefaultAlias =
-    !rawAlias ||
-    rawAlias.toLowerCase() === "world state" ||
-    rawAlias.toLowerCase() === "engine core";
-  const title = isDefaultAlias
-    ? isEngine
-      ? t("engine_full", "Engine Core")
-      : t("world_state", "World State")
-    : rawAlias;
-  const icon = isEngine ? t("icon_settings", "settings") : t("icon_public", "public");
-  const themeColor = isEngine ? "text-[var(--danger)]" : "text-[var(--accent)]";
+  const isEngine = Boolean(normalizedBackup?.toLowerCase().includes("engine"));
 
-  const dateDisplay = useMemo(() => {
-    if (!sig?.timestamp || sig.timestamp === "0") return "";
-    const d = new Date(Number(sig.timestamp) * 1000);
+  const prevSig = useMemo(() => {
+    if (!previousBackupName) return null;
+    if (getBackupSignature) return getBackupSignature(previousBackupName);
+    return parseBackupSignatureFallback(previousBackupName, t);
+  }, [previousBackupName, getBackupSignature, t]);
+
+  const icon = isEngine
+    ? t("icon_settings", "settings")
+    : t("icon_public", "public");
+
+  const prevDateDisplay = useMemo(() => {
+    if (!prevSig?.timestamp || prevSig.timestamp === "0") return "";
+    const d = new Date(Number(prevSig.timestamp) * 1000);
     return `${d.toLocaleDateString([], {
       month: "short",
       day: "numeric",
-      year: "numeric",
-    })} • ${d.toLocaleTimeString([], {
+    })} ${d.toLocaleTimeString([], {
       hour: "numeric",
       minute: "2-digit",
     })}`;
-  }, [sig]);
+  }, [prevSig]);
 
   const visibleBackupFiles = useMemo(
     () =>
@@ -273,6 +354,14 @@ export function TimeCapsuleSidePanel({
         (f) => !f.path.split("/").some((part: string) => part.startsWith("."))
       ),
     [backupFiles]
+  );
+
+  const visibleRemovedFromPrev = useMemo(
+    () =>
+      removedFromPrevious.filter(
+        (f) => !f.path.split("/").some((part: string) => part.startsWith("."))
+      ),
+    [removedFromPrevious]
   );
 
   const visibleDiffEntries = useMemo(
@@ -283,7 +372,7 @@ export function TimeCapsuleSidePanel({
     [diffEntries]
   );
 
-  // World State file classifiers
+  // Classifiers
   const isSaveFile = (path: string) => {
     const lower = path.toLowerCase();
     return lower.endsWith(".save") || lower.includes(".save.ver");
@@ -303,7 +392,6 @@ export function TimeCapsuleSidePanel({
     );
   };
 
-  // Engine Core file classifiers
   const isEngineBinFile = (path: string) => {
     const lower = path.toLowerCase();
     return (
@@ -326,6 +414,72 @@ export function TimeCapsuleSidePanel({
     return lower.startsWith("data/") || lower.includes("/data/");
   };
 
+  const getFileFolderSubtitle = (filePath: string) => {
+    const parts = filePath.split("/");
+    if (parts.length > 1) {
+      return parts.slice(0, -1).join("/");
+    }
+    return t("tc_folder_root", "Root Config");
+  };
+
+  const getFileCategoryInfo = (filePath: string) => {
+    if (isEngine) {
+      if (isEngineBinFile(filePath)) {
+        return {
+          icon: t("icon_terminal", "terminal"),
+          label: t("tc_engine_cat_bin", "Binaries"),
+          colorClass:
+            "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
+        };
+      }
+      if (isEngineDeltaFile(filePath)) {
+        return {
+          icon: t("icon_difference", "difference"),
+          label: t("tc_engine_cat_delta", "Delta"),
+          colorClass:
+            "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_38%,transparent)]",
+        };
+      }
+      if (isEngineDataFile(filePath)) {
+        return {
+          icon: t("icon_inventory_2", "inventory_2"),
+          label: t("tc_engine_cat_data", "Base Game"),
+          colorClass:
+            "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
+        };
+      }
+      return {
+        icon: t("icon_extension", "extension"),
+        label: t("tc_engine_cat_packs", "Packs"),
+        colorClass:
+          "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
+      };
+    }
+
+    if (isSaveFile(filePath)) {
+      return {
+        icon: t("icon_saves", "save"),
+        label: t("label_saves", "Saves"),
+        colorClass:
+          "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
+      };
+    }
+    if (isTrayFile(filePath)) {
+      return {
+        icon: t("icon_tray_files", "Holiday_Village"),
+        label: t("label_tray_files", "Tray Files"),
+        colorClass:
+          "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
+      };
+    }
+    return {
+      icon: t("icon_tune", "tune"),
+      label: t("tc_panel_filter_configs", "Configs & Data"),
+      colorClass:
+        "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
+    };
+  };
+
   const saveFiles = useMemo(
     () => visibleBackupFiles.filter((f) => isSaveFile(f.path)),
     [visibleBackupFiles]
@@ -344,7 +498,9 @@ export function TimeCapsuleSidePanel({
   );
   const configFiles = useMemo(
     () =>
-      visibleBackupFiles.filter((f) => !isSaveFile(f.path) && !isTrayFile(f.path)),
+      visibleBackupFiles.filter(
+        (f) => !isSaveFile(f.path) && !isTrayFile(f.path)
+      ),
     [visibleBackupFiles]
   );
 
@@ -380,19 +536,53 @@ export function TimeCapsuleSidePanel({
     [visibleBackupFiles]
   );
 
+  // Delta counts + written bytes
+  const deltaStats = useMemo(() => {
+    let added = 0;
+    let updated = 0;
+    let dedup = 0;
+    let writtenMb = 0;
+    for (const f of visibleBackupFiles) {
+      const st = f.delta_status || (isBaseline ? "Baseline" : "Deduplicated");
+      if (st === "Added" || st === "Baseline") {
+        added++;
+        writtenMb += f.size_mb || 0;
+      } else if (st === "Updated") {
+        updated++;
+        writtenMb += f.size_mb || 0;
+      } else {
+        dedup++;
+      }
+    }
+    const removed = visibleRemovedFromPrev.length;
+    return {
+      written: added + updated,
+      changed: added + updated + removed,
+      added,
+      updated,
+      removed,
+      dedup,
+      writtenBytes: Math.round(writtenMb * 1_048_576),
+    };
+  }, [visibleBackupFiles, visibleRemovedFromPrev, isBaseline]);
+
   const diffCounts = useMemo(() => {
     let modified = 0;
     let missing = 0;
+    let addedInCurrent = 0;
     let identical = 0;
     for (const d of visibleDiffEntries) {
       if (d.status === "Modified") modified++;
       else if (d.status === "Missing in Current") missing++;
+      else if (d.status === "Added in Current") addedInCurrent++;
       else identical++;
     }
     return {
-      changes: modified + missing,
+      changes: modified + missing + addedInCurrent,
+      restorableChanges: modified + missing,
       modified,
       missing,
+      addedInCurrent,
       identical,
     };
   }, [visibleDiffEntries]);
@@ -400,13 +590,21 @@ export function TimeCapsuleSidePanel({
   const changedDiffPaths = useMemo(
     () =>
       visibleDiffEntries
-        .filter((d) => d.status !== "Identical")
+        .filter(
+          (d) =>
+            d.status === "Modified" || d.status === "Missing in Current"
+        )
         .map((d) => d.path),
     [visibleDiffEntries]
   );
 
   const formatStorageBytes = (bytes: number) => {
+    if (!bytes || bytes <= 0) return `0.00 ${t("unit_mb", "MB")}`;
     const mb = bytes / 1024 / 1024;
+    if (mb < 1) {
+      const kb = Math.max(0.1, bytes / 1024);
+      return `${kb.toFixed(1)} ${t("unit_kb", "KB")}`;
+    }
     if (mb < 1000) return `${mb.toFixed(2)} ${t("unit_mb", "MB")}`;
     return `${(mb / 1024).toFixed(2)} ${t("unit_gb", "GB")}`;
   };
@@ -423,139 +621,1207 @@ export function TimeCapsuleSidePanel({
     return `${(sizeMb / 1024).toFixed(2)} ${t("unit_gb", "GB")}`;
   };
 
-  const sumGroupSizeMb = (files: any[]) =>
-    files.reduce((acc, f) => acc + (f.size_mb || 0), 0);
+  const actualWrittenBytes = isBaseline
+    ? logicalSize
+    : deltaStats.writtenBytes > 0 || deltaStats.written === 0
+      ? Math.min(logicalSize, deltaStats.writtenBytes)
+      : rawDiffSize || diffSize;
+  const savedBytes = Math.max(0, logicalSize - actualWrittenBytes);
+  const savedPct =
+    logicalSize > 0
+      ? Math.min(100, Math.max(0, Math.round((savedBytes / logicalSize) * 100)))
+      : 0;
 
-  const categoryRows = useMemo(() => {
-    if (isEngine) {
-      return [
-        {
-          id: "BIN" as ExtractCategory,
-          icon: t("icon_terminal", "terminal"),
-          label: t("tc_engine_cat_bin", "Binaries & Executables"),
-          count: engineBinFiles.length,
-          size: formatFileSizeMb(sumGroupSizeMb(engineBinFiles)),
-        },
-        {
-          id: "DATA" as ExtractCategory,
-          icon: t("icon_inventory_2", "inventory_2"),
-          label: t("tc_engine_cat_data", "Base Game Packages"),
-          count: engineDataFiles.length,
-          size: formatFileSizeMb(sumGroupSizeMb(engineDataFiles)),
-        },
-        {
-          id: "DELTA" as ExtractCategory,
-          icon: t("icon_difference", "difference"),
-          label: t("tc_engine_cat_delta", "Delta Patch Packages"),
-          count: engineDeltaFiles.length,
-          size: formatFileSizeMb(sumGroupSizeMb(engineDeltaFiles)),
-        },
-        {
-          id: "PACKS" as ExtractCategory,
-          icon: t("icon_extension", "extension"),
-          label: t("tc_engine_cat_packs", "Expansion & Pack Data"),
-          count: enginePackFiles.length,
-          size: formatFileSizeMb(sumGroupSizeMb(enginePackFiles)),
-        },
-      ];
-    }
-
-    return [
-      {
-        id: "SAVES" as ExtractCategory,
-        icon: t("icon_saves", "save"),
-        label: t("label_saves", "Saves"),
-        count: showVerRevisions ? saveFiles.length : primarySaveFiles.length,
-        size: formatFileSizeMb(sumGroupSizeMb(saveFiles)),
-      },
-      {
-        id: "TRAY" as ExtractCategory,
-        icon: t("icon_tray_files", "Holiday_Village"),
-        label: t("label_tray_files", "Tray Files"),
-        count: trayFiles.length,
-        size: formatFileSizeMb(sumGroupSizeMb(trayFiles)),
-      },
-      {
-        id: "CONFIGS" as ExtractCategory,
-        icon: t("icon_tune", "tune"),
-        label: t("tc_panel_filter_configs", "Configs & Data"),
-        count: configFiles.length,
-        size: formatFileSizeMb(sumGroupSizeMb(configFiles)),
-      },
-    ];
-  }, [
-    isEngine,
-    t,
-    engineBinFiles,
-    engineDataFiles,
-    engineDeltaFiles,
-    enginePackFiles,
-    showVerRevisions,
-    saveFiles,
-    primarySaveFiles,
-    trayFiles,
-    configFiles,
-  ]);
-
-  const filteredExtractFiles = useMemo(() => {
+  // Structured Category Groups for EXTRACT view (Zero Pill Filters!)
+  const extractGroups = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch = (f: any) => !q || f.path.toLowerCase().includes(q);
+    const sumMb = (list: any[]) =>
+      list.reduce((acc, f) => acc + (f.size_mb || 0), 0);
 
     if (isEngine) {
-      if (extractFilter === "BIN") return engineBinFiles.filter(matchesSearch);
-      if (extractFilter === "DATA") return engineDataFiles.filter(matchesSearch);
-      if (extractFilter === "DELTA") return engineDeltaFiles.filter(matchesSearch);
-      if (extractFilter === "PACKS") return enginePackFiles.filter(matchesSearch);
-      return visibleBackupFiles.filter(matchesSearch);
+      const bin = engineBinFiles.filter(matchesSearch);
+      const data = engineDataFiles.filter(matchesSearch);
+      const delta = engineDeltaFiles.filter(matchesSearch);
+      const packs = enginePackFiles.filter(matchesSearch);
+      return [
+        {
+          id: "BIN",
+          label: t("tc_engine_cat_bin", "Binaries"),
+          icon: t("icon_terminal", "terminal"),
+          colorClass:
+            "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
+          files: bin,
+          sizeMb: sumMb(bin),
+        },
+        {
+          id: "DATA",
+          label: t("tc_engine_cat_data", "Base Game"),
+          icon: t("icon_inventory_2", "inventory_2"),
+          colorClass:
+            "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
+          files: data,
+          sizeMb: sumMb(data),
+        },
+        {
+          id: "DELTA",
+          label: t("tc_engine_cat_delta", "Delta"),
+          icon: t("icon_difference", "difference"),
+          colorClass:
+            "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_38%,transparent)]",
+          files: delta,
+          sizeMb: sumMb(delta),
+        },
+        {
+          id: "PACKS",
+          label: t("tc_engine_cat_packs", "Packs"),
+          icon: t("icon_extension", "extension"),
+          colorClass:
+            "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
+          files: packs,
+          sizeMb: sumMb(packs),
+        },
+      ].filter((g) => g.files.length > 0);
     }
 
-    const savesList = (showVerRevisions ? saveFiles : primarySaveFiles).filter(matchesSearch);
+    const savesList = (showVerRevisions ? saveFiles : primarySaveFiles).filter(
+      matchesSearch
+    );
     const configsList = configFiles.filter(matchesSearch);
     const trayList = trayFiles.filter(matchesSearch);
 
-    if (extractFilter === "SAVES") return savesList;
-    if (extractFilter === "CONFIGS") return configsList;
-    if (extractFilter === "TRAY") return trayList;
-    return [...savesList, ...configsList, ...trayList];
+    return [
+      {
+        id: "SAVES",
+        label: t("label_saves", "Saves"),
+        icon: t("icon_saves", "save"),
+        colorClass:
+          "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
+        files: savesList,
+        sizeMb: sumMb(savesList),
+        hasVerToggle: verRevisionFiles.length > 0,
+      },
+      {
+        id: "CONFIGS",
+        label: t("tc_panel_filter_configs", "Configs & Data"),
+        icon: t("icon_tune", "tune"),
+        colorClass:
+          "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
+        files: configsList,
+        sizeMb: sumMb(configsList),
+      },
+      {
+        id: "TRAY",
+        label: t("label_tray_files", "Tray Files"),
+        icon: t("icon_tray_files", "Holiday_Village"),
+        colorClass:
+          "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
+        files: trayList,
+        sizeMb: sumMb(trayList),
+      },
+    ].filter((g) => g.files.length > 0 || (g.id === "SAVES" && verRevisionFiles.length > 0 && !q));
   }, [
     isEngine,
     searchQuery,
-    extractFilter,
     showVerRevisions,
     saveFiles,
     primarySaveFiles,
+    verRevisionFiles.length,
     configFiles,
     trayFiles,
     engineBinFiles,
     engineDataFiles,
     engineDeltaFiles,
     enginePackFiles,
-    visibleBackupFiles,
+    t,
   ]);
+
+  const allDeltaEntries = useMemo(() => {
+    const list = [
+      ...visibleBackupFiles.map((f) => ({
+        path: f.path,
+        size_mb: f.size_mb || 0,
+        delta_status:
+          f.delta_status || (isBaseline ? "Baseline" : "Deduplicated"),
+      })),
+      ...visibleRemovedFromPrev.map((r) => ({
+        path: r.path,
+        size_mb: r.size_mb || 0,
+        delta_status: "Removed",
+      })),
+    ];
+    const order = (st: string) => {
+      if (st === "Updated") return 0;
+      if (st === "Added" || st === "Baseline") return 1;
+      if (st === "Removed") return 2;
+      return 3;
+    };
+    list.sort((a, b) => {
+      const oa = order(a.delta_status);
+      const ob = order(b.delta_status);
+      if (oa !== ob) return oa - ob;
+      return a.path.localeCompare(b.path);
+    });
+    return list;
+  }, [visibleBackupFiles, visibleRemovedFromPrev, isBaseline]);
+
+  const filteredDelta = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return allDeltaEntries.filter((item) => {
+      if (item.delta_status === "Deduplicated") return false;
+      if (q && !item.path.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [allDeltaEntries, searchQuery]);
 
   const filteredDiff = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return visibleDiffEntries.filter((d) => {
-      if (diffFilter === "CHANGES" && d.status === "Identical") return false;
-      if (diffFilter === "MODIFIED" && d.status !== "Modified") return false;
-      if (diffFilter === "MISSING" && d.status !== "Missing in Current") return false;
-      if (diffFilter === "IDENTICAL" && d.status !== "Identical") return false;
+      if (d.status === "Identical") return false;
       if (q && !d.path.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [visibleDiffEntries, diffFilter, searchQuery]);
+  }, [visibleDiffEntries, searchQuery]);
 
-  const activeCategoryLabel = useMemo(() => {
-    if (extractFilter === "ALL") return null;
-    return categoryRows.find((r) => r.id === extractFilter)?.label || null;
-  }, [extractFilter, categoryRows]);
+  if (!normalizedBackup) {
+    return (
+      <div className="text-[var(--subtext)] text-xs p-6 text-center">
+        {t("no_backup_selected", "No backup selected")}
+      </div>
+    );
+  }
 
-  const activeDiffFilterLabel = useMemo(() => {
-    if (diffFilter === "CHANGES") return null;
-    if (diffFilter === "MODIFIED") return t("tc_diff_filter_modified", "Modified");
-    if (diffFilter === "MISSING") return t("tc_diff_filter_missing", "Missing in Active");
-    return t("tc_diff_filter_identical", "Unchanged");
-  }, [diffFilter, t]);
+  const showRestoreBar =
+    Boolean(onRestoreBackup && !isPostBackupSummary) ||
+    changedDiffPaths.length > 0;
+
+  return (
+    <div className="flex flex-col gap-4 w-full pb-6">
+      {/* 1. Unified Snapshot Overview & Restore Card */}
+      <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <div
+              className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
+                isEngine
+                  ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_38%,transparent)]"
+                  : "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[22px]">
+                {icon}
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span
+                  className={`text-[10px] font-black uppercase tracking-[0.18em] ${
+                    isEngine ? "text-[var(--danger)]" : "text-[var(--accent)]"
+                  }`}
+                >
+                  {isEngine
+                    ? t("engine_full", "Engine Core")
+                    : t("world_state", "World State")}
+                </span>
+                {isPostBackupSummary && (
+                  <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border bg-transparent border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center gap-1">
+                    <span className="material-symbols-outlined !text-[11px]">
+                      {t("icon_check_circle", "check_circle")}
+                    </span>
+                    {t("tc_complete_title", "Snapshot Complete")}
+                  </span>
+                )}
+              </div>
+
+              <span className="text-xs font-semibold text-[var(--text)] truncate">
+                {isBaseline
+                  ? t(
+                      "tc_delta_baseline_note",
+                      "Initial Baseline Snapshot (100% Newly Written)"
+                    )
+                  : previousBackupName
+                    ? (
+                        t("tc_delta_compared_to", "Compared to {PREV}") ||
+                        "Compared to {PREV}"
+                      ).replace(
+                        "{PREV}",
+                        `${prevSig?.version || previousBackupName}${
+                          prevDateDisplay ? ` (${prevDateDisplay})` : ""
+                        }`
+                      )
+                    : t(
+                        "tc_complete_subtitle",
+                        "Point-in-time backup verified and indexed"
+                      )}
+              </span>
+
+              {location && (
+                <span className="text-[11px] font-mono text-[var(--subtext)] opacity-75 truncate">
+                  {location}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1.5 ${
+                diffCounts.changes > 0
+                  ? "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_45%,transparent)]"
+                  : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[13px]">
+                {diffCounts.changes > 0
+                  ? t("icon_difference", "difference")
+                  : t("icon_check_circle", "check_circle")}
+              </span>
+              {diffCounts.changes > 0
+                ? `${diffCounts.changes} ${t("tab_diff", "Differences")}`
+                : t("tc_badge_in_sync", "In Sync")}
+            </span>
+          </div>
+        </div>
+
+        {/* 2x2 Spacious StatBox Grid — Wide columns so labels and values are never cut off */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <StatBox
+            icon={t("icon_hard_drive", "hard_drive")}
+            iconColorClass="text-[var(--accent)]"
+            label={t("tc_stat_actually_backed_up", "Written to Disk")}
+            value={
+              <span className="font-mono">
+                {formatStorageBytes(actualWrittenBytes)}
+              </span>
+            }
+          />
+          <StatBox
+            icon={t("icon_link", "link")}
+            iconColorClass="text-[var(--success)]"
+            label={t("tc_stat_deduplicated", "Storage Saved")}
+            value={
+              <span className="font-mono text-[var(--success)]">
+                {formatStorageBytes(savedBytes)} ({savedPct}%)
+              </span>
+            }
+          />
+          <StatBox
+            icon={t("icon_inventory_2", "inventory_2")}
+            iconColorClass="text-[var(--accent)]"
+            label={t("logical_size", "Snapshot Size")}
+            value={
+              <span className="font-mono">
+                {formatStorageBytes(logicalSize)}
+              </span>
+            }
+          />
+          <StatBox
+            icon={t("icon_folder", "folder")}
+            iconColorClass="text-[var(--accent)]"
+            label={t("tc_stat_indexed_files", "Indexed Files")}
+            value={
+              <span className="font-mono">
+                {visibleBackupFiles.length.toLocaleString()} (
+                {deltaStats.written.toLocaleString()}{" "}
+                {t("tc_badge_written", "Written")})
+              </span>
+            }
+          />
+        </div>
+
+        {/* Clean Integrated Restore Bar */}
+        {showRestoreBar && (
+          <div className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0 flex-1 min-w-[220px]">
+              {isEngine
+                ? t(
+                    "tc_restore_engine_desc",
+                    "Roll back your game installation binaries and pack data to this Engine Core snapshot."
+                  )
+                : t(
+                    "tc_restore_world_desc",
+                    "Roll back your active Saves, Tray library, and user settings to this World State snapshot."
+                  )}
+            </p>
+
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              {confirmFullRestore ? (
+                <>
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_close", "close")}
+                    label={t("btn_cancel", "Cancel")}
+                    onClick={() => setConfirmFullRestore(false)}
+                    className="!px-3.5 !py-2"
+                  />
+                  <ActionButton
+                    variant="accent"
+                    icon={t("icon_restore", "restore")}
+                    label={
+                      isEngine
+                        ? t(
+                            "confirm_restore_engine_card",
+                            "Confirm Engine Restore"
+                          )
+                        : t("confirm_restore_state", "Confirm Restore")
+                    }
+                    onClick={() => {
+                      setConfirmFullRestore(false);
+                      if (onClosePanel) onClosePanel();
+                      if (onRestoreBackup)
+                        onRestoreBackup(normalizedBackup, isEngine);
+                    }}
+                    className="!px-4 !py-2"
+                  />
+                </>
+              ) : confirmRestoreAllDiff ? (
+                <>
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_close", "close")}
+                    label={t("btn_cancel", "Cancel")}
+                    onClick={() => setConfirmRestoreAllDiff(false)}
+                    className="!px-3.5 !py-2"
+                  />
+                  <ActionButton
+                    variant="accent"
+                    icon={t("icon_done_all", "done_all")}
+                    label={`${t("btn_confirm", "Confirm")} (${changedDiffPaths.length})`}
+                    disabled={isBatchExtracting}
+                    onClick={() => handleBatchExtract(changedDiffPaths, true)}
+                    className="!px-4 !py-2"
+                  />
+                </>
+              ) : (
+                <>
+                  {changedDiffPaths.length > 0 && (
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_done_all", "done_all")}
+                      label={(
+                        t(
+                          "tc_restore_changed_btn",
+                          "Restore Changed ({COUNT})"
+                        ) || "Restore Changed ({COUNT})"
+                      ).replace("{COUNT}", String(changedDiffPaths.length))}
+                      disabled={isBatchExtracting}
+                      onClick={() => setConfirmRestoreAllDiff(true)}
+                      className="!px-3.5 !py-2"
+                    />
+                  )}
+                  {onRestoreBackup && !isPostBackupSummary && (
+                    <ActionButton
+                      variant="accent"
+                      icon={t("icon_restore", "restore")}
+                      label={t(
+                        "tc_restore_full_title",
+                        "Restore Full Snapshot"
+                      )}
+                      onClick={() => setConfirmFullRestore(true)}
+                      className="!px-4 !py-2"
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 2. 3-Column DashboardStatTile View Switcher */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+        <DashboardStatTile
+          variant="filter"
+          className="!w-full"
+          icon={t("icon_archive", "archive")}
+          label={t("tc_tab_backed_up_delta", "Backed Up Delta")}
+          number={
+            isBaseline
+              ? `${deltaStats.written.toLocaleString()} (${t(
+                  "tc_delta_badge_baseline",
+                  "Baseline"
+                )})`
+              : `${deltaStats.changed.toLocaleString()} ${t(
+                  "tc_diff_changes",
+                  "Changes"
+                )}`
+          }
+          isActive={activeView === "DELTA"}
+          onClick={() => {
+            setActiveView("DELTA");
+            setListLimit(100);
+          }}
+        />
+        <DashboardStatTile
+          variant="filter"
+          className="!w-full"
+          icon={t("icon_compare_arrows", "compare_arrows")}
+          label={t("tc_tab_live_diff", "Live Folder Diff")}
+          number={`${diffCounts.changes.toLocaleString()} ${t(
+            "tc_diff_changes",
+            "Changes"
+          )}`}
+          isActive={activeView === "DIFF"}
+          onClick={() => {
+            setActiveView("DIFF");
+            setListLimit(100);
+          }}
+        />
+        <DashboardStatTile
+          variant="filter"
+          className="!w-full"
+          icon={t("icon_unarchive", "unarchive")}
+          label={t("tab_extract", "Extract")}
+          number={`${visibleBackupFiles.length.toLocaleString()} ${t(
+            "label_files",
+            "Files"
+          )}`}
+          isActive={activeView === "EXTRACT"}
+          onClick={() => {
+            setActiveView("EXTRACT");
+            setListLimit(100);
+          }}
+        />
+      </div>
+
+      {/* 3. Structured OS File Table with Integrated Search Toolbar (No Pill Filters) */}
+      <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl overflow-hidden flex flex-col">
+        {/* Integrated Table Search & Batch Action Header */}
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-70 shrink-0">
+              {t("icon_search", "search")}
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setListLimit(100);
+              }}
+              placeholder={t("search_files", "Search files...")}
+              className="bg-transparent border-none outline-none text-xs font-semibold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50 w-full min-w-0"
+            />
+            {searchQuery.trim() !== "" && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer shrink-0"
+              >
+                <span className="material-symbols-outlined !text-[16px]">
+                  {t("icon_close", "close")}
+                </span>
+              </button>
+            )}
+          </div>
+
+          {activeView === "EXTRACT" && selectedPaths.size > 0 && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              {confirmBatchExtract ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={isBatchExtracting}
+                    onClick={() =>
+                      handleBatchExtract(Array.from(selectedPaths), true)
+                    }
+                    className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-transparent border border-[var(--accent)] text-[var(--accent)] cursor-pointer"
+                  >
+                    {t("btn_confirm", "Confirm")} ({selectedPaths.size})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmBatchExtract(false)}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                  >
+                    {t("btn_cancel", "Cancel")}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isBatchExtracting}
+                  onClick={() => setConfirmBatchExtract(true)}
+                  className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[13px]">
+                    {t("icon_restore", "restore")}
+                  </span>
+                  {(
+                    t(
+                      "tc_extract_selected_btn",
+                      "Extract Selected ({COUNT})"
+                    ) || "Extract Selected ({COUNT})"
+                  ).replace("{COUNT}", String(selectedPaths.size))}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Table Column Header */}
+        <div className="grid grid-cols-[minmax(0,1fr)_96px_132px_104px] items-center gap-3 px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+          <span>{t("tc_col_file", "File")}</span>
+          <span className="text-right">{t("tc_col_size", "Size")}</span>
+          <span className="text-center">{t("tc_col_status", "Status")}</span>
+          <span className="text-right">{t("tc_col_action", "Action")}</span>
+        </div>
+
+        {/* Table Body */}
+        <div className="divide-y divide-[color-mix(in_srgb,var(--text)_6%,transparent)] max-h-[440px] overflow-y-auto custom-scrollbar">
+          {isLoading ? (
+            <div className="text-center text-xs text-[var(--subtext)] py-12 animate-pulse">
+              {activeView === "DIFF"
+                ? t("calculating_diff", "Calculating differences...")
+                : t("loading_contents", "Loading contents...")}
+            </div>
+          ) : activeView === "DELTA" ? (
+            filteredDelta.length === 0 ? (
+              <div className="p-8">
+                <EmptyState
+                  icon={t("icon_link", "link")}
+                  title={
+                    deltaStats.changed === 0
+                      ? t(
+                          "tc_delta_zero_changes_title",
+                          "Zero Changed Files Since Previous Snapshot (100% Deduplicated)"
+                        )
+                      : t("no_files_found", "No matching files")
+                  }
+                />
+              </div>
+            ) : (
+              <>
+                {filteredDelta.slice(0, listLimit).map((item, idx) => {
+                  const st = item.delta_status;
+                  const isAdded = st === "Added" || st === "Baseline";
+                  const isUpdated = st === "Updated";
+                  const isRemoved = st === "Removed";
+
+                  const badgeClass = isUpdated
+                    ? "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_42%,transparent)]"
+                    : isAdded
+                      ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_42%,transparent)]"
+                      : isRemoved
+                        ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_42%,transparent)]"
+                        : "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]";
+
+                  const badgeIcon = isUpdated
+                    ? t("icon_edit", "edit")
+                    : isAdded
+                      ? t("icon_add_circle", "add_circle")
+                      : isRemoved
+                        ? t("icon_remove_circle", "remove_circle")
+                        : t("icon_link", "link");
+
+                  const badgeLabel =
+                    st === "Baseline"
+                      ? t("tc_delta_badge_baseline", "Baseline")
+                      : isUpdated
+                        ? t("tc_delta_filter_updated", "Updated")
+                        : isAdded
+                          ? t("tc_delta_filter_added", "New Files")
+                          : isRemoved
+                            ? t("tc_delta_filter_removed", "Removed")
+                            : t("tc_delta_filter_dedup", "Hardlinked");
+
+                  const catInfo = getFileCategoryInfo(item.path);
+                  const folderSub = getFileFolderSubtitle(item.path);
+                  const isDone = extractedSet.has(item.path);
+                  const isBusy = extracting === item.path;
+                  const isConfirmingThis = confirmExtractPath === item.path;
+                  const fileName = item.path.split("/").pop() || item.path;
+
+                  return (
+                    <div
+                      key={`${item.path}-${idx}`}
+                      className="grid grid-cols-[minmax(0,1fr)_96px_132px_104px] items-center gap-3 px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors"
+                    >
+                      {/* Col 1: File & Folder */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-8 h-8 rounded-lg border bg-transparent flex items-center justify-center shrink-0 ${catInfo.colorClass}`}
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {catInfo.icon}
+                          </span>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold tracking-tight text-[var(--text)] truncate">
+                            {fileName}
+                          </span>
+                          <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 truncate">
+                            {folderSub} &bull; {catInfo.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Col 2: Size */}
+                      <span className="text-right text-[11px] font-mono font-bold text-[var(--subtext)] whitespace-nowrap">
+                        {formatFileSizeMb(item.size_mb)}
+                      </span>
+
+                      {/* Col 3: Status Badge */}
+                      <div className="flex justify-center">
+                        <span
+                          className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border bg-transparent inline-flex items-center gap-1 whitespace-nowrap ${badgeClass}`}
+                        >
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {badgeIcon}
+                          </span>
+                          {badgeLabel}
+                        </span>
+                      </div>
+
+                      {/* Col 4: Action */}
+                      <div className="flex items-center justify-end gap-1.5">
+                        {!isRemoved &&
+                          (isConfirmingThis ? (
+                            <>
+                              <button
+                                type="button"
+                                disabled={isBusy || isBatchExtracting}
+                                onClick={() =>
+                                  handleExtractSingle(item.path, true)
+                                }
+                                className="px-2.5 h-7 rounded-lg border bg-transparent border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all"
+                              >
+                                {t("btn_confirm", "Confirm")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmExtractPath(null)}
+                                className="w-7 h-7 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
+                              >
+                                <span className="material-symbols-outlined !text-[13px]">
+                                  {t("icon_close", "close")}
+                                </span>
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmExtractPath(item.path)}
+                              disabled={isBusy || isBatchExtracting}
+                              className={`px-2.5 h-7 rounded-lg border bg-transparent inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 ${
+                                isDone
+                                  ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                                  : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
+                              }`}
+                            >
+                              <span
+                                className={`material-symbols-outlined !text-[13px] ${
+                                  isBusy ? "animate-spin" : ""
+                                }`}
+                              >
+                                {isDone
+                                  ? t("icon_check", "check")
+                                  : isBusy
+                                    ? t("icon_sync", "sync")
+                                    : t("icon_restore", "restore")}
+                              </span>
+                              <span>
+                                {isDone
+                                  ? t("tc_panel_extracted_badge", "Extracted")
+                                  : t("btn_extract", "Extract")}
+                              </span>
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredDelta.length > listLimit && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+                    <span className="text-[10px] font-mono text-[var(--subtext)] uppercase tracking-widest">
+                      {t(
+                        "showing_files",
+                        "Showing first {0} files"
+                      )?.replace("{0}", listLimit.toString()) ||
+                        `Showing first ${listLimit} files`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setListLimit((l) => l + 100)}
+                      className="px-3.5 py-1.5 rounded-xl bg-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-colors cursor-pointer"
+                    >
+                      {t("load_more", "Load More")}
+                    </button>
+                  </div>
+                )}
+              </>
+            )
+          ) : activeView === "EXTRACT" ? (
+            extractGroups.length === 0 ? (
+              <div className="p-8">
+                <EmptyState
+                  icon={t("icon_folder", "folder")}
+                  title={t("no_files_found", "No matching files")}
+                />
+              </div>
+            ) : (
+              <>
+                {extractGroups.map((group: any) => {
+                  const isCollapsed = collapsedGroups.has(group.id);
+                  return (
+                    <div key={group.id} className="flex flex-col">
+                      {/* Collapsible Category Section Header inside the Table */}
+                      <div
+                        onClick={() => toggleGroupCollapse(group.id)}
+                        className="flex items-center justify-between gap-3 px-4 py-2.5 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-pointer select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">
+                            {isCollapsed
+                              ? t("icon_chevron_right", "chevron_right")
+                              : t("icon_expand_more", "expand_more")}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border bg-transparent inline-flex items-center gap-1.5 ${group.colorClass}`}
+                          >
+                            <span className="material-symbols-outlined !text-[12px]">
+                              {group.icon}
+                            </span>
+                            {group.label}
+                          </span>
+                          <span className="text-[11px] font-mono text-[var(--subtext)]">
+                            {group.files.length.toLocaleString()}{" "}
+                            {t("label_files", "Files")} &bull;{" "}
+                            {formatFileSizeMb(group.sizeMb)}
+                          </span>
+                        </div>
+
+                        {group.hasVerToggle && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowVerRevisions((v) => !v);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border bg-transparent cursor-pointer transition-all ${
+                              showVerRevisions
+                                ? "border-[var(--accent)] text-[var(--accent)]"
+                                : "border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                            }`}
+                          >
+                            {showVerRevisions
+                              ? t("tc_hide_ver_backups", "Hide .ver Revisions")
+                              : `${t("tc_show_ver_backups", "Show .ver Revisions")} (${verRevisionFiles.length})`}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Category Files */}
+                      {!isCollapsed &&
+                        group.files.slice(0, listLimit).map((file: any) => {
+                          const catInfo = getFileCategoryInfo(file.path);
+                          const folderSub = getFileFolderSubtitle(file.path);
+                          const isSelected = selectedPaths.has(file.path);
+                          const isDone = extractedSet.has(file.path);
+                          const isBusy = extracting === file.path;
+                          const isConfirmingThis =
+                            confirmExtractPath === file.path;
+                          const fileName =
+                            file.path.split("/").pop() || file.path;
+
+                          return (
+                            <div
+                              key={file.path}
+                              onClick={() => toggleSelectPath(file.path)}
+                              className={`grid grid-cols-[minmax(0,1fr)_96px_132px_104px] items-center gap-3 px-4 py-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-pointer ${
+                                isSelected
+                                  ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
+                                  : "hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)]"
+                              }`}
+                            >
+                              {/* Col 1: File & Folder */}
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div
+                                  className={`w-8 h-8 rounded-lg border bg-transparent flex items-center justify-center shrink-0 transition-colors ${
+                                    isSelected
+                                      ? "border-[var(--accent)] text-[var(--accent)]"
+                                      : catInfo.colorClass
+                                  }`}
+                                >
+                                  <span className="material-symbols-outlined !text-[16px]">
+                                    {isSelected
+                                      ? t("icon_check", "check")
+                                      : catInfo.icon}
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-xs font-bold text-[var(--text)] tracking-tight truncate">
+                                    {fileName}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 truncate">
+                                    {folderSub}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Col 2: Size */}
+                              <span className="text-right text-[11px] font-mono font-bold text-[var(--subtext)] whitespace-nowrap">
+                                {formatFileSizeMb(file.size_mb)}
+                              </span>
+
+                              {/* Col 3: Category Badge */}
+                              <div className="flex justify-center">
+                                <span
+                                  className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border bg-transparent inline-flex items-center gap-1 whitespace-nowrap ${catInfo.colorClass}`}
+                                >
+                                  <span className="material-symbols-outlined !text-[12px]">
+                                    {catInfo.icon}
+                                  </span>
+                                  {catInfo.label}
+                                </span>
+                              </div>
+
+                              {/* Col 4: Action */}
+                              <div
+                                className="flex items-center justify-end gap-1.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {isConfirmingThis ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      disabled={isBusy || isBatchExtracting}
+                                      onClick={() =>
+                                        handleExtractSingle(file.path, false)
+                                      }
+                                      className="px-2.5 h-7 rounded-lg border bg-transparent border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all"
+                                    >
+                                      {t("btn_confirm", "Confirm")}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setConfirmExtractPath(null)
+                                      }
+                                      className="w-7 h-7 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
+                                    >
+                                      <span className="material-symbols-outlined !text-[13px]">
+                                        {t("icon_close", "close")}
+                                      </span>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={isBusy || isBatchExtracting}
+                                    onClick={() =>
+                                      setConfirmExtractPath(file.path)
+                                    }
+                                    className={`px-2.5 h-7 rounded-lg border bg-transparent inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 ${
+                                      isDone
+                                        ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                                        : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`material-symbols-outlined !text-[13px] ${
+                                        isBusy ? "animate-spin" : ""
+                                      }`}
+                                    >
+                                      {isDone
+                                        ? t("icon_check", "check")
+                                        : isBusy
+                                          ? t("icon_sync", "sync")
+                                          : t("icon_restore", "restore")}
+                                    </span>
+                                    <span>
+                                      {isDone
+                                        ? t(
+                                            "tc_panel_extracted_badge",
+                                            "Extracted"
+                                          )
+                                        : t("btn_extract", "Extract")}
+                                    </span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                      {!isCollapsed && group.files.length > listLimit && (
+                        <div className="flex items-center justify-between px-4 py-3 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
+                          <span className="text-[10px] font-mono text-[var(--subtext)] uppercase tracking-widest">
+                            {t(
+                              "showing_files",
+                              "Showing first {0} files"
+                            )?.replace("{0}", listLimit.toString()) ||
+                              `Showing first ${listLimit} files`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setListLimit((l) => l + 100)}
+                            className="px-3.5 py-1.5 rounded-xl bg-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-colors cursor-pointer"
+                          >
+                            {t("load_more", "Load More")}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )
+          ) : filteredDiff.length === 0 ? (
+            <div className="p-8">
+              <EmptyState
+                icon={t("icon_verified", "verified")}
+                title={t("everything_identical", "Everything is identical")}
+              />
+            </div>
+          ) : (
+            <>
+              {filteredDiff.slice(0, listLimit).map((diff, i) => {
+                const isMod = diff.status === "Modified";
+                const isMiss = diff.status === "Missing in Current";
+                const isNewActive = diff.status === "Added in Current";
+
+                const badgeClass = isMod
+                  ? "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_42%,transparent)]"
+                  : isMiss
+                    ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_42%,transparent)]"
+                    : isNewActive
+                      ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_42%,transparent)]"
+                      : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_42%,transparent)]";
+
+                const badgeIcon = isMod
+                  ? t("icon_edit", "edit")
+                  : isMiss
+                    ? t("icon_warning", "warning")
+                    : isNewActive
+                      ? t("icon_add_circle", "add_circle")
+                      : t("icon_check_circle", "check_circle");
+
+                const catInfo = getFileCategoryInfo(diff.path);
+                const folderSub = getFileFolderSubtitle(diff.path);
+                const isDone = extractedSet.has(diff.path);
+                const isBusy = extracting === diff.path;
+                const isConfirmingThis = confirmExtractPath === diff.path;
+                const canRestoreFromSnapshot = isMod || isMiss;
+
+                const sizeLabel =
+                  isNewActive && typeof diff.live_size_mb === "number"
+                    ? formatFileSizeMb(diff.live_size_mb)
+                    : isMod &&
+                        typeof diff.live_size_mb === "number" &&
+                        Math.abs((diff.size_mb || 0) - diff.live_size_mb) >
+                          0.001
+                      ? `${formatFileSizeMb(diff.size_mb)} → ${formatFileSizeMb(
+                          diff.live_size_mb
+                        )}`
+                      : formatFileSizeMb(diff.size_mb);
+
+                return (
+                  <div
+                    key={`${diff.path}-${i}`}
+                    className="grid grid-cols-[minmax(0,1fr)_96px_132px_104px] items-center gap-3 px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors"
+                  >
+                    {/* Col 1: File & Folder */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-8 h-8 rounded-lg border bg-transparent flex items-center justify-center shrink-0 ${catInfo.colorClass}`}
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {catInfo.icon}
+                        </span>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold tracking-tight text-[var(--text)] truncate">
+                          {diff.path.split("/").pop()}
+                        </span>
+                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 truncate">
+                          {folderSub} &bull; {catInfo.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Col 2: Size */}
+                    <span className="text-right text-[11px] font-mono font-bold text-[var(--subtext)] whitespace-nowrap">
+                      {sizeLabel}
+                    </span>
+
+                    {/* Col 3: Status Badge */}
+                    <div className="flex justify-center">
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border bg-transparent inline-flex items-center gap-1 whitespace-nowrap ${badgeClass}`}
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {badgeIcon}
+                        </span>
+                        {isMod
+                          ? t("tc_diff_filter_modified", "Modified")
+                          : isMiss
+                            ? t("tc_diff_filter_missing", "Missing in Active")
+                            : isNewActive
+                              ? t(
+                                  "tc_diff_filter_new_in_active",
+                                  "New in Active"
+                                )
+                              : t("tc_diff_filter_identical", "Unchanged")}
+                      </span>
+                    </div>
+
+                    {/* Col 4: Action */}
+                    <div className="flex items-center justify-end gap-1.5">
+                      {canRestoreFromSnapshot &&
+                        (isConfirmingThis ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isBusy || isBatchExtracting}
+                              onClick={() =>
+                                handleExtractSingle(diff.path, true)
+                              }
+                              className="px-2.5 h-7 rounded-lg border bg-transparent border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all"
+                            >
+                              {t("btn_confirm", "Confirm")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmExtractPath(null)}
+                              className="w-7 h-7 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
+                            >
+                              <span className="material-symbols-outlined !text-[13px]">
+                                {t("icon_close", "close")}
+                              </span>
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmExtractPath(diff.path)}
+                            disabled={isBusy || isBatchExtracting}
+                            className={`px-2.5 h-7 rounded-lg border bg-transparent inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 ${
+                              isDone
+                                ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                                : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
+                            }`}
+                          >
+                            <span
+                              className={`material-symbols-outlined !text-[13px] ${
+                                isBusy ? "animate-spin" : ""
+                              }`}
+                            >
+                              {isDone
+                                ? t("icon_check", "check")
+                                : isBusy
+                                  ? t("icon_sync", "sync")
+                                  : t("icon_restore", "restore")}
+                            </span>
+                            <span>
+                              {isDone
+                                ? t("tc_panel_extracted_badge", "Extracted")
+                                : t("btn_restore", "Restore")}
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredDiff.length > listLimit && (
+                <div className="flex items-center justify-between px-4 py-3 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
+                  <span className="text-[10px] font-mono text-[var(--subtext)] uppercase tracking-widest">
+                    {t("showing_files", "Showing first {0} files")?.replace(
+                      "{0}",
+                      listLimit.toString()
+                    ) || `Showing first ${listLimit} files`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setListLimit((l) => l + 100)}
+                    className="px-3.5 py-1.5 rounded-xl bg-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-colors cursor-pointer"
+                  >
+                    {t("load_more", "Load More")}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function TimeCapsuleSidePanel({
+  isOpen,
+  onClose,
+  selectedBackup,
+  config,
+  getBackupSignature,
+  onRestoreBackup,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedBackup: string | null;
+  config: any;
+  getBackupSignature?: (name: string) => any;
+  onRestoreBackup?: (name: string, isEngine: boolean) => void;
+}) {
+  const { t } = useLexicon();
+  const [location, setLocation] = useState<string>("");
+
+  const normalizedBackup = useMemo(
+    () =>
+      selectedBackup ? selectedBackup.replace(/^Secured:\s*/i, "").trim() : null,
+    [selectedBackup]
+  );
+
+  const isEngine = Boolean(normalizedBackup?.toLowerCase().includes("engine"));
+  const sig = useMemo(() => {
+    if (!normalizedBackup) return null;
+    if (getBackupSignature) return getBackupSignature(normalizedBackup);
+    return parseBackupSignatureFallback(normalizedBackup, t);
+  }, [normalizedBackup, getBackupSignature, t]);
+
+  const rawAlias = sig?.alias || "";
+  const isDefaultAlias =
+    !rawAlias ||
+    rawAlias.toLowerCase() === "world state" ||
+    rawAlias.toLowerCase() === "engine core";
+  const title = isDefaultAlias
+    ? isEngine
+      ? t("engine_full", "Engine Core")
+      : t("world_state", "World State")
+    : rawAlias;
+  const icon = isEngine
+    ? t("icon_settings", "settings")
+    : t("icon_public", "public");
+  const themeColor = isEngine
+    ? "text-[var(--danger)]"
+    : "text-[var(--accent)]";
+
+  const dateDisplay = useMemo(() => {
+    if (!sig?.timestamp || sig.timestamp === "0") return "";
+    const d = new Date(Number(sig.timestamp) * 1000);
+    return `${d.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })} • ${d.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    })}`;
+  }, [sig]);
+
+  const handleOpenFolder = async () => {
+    if (!location) return;
+    try {
+      await openPath(location);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <SidePanel
@@ -569,11 +1835,11 @@ export function TimeCapsuleSidePanel({
       }
       icon={icon}
       iconColorClass={themeColor}
-      widthClass="w-[90vw] md:w-[820px]"
+      widthClass="w-[90vw] md:w-[840px]"
       isResizable={true}
-      defaultWidth={820}
+      defaultWidth={840}
       headerActions={
-        selectedBackup ? (
+        normalizedBackup ? (
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon={t("icon_folder_open", "folder_open")}
@@ -581,837 +1847,21 @@ export function TimeCapsuleSidePanel({
               onClick={handleOpenFolder}
               disabled={!location}
             />
-            {onRestoreBackup && (
-              <PanelHeaderButton
-                icon={t("icon_restore", "restore")}
-                tooltip={t("btn_restore", "Restore")}
-                variant="accent"
-                onClick={() => setConfirmFullRestore((prev) => !prev)}
-              />
-            )}
           </PanelHeaderGroup>
         ) : undefined
       }
     >
-      {!selectedBackup ? (
-        <div className="text-[var(--subtext)] text-xs p-6 text-center">
-          {t("no_backup_selected", "No backup selected")}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4 mt-2 w-full pb-8">
-          {/* 1. Top Snapshot Subject Banner Card (Matches Homestead Lab Report Banner) */}
-          <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div
-                className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
-                  isEngine
-                    ? "text-rose-400 border-rose-500/35"
-                    : "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                }`}
-              >
-                <span className="material-symbols-outlined !text-[22px]">{icon}</span>
-              </div>
-              <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                  {title}
-                </span>
-                <h3 className="text-base md:text-lg font-black font-mono text-[var(--text)] tracking-tight truncate">
-                  {sig?.version || selectedBackup.replace(".tar.zst", "")}
-                </h3>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <span
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 ${
-                  diffCounts.changes > 0
-                    ? "text-amber-400 border-amber-500/45"
-                    : "text-emerald-400 border-emerald-500/45"
-                }`}
-              >
-                <span className="material-symbols-outlined !text-[13px]">
-                  {diffCounts.changes > 0
-                    ? t("icon_difference", "difference")
-                    : t("icon_check_circle", "check_circle")}
-                </span>
-                {diffCounts.changes > 0
-                  ? `${diffCounts.changes} ${t("tab_diff", "Differences")}`
-                  : t("tc_badge_in_sync", "In Sync")}
-              </span>
-              <span className="text-[11px] font-mono font-bold text-[var(--subtext)]">
-                {visibleBackupFiles.length.toLocaleString()} {t("label_files", "Files")} &bull;{" "}
-                {formatStorageBytes(logicalSize)}
-              </span>
-            </div>
-          </div>
-
-          {/* 2. Primary Action Banner (Matches Secure Verified Artifact Banner in Lab.tsx) */}
-          {onRestoreBackup &&
-            (confirmFullRestore ? (
-              <div className="rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-[color-mix(in_srgb,var(--warning)_6%,transparent)] flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-200">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border bg-transparent border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]">
-                    <span className="material-symbols-outlined !text-[18px]">
-                      {t("icon_warning", "warning")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-[var(--warning)]">
-                      {isEngine
-                        ? t("confirm_restore_engine_card", "Confirm Engine Restore")
-                        : t("confirm_restore_state", "Confirm Restore")}
-                    </span>
-                    <p className="text-[11px] text-[var(--subtext)] leading-snug truncate">
-                      {sig?.version || selectedBackup} &bull; {formatStorageBytes(logicalSize)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <ActionButton
-                    variant="glass"
-                    icon={t("icon_close", "close")}
-                    label={t("btn_cancel", "Cancel")}
-                    onClick={() => setConfirmFullRestore(false)}
-                    className="!px-3.5 !py-2"
-                  />
-                  <ActionButton
-                    variant="accent"
-                    icon={t("icon_restore", "restore")}
-                    label={t("btn_confirm", "Confirm")}
-                    onClick={() => {
-                      setConfirmFullRestore(false);
-                      onClose();
-                      onRestoreBackup(selectedBackup, isEngine);
-                    }}
-                    className="!px-4 !py-2"
-                  />
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmFullRestore(true)}
-                className="w-full text-left rounded-2xl p-3.5 border transition-all flex items-start gap-3 group cursor-pointer shadow-sm bg-transparent border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
-              >
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border bg-transparent border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]">
-                  <span className="material-symbols-outlined !text-[18px]">
-                    {t("icon_restore", "restore")}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-[var(--accent)]">
-                      {t("tc_restore_full_title", "Restore Full Snapshot")}
-                    </span>
-                    <span className="material-symbols-outlined !text-[15px] transition-all opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 text-[var(--accent)]">
-                      {t("icon_arrow_forward", "arrow_forward")}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[var(--subtext)] leading-snug">
-                    {isEngine
-                      ? t(
-                          "tc_restore_engine_desc",
-                          "Roll back your game installation binaries and pack data to this Engine Core snapshot."
-                        )
-                      : t(
-                          "tc_restore_world_desc",
-                          "Roll back your active Saves, Tray library, and user settings to this World State snapshot."
-                        )}
-                  </p>
-                </div>
-              </button>
-            ))}
-
-          {/* 3. 3-Column Telemetry StatBoxes (Matches Lab Report Telemetry Row) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <StatBox
-              icon={t("icon_inventory_2", "inventory_2")}
-              iconColorClass="text-[var(--accent)]"
-              label={t("logical_size", "Logical Size")}
-              value={formatStorageBytes(logicalSize)}
-            />
-            <StatBox
-              icon={t("icon_hard_drive", "hard_drive")}
-              iconColorClass="text-[var(--success)]"
-              label={t("new_disk_used", "Disk Space Used")}
-              value={formatStorageBytes(diffSize)}
-            />
-            <StatBox
-              icon={t("icon_schedule", "schedule")}
-              iconColorClass="text-[var(--accent)]"
-              label={t("date_created", "Captured")}
-              value={
-                <span className="text-xs md:text-sm font-black tracking-tight">
-                  {dateDisplay || t("tc_badge_latest", "Latest")}
-                </span>
-              }
-            />
-          </div>
-
-          {/* 4. Side-by-Side Breakdown Cards (Matches Dependencies & Conflicts Cards in Lab.tsx) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Left Card: Snapshot Contents Breakdown */}
-            <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
-                  <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                    {t("icon_inventory_2", "inventory_2")}
-                  </span>
-                  {t("tc_group_contents", "Snapshot Contents")}
-                </span>
-                <span className="text-[10px] font-mono font-bold text-[var(--accent)]">
-                  {visibleBackupFiles.length.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                {categoryRows.map((cat) => {
-                  const isActiveCat =
-                    activeView === "EXTRACT" && extractFilter === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveView("EXTRACT");
-                        setExtractFilter((prev) =>
-                          activeView === "EXTRACT" && prev === cat.id ? "ALL" : cat.id
-                        );
-                        setListLimit(100);
-                      }}
-                      className={`w-full rounded-xl px-3 py-2 flex items-center justify-between gap-2 transition-all cursor-pointer border text-left ${
-                        isActiveCat
-                          ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                          : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
-                          {cat.icon}
-                        </span>
-                        <span className="text-xs font-bold text-[var(--text)] truncate">
-                          {cat.label}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono font-bold text-[var(--subtext)] shrink-0">
-                        {cat.count.toLocaleString()} &bull; {cat.size}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Right Card: Differences vs Active Breakdown */}
-            <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
-                  <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">
-                    {t("icon_difference", "difference")}
-                  </span>
-                  {t("tab_diff", "Differences")}
-                </span>
-                <span className="text-[10px] font-mono font-bold text-[var(--warning)]">
-                  {diffCounts.changes.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                {[
-                  {
-                    id: "MODIFIED" as DiffStatusFilter,
-                    icon: t("icon_edit", "edit"),
-                    label: t("tc_diff_filter_modified", "Modified"),
-                    count: diffCounts.modified,
-                    colorVar: "--warning",
-                  },
-                  {
-                    id: "MISSING" as DiffStatusFilter,
-                    icon: t("icon_warning", "warning"),
-                    label: t("tc_diff_filter_missing", "Missing in Active"),
-                    count: diffCounts.missing,
-                    colorVar: "--danger",
-                  },
-                  {
-                    id: "IDENTICAL" as DiffStatusFilter,
-                    icon: t("icon_check_circle", "check_circle"),
-                    label: t("tc_diff_filter_identical", "Unchanged"),
-                    count: diffCounts.identical,
-                    colorVar: "--success",
-                  },
-                ].map((row) => {
-                  const isActiveRow = activeView === "DIFF" && diffFilter === row.id;
-                  return (
-                    <button
-                      key={row.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveView("DIFF");
-                        setDiffFilter((prev) =>
-                          activeView === "DIFF" && prev === row.id ? "CHANGES" : row.id
-                        );
-                        setListLimit(100);
-                      }}
-                      className={`w-full rounded-xl px-3 py-2 flex items-center justify-between gap-2 transition-all cursor-pointer border text-left ${
-                        isActiveRow
-                          ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                          : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          className="material-symbols-outlined !text-[14px] shrink-0"
-                          style={{ color: `var(${row.colorVar})` }}
-                        >
-                          {row.icon}
-                        </span>
-                        <span className="text-xs font-bold text-[var(--text)] truncate">
-                          {row.label}
-                        </span>
-                      </div>
-                      <span
-                        className="text-[10px] font-mono font-bold shrink-0"
-                        style={{
-                          color:
-                            row.count > 0 ? `var(${row.colorVar})` : "var(--subtext)",
-                        }}
-                      >
-                        {row.count.toLocaleString()} {t("label_files", "Files")}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* 5. 2-Column StatTile View Switcher (Matches Lab Report Log Switcher in Lab.tsx) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={t("icon_unarchive", "unarchive")}
-              label={t("tab_extract", "Extract")}
-              number={`${visibleBackupFiles.length.toLocaleString()} ${t("label_files", "Files")}`}
-              isActive={activeView === "EXTRACT"}
-              onClick={() => {
-                setActiveView("EXTRACT");
-                setListLimit(100);
-              }}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={t("icon_difference", "difference")}
-              label={t("tab_diff", "Differences")}
-              number={`${diffCounts.changes.toLocaleString()} ${t(
-                "tc_diff_changes",
-                "Changes"
-              )}`}
-              isActive={activeView === "DIFF"}
-              onClick={() => {
-                setActiveView("DIFF");
-                setListLimit(100);
-              }}
-            />
-          </div>
-
-          {/* 6. Unified File Explorer Terminal Card (Matches Log Terminal Card in Lab.tsx) */}
-          <div className="flex-1 min-h-[420px] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl overflow-hidden shadow-inner relative flex flex-col">
-            {/* Terminal Header Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="material-symbols-outlined text-[var(--accent)] !text-[16px]">
-                  {activeView === "DIFF"
-                    ? t("icon_difference", "difference")
-                    : t("icon_unarchive", "unarchive")}
-                </span>
-                <span className="text-xs font-black font-mono text-[var(--text)]">
-                  {activeView === "DIFF"
-                    ? `${t("tab_diff", "Differences")} (${filteredDiff.length.toLocaleString()})`
-                    : `${t("tab_extract", "Extract")} (${filteredExtractFiles.length.toLocaleString()})`}
-                </span>
-
-                {/* Active Category Filter Badge (Click to Clear) */}
-                {activeView === "EXTRACT" && activeCategoryLabel && (
-                  <button
-                    type="button"
-                    onClick={() => setExtractFilter("ALL")}
-                    className="px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] flex items-center gap-1 cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all"
-                  >
-                    {activeCategoryLabel}
-                    <span className="material-symbols-outlined !text-[11px]">
-                      {t("icon_close", "close")}
-                    </span>
-                  </button>
-                )}
-
-                {/* Active Diff Filter Badge (Click to Clear) */}
-                {activeView === "DIFF" && activeDiffFilterLabel && (
-                  <button
-                    type="button"
-                    onClick={() => setDiffFilter("CHANGES")}
-                    className="px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] flex items-center gap-1 cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all"
-                  >
-                    {activeDiffFilterLabel}
-                    <span className="material-symbols-outlined !text-[11px]">
-                      {t("icon_close", "close")}
-                    </span>
-                  </button>
-                )}
-
-                {/* .ver Revisions Toggle when viewing World State Saves */}
-                {activeView === "EXTRACT" &&
-                  !isEngine &&
-                  (extractFilter === "ALL" || extractFilter === "SAVES") &&
-                  verRevisionFiles.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowVerRevisions((v) => !v)}
-                      className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border transition-all cursor-pointer ${
-                        showVerRevisions
-                          ? "border-[var(--accent)] text-[var(--accent)]"
-                          : "border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                      }`}
-                    >
-                      {t("tc_show_ver_backups", "Show .ver Revisions")} (
-                      {verRevisionFiles.length})
-                    </button>
-                  )}
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Batch Extract Selected Action (when files are selected in Extract view) */}
-                {activeView === "EXTRACT" &&
-                  selectedPaths.size > 0 &&
-                  (confirmBatchExtract ? (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={isBatchExtracting}
-                        onClick={() => handleBatchExtract(Array.from(selectedPaths), true)}
-                        className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] cursor-pointer"
-                      >
-                        {t("btn_confirm", "Confirm")} ({selectedPaths.size})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmBatchExtract(false)}
-                        className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
-                      >
-                        {t("btn_cancel", "Cancel")}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={isBatchExtracting}
-                      onClick={() => setConfirmBatchExtract(true)}
-                      className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all flex items-center gap-1 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[12px]">
-                        {t("icon_restore", "restore")}
-                      </span>
-                      {t("tc_panel_extract_selected", "Extract Selected ({0})")?.replace(
-                        "{0}",
-                        String(selectedPaths.size)
-                      ) || `Extract (${selectedPaths.size})`}
-                    </button>
-                  ))}
-
-                {/* Restore All Changed Action (in Differences view) */}
-                {activeView === "DIFF" &&
-                  changedDiffPaths.length > 0 &&
-                  (confirmRestoreAllDiff ? (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={isBatchExtracting}
-                        onClick={() => handleBatchExtract(changedDiffPaths, true)}
-                        className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] cursor-pointer"
-                      >
-                        {t("btn_confirm", "Confirm")} ({changedDiffPaths.length})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmRestoreAllDiff(false)}
-                        className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
-                      >
-                        {t("btn_cancel", "Cancel")}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={isBatchExtracting}
-                      onClick={() => setConfirmRestoreAllDiff(true)}
-                      className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all flex items-center gap-1 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[12px]">
-                        {t("icon_done_all", "done_all")}
-                      </span>
-                      {t("tc_diff_restore_all_changes", "Restore All Changed ({0})")?.replace(
-                        "{0}",
-                        String(changedDiffPaths.length)
-                      ) || `Restore All (${changedDiffPaths.length})`}
-                    </button>
-                  ))}
-
-                {/* Inline Search Box */}
-                <div className="relative flex items-center">
-                  <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] absolute left-2.5 pointer-events-none">
-                    {t("icon_search", "search")}
-                  </span>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setListLimit(100);
-                    }}
-                    placeholder={t("search_files", "Search files...")}
-                    className="h-7 pl-7 pr-6 rounded-lg bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus:border-[var(--accent)] text-[11px] font-medium text-[var(--text)] placeholder:text-[var(--subtext)]/60 outline-none w-44 sm:w-52 transition-all"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-1.5 text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[13px]">
-                        {t("icon_close", "close")}
-                      </span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Physical Archive Path Sub-bar */}
-            {location && (
-              <div className="px-5 py-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-between gap-3 shrink-0">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-70 shrink-0">
-                    {t("icon_hard_drive", "hard_drive")}
-                  </span>
-                  <span
-                    className="text-[11px] font-mono text-[var(--subtext)] truncate"
-                    title={location}
-                  >
-                    {location}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleOpenFolder}
-                  className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[12px]">
-                    {t("icon_folder_open", "folder_open")}
-                  </span>
-                  {t("tc_open_in_explorer", "Open in Explorer")}
-                </button>
-              </div>
-            )}
-
-            {/* Scrollable File Rows List */}
-            <div className="p-4 flex flex-col gap-2 max-h-[460px] overflow-y-auto custom-scrollbar flex-1">
-              {isLoading ? (
-                <div className="text-center text-xs text-[var(--subtext)] py-12 animate-pulse">
-                  {activeView === "DIFF"
-                    ? t("calculating_diff", "Calculating differences...")
-                    : t("loading_contents", "Loading contents...")}
-                </div>
-              ) : activeView === "EXTRACT" ? (
-                filteredExtractFiles.length === 0 ? (
-                  <EmptyState
-                    icon={t("icon_folder", "folder")}
-                    title={t("no_files_found", "No matching files")}
-                  />
-                ) : (
-                  <>
-                    {filteredExtractFiles.slice(0, listLimit).map((file) => {
-                      const isSave = isSaveFile(file.path);
-                      const isTray = isTrayFile(file.path);
-                      const fileIcon = isSave
-                        ? t("icon_saves", "save")
-                        : isTray
-                          ? t("icon_tray_files", "Holiday_Village")
-                          : t("icon_file", "Insert_Drive_File");
-
-                      const isSelected = selectedPaths.has(file.path);
-                      const isDone = extractedSet.has(file.path);
-                      const isBusy = extracting === file.path;
-                      const isConfirmingThis = confirmExtractPath === file.path;
-                      const fileName = file.path.split("/").pop() || file.path;
-
-                      return (
-                        <div
-                          key={file.path}
-                          onClick={() => toggleSelectPath(file.path)}
-                          className={`shrink-0 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 transition-all duration-150 cursor-pointer border ${
-                            isSelected
-                              ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-                              : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div
-                              className={`w-8 h-8 rounded-lg border bg-transparent flex items-center justify-center shrink-0 transition-colors ${
-                                isSelected
-                                  ? "border-[var(--accent)] text-[var(--accent)]"
-                                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)]"
-                              }`}
-                            >
-                              <span className="material-symbols-outlined !text-[16px]">
-                                {isSelected ? t("icon_check", "check") : fileIcon}
-                              </span>
-                            </div>
-
-                            <div className="flex flex-col min-w-0 flex-1">
-                              <span
-                                className="text-xs font-bold text-[var(--text)] tracking-tight truncate leading-snug"
-                                title={file.path}
-                              >
-                                {fileName}
-                              </span>
-                              <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70 truncate">
-                                {file.path}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div
-                            className="flex items-center gap-2 shrink-0"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span className="px-2 py-0.5 rounded-md border bg-transparent border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-mono font-bold text-[var(--subtext)] whitespace-nowrap">
-                              {formatFileSizeMb(file.size_mb)}
-                            </span>
-
-                            {isConfirmingThis ? (
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  disabled={isBusy || isBatchExtracting}
-                                  onClick={() => handleExtractSingle(file.path, false)}
-                                  className="px-2.5 h-7 rounded-lg border bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:brightness-110 transition-all"
-                                >
-                                  {t("btn_confirm", "Confirm")}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmExtractPath(null)}
-                                  className="w-7 h-7 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
-                                >
-                                  <span className="material-symbols-outlined !text-[14px]">
-                                    {t("icon_close", "close")}
-                                  </span>
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={isBusy || isBatchExtracting}
-                                onClick={() => setConfirmExtractPath(file.path)}
-                                className={`relative group/actionbtn w-7 h-7 rounded-lg border bg-transparent flex items-center justify-center transition-all shrink-0 cursor-pointer disabled:opacity-50 ${
-                                  isDone
-                                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                                    : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
-                                }`}
-                              >
-                                <span
-                                  className={`material-symbols-outlined !text-[15px] ${
-                                    isBusy ? "animate-spin" : ""
-                                  }`}
-                                >
-                                  {isDone
-                                    ? t("icon_check", "check")
-                                    : isBusy
-                                      ? t("icon_sync", "sync")
-                                      : t("icon_restore", "restore")}
-                                </span>
-                                <HoverTooltip
-                                  className="z-[100] !right-0 !translate-x-0 !left-auto"
-                                  title={
-                                    isDone
-                                      ? t("tc_panel_extracted_badge", "Extracted")
-                                      : t("btn_extract", "Extract")
-                                  }
-                                  variant={isDone ? "success" : "accent"}
-                                />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {filteredExtractFiles.length > listLimit && (
-                      <div className="flex flex-col items-center gap-2 mt-2 mb-1 shrink-0">
-                        <div className="text-center text-[10px] text-[var(--subtext)] uppercase tracking-widest">
-                          {t("showing_files", "Showing first {0} files")?.replace(
-                            "{0}",
-                            listLimit.toString()
-                          ) || `Showing first ${listLimit} files`}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setListLimit((l) => l + 100)}
-                          className="px-4 py-1.5 rounded-xl bg-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-colors cursor-pointer"
-                        >
-                          {t("load_more", "Load More")}
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )
-              ) : filteredDiff.length === 0 ? (
-                <EmptyState
-                  icon={t("icon_verified", "verified")}
-                  title={t("everything_identical", "Everything is identical")}
-                />
-              ) : (
-                <>
-                  {filteredDiff.slice(0, listLimit).map((diff, i) => {
-                    const isMod = diff.status === "Modified";
-                    const isMiss = diff.status === "Missing in Current";
-                    const badgeClass = isMod
-                      ? "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
-                      : isMiss
-                        ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
-                        : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)]";
-                    const badgeIcon = isMod
-                      ? t("icon_edit", "edit")
-                      : isMiss
-                        ? t("icon_warning", "warning")
-                        : t("icon_check_circle", "check_circle");
-
-                    const isDone = extractedSet.has(diff.path);
-                    const isBusy = extracting === diff.path;
-                    const isConfirmingThis = confirmExtractPath === diff.path;
-
-                    return (
-                      <div
-                        key={i}
-                        className="shrink-0 flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-8 h-8 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
-                            <span
-                              className={`material-symbols-outlined !text-[16px] ${
-                                isMod
-                                  ? "text-[var(--warning)]"
-                                  : isMiss
-                                    ? "text-[var(--danger)]"
-                                    : "text-[var(--success)]"
-                              }`}
-                            >
-                              {badgeIcon}
-                            </span>
-                          </div>
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <span
-                              className="text-xs font-bold tracking-tight text-[var(--text)] truncate"
-                              title={diff.path}
-                            >
-                              {diff.path.split("/").pop()}
-                            </span>
-                            <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70 truncate">
-                              {diff.path}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span
-                            className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border bg-transparent flex items-center gap-1 shrink-0 ${badgeClass}`}
-                          >
-                            {isMod
-                              ? t("tc_diff_filter_modified", "Modified")
-                              : isMiss
-                                ? t("tc_diff_filter_missing", "Missing in Active")
-                                : t("tc_diff_filter_identical", "Unchanged")}
-                          </span>
-
-                          {diff.status !== "Identical" &&
-                            (isConfirmingThis ? (
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  disabled={isBusy || isBatchExtracting}
-                                  onClick={() => handleExtractSingle(diff.path, true)}
-                                  className="px-2.5 h-7 rounded-lg border bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:brightness-110 transition-all"
-                                >
-                                  {t("btn_confirm", "Confirm")}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmExtractPath(null)}
-                                  className="w-7 h-7 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
-                                >
-                                  <span className="material-symbols-outlined !text-[14px]">
-                                    {t("icon_close", "close")}
-                                  </span>
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setConfirmExtractPath(diff.path)}
-                                disabled={isBusy || isBatchExtracting}
-                                className={`relative group/actionbtn w-7 h-7 rounded-lg border bg-transparent flex items-center justify-center transition-all shrink-0 cursor-pointer disabled:opacity-50 ${
-                                  isDone
-                                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                                    : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
-                                }`}
-                              >
-                                <span
-                                  className={`material-symbols-outlined !text-[15px] ${
-                                    isBusy ? "animate-spin" : ""
-                                  }`}
-                                >
-                                  {isDone
-                                    ? t("icon_check", "check")
-                                    : isBusy
-                                      ? t("icon_sync", "sync")
-                                      : t("icon_restore", "restore")}
-                                </span>
-                                <HoverTooltip
-                                  className="z-[100] !right-0 !translate-x-0 !left-auto"
-                                  title={t("btn_restore", "Restore")}
-                                  variant="accent"
-                                />
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {filteredDiff.length > listLimit && (
-                    <div className="flex flex-col items-center gap-2 mt-2 mb-1 shrink-0">
-                      <div className="text-center text-[10px] text-[var(--subtext)] uppercase tracking-widest">
-                        {t("showing_files", "Showing first {0} files")?.replace(
-                          "{0}",
-                          listLimit.toString()
-                        ) || `Showing first ${listLimit} files`}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setListLimit((l) => l + 100)}
-                        className="px-4 py-1.5 rounded-xl bg-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-colors cursor-pointer"
-                      >
-                        {t("load_more", "Load More")}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="mt-2">
+        <TimeCapsuleSnapshotDossier
+          selectedBackup={normalizedBackup}
+          config={config}
+          getBackupSignature={getBackupSignature}
+          onRestoreBackup={onRestoreBackup}
+          onClosePanel={onClose}
+          isPostBackupSummary={false}
+          onLocationChange={setLocation}
+        />
+      </div>
     </SidePanel>
   );
 }

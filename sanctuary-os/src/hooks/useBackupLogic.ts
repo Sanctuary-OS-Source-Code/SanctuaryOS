@@ -55,16 +55,28 @@ export function useBackupLogic(detectGameVersion: () => void) {
     }
   };
 
-  const triggerFullEngineBackup = async () => {
+  const triggerFullEngineBackup = async (keepPreviousCompleted = false) => {
     const config: any = await invoke("get_saved_coordinates");
+    if (!keepPreviousCompleted) {
+      useModalStore.getState().setCompletedBackups([]);
+      useModalStore.getState().setIsDefconBackupSession(false);
+    }
     useModalStore.getState().setBackupType("engine");
     useStore.getState().setBackupProgress(null);
     setIsBackingUp(true);
     try {
-      await invoke("backup_engine_full", {
+      const createdName = await invoke<string>("backup_engine_full", {
         livePath: config.live_path,
         version: selectedVersion,
       });
+      if (createdName && typeof createdName === "string") {
+        const cleanName = createdName.replace(/^Secured:\s*/i, "").trim();
+        useModalStore
+          .getState()
+          .setCompletedBackups((prev) =>
+            prev.includes(cleanName) ? prev : [...prev, cleanName]
+          );
+      }
       fetchBackups();
     } catch (err) {
       alert(`${t("alert_backup_failed", "Backup failed: ")}${err}`);
@@ -73,9 +85,13 @@ export function useBackupLogic(detectGameVersion: () => void) {
     }
   };
 
-  const triggerPrePatchSnapshot = async () => {
+  const triggerPrePatchSnapshot = async (keepPreviousCompleted = false) => {
     const config: any = await invoke("get_saved_coordinates");
     const docsBase = config.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
+    if (!keepPreviousCompleted) {
+      useModalStore.getState().setCompletedBackups([]);
+      useModalStore.getState().setIsDefconBackupSession(false);
+    }
     setStatus(
       `${t("icon_inventory_2", "inventory_2")} ${t(
         "status_executing_prepatch_snapshot",
@@ -86,10 +102,17 @@ export function useBackupLogic(detectGameVersion: () => void) {
     useStore.getState().setBackupProgress(null);
     setIsBackingUp(true);
     try {
-      await invoke("backup_universe", {
+      const createdName = await invoke<string>("backup_universe", {
         docsPath: docsBase,
         version: selectedVersion,
       });
+      if (createdName && typeof createdName === "string") {
+        useModalStore
+          .getState()
+          .setCompletedBackups((prev) =>
+            prev.includes(createdName) ? prev : [...prev, createdName]
+          );
+      }
       fetchBackups();
       setStatus(
         `${t("icon_check_circle", "check_circle")} ${t(

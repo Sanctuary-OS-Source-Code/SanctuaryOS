@@ -148,13 +148,13 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
         )}
       </div>
       <span 
-        className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 hover:theme-text-accent cursor-pointer transition-colors"
+        className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 hover:theme-text-accent cursor-pointer transition-colors whitespace-nowrap shrink-0"
         onClick={(e) => { e.stopPropagation(); onOpenMasonProfile && onOpenMasonProfile(post.mason_id); }}
       >
-        {post.mason_id === 'system' ? (post.masons?.name || t("author_sanctuary_team")) : (post.masons?.name || t("unknown_architect"))}
+        {post.mason_id === 'system' ? (post.masons?.name || t("author_sanctuary_team", "Sanctuary Foundry")) : (post.masons?.name || t("unknown_architect", "Unknown Architect"))}
       </span>
       <span className="text-[10px] font-black opacity-30 text-[var(--text)]">&bull;</span>
-      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{post.category}</span>
+      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] truncate">{post.category}</span>
     </div>
   );
 

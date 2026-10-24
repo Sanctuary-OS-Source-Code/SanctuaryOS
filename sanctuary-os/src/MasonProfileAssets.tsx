@@ -47,43 +47,38 @@ export default function MasonProfileAssets({
               title={asset.name}
               subtitle={`${mason.name || t("unknown_mason", "Unknown Creator")}`}
               onClick={() => setSelectedBlueprint(asset)}
-              imageOverlay={
+              badges={
                 <>
-                  <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-30">
-                    {(asset.is_early_access || asset.is_paid) && (
-                      <div className="flex flex-col gap-1.5 items-start">
-                        {asset.is_early_access && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 glass-surface bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_22%,transparent)] rounded-full backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]">
-                            <span className="material-symbols-outlined !text-[10px] text-purple-300">{t("icon_science", "science")}</span>
-                            <span className="text-[8px] font-black capitalize tracking-[0.2em] text-purple-300">{t("badge_early_access", "Early Access")}</span>
-                          </div>
-                        )}
-                        {asset.is_paid && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 glass-surface bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] border border-[color-mix(in_srgb,var(--warning)_22%,transparent)] rounded-full backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]">
-                            <span className="material-symbols-outlined !text-[10px] text-amber-300">{t("icon_monetization_on", "monetization_on")}</span>
-                            <span className="text-[8px] font-black capitalize tracking-[0.2em] text-amber-300">{t("badge_paid", "Paid")}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                  <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_map", "map")}</span>
+                    <span>{t("type_blueprint", "Blueprint")}</span>
                   </div>
-
-                  <div className="absolute top-4 right-4 flex flex-col items-end gap-2 z-30">
-                    <span className="text-[8px] font-black px-3 py-1 glass-surface bg-[color-mix(in_srgb,var(--text)_6%,transparent)] backdrop-blur-md rounded-full border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--text)] capitalize tracking-widest shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]">
-                      {t("type_blueprint", "Blueprint")}
-                    </span>
-                    {(asset.json_data?.artifacts?.length || 0) > 0 && (
-                      <span className="text-[8px] font-black px-3 py-1 glass-surface bg-[color-mix(in_srgb,var(--text)_6%,transparent)] backdrop-blur-md rounded-full border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--text)] capitalize tracking-widest shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]">
-                        {(asset.json_data?.artifacts?.length || 0)} {t("items", "Artifacts")}
-                      </span>
-                    )}
-                  </div>
+                  {asset.is_early_access && (
+                    <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                      <span className="material-symbols-outlined !text-[12px] text-purple-400">{t("icon_science", "science")}</span>
+                      <span>{t("badge_early_access", "Early Access")}</span>
+                    </div>
+                  )}
+                  {asset.is_paid && (
+                    <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                      <span className="material-symbols-outlined !text-[12px] text-amber-400">{t("icon_monetization_on", "monetization_on")}</span>
+                      <span>{t("badge_paid", "Paid")}</span>
+                    </div>
+                  )}
                 </>
               }
               className="w-full h-full"
               footer={
-                <div className="flex items-center justify-between w-full pt-1">
-                  <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("auto_dl", "DL")}</span>
+                <div className="flex items-center justify-between w-full pt-1 gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {(asset.json_data?.artifacts?.length || 0) > 0 && (
+                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_account_tree", "account_tree")}</span>
+                        <span>+{(asset.json_data?.artifacts?.length || 0)} {t("badge_modules_count", "Modules")}</span>
+                      </div>
+                    )}
+                    <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("auto_dl", "DL")}</span>
+                  </div>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
                       onClick={(e) => { e.stopPropagation(); setSelectedBlueprint(asset); }}
@@ -136,9 +131,10 @@ export default function MasonProfileAssets({
               title={asset.name}
               subtitle={mason.name || t("unknown_mason", "Unknown Creator")}
               onClick={() => setActiveAsset({ type: 'lexicon', id: asset.id })}
-              imageOverlay={
-                <div className="absolute top-4 right-4 flex gap-2 z-30">
-                  <span className="text-[8px] font-black px-3 py-1 glass-surface bg-[color-mix(in_srgb,var(--text)_6%,transparent)] backdrop-blur-md rounded-full border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] text-[var(--text)] capitalize tracking-widest">{t("auto_lexicon", "Lexicon")} {asset.language || "Custom"}</span>
+              badges={
+                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_translate", "translate")}</span>
+                  <span>{t("auto_lexicon", "Lexicon")} {asset.language || "Custom"}</span>
                 </div>
               }
               className="w-full h-full"
@@ -195,9 +191,10 @@ export default function MasonProfileAssets({
               title={asset.name}
               subtitle={mason.name || t("unknown_mason", "Unknown Creator")}
               onClick={() => setActiveAsset({ type: 'chameleon', id: asset.id })}
-              imageOverlay={
-                <div className="absolute top-4 right-4 flex gap-2 z-30">
-                  <span className="text-[8px] font-black px-3 py-1 glass-surface bg-[color-mix(in_srgb,var(--text)_6%,transparent)] backdrop-blur-md rounded-full border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] text-[var(--text)] capitalize tracking-widest">{t("masonhub_asset_type_chameleon", "Chameleon")}</span>
+              badges={
+                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_palette", "palette")}</span>
+                  <span>{t("masonhub_asset_type_chameleon", "Chameleon")}</span>
                 </div>
               }
               className="w-full h-full"
@@ -252,9 +249,10 @@ export default function MasonProfileAssets({
               title={asset.name}
               subtitle={mason.name || t("unknown_mason", "Unknown Creator")}
               onClick={() => setActiveAsset({ type: 'workbench_template', id: asset.id })}
-              imageOverlay={
-                <div className="absolute top-4 right-4 flex gap-2 z-30">
-                  <span className="text-[8px] font-black px-3 py-1 glass-surface bg-[color-mix(in_srgb,var(--text)_6%,transparent)] backdrop-blur-md rounded-full border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] text-[var(--text)] capitalize tracking-widest">{t("masonhub_asset_type_workbench_template", "Template")}</span>
+              badges={
+                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_draw", "draw")}</span>
+                  <span>{t("masonhub_asset_type_workbench_template", "Template")}</span>
                 </div>
               }
               className="w-full h-full"

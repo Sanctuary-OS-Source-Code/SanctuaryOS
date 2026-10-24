@@ -47,8 +47,11 @@ const ModNameWithBadge = ({ name }: { name: string }) => {
       <span className="text-sm font-black text-[var(--text)] truncate tracking-tight drop-shadow-md">
         {cleanName}
       </span>
-      <div className="px-2 py-0.5 rounded-md border text-[8px] font-black tracking-widest shrink-0 bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] shadow-inner">
-        {type as any}
+      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+        <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+          {String(type).toUpperCase().includes("SCRIPT") ? "terminal" : "deployed_code"}
+        </span>
+        <span className="text-[var(--subtext)]">{type as any}</span>
       </div>
     </div>
   );

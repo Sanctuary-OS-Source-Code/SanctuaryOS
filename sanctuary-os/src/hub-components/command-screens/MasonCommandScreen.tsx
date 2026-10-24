@@ -242,9 +242,10 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
                     icon="bug_report" 
                     onClick={() => onOpenBugReport && onOpenBugReport(bug.id)}
                     className="w-full"
-                    imageOverlay={
-                      <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                        <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("stat_bugs", "Bug Reports")}</span>
+                    badges={
+                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_bug_report", "bug_report")}</span>
+                        <span>{t("stat_bugs", "Bug Reports")}</span>
                       </div>
                     }
                     footer={
@@ -276,9 +277,10 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
                     icon="deployed_code" 
                     onClick={() => onOpenMetadataEditor && onOpenMetadataEditor(art.id)}
                     className="w-full"
-                    imageOverlay={
-                      <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                        <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("items", "Artifacts")}</span>
+                    badges={
+                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_deployed_code", "deployed_code")}</span>
+                        <span>{t("items", "Artifacts")}</span>
                       </div>
                     }
                     footer={
@@ -310,9 +312,10 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
                     icon="forum" 
                     onClick={onOpenRecentReplies}
                     className="w-full"
-                    imageOverlay={
-                      <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                        <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("ui.replies", "Replies")}</span>
+                    badges={
+                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">{t("icon_forum", "forum")}</span>
+                        <span>{t("ui.replies", "Replies")}</span>
                       </div>
                     }
                     footer={

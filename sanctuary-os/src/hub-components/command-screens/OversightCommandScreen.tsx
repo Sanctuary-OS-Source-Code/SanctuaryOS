@@ -197,7 +197,7 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
           <AlertStatTile className="col-span-2" broadcast={stats.urgentBroadcast} number={stats.urgentBroadcast ? 1 : 0} active={!!stats.urgentBroadcast} onClick={() => setIsAlertsOpen(true)} />
         )}
         <DashboardStatTile className={stats.urgentBroadcast ? "col-span-2" : ""} icon={<span className="material-symbols-outlined ">{t("icon_warning_amber")}</span>} number={defconLevel} label={t("defcon_global")} colorClass={getDefconColor(defconLevel)} onClick={onOpenDefcon} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={`${t("stat_nsfw_flags")} / ${t("stat_explicit_flags")}`} colorClass="text-orange-500" onClick={() => { setComplianceFilter('nsfw'); setTab("compliance"); }} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_18_up_rating", "18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={t("stat_compliance_flags", "Compliance Flags")} colorClass="text-orange-500" onClick={() => { setComplianceFilter('nsfw'); setTab("compliance"); }} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_local_activity")}</span>} number={stats.tickets} label={t("stat_support_tickets")} colorClass="text-purple-500" onClick={() => setTab("sanctuary_tickets")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_coronavirus")}</span>} number={stats.malware} label={t("wf_stat_quarantined")} colorClass="text-red-500" onClick={() => { setComplianceFilter('pending'); setTab("malware_oversight"); }} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_threat_intelligence")}</span>} number={stats.oversightQueueNew} label={t("stat_malware_logs")} colorClass="text-red-500" onClick={() => setTab("oversight_reports")} />
@@ -223,9 +223,10 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
                           icon="local_activity" 
                           onClick={() => setTab("sanctuary_tickets")}
                           className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--info)_20%,transparent)] text-[var(--info)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("wf_tab_tickets")}</span>
+                          badges={
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--info)]">{t("icon_local_activity", "local_activity")}</span>
+                                  <span>{t("wf_tab_tickets")}</span>
                               </div>
                           }
                           footer={
@@ -257,9 +258,10 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
                           icon="coronavirus" 
                           onClick={() => { setComplianceFilter('pending'); setTab("malware_oversight"); }}
                           className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("rating_malware")}</span>
+                          badges={
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_coronavirus", "coronavirus")}</span>
+                                  <span>{t("rating_malware")}</span>
                               </div>
                           }
                           footer={
@@ -291,9 +293,10 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
                           icon="policy" 
                           onClick={() => setTab("compliance")}
                           className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("tab_compliance")}</span>
+                          badges={
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_policy", "policy")}</span>
+                                  <span>{t("tab_compliance")}</span>
                               </div>
                           }
                           footer={

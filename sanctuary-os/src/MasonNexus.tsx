@@ -226,18 +226,25 @@ export function MasonNexus({ masonProfile, isVerifiedMason = true }: { masonProf
           statusColor={flagForAsset ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]"}
           badges={[
             flagForAsset ? (
-              <span key="badge-flag" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                {(t("flagged") as string).toUpperCase()}
-              </span>
+              <div key="badge-flag" className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_flag", "flag")}</span>
+                <span>{(t("flagged") as string).toUpperCase()}</span>
+              </div>
             ) : null,
             isHidden ? (
-              <span key="badge-hidden" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)]">
-                {(t("status_tag_hidden") || "HIDDEN").toUpperCase()}
-              </span>
+              <div key="badge-hidden" className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_visibility_off", "visibility_off")}</span>
+                <span>{(t("status_tag_hidden") || "HIDDEN").toUpperCase()}</span>
+              </div>
             ) : null,
-            <span key="type-badge" className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] rounded-md text-[8px] capitalize tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner shrink-0 font-black">
-              {displayAssetType === 'chameleon' ? (t("lex_theme") as string).toUpperCase() : displayAssetType === 'workbench_template' ? (t("lex_template") as string).toUpperCase() : displayAssetType === 'blueprint' ? (t("lex_blueprint") as string).toUpperCase() : (t("lex_lexicon") as string).toUpperCase()}
-            </span>
+            <div key="type-badge" className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {displayAssetType === 'chameleon' ? t("icon_palette", "palette") : displayAssetType === 'workbench_template' ? t("icon_draw", "draw") : displayAssetType === 'blueprint' ? t("icon_account_tree", "account_tree") : t("icon_translate", "translate")}
+              </span>
+              <span>
+                {displayAssetType === 'chameleon' ? (t("lex_theme") as string).toUpperCase() : displayAssetType === 'workbench_template' ? (t("lex_template") as string).toUpperCase() : displayAssetType === 'blueprint' ? (t("lex_blueprint") as string).toUpperCase() : (t("lex_lexicon") as string).toUpperCase()}
+              </span>
+            </div>
           ]}
           icon={displayAssetType === 'chameleon' ? 'palette' : displayAssetType === 'workbench_template' ? 'draw' : displayAssetType === 'blueprint' ? 'account_tree' : 'translate'}
           footer={
@@ -306,18 +313,25 @@ export function MasonNexus({ masonProfile, isVerifiedMason = true }: { masonProf
                   statusColor={flagForAsset ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]"}
                   badges={[
                     flagForAsset ? (
-                      <span key="badge-flag" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                        {t("flagged") || "Flagged"}
-                      </span>
+                      <div key="badge-flag" className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_flag", "flag")}</span>
+                        <span>{t("flagged") || "Flagged"}</span>
+                      </div>
                     ) : null,
                     isHidden ? (
-                      <span key="badge-hidden" className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest shadow-inner shrink-0 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)]">
-                        {(t("status_tag_hidden") || "HIDDEN").toUpperCase()}
-                      </span>
+                      <div key="badge-hidden" className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_visibility_off", "visibility_off")}</span>
+                        <span>{(t("status_tag_hidden") || "HIDDEN").toUpperCase()}</span>
+                      </div>
                     ) : null,
-                    <span key="type-badge" className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] rounded-md text-[8px] capitalize tracking-widest border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-inner shrink-0 font-black">
-                      {displayAssetType === 'chameleon' ? (t("lex_theme") || 'THEME').toUpperCase() : displayAssetType === 'workbench_template' ? (t("lex_template") || 'TEMPLATE').toUpperCase() : displayAssetType === 'blueprint' ? (t("lex_blueprint") || 'BLUEPRINT').toUpperCase() : (t("lex_lexicon") || 'LEXICON').toUpperCase()}
-                    </span>
+                    <div key="type-badge" className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                        {displayAssetType === 'chameleon' ? t("icon_palette", "palette") : displayAssetType === 'workbench_template' ? t("icon_draw", "draw") : displayAssetType === 'blueprint' ? t("icon_account_tree", "account_tree") : t("icon_translate", "translate")}
+                      </span>
+                      <span>
+                        {displayAssetType === 'chameleon' ? (t("lex_theme") || 'THEME').toUpperCase() : displayAssetType === 'workbench_template' ? (t("lex_template") || 'TEMPLATE').toUpperCase() : displayAssetType === 'blueprint' ? (t("lex_blueprint") || 'BLUEPRINT').toUpperCase() : (t("lex_lexicon") || 'LEXICON').toUpperCase()}
+                      </span>
+                    </div>
                   ]}
                   icon={displayAssetType === 'chameleon' ? 'palette' : displayAssetType === 'workbench_template' ? 'draw' : displayAssetType === 'blueprint' ? 'account_tree' : 'translate'}
                   footer={

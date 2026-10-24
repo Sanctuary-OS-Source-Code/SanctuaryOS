@@ -22,6 +22,7 @@ use crate::commands::state_ops::*;
 use crate::commands::system::*;
 use crate::commands::edge_network::*;
 use crate::commands::supporter::*;
+use crate::commands::webauthn::*;
 use crate::state::*;
 use crate::utils::*;
 use crate::watchers::*;
@@ -191,6 +192,8 @@ fn main() {
             rename_version,
             delete_version,
             overwrite_local_schema,
+            read_local_directives,
+            write_local_directive,
             send_sanctuary_notification,
             telemetry::fetch_system_telemetry,
             telemetry::fetch_app_footprint,
@@ -207,7 +210,9 @@ fn main() {
             sync_mason_supporter_bridge,
             remove_local_mason_supporter,
             stack_local_dev_build_donation,
-            download_and_install_update
+            download_and_install_update,
+            native_webauthn_register,
+            native_webauthn_authenticate
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

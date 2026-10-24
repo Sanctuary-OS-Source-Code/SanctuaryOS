@@ -128,7 +128,7 @@ export default function MasonIDE({ vaultPath, isCloudMode, cloudTarget = "sanctu
                });
                if (error) throw error;
             } else {
-               const { error } = await client.from(actualCloudTarget).upsert(payload);
+               const { error } = await client.from(actualCloudTarget).upsert(payload as any);
                if (error) throw error;
             }
 

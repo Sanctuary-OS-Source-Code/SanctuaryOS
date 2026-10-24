@@ -1,271 +1,185 @@
-# Sanctuary OS 
+# Sanctuary OS — Official Citizen Guide & Interactive OS Walkthrough
 
-![Version](https://img.shields.io/badge/version-0.5.7-blue)
-![Last Updated](https://img.shields.io/badge/last_updated-October_17,_2026-brightgreen)
-![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
-![Alpha](https://img.shields.io/badge/Alpha-Early_Access-red)
+![Version](https://img.shields.io/badge/version-0.5.8--Dev.3-blue)
+![Last Updated](https://img.shields.io/badge/last_updated-October_24,_2026-brightgreen)
+![Platform](https://img.shields.io/badge/platform-Windows_%7C_Web-lightgrey)
+![Architecture](https://img.shields.io/badge/architecture-Hub_&_Spoke-cyan)
 
-> **Official Citizen Guide**
-
-This repository contains the official guides for Sanctuary OS, covering both standard Citizen operations and Elevated Clearances.
+> **Official Citizen Guide & Step-by-Step OS Walkthrough**  
+> Synced bidirectionally between the Sanctuary OS Codebase (`Citizen Guide.md`) and **Keepers Core -> System Directives (`public.system_directives`)**.
 
 ---
 
 ## Table of Contents
-- [Part 1: Official Citizen Guide](#official-citizen-guide)
-  - [Cartographer Initialization (Initial Setup)](#cartographer-initialization-initial-setup)
+- [Part 1: Step-by-Step OS Walkthrough (What Everything Does)](#part-1-step-by-step-os-walkthrough-what-everything-does)
+  - [Stage 1: Global Shell Anatomy (Sidebar, Top Workspace Pill & Morphing Dock)](#stage-1-global-shell-anatomy-sidebar-top-workspace-pill--morphing-dock)
+  - [Stage 2: Mounting a Game Workspace & The Cartographer](#stage-2-mounting-a-game-workspace--the-cartographer)
+  - [Stage 3: Your Vault, Mod Cards & ActionPill Toolbar](#stage-3-your-vault-mod-cards--actionpill-toolbar)
+  - [Stage 4: Blueprints & 1-Click Loadout Hot-Swapping](#stage-4-blueprints--1-click-loadout-hot-swapping)
+  - [Stage 5: Conflict Radar, Load Order Engine & Homestead Lab](#stage-5-conflict-radar-load-order-engine--homestead-lab)
+  - [Stage 6: Citizen's Workbench, Timeline Diff & Time Capsule](#stage-6-citizens-workbench-timeline-diff--time-capsule)
+  - [Stage 7: Open Mason Workshop, FIDO2 Passkey Vault & Malware Lockdown](#stage-7-open-mason-workshop-fido2-passkey-vault--malware-lockdown)
+- [Part 2: Citizen Module Reference](#part-2-citizen-module-reference)
+  - [Cartographer Initialization](#cartographer-initialization)
   - [The Command Center](#the-command-center)
   - [Your Vault](#your-vault)
-  - [The Nexus](#the-nexus)
-  - [Integrated Side Browser](#integrated-side-browser)
-  - [The Side Panel Ecosystem](#the-side-panel-ecosystem)
+  - [The Nexus & Integrated Side Browser](#the-nexus--integrated-side-browser)
   - [Blueprints](#blueprints)
-  - [Homestead Lab](#homestead-lab)
   - [Conflict Radar & Load Order Engine](#conflict-radar--load-order-engine)
-  - [Citizen’s Workbench & Open Mason Workshop](#citizens-workbench--open-mason-workshop)
+  - [Homestead Lab](#homestead-lab)
+  - [Citizen's Workbench & Visual Config Studio](#citizens-workbench--visual-config-studio)
   - [Time Capsule](#time-capsule)
-  - [Compliance, DEFCON & Malware Security](#compliance-defcon--malware-security)
-  - [System Preferences](#system-preferences)
-  - [Quick Tips for Citizens](#quick-tips-for-citizens)
-- [Part 2: Elevated Clearances](#elevated-clearances)
-  - [Masons (Mod Creators)](#masons-mod-creators)
-  - [Architects (Moderators)](#architects-moderators)
-  - [Oversight (System Administrators)](#oversight-system-administrators)
-  - [Wayfinders (Community Managers)](#wayfinders-community-managers)
-  - [Keepers (Core Infrastructure)](#keepers-core-app-team--sanctuary-developers)
-  - [Role Protocols](#role-protocols)
+  - [Compliance, DEFCON & Malware Quarantine SidePanel](#compliance-defcon--malware-quarantine-sidepanel)
+- [Part 3: 6-Tier Clearance Hierarchy & Command Hubs](#part-3-6-tier-clearance-hierarchy--command-hubs)
+  - [Tier 1: Citizen (Base Clearance + Open Mason Workshop Inheritance)](#tier-1-citizen-base-clearance--open-mason-workshop-inheritance)
+  - [Tier 2: Verified Mason (Verified Mod Creator)](#tier-2-verified-mason-verified-mod-creator)
+  - [Tier 3: Architect (Registry & Conflict Moderator)](#tier-3-architect-registry--conflict-moderator)
+  - [Tier 4: Oversight (Spoke Security & System Administrator)](#tier-4-oversight-spoke-security--system-administrator)
+  - [Tier 5: Wayfinder (Community Manager & Spoke Sovereign)](#tier-5-wayfinder-community-manager--spoke-sovereign)
+  - [Tier 6: Keeper (Core OS Hub & Sanctuary Foundry Developer)](#tier-6-keeper-core-os-hub--sanctuary-foundry-developer)
 
 ---
 
-# Official Citizen Guide
+# Part 1: Step-by-Step OS Walkthrough (What Everything Does)
 
-**Version:** 5.7 (V0.5.7) | **Last Updated:** October 17, 2026
+**Version:** 0.5.8-Dev.3 | **Last Updated:** October 24, 2026
 
-> **Welcome to Sanctuary OS,**  
-> Sanctuary OS is a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy.  
-> 
-> Here is your complete User Guide to mastering this entirely new way of managing your environment.
+New to Sanctuary OS? This 7-stage walkthrough explains every persistent bar, button, card, and drawer in the operating system so you always know what each control does before clicking it.
 
-## Cartographer Initialization (Initial Setup)
-Upon your first launch, the Workspace Switcher (located globally in the central Title Bar) allows you to choose your active game environment (e.g., The Sims 4 vs Cyberpunk 2077). The Cartographer then maps your machine’s layout and links your identity to the central OS Hub via Privacy-First Single Sign-On (SSO).
+## Stage 1: Global Shell Anatomy (Sidebar, Top Workspace Pill & Morphing Dock)
+Sanctuary OS is framed by three persistent glassmorphic regions that adapt dynamically to whether you are on the **Foundry Landing Page** or inside an active **Game Workspace**:
+- **Left Navigation Sidebar (`Sidebar.tsx`):**
+  - **On the Landing Page:** Displays Web/Foundry scrolling Quick Links (**Active Workspaces**, **Sanctuary Foundry News**, **System Directives**, **System EULA**, **Preferences**) and—exclusively for Keepers—the **Sanctuary Foundry -> Keepers Core** hub. Game workspace links and the **Quick Launch** button are cleanly hidden here.
+  - **Inside a Mounted Game Workspace:** Displays the 9 Citizen Operational Sectors (**Command Center**, **Your Vault**, **The Nexus**, **Blueprints**, **Comm-Link Feed**, **Conflict Radar**, **Homestead Lab**, **Workbench**, **Time Capsule**), your unlocked Command Hubs (**Mason Workshop**, **Architect Console**, **Oversight Command**, **Wayfinder Operations**, **Keepers Core**), and the bottom **Quick Launch** ignition button.
+- **Top Center Workspace Pill (`TitleBar.tsx`):**
+  - Click the centered game pill (e.g., `The Sims 4 ▾`) at the top of the window to switch between mounted game workspaces, return to the **Sanctuary Foundry Landing Page**, or mount a new game instance.
+- **Bottom Morphing Status Pill (`SystemStatusBar.tsx`):**
+  - A single centered, auto-tucking Liquid Glass dock at the bottom of the screen.
+  - Houses **1-Click Radar Sweep**, **Vault Lockdown** (strip all active symlinks immediately), **Blueprint Quick-Swap**, **Side Browser Toggle**, **Notification Center**, and live inline telemetry badges for **Incompatible Mods**, **Available Updates**, and **Active Conflicts**. Automatically tucks out of the way when a `SidePanel` opens or when you scroll to the bottom of a view.
 
-- **Auto-Detect Paths:** Click the Cloud icon to automatically locate your game and document folders for your active workspace.
-  - **Bin Folder (Live Path):** The directory where your game executable lives. Sanctuary natively extracts the genuine patch version directly from your active game executable (e.g., `TS4_x64.exe`) using an in-process Rust PE parser (`pelite`). This ensures AV compliance by avoiding subprocess overhead. If the target executable is unspecified, the parser dynamically scans the directory while strictly filtering out crash-handlers, redistributables, and anti-cheat binaries. If the OS metadata isn't available, it falls back to the schema-defined `.ini` manifest to guarantee 100% engine version accuracy.
-  - **Mods Folder:** Your active game Mods folder.
-  - **Vault Folder:** Select a safe, external directory to act as your isolated "Deep-Storage Archive."
-- **Lexicon & Chameleon:** Customize your language (Lexicon Protocol—supporting Standard English, Sanctuary Sci-Fi, Sims Friendly English, Simlish, and community language packs) and UI theme (Chameleon Protocol with authentic Frosted Glassmorphism) during setup.
-- **OS Permissions Alert (Windows):** Sanctuary OS heavily relies on symlinking. The Cartographer will alert you if your OS lacks permissions. You must either run Sanctuary OS in Administrator Mode or enable Developer Mode in your Windows System Settings to prevent the OS from falling back to hard links.
-- **DNA Hashes & Static Overrides:** c
+## Stage 2: Mounting a Game Workspace & The Cartographer
+When you select a game workspace from the Landing Page or the Top Workspace Pill for the first time, **The Cartographer** opens to map your local coordinates:
+- **Bin Folder (Executable Path):** Point this to the folder containing your game executable (e.g., `TS4_x64.exe`). Sanctuary's in-process Rust PE parser (`pelite`) reads the genuine engine version directly from the binary headers without spawning background processes.
+- **Mods Folder (Live Game Directory):** Point this to the folder where the game loads mods. Sanctuary keeps this folder 100% clean—never drop files directly here; Sanctuary projects your active mods here via high-speed symlinks.
+- **Vault Folder (Deep-Storage Archive):** Choose a dedicated storage folder on your drive. Sanctuary automatically builds `Mods/`, `Blueprints/`, `Backups/World/`, `Backups/Engine/`, `Quarantine/`, and `Data/Cache/`.
+- **Lexicon & Chameleon Selection:** Pick your terminology layer (**Standard English**, **Sanctuary Cyberpunk**, **Sims Friendly**, or **Simlish**) and your **Liquid Glass Chameleon Theme**.
+
+## Stage 3: Your Vault, Mod Cards & ActionPill Toolbar
+Inside **Your Vault**, every mod lives safely inside your isolated Vault archive:
+- **Global Drag-and-Drop Ingest:** Drag `.package`, `.ts4script`, `.zip`, `.rar`, `.7z`, `.tar.zst`, or `override.json` files anywhere onto the Sanctuary OS window. Sanctuary hashes every file with SHA-256 (`DNA`), runs the Dual-Tier Rust Heuristic Scanner, and checks the Spoke Registry.
+- **Top `StatTileCarousel` & `ActionPill`:**
+  - The top row of `DashboardStatTile` cards switches primary sub-views and shows live counts.
+  - Below it sits the unified **`ActionPill`** containing the instant Search Bar, the **`Filters` (`tune`)** popover, sort controls, and context actions.
+- **Mod Card Anatomy & Suite Grouping:**
+  - **Equip Toggle Switch:** Projects or unlinks the mod's symlink in your live game folder in milliseconds.
+  - **Parent Suite Grouping:** Multi-part mod suites (like *MC Command Center* and its 13 `.package`/`.ts4script` modules) automatically coalesce into a single clean Parent Card with an expandable **`{N} Linked Modules ▾`** drawer.
+  - **Status Badges & Ghosted Cards:** Transparent outlined badges show `Verified`, `Update Available`, `Missing DLC`, `Version Mismatch`, or `Conflict`. Hovering a Ghosted card reveals an instant diagnostic tooltip explaining why the mod is blocked.
+  - **Clicking a Card (`ModDossier` SidePanel):** Opens the right-hand Dossier drawer where you can customize local names/tags/URLs, link a decentralized `manifest.json` URL, inspect included files, or view version history.
+
+## Stage 4: Blueprints & 1-Click Loadout Hot-Swapping
+**Blueprints** replace manual folder dragging with instant, saved mod loadouts:
+- **Drafting & Hot-Swapping:** Create separate Blueprints for different saves or playstyles (e.g., *Realism Save*, *Occult Challenge*, *Vanilla Patch Test*) and hot-swap between them from the Vault header or the bottom Morphing Dock.
+- **Offline JSON Export & Cloud Uplink Codes (`SNCXXX`):** Export any Blueprint to a portable `.json` file (which carries your custom local `modMeta` URLs and workspace identity offline) or generate a 6-character Cloud Uplink code (`SNCXXX`) to share with friends or publish to The Nexus.
+
+## Stage 5: Conflict Radar, Load Order Engine & Homestead Lab
+When two mods edit the same game tuning or scripts, Sanctuary catches the collision before you launch the game:
+- **Conflict Radar (Casual vs. Advanced Mode):**
+  - **Casual Mode:** Displays Severity 3 Tuning Overlaps side-by-side so you can click **"Pick a Winner"** in one click. Sanctuary automatically routes the winning mod into a higher priority tier (`Sanctuary1`–`Sanctuary3` and dynamic `Resource.cfg`).
+  - **Advanced Mode:** Unlocks the full **Load Order** tab with the interactive **Quick Rule Builder** (`Must Load After` / `Must Load Before`), topological sort verification, and 1-click **Break Loop** circular dependency resolution.
+- **Homestead Lab (Proving Grounds):**
+  - **100% Nuke Isolation Test:** Temporarily unlinks your main loadout and injects *only* the suspect mod (and its required dependencies) or pits two conflicting mods against each other in a **1v1 Stability Test**, monitoring live game crash logs automatically.
+
+## Stage 6: Citizen's Workbench, Timeline Diff & Time Capsule
+Configure mod settings visually and protect your saves and game binaries with zero-bloat snapshots:
+- **Citizen's Workbench (`CitizenWorkbench.tsx`):**
+  - **2-Column Visual Config Editor:** Edit massive `.cfg`, `.ini`, and `.json` files (430+ settings at 60 FPS) using toggles, dual `Min`/`Max` range steppers, keybind recorders, and a 1-click Category Pill Bar—with per-setting **Undo to Saved** and **Reset to Default** buttons.
+  - **No-Code Visual Template Builder:** Build custom visual config UIs without writing raw JSON, including 1-click key auto-mapping from `.cfg`/`.ini` files and an interactive Icon Picker.
+  - **2-Column Timeline & Diff Workspace:** Compare your live unsaved edits against your last save or any historical snapshot in either **Visual Diff** (card-by-card `Saved → Current` comparison) or **Raw Code Diff** (side-by-side Monaco diff).
+- **Time Capsule (`TimeCapsule.tsx`):**
+  - **World State (Saves/Settings) & Engine Core (Game Binaries):** Uses an incremental Rust hardlink engine so unchanged files take zero extra disk space, paired with differential rollback restoration.
+
+## Stage 7: Open Mason Workshop, FIDO2 Passkey Vault & Malware Lockdown
+Every Citizen inherits local creator tooling, backed by hardware-grade security:
+- **Open Mason Workshop (Inherited by All Citizens):** Every authenticated Citizen has access to the **Mason Workshop** in the sidebar—including the **Dev Sandbox**, **Mason IDE**, **Unified 3-Tile Artifact Studio** (`Details & Versions`, `Files & Folders`, `Rules & Upload`), **Chameleon Theme Forge** (with 6 Liquid Glass Optics sliders), **Notepad**, and **Static Edge Release Packaging** (`manifest.json` + `override.json`).
+- **FIDO2 Passkey & TOTP Vault (`SecurityVaultSidePanel`):** Elevated clearances (`Verified Mason`, `Architect`, `Oversight`, `Wayfinder`, `Keeper`) bind hardware keys, Windows Hello biometrics, or TOTP authenticators via a dedicated right-hand SidePanel lock that gates Elevated Hubs while keeping Citizen sectors accessible.
+- **Full-OS Quarantine SidePanel Lockdown (`MalwareAlertModal`):** If a Tier 5 Malware hash or heuristic payload is dropped into the OS, Sanctuary immediately locks the entire OS shell (Sidebar, Top Bar, and Dock) and slides open the **Quarantine Lockdown SidePanel** showing the exact **Triggered By** rule (Known Hash or Heuristic Hit reason), **Detection Source** (`Spoke Registry • <Game>` or `Sanctuary Foundry`), an optional **Upload Anonymous Manifest** toggle, and the glass-red **Secure Shred** button.
+
+---
+
+# Part 2: Citizen Module Reference
+
+## Cartographer Initialization
+- **Auto-Detect Paths:** Automatically locates your game executable (`Bin`), `Mods` directory, and `Vault` archive path.
+- **Native PE Version Extraction (`pelite`):** Extracts the exact patch version directly from the game binary in Rust without subprocess overhead, falling back to schema-defined `.ini` manifests when needed.
+- **Symlink Permissions Check:** Verifies Windows Developer Mode or Administrator privileges so Sanctuary can project zero-copy symlinks into the game folder.
 
 ## The Command Center
-The Command Center provides a high-level, glassmorphic dashboard view of your active loadout and network feeds.
-
-- **Dynamic System Status:** This tile is actively tied to your selected Blueprint.
-  - 🟢 **System Stable:** No Actions Required.
-  - 🔵 **Artifact Updates Available:** Artifact Updates are available (via Cloud Registry or Decentralized Static Edge Manifests).
-  - 🟡 **Citizen Action Recommended:** An artifact is flagged as Unstable or Conflict Severity 3 Collisions detected.
-  - 🔴 **Critical Failure Detected:** An artifact is flagged as Corrupted, Game Version Unsupported, Missing DLC/Dependencies, or Severity 4 Collisions detected.
-- **Vault Integrity:** View your total Artifact count and see a breakdown of Verified vs. Unverified mods, as well as your active UI Extensions (Lexicons & Chameleons).
-- **Quick Actions:** Instantly run a Radar Sweep, Lockdown the Vault (strip mods instantly), or Submit a Support Ticket.
-- **Global Comm-Link & Interactive System Dispatches:** A live feed of updates, patch notes, and transmissions directly from Masons, Wayfinders, and Keepers. Features threaded multi-level replies, WYSIWYG/Markdown text formatting, dedicated "Discover" vs "Following" tabs, pinned posts, a built-in 2x2 glassmorphic **Dispatch Telemetry Header** (`Alert Type`, `Affected Target`, `Severity`, and `Action Required`), and live **Interactive Community Polls** (single-choice and multi-choice voting).
-- **Sanctuary Support:** A dynamic in-house Support System designed from the ground up to streamline all support operations.
-- **Status Bar Integration:** Critical OS functions (Radar Sweep, Lockdown Vault, Translucent Notification Dock) are housed in the global, edge-to-edge `SystemStatusBar` at the bottom of the OS, preventing intrusive screen takeovers and making them available across every screen.
+- **Dynamic System Status Tile:** Color-coded operational readiness (`System Stable`, `Artifact Updates Available`, `Citizen Action Recommended`, `Critical Failure Detected`, or `Malware Alert`).
+- **2-Column Alert & Update Drawers:** Click any alert counter to inspect Incompatible Mods or Available Updates in a clean 2-column grid where multi-file mod suites group under a single parent card.
+- **Global Comm-Link & Interactive Dispatches:** Live feed from Masons, Wayfinders, and Keepers featuring a 2x2 glassmorphic **Dispatch Telemetry Header** (`Alert Type`, `Affected Target`, `Severity`, `Action Required`) and live **Interactive Community Polls**.
 
 ## Your Vault
-Your Vault is your local library and secured asset storage. The game never touches these files directly; they are projected into the game via symlinks.
+- **Airgapped Symlink Projection:** Files stay inside `Vault/Mods/` and are projected into the live game folder via symlinks according to your active Blueprint and compiled Load Order.
+- **Delete Cascade Protection (`Deep Yeet 2.0`):** Attempting to remove a master dependency (such as *XML Injector*) intercepts the action and lists all dependent child mods so you never orphan add-ons.
+- **Duplicate & Static Edge Override Intercept:** Intercepts duplicate SHA-256 files or bundled `override.json` manifests via the DNA Match SidePanel.
 
-- **Global Drop-Zone:** Drag and drop artifacts, `.zip`, `.tar.zst`, or `override.json` files anywhere into the OS window to ingest them.
-- **Blueprint Hot-Swap:** Use the dropdown directly in the Vault Header to switch your active mod profile without ever leaving the screen.
-- **Select Assets Bar:** A floating, pill-shaped bar at the bottom of the screen allows for bulk actions: Draft a Blueprint, Group into a Virtual Folder, or Purge Archives.
-- **Safety Protocol Filters:** Use the filter popovers inside the `ActionPill` to instantly hide mods incompatible with your game version, or select "Only Show Eligible" to hide artifacts that are currently relied upon by other mods (preventing accidental breakage).
-- **Delete Cascade:** If you attempt to delete a core mod (e.g., XML Injector), Sanctuary OS will intercept the action and display a "Delete Cascade" inline alert/side panel, automatically queuing all dependent add-ons for removal to keep your bunker sterile.
-- **Ghosted States:** Visually, broken or missing mods will be "Ghosted" with dynamic tooltips explaining exactly what is wrong (e.g., Game Version Unsupported, Missing DLC, Conflict Collision Severity 3/4).
-- **Duplicate & Edge Override Intercept:** If you ingest a mod with a SHA-256 hash identical to one you already own, a DNA Match Side Panel will intercept you, allowing you to instantly replace/overwrite or ignore the clone. If an archive includes a creator's `override.json`, Sanctuary prompts you to bind that mod's hash lineage directly to the creator's static `manifest.json` endpoint for decentralized update polling and atomic logic.
-
-## The Nexus
-The global registry for community index, artifact discovery, and metadata links.
-
-- **Artifacts:** Browse The Nexus for any Artifacts that are not currently in Your Vault. Automatically filters based on your installed Game Version, installed DLC, and strict Tier-0 public safety visibility.
-- **Blueprints:** Browse The Nexus for premade Blueprints. Any citizen is free to share their Blueprints with the Nexus.
-- **Lexicons:** Browse The Nexus for custom Lexicons (Language Packs). Filter by Default Languages/Theme Packs and by Language. Any Citizen is free to share their Lexicon with The Nexus.
-- **Chameleons:** Browse The Nexus for custom Chameleons (Theme Packs). Filter by Dark or Light modes. Any Citizen is free to share their Chameleon with The Nexus.
-- **Templates:** Browse The Nexus for custom Templates (Config Files). Any Citizen is free to share their Template with The Nexus.
-- **Mason Profiles:** View any creator's profile featuring a `StatTileCarousel` showcase of their **Artifacts**, **Blueprints**, **Lexicons**, **Chameleons**, and **Templates**, plus pinned highlights and 1-click Follow/Notification controls.
-- **Nexus Reports:** If you spot a broken mod, inaccurate data, or malware, use the Flag tool to instantly alert the Architects via Nexus Reports.
-
-## Integrated Side Browser
-Sanctuary OS includes a fully featured web browser directly integrated into the environment.
-
-- **Download Interception:** The Side Browser automatically detects mod downloads (artifact files, `.zip`, `.rar`, `.7z`, `.tar.zst`, `override.json`) and routes them directly into your Vault without ever opening an external window or clogging up your PC's standard Downloads folder.
-- **Immersive Media:** Fullscreen video support, hidden UI elements (like ad banners or footers), and picture-in-picture capabilities are built-in for an uninterrupted experience.
-- **Built-in Context Menus:** Customized right-click context menus are injected into the browser natively, allowing you to copy, paste, or open links in new tabs while remaining within the Sanctuary OS framework.
-
-## The Side Panel Ecosystem
-Across the entire operating system, complex tasks are handled via non-intrusive Side Panels with top-right `headerActions` (`PanelHeaderGroup` & `PanelHeaderButton`), so you never lose your context.
-
-- **Ticket Dossiers & Log Viewers:** Support staff and Masons can view active support tickets alongside code exceptions directly in the Ticket Dossier and Ticket Log Side Panels.
-- **Conflict Resolution Sidebar:** Manage your Severity 3 Tuning Overlaps and Load Order Rules directly from the side panel, declaring winners on the fly.
-- **Blueprint Swaps:** Instantly hot-swap entire loadouts using the Blueprint Swap panel without leaving your current view.
-- **Check Hash & Deep Scan (`FileVerificationSidePanel`):** Elevated Clearances can launch the `Check Hash` utility from any hub header to verify SHA-256 signatures and run instant multi-format heuristic antivirus scans.
-- **Audit Logs & Diagnostics:** Elevated Clearances have access to side panels like the Audit Log Viewer (with inline full-width search and filter bars) to monitor real-time system changes.
+## The Nexus & Integrated Side Browser
+- **The Nexus:** Discover verified **Artifacts**, **Blueprints**, **Lexicons**, **Chameleons**, and **Workbench Templates**, filtered automatically by your game version and installed DLC.
+- **Integrated Side Browser:** Download mods from external creator sites directly inside Sanctuary OS; the browser intercepts `.zip`, `.rar`, `.7z`, `.package`, `.ts4script`, and `override.json` downloads and pipes them straight through the Vault scanner.
 
 ## Blueprints
-Sanctuary OS replaces manual file moving with Blueprints (tactical loadouts).
-
-- **Drafting:** Create profiles to swap between different sets of mods instantly.
-- **Blueprint Alerts:** A dynamic Button/Side Panel that shows current known issues with the blueprint's loadout.
-- **Import/Export:** A JSON-based system. Blueprints can be imported/exported and shared without the cloud or internet connection. Blueprint exports securely carry your custom Local Dossier metadata (`modMeta`, such as custom author URLs for missing mods) and workspace `game_id`/`game_name` to guarantee perfect identity persistence offline.
-- **Blueprint Uplink:** A cloud-based coordinate system. Blueprints can be shared via 6-digit alphanumeric hashes (`SNCXXX`).
-- **Snapshot Active Blueprint:** Clone the deployed Blueprint into an editable local copy.
-
-## Homestead Lab
-The Homestead Lab allows you to test unknown mods in a "Nuke" environment.
-
-- **Conduct Experiment:** Sanctuary isolates your game, injecting only the specific mod you want to test and its mandatory requirements.
-- **Conflict Experiments:** Citizens can select two conflicting artifacts. If it crashes, the UI immediately displays the Exception Log output and allows Architects to map a new conflict rule to the Registry Database.
-- **Real-time Monitoring:** The Lab monitors for any error and game crash logs. If the game crashes, the Lab catches the log snippet immediately, halts the test, and fails the mod, keeping your main save entirely safe.
+- **Instant Profile Switching:** Swap entire mod loadouts in a single click without copying or moving gigabytes of files.
+- **Portable Offline JSON & Cloud Codes (`SNCXXX`):** Share loadouts via 6-character cloud codes or self-contained JSON files that preserve local custom metadata (`modMeta`).
 
 ## Conflict Radar & Load Order Engine
-Sanctuary cross-references global Directives, creator Static Edge Manifests, and declarative Load Order rules to prevent game-breaking issues before they happen.
+- **Severity 1–4 Collision Matrix:** Distinguishes harmless texture overlaps (Severity 1) and duplicate files (Severity 2) from Tuning Overlaps (Severity 3, solved by picking a Load Order winner) and Fatal Engine Clashes (Severity 4).
+- **Schema-Driven Load Order Compiler:** Supports `folder_priority` (dynamic `Resource.cfg` + `Sanctuary1`–`Sanctuary3` override folders), `manifest_list` (`loadorder.txt`/`plugins.txt`), `numeric_prefix`, and `timestamp`.
 
-- **Casual Mode vs. Advanced Mode:** Switch between **Casual Mode** (1-click "Pick a Winner" conflict resolution) and **Advanced Mode** (unlocking the full **Load Order** `StatTileCarousel` tab with an interactive **Quick Rule Builder**, directional `Must Load After` / `Must Load Before` rules, **Circular Rule / Cycle Detection** with 1-click **Break Loop** resolution, and inline **Priority Tier** pills).
-- **Schema-Driven Load Order Engine:** Adapts automatically to the active game's load order architecture (`folder_priority` with dynamic `Resource.cfg` & multi-tier override folders, `manifest_list` for `loadorder.txt`/`plugins.txt`, `numeric_prefix`, or `timestamp`).
-- **Severity 4 Collisions (Fatal Engine Clash):** Core Python/Binary overlaps. Overrides are impossible; one mod must be removed.
-- **Severity 3 Collisions (Tuning Overlap):** XML/SimData overlaps. You crown a "Winner" in the UI to determine which mod takes priority. Selecting a winner automatically compiles topological load order rules and routes the winner into the highest priority tier behind the scenes.
-- **Severity 2 Collisions (Duplicate File):** Artifacts that share the same TGIs. These are mostly High-Quality and Standard Quality of the same Artifact being equipped at once.
-- **Severity 1 Collisions (Minor Overlap):** Usually safe texture or low-impact overrides. Safe to ignore and are collapsed by default.
+## Homestead Lab
+- **100% Nuke Sandbox:** Wipes active symlinks and injects only the test target and its mandatory dependencies.
+- **Real-Time Exception Capture:** Watches game crash and exception logs (`lastException.txt`) during test runs and links findings directly to Architect conflict reports.
 
-## Citizen’s Workbench & Open Mason Workshop
-The Citizen’s Workbench allows you to configure Artifacts without manually editing raw files, while the **Open Mason Workshop** gives every authenticated Citizen local access to creator tools (`Sandbox`, `IDE`, `Chameleons`, `Notepad`, and `Export Release`).
-
-- **The Workbench features two primary interfaces:**
-  - **Visual Interface:** Generates interactive UI controls (toggles, sliders, dropdowns) based on a loaded Template (`.json`). This protects users from making syntax errors while editing advanced config files.
-  - **Raw Editor (Template Architect):** This mode unlocks the raw underlying file in a full IDE environment powered by Monaco. It supports direct syntax editing, live error linting, and is fully integrated with the Sanctuary UI aesthetic.
-- **Author Mode:** By selecting a `.json` file, the Workbench automatically enters Author Mode, allowing you to design and test custom Visual Interfaces for any configuration file.
-- **Real-time Synchronization:** Changes made in the Visual Interface immediately update the underlying Raw Editor (and vice-versa).
-- **Template Saving:** You can save your authored UI definitions locally. The Workbench stores these in your active data sets to override default mod configurations.
+## Citizen's Workbench & Visual Config Studio
+- **2-Column Visual Config Editor:** High-speed windowed editor for `.cfg`, `.ini`, and `.json` mod configs with category pills, `Min`/`Max` range steppers, and **Undo to Saved** / **Reset to Default**.
+- **Visual Template Builder:** Build and share `.json` Workbench templates visually with 1-click key extraction.
+- **2-Column Timeline & Diff Panel:** Inspect live unsaved changes or historical snapshots in **Visual Diff** or **Raw Code Diff**.
 
 ## Time Capsule
-Sanctuary OS handles automated backups using an ultra-fast, hardlink-based incremental backup engine.
+- **Incremental Hardlink Snapshots:** Separate **World State** (Saves/Tray/Settings) and **Engine Core** (Game Binaries) snapshots that only copy modified bytes while hardlinking unchanged files.
+- **Differential Rollback Engine:** Restores snapshots by comparing live file states against the snapshot manifest, removing rogue files and restoring modified files in seconds.
 
-- **World State (Purple):** Snapshots of your Saves & Settings files.
-- **Engine Core (Pink):** Backups of the actual game installation files.
-- **Automated Version Tracking:** The OS automatically detects your active game version by scanning the executable manifest prior to executing backups and post-restore to guarantee timeline and version integrity.
-- **True Rollback Safety:**
-  - Restoring a backup utilizes a high-speed differential mirroring process. Rather than blindly wiping the entire installation, the OS intelligently compares the live state to the backup snapshot, instantly deleting rogue files and restoring changed data to guarantee 100% timeline integrity without the performance penalty of a full wipe.
-- **Back-Ups & Rollbacks:**
-  - Sanctuary OS uses an incremental hardlink backup engine designed for near-instant disaster recovery. Because only modified files are physically copied (while unchanged files are simply hardlinked), backup times and disk usage will dynamically scale based on the exact size of your changes rather than the total size of your game.
-
-## Compliance, DEFCON & Malware Security
-Security is handled through a tiered global compliance system and a Dual-Tier Multi-Format Rust Heuristic Scanner.
-
-- **DEFCON 1:** When an official game patch is actively rolling out, Wayfinders or Oversight trigger a network-wide DEFCON 1 signal. Sanctuary intercepts the game launch and forces an Emergency Backup to prevent data corruption.
-- **Compliance Tiers 1-4 (Explicit, Illicit, Extreme Violence, Taboo):** Content ranging from NSFW to sensitive themes is permitted for local use and Vault storage. However, these artifacts are scrubbed from the Global Nexus Feed and stripped from public Cloud Blueprints to maintain legal compliance.
-  - **Tiers 1-2 (Explicit / Illicit):** Allowed to submit Support Tickets (any "Dirty Logs" referencing NSFW scripts are automatically routed/sanitized according to community rules).
-  - **Tiers 3-4 (Extreme Violence, Taboo, Malware):** Trigger a strict **Vault Lock** which disables support ticket submissions until the flagged artifact is unequipped or purged.
-- **Malware Interception (Compliance Tier 5) & Dual-Tier Heuristics:** Sanctuary merges global **Core Heuristics** (maintained by Keepers) and community **Spoke Heuristics** (maintained by Oversight) to scan every ingested or vaulted file—across ZIP containers (`.zip`, `.ts4script`, `.jar`, `.pak`), raw binaries (`.package`, `.dll`, `.asi`, `.exe`), UTF-16LE wide strings, and compiled `.pyc`/`.pyo` bytecode symbol chains. If Tier 5 malware DNA is confirmed, Sanctuary triggers a Zero-Choice Lockdown with an unclosable "Critical Danger" modal enforcing a **Secure Shred**—a destructive overwrite and removal of the malicious files via the Rust backend.
-- **External Secure Shred:** The OS takes the absolute path of a file, removes any read-only constraints, and executes a destructive overwrite and removal of the malicious files via the Rust backend.
-  - Files are not automatically deleted without authorization: **A Citizen’s Signature is required.**
-  - This prompt occurs during the ingest process (Drag & Drop), where the original file's path is held in volatile memory.
-- **Nuclear Override:** A hidden toggle exists in System Preferences. To reveal it, click the subtitle “Local configuration, identity, libraries, and security protocols” 5 times. This allows you to bypass quarantine, but doing so permanently records your hardware signature hash in the decoupled `hardware_bans` ledger on the Sanctuary Cloud, revoking all network privileges without requiring persistent hardware tracking on standard users.
-
-## System Preferences
-Your System. Your Sovereignty. Your Preferences.
-
-- **System Coordinates:** 
-  - Your Vault Path, Active Library (Mods Folder), and the Bin Folder.
-- **Time Capsule:** 
-  - Set your DEFCON Agency Level, DEFCON Backup Target, Engine Core Retention Policy, World State Retention Policy, and Vault Max Capacity.
-- **Network Credentials:** 
-  - System ID, Update Comms (Email), and Update Passcode (Password).
-- **Network:** 
-  - Local Network Only (Offline Mode), Show Artifact Images (All External Images), Open Artifact Links inside Sanctuary (In-App Web Browser) & Share Malware Manifests (Anonymous Reports for any Secure Shreds).
-- **Notifications:** 
-  - Replies, Support Replies, New Transmissions, Author-Only Replies, and Per-Mason Notifications.
-- **Chameleon:** 
-  - Preset Themes / Downloaded Themes / Theme Forge Suite (featuring an interactive Background Builder with color swatches, angle sliders, and a live Holo Sandbox).
-- **Lexicon:** 
-  - Preset Language Packs / Downloaded Language Packs.
-- **Logic Integrity (Anarchy Protocols):** 
-  - Highlander Enforcement (Flavors), Nuclear Family Cohesion (Twins), Dependency Chain-Link, and Conflict Intercept (Collision Severity 4).
-- **Malware Protocol:** 
-  - Malware Protocol: Preferences subtitle ×5. This permanently severs your profile from the global network, granting you unrestrained local sandbox authority.
-
-## Quick Tips for Citizens:
-1. **Trust the Airgap:** Never put files directly in your game's live Mods folder. Drop them into Sanctuary and let the OS handle the symlinks and load order tiers.
-2. **Missing DLC/Versions:** Pay attention to the Addon Drawer. If a mod card has a red "Broken" icon instead of a plus sign, hover over it. The tooltip will dynamically tell you exactly what is wrong (e.g., `MISSING DLC: [Packs]`, `VERSION MISMATCH`, or `MISSING ARTIFACT`).
-3. **Follow Masons:** Click a creator's name in The Nexus to view their Mason Profile and click Follow. Their updates will now securely appear in your "Following" tab inside the Comm-Link.
-4. **Check your Status:** If your Command Center tile is Amber or Red, run a Radar Sweep and follow the Citizen Action Recommended Alert.
-5. **Watch the Launch Button:** Green is all clear. If it’s Red, that means a Patch Update is currently rolling out.
-6. **Account Not Required:** The offline version of Sanctuary OS does not require an account.
-   - The Nexus, Comm-Link, Blueprint Uplinks, Delete Cascades, Ghosted States, DEFCON Alerts, and Cloud Malware Intercepts will be unavailable while offline/logged out (though local Static Edge Manifest polling and cached rules remain operational).
+## Compliance, DEFCON & Malware Quarantine SidePanel
+- **DEFCON 1 Patch Shield:** Intercepts game launches during breaking game patch rollouts and forces an emergency Time Capsule snapshot before ignition.
+- **Compliance Tiers 0–4:** Tiers 1–4 are permitted in local Vaults but automatically scrubbed from public Nexus feeds and public Cloud Blueprints (`trg_purge_flagged_hash_from_blueprints`).
+- **Tier 5 Quarantine SidePanel Lockdown:** Locks the entire OS shell when known malware hashes or heuristic hits are detected, displaying full trigger diagnostics and enforcing a Citizen-signed **Secure Shred**.
 
 ---
 
-# Elevated Clearances
+# Part 3: 6-Tier Clearance Hierarchy & Command Hubs
 
-**Version:** 5.7 (V0.5.7) | **Last Updated:** October 17, 2026
+Sanctuary OS enforces a strict separation between **Game Spoke Roles (`userRole`)** and **Core OS Hub Roles (`osRole`)** across 6 distinct clearance tiers:
 
-> This section of the guide covers the elevated roles within Sanctuary OS. The system uses a decoupled Hub-and-Spoke architecture: game-specific roles (Masons, Architects, Oversight, Wayfinders) operate within their specific Game Spoke Database, while Keepers manage the central OS Hub.
+## Tier 1: Citizen (Base Clearance + Open Mason Workshop Inheritance)
+- **Scope:** Local Machine + Active Game Spoke (`userRole = 'citizen'`).
+- **Capabilities:** Full access to all 9 Citizen modules (**Command Center**, **Vault**, **Nexus**, **Blueprints**, **Comm-Link**, **Conflict Radar**, **Homestead Lab**, **Citizen's Workbench**, **Time Capsule**) **PLUS inherited access to the Open Mason Workshop** (`Dev Sandbox`, `Mason IDE`, `Unified 3-Tile Artifact Studio`, `Chameleon Theme Forge`, `Notepad`, and local `Static Edge Release Packaging` via `manifest.json` & `override.json`).
+- **Publishing Firewall:** Citizens can publish Blueprints, Lexicons, Chameleons, and Workbench Templates to The Nexus, and submit new mod discoveries to the crowd-sourced **Scout Queue**.
 
-## Masons (Mod Creators)
-The Mason Workshop is the specialized environment for building, publishing, and maintaining artifacts. Basic Workshop tools (`Sandbox`, `IDE`, `Chameleons`, `Notepad`, and `Export Release`) are open to all Citizens via the **Open Mason Workshop Tier**, while Verified Masons unlock direct Nexus asset publishing and the **Verified Mason Queue** fast-lane.
+## Tier 2: Verified Mason (Verified Mod Creator)
+- **Scope:** Active Game Spoke (`userRole = 'mason'` / `isVerifiedMason = true`). Requires FIDO2 Passkey + TOTP Vault binding.
+- **Capabilities:** Inherits all Tier 1 Citizen & Open Workshop tools, and unlocks **Direct Nexus Artifact Publishing**, the **Verified Mason Queue Fast-Lane** (bypassing the `min_scout_submissions` crowd threshold), **Public Mason Profile & Featured Showcase Management**, **Supporter Bridge (`0% Platform Cut` Patreon/Ko-fi auto-stacking)**, **Creator Comm-Link Broadcasts**, and **Direct Bug Report Dossiers**.
 
-- **Command:** A top-down view of your creative output. View live metrics for your collections, active followers, and total "Uplinks."
-- **The Mason IDE:** A built-in, fully responsive Monaco editor for editing `.js`, `.ts`, `.json`, and `.xml` files directly within Sanctuary OS, linked to an isolated Dev Sandbox.
-- **Export Release & Decentralized Static Edge Packaging:** Package any Sandbox or Vault mod into a clean `<mod>_v<version>.zip` archive alongside a generated `manifest.json` (version, changelog, SHA-256 hash, `previous_hashes` lineage, and `atomic_logic`) and `override.json` so your users can receive decentralized updates from any static web host (GitHub Releases, Cloudflare R2, Patreon, itch.io).
-- **Protocol Orchestrator:** Map the logic of your mod. Define Twins & Addons (files that must deploy together), Alternative Versions (Betas or Flavors), and Recursive Dependencies.
-- **Collections Builder:** Group multiple artifacts into curated Collections (CC Sets) for Citizens to equip.
-- **Conflict Manager:** Empower Masons to map and author their own conflict Directives for the global Conflict Matrix.
-- **Structure Builder:** Visually define the exact folder structure your mod must maintain when deployed.
-- **Your Nexus Releases:** Manage your public-facing catalog. Includes 1:1 synchronization with Architect-level metadata and a 3-tab **Feature Assignment** selector (`Artifacts`, `Blueprints`, `Assets`) for your public Mason Profile.
-- **Bug Reports & Support Dossier:** Respond directly to user-submitted bug reports and view attached error logs in the Code Snippet viewer.
-- **Comm-Posts:** Publish network-wide broadcasts. Features a real-time Preview tab and sticky glassmorphic WYSIWYG editor.
+## Tier 3: Architect (Registry & Conflict Moderator)
+- **Scope:** Active Game Spoke (`userRole = 'architect'`). Requires FIDO2 Passkey + TOTP Vault binding.
+- **Capabilities:** Unlocks the **Architect Console**—including the **Unified 3-Tile Artifact Studio** for global registry curation, **Verified Mason Queue & Scout Queue Triage**, the global **Conflict Matrix** (authoring Severity 1–4 directives), **Check Hash & Deep Heuristic File Verification (`FileVerificationSidePanel`)**, **Template Oversight**, **Nexus Reports Triage**, and the **Citizen Support Desk** (with ticket claiming and log inspection).
 
-## Architects (Moderators)
-The Architect Console is the logic and data center used by the elite to maintain the Global Registry.
+## Tier 4: Oversight (Spoke Security & System Administrator)
+- **Scope:** Active Game Spoke (`userRole = 'oversight'`). Requires FIDO2 Passkey + TOTP Vault binding.
+- **Capabilities:** Unlocks **Oversight Command**—including **Spoke Heuristic Signatures Management** (authoring game-specific antivirus bytecode/binary rules alongside Core Heuristics), **Tier 5 Malware Flagging**, **Emergency DEFCON 1 Lockdown Triggers**, **Spoke Identity Matrix Governance** (up to `architect`), **Game Version & DLC Patch Registration**, **Mass Registry Batch Updates**, and **Mason Profile Linking**.
 
-- **Check Hash (`Verify Hash`):** A persistent header utility to instantly check any file’s DNA against the database, run a heuristic deep scan, and pull up its Edit Artifact panel.
-- **Verified Mason Queue vs. Scout Queue:** Verified Masons submit directly to the **Mason Queue** fast-lane. Unverified submissions and crowdsourced discoveries route into the **Scout Queue**, which enforces the Master Schema `min_scout_submissions` firewall threshold before surfacing pending items to Architects.
-- **Conflict Matrix:** Forge global "Directives." When an Architect establishes that "Mod A" crashes "Mod B," that logic is beamed down to every Citizen’s Conflict Radar globally.
-- **Template Oversight:** A dedicated hub for verifying, flagging, and approving community-submitted Config Templates for the Citizen's Workbench.
-- **Structure Matrix:** Visually define the exact folder structure a mod must maintain when deployed to ensure maximum engine performance.
-- **Nexus Reports Queue:** Review and triage user-flagged artifacts (e.g., Lexicons, Chameleons, Blueprints) directly from The Nexus.
-- **Citizen Support Desk:** A complete support ticketing system for resolving user issues seamlessly. Features "Claim Ticket" functionality to allow elevated users to claim tickets, which will then only show for them until resolved, escalated, or manually released.
+## Tier 5: Wayfinder (Community Manager & Spoke Sovereign)
+- **Scope:** Full Sovereign Authority over the Active Game Spoke (`userRole = 'wayfinder'`). Requires FIDO2 Passkey + TOTP Vault binding.
+- **Capabilities:** Unlocks **Wayfinder Operations**—including **Full Spoke Identity Matrix Authority** (promoting/demoting up to `wayfinder`), **Spoke Uplink & Sovereignty (`ServerHealthSidePanel`)** with `SANCTUARY-UPLINK://` export and live API key rotation, unilateral **"Cut the Cord" Bilateral Severance** (`secure_sever_spoke_cord`), **The Dispatch** (publishing community-wide dispatches with 2x2 telemetry headers and interactive polls), **Spoke Audit Logs**, and the **Keeper Support Escalation Pipeline**.
 
-## Oversight (System Administrators)
-Oversight Command holds the keys to a Spoke community's security, role governance (up to Architect), and advanced conflict escalations.
-
-- **Global DEFCON Override:** Oversight can manually override/emergency-trigger game lockdowns and emergency backups ahead of unannounced game patches.
-- **Identity Matrix (Spoke Scoped):** View and manage community identities across Citizen, Mason, and Architect clearances, or issue Comm-Link bans.
-- **Compliance & Malware Oversight (Spoke Heuristics):** Flag dangerous DNA signatures as Compliance Tier 5 (Malware) to trigger global Secure Shreds, and manage game-specific **Spoke Heuristics** alongside read-only **Core Heuristics**.
-- **Mass Update Utility:** Batch-update hundreds of registry entries at once.
-- **Game Management:** The "Source of Truth" for game versions. Register new Game Patches and DLC IDs to the Spoke Registry.
-- **Mason Linker:** Manually verify and link Citizen identities to claimed Nexus mod author profiles.
-- **Support Infrastructure:** Manage support categories, global macro templates, and route escalated tickets for the Citizen Support Desk.
-
-## Wayfinders (Community Managers)
-Wayfinders are the highest level of game-specific administration, responsible for managing the community, maintaining Spoke database sovereignty, and broadcasting platform-wide announcements for their specific game Spoke.
-
-- **Global DEFCON:** Wayfinders can initiate scheduled/operational DEFCON events for their game.
-- **Spoke Uplink & Sovereignty (`ServerHealthSidePanel`):** View real-time database latency and connectivity, export a `SANCTUARY-UPLINK://` bundle, rotate Spoke API keys (`secure_update_spoke_uplink`), or unilaterally **Cut the Cord** (`secure_sever_spoke_cord`) to sever the community's Spoke database from the Sanctuary OS Hub at any time while retaining 100% of their community data.
-- **Identity Matrix (Full Spoke Authority):** Wayfinders can promote or demote any Spoke role (`citizen`, `mason`, `architect`, `oversight`, `wayfinder`).
-- **The Dispatch:** A specialized broadcast channel featuring built-in **Dispatch Telemetry Headers** (`Alert Type`, `Affected Target`, `Severity`, `Action Required`) and **Interactive Community Polls**.
-- **Keeper Support System:** A dedicated ticketing pipeline for direct communication between Wayfinders and Core OS Keepers when OS-level issues arise.
-- **Game Audit Logs:** A ledger of game-level database mutations and role changes. Wayfinders use this for accountability and forensics within their specific community.
-
-## Keepers (Core App Team / Sanctuary Developers)
-Keepers are the actual developers of Sanctuary OS. They operate entirely separate from the community management layers (Architects, Oversight, Wayfinders) and focus exclusively on the core application code, master infrastructure, and the central OS Hub.
-
-- **Keepers Core:** The central command interface for managing OS-level infrastructure.
-- **Active Game Workspaces & Turnkey Spoke Onboarding:** Connect new community Spoke databases in seconds using Quick-Paste `SANCTUARY-UPLINK://` bundles, run live **Schema Handshake Verification** (`secure_verify_and_bootstrap_spoke`), and auto-provision the community's **Founding Wayfinder**.
-- **Core Heuristics Oversight (`KeepersHeuristicsOversight`):** Author and deploy cross-game **Core Heuristics** (`keeper_heuristic_signatures`) that protect every connected workspace against system-level exploits and malware payloads.
-- **Master Schema & Lexicon Flows:** Manage the global, cross-game configuration schemas and localization dictionaries, deploying them instantly via the cloud.
-- **Theme Forge & Chameleons:** Govern the global UI aesthetic systems that propagate down to all connected Game Spokes.
-- **Global Audit Logs:** A permanent, undeletable ledger of every global database mutation and security flag executed across the entire OS. Features strict append-only security triggers and dual-redundancy (writes to both Spoke and Core OS DBs), with workspace-specific filtering in the Audit Log Viewer.
-
-## Role Protocols:
-1. **Dual-Role & Privacy-First Identity Architecture:** To maintain strict separation of concerns and zero data bleeding, Sanctuary OS evaluates your permissions using two decoupled roles: your `osRole` (`citizen` or `keeper` on the Core OS Hub) and your `userRole` (`citizen`, `mason`, `architect`, `oversight`, or `wayfinder` on the active Game Spoke). Email addresses and authentication secrets remain exclusively on the Core OS Hub and are never stored on Spoke databases.
-2. **Workflow Consistency:** The Support Queue and Artifact Dossiers are 1:1 copies across all elevated roles. This ensures a moderator (Architect) and a community manager (Wayfinder) see the exact same data when troubleshooting a ticket.
-3. **Bilateral Sovereignty ("Cut the Cord"):** Either a Core Keeper or a community's Wayfinder can sever the Spoke Uplink at any time (`secure_sever_spoke_cord`), immediately scrubbing the Spoke's Service Role Key from the Hub and deactivating routing while leaving the community's Spoke database 100% intact.
-4. **Local vs. Global:** Architects and Oversight are reminded that edits to the Global Registry affect all users in that Spoke, while edits in the Local Override Layer affect only the user's personal installation.
+## Tier 6: Keeper (Core OS Hub & Sanctuary Foundry Developer)
+- **Scope:** Global Sanctuary OS Hub (`osRole = 'keeper'`). Requires FIDO2 Passkey + TOTP Vault binding.
+- **Capabilities:** Unlocks **Keepers Core**—accessible from both the Foundry Landing Page and any workspace. Governs **Active Game Workspaces & Turnkey `SANCTUARY-UPLINK://` Spoke Onboarding**, **Core Heuristics Oversight (`keeper_heuristic_signatures`)**, **Master Game Schemas (`sanctuary_schemas`)**, **Global Lexicon & Chameleon Registries**, **Foundry News & Release Notes Publishing**, **Bilateral System Directives Editor** (auto-synced two-way with the codebase `.md` files), and the immutable **Global Audit Trail**.

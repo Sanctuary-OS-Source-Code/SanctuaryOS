@@ -7,6 +7,7 @@ import { CustomDropdown, HoverTooltip, useIsMobile } from './shared';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from "./utils/envUtils";
 import { isRootDomain, scrollToLandingSection } from "./utils/routingUtils";
+import { openSanctuaryLogin } from "./AuthWrapper";
 
 function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false, badge = 0, setHoveredTooltip }: any) {
   const isActive = active;
@@ -135,8 +136,20 @@ export function Sidebar({
     ["core_dev", "admin", "keeper"].includes(osRole)
   );
 
+  const [isLandingContext, setIsLandingContext] = React.useState<boolean>(() =>
+    view === "landing" || !isConfigured || (!isDesktop() && isRootDomain())
+  );
+
   React.useEffect(() => {
-    if (!(!isConfigured || (!isDesktop() && isRootDomain()))) return;
+    if (view === "landing" || !isConfigured || (!isDesktop() && isRootDomain())) {
+      setIsLandingContext(true);
+    } else if (view !== "KeepersCore" && view !== "settings") {
+      setIsLandingContext(false);
+    }
+  }, [view, isConfigured]);
+
+  React.useEffect(() => {
+    if (!isLandingContext || view !== "landing") return;
     const container = document.getElementById('sanctuary-main-scroll');
     if (!container) return;
     const handleScroll = () => {
@@ -159,7 +172,7 @@ export function Sidebar({
     };
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [isConfigured, view]);
+  }, [isLandingContext, isConfigured, view]);
 
   return (
     <nav
@@ -225,7 +238,7 @@ export function Sidebar({
         </div>
 
         <div className="flex-1 pt-2 pb-24 md:pb-6 space-y-0.5 overflow-y-auto hide-scrollbar">
-          {(!isConfigured || (!isDesktop() && isRootDomain())) ? (
+          {isLandingContext ? (
             <>
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'workspaces'}
@@ -561,71 +574,67 @@ export function Sidebar({
                   )}
                 </div>
               )}
-              {session && !(!isDesktop() && isRootDomain()) && (osRole === "core_dev" || osRole === "admin" || osRole === "keeper") && (
-                <div className={`mt-3 mb-1 pt-3 relative ${isSidebarCollapsed ? 'px-0' : ''}`}>
-                  <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_30%,transparent)] to-transparent" />
-                  {!isSidebarCollapsed && (
-                    <div className="px-6 flex items-center gap-2 mb-2">
-                      <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 capitalize tracking-widest truncate ">
-                        Sanctuary Foundry
-                      </p>
-                    </div>
-                  )}
-                  <NavButton
-                    active={view === "KeepersCore"}
-                    onClick={() => {
-                      setView("KeepersCore");
-                      if (useStore.getState().setKeepersActiveTab) useStore.getState().setKeepersActiveTab("command_center");
-                    }}
-                    icon="admin_panel_settings"
-                    label={t("sidebar_keepers_core")}
-                    isCollapsed={isSidebarCollapsed}
-                    isAccent={true}
-                    setHoveredTooltip={setHoveredTooltip}
-                  />
-                  {view === "KeepersCore" && !isSidebarCollapsed && (
-                    <div className="flex flex-col gap-0.5 mt-1.5 ml-3 pl-2 border-l border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)]">
-                      <NavButton active={useStore.getState().keepersActiveTab === "command_center"} onClick={() => useStore.getState().setKeepersActiveTab("command_center")} icon={t("icon_desktop_windows") as string} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim() || "Command Center"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "command_center"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "keepers_comms"} onClick={() => useStore.getState().setKeepersActiveTab("keepers_comms")} icon={t("icon_satellite_alt") as string} label={t("wf_tab_dispatch")?.replace(/^[^\w]*/, '').trim() || "Dispatch"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "keepers_comms"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "web_directives"} onClick={() => useStore.getState().setKeepersActiveTab("web_directives")} icon="folder_special" label="Directives" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "web_directives"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "web_news"} onClick={() => useStore.getState().setKeepersActiveTab("web_news")} icon="public" label="News" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "web_news"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "web_legal"} onClick={() => useStore.getState().setKeepersActiveTab("web_legal")} icon="gavel" label="Legal" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "web_legal"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "active_games"} onClick={() => useStore.getState().setKeepersActiveTab("active_games")} icon="dns" label="Workspaces" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "active_games"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "identities"} onClick={() => useStore.getState().setKeepersActiveTab("identities")} icon="group" label="Oversight" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "identities"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "heuristics"} onClick={() => useStore.getState().setKeepersActiveTab("heuristics")} icon={t("icon_shield_lock") || "shield_lock"} label={t("core_heuristics_tab") || "Core Heuristics"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "heuristics"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "support"} onClick={() => useStore.getState().setKeepersActiveTab("support")} icon={t("icon_support_agent") as string} label="Support" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "support"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "support_settings"} onClick={() => useStore.getState().setKeepersActiveTab("support_settings")} icon={t("icon_support_agent") as string} label={t("wf_tab_support")?.replace(/^[^\w]*/, '').trim() || "Settings"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "support_settings"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "audit_logs"} onClick={() => useStore.getState().setKeepersActiveTab("audit_logs")} icon={t("icon_history") as string} label={t("audit_title")?.replace(/^[^\w]*/, '').trim() || "Audit"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "audit_logs"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "ide"} onClick={() => useStore.getState().setKeepersActiveTab("ide")} icon="code" label="IDE" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "ide"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().keepersActiveTab === "chameleons"} onClick={() => useStore.getState().setKeepersActiveTab("chameleons")} icon="palette" label={t("wf_master_themes")?.replace(/^[^\w]*/, '').trim() || "Themes"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "chameleons"} setHoveredTooltip={setHoveredTooltip} />
-                    </div>
-                  )}
+            </>
+          )}
+
+          {session && (osRole === "core_dev" || osRole === "admin" || osRole === "keeper") && (
+            <div className={`mt-3 mb-1 pt-3 relative ${isSidebarCollapsed ? 'px-0' : ''}`}>
+              <div className="absolute top-0 inset-x-4 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--accent)_30%,transparent)] to-transparent" />
+              {!isSidebarCollapsed && (
+                <div className="px-6 flex items-center gap-2 mb-2">
+                  <p className="text-[10px] font-black text-[var(--sidebartext)] opacity-50 capitalize tracking-widest truncate ">
+                    Sanctuary Foundry
+                  </p>
                 </div>
               )}
-            </>
+              <NavButton
+                active={view === "KeepersCore"}
+                onClick={() => {
+                  setView("KeepersCore");
+                  if (useStore.getState().setKeepersActiveTab) useStore.getState().setKeepersActiveTab("command_center");
+                }}
+                icon="admin_panel_settings"
+                label={t("sidebar_keepers_core")}
+                isCollapsed={isSidebarCollapsed}
+                isAccent={true}
+                setHoveredTooltip={setHoveredTooltip}
+              />
+              {view === "KeepersCore" && !isSidebarCollapsed && (
+                <div className="flex flex-col gap-0.5 mt-1.5 ml-3 pl-2 border-l border-[color-mix(in_srgb,var(--sidebartext)_10%,transparent)]">
+                  <NavButton active={useStore.getState().keepersActiveTab === "command_center"} onClick={() => useStore.getState().setKeepersActiveTab("command_center")} icon={t("icon_desktop_windows") as string} label={t("wf_tab_command")?.replace(/^[^\w]*/, '').trim() || "Command Center"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "command_center"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "keepers_comms"} onClick={() => useStore.getState().setKeepersActiveTab("keepers_comms")} icon={t("icon_satellite_alt") as string} label={t("wf_tab_dispatch")?.replace(/^[^\w]*/, '').trim() || "Dispatch"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "keepers_comms"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "web_directives"} onClick={() => useStore.getState().setKeepersActiveTab("web_directives")} icon="folder_special" label="Directives" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "web_directives"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "web_news"} onClick={() => useStore.getState().setKeepersActiveTab("web_news")} icon="public" label="News" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "web_news"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "web_legal"} onClick={() => useStore.getState().setKeepersActiveTab("web_legal")} icon="gavel" label="Legal" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "web_legal"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "active_games"} onClick={() => useStore.getState().setKeepersActiveTab("active_games")} icon="dns" label="Workspaces" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "active_games"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "identities"} onClick={() => useStore.getState().setKeepersActiveTab("identities")} icon="group" label="Oversight" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "identities"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "heuristics"} onClick={() => useStore.getState().setKeepersActiveTab("heuristics")} icon={t("icon_shield_lock") || "shield_lock"} label={t("core_heuristics_tab") || "Core Heuristics"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "heuristics"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "support"} onClick={() => useStore.getState().setKeepersActiveTab("support")} icon={t("icon_support_agent") as string} label="Support" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "support"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "support_settings"} onClick={() => useStore.getState().setKeepersActiveTab("support_settings")} icon={t("icon_support_agent") as string} label={t("wf_tab_support")?.replace(/^[^\w]*/, '').trim() || "Settings"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "support_settings"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "audit_logs"} onClick={() => useStore.getState().setKeepersActiveTab("audit_logs")} icon={t("icon_history") as string} label={t("audit_title")?.replace(/^[^\w]*/, '').trim() || "Audit"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "audit_logs"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "ide"} onClick={() => useStore.getState().setKeepersActiveTab("ide")} icon="code" label="IDE" isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "ide"} setHoveredTooltip={setHoveredTooltip} />
+                  <NavButton active={useStore.getState().keepersActiveTab === "chameleons"} onClick={() => useStore.getState().setKeepersActiveTab("chameleons")} icon="palette" label={t("wf_master_themes")?.replace(/^[^\w]*/, '').trim() || "Themes"} isCollapsed={false} isAccent={useStore.getState().keepersActiveTab === "chameleons"} setHoveredTooltip={setHoveredTooltip} />
+                </div>
+              )}
+            </div>
           )}
 
           <div className={`my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4 ${isSidebarCollapsed ? 'px-0' : ''}`}>
             {!session && (
-              <div className="my-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4">
-                <NavButton
-                  onClick={() => {
-                    localStorage.setItem("sanctuary_show_login", "true");
-                    window.location.reload();
-                  }}
-                  icon={t("icon_key")}
-                  label={t("sidebar_signin")}
-                  isCollapsed={isSidebarCollapsed}
-                  isAccent={true}
-                  setHoveredTooltip={setHoveredTooltip}
-                />
-              </div>
+              <NavButton
+                onClick={() => openSanctuaryLogin()}
+                icon={t("icon_key", "key")}
+                label={t("sidebar_signin", "Authenticate")}
+                isCollapsed={isSidebarCollapsed}
+                isAccent={true}
+                setHoveredTooltip={setHoveredTooltip}
+              />
             )}
           </div>
           <div className="flex-1" />
         </div>
 
-        {schemaFeatures?.has_launch !== false && isDesktop() && (
+        {!isLandingContext && schemaFeatures?.has_launch !== false && isDesktop() && (
           <div className="px-3.5 pb-3.5 pt-2 relative z-30">
             <div className="relative group/nav">
               <button

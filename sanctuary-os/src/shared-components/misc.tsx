@@ -69,10 +69,14 @@ export function FilterPopover({
   useEffect(() => {
     if (!isOpen) return;
     window.dispatchEvent(
-      new CustomEvent("sa-close-popovers", { detail: instanceId }),
+      new CustomEvent("sa-close-popovers", { detail: { id: instanceId, triggerEl: btnRef.current } }),
     );
     const onOtherOpen = (e: any) => {
-      if (e.detail !== instanceId) setIsOpen(false);
+      const detailId = typeof e.detail === "object" && e.detail !== null ? e.detail.id : e.detail;
+      const triggerEl = typeof e.detail === "object" && e.detail !== null ? e.detail.triggerEl : null;
+      if (detailId === instanceId) return;
+      if (triggerEl && popoverRef.current && popoverRef.current.contains(triggerEl)) return;
+      setIsOpen(false);
     };
     window.addEventListener("sa-close-popovers", onOtherOpen);
     return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
@@ -194,6 +198,7 @@ export function FilterPopover({
               />
               <div
                 ref={popoverRef}
+                onClick={(e) => e.stopPropagation()}
                 className="!fixed glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] pointer-events-auto animate-in fade-in zoom-in-95 duration-150 flex flex-col min-w-[210px] p-1.5 gap-0.5 !rounded-2xl w-max max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto custom-scrollbar text-[var(--text)]"
                 style={{
                   zIndex: 200001,

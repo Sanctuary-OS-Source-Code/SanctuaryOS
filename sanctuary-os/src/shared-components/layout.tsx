@@ -57,18 +57,7 @@ export function useHubActionsState() {
 }
 
 export const DeferredRender = ({ children }: { children: React.ReactNode }) => {
-  const [ready, setReady] = React.useState(false);
-  React.useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
-  return ready ? (
-    <>{children}</>
-  ) : (
-    <div className="flex items-center justify-center p-20 w-full">
-      <div className="w-8 h-8 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin" />
-    </div>
-  );
+  return <>{children}</>;
 };
 export function PixelSnapper() {
   return null;
@@ -86,11 +75,11 @@ export const AccordionDrawer = ({
   React.useEffect(() => {
     if (isOpen) {
       setRender(true);
-      const timer = setTimeout(() => setVisible(true), 10);
+      const timer = setTimeout(() => setVisible(true), 16);
       return () => clearTimeout(timer);
     } else {
       setVisible(false);
-      const timer = setTimeout(() => setRender(false), 500);
+      const timer = setTimeout(() => setRender(false), 320);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
@@ -99,9 +88,11 @@ export const AccordionDrawer = ({
 
   return (
     <div
-      className={`col-span-full overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.2,0.9,0.2,1)] ${visible ? "max-h-[1000px] opacity-100 scale-100" : "max-h-0 opacity-0 scale-[0.98]"}`}
+      className={`col-span-full relative z-30 grid transition-[grid-template-rows,opacity] duration-300 ease-out ${visible ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none"}`}
     >
-      <div className="pt-4 pb-12 px-2">{children}</div>
+      <div className="overflow-hidden min-h-0">
+        <div className="pt-2 pb-8 px-1">{children}</div>
+      </div>
     </div>
   );
 };
@@ -137,6 +128,7 @@ export function SidePanel({
   forceShowCloseBtn = false,
   coverImage,
   hideCloseButton = false,
+  passthroughBackdrop = false,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -168,6 +160,7 @@ export function SidePanel({
   coverImage?: string;
   forceShowCloseBtn?: boolean;
   hideCloseButton?: boolean;
+  passthroughBackdrop?: boolean;
 }) {
   const { t } = useLexicon();
   const theme = useTheme();
@@ -242,22 +235,26 @@ export function SidePanel({
   const finalPanelZ =
     depth > 0 ? Math.max(calculatedPanelZ, parsedPanelZ) : parsedPanelZ;
 
+  const isPanelClosed = !isOpen || isAnimatingOut;
+
   const panelContent = (
     <PanelDepthContext.Provider value={depth + 1}>
       <SidePanelContext.Provider value={true}>
         <div
-          className={`sa-side-panel-wrapper ${isOpen && !isAnimatingOut ? "sa-panel-open" : ""}`}
+          className={`sa-side-panel-wrapper ${!isPanelClosed ? "sa-panel-open" : ""}`}
           data-depth={depth}
+          data-passthrough={passthroughBackdrop ? "true" : undefined}
           style={
-            keepMounted && (!isOpen || isAnimatingOut)
+            keepMounted && isPanelClosed
               ? {
+                  display: "none",
                   opacity: 0,
                   pointerEvents: "none",
-                  transition: "opacity 0.2s ease-in-out",
+                  visibility: "hidden",
                 }
               : {
                   opacity: 1,
-                  pointerEvents: "auto",
+                  pointerEvents: isPanelClosed || passthroughBackdrop ? "none" : "auto",
                   transition: "opacity 0.2s ease-in-out",
                 }
           }
@@ -266,22 +263,25 @@ export function SidePanel({
             <div className="fixed inset-0 z-[100010] cursor-col-resize" />
           )}
           <div
-            className={`sa-side-panel-backdrop fixed inset-0 z-0 ${depth > 0 || noBackdropDim ? "bg-transparent" : ""} ${isAnimatingOut ? "animate-out fade-out opacity-0 duration-500" : "animate-in fade-in duration-500"}`}
+            className={`sa-side-panel-backdrop fixed inset-0 z-0 ${depth > 0 || noBackdropDim ? "bg-transparent" : ""} ${isPanelClosed || passthroughBackdrop ? "pointer-events-none" : ""} ${isAnimatingOut ? "animate-out fade-out opacity-0 duration-500" : "animate-in fade-in duration-500"}`}
             style={{
               zIndex: finalBackdropZ,
+              pointerEvents: isPanelClosed || passthroughBackdrop ? "none" : "auto",
               ...(depth === 0 && !noBackdropDim
                 ? {
                     backgroundColor: "var(--glass-backdrop-dim, rgba(0, 0, 0, 0.14))",
                   }
                 : {}),
             }}
-            onClick={onClose}
+            onClick={isPanelClosed || passthroughBackdrop ? undefined : onClose}
           />
           <div
             ref={panelRef}
-            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-0 bottom-0 md:top-3 md:bottom-3 ${position === "left" ? "left-0 md:left-[calc(var(--sidebarWidth,260px)+2.25rem)]" : "right-0 md:right-3"} overflow-hidden ${isResizable ? "" : widthClass} max-md:!w-full max-md:!max-w-[100vw] max-md:!rounded-none md:!rounded-3xl border flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
+            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-0 bottom-0 h-full ${position === "left" ? "left-0 md:left-[calc(var(--sidebarWidth,260px)+1.5rem)] border-t border-b border-r border-l md:!rounded-r-3xl md:!rounded-l-none" : "right-0 border-t border-b border-l md:!rounded-l-3xl md:!rounded-r-none"} overflow-hidden ${isResizable ? "" : widthClass} max-md:!w-full max-md:!max-w-[100vw] max-md:!rounded-none flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
             style={{
               zIndex: finalPanelZ,
+              pointerEvents: isPanelClosed || isResizing ? "none" : "auto",
+              visibility: keepMounted && isPanelClosed ? "hidden" : "visible",
               borderTopColor: "var(--glass-border-top)",
               borderLeftColor: "var(--glass-border-left)",
               borderRightColor: "var(--glass-border-right)",
@@ -291,7 +291,6 @@ export function SidePanel({
               ...(isResizable
                 ? {
                     width: `${isResizing ? dragWidthRef.current : panelWidth}px`,
-                    pointerEvents: isResizing ? "none" : undefined,
                   }
                 : {}),
               ...panelStyle,
@@ -687,24 +686,27 @@ export function DashboardStatTile({
         : "!border-[currentColor] z-10"
     : "hover:!border-[rgba(var(--text-rgb,255,255,255),0.28)]";
 
-  if (isModal) {
-    if (strVal.length > 13) sizeClass = "text-sm md:text-base";
-    else if (strVal.length > 9) sizeClass = "text-base md:text-lg";
-    else sizeClass = "text-lg md:text-xl";
+  const isTextSpecial =
+    isSpecial && hasValue && isNaN(Number(strVal.replace(/[,.\s%+]/g, "")));
+
+  if (isModal || isTextSpecial) {
+    sizeClass = "text-sm md:text-base";
   } else if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
   else if (strVal.length > 10) sizeClass = "text-lg xl:text-xl";
   else if (strVal.length > 5) sizeClass = "text-xl lg:text-2xl xl:text-3xl";
 
   const paddingClass =
     variant === "tab" || variant === "filter" || isModal
-      ? "py-3 px-4 md:py-4 md:px-5"
+      ? "py-3 px-4 md:py-4 md:px-4"
       : "py-3 px-4 md:py-4 md:px-5 lg:p-5";
-  const iconSizeClass = isFilter
-    ? "w-8 h-8 md:w-10 md:h-10"
-    : "w-8 h-8 md:w-14 md:h-14";
-  const iconTextClass = isFilter
-    ? "!text-[20px] md:!text-[24px]"
-    : "!text-[20px] md:!text-[32px]";
+  const iconSizeClass =
+    isFilter || isTextSpecial
+      ? "w-8 h-8 md:w-10 md:h-10"
+      : "w-8 h-8 md:w-14 md:h-14";
+  const iconTextClass =
+    isFilter || isTextSpecial
+      ? "!text-[20px] md:!text-[24px]"
+      : "!text-[20px] md:!text-[32px]";
   const shadowClass = "shadow-none";
   const activeTint =
     isActive && isSpecial
@@ -721,11 +723,14 @@ export function DashboardStatTile({
                 : "currentColor"
         : "currentColor";
 
-  const sizeConstraintClass = isSpecial
-    ? "w-[calc(50vw-1.5rem)] md:w-[260px] min-h-[68px] md:min-h-[88px] shrink-0"
-    : isModal
-      ? "flex-1 min-w-0 min-h-[64px] md:min-h-[76px]"
-      : "flex-1 min-w-0 min-h-[68px] md:min-h-[88px]";
+  const sizeConstraintClass =
+    variant === "tab"
+      ? "w-[calc(50vw-1.5rem)] md:w-[260px] min-h-[68px] md:min-h-[88px] shrink-0"
+      : variant === "filter"
+        ? "w-full min-w-0 min-h-[68px] md:min-h-[80px]"
+        : isModal
+          ? "flex-1 min-w-0 min-h-[64px] md:min-h-[76px]"
+          : "flex-1 min-w-0 min-h-[68px] md:min-h-[88px]";
 
   const mergedStyle = {
     "--glass-outer-shadow": "0 0 #0000",
@@ -767,13 +772,13 @@ export function DashboardStatTile({
 
       <div className={`flex flex-col flex-1 min-w-0 relative z-10 py-1 items-start justify-center`}>
         <span
-          className={`${hasValue ? (isModal ? "text-[10px] mb-0.5 tracking-wider" : "text-[9px] md:text-xs mb-0 md:mb-1 tracking-widest") : "text-xs md:text-sm tracking-widest"} uppercase font-black group-hover:text-current transition-colors duration-500 truncate w-full pr-2 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : isModal && isActive ? "text-current" : hasValue ? "text-[var(--subtext)]" : "text-[var(--text)] opacity-90"}`}
+          className={`${hasValue ? "text-[10px] mb-0.5 tracking-wider" : "text-xs md:text-sm tracking-widest"} uppercase font-black group-hover:text-current transition-colors duration-500 truncate w-full pr-1 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : isModal && isActive ? "text-current" : hasValue ? "text-[var(--subtext)]" : "text-[var(--text)] opacity-90"}`}
         >
           {label}
         </span>
         {hasValue && (
           <span
-            className={`${sizeClass} font-black tracking-tighter pr-2 md:pr-1 leading-tight truncate w-full`}
+            className={`${sizeClass} font-black tracking-tighter pr-1 md:pr-0 leading-tight truncate w-full`}
           >
             {displayValue}
           </span>

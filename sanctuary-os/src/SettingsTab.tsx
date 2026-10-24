@@ -169,7 +169,11 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
               label: t("btn_logout") || "Logout",
               onClick: async () => {
                 await supabase.auth.signOut();
-                window.location.reload();
+                localStorage.setItem("sanctuary_show_login", "true");
+                localStorage.removeItem("sanctuary_login_bypassed");
+                useStore.getState().setSession(null);
+                useStore.getState().setView("landing");
+                window.dispatchEvent(new CustomEvent("sanctuary-open-login"));
               },
               activeClassName: "!text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]",
             },

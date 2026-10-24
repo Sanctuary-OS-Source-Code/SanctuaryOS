@@ -1,3 +1,4 @@
+/// <reference path="./vite.node.d.ts" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -5,6 +6,14 @@ import fs from 'fs';
 import path from 'path';
 
 const host = process.env.TAURI_DEV_HOST;
+
+const DIRECTIVE_FILE_MAP: Record<string, string> = {
+  citizen_guide: "Citizen Guide.md",
+  phase_roadmap: "Phase Roadmap.md",
+  forking_guide: "Sanctuary OS Forking & Architecture Guide.md",
+  master_architecture: "Master Architecture & Feature Document.md",
+  master_protocols: "Master Protocol List.md",
+};
 
 function devLexiconSyncPlugin() {
   return {
@@ -40,7 +49,56 @@ function devLexiconSyncPlugin() {
               res.end('Error');
             }
           });
-        } else {
+        }
+      });
+
+      server.middlewares.use('/__sync-directives', (req: any, res: any) => {
+        if (req.method === 'GET') {
+          try {
+            const snapshots: any[] = [];
+            for (const [slug, fileName] of Object.entries(DIRECTIVE_FILE_MAP)) {
+              const filePath = path.resolve(__dirname, '..', fileName);
+              if (fs.existsSync(filePath)) {
+                const stat = fs.statSync(filePath);
+                const content = fs.readFileSync(filePath, 'utf-8');
+                snapshots.push({
+                  slug,
+                  file_path: fileName,
+                  content,
+                  modified_epoch_ms: Math.floor(stat.mtimeMs),
+                });
+              }
+            }
+            res.setHeader('Content-Type', 'application/json');
+            res.statusCode = 200;
+            res.end(JSON.stringify(snapshots));
+          } catch (e: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e?.message || 'Failed to read directives' }));
+          }
+        } else if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const { slug, content } = JSON.parse(body);
+              const fileName = DIRECTIVE_FILE_MAP[slug];
+              if (!fileName || typeof content !== 'string') {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'Invalid directive slug or content' }));
+                return;
+              }
+              const filePath = path.resolve(__dirname, '..', fileName);
+              fs.writeFileSync(filePath, content, 'utf-8');
+              const stat = fs.statSync(filePath);
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 200;
+              res.end(JSON.stringify({ modified_epoch_ms: Math.floor(stat.mtimeMs) }));
+            } catch (e: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: e?.message || 'Failed to write directive' }));
+            }
+          });
         }
       });
     }

@@ -468,7 +468,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
 
                 const osTables = [
                     'sanctuary_themes',
-                    'sanctuary_games',
+                    'sanctuary_games', 'system_directives',
                     'keeper_tickets',
                     'keeper_system_broadcasts',
                     'keeper_dispatch_poll_votes',

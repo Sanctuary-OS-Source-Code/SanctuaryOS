@@ -630,7 +630,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                       className="text-[13px] font-black capitalize tracking-widest text-[var(--text)] hover:theme-text-accent cursor-pointer transition-colors"
                       onClick={() => { if (post.mason_id !== 'system') { onClose(); onOpenMasonProfile?.(post.mason_id); } }}
                     >
-                      {post.mason_id === 'system' ? (post.masons?.name || t("author_sanctuary_team")) : (post.masons?.name || t("unknown_architect"))}
+                      {post.mason_id === 'system' ? (post.masons?.name || t("author_sanctuary_team", "Sanctuary Foundry")) : (post.masons?.name || t("unknown_architect", "Unknown Architect"))}
                     </span>
                     {post.mason_id === 'system' && (
                       <span className="relative inline-flex items-center cursor-default">

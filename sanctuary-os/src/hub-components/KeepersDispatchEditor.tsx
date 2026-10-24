@@ -407,7 +407,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
           console.log("Followers for dispatch:", followers);
           if (followers && followers.length > 0) {
             const activeSchema = useStore.getState().activeGameSchema;
-            let teamName = "Sanctuary OS Team";
+            let teamName = "Sanctuary Foundry";
             if (false) {
               teamName = false ? (activeSchema ? `${activeSchema.display_name || activeSchema.name} Oversight Team` : "Oversight Team") : (activeSchema ? `${activeSchema.display_name || activeSchema.name} Team` : "Wayfinder Team");
             }

@@ -257,9 +257,10 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
                           icon="local_activity" 
                           onClick={() => setTab("sanctuary_tickets")}
                           className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--info)_20%,transparent)] text-[var(--info)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("wf_tab_tickets")}</span>
+                          badges={
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--info)]">{t("icon_local_activity", "local_activity")}</span>
+                                  <span>{t("wf_tab_tickets")}</span>
                               </div>
                           }
                           footer={
@@ -291,9 +292,10 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
                           icon="coronavirus" 
                           onClick={() => { if (setComplianceFilter) setComplianceFilter('pending'); setTab("malware_oversight"); }}
                           className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("rating_malware")}</span>
+                          badges={
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_coronavirus", "coronavirus")}</span>
+                                  <span>{t("rating_malware")}</span>
                               </div>
                           }
                           footer={
@@ -325,9 +327,10 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
                           icon="policy" 
                           onClick={() => { if (setComplianceFilter) setComplianceFilter('flagged'); setTab("compliance"); }}
                           className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("tab_compliance")}</span>
+                          badges={
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_policy", "policy")}</span>
+                                  <span>{t("tab_compliance")}</span>
                               </div>
                           }
                           footer={

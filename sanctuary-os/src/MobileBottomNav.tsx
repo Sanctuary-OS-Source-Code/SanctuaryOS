@@ -24,14 +24,27 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   const setWayfinderActiveTab = useStore((state: any) => state.setWayfinderActiveTab);
   const keepersActiveTab = useStore((state: any) => state.keepersActiveTab);
   const setKeepersActiveTab = useStore((state: any) => state.setKeepersActiveTab);
+  const isConfigured = useStore((state: any) => state.isConfigured);
   const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHubNavOpen, setIsHubNavOpen] = useState(false);
   const [activeLandingSection, setActiveLandingSection] = useState<string>('workspaces');
   const { isStandalone, triggerInstall } = usePwaInstall();
 
+  const [isLandingContext, setIsLandingContext] = useState<boolean>(() =>
+    view === 'landing' || !isConfigured || (!isDesktop() && isRootDomain())
+  );
+
   useEffect(() => {
-    if (!isRootDomain()) return;
+    if (view === 'landing' || !isConfigured || (!isDesktop() && isRootDomain())) {
+      setIsLandingContext(true);
+    } else if (view !== 'KeepersCore' && view !== 'settings') {
+      setIsLandingContext(false);
+    }
+  }, [view, isConfigured]);
+
+  useEffect(() => {
+    if (!isLandingContext || view !== 'landing') return;
     const container = document.getElementById('sanctuary-main-scroll');
     if (!container) return;
     const handleScroll = () => {
@@ -51,18 +64,25 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     };
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [view]);
+  }, [isLandingContext, view]);
 
   const tabs: { id: string; icon: string; label: string; badge?: number }[] = [];
 
   let hubNavLabel = "";
   let hubNavIcon = "";
 
-  if (isRootDomain()) {
+  if (isLandingContext) {
     tabs.push({ id: 'workspaces', icon: t("icon_public", "public"), label: t("landing_workspaces_short", "Workspaces") });
     tabs.push({ id: 'news', icon: t("icon_newspaper", "newspaper"), label: t("landing_news_short", "News") });
     tabs.push({ id: 'system_directives', icon: t("icon_folder_special", "folder_special"), label: t("landing_directives_short", "Directives") });
-    tabs.push({ id: 'download', icon: t("icon_install_mobile", "install_mobile"), label: t("landing_install_pwa_short", "Install PWA") });
+    if (!isDesktop()) {
+      tabs.push({ id: 'download', icon: t("icon_install_mobile", "install_mobile"), label: t("landing_install_pwa_short", "Install PWA") });
+    }
+    if (view === "KeepersCore") {
+      hubNavLabel = t("sidebar_keepers_core", "Keepers Core");
+      hubNavIcon = t("icon_terminal", "terminal");
+      tabs.push({ id: 'hub_nav', icon: hubNavIcon, label: hubNavLabel });
+    }
     tabs.push({ id: 'menu', icon: t("icon_menu", "menu"), label: t("ui_btn_more", "More") });
   } else {
     tabs.push({ id: 'dashboard', icon: t("icon_desktop_windows", "desktop_windows"), label: t("center_title", "Dashboard") });
@@ -100,7 +120,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     } else if (tabId === 'hub_nav') {
       setIsHubNavOpen(!isHubNavOpen);
       setIsMenuOpen(false);
-    } else if (isRootDomain()) {
+    } else if (isLandingContext) {
       setIsMenuOpen(false);
       setIsHubNavOpen(false);
       if (['workspaces', 'news', 'system_directives', 'download', 'eula'].includes(tabId)) {
@@ -124,7 +144,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
         className="md:hidden fixed bottom-0 left-0 right-0 min-h-[76px] h-[calc(72px+env(safe-area-inset-bottom,0px))] z-[999999] flex items-center justify-around px-2 glass-panel portal-glass-fix !rounded-none !border-x-0 !border-b-0 pb-[env(safe-area-inset-bottom,0px)]"
       >
         {tabs.map(tab => {
-          const isLandingView = isRootDomain() && view !== 'settings' && view !== 'KeepersCore';
+          const isLandingView = isLandingContext && view !== 'settings' && view !== 'KeepersCore';
           const isActive =
             (tab.id === 'menu' && isMenuOpen) ||
             (tab.id === 'hub_nav' && (isHubNavOpen || ["MasonHub", "ArchitectHub", "Oversight", "WayfinderHub", "KeepersCore"].includes(view))) ||
@@ -182,13 +202,18 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             </button>
           )}
 
-          {!isRootDomain() && (
+          {!isLandingContext && (
             <button onClick={() => {
-              const parts = window.location.host.split('.');
-              if (parts.length > 1) {
-                window.location.href = `http://${parts.slice(1).join('.')}`;
+              setIsMenuOpen(false);
+              if (isDesktop()) {
+                setView("landing");
               } else {
-                window.location.href = "/";
+                const parts = window.location.host.split('.');
+                if (parts.length > 1) {
+                  window.location.href = `http://${parts.slice(1).join('.')}`;
+                } else {
+                  window.location.href = "/";
+                }
               }
             }} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
               <span className="material-symbols-outlined text-[var(--accent)] text-[20px]">public</span>
@@ -198,11 +223,13 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
           {!session?.user && (
             <button onClick={() => {
+              setIsMenuOpen(false);
               localStorage.setItem("sanctuary_show_login", "true");
-              window.location.reload();
+              localStorage.removeItem("sanctuary_login_bypassed");
+              window.dispatchEvent(new CustomEvent("sanctuary-open-login"));
             }} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
-              <span className="material-symbols-outlined text-[var(--accent)] text-[20px]">{t("icon_key") || "key"}</span>
-              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("sidebar_signin") || "Sign In"}</span>
+              <span className="material-symbols-outlined text-[var(--accent)] text-[20px]">{t("icon_key", "key")}</span>
+              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("sidebar_signin", "Sign In")}</span>
             </button>
           )}
 
@@ -213,28 +240,28 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
           <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent my-1" />
 
-          {!isRootDomain() && (
+          {!isLandingContext && (
             <button onClick={() => handleTabClick('MasonHub')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
               <span className="material-symbols-outlined text-orange-400 text-[20px]">{t("icon_construction") || "construction"}</span>
               <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("mason_hub_title") || "Mason Workshop"}</span>
             </button>
           )}
 
-          {["architect", "oversight", "wayfinder", "admin"].includes(userRole) && !isRootDomain() && (
+          {["architect", "oversight", "wayfinder", "admin"].includes(userRole) && !isLandingContext && (
             <button onClick={() => handleTabClick('ArchitectHub')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
               <span className="material-symbols-outlined text-purple-400 text-[20px]">{t("icon_analytics") || "analytics"}</span>
               <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("hub_title") || "Architect Hub"}</span>
             </button>
           )}
 
-          {["oversight", "wayfinder", "admin"].includes(userRole) && !isRootDomain() && (
+          {["oversight", "wayfinder", "admin"].includes(userRole) && !isLandingContext && (
             <button onClick={() => handleTabClick('Oversight')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
               <span className="material-symbols-outlined text-red-400 text-[20px]">{t("icon_security") || "security"}</span>
               <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("sa_title") || "Oversight"}</span>
             </button>
           )}
 
-          {(userRole === "wayfinder" || userRole === "admin") && !isRootDomain() && (
+          {(userRole === "wayfinder" || userRole === "admin") && !isLandingContext && (
             <button onClick={() => handleTabClick('WayfinderHub')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
               <span className="material-symbols-outlined text-blue-400 text-[20px]">{t("icon_terminal") || "terminal"}</span>
               <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("wf_hub_title") || "Wayfinder Tools"}</span>

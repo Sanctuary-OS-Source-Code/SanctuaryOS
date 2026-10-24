@@ -352,3 +352,74 @@ pub fn send_sanctuary_notification(
     }
 }
 
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct LocalDirectiveSnapshot {
+    pub slug: String,
+    pub file_path: String,
+    pub content: String,
+    pub modified_epoch_ms: u64,
+}
+
+fn resolve_directive_file_path(slug: &str) -> Result<PathBuf, String> {
+    let filename = match slug {
+        "citizen_guide" => "Citizen Guide.md",
+        "phase_roadmap" => "Phase Roadmap.md",
+        "forking_guide" => "Sanctuary OS Forking & Architecture Guide.md",
+        "master_architecture" => "Master Architecture & Feature Document.md",
+        "master_protocols" => "Master Protocol List.md",
+        _ => return Err(format!("Unknown directive slug: {}", slug)),
+    };
+
+    for prefix in ["../../", "../", "./"] {
+        let candidate = PathBuf::from(format!("{}{}", prefix, filename));
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    Ok(PathBuf::from(format!("../../{}", filename)))
+}
+
+#[tauri::command]
+pub fn read_local_directives() -> Result<Vec<LocalDirectiveSnapshot>, String> {
+    let slugs = [
+        "citizen_guide",
+        "phase_roadmap",
+        "forking_guide",
+        "master_architecture",
+        "master_protocols",
+    ];
+    let mut results = Vec::new();
+    for slug in slugs {
+        let path = resolve_directive_file_path(slug)?;
+        if path.exists() {
+            let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            let modified_epoch_ms = std::fs::metadata(&path)
+                .and_then(|m| m.modified())
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            results.push(LocalDirectiveSnapshot {
+                slug: slug.to_string(),
+                file_path: path.to_string_lossy().to_string(),
+                content,
+                modified_epoch_ms,
+            });
+        }
+    }
+    Ok(results)
+}
+
+#[tauri::command]
+pub fn write_local_directive(slug: String, content: String) -> Result<u64, String> {
+    let path = resolve_directive_file_path(&slug)?;
+    std::fs::write(&path, content).map_err(|e| e.to_string())?;
+    let modified_epoch_ms = std::fs::metadata(&path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    Ok(modified_epoch_ms)
+}

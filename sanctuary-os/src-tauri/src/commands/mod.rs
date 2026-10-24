@@ -36,3 +36,5 @@ pub mod cache;
 pub mod game_info;
 pub mod edge_network;
 pub mod supporter;
+pub mod webauthn;
+

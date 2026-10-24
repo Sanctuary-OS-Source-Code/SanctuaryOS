@@ -1632,9 +1632,49 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     ) : recentFeed.length > 0 ? recentFeed.map((item, index) => {
                       const mainKey = item.id || `${item.feed_type}_${index}`;
                       const isFolder = item.feed_type === 'artifact' && (item.isVirtual || item.isParent || item.familyCount > 1);
+                      const chipClass =
+                        "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+
+                      const rawStatus = String(item?.status || "stable").toLowerCase().replace(/_/g, " ").replace(/[^\w\s-]/gi, "").trim();
+                      const statusMeta = (() => {
+                        if (rawStatus === "corrupted" || rawStatus === "broken") {
+                          return { label: t("status_tag_corrupted", "Corrupted"), icon: t("icon_error", "error"), iconColor: "text-[var(--danger)]" };
+                        }
+                        if (rawStatus === "unstable") {
+                          return { label: t("status_tag_unstable", "Unstable"), icon: t("icon_warning", "warning"), iconColor: "text-[var(--warning)]" };
+                        }
+                        if (rawStatus === "under review" || rawStatus === "pending") {
+                          return { label: t("status_tag_under_review", "Under Review"), icon: t("icon_schedule", "schedule"), iconColor: "text-[var(--accent)]" };
+                        }
+                        if (item.feed_type !== 'artifact' || rawStatus === "synced") {
+                          return { label: t("synced_badge", "Synced"), icon: t("icon_cloud_done", "cloud_done"), iconColor: "text-[var(--success)]" };
+                        }
+                        return { label: t("status_tag_stable", "Stable"), icon: t("icon_verified", "verified"), iconColor: "text-[var(--success)]" };
+                      })();
+
+                      const typeBadgeIcon = item.feed_type === 'artifact'
+                        ? (String(item.category_override || item.name || "").toLowerCase().includes("script") ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code"))
+                        : item.feed_type === 'blueprint'
+                          ? t("icon_map", "map")
+                          : item.feed_type === 'lexicon'
+                            ? t("icon_translate", "translate")
+                            : item.feed_type === 'template'
+                              ? t("icon_draw", "draw")
+                              : t("icon_palette", "palette");
+
+                      const typeBadgeColor = item.feed_type === 'artifact' ? "text-[var(--subtext)]" : "text-[var(--accent)]";
+                      const bannerIcon = item.feed_type === 'artifact'
+                        ? (item.isCollection ? t("icon_folder_special", "folder_special") : item.isParent ? t("icon_account_tree", "account_tree") : t("icon_deployed_code", "deployed_code"))
+                        : item.feed_type === 'blueprint'
+                          ? t("icon_map", "map")
+                          : item.feed_type === 'lexicon'
+                            ? t("icon_translate", "translate")
+                            : item.feed_type === 'template'
+                              ? t("icon_draw", "draw")
+                              : t("icon_palette", "palette");
 
                       const renderedCard = (
-                        <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`} onClick={() => {
+                        <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] group ${expandedFolder === mainKey ? 'ring-2 ring-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : ''}`} onClick={() => {
                           if (item.feed_type === 'artifact') {
                             if (onOpenDossier) onOpenDossier({ ...item, isNexusView: true });
                           } else if (item.feed_type === 'blueprint') {
@@ -1648,55 +1688,84 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           }
                         }}>
                           <div
-                            className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-transparent transition-colors duration-700 overflow-hidden"
-                            style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
+                            className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
+                            style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit', background: 'var(--glass-card-banner-bg)' }}
                           >
+                            <div className="absolute top-3 left-3 z-30">
+                              <div className={chipClass}>
+                                <span className={`material-symbols-outlined !text-[12px] ${statusMeta.iconColor}`}>
+                                  {statusMeta.icon}
+                                </span>
+                                <span>{statusMeta.label}</span>
+                              </div>
+                            </div>
                             {(showImages !== false && item.image_url) ? (
                               <img
                                 src={item.image_url}
                                 alt={item.name || item.title}
                                 loading="lazy"
-                                className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                                className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-transform duration-700"
                                 style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
                             ) : (
-                              <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
-                                {item.feed_type === 'artifact' ? (item.isCollection ? 'folder_special' : item.isParent ? 'account_tree' : 'extension') : item.feed_type === 'blueprint' ? 'map' : item.feed_type === 'lexicon' ? 'translate' : item.feed_type === 'template' ? 'draw' : 'palette'}
-                              </span>
+                              <div
+                                className="w-16 h-16 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
+                                style={{
+                                  backgroundColor: 'var(--glass-card-icon-bg)',
+                                  borderColor: 'var(--glass-card-icon-border)',
+                                  boxShadow: 'var(--glass-card-icon-shadow)',
+                                }}
+                              >
+                                <span className="material-symbols-outlined !text-[34px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
+                                  {bannerIcon}
+                                </span>
+                              </div>
                             )}
-
-                            <div className="absolute top-3 right-3 flex gap-2 z-30">
-                              <span className="text-[8px] font-black px-2 py-1 bg-[color-mix(in_srgb,var(--bg)_65%,transparent)] rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] capitalize tracking-widest">
-                                {item.category_override || item.feed_type}
-                              </span>
-                            </div>
                           </div>
 
-                          <div className="p-4 flex flex-col flex-1">
-                            <h3 className="text-[11px] font-black truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                          <div className="p-5 flex flex-col flex-1">
+                            <h3 className="text-[15px] font-bold truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
                               {cleanModName(item.name || item.title || item.id).name}
                             </h3>
                             <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate mb-2">
                               BY {item.master_author || item.author || "Citizen"}
                             </p>
 
-                            <div className="mt-auto pt-3 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative">
-                              <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest pointer-events-auto z-10 w-16">
+                            <div className="flex flex-wrap items-center gap-2 mt-1 mb-3">
+                              <div className={chipClass}>
+                                <span className={`material-symbols-outlined !text-[12px] ${typeBadgeColor}`}>
+                                  {typeBadgeIcon}
+                                </span>
+                                <span className={item.feed_type === 'artifact' ? "text-[var(--subtext)]" : ""}>
+                                  {item.category_override || item.feed_type}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mt-auto pt-3 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative">
+                              <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest pointer-events-auto z-10">
                                 {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
                               </span>
 
-                              <div className="absolute inset-0 rounded-[inherit] flex items-center justify-center pointer-events-none pt-3">
-                                {isFolder && (
-                                  <div className="group/hitbox static flex items-center justify-center gap-2 font-black text-[9px] capitalize tracking-widest text-[var(--subtext)] group-hover/hitbox:text-[var(--text)] transition-colors pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}>
-                                    <div className="absolute inset-0 rounded-[inherit] z-0 pointer-events-auto" />
-                                    <span className="relative z-10 leading-none flex items-center mt-[2px]">{item.familyCount || (item.flavors?.length || 0)} {t("items")}</span>
-                                    <span className={`relative z-10 material-symbols-outlined !text-[14px] transition-transform duration-300 ${expandedFolder === mainKey ? 'rotate-180' : ''}`}>expand_more</span>
-                                  </div>
-                                )}
-                              </div>
-
-                              <span className="text-[9px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 duration-300 pointer-events-auto z-10 w-16 text-right"></span>
+                              {isFolder && (
+                                <button
+                                  type="button"
+                                  className="group/hitbox relative z-20 flex items-center gap-1.5 font-black text-[9px] uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] transition-colors pointer-events-auto cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedFolder((prev: string | null) => prev === mainKey ? null : mainKey);
+                                  }}
+                                >
+                                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                                    {t("icon_account_tree", "account_tree")}
+                                  </span>
+                                  <span>+{item.familyCount || (item.flavors?.length || 0)} {t("badge_modules_count", "Modules")}</span>
+                                  <span className={`material-symbols-outlined !text-[14px] transition-transform duration-300 ${expandedFolder === mainKey ? 'rotate-180 text-[var(--accent)]' : ''}`}>
+                                    {t("icon_expand_more", "expand_more")}
+                                  </span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1728,16 +1797,53 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                     </span>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-4 w-full md:w-auto">
-                                  <div className="relative flex-1 md:w-72">
-                                    <ActionPill
-                                      searchQuery={drawerSearchQuery}
-                                      setSearchQuery={(v: string) => setDrawerSearchQuery(v)}
-                                      searchPlaceholder={t("search_ph")}
+                                <div className="flex items-center gap-3 w-full md:w-auto relative z-30">
+                                  <div
+                                    className="relative flex-1 md:w-72 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center px-3.5 gap-2.5 transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70 shrink-0">
+                                      {t("icon_search", "search")}
+                                    </span>
+                                    <input
+                                      type="text"
+                                      value={drawerSearchQuery}
+                                      onChange={(e) => setDrawerSearchQuery(e.target.value)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onKeyDown={(e) => {
+                                        e.stopPropagation();
+                                        if (e.key === "Escape") setDrawerSearchQuery("");
+                                      }}
+                                      placeholder={t("search_ph", "Search...")}
+                                      className="w-full bg-transparent border-none outline-none text-xs font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50"
                                     />
+                                    {drawerSearchQuery && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDrawerSearchQuery("");
+                                        }}
+                                        className="w-5 h-5 rounded-full flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors shrink-0"
+                                      >
+                                        <span className="material-symbols-outlined !text-[14px]">
+                                          {t("icon_close", "close")}
+                                        </span>
+                                      </button>
+                                    )}
                                   </div>
-                                  <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
-                                    <span className="material-symbols-outlined !text-[24px]">close</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDrawerSearchQuery("");
+                                      setExpandedFolder(null);
+                                    }}
+                                    className="w-10 h-10 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shadow-sm shrink-0 cursor-pointer pointer-events-auto"
+                                  >
+                                    <span className="material-symbols-outlined !text-[20px]">
+                                      {t("icon_close", "close")}
+                                    </span>
                                   </button>
                                 </div>
                               </div>
@@ -1765,30 +1871,52 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                           <div
                                             key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
                                             onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
-                                            className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02]  hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
+                                            className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
                                           >
-                                            <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-transparent transition-colors duration-700 overflow-hidden">
+                                            <div
+                                              className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
+                                              style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit', background: 'var(--glass-card-banner-bg)' }}
+                                            >
                                               {(showImages !== false && flavor.image_url) ? (
                                                 <img
                                                   src={flavor.image_url}
                                                   alt={flavor.name}
                                                   loading="lazy"
-                                                  className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                                                  className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-transform duration-700"
                                                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                                 />
                                               ) : (
-                                                <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
-                                                  {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
-                                                </span>
+                                                <div
+                                                  className="w-12 h-12 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
+                                                  style={{
+                                                    backgroundColor: 'var(--glass-card-icon-bg)',
+                                                    borderColor: 'var(--glass-card-icon-border)',
+                                                    boxShadow: 'var(--glass-card-icon-shadow)',
+                                                  }}
+                                                >
+                                                  <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
+                                                    {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
+                                                  </span>
+                                                </div>
                                               )}
                                             </div>
                                             <div className="p-4 flex flex-col flex-1">
-                                              <h3 className="text-[10px] font-black truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                                              <h3 className="text-xs font-bold truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
                                                 {cleanModName(flavor.name || flavor.id).name}
                                               </h3>
                                               <p className="text-[8px] font-black text-[color-mix(in_srgb,var(--text)_30%,transparent)] capitalize tracking-widest truncate mb-2">
-                                                {flavor.master_author || item.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` \u2022 ${flavor.latest_version || flavor.version}` : ""}
+                                                {flavor.master_author || item.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` • ${flavor.latest_version || flavor.version}` : ""}
                                               </p>
+                                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                <div className={chipClass}>
+                                                  <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                                    {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
+                                                  </span>
+                                                  <span className="text-[var(--subtext)]">
+                                                    {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("card_file_script", "Script") : t("card_file_package", "Package")}
+                                                  </span>
+                                                </div>
+                                              </div>
                                             </div>
                                           </div>
                                         ))}
@@ -1882,105 +2010,144 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   {paginatedResults.map((mod: any, index: number) => {
                     const mainKey = mod.id || `${mod.name}_${index}`;
                     const isFolder = mod.isVirtual || mod.isParent || mod.familyCount > 1;
+                    const chipClass =
+                      "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+
+                    const rawStatus = (mod.status || 'UNVERIFIED').toLowerCase().replace(/[\[\]]/g, "").replace(/_/g, " ").trim();
+                    const statusMeta = (() => {
+                      if (rawStatus === 'broken' || rawStatus === 'corrupted') {
+                        return { label: t("status_tag_corrupted", "Corrupted"), icon: t("icon_error", "error"), iconColor: "text-[var(--danger)]" };
+                      }
+                      if (rawStatus === 'unstable') {
+                        return { label: t("status_tag_unstable", "Unstable"), icon: t("icon_warning", "warning"), iconColor: "text-[var(--warning)]" };
+                      }
+                      if (rawStatus === 'under review' || rawStatus === 'pending') {
+                        return { label: t("status_tag_under_review", "Under Review"), icon: t("icon_schedule", "schedule"), iconColor: "text-[var(--accent)]" };
+                      }
+                      if (rawStatus === 'synced') {
+                        return { label: t("synced_badge", "Synced"), icon: t("icon_cloud_done", "cloud_done"), iconColor: "text-[var(--success)]" };
+                      }
+                      if (rawStatus === 'stable' || rawStatus === 'verified') {
+                        return { label: t("status_tag_stable", "Stable"), icon: t("icon_verified", "verified"), iconColor: "text-[var(--success)]" };
+                      }
+                      if (rawStatus === 'early access') {
+                        return { label: t("badge_early_access", "Early Access"), icon: t("icon_science", "science"), iconColor: "text-purple-400" };
+                      }
+                      if (rawStatus === 'paid') {
+                        return { label: t("badge_paid", "Paid"), icon: t("icon_monetization_on", "monetization_on"), iconColor: "text-amber-400" };
+                      }
+                      return { label: rawStatus.toUpperCase() || t("unverified", "Unverified"), icon: t("icon_science", "science"), iconColor: "text-[var(--accent)]" };
+                    })();
+
+                    const isScriptMod = String(mod.category_override || mod.name || "").toLowerCase().includes("script");
 
                     const renderedCard = (
                       <div
                         key={mainKey}
                         onClick={() => onOpenDossier && onOpenDossier({ ...mod, isNexusView: true })}
-                        className={`relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02]  hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group ${expandedFolder === mainKey ? 'opacity-50 scale-[0.98] grayscale-[0.5] pointer-events-none' : ''}`}
+                        className={`relative flex flex-col h-full glass-panel rounded-2xl transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] group ${expandedFolder === mainKey ? 'ring-2 ring-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : ''}`}
                       >
-                        <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
+                        <div
+                          className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
+                          style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit', background: 'var(--glass-card-banner-bg)' }}
+                        >
+                          <div className="absolute top-3 left-3 z-30">
+                            <div className={chipClass}>
+                              <span className={`material-symbols-outlined !text-[12px] ${statusMeta.iconColor}`}>
+                                {statusMeta.icon}
+                              </span>
+                              <span>{statusMeta.label}</span>
+                            </div>
+                          </div>
                           {(showImages !== false && mod.image_url) ? (
                             <img
                               src={mod.image_url}
                               alt={mod.name}
                               loading="lazy"
-                              className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                              className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-transform duration-700"
                               onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                           ) : (
-                            <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>
-                              {getModIcon(mod, useStore.getState().activeGameSchema, t)}
-                            </span>
-                          )}
-
-                          <div className="absolute top-4 left-4 z-30 pointer-events-auto">
-                            <div className={`backdrop-blur-[3px] border px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-2 transition-all ${(() => {
-                              const s = (mod.status || 'UNVERIFIED').toLowerCase().replace(/[\[\]]/g, "");
-                              if (s === 'stable') return 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_15%,transparent)]';
-                              if (s === 'unstable') return 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]';
-                              if (s === 'broken' || s === 'corrupted') return 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)]';
-                              if (s === 'under review') return 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]';
-                              if (s === 'pending') return 'bg-sky-500/[10%] border-sky-500/[30%] hover:bg-sky-500/[15%]';
-                              if (s === 'early access') return 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]';
-                              if (s === 'paid') return 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)]';
-                              return 'bg-slate-500/[10%] border-slate-500/[30%] hover:bg-slate-500/[15%]';
-                            })()}`}>
-                              <span className={`text-[8px] font-black capitalize tracking-widest ${(() => {
-                                const s = (mod.status || 'UNVERIFIED').toLowerCase().replace(/[\[\]]/g, "");
-                                if (s === 'stable') return 'text-[var(--success)]';
-                                if (s === 'unstable') return 'text-[var(--warning)]';
-                                if (s === 'broken' || s === 'corrupted') return 'text-[var(--danger)]';
-                                if (s === 'under review') return 'text-cyan-400';
-                                if (s === 'pending') return 'text-sky-400';
-                                if (s === 'early access') return 'text-purple-400';
-                                if (s === 'paid') return 'text-amber-400';
-                                return 'text-slate-400';
-                              })()}`}>
-                                {(mod.status || 'UNVERIFIED').replace(/_/g, ' ')}
+                            <div
+                              className="w-16 h-16 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
+                              style={{
+                                backgroundColor: 'var(--glass-card-icon-bg)',
+                                borderColor: 'var(--glass-card-icon-border)',
+                                boxShadow: 'var(--glass-card-icon-shadow)',
+                              }}
+                            >
+                              <span className="material-symbols-outlined !text-[34px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
+                                {getModIcon(mod, useStore.getState().activeGameSchema, t)}
                               </span>
                             </div>
-                          </div>
-
-                          <div className="absolute top-4 right-4 flex gap-2 z-30">
-                            <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] capitalize tracking-widest">
-                              {mod.category_override || t("label_artifact")}
-                            </span>
-                          </div>
-
-                          <div className="absolute bottom-3 right-3 flex items-center gap-2 z-30 pointer-events-auto">
-                            {mod.is_early_access && (
-                              <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-2 py-1 rounded-lg shadow-2xl flex items-center gap-1">
-                                <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
-                                <span className="text-[7px] font-black capitalize tracking-widest text-purple-500">{t("badge_early_access")}</span>
-                              </div>
-                            )}
-                            {mod.is_paid && (
-                              <div className="backdrop-blur-md bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] px-2 py-1 rounded-lg shadow-2xl flex items-center gap-1">
-                                <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
-                                <span className="text-[7px] font-black capitalize tracking-widest text-yellow-500">{t("badge_paid")}</span>
-                              </div>
-                            )}
-                          </div>
+                          )}
                         </div>
 
                         <div className="p-5 flex flex-col flex-1">
-                          <h3 className="text-xs font-black truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                          <h3 className="text-[15px] font-bold truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
                             {cleanModName(mod.name || mod.id).name}
                           </h3>
                           <p className="text-[9px] font-black text-[color-mix(in_srgb,var(--text)_30%,transparent)] capitalize tracking-widest truncate mb-2">
-                            {mod.master_author || t("unknown_mason")}{(mod.latest_version) ? ` \u2022 ${mod.latest_version}` : ""}
+                            {mod.master_author || t("unknown_mason")}{(mod.latest_version) ? ` • ${mod.latest_version}` : ""}
                           </p>
+
+                          <div className="flex flex-wrap items-center gap-2 mt-1 mb-3">
+                            <div className={chipClass}>
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                {isScriptMod ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
+                              </span>
+                              <span className="text-[var(--subtext)]">
+                                {mod.category_override || t("label_artifact")}
+                              </span>
+                            </div>
+
+                            {mod.is_early_access && (
+                              <div className={chipClass}>
+                                <span className="material-symbols-outlined !text-[12px] text-purple-400">
+                                  {t("icon_science", "science")}
+                                </span>
+                                <span>{t("badge_early_access")}</span>
+                              </div>
+                            )}
+                            {mod.is_paid && (
+                              <div className={chipClass}>
+                                <span className="material-symbols-outlined !text-[12px] text-amber-400">
+                                  {t("icon_monetization_on", "monetization_on")}
+                                </span>
+                                <span>{t("badge_paid")}</span>
+                              </div>
+                            )}
+                          </div>
+
                           {mod.description && (
                             <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">
                               {mod.description}
                             </p>
                           )}
 
-                          <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative">
-                            <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest pointer-events-auto z-10 w-20">
-                              {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("date_unknown")}
-                            </span>
-
-                            <div className="absolute inset-0 rounded-[inherit] flex items-center justify-center pointer-events-none pt-4">
-                              {isFolder && (
-                                <div className="group/hitbox static flex items-center justify-center gap-2 font-black text-[9px] capitalize tracking-widest text-[var(--subtext)] group-hover/hitbox:text-[var(--text)] transition-colors pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}>
-                                  <div className="absolute inset-0 rounded-[inherit] z-0 pointer-events-auto" />
-                                  <span className="relative z-10 leading-none flex items-center mt-[2px]">{mod.familyCount || (mod.flavors?.length || 0)} {t("items")}</span>
-                                  <span className={`relative z-10 material-symbols-outlined !text-[14px] transition-transform duration-300 ${expandedFolder === mainKey ? 'rotate-180' : ''}`}>expand_more</span>
-                                </div>
-                              )}
-                            </div>
+                          <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative gap-2">
+                            {isFolder ? (
+                              <button
+                                type="button"
+                                className="group/hitbox relative z-20 flex items-center gap-1.5 font-black text-[9px] uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] transition-colors pointer-events-auto cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedFolder((prev: string | null) => prev === mainKey ? null : mainKey);
+                                }}
+                              >
+                                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                                  {t("icon_account_tree", "account_tree")}
+                                </span>
+                                <span>+{mod.familyCount || (mod.flavors?.length || 0)} {t("badge_modules_count", "Modules")}</span>
+                                <span className={`material-symbols-outlined !text-[14px] transition-transform duration-300 ${expandedFolder === mainKey ? 'rotate-180 text-[var(--accent)]' : ''}`}>
+                                  {t("icon_expand_more", "expand_more")}
+                                </span>
+                              </button>
+                            ) : (
+                              <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest pointer-events-auto z-10">
+                                {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("date_unknown")}
+                              </span>
+                            )}
 
                             {(() => {
                               const isModOrSuiteStaged = isFolder && Array.isArray(mod.flavors) && mod.flavors.length > 0
@@ -2056,16 +2223,53 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-4 w-full md:w-auto">
-                                <div className="relative flex-1 md:w-72">
-                                  <ActionPill
-                                    searchQuery={drawerSearchQuery}
-                                    setSearchQuery={(v: string) => setDrawerSearchQuery(v)}
-                                    searchPlaceholder={t("search_ph")}
+                              <div className="flex items-center gap-3 w-full md:w-auto relative z-30">
+                                <div
+                                  className="relative flex-1 md:w-72 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center px-3.5 gap-2.5 transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70 shrink-0">
+                                    {t("icon_search", "search")}
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={drawerSearchQuery}
+                                    onChange={(e) => setDrawerSearchQuery(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onKeyDown={(e) => {
+                                      e.stopPropagation();
+                                      if (e.key === "Escape") setDrawerSearchQuery("");
+                                    }}
+                                    placeholder={t("search_ph", "Search...")}
+                                    className="w-full bg-transparent border-none outline-none text-xs font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50"
                                   />
+                                  {drawerSearchQuery && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDrawerSearchQuery("");
+                                      }}
+                                      className="w-5 h-5 rounded-full flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors shrink-0"
+                                    >
+                                      <span className="material-symbols-outlined !text-[14px]">
+                                        {t("icon_close", "close")}
+                                      </span>
+                                    </button>
+                                  )}
                                 </div>
-                                <button onClick={() => setExpandedFolder(null)} className="w-12 h-12 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--text)] transition-all shadow-sm shrink-0">
-                                  <span className="material-symbols-outlined !text-[24px]">close</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDrawerSearchQuery("");
+                                    setExpandedFolder(null);
+                                  }}
+                                  className="w-10 h-10 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shadow-sm shrink-0 cursor-pointer pointer-events-auto"
+                                >
+                                  <span className="material-symbols-outlined !text-[20px]">
+                                    {t("icon_close", "close")}
+                                  </span>
                                 </button>
                               </div>
                             </div>
@@ -2093,30 +2297,52 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                         <div
                                           key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
                                           onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
-                                          className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02]  hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
+                                          className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
                                         >
-                                          <div className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
+                                          <div
+                                            className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
+                                            style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit', background: 'var(--glass-card-banner-bg)' }}
+                                          >
                                             {(showImages !== false && flavor.image_url) ? (
                                               <img
                                                 src={flavor.image_url}
                                                 alt={flavor.name}
                                                 loading="lazy"
-                                                className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
+                                                className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-transform duration-700"
                                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                               />
                                             ) : (
-                                              <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
-                                                {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
-                                              </span>
+                                              <div
+                                                className="w-12 h-12 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
+                                                style={{
+                                                  backgroundColor: 'var(--glass-card-icon-bg)',
+                                                  borderColor: 'var(--glass-card-icon-border)',
+                                                  boxShadow: 'var(--glass-card-icon-shadow)',
+                                                }}
+                                              >
+                                                <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
+                                                  {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
+                                                </span>
+                                              </div>
                                             )}
                                           </div>
                                           <div className="p-4 flex flex-col flex-1">
-                                            <h3 className="text-[10px] font-black truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                                            <h3 className="text-xs font-bold truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
                                               {cleanModName(flavor.name || flavor.id).name}
                                             </h3>
                                             <p className="text-[8px] font-black text-[color-mix(in_srgb,var(--text)_30%,transparent)] capitalize tracking-widest truncate mb-2">
-                                              {flavor.master_author || mod.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` \u2022 ${flavor.latest_version || flavor.version}` : ""}
+                                              {flavor.master_author || mod.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` • ${flavor.latest_version || flavor.version}` : ""}
                                             </p>
+                                            <div className="flex flex-wrap items-center gap-1.5 mt-1 mb-2">
+                                              <div className={chipClass}>
+                                                <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                                  {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
+                                                </span>
+                                                <span className="text-[var(--subtext)]">
+                                                  {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("card_file_script", "Script") : t("card_file_package", "Package")}
+                                                </span>
+                                              </div>
+                                            </div>
                                             <div className="mt-auto pt-2 flex justify-end">
                                               <button
                                                 onClick={(e) => {
@@ -2211,40 +2437,36 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       else if (marketTab === 'TEMPLATES') setPreviewAsset({ id: asset.id, type: 'workbench_template' });
                       else if (onOpenDossier) onOpenDossier({ ...asset, isNexusView: true });
                     }}
-                    className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02]  hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
+                    className="relative flex flex-col h-full glass-panel rounded-2xl transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] group"
                   >
-                    <div className="relative z-20 h-40 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_2%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors duration-700 overflow-hidden">
-                      <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '120px' }}>
-                        {marketTab === 'BLUEPRINTS' ? "map" : marketTab === 'CHAMELEONS' ? "palette" : marketTab === 'TEMPLATES' ? "draw" : "translate"}
-                      </span>
-                      <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-30">
-                        {(asset.is_early_access || asset.is_paid) && (
-                          <div className="flex flex-col gap-1.5 items-start">
-                            {asset.is_early_access && (
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-sm shadow-md">
-                                <span className="material-symbols-outlined !text-[10px] text-[#d8b4fe]">science</span>
-                                <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access")}</span>
-                              </div>
-                            )}
-                            {asset.is_paid && (
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-sm shadow-md">
-                                <span className="material-symbols-outlined !text-[10px] text-[#fef08a]">monetization_on</span>
-                                <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[#fef08a]">{t("badge_paid")}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                    <div
+                      className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
+                      style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit', background: 'var(--glass-card-banner-bg)' }}
+                    >
+                      <div className="absolute top-3 left-3 z-30">
+                        <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                            {t("icon_cloud_done", "cloud_done")}
+                          </span>
+                          <span>{t("synced_badge", "Synced")}</span>
+                        </div>
                       </div>
-
-                      <div className="absolute top-4 right-4 flex flex-col items-end gap-2 z-30">
-                        <span className="text-[8px] font-black px-3 py-1.5 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] capitalize tracking-widest shadow-lg">
-                          {marketTab === 'BLUEPRINTS' ? (t("type_blueprint")) : marketTab === 'CHAMELEONS' ? (t("type_theme")) : marketTab === 'TEMPLATES' ? (t("type_template")) : (t("tab_lexicons"))}
+                      <div
+                        className="w-16 h-16 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
+                        style={{
+                          backgroundColor: 'var(--glass-card-icon-bg)',
+                          borderColor: 'var(--glass-card-icon-border)',
+                          boxShadow: 'var(--glass-card-icon-shadow)',
+                        }}
+                      >
+                        <span className="material-symbols-outlined !text-[34px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
+                          {marketTab === 'BLUEPRINTS' ? t("icon_map", "map") : marketTab === 'CHAMELEONS' ? t("icon_palette", "palette") : marketTab === 'TEMPLATES' ? t("icon_draw", "draw") : t("icon_translate", "translate")}
                         </span>
                       </div>
                     </div>
 
                     <div className="p-5 flex flex-col flex-1">
-                      <h3 className="text-xs font-black truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                      <h3 className="text-[15px] font-bold truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
                         {asset.name}
                       </h3>
                       {masonMap[asset.author?.toLowerCase()] ? (
@@ -2259,23 +2481,53 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           {asset.author || "Citizen"}
                         </p>
                       )}
+
+                      <div className="flex flex-wrap items-center gap-2 mt-1 mb-3">
+                        <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                            {marketTab === 'BLUEPRINTS' ? t("icon_map", "map") : marketTab === 'CHAMELEONS' ? t("icon_palette", "palette") : marketTab === 'TEMPLATES' ? t("icon_draw", "draw") : t("icon_translate", "translate")}
+                          </span>
+                          <span>
+                            {marketTab === 'BLUEPRINTS' ? t("type_blueprint") : marketTab === 'CHAMELEONS' ? t("type_theme") : marketTab === 'TEMPLATES' ? t("type_template") : t("tab_lexicons")}
+                          </span>
+                        </div>
+
+                        {asset.is_early_access && (
+                          <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                            <span className="material-symbols-outlined !text-[12px] text-purple-400">
+                              {t("icon_science", "science")}
+                            </span>
+                            <span>{t("badge_early_access")}</span>
+                          </div>
+                        )}
+
+                        {asset.is_paid && (
+                          <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                            <span className="material-symbols-outlined !text-[12px] text-amber-400">
+                              {t("icon_monetization_on", "monetization_on")}
+                            </span>
+                            <span>{t("badge_paid")}</span>
+                          </div>
+                        )}
+                      </div>
+
                       {asset.description && (
                         <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">
                           {asset.description}
                         </p>
                       )}
 
-                      <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative">
-                        <div className="absolute inset-0 rounded-[inherit] flex items-center justify-center pointer-events-none pt-4">
-                          {(asset.isVirtual || asset.isParent || asset.familyCount > 1) && (
-                            <div className="flex items-center justify-center gap-2 font-black text-[9px] capitalize tracking-widest text-[var(--subtext)] group-hover:text-[var(--text)] transition-colors">
-                              <span className="leading-none flex items-center mt-[2px]">{asset.familyCount || (asset.flavors?.length || 0)} {t("items")}</span>
-                              <span className="material-symbols-outlined !text-[14px]">expand_more</span>
-                            </div>
-                          )}
-                        </div>
+                      <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative">
                         <div className="flex flex-col justify-center gap-1.5 relative z-10 pointer-events-auto">
                           <div className="flex flex-col gap-1.5 items-start">
+                            {marketTab === 'BLUEPRINTS' && (asset.json_data?.artifacts?.length || 0) > 0 && (
+                              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
+                                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                                  {t("icon_account_tree", "account_tree")}
+                                </span>
+                                +{asset.json_data.artifacts.length} {t("badge_modules_count", "Modules")}
+                              </span>
+                            )}
                             {asset.created_at && (
                               <span className="flex items-center gap-1 text-[8px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
                                 <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_calendar")}</span>
@@ -2287,7 +2539,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               {asset.downloads || 0} <span className="opacity-70">{t("auto_dl")}</span>
                             </span>
                           </div>
-
                         </div>
                         <div className="flex gap-2">
                           {session?.user?.user_metadata?.username === asset.author && (

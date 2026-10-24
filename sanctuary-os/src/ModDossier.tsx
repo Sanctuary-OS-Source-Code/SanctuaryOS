@@ -1057,17 +1057,22 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
                           </span>
                           <HoverTooltip title={kid.displayName || (kid.name || '').split('/').pop() || ""} variant="default" className="!hidden group-hover/title:!flex z-[100] left-0 bottom-full mb-1" />
                           <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                            <span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest flex items-center gap-1.5 shrink-0 bg-black/20 px-2 py-0.5 rounded-md">
-                              {kid.name?.includes('.') ? (
-                                <>
-                                  <span>{getFileLabel(kid.name, activeGameSchema)}</span>
-                                </>
-                              ) : (
-                                <span>{(kid.type || kid.category_override || t("label_artifact")).toUpperCase()}</span>
-                              )}
-                              <span className="opacity-50">•</span>
-                              <span className="truncate max-w-[140px] capitalize">{kid.mod_versions?.[0]?.version_label || kid.version || t("vlocal")}</span>
-                            </span>
+                            <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                {String(kid.name || "").toLowerCase().includes("ts4script") ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
+                              </span>
+                              <span className="text-[var(--subtext)]">
+                                {kid.name?.includes('.') ? getFileLabel(kid.name, activeGameSchema) : (kid.type || kid.category_override || t("label_artifact")).toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                {t("icon_history", "history")}
+                              </span>
+                              <span className="truncate max-w-[140px]">
+                                {kid.mod_versions?.[0]?.version_label || kid.version || t("vlocal")}
+                              </span>
+                            </div>
 
                             <div className={`backdrop-blur-xl border px-2 py-0.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all shrink-0 ${(() => {
                               const s = (kid.status || "").toLowerCase().replace(/[\[\]]/g, "");
@@ -1140,13 +1145,14 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                           <span className={`text-sm font-black text-[var(--text)] capitalize truncate group-hover:theme-text-accent transition-colors drop-shadow-sm`}>{displayName}</span>
                         </div>
-                        <span className="text-[9px] font-black theme-text-danger capitalize tracking-widest opacity-60 flex items-center gap-2 shrink-0 bg-black/20 px-2 py-0.5 rounded-md">
-                          {match ? t("requirement_essential") : (
-                            <>
-                              {t("vault_missing_artifacts")} <span className="text-xs">{reqUrl ? (t("icon_download")) : (t("icon_search"))}</span>
-                            </>
-                          )}
-                        </span>
+                        <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                          <span className={`material-symbols-outlined !text-[12px] ${match ? "text-[var(--accent)]" : "text-[var(--danger)]"}`}>
+                            {match ? t("icon_extension", "extension") : t("icon_error", "error")}
+                          </span>
+                          <span>
+                            {match ? t("requirement_essential") : t("vault_missing_artifacts")}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
@@ -1160,7 +1166,12 @@ export default function ModDossier({ mod, modList, activePlaySet, onToggleInActi
 
                           <span className={`text-sm font-black text-[var(--text)] capitalize truncate group-hover:theme-text-accent transition-colors drop-shadow-sm`}>{displayName}</span>
                         </div>
-                        <span className="text-[9px] font-black theme-text-accent capitalize tracking-widest opacity-60 shrink-0 bg-black/20 px-2 py-0.5 rounded-md">{t("identity_twin")}</span>
+                        <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                            {t("icon_account_tree", "account_tree")}
+                          </span>
+                          <span>{t("identity_twin")}</span>
+                        </div>
                       </div>
                     );
                   })}

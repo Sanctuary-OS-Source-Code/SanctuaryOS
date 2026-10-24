@@ -1,112 +1,75 @@
-**Sanctuary OS**
-# Master Architecture & Feature Document
+# Sanctuary OS — Master Architecture & Feature Document
 
-**Document Version:** V5.7  
-**Last Updated:** October 17, 2026  
+**Document Version:** V0.5.8-Dev.3  
+**Last Updated:** October 24, 2026  
+**Sync Pipeline:** Synced bidirectionally between `Master Architecture & Feature Document.md` and **Keepers Core -> System Directives (`public.system_directives`)**.
 
-Welcome to Sanctuary OS,
-
-Sanctuary OS is a local-first mod operations layer and desktop middleware for mod ecosystems. It relies on a "no asset hosting / metadata-only / offline-first" philosophy.
+Sanctuary OS is a local-first mod operations layer, desktop middleware, and decentralized Hub-and-Spoke ecosystem built on a strict **"no asset hosting / metadata-only / offline-first / 0% platform tax"** architecture.
 
 ---
 
-## **Technology Stack & Hub-and-Spoke Architecture**
-Sanctuary OS is built on a highly modular, decoupled Hub-and-Spoke architecture:
+## Pillar 1: Core Stack & Zero-Tearing Liquid Glass Engine
 
-- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS v4 (`@layer base` / `@layer utilities` with Frosted Glassmorphism V3).
-- **State Management:** Zustand (Global State, Persistent Hub Actions, & UI Overlays) with automatic `localStorage` quota recovery (`safeLocalStorageSetItem` & `purgeBloatedLocalStorage`).
-- **Desktop Framework:** Tauri V2 (Handles native file-system operations, symlinking, hardlink incremental backups, and multi-format binary/archive scanning in Rust).
-- **Backend / Hub-and-Spoke Databases:**
-  - **Core OS Hub Database (`schema_os.sql`):** Hosts global authentication (`auth.users`), privacy-first user identity (`profiles` restricted to `citizen` and `keeper`), `sanctuary_games` Spoke registry, `keeper_heuristic_signatures`, `keeper_system_broadcasts`, `keeper_dispatch_poll_votes`, and the decoupled `hardware_bans` ledger.
-  - **Game Spoke Databases (`schema.sql`):** Independent, community-owned PostgreSQL instances hosting game-specific `mods`, `masons`, `blueprints`, `conflicts`, `system_broadcasts`, `dispatch_poll_votes`, `heuristic_signatures`, and Spoke `profiles` (storing only `id`, `username`, `role`, and ban flags—zero email or auth credential bleed).
-  - **Edge Gateway & Magic Proxy (`game-gateway` v7 & `src/supabase.ts`):** Secures cross-database mutations without exposing Spoke `supabase_service_key` secrets to the client. Supports turnkey `SANCTUARY-UPLINK://` onboarding (`verify_and_bootstrap_spoke`), live key rotation (`update_spoke_uplink`), and bilateral community severance (`sever_spoke_cord` / "Cut the Cord").
-- **Rust Core Capabilities:** Ultra-fast hardlink snapshot pipelines, native PE executable version extraction (`pelite`), universal multi-format heuristic scanning, and decentralized Static Edge Manifest (`manifest.json` / `override.json`) packaging and polling.
-
----
-
-## **Governance, Turnkey Onboarding & Workspace Roles**
-Sanctuary OS enforces a strict architectural split between Global OS Permissions (`osRole`) and Game Workspace Permissions (`userRole`):
-- **`osRole` (Core OS Hub):** Grants global permissions across the entire OS (`citizen`, `keeper`).
-- **`userRole` (Game Spoke Workspace):** Grants game-specific permissions dynamically evaluated based on the active workspace (`citizen`, `mason`, `architect`, `oversight`, `wayfinder`).
-- **Sanctuary Foundry & Keepers:** The core organization and developers maintaining the Sanctuary OS platform, global schemas, `keeper_heuristic_signatures`, and the `game-gateway` Edge infrastructure.
-- **Wayfinders:** Community Managers with full administrative sovereignty over their Game Spoke. Wayfinders manage the full Spoke Identity Matrix, initiate DEFCON events, broadcast via The Dispatch (with built-in telemetry headers and interactive polls), rotate Spoke credentials, and hold unilateral authority to **Cut the Cord** (`secure_sever_spoke_cord`) to sever their Spoke database from the Hub at any time.
-- **Oversight:** System Administrators who manage Spoke compliance, Spoke Heuristic Signatures, Game/DLC patch registration, and Spoke Identity Matrix roles up to `architect`.
-- **Architects:** System moderators responsible for maintaining the Conflict Matrix, reviewing the **Verified Mason Queue** fast-lane and the **Scout Queue** (gated by the `min_scout_submissions` crowd-sourced threshold), and resolving Citizen Support Desk tickets.
-- **Masons (Verified & Open Workshop Tiers):** Mod Creators. All authenticated Citizens can access the local **Open Mason Workshop** (`Sandbox`, `IDE`, `Chameleons`, `Notepad`, and `Export Release` for static `manifest.json`/`override.json` packaging), while **Verified Masons** unlock direct Nexus asset publishing and the Verified Mason Queue fast-lane.
-- **Citizens:** The core population. Everyday players who curate Blueprints, vote in Dispatch Polls, perform field-testing, and provide crowdsourced telemetry.
+Sanctuary OS pairs a native Rust systems backend with a 60+ FPS reactive glassmorphic UI:
+- **Frontend Runtime (`React 18 + TypeScript + Vite + Tailwind CSS v4`):**
+  - **Zero-Tearing Liquid Glass Optics Engine (`v0.5.8-Dev.3`):** Continuous 3D wallpaper refraction across scrolling views (`Vault`, `Nexus`, `Command Center`, `Workbench`) using `.glass-panel`, `.glass-surface`, and `.portal-glass-fix` with zero tile seams or dark slate rings across both Dark and Light themes.
+  - **6 Live Theme Forge Optical Sliders:** Real-time control over **Glass Opacity**, **Refractive Blur**, **Refractive Saturation**, **Rim Light Intensity**, **Specular Glare**, and **Elevation Depth**, paired with an interactive multi-stop Background Builder and Holo Sandbox.
+  - **Single Morphing Status Pill (`SystemStatusBar.tsx`):** Consolidates the Status Bar, Notification Dock, and Main Dock into a single centered, auto-tucking Liquid Glass pill that adapts dynamically between the **Foundry Landing Page** (Web quick-scroll mode) and **Mounted Game Workspaces** (Radar Sweep, Vault Lockdown, Blueprint Swap, and live alert counters).
+- **State & Lexicon Engine (`Zustand + Lexicon Protocol`):**
+  - Global state management with automatic `localStorage` quota protection (`safeLocalStorageSetItem` & `purgeBloatedLocalStorage`).
+  - Zero hardcoded text strings: 100% of labels, icons, and messages route through `useLexicon()` across **Standard English (`en-default.json`)**, **Sanctuary Sci-Fi (`en-sanctuary.json`)**, **Sims Friendly (`en-sims.json`)**, and **Simlish (`Simlish.json`)**.
+- **Native Desktop Engine (`Tauri v2 + Rust`):**
+  - Multi-threaded SHA-256 DNA hashing (`generate_full_dna_hash`), SQLite mtime-first delta caching (`.sanctuary_cache.db`), native PE executable version extraction (`pelite`), symlink projection, hardlink incremental backups (`.tar.zst`), multi-format heuristic scanning, WebAuthn/FIDO2 native bridge, silent in-app update streaming (`download_and_install_update`), and bilateral codebase `.md` directive synchronization (`read_local_directives` / `write_local_directive`).
 
 ---
 
-## **Vault Storage, Sanitize 2.0 & Decentralized Static Edge Polling**
-The Vault acts as a secure, containerized archive that is never touched directly by the game engine.
-- **Nested Hierarchy:** The Vault automatically deploys and enforces a strict path hierarchy:
-  - `Backups/World` (Purple State) & `Backups/Engine` (Pink State)
-  - `Data/Cache` (`.sanctuary_cache.db` SQLite delta & edge lineage cache)
-  - `Blueprints/`
-  - `Quarantine/`
-  - `Mods/` (The secure storage of artifacts)
-- **Vault Sanitization:**
-  - **Infrastructure Enforcement:** Instantly verifies and re-generates missing core directories.
-  - **Backup Vacuuming:** Automatically detects stray `.zst` backup archives dropped in the root of the Vault and files them into `Backups/World`.
-  - **Dead Folder Sweeping:** Recursively scans your active Library to prune empty directories left behind by uninstalls or file movements.
-  - **Filename Sanitization:** Automatically cleans messy filenames into human-readable display titles.
+## Pillar 2: Hub, Spokes & Decentralized Static Edge Architecture
+
+Sanctuary OS eliminates centralized lock-in by separating global identity from community-owned game databases and creator-owned static manifests:
+- **Core OS Hub Database (`schema_os.sql` — Project `tpsbtaqxlczrysqqmanp`):**
+  - Governed by **Keepers Core**. Hosts global SSO authentication (`auth.users`), privacy-first `profiles` (`citizen` | `keeper`), `user_passkeys` (FIDO2 hardware/biometric bindings), `hardware_bans` (decoupled Nuclear Override ledger), `sanctuary_games` (Spoke directory), `sanctuary_schemas`, `system_directives` (bidirectionally synced with repository `.md` files), `keeper_heuristic_signatures`, and `keeper_system_broadcasts`.
+- **Community Game Spoke Databases (`schema.sql` — 36 Tables):**
+  - 100% owned and hosted by each game community's **Wayfinder**. Stores game-specific `profiles` (storing only `id`, `username`, 5-tier Spoke `role`, and ban flags—zero email or password bleed), `mods`, `mod_versions`, `masons`, `blueprints`, `collections`, `conflicts`, `scout_suggestions`, `heuristic_signatures`, `system_broadcasts`, `dispatch_poll_votes`, `sanctuary_tickets`, and append-only `audit_logs`.
+- **Edge Gateway (`game-gateway`) & Single-File Standalone Fork (`src/supabase.ts`):**
+  - In **Hub-and-Spoke Mode**, cross-database mutations route through `game-gateway` so Spoke `supabase_service_key` secrets are never exposed to clients. Supports 1-click `SANCTUARY-UPLINK://` onboarding (`verify_and_bootstrap_spoke`) and unilateral **"Cut the Cord"** bilateral severance (`sever_spoke_cord`).
+  - In **Standalone Fork Mode**, editing only `SANCTUARY_CONFIG` in `src/supabase.ts` routes all `secure_*` RPCs directly against a single `schema.sql` database with zero Edge Functions or Hub dependencies.
 - **Decentralized Static Edge Polling (`manifest.json` & `override.json`):**
-  - Creators can export releases from `MasonSandbox` or `ModDossier` (`export_edge_release`), generating a `<mod>_v<version>.zip` bundle alongside a static `manifest.json` and `override.json`.
-  - When a Citizen ingests a mod containing `override.json` (or manually links a `manifest_url` in the Local Dossier), Sanctuary binds the mod's SHA-256 lineage (`target_hash`, `archive_hashes`, `previous_hashes`) in `.sanctuary_cache.db`.
-  - During Radar Sweeps and boot checks, Sanctuary polls registered `manifest_url` endpoints via HTTP `GET`, surfacing update alerts and injecting creator `atomic_logic` (`required_dlc`, `dependencies`, `addons`, `twins`, `flavors`, `conflicts`) directly into the local Conflict Radar with zero centralized database dependency.
-- **Local Override Layer:** The Mod Dossier is completely decoupled from the Cloud for local customization. Users can natively edit Mod Names, Authors, URLs, Static Manifest URLs, Cover Images, and Custom Tags.
-- **The Scout Dossier:** Unidentified artifacts can be submitted to the community Scout Queue or permanently marked `FLAG AS LOCAL` to opt out of global syncs.
-- **Download Interception:** The Integrated Side Browser automatically intercepts mod downloads (`.zip`, `.package`, `.ts4script`, `.rar`, `.7z`, `.tar.zst`, `override.json`) and routes them directly into the Vault.
+  - Creators can export self-contained releases (`export_edge_release`) containing `<mod>_v<version>.zip`, `manifest.json` (version, changelog, SHA-256 hash lineage, `atomic_logic`), and `override.json`. Sanctuary polls creator HTTP endpoints directly during Radar Sweeps—delivering update alerts and conflict/dependency rules with zero database dependency.
 
 ---
 
-## **The Airgap, Cartographer & Dynamic Load Order Engine**
-Sanctuary OS acts as a deeply integrated middleware operating system rather than a simple file manager.
-- **The Cartographer:** Automated reconnaissance system that locates the Game Bin and Mods directory on first boot.
-- **Symlink Air Gap 2.5:** Projects artifacts into the game's live directory via high-speed symlinks, ensuring zero data bloat in the game's live folder.
-- **Schema-Driven Load Order Engine (`compileLoadOrder`):**
-  - Declaratively configured per game via the Master Schema's `load_order` block (`strategy` and `priority_tiers`).
-  - Supports `"folder_priority"` (generating dynamic `Resource.cfg` files and routing winners across multi-tier override directories), `"manifest_list"` (writing ordered `loadorder.txt` / `plugins.txt` manifests), `"numeric_prefix"` (`{index:03}_`), and `"timestamp"`.
-  - Features a topological sort and DFS cycle-detection compiler that resolves directional dependency rules (`Must Load After` / `Must Load Before`) alongside **Casual Mode** (1-click "Pick a Winner") and **Advanced Mode** (interactive **Quick Rule Builder**, **Break Loop** cycle resolution, and **Priority Tier** pills).
-- **Engine Version Recognition:** Natively extracts genuine patch version metadata directly from the active game executable (`.exe` PE headers) using an in-process Rust PE parser (`pelite`), falling back to schema-defined `.ini` manifests when needed.
-- **Dynamic Config Watcher:** A non-blocking background watcher monitors the game path for changes to `.cfg`, `.ini`, and `.json` files, automatically syncing them back to the Vault.
+## Pillar 3: Vault Airgap, Dynamic Load Order, Workbench & Homestead Lab
+
+Sanctuary OS operates as an airgapped middleware layer between mod archives and the live game engine:
+- **Symlink Airgap 2.5 & Vault Sanitizer:**
+  - Enforces a sterile directory hierarchy inside the Vault (`Mods/`, `Blueprints/`, `Backups/World/`, `Backups/Engine/`, `Quarantine/`, `Data/Cache/`) and projects active mods into the game's live folder via high-speed symlinks.
+  - Multi-part mod suites (such as *MC Command Center* and its submodules) coalesce automatically into a single parent card with an expandable `{N} Linked Modules` drawer.
+- **Schema-Driven Load Order Compiler (`compileLoadOrder`):**
+  - Driven declaratively by the active game's `sanctuary_schemas` definition (`folder_priority` with dynamic `Resource.cfg` and `Sanctuary1`–`Sanctuary3` override tiers, `manifest_list` for `loadorder.txt`/`plugins.txt`, `numeric_prefix`, or `timestamp`).
+  - Combines topological sorting and DFS cycle detection with **Casual Mode** (1-click "Pick a Winner" for Severity 3 Tuning Overlaps) and **Advanced Mode** (directional `Must Load After`/`Before` rules and 1-click **Break Loop**).
+- **Atomic Logic Engine:**
+  - Enforces **The Highlander Rule** (Flavor eviction), **Nuclear Family Cohesion** (bidirectional `.package` + `.ts4script` Twins), **Recursive Chain-Link Dependencies**, **Deep Yeet 2.0 Delete Cascades**, and **DLC/Version Ghosting**.
+- **Reimagined Citizen's Workbench & Unified 3-Tile Artifact Studio (`v0.5.8-Dev.3`):**
+  - **Citizen's Workbench:** 60 FPS 2-column Visual Config Editor for 430+ setting `.cfg`/`.ini`/`.json` files, 1-click Category Pill Bar, dual `Min`/`Max` range steppers, No-Code Visual Template Builder, and a **2-Column Interactive Timeline & Diff Workspace** (Visual Diff + Raw Monaco Diff).
+  - **Unified 3-Tile Artifact Studio:** Standardized across both the **Mason Workshop** and **Architect Console** (`Details & Versions`, `Files & Folders`, and `Rules & Upload`).
+- **Homestead Lab & Time Capsule:**
+  - **Homestead Lab:** 100% Nuke symlink isolation and 1v1 Conflict Stability testing with real-time exception log capture and PII scrubbing.
+  - **Time Capsule:** Incremental hardlink snapshots for **World State** (Saves/Settings) and **Engine Core** (Game Binaries) with differential rollback restoration.
 
 ---
 
-## **Atomic Logic & Conflict Management**
-The Nexus Database and Static Edge Manifests use SHA-256 DNA signatures to handle complex mod interactions through Atomic Logic:
-- **The Highlander Rule:** Automatically evicts rival mods when equipping a specific "Flavor" of an artifact.
-- **Nuclear Family Cohesion (Twins):** Bidirectional logic ensures that equipping a script file automatically pulls in its companion package file.
-- **Recursive Dependencies (Chain-Link):** Equipping an Addon auto-equips its Master record or prompts the Citizen to locate missing dependencies on The Nexus.
-- **Deep Yeet 2.0 (Cascade Removal):** Removing a Master mod alerts the user and queues all downstream dependent artifacts for removal.
-- **Conflict Severity 1–4 Collisions:** Categorizes collisions from Severity 1 (Minor Overlap) and Severity 2 (Duplicate File) up to Severity 3 (Tuning Overlap resolved via Load Order winners) and Severity 4 (Fatal Engine Clash).
-- **DLC Ghosting:** Mod cards automatically cross-reference owned/masked DLC and enter a "Ghosted" state with diagnostic hovertips if requirements are missing.
-- **The Copilot Philosophy:** The system identifies cascades and conflicts, but always halts for a Citizen's Signature before executing destructive actions.
+## Pillar 4: 6-Tier Governance, FIDO2 Passkey Vault & Malware Lockdown
 
----
-
-## **Testing, Diagnostics & Time Capsule**
-- **Homestead Diagnostics:**
-  - **100% Nuke Injection:** Wipes active symlinks and injects only the isolated test subjects and their mandatory dependencies.
-  - **1v1 Stability Protocol:** Pits two conflicting mods against each other while monitoring engine crash logs in real time.
-- **Time Capsule:**
-  - **Dual Snapshots:** Independently snapshots Game Saves (`World State`) and Core Binaries (`Engine Core`).
-  - **Hardlink-Based Incremental Backups:** Unchanged files are linked via native OS hardlinks rather than duplicated, yielding near-instant, minimal-footprint backups.
-  - **Differential Rollback Safety:** Intelligently compares the live state to the backup snapshot, removing rogue files and restoring modified data with 100% timeline integrity.
-
----
-
-## **Security, Dual-Tier Heuristics & The Nuclear Override**
-- **Compliance Tiers 0–4:** Tier 0 artifacts are public-safe. Tiers 1–4 (Explicit, Illicit, Extreme Violence, Taboo) are permitted in local Vaults but scrubbed from public Nexus feeds and automatically purged from Cloud Blueprints (`trg_purge_flagged_hash_from_blueprints`). Tiers 3–5 trigger a **Vault Lock** restricting support ticket submissions, while Tiers 1–2 remain eligible for support with automated "Dirty Log" sanitization.
-- **Dual-Tier Multi-Format Heuristic Scanner & Tier 5 Malware:**
-  - Merges **Core Heuristics** (`keeper_heuristic_signatures`) and **Spoke Heuristics** (`heuristic_signatures`) to inspect ZIP containers (`.zip`, `.ts4script`, `.jar`, `.pak`), raw binary windows (`.package`, `.dll`, `.asi`, `.exe`), UTF-16LE wide strings, and compiled Python `.pyc`/`.pyo` bytecode symbol chains.
-  - Confirmed Tier 5 Malware triggers a **Zero-Choice Lockdown** and prompts for an explicit Citizen's Signature to execute a **Secure Shred** (destructive byte-level overwrite and removal via Rust).
-- **The Nuclear Override & `hardware_bans`:** Clicking the System Preferences subtitle 5 times reveals the Nuclear Override. Engaging it records the user's hardware signature hash into the decoupled `hardware_bans` table on the Core OS Hub (and syncs the ban across Spokes via `secure_sync_hub_ban_to_spokes`), permanently severing cloud access without tracking hardware IDs on normal users.
-
----
-
-## **Interface, Glassmorphism V3 & Lexicon Framework**
-- **Chameleon Protocol & Glassmorphism V3:** Authentic frosted glass material architecture (`.glass-panel`, `.glass-surface`, and `.portal-glass-fix` with directional specular borders, deep backdrop blur, and an interactive Background Builder + live Holo Sandbox).
-- **Lexicon Protocol (Word-as-a-Service):** Zero hardcoded strings. All UI copy and icons route through dynamic JSON dictionaries (`en-default.json`, `en-sanctuary.json`, `en-sims.json`, `Simlish.json`) with automatic `localStorage` quota protection.
-- **Built-In Dispatch Metadata Header & Interactive Polls:** System Dispatches from Keepers and Wayfinders automatically render a 2x2 glassmorphic telemetry header (`Alert Type`, `Affected Target` with hover list, `Severity`, and `Action Required`) and support live single-choice or multi-choice community polls (`dispatch_poll_votes` & `keeper_dispatch_poll_votes`).
-- **Standardized Navigation & Side Panels:** All 7 primary views and 5 Elevated Hubs use `StatTileCarousel` + `DashboardStatTile` navigation, `ElevatedHubLayout`, `UniversalCard`, persistent `hubActions` in `ActionPill` (`Notepad`, `Mason Settings`, `View Profile`, `Check Hash`), and top-right `SidePanel` `headerActions`.
+Security and governance are enforced across 6 clearance tiers and hardware-backed security gates:
+- **6-Tier Clearance Hierarchy:**
+  1. **Tier 1 — Citizen (`citizen`):** Full access to all 9 Citizen modules **plus inherited access to the local Open Mason Workshop** (`Sandbox`, `IDE`, `3-Tile Artifact Studio`, `Theme Forge`, `Notepad`, `Export Release`) and Scout Queue submissions.
+  2. **Tier 2 — Verified Mason (`mason` / `isVerifiedMason`):** Direct Nexus artifact publishing, Verified Mason Queue fast-lane, Public Mason Profile showcase, and 0%-cut Supporter Bridge.
+  3. **Tier 3 — Architect (`architect`):** Global Registry curation, Verified Mason & Scout Queue triage (`min_scout_submissions`), global Conflict Matrix directives, `Check Hash` deep scan utility, and Citizen Support Desk.
+  4. **Tier 4 — Oversight (`oversight`):** Spoke Heuristic Signatures management, Tier 5 Malware flagging, Emergency DEFCON 1 triggers, Game/DLC patch registration, and Spoke Identity Matrix governance (up to Architect).
+  5. **Tier 5 — Wayfinder (`wayfinder`):** Full Spoke Sovereignty, Identity Matrix governance (up to Wayfinder), `SANCTUARY-UPLINK://` management, unilateral **"Cut the Cord"** severance, and **The Dispatch** (with 2x2 telemetry headers & community polls).
+  6. **Tier 6 — Keeper (`keeper` on Core Hub):** Global OS Hub governance, Turnkey Spoke Onboarding, Core Heuristics (`keeper_heuristic_signatures`), Master Schemas, Global Lexicons/Chameleons, Bilateral System Directives Sync, and Global Audit Logs.
+- **FIDO2 Passkey & TOTP Security Vault (`SecurityVaultSidePanel`):**
+  - Elevated clearances (`Verified Mason` through `Keeper`) require a bound FIDO2 Passkey (Windows Hello, Touch ID, YubiKey) or TOTP authenticator. Unverified sessions lock only the Elevated Hub view behind the right-hand `SecurityVaultSidePanel` while keeping Citizen views accessible.
+- **Dual-Tier Heuristic Scanner & Full-OS Quarantine SidePanel Lockdown (`MalwareAlertModal`):**
+  - Merges **Core Heuristics** (Keepers) and **Spoke Heuristics** (Oversight) to inspect ZIP containers, raw binaries, UTF-16LE strings, and compiled `.pyc`/`.pyo` bytecode symbol chains, with an asynchronous queue so back-to-back malware drops never freeze the UI.
+  - Confirmed Tier 5 Malware locks the **entire OS shell** (Sidebar, Top Bar, and Dock) and opens the right-hand **Quarantine Lockdown SidePanel** displaying the exact **Triggered By** rule (Known Hash vs. Heuristic Hit reason), **Detection Source** (`Spoke Registry • <Game>` or `Sanctuary Foundry`), optional **Anonymous Manifest Upload**, and a Citizen-signed glass-red **Secure Shred** button.

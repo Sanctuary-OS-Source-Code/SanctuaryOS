@@ -70,9 +70,12 @@ export function ThemeCard({
       subtitle={label}
       statusColor={isActive || isDev ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)]" : undefined}
       badges={isActive || isDev ? [
-        <span key="active" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
-          {t("status_active")}
-        </span>
+        <div key="active" className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+          <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+            {t("icon_check_circle", "check_circle")}
+          </span>
+          <span>{t("status_active")}</span>
+        </div>
       ] : []}
       actions={removeAction}
     />

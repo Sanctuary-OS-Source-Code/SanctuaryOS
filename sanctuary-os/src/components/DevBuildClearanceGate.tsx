@@ -164,7 +164,8 @@ export function DevBuildClearanceGate() {
                 label={t("dev_gate_btn_signin", "Sign In to Verify Account")}
                 onClick={() => {
                   localStorage.setItem("sanctuary_show_login", "true");
-                  window.location.reload();
+                  localStorage.removeItem("sanctuary_login_bypassed");
+                  window.dispatchEvent(new CustomEvent("sanctuary-open-login"));
                 }}
                 className="w-full justify-center py-3.5"
               />
@@ -202,7 +203,8 @@ export function DevBuildClearanceGate() {
                 label={t("dev_gate_btn_signin", "Sign In to Verify Account")}
                 onClick={() => {
                   localStorage.setItem("sanctuary_show_login", "true");
-                  window.location.reload();
+                  localStorage.removeItem("sanctuary_login_bypassed");
+                  window.dispatchEvent(new CustomEvent("sanctuary-open-login"));
                 }}
               />
             </div>

@@ -101,12 +101,18 @@ export function HeuristicsReadOnlyList({
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <span className={`text-[9px] font-black capitalize tracking-widest px-2.5 py-1 rounded-lg border ${scope === "core" ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_25%,transparent)]" : "text-[var(--subtext)] bg-black/5 dark:bg-white/5 border-black/5 dark:border-white/5"}`}>
-                      {scope === "core" ? (t("core_os_badge") || "Core OS") : (t("spoke_badge") || "Spoke")}
-                    </span>
-                    <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 px-2.5 py-1 rounded-lg">
-                      {sig.id?.substring(0, 8) || 'GLOBAL'}
-                    </span>
+                    <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                      <span className={`material-symbols-outlined !text-[12px] ${scope === "core" ? "text-[var(--accent)]" : "text-[var(--warning)]"}`}>
+                        {scope === "core" ? (t("icon_shield_lock") || "shield_lock") : (t("icon_bug_report") || "bug_report")}
+                      </span>
+                      <span>{scope === "core" ? (t("core_os_badge") || "Core OS") : (t("spoke_badge") || "Spoke")}</span>
+                    </div>
+                    <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                        {t("icon_fingerprint", "fingerprint")}
+                      </span>
+                      <span className="text-[var(--subtext)]">{sig.id?.substring(0, 8) || 'GLOBAL'}</span>
+                    </div>
                   </div>
                 </div>
 

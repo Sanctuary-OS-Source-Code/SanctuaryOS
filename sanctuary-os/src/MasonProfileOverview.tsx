@@ -6,7 +6,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
   const blueprintAssets = (marketAssets || []).filter((a: any) => a.asset_type === 'blueprint');
   const nonBlueprintAssets = (marketAssets || []).filter((a: any) => a.asset_type !== 'blueprint');
 
-  const glassBadgeBase = "glass-surface bg-[color-mix(in_srgb,var(--text)_6%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] text-[var(--text)]";
+  const glassBadgeBase = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
   return (
     <div className="flex flex-col gap-8 w-full h-full overflow-y-auto custom-scrollbar content-start p-4 pb-32">

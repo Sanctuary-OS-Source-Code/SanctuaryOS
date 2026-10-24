@@ -1,49 +1,71 @@
-import React, { useState, useEffect } from 'react';
-import { useStore, syncMasterSchemas } from '../store';
+import React, { useState, useEffect } from "react";
+import { useStore, syncMasterSchemas } from "../store";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
-import { supabase } from '../supabase';
-import { SidePanel, EmptyState, ActionPill } from "../shared";
+import { supabase } from "../supabase";
+import {
+  SidePanel,
+  EmptyState,
+  ActionPill,
+  DashboardStatTile,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  HoverTooltip,
+} from "../shared";
 import { isDesktop } from "../utils/envUtils";
 
-export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function WorkspaceSidePanel({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
   const { t } = useLexicon();
   const workspaces = useStore((state) => state.workspaces);
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
   const setIsConfigured = useStore((state) => state.setIsConfigured);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const view = useStore((state) => state.view);
+  const setView = useStore((state) => state.setView);
 
   const [globalGames, setGlobalGames] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterMode, setFilterMode] = useState<"all" | "pinned">("all");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
 
   useEffect(() => {
     try {
-      const storedPins = localStorage.getItem('sanctuary_pinned_workspaces');
+      const storedPins = localStorage.getItem("sanctuary_pinned_workspaces");
       if (storedPins) {
         setPinnedIds(JSON.parse(storedPins));
       }
-    } catch (e) { }
+    } catch (e) {}
   }, []);
 
   const togglePin = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     let newPins = [...pinnedIds];
     if (newPins.includes(id)) {
-      newPins = newPins.filter(p => p !== id);
+      newPins = newPins.filter((p) => p !== id);
     } else {
       newPins.push(id);
     }
     setPinnedIds(newPins);
-    localStorage.setItem('sanctuary_pinned_workspaces', JSON.stringify(newPins));
+    localStorage.setItem("sanctuary_pinned_workspaces", JSON.stringify(newPins));
   };
 
   useEffect(() => {
     if (!isOpen) return;
     const fetchGames = async () => {
       setIsLoading(true);
-      const { data } = await supabase.from('sanctuary_games').select('id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor').order('name');
+      const { data } = await supabase
+        .from("sanctuary_games")
+        .select(
+          "id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor"
+        )
+        .order("name");
       if (data) setGlobalGames(data);
       setIsLoading(false);
     };
@@ -51,25 +73,42 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
   }, [isOpen]);
 
   const selectWorkspace = async (workspace: any) => {
-    if (workspace.id === activeWorkspaceId) return;
-    
+    if (workspace.id === activeWorkspaceId) {
+      setIsConfigured(true);
+      if (view === "landing") {
+        setView("dashboard");
+      }
+      onClose();
+      return;
+    }
+
     let globalConfig: any = null;
-    // Attempt Tauri desktop specific config updates
     try {
       if (isDesktop()) {
         globalConfig = await invoke("get_global_config");
         globalConfig.active_workspace_id = workspace.id;
-        
+
         if (globalConfig.workspaces) {
-          const defaultWs = globalConfig.workspaces.find((w: any) => w.id === 'default_workspace');
+          const defaultWs = globalConfig.workspaces.find(
+            (w: any) => w.id === "default_workspace"
+          );
           if (defaultWs && defaultWs.schema_id) {
-             defaultWs.id = defaultWs.schema_id;
-             if (globalConfig.active_workspace_id === 'default_workspace') {
-               globalConfig.active_workspace_id = defaultWs.schema_id;
-             }
+            defaultWs.id = defaultWs.schema_id;
+            if (globalConfig.active_workspace_id === "default_workspace") {
+              globalConfig.active_workspace_id = defaultWs.schema_id;
+            }
           }
-          if (!globalConfig.workspaces.find((w: any) => w.id === globalConfig.active_workspace_id)) {
-            const cloned = { ...globalConfig.workspaces[0], id: globalConfig.active_workspace_id, schema_id: workspace.schema_id || globalConfig.active_workspace_id };
+          if (
+            !globalConfig.workspaces.find(
+              (w: any) => w.id === globalConfig.active_workspace_id
+            )
+          ) {
+            const cloned = {
+              ...globalConfig.workspaces[0],
+              id: globalConfig.active_workspace_id,
+              schema_id:
+                workspace.schema_id || globalConfig.active_workspace_id,
+            };
             globalConfig.workspaces.push(cloned);
           }
         }
@@ -79,52 +118,68 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
       console.error("Desktop config save failed:", err);
     }
 
-    const safeActiveId = globalConfig?.active_workspace_id || (workspace.id === 'default_workspace' && workspace.schema_id ? workspace.schema_id : workspace.id);
+    const safeActiveId =
+      globalConfig?.active_workspace_id ||
+      (workspace.id === "default_workspace" && workspace.schema_id
+        ? workspace.schema_id
+        : workspace.id);
 
-    // Always apply these state updates and resets
-    localStorage.setItem('sanctuary_last_active_workspace', safeActiveId);
+    localStorage.setItem("sanctuary_last_active_workspace", safeActiveId);
     useStore.getState().hydrateWorkspaceState(safeActiveId);
     if (workspace.schema_id) {
-        syncMasterSchemas(workspace.schema_id).catch(console.warn);
+      syncMasterSchemas(workspace.schema_id).catch(console.warn);
     }
     setActiveWorkspaceId(safeActiveId);
     setIsConfigured(true);
+    if (view === "landing") {
+      setView("dashboard");
+    }
     onClose();
-    
-    // Reload if desktop, otherwise just let the store hydration handle it
+
     if (isDesktop()) {
       setTimeout(() => window.location.reload(), 300);
     } else {
-      setTimeout(() => window.location.href = '/' + safeActiveId, 300);
+      setTimeout(() => (window.location.href = "/" + safeActiveId), 300);
     }
   };
 
   const activeGames = globalGames.filter((g: any) => g.is_active !== false);
 
-  let cards: any[] = [];
+  const cards: any[] = [];
   activeGames.forEach((game: any) => {
-    const gameWorkspaces = workspaces.filter((ws: any) => ws.schema_id === game.schema_id);
+    const gameWorkspaces = workspaces.filter(
+      (ws: any) => ws.schema_id === game.schema_id
+    );
     gameWorkspaces.forEach((ws: any) => {
-      cards.push({ type: 'workspace', workspace: ws, game });
+      cards.push({ type: "workspace", workspace: ws, game });
     });
   });
 
   // Fallback for local workspaces that don't have a matching active game from Supabase
   workspaces.forEach((ws: any) => {
-    if (!cards.find(c => c.workspace.id === ws.id)) {
+    if (!cards.find((c) => c.workspace.id === ws.id)) {
       cards.push({
-        type: 'workspace',
+        type: "workspace",
         workspace: ws,
-        game: { name: ws.name || ws.id, schema_id: ws.schema_id }
+        game: { name: ws.name || ws.id, schema_id: ws.schema_id },
       });
     }
   });
 
+  const pinnedCount = cards.filter((c) =>
+    pinnedIds.includes(c.workspace.id)
+  ).length;
+
   const filteredCards = cards.filter((c: any) => {
+    if (filterMode === "pinned" && !pinnedIds.includes(c.workspace.id)) {
+      return false;
+    }
     const search = searchQuery.toLowerCase();
-    return (c.workspace.name || c.workspace.id).toLowerCase().includes(search) ||
-      (c.game.name || '').toLowerCase().includes(search) ||
-      (c.workspace.schema_id || '').toLowerCase().includes(search);
+    return (
+      (c.workspace.name || c.workspace.id).toLowerCase().includes(search) ||
+      (c.game.name || "").toLowerCase().includes(search) ||
+      (c.workspace.schema_id || "").toLowerCase().includes(search)
+    );
   });
 
   // Sort: pinned first, then active, then alphabetical
@@ -148,98 +203,255 @@ export function WorkspaceSidePanel({ isOpen, onClose }: { isOpen: boolean; onClo
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("workspace_sidebar")}
-      subtitle={t("workspace_select_subtitle")}
-      icon={t("icon_view_quilt")}
-      widthClass="w-[700px]"
+      title={t("workspace_sidebar", "Workspaces")}
+      subtitle={t("workspace_select_subtitle", "Select Your Workspace")}
+      icon={t("icon_view_quilt", "view_quilt")}
+      widthClass="w-full md:w-[680px]"
       backdropZ="z-[100000]"
       panelZ="z-[100001]"
-    >
-      <div className="flex flex-col h-full relative">
-        <div className="flex flex-col gap-4 pb-6 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] mb-6">
-          <ActionPill
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("workspace_search")}
-            actions={[
-              {
-                id: "workspace_all",
-                icon: <span className="material-symbols-outlined !text-[20px]">view_quilt</span>,
-                label: t("workspace_all"),
-                onClick: () => {
-                  if (isDesktop()) {
-                    setIsConfigured(false);
-                  } else {
-                    window.location.href = "/";
-                  }
-                  onClose();
-                }
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={t("icon_public", "public")}
+            tooltip={t("workspace_all", "Return to Hub")}
+            onClick={() => {
+              if (isDesktop()) {
+                setView("landing");
+              } else {
+                window.location.href = "/";
               }
-            ]}
+              onClose();
+            }}
+          />
+        </PanelHeaderGroup>
+      }
+    >
+      <div className="flex flex-col gap-4 mt-2 pb-12 relative z-10 w-full">
+        {/* Top Info Card */}
+        <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
+          <div className="w-11 h-11 rounded-xl border bg-transparent border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 p-1.5">
+            <img
+              src="/icon.png"
+              alt={t("sidebar_app_title", "Sanctuary OS")}
+              className="w-full h-full object-contain drop-shadow-sm"
+            />
+          </div>
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+              {t("workspace_info_title", "Workspace Directory")}
+            </span>
+            <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+              {t(
+                "workspace_info_desc",
+                "Switch between active game environments, manage pinned workspaces, or return to the central Sanctuary hub."
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* 2-Column Filter Tiles */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_view_quilt", "view_quilt")}
+            label={t("workspace_filter_all", "All Workspaces")}
+            value={cards.length}
+            active={filterMode === "all"}
+            onClick={() => setFilterMode("all")}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_keep", "keep")}
+            label={t("workspace_filter_pinned", "Pinned")}
+            value={pinnedCount}
+            active={filterMode === "pinned"}
+            onClick={() => setFilterMode("pinned")}
           />
         </div>
 
-        <div className="w-full flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 pb-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-            {filteredCards.map((card: any, idx: number) => {
-              const ws = card.workspace;
-              const game = card.game;
-              const isActive = ws.id === activeWorkspaceId;
-              const isPinned = pinnedIds.includes(ws.id);
+        {/* Search Bar */}
+        <ActionPill
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchPlaceholder={t("workspace_search", "Search Workspaces...")}
+        />
 
-              return (
-                <button
-                  key={`ws-${ws.id}-${idx}`}
-                  onClick={() => selectWorkspace(ws)}
-         className={`flex flex-col justify-start p-6 rounded-2xl glass-panel border group transition-all duration-500 relative min-h-[160px] text-left ${isActive ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-md' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:shadow-md'}`}
-                >
-                  <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-transparent transition-opacity duration-700 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+        {/* Workspace Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+          {filteredCards.map((card: any, idx: number) => {
+            const ws = card.workspace;
+            const game = card.game;
+            const isActive = ws.id === activeWorkspaceId;
+            const isPinned = pinnedIds.includes(ws.id);
+            const isWorkspaceConfigured = Boolean(
+              ws.mods_path || ws.live_path || ws.vault_path || isActive
+            );
 
-                  <div className="flex justify-start items-start w-full relative z-10 mb-4">
-                    <div className="flex items-start gap-4 w-full pr-8">
-                      <div className={`w-12 h-12 rounded-2xl glass-surface border shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 ${isActive ? 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-                        {game.icon ? <img src={game.icon} alt="" className="w-8 h-8 object-contain drop-shadow-md" /> : <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">sports_esports</span>}
-                      </div>
-                      <div className="flex flex-col pt-1 min-w-0 flex-1">
-                        <span className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 mb-1 truncate">{isActive ? t("workspace_manage") : t("workspace_available")}</span>
-                        <span className="text-[13px] font-black capitalize tracking-widest text-[var(--text)] group-hover:theme-text-accent transition-colors line-clamp-2 drop-shadow-sm leading-tight">{game.name || ws.name || ws.id}</span>
-                      </div>
-                    </div>
-
-                    <div
-                      onClick={(e) => togglePin(ws.id, e)}
-                      className={`absolute top-0 right-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-transparent ${isPinned ? 'theme-text-accent bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--subtext)] opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
-                    >
-                      <span className="material-symbols-outlined !text-[16px]" style={{ fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0' }}>keep</span>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                    <div className="flex flex-col min-w-0 flex-1 pr-2">
-                      <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
-                      <span className="text-[10px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-1 truncate">
-                        <span className="material-symbols-outlined !text-[12px] shrink-0">check_circle</span>
-                        <span className="truncate">{t("workspace_configured")}</span>
+            return (
+              <div
+                key={`ws-${ws.id}-${idx}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => selectWorkspace(ws)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectWorkspace(ws);
+                  }
+                }}
+                className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 border text-left group cursor-pointer transition-all duration-300 ${
+                  isActive
+                    ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_65%,transparent)]"
+                    : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                }`}
+              >
+                {/* Top Row: Icon Box on Left + Status Badge & Pin Button on Right */}
+                <div className="flex justify-between items-start gap-3 relative z-10">
+                  <div
+                    className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                      isActive
+                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] group-hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] group-hover:text-[var(--accent)]"
+                    }`}
+                  >
+                    {game.icon ? (
+                      <img
+                        src={game.icon}
+                        alt=""
+                        className="w-6 h-6 object-contain drop-shadow-sm"
+                      />
+                    ) : (
+                      <span className="material-symbols-outlined !text-[22px]">
+                        {t("icon_sports_esports", "sports_esports")}
                       </span>
-                    </div>
+                    )}
                   </div>
-                </button>
-              );
-            })}
 
-            {isLoading && (
-              <EmptyState icon={t("icon_sync")} title={t("workspace_loading")} className="col-span-full py-16 animate-pulse" />
-            )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isActive ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_check_circle", "check_circle")}
+                        </span>
+                        {t("workspace_badge_active", "Active")}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_check_circle", "check_circle")}
+                        </span>
+                        {isWorkspaceConfigured
+                          ? t("workspace_badge_configured", "Configured")
+                          : t("workspace_badge_ready", "Ready")}
+                      </span>
+                    )}
 
-            {!isLoading && filteredCards.length === 0 && (
-              <EmptyState icon={t("icon_search")} title={t("no_matches")} className="col-span-full py-16" />
-            )}
-          </div>
+                    <button
+                      type="button"
+                      onClick={(e) => togglePin(ws.id, e)}
+                      className={`w-7 h-7 rounded-lg border bg-transparent flex items-center justify-center transition-all relative group/pin cursor-pointer ${
+                        isPinned
+                          ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
+                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] opacity-60 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:text-[var(--accent)]"
+                      }`}
+                    >
+                      <span
+                        className="material-symbols-outlined !text-[15px]"
+                        style={{
+                          fontVariationSettings: isPinned
+                            ? '"FILL" 1'
+                            : '"FILL" 0',
+                        }}
+                      >
+                        {t("icon_keep", "keep")}
+                      </span>
+                      <HoverTooltip
+                        title={
+                          isPinned
+                            ? t("workspace_btn_unpin", "Unpin Workspace")
+                            : t("workspace_btn_pin", "Pin Workspace")
+                        }
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Middle Block: Overline + Prominent Title + Concise Description */}
+                <div className="flex flex-col gap-1 relative z-10 mt-0.5">
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${
+                      isActive
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)] group-hover:opacity-100"
+                    }`}
+                  >
+                    {t("workspace_card_overline", "Game Workspace")}
+                  </span>
+                  <h3 className="text-lg font-black text-[var(--text)] tracking-tight leading-snug group-hover:text-[var(--accent)] transition-colors truncate m-0">
+                    {game.name || ws.name || ws.id}
+                  </h3>
+                  <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 m-0">
+                    {isActive
+                      ? t(
+                          "workspace_card_desc_active",
+                          "Currently active environment for mod deployment, diagnostics, and backups."
+                        )
+                      : t(
+                          "workspace_card_desc_available",
+                          "Select to mount this game workspace and load its library, blueprints, and tools."
+                        )}
+                  </p>
+                </div>
+
+                {/* Bottom Footer Row: Schema Code + Action Label */}
+                <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 relative z-10">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                    {ws.schema_id || game.schema_id || ws.id}
+                  </span>
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0 transition-colors ${
+                      isActive
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)] group-hover:opacity-100"
+                    }`}
+                  >
+                    <span>
+                      {isActive && view !== "landing"
+                        ? t("workspace_badge_active", "Active")
+                        : isActive
+                          ? t("workspace_btn_enter", "Enter Workspace")
+                          : t("workspace_btn_switch", "Switch Workspace")}
+                    </span>
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {isActive && view !== "landing"
+                        ? t("icon_check_circle", "check_circle")
+                        : t("icon_arrow_forward", "arrow_forward")}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+
+          {isLoading && (
+            <EmptyState
+              icon={t("icon_sync", "sync")}
+              title={t("workspace_loading", "Loading Workspaces...")}
+              className="col-span-full py-12 animate-pulse"
+            />
+          )}
+
+          {!isLoading && filteredCards.length === 0 && (
+            <EmptyState
+              icon={t("icon_search", "search")}
+              title={t("no_matches", "No Matches Found")}
+              className="col-span-full py-12"
+            />
+          )}
         </div>
       </div>
     </SidePanel>
   );
 }
-
-
-

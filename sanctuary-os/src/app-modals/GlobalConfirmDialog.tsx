@@ -9,7 +9,7 @@ export function GlobalConfirmDialog() {
   const confirmDialog = useModalStore((state: any) => state.confirmDialog);
   const setConfirmDialog = useModalStore((state: any) => state.setConfirmDialog);
 
-  if (!confirmDialog) return null;
+  if (!confirmDialog || confirmDialog.isDefcon) return null;
 
   const isDefcon = Boolean(confirmDialog.isDefcon);
   const isAlert = Boolean(confirmDialog.isAlert);
@@ -74,7 +74,7 @@ export function GlobalConfirmDialog() {
 
   const dialogContent = (
     <div
-      className="fixed inset-0 z-[9999999] flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md p-6 animate-in fade-in duration-300"
+      className="fixed inset-0 z-[9999999] pointer-events-auto flex items-center justify-center bg-[color-mix(in_srgb,var(--bg)_40%,transparent)] backdrop-blur-md p-6 animate-in fade-in duration-300"
       onClick={handleCancel}
     >
       <div

@@ -104,6 +104,30 @@ textarea,
   cursor: default !important;
 }
 
+.cursor-passkey-locked,
+.cursor-passkey-locked * {
+  cursor: var(
+      --passkey-block-cursor,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z'/%3E%3C/svg%3E")
+        11 11
+    ),
+    default !important;
+}
+
+body.sa-malware-lockdown #sanctuary-os-shell,
+body.sa-malware-lockdown [data-sa-dock="true"],
+body.sa-malware-lockdown #sa-portals .sa-side-panel-wrapper:not(:has(.sa-malware-lockdown-panel)) {
+  opacity: 0.4 !important;
+  filter: blur(2px) !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  transition: opacity 0.3s ease, filter 0.3s ease !important;
+}
+
+body.sa-malware-lockdown [data-sa-dock="true"] {
+  z-index: 10 !important;
+}
+
 /* ---- GLOBALLY FORCE MONACO THEME VARIABLES ---- */
 :root,
 body,
@@ -584,12 +608,12 @@ body,
     var(--glass-sheen, linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.02) 45%, transparent 70%)),
     linear-gradient(0deg, var(--glass-base-fill, rgba(10, 14, 24, 0.14)), var(--glass-base-fill, rgba(10, 14, 24, 0.14))),
     var(--glass-refracted-wallpaper, none);
-  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh);
-  background-position: 0 0, 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px));
-  background-origin: border-box, border-box, border-box, border-box;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
-  background-attachment: scroll, scroll, scroll, scroll;
-  transition-property: color, background-color, border-color, box-shadow, transform;
+  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
+  background-position: 0 0, 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px)) !important;
+  background-origin: border-box, border-box, border-box, border-box !important;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
+  background-attachment: scroll, scroll, scroll, scroll !important;
+  transition-property: color, background-color, border-color, box-shadow, opacity !important;
   transition-duration: 300ms;
   box-shadow:
     var(--glass-outer-shadow, 0 18px 40px -10px rgba(0, 0, 0, 0.48)),
@@ -615,12 +639,12 @@ body,
     var(--glass-surface-sheen, linear-gradient(135deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.015) 45%, transparent 75%)),
     linear-gradient(0deg, var(--glass-surface-fill, rgba(10, 14, 24, 0.10)), var(--glass-surface-fill, rgba(10, 14, 24, 0.10))),
     var(--glass-refracted-wallpaper, none);
-  background-size: 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh);
-  background-position: 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px));
-  background-origin: border-box, border-box, border-box;
-  background-repeat: no-repeat, no-repeat, no-repeat;
-  background-attachment: scroll, scroll, scroll;
-  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  background-size: 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
+  background-position: 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px)) !important;
+  background-origin: border-box, border-box, border-box !important;
+  background-repeat: no-repeat, no-repeat, no-repeat !important;
+  background-attachment: scroll, scroll, scroll !important;
+  transition-property: color, background-color, border-color, box-shadow, opacity !important;
   transition-duration: 300ms;
   box-shadow:
     var(--glass-surface-outer-shadow, 0 6px 16px -4px rgba(0, 0, 0, 0.24)),
@@ -662,7 +686,7 @@ nav.firefox-safe-glass {
   background-origin: border-box, border-box, border-box, border-box !important;
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
   background-attachment: scroll, scroll, scroll, scroll !important;
-  transition-property: color, background-color, border-color, box-shadow, transform, opacity, width, min-width !important;
+  transition-property: color, background-color, border-color, box-shadow, opacity, width, min-width !important;
 }
 
 .sa-side-panel-window {
@@ -675,10 +699,14 @@ nav.firefox-safe-glass {
     linear-gradient(0deg, var(--glass-drawer-bg, rgba(15, 23, 42, 0.18)), var(--glass-drawer-bg, rgba(15, 23, 42, 0.18))),
     var(--glass-refracted-wallpaper, none) !important;
   background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
-  background-position: 0 0, 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px)) !important;
+  background-position: 0 0, 0 0, 0 0, right top !important;
   background-origin: border-box, border-box, border-box, border-box !important;
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
   background-attachment: scroll, scroll, scroll, scroll !important;
+}
+
+.sa-side-panel-window.sa-panel-left {
+  background-position: 0 0, 0 0, 0 0, calc(-1 * var(--glass-x, 0px)) calc(-1 * var(--glass-y, 0px)) !important;
 }
 
 /* Nested glass elements inside Sidebar, SidePanels, Modals, or parent cards sit over an already-blurred glass surface:
@@ -738,7 +766,7 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
   background-origin: border-box, border-box, border-box, border-box !important;
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
   background-attachment: scroll, scroll, scroll, scroll !important;
-  transition-property: color, background-color, border-color, box-shadow, transform, opacity, margin-bottom !important;
+  transition-property: color, background-color, border-color, box-shadow, opacity, margin-bottom !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   border-top-color: var(--glass-border-top) !important;

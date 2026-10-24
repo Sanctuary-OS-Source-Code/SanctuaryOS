@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
+import { useTooltipStore } from "../store/tooltipStore";
 import { isDesktop } from "../utils/envUtils";
 import { isRootDomain } from "../utils/routingUtils";
 import { HoverTooltip } from '../shared';
@@ -104,21 +105,36 @@ export function SystemStatusBar({
 
   const [isDockHovered, setIsDockHovered] = useState(false);
   const [hasDomSidePanel, setHasDomSidePanel] = useState(false);
+  const [isHubLockdownActive, setIsHubLockdownActive] = useState(false);
   const [isScrolledBottom, setIsScrolledBottom] = useState(false);
   const dockTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Detect any open SidePanel in #sa-portals so the dock automatically tucks out of the way of panel footers
+  // Detect any open SidePanel in #sa-portals so the dock automatically tucks out of the way of panel footers,
+  // and detect when Hub Lockdown ([data-passthrough="true"]) is active so notifications are hidden and Settings is accessible.
   useEffect(() => {
     const checkPanels = () => {
-      const openPanels = document.querySelectorAll('.sa-side-panel-wrapper.sa-panel-open');
+      const openPanels = document.querySelectorAll('.sa-side-panel-wrapper.sa-panel-open:not([data-passthrough="true"])');
       setHasDomSidePanel(openPanels.length > 0);
+      const lockdownPanels = document.querySelectorAll('.sa-side-panel-wrapper.sa-panel-open[data-passthrough="true"]');
+      setIsHubLockdownActive(lockdownPanels.length > 0);
     };
     checkPanels();
     const portalRoot = document.getElementById('sa-portals') || document.body;
     const observer = new MutationObserver(checkPanels);
-    observer.observe(portalRoot, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    observer.observe(portalRoot, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'data-passthrough'],
+    });
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (isHubLockdownActive && isNotificationSidebarOpen) {
+      setIsNotificationSidebarOpen(false);
+    }
+  }, [isHubLockdownActive, isNotificationSidebarOpen, setIsNotificationSidebarOpen]);
 
   // Detect when the user scrolls to the very bottom of the main scroll container
   useEffect(() => {
@@ -147,6 +163,7 @@ export function SystemStatusBar({
   const handleDockEnter = () => {
     if (isSideBrowserOpen) return;
     if (dockTimeout.current) clearTimeout(dockTimeout.current);
+    useTooltipStore.getState().clearTooltip();
     setIsDockHovered(true);
   };
 
@@ -158,6 +175,20 @@ export function SystemStatusBar({
   };
 
   const isRoot = !isDesktop() && isRootDomain();
+  const [isLandingContext, setIsLandingContext] = useState<boolean>(() =>
+    view === 'landing' || !isConfigured || isRoot
+  );
+
+  useEffect(() => {
+    if (view === 'landing' || !isConfigured || isRoot) {
+      setIsLandingContext(true);
+    } else if (view !== 'KeepersCore' && view !== 'settings') {
+      setIsLandingContext(false);
+    }
+  }, [view, isConfigured, isRoot]);
+
+  const isWorkspaceDockActive = isConfigured && !isLandingContext;
+
   const sigQueueCount = volatileSignatureQueue?.resolvedItems?.length || 0;
   const quarantineCount = isDesktop() && quarantineList ? quarantineList.length : 0;
   const dnaCount = dnaMatchQueue ? dnaMatchQueue.length : 0;
@@ -167,7 +198,8 @@ export function SystemStatusBar({
   const notifCount = unreadNotificationCount || 0;
 
   const hasQueueAlerts =
-    !isRoot &&
+    isWorkspaceDockActive &&
+    !isHubLockdownActive &&
     (quarantineCount > 0 ||
       dnaCount > 0 ||
       sigQueueCount > 0 ||
@@ -197,8 +229,9 @@ export function SystemStatusBar({
   // Tuck down into a sleek edge handle when:
   // 1) A SidePanel is open (so we never block panel footer buttons), OR
   // 2) The user scrolled to the very bottom of a page, OR
-  // 3) There are no active alerts and no active status toast
+  // 3) There are no active alerts and no active status toast (unless Hub Lockdown is active)
   const shouldTuckToRim =
+    !isHubLockdownActive &&
     !isDockHovered &&
     !showToast &&
     (isAnyPanelOpen || isScrolledBottom || !hasQueueAlerts);
@@ -244,8 +277,8 @@ export function SystemStatusBar({
   return createPortal(
     <>
       {/* Mobile Top-Right Compact Alert Pod */}
-      {!isRoot && hasQueueAlerts && !isSideBrowserOpen && (
-        <div className="md:hidden fixed top-[20px] right-4 z-[14000] pointer-events-auto">
+      {isWorkspaceDockActive && hasQueueAlerts && !isSideBrowserOpen && !isHubLockdownActive && (
+        <div data-sa-dock="true" className="md:hidden fixed top-[20px] right-4 z-[14000] pointer-events-auto">
           <div className="glass-panel portal-glass-fix flex items-center gap-2.5 px-3.5 py-1.5 rounded-full">
             {sigQueueCount > 0 && (
               <button
@@ -271,7 +304,7 @@ export function SystemStatusBar({
 
       {/* Desktop Single Morphing Pill (Aligned with Main Content Area) */}
       {!isSideBrowserOpen && (
-        <div className="fixed bottom-0 left-0 right-0 z-[99999] hidden md:flex items-end pointer-events-none px-6">
+        <div data-sa-dock="true" className="fixed bottom-0 left-0 right-0 z-[99999] hidden md:flex items-end pointer-events-none px-6">
           {/* Sidebar width spacer so the dock centers directly under the top Workspace Selector pill */}
           <div
             className="shrink-0 transition-all duration-500 hidden md:block"
@@ -329,12 +362,12 @@ export function SystemStatusBar({
               </div>
 
               {/* Divider between active Status and Alerts/Tools */}
-              {showToast && (hasQueueAlerts || isDockHovered) && (
+              {showToast && (hasQueueAlerts || isDockHovered || isHubLockdownActive) && (
                 <div className="w-[1px] h-3.5 bg-[color-mix(in_srgb,var(--text)_12%,transparent)] mx-1 shrink-0" />
               )}
 
-              {/* 2. ACTIVE ALERT ITEMS (Clean icon + count sitting directly on the glass, no inner bubbles) */}
-              {!isRoot && isConfigured && (
+              {/* 2. ACTIVE ALERT ITEMS (Clean icon + count sitting directly on the glass, no inner bubbles; hidden during Hub Lockdown) */}
+              {isWorkspaceDockActive && !isHubLockdownActive && (
                 <div className="flex items-center gap-0.5 shrink-0">
                   {quarantineCount > 0 && (
                     <button
@@ -483,7 +516,7 @@ export function SystemStatusBar({
               )}
 
               {/* Minimal idle handle indicator when there are 0 alerts, no status toast, and not hovered */}
-              {!hasQueueAlerts && !showToast && !isDockHovered && (
+              {!hasQueueAlerts && !showToast && !isDockHovered && !isHubLockdownActive && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 text-[var(--subtext)] opacity-70">
                   <span className={`w-1.5 h-1.5 rounded-full ${radarState === 'critical' ? 'bg-[var(--danger)]' : radarState === 'warning' ? 'bg-[var(--warning)]' : 'bg-[var(--accent)]'}`} />
                   <span className="w-1 h-1 rounded-full bg-[var(--text)] opacity-40" />
@@ -491,10 +524,10 @@ export function SystemStatusBar({
                 </div>
               )}
 
-              {/* 3. EXPANDABLE DOCK TOOLS (Smoothly expands inside the same pill on direct hover) */}
+              {/* 3. EXPANDABLE DOCK TOOLS (Smoothly expands inside the same pill on direct hover, or stays visible during Hub Lockdown) */}
               <div
                 className={`flex items-center gap-0.5 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                  isDockHovered
+                  isDockHovered || isHubLockdownActive
                     ? 'max-w-[440px] opacity-100 pl-0.5'
                     : 'max-w-0 opacity-0 overflow-hidden pl-0 pointer-events-none'
                 }`}
@@ -503,7 +536,7 @@ export function SystemStatusBar({
                   <div className="w-[1px] h-4 bg-[color-mix(in_srgb,var(--text)_14%,transparent)] mx-1 shrink-0" />
                 )}
 
-                {isConfigured && isDesktop() && (
+                {isWorkspaceDockActive && isDesktop() && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -527,7 +560,7 @@ export function SystemStatusBar({
                   </button>
                 )}
 
-                {isConfigured && isDesktop() && (
+                {isWorkspaceDockActive && isDesktop() && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -549,7 +582,7 @@ export function SystemStatusBar({
                   </button>
                 )}
 
-                {isConfigured && isDesktop() && (
+                {isWorkspaceDockActive && isDesktop() && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -606,7 +639,7 @@ export function SystemStatusBar({
                   </button>
                 )}
 
-                {isConfigured && (
+                {isWorkspaceDockActive && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -628,7 +661,7 @@ export function SystemStatusBar({
                   </button>
                 )}
 
-                {isConfigured && (
+                {isWorkspaceDockActive && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -652,9 +685,11 @@ export function SystemStatusBar({
                   </button>
                 )}
 
-                <div className="w-[1px] h-4 bg-[color-mix(in_srgb,var(--text)_14%,transparent)] mx-0.5 shrink-0" />
+                {isWorkspaceDockActive && (
+                  <div className="w-[1px] h-4 bg-[color-mix(in_srgb,var(--text)_14%,transparent)] mx-0.5 shrink-0" />
+                )}
 
-                {!isRoot && isConfigured && (
+                {isWorkspaceDockActive && !isHubLockdownActive && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

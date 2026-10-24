@@ -1380,15 +1380,14 @@ export function ReleaseNotesShowcase({
           {t("icon_memory", "memory")}
         </span>
       </div>
-      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80">
+      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 whitespace-nowrap shrink-0">
         {t("author_sanctuary_team", "Sanctuary Foundry")}
       </span>
       <span className="text-[10px] font-black opacity-30 text-[var(--text)]">&bull;</span>
-      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">
+      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] truncate">
         {channelBadge}
       </span>
-      <span className="text-[10px] font-black opacity-30 text-[var(--text)]">&bull;</span>
-      <span className="text-[10px] font-mono font-bold tracking-widest text-[var(--accent)]">
+      <span className="text-[10px] font-mono font-bold tracking-widest text-[var(--accent)] hidden">
         v{versionStr}
       </span>
     </div>
@@ -1492,8 +1491,8 @@ export function ReleaseNotesShowcase({
           className="w-full h-full"
           imageOverlay={
             <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-              <span className="px-2.5 py-1 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg backdrop-blur-md flex items-center gap-1">
-                <span className="material-symbols-outlined !text-[12px]">
+              <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                   {t("icon_verified", "verified")}
                 </span>
                 {t("release_notes_meta_channel_public", "Public")} &bull; v{stableVersion}
@@ -1535,8 +1534,8 @@ export function ReleaseNotesShowcase({
           className="w-full h-full"
           imageOverlay={
             <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-              <span className="px-2.5 py-1 bg-[color-mix(in_srgb,var(--success)_18%,transparent)] border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-widest rounded-lg backdrop-blur-md flex items-center gap-1">
-                <span className="material-symbols-outlined !text-[12px]">
+              <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                   {t("icon_bolt", "bolt")}
                 </span>
                 {t("release_notes_meta_channel_dev", "Dev")} &bull; v{devVersion}

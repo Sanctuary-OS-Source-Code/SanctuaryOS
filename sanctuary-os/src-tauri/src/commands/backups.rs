@@ -405,6 +405,10 @@ pub async fn backup_universe(
 
         let mut last_emit = std::time::Instant::now();
         let mut diff_size = 0;
+        let mut current_rel_set = std::collections::HashSet::new();
+        let mut added_paths = Vec::new();
+        let mut updated_paths = Vec::new();
+
         for (i, file_path) in files_to_backup.iter().enumerate() {
             let stripped = if let Ok(rel) = file_path.strip_prefix(&game_docs_path) {
                 rel.to_path_buf()
@@ -420,15 +424,20 @@ pub async fn backup_universe(
                 }
             };
 
+            let rel_norm = stripped.to_string_lossy().replace("\\", "/");
+            current_rel_set.insert(rel_norm.clone());
+
             let dest_path = backup_path.join(&stripped);
             if let Some(parent) = dest_path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
 
             let mut linked = false;
+            let mut existed_in_prev = false;
             if let Some(prev) = &previous_backup {
                 let prev_file = prev.join(&stripped);
                 if prev_file.exists() && prev_file.is_file() {
+                    existed_in_prev = true;
                     if let (Ok(src_meta), Ok(prev_meta)) =
                         (file_path.metadata(), prev_file.metadata())
                     {
@@ -447,13 +456,11 @@ pub async fn backup_universe(
                 if let Ok(meta) = file_path.metadata() {
                     diff_size += meta.len();
                 }
-            } else {
-                if let Some(prev) = &previous_backup {
-                    if previous_backup
-                        .as_ref()
-                        .map_or(false, |p| p.join(&stripped).exists())
-                    {
-                        // It's a hardlink, no physical size added
+                if previous_backup.is_some() {
+                    if existed_in_prev {
+                        updated_paths.push(rel_norm);
+                    } else {
+                        added_paths.push(rel_norm);
                     }
                 }
             }
@@ -503,6 +510,39 @@ pub async fn backup_universe(
             backup_path.join(".diff_size_bytes.txt"),
             diff_size.to_string(),
         );
+
+        let mut removed_files = Vec::new();
+        if let Some(prev) = &previous_backup {
+            for p_file in get_all_files(prev) {
+                if let Ok(rel) = p_file.strip_prefix(prev) {
+                    let rel_str = rel.to_string_lossy().replace("\\", "/");
+                    if rel_str.split('/').any(|part| part.starts_with('.')) {
+                        continue;
+                    }
+                    if !current_rel_set.contains(&rel_str) {
+                        let len_bytes = std::fs::metadata(&p_file).map(|m| m.len()).unwrap_or(0);
+                        removed_files.push(BackupFile {
+                            path: rel_str,
+                            size_mb: len_bytes as f64 / 1_048_576.0,
+                            delta_status: "Removed".into(),
+                        });
+                    }
+                }
+            }
+        }
+        let manifest = DeltaManifest {
+            previous_backup_name: previous_backup
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .map(|n| n.to_string_lossy().to_string()),
+            is_baseline: previous_backup.is_none(),
+            added_paths,
+            updated_paths,
+            removed_files,
+        };
+        if let Ok(json_str) = serde_json::to_string(&manifest) {
+            let _ = std::fs::write(backup_path.join(".delta_manifest.json"), json_str);
+        }
 
         if let Some(cycles) = config.world_retention_cycles {
             crate::utils::enforce_retention_policy(&parent_dir, cycles);
@@ -623,6 +663,10 @@ pub async fn backup_engine_full(
 
         let mut last_emit = std::time::Instant::now();
         let mut diff_size = 0;
+        let mut current_rel_set = std::collections::HashSet::new();
+        let mut added_paths = Vec::new();
+        let mut updated_paths = Vec::new();
+
         for (i, file_path) in files_to_backup.iter().enumerate() {
             let stripped = if let Ok(rel) = file_path.strip_prefix(&base_path) {
                 rel.to_path_buf()
@@ -638,15 +682,20 @@ pub async fn backup_engine_full(
                 }
             };
 
+            let rel_norm = stripped.to_string_lossy().replace("\\", "/");
+            current_rel_set.insert(rel_norm.clone());
+
             let dest_path = backup_path.join(&stripped);
             if let Some(parent) = dest_path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
 
             let mut linked = false;
+            let mut existed_in_prev = false;
             if let Some(prev) = &previous_backup {
                 let prev_file = prev.join(&stripped);
                 if prev_file.exists() && prev_file.is_file() {
+                    existed_in_prev = true;
                     if let (Ok(src_meta), Ok(prev_meta)) =
                         (file_path.metadata(), prev_file.metadata())
                     {
@@ -664,6 +713,13 @@ pub async fn backup_engine_full(
                 let _ = std::fs::copy(&file_path, &dest_path);
                 if let Ok(meta) = file_path.metadata() {
                     diff_size += meta.len();
+                }
+                if previous_backup.is_some() {
+                    if existed_in_prev {
+                        updated_paths.push(rel_norm);
+                    } else {
+                        added_paths.push(rel_norm);
+                    }
                 }
             }
 
@@ -713,11 +769,44 @@ pub async fn backup_engine_full(
             diff_size.to_string(),
         );
 
+        let mut removed_files = Vec::new();
+        if let Some(prev) = &previous_backup {
+            for p_file in get_all_files(prev) {
+                if let Ok(rel) = p_file.strip_prefix(prev) {
+                    let rel_str = rel.to_string_lossy().replace("\\", "/");
+                    if rel_str.split('/').any(|part| part.starts_with('.')) {
+                        continue;
+                    }
+                    if !current_rel_set.contains(&rel_str) {
+                        let len_bytes = std::fs::metadata(&p_file).map(|m| m.len()).unwrap_or(0);
+                        removed_files.push(BackupFile {
+                            path: rel_str,
+                            size_mb: len_bytes as f64 / 1_048_576.0,
+                            delta_status: "Removed".into(),
+                        });
+                    }
+                }
+            }
+        }
+        let manifest = DeltaManifest {
+            previous_backup_name: previous_backup
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .map(|n| n.to_string_lossy().to_string()),
+            is_baseline: previous_backup.is_none(),
+            added_paths,
+            updated_paths,
+            removed_files,
+        };
+        if let Ok(json_str) = serde_json::to_string(&manifest) {
+            let _ = std::fs::write(backup_path.join(".delta_manifest.json"), json_str);
+        }
+
         if let Some(cycles) = config.engine_retention_cycles {
             crate::utils::enforce_retention_policy(&parent_dir, cycles);
         }
 
-        Ok(format!("Secured: {}", backup_name))
+        Ok(backup_name)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -781,10 +870,21 @@ where
     Ok(())
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct BackupFile {
     pub path: String,
     pub size_mb: f64,
+    #[serde(default)]
+    pub delta_status: String,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct DeltaManifest {
+    pub previous_backup_name: Option<String>,
+    pub is_baseline: bool,
+    pub added_paths: Vec<String>,
+    pub updated_paths: Vec<String>,
+    pub removed_files: Vec<BackupFile>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -792,13 +892,19 @@ pub struct BackupInspectionResult {
     pub files: Vec<BackupFile>,
     pub logical_size_bytes: u64,
     pub diff_size_bytes: u64,
+    pub raw_diff_size_bytes: u64,
     pub location: String,
+    pub previous_backup_name: Option<String>,
+    pub is_baseline: bool,
+    pub removed_from_previous: Vec<BackupFile>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct DiffEntry {
     pub path: String,
     pub status: String,
+    pub size_mb: f64,
+    pub live_size_mb: Option<f64>,
 }
 
 #[tauri::command]
@@ -816,7 +922,7 @@ pub async fn get_backup_contents(
         let mut total_scanned_bytes: u64 = 0;
         let all_files = get_all_files(&backup_dir);
 
-        for file in all_files {
+        for file in &all_files {
             if let Ok(rel) = file.strip_prefix(&backup_dir) {
                 let rel_str = rel.to_string_lossy().replace("\\", "/");
                 if rel_str.split('/').any(|part| part.starts_with('.')) {
@@ -829,6 +935,7 @@ pub async fn get_backup_contents(
                 files.push(BackupFile {
                     path: rel_str,
                     size_mb: size,
+                    delta_status: "Deduplicated".into(),
                 });
             }
         }
@@ -844,13 +951,14 @@ pub async fn get_backup_contents(
             logical_size = total_scanned_bytes;
         }
 
-        let mut diff_size = std::fs::read_to_string(backup_dir.join(".diff_size_bytes.txt"))
+        let raw_diff_size = std::fs::read_to_string(backup_dir.join(".diff_size_bytes.txt"))
             .unwrap_or_default()
             .trim()
             .parse::<u64>()
             .unwrap_or(0);
+        let mut diff_size = raw_diff_size;
 
-        // If this snapshot is the oldest remaining snapshot of its type, its physical baseline disk footprint equals its logical size
+        // Find the immediately preceding snapshot of the same prefix (World_State or Engine_Core)
         let prefix = if backup_name.starts_with("World_State") {
             Some("World_State")
         } else if backup_name.starts_with("Engine_Core") {
@@ -858,9 +966,14 @@ pub async fn get_backup_contents(
         } else {
             None
         };
+
+        let mut prev_backup_entry: Option<(u64, String, PathBuf)> = None;
         if let Some(pfx) = prefix {
             let extract_ts = |name: &str| -> u64 {
-                let clean = name.trim_end_matches(".tar.zst").trim_end_matches(".tar").trim_end_matches(".zst");
+                let clean = name
+                    .trim_end_matches(".tar.zst")
+                    .trim_end_matches(".tar")
+                    .trim_end_matches(".zst");
                 if let Some(last) = clean.split("--").last() {
                     if let Ok(ts) = last.parse::<u64>() {
                         return ts;
@@ -869,7 +982,6 @@ pub async fn get_backup_contents(
                 0
             };
             let current_ts = extract_ts(&backup_name);
-            let mut has_older = false;
             let mut candidate_dirs = Vec::new();
             if let Some(parent) = backup_dir.parent() {
                 candidate_dirs.push(parent.to_path_buf());
@@ -883,31 +995,153 @@ pub async fn get_backup_contents(
                 if let Ok(entries) = std::fs::read_dir(&dir) {
                     for entry in entries.flatten() {
                         let name = entry.file_name().to_string_lossy().to_string();
-                        if name.starts_with(pfx) && name != backup_name {
+                        if name.starts_with(pfx) && name != backup_name && entry.path().is_dir() {
                             let ts = extract_ts(&name);
-                            if (ts > 0 && current_ts > 0 && ts < current_ts)
-                                || (ts == current_ts && name < backup_name)
-                            {
-                                has_older = true;
-                                break;
+                            let is_older = (ts > 0 && current_ts > 0 && ts < current_ts)
+                                || (ts == current_ts && name < backup_name);
+                            if is_older {
+                                match &prev_backup_entry {
+                                    None => {
+                                        prev_backup_entry = Some((ts, name, entry.path()));
+                                    }
+                                    Some((best_ts, best_name, _)) => {
+                                        if ts > *best_ts || (ts == *best_ts && name > *best_name) {
+                                            prev_backup_entry = Some((ts, name, entry.path()));
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                if has_older {
-                    break;
-                }
             }
-            if !has_older {
+            if prev_backup_entry.is_none() {
                 diff_size = logical_size;
             }
         }
 
+        let is_baseline = prev_backup_entry.is_none();
+        let prev_name = prev_backup_entry.as_ref().map(|(_, n, _)| n.clone());
+
+        let manifest_path = backup_dir.join(".delta_manifest.json");
+        let mut loaded_manifest: Option<DeltaManifest> = None;
+        if manifest_path.exists() {
+            if let Ok(raw_json) = std::fs::read_to_string(&manifest_path) {
+                if let Ok(parsed) = serde_json::from_str::<DeltaManifest>(&raw_json) {
+                    if (is_baseline && parsed.is_baseline)
+                        || (!is_baseline && parsed.previous_backup_name == prev_name)
+                    {
+                        loaded_manifest = Some(parsed);
+                    }
+                }
+            }
+        }
+
+        let manifest = if let Some(m) = loaded_manifest {
+            m
+        } else if let Some((_, ref p_name, ref prev_dir)) = prev_backup_entry {
+            let mut added_paths = Vec::new();
+            let mut updated_paths = Vec::new();
+            let mut current_rel_set = std::collections::HashSet::new();
+
+            for file in &all_files {
+                if let Ok(rel) = file.strip_prefix(&backup_dir) {
+                    let rel_str = rel.to_string_lossy().replace("\\", "/");
+                    if rel_str.split('/').any(|part| part.starts_with('.')) {
+                        continue;
+                    }
+                    current_rel_set.insert(rel_str.clone());
+                    let prev_file = prev_dir.join(rel);
+                    if !prev_file.exists() {
+                        added_paths.push(rel_str);
+                    } else if let (Ok(cur_meta), Ok(prev_meta)) =
+                        (file.metadata(), prev_file.metadata())
+                    {
+                        if cur_meta.len() != prev_meta.len()
+                            || cur_meta.modified().ok() != prev_meta.modified().ok()
+                        {
+                            updated_paths.push(rel_str);
+                        }
+                    }
+                }
+            }
+
+            let mut removed_files = Vec::new();
+            for p_file in get_all_files(prev_dir) {
+                if let Ok(rel) = p_file.strip_prefix(prev_dir) {
+                    let rel_str = rel.to_string_lossy().replace("\\", "/");
+                    if rel_str.split('/').any(|part| part.starts_with('.')) {
+                        continue;
+                    }
+                    if !current_rel_set.contains(&rel_str) {
+                        let len_bytes = std::fs::metadata(&p_file).map(|m| m.len()).unwrap_or(0);
+                        removed_files.push(BackupFile {
+                            path: rel_str,
+                            size_mb: len_bytes as f64 / 1_048_576.0,
+                            delta_status: "Removed".into(),
+                        });
+                    }
+                }
+            }
+
+            let computed = DeltaManifest {
+                previous_backup_name: Some(p_name.clone()),
+                is_baseline: false,
+                added_paths,
+                updated_paths,
+                removed_files,
+            };
+            if let Ok(json_str) = serde_json::to_string(&computed) {
+                let _ = std::fs::write(&manifest_path, json_str);
+            }
+            computed
+        } else {
+            DeltaManifest {
+                previous_backup_name: None,
+                is_baseline: true,
+                added_paths: Vec::new(),
+                updated_paths: Vec::new(),
+                removed_files: Vec::new(),
+            }
+        };
+
+        let added_set: std::collections::HashSet<&str> =
+            manifest.added_paths.iter().map(|s| s.as_str()).collect();
+        let updated_set: std::collections::HashSet<&str> =
+            manifest.updated_paths.iter().map(|s| s.as_str()).collect();
+
+        let mut computed_written_bytes: u64 = 0;
+        for f in &mut files {
+            let file_bytes = (f.size_mb * 1_048_576.0).round() as u64;
+            if is_baseline {
+                f.delta_status = "Baseline".into();
+                computed_written_bytes += file_bytes;
+            } else if added_set.contains(f.path.as_str()) {
+                f.delta_status = "Added".into();
+                computed_written_bytes += file_bytes;
+            } else if updated_set.contains(f.path.as_str()) {
+                f.delta_status = "Updated".into();
+                computed_written_bytes += file_bytes;
+            } else {
+                f.delta_status = "Deduplicated".into();
+            }
+        }
+
+        let effective_raw_diff = if is_baseline {
+            logical_size
+        } else {
+            computed_written_bytes.min(logical_size)
+        };
+
         Ok(BackupInspectionResult {
             files,
             logical_size_bytes: logical_size,
-            diff_size_bytes: diff_size,
+            diff_size_bytes: if is_baseline { logical_size } else { effective_raw_diff },
+            raw_diff_size_bytes: effective_raw_diff,
             location: backup_dir.to_string_lossy().to_string(),
+            previous_backup_name: prev_name,
+            is_baseline,
+            removed_from_previous: manifest.removed_files,
         })
     })
     .await
@@ -1005,7 +1239,7 @@ pub async fn diff_backup(
 
         let mut diffs = vec![];
         let backup_files = get_all_files(&backup_dir);
-        let mut checked = std::collections::HashSet::new();
+        let mut checked_lower = std::collections::HashSet::new();
 
         for b_file in &backup_files {
             if let Ok(rel) = b_file.strip_prefix(&backup_dir) {
@@ -1014,28 +1248,73 @@ pub async fn diff_backup(
                     continue;
                 }
 
-                checked.insert(rel_str.clone());
+                checked_lower.insert(rel_str.to_lowercase());
+                let b_meta = std::fs::metadata(&b_file).ok();
+                let b_size_mb = b_meta.as_ref().map(|m| m.len() as f64 / 1_048_576.0).unwrap_or(0.0);
 
                 let target_file = target_root.join(rel);
                 if !target_file.exists() {
                     diffs.push(DiffEntry {
                         path: rel_str,
                         status: "Missing in Current".into(),
+                        size_mb: b_size_mb,
+                        live_size_mb: None,
                     });
                 } else {
-                    let b_meta = std::fs::metadata(&b_file).ok();
                     let t_meta = std::fs::metadata(&target_file).ok();
+                    let t_size_mb = t_meta.as_ref().map(|m| m.len() as f64 / 1_048_576.0);
                     if let (Some(b), Some(t)) = (b_meta, t_meta) {
                         if b.len() != t.len() || b.modified().ok() != t.modified().ok() {
                             diffs.push(DiffEntry {
                                 path: rel_str,
                                 status: "Modified".into(),
+                                size_mb: b_size_mb,
+                                live_size_mb: t_size_mb,
                             });
                         } else {
                             diffs.push(DiffEntry {
                                 path: rel_str,
                                 status: "Identical".into(),
+                                size_mb: b_size_mb,
+                                live_size_mb: t_size_mb,
                             });
+                        }
+                    }
+                }
+            }
+        }
+
+        // For World State backups, also detect new files in live saves/Tray that did not exist when this snapshot was sealed
+        if !backup_name.starts_with("Engine_Core") {
+            let mut scanned_dirs = std::collections::HashSet::new();
+            for sub in &["saves", "Saves", "Tray"] {
+                let live_sub = target_root.join(sub);
+                if live_sub.exists() {
+                    let canon = live_sub
+                        .canonicalize()
+                        .unwrap_or_else(|_| live_sub.clone())
+                        .to_string_lossy()
+                        .to_lowercase();
+                    if scanned_dirs.insert(canon) {
+                        for l_file in get_all_files(&live_sub) {
+                            if let Ok(rel) = l_file.strip_prefix(&target_root) {
+                                let rel_str = rel.to_string_lossy().replace("\\", "/");
+                                if rel_str.split('/').any(|part| part.starts_with('.')) {
+                                    continue;
+                                }
+                                if !checked_lower.contains(&rel_str.to_lowercase()) {
+                                    checked_lower.insert(rel_str.to_lowercase());
+                                    let l_size_mb = std::fs::metadata(&l_file)
+                                        .map(|m| m.len() as f64 / 1_048_576.0)
+                                        .unwrap_or(0.0);
+                                    diffs.push(DiffEntry {
+                                        path: rel_str,
+                                        status: "Added in Current".into(),
+                                        size_mb: l_size_mb,
+                                        live_size_mb: Some(l_size_mb),
+                                    });
+                                }
+                            }
                         }
                     }
                 }

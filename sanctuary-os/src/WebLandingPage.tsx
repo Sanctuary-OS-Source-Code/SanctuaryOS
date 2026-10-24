@@ -19,6 +19,10 @@ import { ReleaseNotesShowcase } from './components/ReleaseNotesShowcase';
 export default function WebLandingPage() {
   const { t } = useLexicon();
   const session = useStore((state: any) => state.session);
+  const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
+  const workspaces = useStore((state: any) => state.workspaces);
+  const setView = useStore((state: any) => state.setView);
+  const setIsConfigured = useStore((state: any) => state.setIsConfigured);
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [keepersConfig, setKeepersConfig] = useState<KeepersPipelineConfig>(DEFAULT_KEEPERS_PIPELINE_CONFIG);
@@ -58,11 +62,18 @@ export default function WebLandingPage() {
 
   const navigateToGame = async (gameId: string) => {
     if (isDesktop()) {
+      if (gameId === activeWorkspaceId) {
+        setIsConfigured(true);
+        setView("dashboard");
+        return;
+      }
       try {
         const globalConfig: any = await invoke("get_global_config");
         globalConfig.active_workspace_id = gameId;
         await invoke("save_coordinates", { config: globalConfig });
         localStorage.setItem('sanctuary_last_active_workspace', gameId);
+        setIsConfigured(true);
+        setView("dashboard");
         setTimeout(() => window.location.reload(), 10);
       } catch (err) {
         console.error("Failed to swap workspace on desktop:", err);
@@ -117,23 +128,131 @@ export default function WebLandingPage() {
                   </div>
                 ) : (
                   <>
-                    {games.map(game => (
-                      <UniversalCard
-                        key={game.id}
-                        layout="vertical"
-                        onClick={() => navigateToGame(game.schema_id)}
-                        icon={game.name?.toLowerCase().includes('sims') ? 'home' : 'sports_esports'}
-                        customIcon={game.icon ? <img src={game.icon} alt="" className="w-10 h-10 object-contain drop-shadow-md opacity-80 group-hover/card:opacity-100 transition-opacity" /> : undefined}
-                        title={game.name}
-                        className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all duration-500 hover:-translate-y-1"
-                        footer={
-                          <div className="w-full flex items-center justify-between text-[10px] font-mono font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-all">
-                            <span className="truncate pr-2">{game.schema_id}</span>
-                            <span className="flex items-center gap-1.5 shrink-0"><span className="material-symbols-outlined !text-[14px]">arrow_forward</span> {t("launch") || "ENTER"}</span>
+                    {games.map(game => {
+                      const isActive = isDesktop() && game.schema_id === activeWorkspaceId;
+                      const matchingWs = (workspaces || []).find(
+                        (w: any) => w.schema_id === game.schema_id || w.id === game.schema_id
+                      );
+                      const isWorkspaceConfigured = Boolean(
+                        matchingWs?.mods_path ||
+                          matchingWs?.live_path ||
+                          matchingWs?.vault_path ||
+                          isActive
+                      );
+
+                      return (
+                        <div
+                          key={game.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => navigateToGame(game.schema_id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              navigateToGame(game.schema_id);
+                            }
+                          }}
+                          className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 border text-left group cursor-pointer transition-all duration-300 hover:-translate-y-0.5 ${
+                            isActive
+                              ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_65%,transparent)]"
+                              : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                          }`}
+                        >
+                          {/* Top Row: Icon Box on Left + Outline Status Badge on Right */}
+                          <div className="flex justify-between items-start gap-3 relative z-10">
+                            <div
+                              className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                                isActive
+                                  ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
+                                  : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] group-hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] group-hover:text-[var(--accent)]"
+                              }`}
+                            >
+                              {game.icon ? (
+                                <img
+                                  src={game.icon}
+                                  alt=""
+                                  className="w-6 h-6 object-contain drop-shadow-sm"
+                                />
+                              ) : (
+                                <span className="material-symbols-outlined !text-[22px]">
+                                  {t("icon_sports_esports", "sports_esports")}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {isActive ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                                  <span className="material-symbols-outlined !text-[12px]">
+                                    {t("icon_check_circle", "check_circle")}
+                                  </span>
+                                  {t("workspace_badge_active", "Active")}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                                  <span className="material-symbols-outlined !text-[12px]">
+                                    {t("icon_check_circle", "check_circle")}
+                                  </span>
+                                  {isWorkspaceConfigured
+                                    ? t("workspace_badge_configured", "Configured")
+                                    : t("workspace_badge_ready", "Ready")}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        }
-                      />
-                    ))}
+
+                          {/* Middle Block: Overline + Prominent Title + Concise Description */}
+                          <div className="flex flex-col gap-1 relative z-10 mt-0.5">
+                            <span
+                              className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${
+                                isActive
+                                  ? "text-[var(--accent)]"
+                                  : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)] group-hover:opacity-100"
+                              }`}
+                            >
+                              {t("workspace_card_overline", "Game Workspace")}
+                            </span>
+                            <h3 className="text-lg font-black text-[var(--text)] tracking-tight leading-snug group-hover:text-[var(--accent)] transition-colors truncate m-0">
+                              {game.name}
+                            </h3>
+                            <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 m-0">
+                              {isActive
+                                ? t(
+                                    "workspace_card_desc_active",
+                                    "Currently active environment for mod deployment, diagnostics, and backups."
+                                  )
+                                : t(
+                                    "workspace_card_desc_available",
+                                    "Select to mount this game workspace and load its library, blueprints, and tools."
+                                  )}
+                            </p>
+                          </div>
+
+                          {/* Bottom Footer Row: Schema Code + Action Label */}
+                          <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 relative z-10">
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                              {game.schema_id}
+                            </span>
+                            <span
+                              className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0 transition-colors ${
+                                isActive
+                                  ? "text-[var(--accent)]"
+                                  : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)] group-hover:opacity-100"
+                              }`}
+                            >
+                              <span>
+                                {isActive
+                                  ? t("workspace_btn_enter", "Enter Workspace")
+                                  : t("launch", "Launch")}
+                              </span>
+                              <span className="material-symbols-outlined !text-[14px]">
+                                {t("icon_arrow_forward", "arrow_forward")}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </>
                 )}
               </div>

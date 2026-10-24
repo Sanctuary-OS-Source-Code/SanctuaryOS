@@ -392,16 +392,18 @@ export default function CommandConflictsPanel({
                               )
                             ) : ac.conflict.severity_rank === 3 ? (
                               isWinnerA ? (
-                                <div className="glass-surface border px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]">
-                                  <span className="text-[8px] font-black uppercase tracking-widest">
-                                    {t("bp_winning_artifact", "Winning Override")}
+                                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                                    {t("icon_check_circle", "check_circle")}
                                   </span>
+                                  <span>{t("bp_winning_artifact", "Winning Override")}</span>
                                 </div>
                               ) : isWinnerB ? (
-                                <div className="glass-surface border px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] bg-slate-500/[10%] border-slate-500/[30%] text-slate-400">
-                                  <span className="text-[8px] font-black uppercase tracking-widest">
-                                    {t("bp_overridden_by_winner", "Overridden")}
+                                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                    {t("icon_block", "block")}
                                   </span>
+                                  <span className="text-[var(--subtext)]">{t("bp_overridden_by_winner", "Overridden")}</span>
                                 </div>
                               ) : (
                                 applyConflictOverride &&
@@ -472,16 +474,18 @@ export default function CommandConflictsPanel({
                               )
                             ) : ac.conflict.severity_rank === 3 ? (
                               isWinnerB ? (
-                                <div className="glass-surface border px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]">
-                                  <span className="text-[8px] font-black uppercase tracking-widest">
-                                    {t("bp_winning_artifact", "Winning Override")}
+                                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                                    {t("icon_check_circle", "check_circle")}
                                   </span>
+                                  <span>{t("bp_winning_artifact", "Winning Override")}</span>
                                 </div>
                               ) : isWinnerA ? (
-                                <div className="glass-surface border px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] bg-slate-500/[10%] border-slate-500/[30%] text-slate-400">
-                                  <span className="text-[8px] font-black uppercase tracking-widest">
-                                    {t("bp_overridden_by_winner", "Overridden")}
+                                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                    {t("icon_block", "block")}
                                   </span>
+                                  <span className="text-[var(--subtext)]">{t("bp_overridden_by_winner", "Overridden")}</span>
                                 </div>
                               ) : (
                                 applyConflictOverride &&

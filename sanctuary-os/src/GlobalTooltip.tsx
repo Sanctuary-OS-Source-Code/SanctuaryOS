@@ -7,17 +7,36 @@ export function GlobalTooltip() {
   const tooltipRef = React.useRef<HTMLDivElement>(null);
   const [size, setSize] = React.useState({ width: 0, height: 0 });
 
+  const title = tooltip?.title;
+  const subtitle = tooltip?.subtitle;
+  const variant = tooltip?.variant || 'default';
+  const noIcon = tooltip?.noIcon || false;
+  const icon = tooltip?.icon;
+  const normalFont = tooltip?.normalFont || false;
+  const content = tooltip?.content;
+
+  // Measure dimensions ONLY when tooltip content changes (never on x/y mousemove!)
   React.useLayoutEffect(() => {
+    if (!tooltip) {
+      if (size.width !== 0 || size.height !== 0) {
+        setSize({ width: 0, height: 0 });
+      }
+      return;
+    }
     if (tooltipRef.current) {
       const rect = tooltipRef.current.getBoundingClientRect();
-      setSize({ width: rect.width, height: rect.height });
+      const nextW = Math.round(rect.width);
+      const nextH = Math.round(rect.height);
+      if (nextW !== size.width || nextH !== size.height) {
+        setSize({ width: nextW, height: nextH });
+      }
     }
-  }, [tooltip]);
+  }, [Boolean(tooltip), title, subtitle, variant, noIcon, icon, normalFont, content]);
 
   if (!tooltip) return null;
   if (window.innerWidth < 768) return null;
 
-  const { title, subtitle, variant = 'default', noIcon = false, icon, normalFont = false, x, y, align = 'center', vAlign = 'top', content } = tooltip;
+  const { x, y, align = 'center', vAlign = 'top' } = tooltip;
 
   const isDanger = variant === 'danger';
   const isInfo = variant === 'info';
@@ -72,16 +91,18 @@ export function GlobalTooltip() {
     finalTop = window.innerHeight - size.height - padding;
   }
 
+  const roundedLeft = Math.round(finalLeft);
+  const roundedTop = Math.round(finalTop);
+
   const portalRoot = document.getElementById("sa-portals") || document.body;
 
   return createPortal(
     <div className="fixed inset-0 z-[999999] pointer-events-none">
-      <div 
-        className="absolute pointer-events-none"
-        style={{ 
-          left: `${finalLeft}px`,
-          top: `${finalTop}px`,
-          opacity: size.width === 0 ? 0 : 1
+      <div
+        className="absolute top-0 left-0 pointer-events-none will-change-transform"
+        style={{
+          transform: `translate3d(${roundedLeft}px, ${roundedTop}px, 0)`,
+          opacity: size.width === 0 ? 0 : 1,
         } as React.CSSProperties}
       >
         {content ? (
@@ -89,9 +110,13 @@ export function GlobalTooltip() {
             {content}
           </div>
         ) : (
-          <div 
+          <div
             ref={tooltipRef}
-            className={`glass-panel portal-glass-fix flex flex-col items-start justify-center px-3.5 py-2.5 max-w-[380px] w-max border border-[rgba(var(--text-rgb,255,255,255),0.16)] animate-in fade-in zoom-in-95 duration-150 !rounded-xl relative overflow-hidden ${borderShadowClass}`}
+            style={{
+              "--glass-x": `${roundedLeft}px`,
+              "--glass-y": `${roundedTop}px`,
+            } as React.CSSProperties}
+            className={`glass-panel portal-glass-fix flex flex-col items-start justify-center px-3.5 py-2.5 max-w-[380px] w-max border border-[rgba(var(--text-rgb,255,255,255),0.16)] !rounded-xl relative overflow-hidden ${borderShadowClass}`}
           >
             {/* Subtle top specular highlight */}
             <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_24%,transparent)] to-transparent opacity-80 pointer-events-none z-0" />
@@ -114,9 +139,7 @@ export function GlobalTooltip() {
           </div>
         )}
       </div>
-    </div>, portalRoot
+    </div>,
+    portalRoot
   );
 }
-
-
-

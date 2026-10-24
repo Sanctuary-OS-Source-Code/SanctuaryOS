@@ -276,6 +276,7 @@ pub fn get_quarantine_list() -> Vec<String> {
             entries
                 .flatten()
                 .map(|e| e.file_name().to_string_lossy().into_owned())
+                .filter(|name| !name.starts_with(".shredding_"))
                 .collect()
         })
         .unwrap_or_default()
@@ -343,7 +344,19 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
         }
 
         if q_path.exists() {
-            let q_path_clone = q_path.clone();
+            let orig_file_name = q_path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+            let shred_path = q_path.with_file_name(format!(".shredding_{}_{}", now_ms, orig_file_name));
+            let active_shred_path = if std::fs::rename(&q_path, &shred_path).is_ok() {
+                shred_path
+            } else {
+                q_path.clone()
+            };
+            let q_path_clone = active_shred_path;
             tauri::async_runtime::spawn_blocking(move || {
                 if let Ok(mut perms) = q_path_clone.metadata().map(|m| m.permissions()) {
                     if perms.readonly() {
@@ -354,7 +367,7 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
                 if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(&q_path_clone) {
                     if let Ok(meta) = f.metadata() {
                         let zeros = vec![0u8; 1024 * 1024];
-                        let mut remaining = std::cmp::min(meta.len(), 100 * 1024 * 1024);
+                        let mut remaining = std::cmp::min(meta.len(), 4 * 1024 * 1024);
                         while remaining > 0 {
                             let write_size = std::cmp::min(remaining, zeros.len() as u64);
                             if std::io::Write::write_all(&mut f, &zeros[..write_size as usize])
@@ -375,10 +388,7 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
                     .parent()
                     .unwrap()
                     .join("Quarantine")
-                    .join(format!(
-                        "{}.manifest.json",
-                        q_path_clone.file_name().unwrap().to_string_lossy()
-                    ));
+                    .join(format!("{}.manifest.json", orig_file_name));
                 if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                     if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
                         manifest.quarantined_file_shredded = true;
@@ -392,7 +402,7 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
         }
     }
 
-    Err("Error: File missing".into())
+    Ok("Purge initiated".into())
 }
 
 #[tauri::command]

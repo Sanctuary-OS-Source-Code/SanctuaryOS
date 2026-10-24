@@ -57,6 +57,7 @@ import CommandCenter from "./CommandCenter";
 import Blueprints from "./Blueprints";
 import StagingPayloadEditor from "./components/StagingPayloadEditor";
 import { DevBuildClearanceGate } from "./components/DevBuildClearanceGate";
+import { ElevatedPasskeyGate } from "./components/ElevatedPasskeyGate";
 import Vault from "./Vault";
 import Lab from "./Lab";
 import { scrubLogUserData, buildFormattedLabReportText, extractReportLoadoutFromLogAndContext } from "./utils/logScrubber";
@@ -1117,7 +1118,7 @@ function App() {
         const debounceKey = `${event.payload.hash}`;
         if (!event.payload.hash || insertingHashes.current.has(debounceKey)) return;
         insertingHashes.current.add(debounceKey);
-        setTimeout(() => insertingHashes.current.delete(debounceKey), 2000);
+        setTimeout(() => insertingHashes.current.delete(debounceKey), 250);
 
         if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
           try {
@@ -1624,6 +1625,7 @@ function App() {
             await invoke('update_active_game_schema', { schema: currentSchema }).catch(console.error);
           }
 
+          fetchVault();
           runRadarSweep(false);
           fetchCloudLabQueue();
           invoke("initialize_vault_watch").catch(console.warn);
@@ -2918,7 +2920,7 @@ function App() {
     >
       <SystemBackground />
 
-      <div className="relative z-10 flex flex-col h-full w-full overflow-hidden py-6 pl-6 pr-0 gap-6 max-md:p-0 max-md:gap-0">
+      <div id="sanctuary-os-shell" className="relative z-10 flex flex-col h-full w-full overflow-hidden py-6 pl-6 pr-0 gap-6 max-md:p-0 max-md:gap-0">
         {!(!isDesktop() && isRootDomain()) && (
           <TitleBar
             isSidebarCollapsed={isSidebarCollapsed}
@@ -3162,25 +3164,33 @@ function App() {
                           userRole,
                         ) && (
                           <ErrorBoundary moduleName="Architect Hub">
-                            <ArchitectHub key={activeWorkspaceId || 'no-workspace'} userRole={userRole} equipPlaySet={equipPlaySet} modList={modList} setStatus={setStatus} />
+                            <ElevatedPasskeyGate requirePasskey={true} roleLabelKey="passkey_gate_role_architect" roleLabelFallback="Architect">
+                              <ArchitectHub key={activeWorkspaceId || 'no-workspace'} userRole={userRole} equipPlaySet={equipPlaySet} modList={modList} setStatus={setStatus} />
+                            </ElevatedPasskeyGate>
                           </ErrorBoundary>
                         )}
                       {view === "Oversight" &&
                         ["oversight", "wayfinder", "admin"].includes(userRole) && (
                           <ErrorBoundary moduleName="Oversight">
-                            <Oversight key={activeWorkspaceId || 'no-workspace'} />
+                            <ElevatedPasskeyGate requirePasskey={true} roleLabelKey="passkey_gate_role_oversight" roleLabelFallback="Oversight">
+                              <Oversight key={activeWorkspaceId || 'no-workspace'} />
+                            </ElevatedPasskeyGate>
                           </ErrorBoundary>
                         )}
                       {view === "WayfinderHub" &&
                         ["wayfinder", "admin"].includes(userRole) && (
                           <ErrorBoundary moduleName="Wayfinder Hub">
-                            <WayfinderHub key={activeWorkspaceId || 'no-workspace'} onOpenMasonProfile={handleOpenMasonProfile} />
+                            <ElevatedPasskeyGate requirePasskey={true} roleLabelKey="passkey_gate_role_wayfinder" roleLabelFallback="Wayfinder">
+                              <WayfinderHub key={activeWorkspaceId || 'no-workspace'} onOpenMasonProfile={handleOpenMasonProfile} />
+                            </ElevatedPasskeyGate>
                           </ErrorBoundary>
                         )}
                       {view === "KeepersCore" &&
                         ["core_dev", "admin", "keeper"].includes(osRole) && (
                           <ErrorBoundary moduleName="Keepers Core">
-                            <KeepersCore />
+                            <ElevatedPasskeyGate requirePasskey={true} roleLabelKey="passkey_gate_role_keeper" roleLabelFallback="Keeper">
+                              <KeepersCore />
+                            </ElevatedPasskeyGate>
                           </ErrorBoundary>
                         )}
                       {view === "DbpfScout" && <DbpfScout key={activeWorkspaceId || 'no-workspace'} />}

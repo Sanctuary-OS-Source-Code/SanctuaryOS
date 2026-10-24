@@ -535,57 +535,118 @@ const Vault = React.memo(function Vault(props: any) {
                       }
                       const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
                       return !folderExists;
-                    }).slice(0, 20).map((item: any, idx: number) => (
-                      <div key={`recent-${idx}`} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group" onClick={() => {
-                        if (item.isVirtual && item.isLocalOverride && !item.isCollection) {
-                          const targetId = item.dbId || item.familyId || item.setId;
-                          if (targetId) window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: targetId }));
-                        } else if (setActiveDossier) {
-                          setActiveDossier(item);
+                    }).slice(0, 20).map((item: any, idx: number) => {
+                      const chipClass =
+                        "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+                      const rawStatus = String(item?.status || "").toLowerCase().replace(/_/g, " ").replace(/[^\w\s-]/gi, "").trim();
+                      const statusMeta = (() => {
+                        if (rawStatus === "corrupted" || rawStatus === "broken") {
+                          return { label: t("status_tag_corrupted", "Corrupted"), icon: t("icon_error", "error"), iconColor: "text-[var(--danger)]" };
                         }
-                      }}>
-                        <div
-                          className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] shrink-0 flex items-center justify-center bg-transparent transition-colors duration-700 overflow-hidden"
-                          style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
-                        >
-                          {(showImages !== false && (item.meta_image || item.image_url)) ? (
-                            <img
-                              src={item.meta_image || item.image_url}
-                              alt={item.meta_name || item.name || item.title}
-                              className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-transform duration-700"
-                              style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
-                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                            />
-                          ) : (
-                            <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-60 group-hover:scale-110 group-hover:text-[var(--accent)] transition-all duration-700" style={{ fontSize: '80px' }}>
-                              {getModIcon(item, activeGameSchema, t)}
-                            </span>
-                          )}
+                        if (rawStatus === "unstable") {
+                          return { label: t("status_tag_unstable", "Unstable"), icon: t("icon_warning", "warning"), iconColor: "text-[var(--warning)]" };
+                        }
+                        if (rawStatus === "under review" || rawStatus === "pending") {
+                          return { label: t("status_tag_under_review", "Under Review"), icon: t("icon_schedule", "schedule"), iconColor: "text-[var(--accent)]" };
+                        }
+                        if (rawStatus === "synced") {
+                          return { label: t("synced_badge", "Synced"), icon: t("icon_cloud_done", "cloud_done"), iconColor: "text-[var(--success)]" };
+                        }
+                        if (rawStatus === "stable" || rawStatus === "verified") {
+                          return { label: t("status_tag_stable", "Stable"), icon: t("icon_verified", "verified"), iconColor: "text-[var(--success)]" };
+                        }
+                        return { label: t("unlinked_badge", "Unlinked"), icon: t("icon_science", "science"), iconColor: "text-[var(--accent)]" };
+                      })();
+                      const rawFileName = String(item?.file_extension || item?.name || "").toLowerCase();
+                      const isScript = rawFileName.includes("ts4script") || String(item?.type || "").toLowerCase().includes("script");
+                      const typeLabel = item?.isCollection
+                        ? t("tab_cc", "Collection")
+                        : isScript
+                          ? t("card_file_script", "Script")
+                          : t("card_file_package", "Package");
+                      const modulesCount = Array.isArray(item?.flavors) && item.flavors.length > 1 ? item.flavors.length : 0;
 
-                          <div className="absolute top-3 right-3 flex gap-2 z-30">
-                            <span className="text-[8px] font-black px-2 py-1 bg-[color-mix(in_srgb,var(--bg)_65%,transparent)] rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] capitalize tracking-widest">
-                              {t("tab_mods")}
-                            </span>
+                      return (
+                        <div key={`recent-${idx}`} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] group" onClick={() => {
+                          if (item.isVirtual && item.isLocalOverride && !item.isCollection) {
+                            const targetId = item.dbId || item.familyId || item.setId;
+                            if (targetId) window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: targetId }));
+                          } else if (setActiveDossier) {
+                            setActiveDossier(item);
+                          }
+                        }}>
+                          <div
+                            className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
+                            style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit', background: 'var(--glass-card-banner-bg)' }}
+                          >
+                            <div className="absolute top-3 left-3 z-30">
+                              <div className={chipClass}>
+                                <span className={`material-symbols-outlined !text-[12px] ${statusMeta.iconColor}`}>
+                                  {statusMeta.icon}
+                                </span>
+                                <span>{statusMeta.label}</span>
+                              </div>
+                            </div>
+                            {(showImages !== false && (item.meta_image || item.image_url)) ? (
+                              <img
+                                src={item.meta_image || item.image_url}
+                                alt={item.meta_name || item.name || item.title}
+                                className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+                                style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            ) : (
+                              <div
+                                className="w-16 h-16 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
+                                style={{
+                                  backgroundColor: 'var(--glass-card-icon-bg)',
+                                  borderColor: 'var(--glass-card-icon-border)',
+                                  boxShadow: 'var(--glass-card-icon-shadow)',
+                                }}
+                              >
+                                <span className="material-symbols-outlined !text-[34px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
+                                  {getModIcon(item, activeGameSchema, t)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="p-5 flex flex-col flex-1">
+                            <h3 className="text-[15px] font-bold truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
+                              {formatDisplayName(item.displayName || item.meta_name || item.name || item.title || "")}
+                            </h3>
+                            <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate mb-2">
+                              BY {item.meta_author || item.author || t("unknown_mason")}
+                            </p>
+
+                            <div className="flex flex-wrap items-center gap-2 mt-1 mb-3">
+                              <div className={chipClass}>
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                  {item?.isCollection ? t("icon_folder_special", "folder_special") : isScript ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
+                                </span>
+                                <span className="text-[var(--subtext)]">{typeLabel}</span>
+                              </div>
+                            </div>
+
+                            <div className="mt-auto pt-3 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                              {modulesCount > 0 ? (
+                                <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
+                                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                                    {t("icon_account_tree", "account_tree")}
+                                  </span>
+                                  <span>+{modulesCount} {t("badge_modules_count", "Modules")}</span>
+                                </div>
+                              ) : (
+                                <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">
+                                  {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
+                                </span>
+                              )}
+                              <span className="text-[9px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-opacity duration-300">{t("btn_view")} &rarr;</span>
+                            </div>
                           </div>
                         </div>
-
-                        <div className="p-4 flex flex-col flex-1">
-                          <h3 className="text-[11px] font-black truncate capitalize tracking-tight group-hover:theme-text-accent transition-colors mb-1">
-                            {formatDisplayName(item.displayName || item.meta_name || item.name || item.title || "")}
-                          </h3>
-                          <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate mb-2">
-                            BY {item.meta_author || item.author || t("unknown_mason")}
-                          </p>
-
-                          <div className="mt-auto pt-3 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                            <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">
-                              {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
-                            </span>
-                            <span className="text-[9px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-opacity duration-300">{t("btn_view")} &rarr;</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </CommandScreenMain>

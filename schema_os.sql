@@ -485,3 +485,46 @@ CREATE POLICY "Authenticated users can vote on dispatch polls" ON dispatch_poll_
 CREATE POLICY "Authenticated users can remove own dispatch poll votes" ON dispatch_poll_votes FOR DELETE USING (auth.role() = 'authenticated' AND auth.uid() = user_id);
 
 SELECT 'Sanctuary OS Core Hub Schema V0.5.7 Initialized Successfully' AS status;
+
+-- ============================================================================
+-- 7. BILATERAL CODEBASE-TO-KEEPERS-CORE SYSTEM DIRECTIVES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.system_directives (
+    slug text PRIMARY KEY,
+    title text NOT NULL,
+    summary text,
+    category text NOT NULL,
+    file_path text NOT NULL,
+    content text NOT NULL DEFAULT '',
+    structured_payload jsonb DEFAULT '{}'::jsonb,
+    version text DEFAULT 'v0.5.8-Dev.3',
+    updated_at timestamptz DEFAULT now(),
+    updated_by text DEFAULT 'Keepers Core'
+);
+
+ALTER TABLE public.system_directives ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can read system_directives" ON public.system_directives;
+CREATE POLICY "Public can read system_directives"
+    ON public.system_directives
+    FOR SELECT
+    USING (true);
+
+DROP POLICY IF EXISTS "Keepers can manage system_directives" ON public.system_directives;
+CREATE POLICY "Keepers can manage system_directives"
+    ON public.system_directives
+    FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE profiles.id = auth.uid()
+              AND profiles.role IN ('keeper', 'core_dev', 'admin')
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE profiles.id = auth.uid()
+              AND profiles.role IN ('keeper', 'core_dev', 'admin')
+        )
+    );

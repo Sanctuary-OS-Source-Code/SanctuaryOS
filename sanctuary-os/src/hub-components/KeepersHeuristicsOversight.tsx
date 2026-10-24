@@ -191,13 +191,19 @@ export default function KeepersHeuristicsOversight() {
       statusColor={s.enabled !== false ? "border-[color-mix(in_srgb,var(--danger)_40%,transparent)]" : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-50"}
       onClick={() => openEditEditor(s)}
       badges={
-        <div className="w-full flex flex-wrap justify-center gap-1.5 mt-2">
-          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-            {t("core_os_badge") || "Core OS"}
-          </span>
-          <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 px-2.5 py-0.5 rounded-lg">
-            {s.match_type}
-          </span>
+        <div className="w-full flex flex-wrap items-center gap-1.5">
+          <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+            <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+              {t("icon_shield_lock") || "shield_lock"}
+            </span>
+            <span>{t("core_os_badge") || "Core OS"}</span>
+          </div>
+          <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+            <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+              {t("icon_terminal", "terminal")}
+            </span>
+            <span className="text-[var(--subtext)]">{s.match_type}</span>
+          </div>
         </div>
       }
     >

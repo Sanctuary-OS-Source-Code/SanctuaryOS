@@ -12,24 +12,47 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
     const [canScrollRight, setCanScrollRight] = React.useState(false);
     const [canScrollLeft, setCanScrollLeft] = React.useState(false);
 
-    const checkScroll = () => {
+    const activeIndex = React.useMemo(() => {
+        const arr = React.Children.toArray(children);
+        return arr.findIndex((child: any) => Boolean(child?.props?.isActive));
+    }, [children]);
+
+    const checkScroll = React.useCallback(() => {
         if (scrollRef.current) {
             const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-            setCanScrollLeft(scrollLeft > 0);
+            setCanScrollLeft(scrollLeft > 2);
             setCanScrollRight(Math.ceil(scrollLeft + clientWidth) < scrollWidth - 5);
         }
-    };
+    }, []);
 
     React.useEffect(() => {
-        // Initial check and setup resize listener
-        // Slight delay to ensure children are rendered and layout is calculated
-        const timer = setTimeout(checkScroll, 100);
+        const timer = setTimeout(checkScroll, 80);
         window.addEventListener('resize', checkScroll);
         return () => {
             clearTimeout(timer);
             window.removeEventListener('resize', checkScroll);
         };
-    }, [children]);
+    }, [children, checkScroll]);
+
+    React.useEffect(() => {
+        if (activeIndex < 0 || !scrollRef.current) return;
+        const container = scrollRef.current;
+        const activeEl = container.children[activeIndex] as HTMLElement | undefined;
+        if (!activeEl) return;
+
+        const targetLeft =
+            activeEl.offsetLeft -
+            container.clientWidth / 2 +
+            activeEl.offsetWidth / 2;
+
+        container.scrollTo({
+            left: Math.max(0, targetLeft),
+            behavior: 'smooth',
+        });
+
+        const timer = setTimeout(checkScroll, 320);
+        return () => clearTimeout(timer);
+    }, [activeIndex, checkScroll]);
 
     React.useEffect(() => {
         const el = scrollRef.current;
@@ -37,8 +60,8 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
         el.addEventListener('scroll', checkScroll, { passive: true });
         return () => {
             el.removeEventListener('scroll', checkScroll);
-        }
-    }, []);
+        };
+    }, [checkScroll]);
 
     const scrollBy = (amount: number) => {
         if (scrollRef.current) {
@@ -49,16 +72,16 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
     return (
       <div className="relative group flex items-center w-full">
         {canScrollLeft && (
-            <button onClick={() => scrollBy(-300)} className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center bg-[var(--bg-panel)] border border-[var(--border)] rounded-full shadow-xl text-[var(--text)] opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="material-symbols-outlined text-[16px]">{t("icon_chevron_left", "chevron_left")}</span>
+            <button type="button" onClick={() => scrollBy(-300)} className="absolute left-1 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center glass-panel border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-full shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all cursor-pointer">
+                <span className="material-symbols-outlined !text-[18px]">{t("icon_chevron_left", "chevron_left")}</span>
             </button>
         )}
         <div ref={scrollRef} className={`flex w-full overflow-x-auto gap-4 md:gap-6 py-4 items-stretch snap-x scroll-smooth hide-scrollbar ${innerClassName}`}>
           {children}
         </div>
         {canScrollRight && (
-            <button onClick={() => scrollBy(300)} className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center bg-[var(--bg-panel)] border border-[var(--border)] rounded-full shadow-xl text-[var(--text)] opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="material-symbols-outlined text-[16px]">{t("icon_chevron_right", "chevron_right")}</span>
+            <button type="button" onClick={() => scrollBy(300)} className="absolute right-1 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center glass-panel border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-full shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all cursor-pointer">
+                <span className="material-symbols-outlined !text-[18px]">{t("icon_chevron_right", "chevron_right")}</span>
             </button>
         )}
       </div>
@@ -268,11 +291,17 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                         title={post.title}
                         onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })}
                         className="w-full"
-                        imageOverlay={
-                            <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{formatDispatchCategory(post.category, t)}</span>
-                                <span className="px-2 py-0.5 glass-surface text-[var(--text)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("category_system")}</span>
-                            </div>
+                        badges={
+                            <>
+                                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_satellite_alt", "satellite_alt")}</span>
+                                    <span>{formatDispatchCategory(post.category, t)}</span>
+                                </div>
+                                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">{t("icon_shield", "shield")}</span>
+                                    <span className="text-[var(--subtext)]">{t("category_system")}</span>
+                                </div>
+                            </>
                         }
                         footer={
                             <div className="flex items-center justify-between w-full mt-2">
@@ -323,8 +352,3 @@ export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColo
         </button>
     );
 }
-
-
-
-
-

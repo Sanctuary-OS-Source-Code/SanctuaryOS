@@ -49,6 +49,10 @@ interface ModalState {
   setIsBackingUp: (val: boolean) => void;
   backupType: 'world' | 'engine' | null;
   setBackupType: (val: 'world' | 'engine' | null) => void;
+  completedBackups: string[];
+  setCompletedBackups: (val: string[] | ((prev: string[]) => string[])) => void;
+  isDefconBackupSession: boolean;
+  setIsDefconBackupSession: (val: boolean) => void;
   isRestoring: boolean;
   setIsRestoring: (val: boolean) => void;
   restoreType: 'world' | 'engine' | null;
@@ -297,6 +301,12 @@ export const useModalStore = create<ModalState>((set, get) => ({
   setIsBackingUp: (isBackingUp) => set({ isBackingUp }),
   backupType: null,
   setBackupType: (backupType) => set({ backupType }),
+  completedBackups: [],
+  setCompletedBackups: (completedBackups) => set((state) => ({
+    completedBackups: typeof completedBackups === 'function' ? completedBackups(state.completedBackups) : completedBackups
+  })),
+  isDefconBackupSession: false,
+  setIsDefconBackupSession: (isDefconBackupSession) => set({ isDefconBackupSession }),
   isRestoring: false,
   setIsRestoring: (isRestoring) => set({ isRestoring }),
   restoreType: null,

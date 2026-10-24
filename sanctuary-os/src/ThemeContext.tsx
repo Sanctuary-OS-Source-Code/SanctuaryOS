@@ -399,7 +399,7 @@ function generateRefractedWallpaperDataUrl(
   });
 }
 
-const GLASS_OPTICS_REV = "rev_12";
+const GLASS_OPTICS_REV = "rev_14";
 
 const ThemeContext = createContext<any>(null);
 
@@ -753,11 +753,11 @@ export const ThemeProvider = ({ children }: any) => {
   }, [activeThemeIdState, JSON.stringify(currentTheme), GLASS_OPTICS_REV]);
 
   useEffect(() => {
-    const GLASS_SELECTOR = '.glass-panel, .glass-surface, nav.firefox-safe-glass, .portal-glass-fix, .sa-side-panel-window';
-    let rafId: number | null = null;
-    let transitionEndTimestamp = 0;
+    let rafId = 0;
+    const SELECTOR = '.glass-panel, .glass-surface, nav.firefox-safe-glass, .sa-side-panel-window, .portal-glass-fix';
 
     const syncGlassViewportCoords = () => {
+      rafId = 0;
       const vw = window.innerWidth || 1920;
       const vh = window.innerHeight || 1080;
       const root = document.documentElement;
@@ -770,55 +770,38 @@ export const ThemeProvider = ({ children }: any) => {
         root.style.setProperty('--sanctuary-vh', vhStr);
       }
 
-      const nodes = document.querySelectorAll<HTMLElement>(GLASS_SELECTOR);
+      const nodes = document.querySelectorAll<HTMLElement>(SELECTOR);
       for (let i = 0; i < nodes.length; i++) {
         const el = nodes[i];
         const rect = el.getBoundingClientRect();
         if (rect.width === 0 && rect.height === 0) continue;
-        const x = `${Math.round(rect.left)}px`;
-        const y = `${Math.round(rect.top)}px`;
-        if (el.style.getPropertyValue('--glass-x') !== x) {
-          el.style.setProperty('--glass-x', x);
+        const xStr = `${Math.round(rect.left)}px`;
+        const yStr = `${Math.round(rect.top)}px`;
+        if (el.style.getPropertyValue('--glass-x') !== xStr) {
+          el.style.setProperty('--glass-x', xStr);
         }
-        if (el.style.getPropertyValue('--glass-y') !== y) {
-          el.style.setProperty('--glass-y', y);
+        if (el.style.getPropertyValue('--glass-y') !== yStr) {
+          el.style.setProperty('--glass-y', yStr);
         }
       }
     };
 
     const scheduleSync = () => {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        syncGlassViewportCoords();
-        if (performance.now() < transitionEndTimestamp) {
-          scheduleSync();
-        }
-      });
+      if (rafId === 0) {
+        rafId = requestAnimationFrame(syncGlassViewportCoords);
+      }
     };
 
-    const handleScroll = () => {
+    // Synchronous update on scroll so --glass-y updates in the exact same paint frame with zero lag
+    const onScrollSync = () => {
       syncGlassViewportCoords();
-    };
-
-    const handleTransition = () => {
-      transitionEndTimestamp = performance.now() + 550;
-      scheduleSync();
     };
 
     syncGlassViewportCoords();
-    scheduleSync();
+    window.addEventListener('scroll', onScrollSync, { capture: true, passive: true });
+    window.addEventListener('resize', scheduleSync, { passive: true });
 
-    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
-    window.addEventListener('resize', handleScroll, { passive: true });
-    window.addEventListener('transitionrun', handleTransition, { capture: true, passive: true });
-    window.addEventListener('transitionstart', handleTransition, { capture: true, passive: true });
-    window.addEventListener('transitionend', handleScroll, { capture: true, passive: true });
-
-    const observer = new MutationObserver(() => {
-      syncGlassViewportCoords();
-      scheduleSync();
-    });
+    const observer = new MutationObserver(scheduleSync);
     observer.observe(document.body, {
       childList: true,
       subtree: true,
@@ -827,15 +810,12 @@ export const ThemeProvider = ({ children }: any) => {
     });
 
     return () => {
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      window.removeEventListener('scroll', handleScroll, true);
-      window.removeEventListener('resize', handleScroll);
-      window.removeEventListener('transitionrun', handleTransition, true);
-      window.removeEventListener('transitionstart', handleTransition, true);
-      window.removeEventListener('transitionend', handleScroll, true);
+      if (rafId !== 0) cancelAnimationFrame(rafId);
+      window.removeEventListener('scroll', onScrollSync, { capture: true } as any);
+      window.removeEventListener('resize', scheduleSync);
       observer.disconnect();
     };
-  }, [activeThemeIdState, JSON.stringify(currentTheme), GLASS_OPTICS_REV]);
+  }, []);
 
   const saveThemeToVault = (id: string, json: any, isDev: boolean = false) => {
     (async () => {

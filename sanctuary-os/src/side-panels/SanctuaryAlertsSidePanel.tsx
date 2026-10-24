@@ -75,7 +75,7 @@ export function SanctuaryAlertsSidePanel({
         const activeSchema = useStore.getState().activeGameSchema;
         const teamName =
           tableName === "keeper_system_broadcasts"
-            ? t("author_sanctuary_team", "Sanctuary Team")
+            ? t("author_sanctuary_team", "Sanctuary Foundry")
             : `${activeSchema?.display_name || activeSchema?.name || "Wayfinders"} Team`;
 
         setPosts(
@@ -283,7 +283,7 @@ export function SanctuaryAlertsSidePanel({
 
                         <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] opacity-80">
                           <span className="truncate">
-                            {post.masons?.name || t("author_sanctuary_team", "Sanctuary Team")}
+                            {post.masons?.name || t("author_sanctuary_team", "Sanctuary Foundry")}
                           </span>
                           <span>•</span>
                           <span className="truncate">{audienceLabel}</span>

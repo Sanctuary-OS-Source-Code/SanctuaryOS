@@ -390,7 +390,7 @@ export function useMasonFiles({ vaultPath, isCloudMode, cloudTarget = "sanctuary
                 const res = await client.rpc('secure_upsert_cloud_file', { p_token: token, p_target: internalCloudTarget, p_payload: payload });
                 error = res.error;
             } else {
-                const res = await client.from(internalCloudTarget).insert(payload);
+                const res = await client.from(internalCloudTarget).insert(payload as any);
                 error = res.error;
             }
 

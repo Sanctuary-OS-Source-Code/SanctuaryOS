@@ -231,9 +231,14 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                 title={ticket.title}
                 statusColor={statusClass}
                 badges={[
-                    <span key="status" className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors ${badgeClass}`}>
-                        {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
-                    </span>
+                    <div key="status" className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                        <span className={`material-symbols-outlined !text-[12px] ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' ? 'text-[var(--success)]' : ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}>
+                            {iconName}
+                        </span>
+                        <span>
+                            {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
+                        </span>
+                    </div>
                 ]}
                 footer={
                     <div className="flex justify-start items-center w-full">

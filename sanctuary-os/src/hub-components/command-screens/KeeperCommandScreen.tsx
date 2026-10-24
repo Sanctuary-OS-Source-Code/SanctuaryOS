@@ -137,9 +137,10 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
                           icon="local_activity" 
                           onClick={() => setTab("support")}
                           className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--info)_20%,transparent)] text-[var(--info)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">Support Queue</span>
+                          badges={
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--info)]">{t("icon_local_activity", "local_activity")}</span>
+                                  <span>{t("wf_tab_tickets", "Support Queue")}</span>
                               </div>
                           }
                           footer={

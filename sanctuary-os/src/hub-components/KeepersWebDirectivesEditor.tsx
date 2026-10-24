@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase, supabaseAuth } from '../supabase';
 import { useLexicon } from '../LexiconContext';
@@ -9,16 +8,30 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, ViewToggle, RadioCardGroup, RadioCard, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel } from "../shared";
-import { UniversalCard } from "../components/universal/UniversalCard";
+import { SidePanel, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "../components/layouts/ElevatedHubLayout";
 import MasonPostCard from "../MasonPostCard";
-import MarkdownRenderer from "../MarkdownRenderer";
 import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import { logArchitectAction } from "../lib/audit";
 import { extractDispatchMetadata, DispatchMetadataHeader, DispatchPollBuilder, DispatchPollData } from "../components/universal/DispatchPollAndMeta";
+import {
+  CANONICAL_DIRECTIVES,
+  DirectiveSlug,
+  syncDirectivesBidirectional,
+  saveDirectiveBothWays,
+  pushCodebaseDirectivesToKeepersCore,
+  pullKeepersCoreDirectivesToCodebase,
+} from "../utils/directivesSync";
+
+const CATEGORY_TO_SLUG: Record<string, DirectiveSlug> = {
+  "Citizen Guide": "citizen_guide",
+  "Forking Guide": "forking_guide",
+  "Phase Roadmap": "phase_roadmap",
+  "Master Architecture": "master_architecture",
+  "Master Protocol List": "master_protocols",
+};
 
 export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen = true, onClose = () => {} }: any = {}) {
   const session = useStore((state) => state.session);
@@ -29,16 +42,13 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetAudience, setTargetAudience] = useState<string[]>(["Public"]);
-  const targetAudienceOptions = ["All", "Public", "Citizens", "Masons", "Architects", "Oversight", "Wayfinders", "Keepers"];
-  const [communityOptions, setCommunityOptions] = useState<string[]>([]);
   const [category, setCategory] = useState("Citizen Guide");
   const [actionRequired, setActionRequired] = useState("No Action Required");
   const [pollData, setPollData] = useState<DispatchPollData | null>(null);
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-  const [deliveryMethod, setDeliveryMethod] = useState("Standard");
-  const [isUrgent, setIsUrgent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<any>(null);
   const [previewPost, setPreviewPost] = useState<any>(null);
@@ -48,7 +58,7 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [inlineImageUrl, setInlineImageUrl] = useState("");
 
-  const [masonName, setWayfinderName] = useState<string>("");
+  const [, setWayfinderName] = useState<string>("");
   const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
   const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -58,12 +68,24 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
   const [isActive, setIsActive] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const [filterAudience, setFilterAudience] = useState("All");
+  const [filterAudience] = useState("All");
   const [filterCategory, setFilterCategory] = useState("All");
   const [filterStatus, setFilterStatus] = useState("overview");
 
   const wayfinderDrafts = useStore(state => state.wayfinderDrafts);
   const setWayfinderDrafts = useStore(state => state.setWayfinderDrafts);
+
+  const activeCanonicalSlug: DirectiveSlug | null = useMemo(() => {
+    if (editingPost?.slug && Boolean(CANONICAL_DIRECTIVES[editingPost.slug as DirectiveSlug])) {
+      return editingPost.slug as DirectiveSlug;
+    }
+    return CATEGORY_TO_SLUG[category] || null;
+  }, [editingPost, category]);
+
+  const activeCanonicalMeta = useMemo(() => {
+    if (!activeCanonicalSlug) return null;
+    return CANONICAL_DIRECTIVES[activeCanonicalSlug] || null;
+  }, [activeCanonicalSlug]);
 
   useEffect(() => {
     if (isEditorOpen) {
@@ -72,7 +94,6 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
       let isUnchanged = false;
       if (editingPost) {
         let rawContent = editingPost.message || editingPost.content || '';
-        let parsedImage = extractPostImage(editingPost) || "";
         if (rawContent.startsWith('[IMG:')) {
           const endIdx = rawContent.indexOf(']');
           if (endIdx !== -1) {
@@ -88,8 +109,7 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
           category === (editingPost.category || "Citizen Guide") &&
           actionRequired === (parsedMeta.actionRequired || "No Action Required") &&
           JSON.stringify(pollData || null) === JSON.stringify(editingPost.poll_data || null) &&
-          codeSnippet === (editingPost.code_snippet || "") &&
-          true;
+          codeSnippet === (editingPost.code_snippet || "");
       } else {
         isUnchanged = title === "" &&
           description === "" &&
@@ -121,14 +141,13 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
 
   const updateTimeoutRef = useRef<any>(null);
 
-
-
   const editor = useEditor({
     extensions: [
       StarterKit,
       Markdown,
       IconPlugin,
-      Image
+      Image,
+      Link
     ],
     content: content,
     onUpdate: ({ editor }) => {
@@ -145,63 +164,132 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
   });
 
   const fetchPostsAndAssets = async () => {
-    const targetTable = 'system_broadcasts';
-    const { data } = await supabaseAuth.from(targetTable)
-      .select('*')
-      .in('category', ["Citizen Guide", "Master Architecture", "Master Protocol List", "Phase Roadmap"])
-      .ilike('target_audience', '%Public%')
-      .order('created_at', { ascending: false });
-    if (data) {
-      const activeSchema = useStore.getState().activeGameSchema;
-      const gameName = activeSchema ? (activeSchema.name || "Sanctuary") : "Sanctuary";
+    setIsSyncing(true);
+    try {
+      // 1. Bidirectional sync between Keepers Core (`public.system_directives`) and Codebase `.md` files
+      const syncedList = await syncDirectivesBidirectional({
+        canWriteHub: true,
+      });
 
-      const hydratedData = data.map((post: any) => {
-        let teamName = "Sanctuary OS";
+      const canonicalCards = syncedList.map((rec) => {
         return {
+          id: rec.slug,
+          slug: rec.slug,
+          is_canonical_directive: true,
+          file_name: rec.file_path,
+          version_tag: rec.version,
+          title: rec.title,
+          description: rec.summary,
+          content: rec.content,
+          message: rec.content,
+          category: rec.category,
+          target_audience: "Public",
+          action_required: "No Action Required",
+          is_active: true,
+          is_pinned: false,
+          created_at: rec.updated_at || new Date().toISOString(),
+          updated_at: rec.updated_at || new Date().toISOString(),
+          mason_id: "system",
+          masons: {
+            name: "Sanctuary Foundry",
+          },
+        };
+      });
+
+      // 2. Also load any extra non-canonical custom directives from `system_broadcasts`
+      const { data: broadcastData } = await supabaseAuth
+        .from('system_broadcasts')
+        .select('*')
+        .in('category', ["Citizen Guide", "Forking Guide", "Master Architecture", "Master Protocol List", "Phase Roadmap"])
+        .ilike('target_audience', '%Public%')
+        .order('created_at', { ascending: false });
+
+      const canonicalTitles = new Set([
+        "official citizen guide",
+        "phase 12 - agnostic future",
+        "master architecture & feature document",
+        "master protocol list",
+        ...canonicalCards.map((c: any) => (c.title || "").trim().toLowerCase()),
+      ]);
+
+      const extraBroadcasts = (broadcastData || [])
+        .filter((post: any) => !canonicalTitles.has((post.title || "").trim().toLowerCase()))
+        .map((post: any) => ({
           ...post,
           mason_id: post.mason_id || 'system',
           masons: {
             ...post.masons,
-            name: teamName
-          }
-        };
-      });
-      setPosts(hydratedData);
-    }
+            name: "Sanctuary Foundry",
+          },
+        }));
 
-    if (currentUserId) {
-      if (currentUserId === 'system') {
-        setWayfinderName("SYSTEM");
-      } else {
-        const { data: profileData } = await supabase.from('profiles').select('username').eq('id', currentUserId).maybeSingle();
-        if (profileData?.username) setWayfinderName(profileData.username);
+      setPosts([...canonicalCards, ...extraBroadcasts]);
+
+      if (currentUserId) {
+        if (currentUserId === 'system') {
+          setWayfinderName("SYSTEM");
+        } else {
+          const { data: profileData } = await supabase.from('profiles').select('username').eq('id', currentUserId).maybeSingle();
+          if (profileData?.username) setWayfinderName(profileData.username);
+        }
       }
-    }
-
-
-
-    if (true) {
-      const { data: gamesData } = await supabase.from('sanctuary_games').select('name').not('is_active', 'eq', false);
-      if (gamesData) {
-      }
+    } finally {
+      setIsSyncing(false);
     }
   };
 
-  useEffect(() => { fetchPostsAndAssets(); }, []);
+  useEffect(() => {
+    fetchPostsAndAssets();
+  }, []);
 
-  const handleInsertText = (prefix: string, suffix: string = "") => {
-    if (editor) {
-      editor.chain().focus().insertContent(prefix + suffix).run();
+  const handleTwoWaySync = async () => {
+    setIsSyncing(true);
+    try {
+      await fetchPostsAndAssets();
+      window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+      useStore.getState().pushStatus(
+        t("dir_sync_toast_synced", "Directives synchronized between Keepers Core & Codebase (.md)!"),
+        "success"
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handlePushCodebaseToHub = async () => {
+    setIsSyncing(true);
+    try {
+      await pushCodebaseDirectivesToKeepersCore(currentUserId || "Keepers Core");
+      await fetchPostsAndAssets();
+      window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+      useStore.getState().pushStatus(
+        t("dir_sync_toast_pushed", "Pushed all 5 local .md files to Keepers Core!"),
+        "success"
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handlePullHubToCodebase = async () => {
+    setIsSyncing(true);
+    try {
+      await pullKeepersCoreDirectivesToCodebase();
+      await fetchPostsAndAssets();
+      window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+      useStore.getState().pushStatus(
+        t("dir_sync_toast_pulled", "Pulled all 5 directives from Keepers Core to local .md files!"),
+        "success"
+      );
+    } finally {
+      setIsSyncing(false);
     }
   };
 
   const handleLinkAsset = (asset: any) => {
     const linkStr = `asset://${asset.type}/${asset.id}`;
-
     const typeKey = `masonhub_asset_type_${asset.type}`;
     const translatedType = t(typeKey) !== typeKey ? t(typeKey) : (asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : 'Lexicon');
-    const translatedView = t("btn_view");
-
     const text = `${translatedType}: ${asset.name}`;
 
     if (editor) {
@@ -287,7 +375,7 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
         setContent(post.content);
         if (editor) editor.commands.setContent(post.content);
         setTargetAudience(post.target_audience ? post.target_audience.split(',') : ['All']);
-        setCategory(post.category || 'Announcement');
+        setCategory(post.category || 'Citizen Guide');
       }
     } else {
       setTitle("");
@@ -299,6 +387,7 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
     }
     setTimeout(() => {
       setEditingPostId(null);
+      setEditingPost(null);
       setIsSubmitting(false);
       setPreviewPost(null);
     }, 300);
@@ -345,7 +434,53 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
     }
 
     setIsSubmitting(true);
-    let finalCategory = category;
+    const finalCategory = category;
+
+    // Check if this maps to one of the 5 canonical synced directives
+    const canonicalSlug: DirectiveSlug | null =
+      (editingPost?.is_canonical_directive && editingPost?.slug) ||
+      CATEGORY_TO_SLUG[finalCategory] ||
+      null;
+
+    if (canonicalSlug) {
+      const meta = CANONICAL_DIRECTIVES[canonicalSlug];
+      const saveRes = await saveDirectiveBothWays({
+        slug: canonicalSlug,
+        title: title.trim(),
+        summary: description.trim() || meta?.summary || "",
+        category: finalCategory,
+        content: finalContent.trim(),
+        updated_by: currentUserId || "Keepers Core",
+      });
+
+      await logArchitectAction(
+        "Synced System Directive (Hub + .md)",
+        "system_directives",
+        `${title.trim()} (${meta?.file_path || canonicalSlug})`,
+        undefined,
+        "Keepers Core"
+      );
+
+      useStore.getState().setWayfinderDrafts(prev => {
+        const next = { ...prev };
+        delete next[editingPostId || 'new'];
+        return next;
+      });
+
+      window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+      closeEditor();
+      await fetchPostsAndAssets();
+      useStore.getState().pushStatus(
+        !saveRes.error
+          ? t("dir_sync_toast_saved", "Saved to Keepers Core & local .md file!")
+          : t("update_transmission", "Directive Updated!"),
+        "success"
+      );
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Fallback for any custom non-canonical broadcast
     const sanitizedPoll = pollData && pollData.question.trim() && pollData.options.filter(o => o.label.trim()).length >= 2
       ? {
           ...pollData,
@@ -354,7 +489,7 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
         }
       : null;
 
-    let payload: any = {
+    const payload: any = {
       title: title.trim(),
       description: description.trim() || null,
       message: finalContent.trim(),
@@ -368,120 +503,60 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
     };
     if (imageUrl.trim()) payload.message = `[IMG:${imageUrl.trim()}]\n\n` + payload.message;
 
-    let error = null;
-    let newPostId: string | null = null;
     const targetTable = 'system_broadcasts';
-    const performSave = async (data: any) => {
-      const payloadWithId = editingPostId ? { id: editingPostId, ...data } : data;
-      let res = await supabaseAuth.from(targetTable).upsert(payloadWithId).select();
+    const payloadWithId = editingPostId ? { id: editingPostId, ...payload } : payload;
+    const res = await supabaseAuth.from(targetTable).upsert(payloadWithId).select();
 
-      if (!res.error && (!res.data || res.data.length === 0) && editingPostId) {
-        res.error = { message: "Permission denied or post not found. Check your roles." } as any;
-      }
-
-      if (editingPostId) {
-        if (!res.error) await logArchitectAction("Updated Dispatch", targetTable, data.title, undefined, "Wayfinder Operations");
-      } else {
-        if (!res.error && res.data && res.data.length > 0) {
-          newPostId = res.data[0].id;
-          await logArchitectAction("Created Dispatch", targetTable, data.title, undefined, "Wayfinder Operations");
-        }
-      }
-      return { error: res.error, data: res.data };
-    };
-
-    let resObj = await performSave(payload);
-    error = resObj.error;
-
-    if (!error) {
-      if (!editingPostId && newPostId) {
-        const { data: authUser } = await supabase.auth.getUser();
-        if (authUser.user) {
-          const { data: followers } = await supabase.from('profiles').select("id");
-          console.log("Followers for dispatch:", followers);
-          if (followers && followers.length > 0) {
-            const activeSchema = useStore.getState().activeGameSchema;
-            let teamName = "Sanctuary OS Team";
-            if (false) {
-              teamName = false ? (activeSchema ? `${activeSchema.display_name || activeSchema.name} Oversight Team` : "Oversight Team") : (activeSchema ? `${activeSchema.display_name || activeSchema.name} Team` : "Wayfinder Team");
-            }
-
-            const notifications = followers.map(f => {
-              let actionWord = "a new System Dispatch";
-              if (payload.category === "Alert" || payload.category.includes("Alert")) {
-                actionWord = payload.is_pinned ? "an Urgent Alert" : "a new Alert";
-              } else if (payload.category === "Maintenance") {
-                actionWord = "a Maintenance Notice";
-              } else if (payload.category === "Update") {
-                actionWord = "a new Update";
-              } else if (payload.category === "Community") {
-                actionWord = "a Community Announcement";
-              }
-
-              return {
-                id: crypto.randomUUID(),
-                user_id: f.id,
-                actor_id: authUser.user!.id,
-                type: 'system_broadcast',
-                reference_id: newPostId,
-                message: `${teamName} has posted ${actionWord}: ${payload.title}`
-              };
-            });
-            try {
-              await Promise.all(notifications.map(notif =>
-                supabase.from('notifications').upsert(notif).then(res => {
-                  if (res.error) console.error("Notification insert error:", res.error);
-                })
-              ));
-              window.dispatchEvent(new CustomEvent('refresh_notifications'));
-            } catch (e) {
-              console.error("Failed to insert notifications:", e);
-            }
-          }
-        }
-      }
-
+    if (!res.error) {
+      await logArchitectAction(
+        editingPostId ? "Updated Dispatch" : "Created Dispatch",
+        targetTable,
+        payload.title,
+        undefined,
+        "Keepers Core"
+      );
       useStore.getState().setWayfinderDrafts(prev => {
         const next = { ...prev };
         delete next[editingPostId || 'new'];
         return next;
       });
-
+      window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
       closeEditor();
-      fetchPostsAndAssets();
-      useStore.getState().pushStatus(editingPostId ? "Transmission Updated!" : t("post_success"), 'success');
+      await fetchPostsAndAssets();
+      useStore.getState().pushStatus(editingPostId ? t("update_transmission", "Transmission Updated!") : t("post_success", "Posted!"), 'success');
     } else {
-      useStore.getState().pushStatus(`Transmission Failed: ${error.message}`, 'error');
+      useStore.getState().pushStatus(`Transmission Failed: ${res.error.message}`, 'error');
     }
     setIsSubmitting(false);
   };
 
   const handleDelete = async (id: string) => {
-    const targetTable = 'system_broadcasts';
     const postToDelete = posts.find(p => p.id === id);
-
+    if (postToDelete?.is_canonical_directive) {
+      return;
+    }
+    const targetTable = 'system_broadcasts';
     const res = await supabaseAuth.from(targetTable).delete().eq('id', id);
-    let error = res.error;
-
-    if (!error && postToDelete) await logArchitectAction("Deleted Dispatch", targetTable, postToDelete.title || id, undefined, "Wayfinder Operations");
+    if (!res.error && postToDelete) {
+      await logArchitectAction("Deleted Dispatch", targetTable, postToDelete.title || id, undefined, "Keepers Core");
+    }
     fetchPostsAndAssets();
   };
 
   const filteredPosts = useMemo(() => {
     return posts.filter(p => {
       const searchMatch = p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.message || p.content)?.toLowerCase().includes(searchTerm.toLowerCase());
+        (p.message || p.content)?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.file_name || "")?.toLowerCase().includes(searchTerm.toLowerCase());
       const audienceMatch = filterAudience === "All" || (p.target_audience && p.target_audience.includes(filterAudience));
       const categoryMatch = filterCategory === "All" || p.category === filterCategory;
-      const statusMatch = filterStatus === "overview" || filterStatus === "All" || 
+      const statusMatch = filterStatus === "overview" || filterStatus === "All" ||
         (filterStatus === "Urgent" ? isPostPinned(p) :
          (filterStatus === "Active" ? p.is_active !== false && !isPostPinned(p) :
           (filterStatus === "Inactive" ? p.is_active === false : true)));
       return searchMatch && audienceMatch && categoryMatch && statusMatch;
     });
   }, [posts, searchTerm, filterAudience, filterCategory, filterStatus]);
-
-
 
   const draftKeysStr = useMemo(() => Object.keys(wayfinderDrafts).sort().join(','), [wayfinderDrafts]);
 
@@ -503,27 +578,27 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview") || "Overview",
-      icon: "dashboard",
+      label: t("landing_overview", "Overview"),
+      icon: t("icon_dashboard", "dashboard"),
       number: posts.length.toString(),
     },
     {
+      id: "Active",
+      label: t("status_active", "Active"),
+      icon: t("icon_gavel", "gavel"),
+      number: posts.filter(p => p.is_active !== false && !isPostPinned(p)).length.toString(),
+    },
+    {
       id: "Urgent",
-      label: t("urgent") || "Urgent",
-      icon: "notification_important",
+      label: t("urgent", "Urgent"),
+      icon: t("icon_notification_important", "notification_important"),
       number: posts.filter(p => isPostPinned(p)).length.toString(),
       colorClass: "text-[var(--danger)]"
     },
     {
-      id: "Active",
-      label: t("status_active") || "Active",
-      icon: "gavel",
-      number: posts.filter(p => p.is_active !== false && !isPostPinned(p)).length.toString(),
-    },
-    {
       id: "Inactive",
-      label: t("status_inactive") || "Inactive",
-      icon: "block",
+      label: t("status_inactive", "Inactive"),
+      icon: t("icon_block", "block"),
       number: posts.filter(p => p.is_active === false).length.toString(),
     }
   ];
@@ -538,65 +613,67 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
         {urgentPosts.length > 0 && (
           <HubOverviewSection
             className="xl:col-span-2"
-            icon="notification_important"
+            icon={t("icon_notification_important", "notification_important")}
             iconColorClass="text-[var(--danger)]"
-            title={t("urgent_directives") || "Urgent Directives"}
+            title={t("urgent_directives", "Urgent Directives")}
             isEmpty={urgentPosts.length === 0}
-            emptyIcon="done_all"
-            emptyTitle={t("no_transmissions") || "No Urgent Directives"}
+            emptyIcon={t("icon_done_all", "done_all")}
+            emptyTitle={t("no_transmissions", "No Urgent Directives")}
           >
-            {urgentPosts.slice(0, 4).map(renderPostCard)}
+            {urgentPosts.slice(0, 5).map(renderPostCard)}
           </HubOverviewSection>
         )}
 
         <HubOverviewSection
-          icon="gavel"
+          className="xl:col-span-2"
+          icon={t("icon_gavel", "gavel")}
           iconColorClass="text-[var(--accent)]"
-          title={t("recent_active_directives") || "Recent Active Directives"}
+          title={t("recent_active_directives", "Synced Core System Directives (Keepers Core ⇄ Codebase .md)")}
           isEmpty={activePosts.length === 0}
-          emptyIcon="gavel"
-          emptyTitle={t("no_transmissions") || "No Active Directives"}
+          emptyIcon={t("icon_gavel", "gavel")}
+          emptyTitle={t("no_transmissions", "No Active Directives")}
         >
-          {activePosts.slice(0, 4).map(renderPostCard)}
+          {activePosts.slice(0, 6).map(renderPostCard)}
         </HubOverviewSection>
 
-        <HubOverviewSection
-          icon="block"
-          iconColorClass="text-[var(--subtext)]"
-          title={t("recent_inactive_directives") || "Recent Inactive Directives"}
-          isEmpty={inactivePosts.length === 0}
-          emptyIcon="gavel"
-          emptyTitle={t("no_transmissions") || "No Inactive Directives"}
-        >
-          {inactivePosts.slice(0, 4).map(renderPostCard)}
-        </HubOverviewSection>
+        {inactivePosts.length > 0 && (
+          <HubOverviewSection
+            icon={t("icon_block", "block")}
+            iconColorClass="text-[var(--subtext)]"
+            title={t("recent_inactive_directives", "Inactive Directives")}
+            isEmpty={inactivePosts.length === 0}
+            emptyIcon={t("icon_gavel", "gavel")}
+            emptyTitle={t("no_transmissions", "No Inactive Directives")}
+          >
+            {inactivePosts.slice(0, 4).map(renderPostCard)}
+          </HubOverviewSection>
+        )}
       </HubOverviewLanding>
     );
   };
 
   const contentBlock = (
     <ElevatedHubLayout
-      headerTitle={t("web_directives") || "Web Directives"}
-      headerSubtitle={t("web_directives_subtitle") || "Manage website instructions and guides"}
-      headerIcon="gavel"
+      headerTitle={t("web_directives", "System Directives")}
+      headerSubtitle={t("web_directives_subtitle", "Bidirectional Sync: Keepers Core (system_directives) ⇄ Codebase (.md)")}
+      headerIcon={t("icon_gavel", "gavel")}
       headerIconColorClass="theme-text-accent"
       hideHeader={isSidePanel}
       search={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("mason_search_placeholder")}
+      searchPlaceholder={t("mason_search_placeholder", "Search directives or .md files...")}
       hideSearch={filterStatus === 'overview'}
       tabs={tabs}
-
       activeTab={filterStatus === 'overview' ? 'overview' : filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
       primaryPopover={
         filterStatus !== 'overview' ? {
-          icon: "tune",
-          label: t("filters") || "Filters",
+          icon: t("icon_tune", "tune"),
+          label: t("filters", "Filters"),
           content: (
             <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "Category"}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category", "Category")}</span>
                 <CustomDropdown
                   flat={true}
                   variant="pill"
@@ -604,11 +681,12 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
                   value={filterCategory}
                   onChange={(v: string[]) => setFilterCategory(v[0])}
                   options={[
-                    { id: "All", label: t("all_classes") },
-                    { id: "Citizen Guide", label: t("cat_citizen_guide") || "Citizen Guide" },
-                    { id: "Master Architecture", label: t("cat_master_architecture") || "Master Architecture" },
-                    { id: "Master Protocol List", label: t("cat_master_protocol") || "Master Protocol List" },
-                    { id: "Phase Roadmap", label: t("cat_phase_roadmap") || "Phase Roadmap" }
+                    { id: "All", label: t("all_classes", "All Categories") },
+                    { id: "Citizen Guide", label: t("cat_citizen_guide", "Citizen Guide") },
+                    { id: "Forking Guide", label: t("sd_card_fork_title", "Forking Guide") },
+                    { id: "Phase Roadmap", label: t("cat_phase_roadmap", "Phase Roadmap") },
+                    { id: "Master Architecture", label: t("cat_master_architecture", "Master Architecture") },
+                    { id: "Master Protocol List", label: t("cat_master_protocol", "Master Protocol List") }
                   ]}
                 />
               </div>
@@ -616,269 +694,309 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
           )
         } : undefined
       }
-      actions={
-        filterStatus !== 'overview' ? [
-          {
-            id: "post",
-            icon: t("icon_cell_tower") || "cell_tower",
-            label: wayfinderDrafts['new'] ? t("action_unsaved_draft") : t("post_broadcast"),
-            onClick: () => openEditor()
-          }
-        ] : undefined
-      }
+      actions={[
+        {
+          id: "sync_both",
+          icon: t("icon_sync", "sync"),
+          label: t("dir_sync_btn_both", "Two-Way Sync"),
+          onClick: handleTwoWaySync,
+        },
+        {
+          id: "push_md",
+          icon: t("icon_cloud_done", "cloud_done"),
+          label: t("dir_sync_btn_push", "Push .md → Hub"),
+          onClick: handlePushCodebaseToHub,
+        },
+        {
+          id: "pull_hub",
+          icon: t("icon_system_update_alt", "system_update_alt"),
+          label: t("dir_sync_btn_pull", "Pull Hub → .md"),
+          onClick: handlePullHubToCodebase,
+        },
+        {
+          id: "post",
+          icon: t("icon_cell_tower", "cell_tower"),
+          label: wayfinderDrafts['new'] ? t("action_unsaved_draft", "Unsaved Draft") : t("post_broadcast", "Edit / New Directive"),
+          onClick: () => openEditor()
+        }
+      ]}
     >
       {filterStatus === 'overview' ? renderLanding() : (
-          <div className="flex flex-col gap-4">
-            {filteredPosts.length === 0 ? (
-              <EmptyState icon={t("icon_cell_tower")} title={t("no_transmissions")} className="col-span-full py-16" />
-            ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
-                {filteredPosts.map(renderPostCard)}
-              </div>
-            )}
-          </div>
+        <div className="flex flex-col gap-4">
+          {filteredPosts.length === 0 ? (
+            <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("no_transmissions", "No Directives Found")} className="col-span-full py-16" />
+          ) : (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
+              {filteredPosts.map(renderPostCard)}
+            </div>
+          )}
+        </div>
       )}
     </ElevatedHubLayout>
   );
 
-  const wrappedContent = contentBlock;
-
   return (
     <>
-      {wrappedContent}
+      {contentBlock}
 
       {isEditorOpen && (
-        <>
-          <SidePanel
-            isOpen={isEditorOpen}
-            onClose={closeEditor}
-            icon="cell_tower"
-            widthClass="w-[800px]"
-            title={editingPostId ? (t("update_transmission")) : (t("post_broadcast"))}
-            subtitle={editingPostId ? (t("editing_record")) : (t("composing_broadcast"))}
-            headerActions={
-              <PanelHeaderGroup>
-                {editingPostId && (
-                  <>
-                    {confirmDelete === editingPostId ? (
-                      <PanelHeaderButton
-                        onClick={() => { handleDelete(editingPostId); setConfirmDelete(null); closeEditor(); }}
-                        tooltip={t("btn_confirm_delete", "Click again to permanently delete")}
-                        icon="delete_forever"
-                        variant="danger"
-                        className="animate-pulse"
-                      />
-                    ) : (
-                      <PanelHeaderButton
-                        onClick={() => setConfirmDelete(editingPostId)}
-                        tooltip={t("purge", "Delete Post")}
-                        icon="delete"
-                        variant="danger"
-                      />
-                    )}
-                    <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-2" />
-                  </>
-                )}
+        <SidePanel
+          isOpen={isEditorOpen}
+          onClose={closeEditor}
+          icon={t("icon_cell_tower", "cell_tower")}
+          widthClass="w-[820px]"
+          title={editingPostId ? t("update_transmission", "Update System Directive") : t("post_broadcast", "Compose System Directive")}
+          subtitle={
+            activeCanonicalMeta
+              ? `${activeCanonicalMeta.file_path} • ${t("dir_sync_status_badge", "TWO-WAY SYNC • KEEPERS CORE ⇄ CODEBASE .MD")}`
+              : editingPostId
+              ? t("editing_record", "Editing Record")
+              : t("composing_broadcast", "Composing Directive")
+          }
+          headerActions={
+            <PanelHeaderGroup>
+              {editingPostId && !editingPost?.is_canonical_directive && (
+                <>
+                  {confirmDelete === editingPostId ? (
+                    <PanelHeaderButton
+                      onClick={() => { handleDelete(editingPostId); setConfirmDelete(null); closeEditor(); }}
+                      tooltip={t("btn_confirm_delete", "Click again to permanently delete")}
+                      icon={t("icon_delete_forever", "delete_forever")}
+                      variant="danger"
+                      className="animate-pulse"
+                    />
+                  ) : (
+                    <PanelHeaderButton
+                      onClick={() => setConfirmDelete(editingPostId)}
+                      tooltip={t("purge", "Delete Post")}
+                      icon={t("icon_delete", "delete")}
+                      variant="danger"
+                    />
+                  )}
+                  <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-2" />
+                </>
+              )}
+              <PanelHeaderButton
+                onClick={() => setIsActive(!isActive)}
+                tooltip={isActive ? t("active", "Active") : t("filter_inactive", "Inactive")}
+                icon={isActive ? t("icon_sensors", "sensors") : t("icon_sensors_off", "sensors_off")}
+                variant={isActive ? "success" : "default"}
+                isActive={isActive}
+              />
+              <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-2" />
+              {Boolean((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
                 <PanelHeaderButton
-                  onClick={() => setIsActive(!isActive)}
-                  tooltip={isActive ? t("active", "Active") : t("filter_inactive", "Inactive")}
-                  icon={isActive ? "sensors" : "sensors_off"}
-                  variant={isActive ? "success" : "default"}
-                  isActive={isActive}
+                  onClick={handleDiscardChanges}
+                  disabled={isSubmitting}
+                  tooltip={confirmDiscard ? t("ui_confirm_discard", "Click again to discard") : t("ui_btn_discard_edits", "Discard Changes")}
+                  icon={confirmDiscard ? t("icon_warning", "warning") : t("icon_close", "close")}
+                  variant="danger"
+                  className={confirmDiscard ? "animate-pulse" : ""}
                 />
-                <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-2" />
-                {Boolean((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
-                  <PanelHeaderButton
-                    onClick={handleDiscardChanges}
-                    disabled={isSubmitting}
-                    tooltip={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))}
-                    icon={confirmDiscard ? "warning" : "close"}
-                    variant="danger"
-                    className={confirmDiscard ? "animate-pulse" : ""}
-                  />
-                )}
-                <PanelHeaderButton
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || !title || !content}
-                  tooltip={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
-                  icon={isSubmitting ? "sync" : "send"}
-                  variant={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? "warning" : "accent"}
-                  className={isSubmitting ? "animate-pulse" : ""}
-                />
-              </PanelHeaderGroup>
-            }
-          >
-            <div className="flex flex-col gap-6">
-
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <SidePanelTitleInput
-                  value={title}
-                  onChange={setTitle}
-                  placeholder={t("post_title") || "Title"}
-                />
-
-                <div className="flex flex-col gap-2 w-full">
-                  <div className="flex justify-between items-center ml-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_description")}</label>
-                    <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length} / 250</span>
-                  </div>
-                  <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-                  <div className="flex flex-col gap-2 flex-1">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category")}</label>
-                    <div className="h-14">
-                      <CustomDropdown disableTint={true}
-                        searchable={true}
-                        allowCustom={true}
-                        value={category}
-                        onChange={(v: string[]) => setCategory(v[0])}
-                          options={[
-                            { id: "Citizen Guide", label: t("cat_citizen_guide") || "Citizen Guide" },
-                            { id: "Master Architecture", label: t("cat_master_architecture") || "Master Architecture" },
-                            { id: "Master Protocol List", label: t("cat_master_protocol") || "Master Protocol List" },
-                            { id: "Phase Roadmap", label: t("cat_phase_roadmap") || "Phase Roadmap" }
-                          ]}
-                        placeholder={t("auto_select_category")}
-                      />
+              )}
+              <PanelHeaderButton
+                onClick={handleSubmit}
+                disabled={isSubmitting || isSyncing || !title || !content}
+                tooltip={isSubmitting ? t("btn_saving", "Saving...") : t("dir_sync_toast_saved", "Save to Keepers Core & local .md file")}
+                icon={isSubmitting ? t("icon_sync", "sync") : t("icon_send", "send")}
+                variant={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? "warning" : "accent"}
+                className={isSubmitting ? "animate-pulse" : ""}
+              />
+            </PanelHeaderGroup>
+          }
+        >
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              {/* Two-Way Codebase File Sync Status Banner */}
+              {activeCanonicalMeta && (
+                <div className="glass-surface rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
+                      <span className="material-symbols-outlined !text-[18px]">
+                        {t("icon_sync", "sync")}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">
+                        {t("dir_sync_status_badge", "TWO-WAY SYNC • KEEPERS CORE ⇄ CODEBASE .MD")}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-[var(--text)] truncate">
+                        {t("dir_sync_file_label", "Linked Codebase File")}: {activeCanonicalMeta.file_path}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 flex-1">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_meta_action", "Action Required")}</label>
-                    <div className="h-14">
-                      <CustomDropdown
-                        disableTint={true}
-                        searchable={true}
-                        allowCustom={true}
-                        value={actionRequired}
-                        onChange={(v: string[]) => setActionRequired(v[0] || "No Action Required")}
-                        options={[
-                          { id: "No Action Required", label: t("dispatch_action_none", "No Action Required") },
-                          { id: "Review Before Updating", label: t("dispatch_action_review", "Review Before Updating") },
-                          { id: "Update Recommended", label: t("dispatch_action_update_rec", "Update Recommended") },
-                          { id: "Immediate Action Required", label: t("dispatch_action_immediate", "Immediate Action Required") }
-                        ]}
-                        placeholder={t("dispatch_meta_action", "Action Required")}
-                      />
-                    </div>
-                  </div>
+                  <span className="px-2.5 py-1 bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-widest rounded-lg">
+                    public.system_directives
+                  </span>
                 </div>
+              )}
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_telemetry_preview", "Dispatch Telemetry Header Preview")}</label>
-                  <DispatchMetadataHeader
-                    post={{ category, target_audience: "Public", action_required: actionRequired }}
-                    categoryOverride={category}
-                    audienceOverride={["Public"]}
-                    actionRequiredOverride={actionRequired}
-                  />
+              <SidePanelTitleInput
+                value={title}
+                onChange={setTitle}
+                placeholder={t("post_title", "Title")}
+              />
+
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex justify-between items-center ml-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_description", "Subtitle / Summary")}</label>
+                  <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length} / 250</span>
                 </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("header_image_placeholder")}</label>
-                  <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
-                </div>
-
-                <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
-                  <div className="flex items-center justify-between ml-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_content")}</label>
-                  </div>
-                  <div className="flex flex-col flex-1 glass-surface !overflow-visible bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
-                    <div className="shrink-0 sticky top-0 z-50 flex flex-col items-center p-3 bg-transparent pointer-events-none">
-                      <div className="relative flex flex-col items-center pointer-events-auto w-fit">
-                        <div className="glass-panel portal-glass-fix backdrop-blur-[var(--glassBlur)] flex flex-wrap items-center gap-1 p-1.5 !rounded-[1.25rem] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[0_14px_34px_rgba(0,0,0,0.45)]">
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold")}</span></button><HoverTooltip title={t("editor_tt_bold")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic")}</span></button><HoverTooltip title={t("editor_tt_italic")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1")}</span></button><HoverTooltip title={t("editor_tt_h1")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2")}</span></button><HoverTooltip title={t("editor_tt_h2")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted")}</span></button><HoverTooltip title={t("editor_tt_bullets")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered")}</span></button><HoverTooltip title={t("editor_tt_numbers")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image")}</span></button><HoverTooltip title={t("editor_tt_image")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code")}</span></button><HoverTooltip title={t("editor_tt_code")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule")}</span></button><HoverTooltip title={t("editor_tt_hr")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">sentiment_satisfied</span></button><HoverTooltip title={t("editor_tt_icon")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                        </div>
-                        {showIconPicker && (
-                          <IconPicker
-                            onSelect={(icon) => {
-                              editor?.chain().focus().insertContent(`[ICON:${icon}] `).run();
-                              setShowIconPicker(false);
-                            }}
-                            onClose={() => setShowIconPicker(false)}
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {showImageInput && (
-                      <div className="border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-top-2 duration-300 flex items-center gap-3 relative z-10 backdrop-blur-xl">
-                        <input
-                          value={inlineImageUrl}
-                          onChange={e => setInlineImageUrl(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && inlineImageUrl) {
-                              e.preventDefault();
-                              editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
-                              setInlineImageUrl('');
-                              setShowImageInput(false);
-                            }
-                          }}
-                          placeholder={t("image_url_placeholder")}
-                          className="flex-1 glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                          autoFocus
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (inlineImageUrl) {
-                              editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
-                              setInlineImageUrl('');
-                              setShowImageInput(false);
-                            }
-                          }}
-                          className="px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-xl font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] transition-all hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-                        >
-                          {t("ui_btn_insert")}
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="w-full flex-1 relative min-h-[350px]">
-                      <EditorContent editor={editor} className="h-full w-full custom-scrollbar" />
-                    </div>
-
-                    {showCodeInput && (
-                      <div className="border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-bottom-2 duration-300">
-                        <textarea
-                          value={codeSnippet}
-                          onChange={(e) => setCodeSnippet(e.target.value)}
-                          placeholder={t("code_snippet_placeholder")}
-                          className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-xs font-mono placeholder-[var(--subtext)] focus:outline-none focus:theme-border-accent h-48 resize-none custom-scrollbar transition-all"
-                          spellCheck={false}
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between p-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-b-2xl shrink-0">
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest flex items-center gap-1.5 ${showCodeInput ? 'theme-bg-accent/20 theme-text-accent' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                          <span className="material-symbols-outlined !text-[14px]">{t("icon_data_object")}</span> {showCodeInput ? (t("hide_code")) : (t("masonhub_add_code"))}
-                        </button>
-                        <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center gap-1.5">
-                          <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span> {t("link_asset")}
-                        </button>
-                      </div>
-                      <div className="text-[9px] font-black tracking-widest capitalize opacity-40 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_markdown")}</span> {t("icon_markdown")}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <DispatchPollBuilder pollData={pollData} onChange={setPollData} />
+                <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph", "Short summary...")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                <div className="flex flex-col gap-2 flex-1">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category", "Directive Category")}</label>
+                  <div className="h-14">
+                    <CustomDropdown
+                      disableTint={true}
+                      searchable={true}
+                      allowCustom={true}
+                      value={category}
+                      onChange={(v: string[]) => setCategory(v[0])}
+                      options={[
+                        { id: "Citizen Guide", label: t("cat_citizen_guide", "Citizen Guide") },
+                        { id: "Forking Guide", label: t("sd_card_fork_title", "Forking Guide") },
+                        { id: "Phase Roadmap", label: t("cat_phase_roadmap", "Phase Roadmap") },
+                        { id: "Master Architecture", label: t("cat_master_architecture", "Master Architecture") },
+                        { id: "Master Protocol List", label: t("cat_master_protocol", "Master Protocol List") }
+                      ]}
+                      placeholder={t("auto_select_category", "Select Category")}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 flex-1">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_meta_action", "Action Required")}</label>
+                  <div className="h-14">
+                    <CustomDropdown
+                      disableTint={true}
+                      searchable={true}
+                      allowCustom={true}
+                      value={actionRequired}
+                      onChange={(v: string[]) => setActionRequired(v[0] || "No Action Required")}
+                      options={[
+                        { id: "No Action Required", label: t("dispatch_action_none", "No Action Required") },
+                        { id: "Review Before Updating", label: t("dispatch_action_review", "Review Before Updating") },
+                        { id: "Update Recommended", label: t("dispatch_action_update_rec", "Update Recommended") },
+                        { id: "Immediate Action Required", label: t("dispatch_action_immediate", "Immediate Action Required") }
+                      ]}
+                      placeholder={t("dispatch_meta_action", "Action Required")}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_telemetry_preview", "Dispatch Telemetry Header Preview")}</label>
+                <DispatchMetadataHeader
+                  post={{ category, target_audience: "Public", action_required: actionRequired }}
+                  categoryOverride={category}
+                  audienceOverride={["Public"]}
+                  actionRequiredOverride={actionRequired}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
+                <div className="flex items-center justify-between ml-2">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_content", "Markdown Content")}</label>
+                </div>
+                <div className="flex flex-col flex-1 glass-surface !overflow-visible bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
+                  <div className="shrink-0 sticky top-0 z-50 flex flex-col items-center p-3 bg-transparent pointer-events-none">
+                    <div className="relative flex flex-col items-center pointer-events-auto w-fit">
+                      <div className="glass-panel portal-glass-fix backdrop-blur-[var(--glassBlur)] flex flex-wrap items-center gap-1 p-1.5 !rounded-[1.25rem] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[0_14px_34px_rgba(0,0,0,0.45)]">
+                        <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold", "format_bold")}</span></button><HoverTooltip title={t("editor_tt_bold", "Bold")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                        <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic", "format_italic")}</span></button><HoverTooltip title={t("editor_tt_italic", "Italic")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                        <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1", "format_h1")}</span></button><HoverTooltip title={t("editor_tt_h1", "Heading 1")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                        <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2", "format_h2")}</span></button><HoverTooltip title={t("editor_tt_h2", "Heading 2")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                        <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted", "format_list_bulleted")}</span></button><HoverTooltip title={t("editor_tt_bullets", "Bullet List")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                        <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered", "format_list_numbered")}</span></button><HoverTooltip title={t("editor_tt_numbers", "Numbered List")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                        <div className="relative group/btn flex"><button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image", "image")}</span></button><HoverTooltip title={t("editor_tt_image", "Insert Image")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                        <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code", "code")}</span></button><HoverTooltip title={t("editor_tt_code", "Code Block")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                        <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule", "horizontal_rule")}</span></button><HoverTooltip title={t("editor_tt_hr", "Divider")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                        <div className="relative group/btn flex"><button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_sentiment_satisfied", "sentiment_satisfied")}</span></button><HoverTooltip title={t("editor_tt_icon", "Insert Icon")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                      </div>
+                      {showIconPicker && (
+                        <IconPicker
+                          onSelect={(icon) => {
+                            editor?.chain().focus().insertContent(`[ICON:${icon}] `).run();
+                            setShowIconPicker(false);
+                          }}
+                          onClose={() => setShowIconPicker(false)}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {showImageInput && (
+                    <div className="border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-top-2 duration-300 flex items-center gap-3 relative z-10 backdrop-blur-xl">
+                      <input
+                        value={inlineImageUrl}
+                        onChange={e => setInlineImageUrl(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && inlineImageUrl) {
+                            e.preventDefault();
+                            editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
+                            setInlineImageUrl('');
+                            setShowImageInput(false);
+                          }
+                        }}
+                        placeholder={t("image_url_placeholder", "Image URL...")}
+                        className="flex-1 glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (inlineImageUrl) {
+                            editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
+                            setInlineImageUrl('');
+                            setShowImageInput(false);
+                          }
+                        }}
+                        className="px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-xl font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] transition-all hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                      >
+                        {t("ui_btn_insert", "Insert")}
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="w-full flex-1 relative min-h-[350px]">
+                    <EditorContent editor={editor} className="h-full w-full custom-scrollbar" />
+                  </div>
+
+                  {showCodeInput && (
+                    <div className="border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-bottom-2 duration-300">
+                      <textarea
+                        value={codeSnippet}
+                        onChange={(e) => setCodeSnippet(e.target.value)}
+                        placeholder={t("code_snippet_placeholder", "Code snippet...")}
+                        className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-xs font-mono placeholder-[var(--subtext)] focus:outline-none focus:theme-border-accent h-48 resize-none custom-scrollbar transition-all"
+                        spellCheck={false}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between p-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-b-2xl shrink-0">
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest flex items-center gap-1.5 ${showCodeInput ? 'theme-bg-accent/20 theme-text-accent' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_data_object", "data_object")}</span> {showCodeInput ? t("hide_code", "Hide Code") : t("masonhub_add_code", "Add Code")}
+                      </button>
+                      <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_link", "link")}</span> {t("link_asset", "Link Asset")}
+                      </button>
+                    </div>
+                    <div className="text-[9px] font-black tracking-widest capitalize opacity-40 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_markdown", "markdown")}</span> {t("icon_markdown", "Markdown")}</div>
+                  </div>
+                </div>
+              </div>
+
+              {!activeCanonicalMeta && (
+                <DispatchPollBuilder pollData={pollData} onChange={setPollData} />
+              )}
             </div>
-          </SidePanel>
-        </>
+          </div>
+        </SidePanel>
       )}
 
       <LinkAssetSidePanel
@@ -903,27 +1021,3 @@ export default function KeepersWebDirectivesEditor({ isSidePanel = false, isOpen
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

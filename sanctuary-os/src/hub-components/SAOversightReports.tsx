@@ -141,15 +141,21 @@ export default function SAOversightReports() {
         icon="threat_intelligence"
         title={report.artifact_name || t("oversight_unknown_artifact")}
         badges={
-          <div className="w-full flex flex-wrap justify-center gap-2 mt-2">
+          <div className="w-full flex flex-wrap items-center gap-2">
             {group.length > 1 && (
-              <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${isMalware ? 'text-red-300 border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'theme-text-accent border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}>
-                  {group.length} {t("oversight_hits_count")}
-              </span>
+              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                <span className={`material-symbols-outlined !text-[12px] ${isMalware ? 'text-[var(--danger)]' : 'text-[var(--accent)]'}`}>
+                  {t("icon_account_tree", "account_tree")}
+                </span>
+                <span>{group.length} {t("oversight_hits_count")}</span>
+              </div>
             )}
-            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${isMalware ? 'text-red-500 border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'theme-text-danger border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'}`}>
-                {displayStatus}
-            </span>
+            <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+              <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                {isMalware ? t("icon_coronavirus", "coronavirus") : t("icon_warning", "warning")}
+              </span>
+              <span>{displayStatus}</span>
+            </div>
           </div>
         }
         statusColor={isMalware ? 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}

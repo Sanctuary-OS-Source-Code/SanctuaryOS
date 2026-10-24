@@ -461,17 +461,26 @@ export function StatBox({
   onClick,
   className = "",
 }: StatBoxProps) {
-  const rawText =
-    typeof value === "string" || typeof value === "number"
-      ? String(value)
-      : React.isValidElement(value) &&
-          typeof (value.props as any)?.children === "string"
-        ? (value.props as any).children
-        : "";
+  const extractNodeText = (node: React.ReactNode): string => {
+    if (node === null || node === undefined || typeof node === "boolean") {
+      return "";
+    }
+    if (typeof node === "string" || typeof node === "number") {
+      return String(node);
+    }
+    if (Array.isArray(node)) {
+      return node.map(extractNodeText).join("");
+    }
+    if (React.isValidElement(node)) {
+      return extractNodeText((node.props as any)?.children);
+    }
+    return "";
+  };
+  const rawText = extractNodeText(value).trim();
   const valueSizeClass =
-    rawText.length > 34
+    rawText.length > 28
       ? "text-xs md:text-sm"
-      : rawText.length > 22
+      : rawText.length > 18
         ? "text-sm md:text-[15px]"
         : "text-base md:text-lg";
 

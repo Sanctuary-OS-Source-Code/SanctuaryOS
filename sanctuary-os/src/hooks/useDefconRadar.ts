@@ -74,28 +74,35 @@ export function useDefconRadar(t: (key: string, fallback?: string) => string, as
           if (!ack) {
             localStorage.setItem('sanctuary_defcon_ack', 'true'); 
             tauriBridge.getSavedCoordinates().then((config: any) => {
-              const agency = Number(config.engine_agency_level ?? 2); 
+              const agency = Number(config.engine_agency_level ?? 2);
+              const backupTarget = Number(config.defcon_backup_target ?? 0);
+              const runDefconBackups = async () => {
+                useModalStore.getState().setCompletedBackups([]);
+                useModalStore.getState().setIsDefconBackupSession(true);
+                setShowDefconAlert(true);
+                if (backupTarget === 1) {
+                  await triggerPrePatchSnapshot(true);
+                } else if (backupTarget === 2) {
+                  await triggerFullEngineBackup(true);
+                } else {
+                  await triggerPrePatchSnapshot(true);
+                  await triggerFullEngineBackup(true);
+                }
+                localStorage.setItem('sanctuary_defcon_backup_done', 'true');
+              };
               if (agency === 0) { 
                 localStorage.setItem('sanctuary_defcon_ack', 'true');
               } else if (agency === 1) {
                 if (defconMode !== 'NONE') {
                   askCustom(t("defcon_prompt_patch_detected"), false, t("defcon_btn_backup"), t("defcon_btn_skip"), true, t("defcon_alert_title")).then(async (proceed: boolean) => {
                     if (proceed) {
-                      setShowDefconAlert(true);
-                      await triggerPrePatchSnapshot();
-                      await triggerFullEngineBackup();
-                      localStorage.setItem('sanctuary_defcon_backup_done', 'true');
+                      await runDefconBackups();
                     }
                   });
                 }
               } else { 
-                if (defconMode !== 'NONE') {
-                  setShowDefconAlert(true);
-                }
                 (async () => {
-                  await triggerPrePatchSnapshot();
-                  await triggerFullEngineBackup();
-                  localStorage.setItem('sanctuary_defcon_backup_done', 'true');
+                  await runDefconBackups();
                 })();
               }
             }).catch(console.error);

@@ -209,9 +209,12 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           </span>
         }
         badges={[
-          <span key="tier" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner shrink-0 transition-colors ${td.bg} ${td.color}`}>
-            {td.label}
-          </span>
+          <div key="tier" className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+            <span className={`material-symbols-outlined !text-[12px] ${td.color}`}>
+              {t("icon_policy", "policy")}
+            </span>
+            <span>{td.label}</span>
+          </div>
         ]}
         footer={
           <div className="flex justify-between items-center w-full">

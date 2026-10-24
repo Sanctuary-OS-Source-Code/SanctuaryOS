@@ -43,10 +43,11 @@ export function CustomDropdown({
   useEffect(() => {
     if (!isOpen) return;
     window.dispatchEvent(
-      new CustomEvent("sa-close-popovers", { detail: instanceId }),
+      new CustomEvent("sa-close-popovers", { detail: { id: instanceId, triggerEl: btnRef.current } }),
     );
     const onOtherOpen = (e: any) => {
-      if (e.detail !== instanceId) setIsOpen(false);
+      const detailId = typeof e.detail === "object" && e.detail !== null ? e.detail.id : e.detail;
+      if (detailId !== instanceId) setIsOpen(false);
     };
     window.addEventListener("sa-close-popovers", onOtherOpen);
     return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
@@ -694,10 +695,11 @@ export function CustomDatePicker({
   useEffect(() => {
     if (!isOpen) return;
     window.dispatchEvent(
-      new CustomEvent("sa-close-popovers", { detail: instanceId }),
+      new CustomEvent("sa-close-popovers", { detail: { id: instanceId, triggerEl: btnRef.current } }),
     );
     const onOtherOpen = (e: any) => {
-      if (e.detail !== instanceId) setIsOpen(false);
+      const detailId = typeof e.detail === "object" && e.detail !== null ? e.detail.id : e.detail;
+      if (detailId !== instanceId) setIsOpen(false);
     };
     window.addEventListener("sa-close-popovers", onOtherOpen);
     return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
@@ -918,10 +920,11 @@ export function ModSearchDropdown({
   useEffect(() => {
     if (!isOpen) return;
     window.dispatchEvent(
-      new CustomEvent("sa-close-popovers", { detail: instanceId }),
+      new CustomEvent("sa-close-popovers", { detail: { id: instanceId, triggerEl: inputRef.current } }),
     );
     const onOtherOpen = (e: any) => {
-      if (e.detail !== instanceId) setIsOpen(false);
+      const detailId = typeof e.detail === "object" && e.detail !== null ? e.detail.id : e.detail;
+      if (detailId !== instanceId) setIsOpen(false);
     };
     window.addEventListener("sa-close-popovers", onOtherOpen);
     return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
@@ -1179,10 +1182,11 @@ export function CustomTierDropdown({ value, onChange }: any) {
   useEffect(() => {
     if (!isOpen) return;
     window.dispatchEvent(
-      new CustomEvent("sa-close-popovers", { detail: instanceId }),
+      new CustomEvent("sa-close-popovers", { detail: { id: instanceId, triggerEl: containerRef.current } }),
     );
     const onOtherOpen = (e: any) => {
-      if (e.detail !== instanceId) setIsOpen(false);
+      const detailId = typeof e.detail === "object" && e.detail !== null ? e.detail.id : e.detail;
+      if (detailId !== instanceId) setIsOpen(false);
     };
     window.addEventListener("sa-close-popovers", onOtherOpen);
     return () => window.removeEventListener("sa-close-popovers", onOtherOpen);

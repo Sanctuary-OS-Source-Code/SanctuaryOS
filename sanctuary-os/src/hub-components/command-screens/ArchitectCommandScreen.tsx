@@ -225,9 +225,10 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
                           icon="search" 
                           onClick={() => onNavigate("queue")}
                           className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--info)_20%,transparent)] text-[var(--info)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("reviewing")}</span>
+                          badges={
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--info)]">{t("icon_search", "search")}</span>
+                                  <span>{t("reviewing")}</span>
                               </div>
                           }
                           footer={
@@ -259,9 +260,10 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
                           icon="handyman" 
                           onClick={() => onNavigate("mason_queue")}
                           className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("stat_mason_queue")}</span>
+                          badges={
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">{t("icon_handyman", "handyman")}</span>
+                                  <span>{t("stat_mason_queue")}</span>
                               </div>
                           }
                           footer={
@@ -293,9 +295,10 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost, setStatus }
                           icon="flag" 
                           onClick={() => onNavigate("nexus_reports")}
                           className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                                  <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)] text-[9px] font-black capitalize tracking-widest rounded-lg backdrop-blur-md">{t("title_reports")}</span>
+                          badges={
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_flag", "flag")}</span>
+                                  <span>{t("title_reports")}</span>
                               </div>
                           }
                           footer={
