@@ -3160,7 +3160,7 @@ export default function WebDocumentFeed() {
         }
       >
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
-          <div className="px-4 sm:px-8 md:px-10 pb-12 pt-8 gap-6 flex flex-col flex-1 relative z-20">
+          <div className="px-4 sm:px-8 md:px-10 pb-36 pt-8 gap-6 flex flex-col flex-1 relative z-20">
             {/* Author Identity Header matching ReleaseNotesShowcase */}
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3.5 relative z-20">
