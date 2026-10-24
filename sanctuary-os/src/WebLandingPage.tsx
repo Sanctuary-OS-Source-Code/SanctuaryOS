@@ -86,25 +86,25 @@ export default function WebLandingPage() {
   };
 
   return (
-    <div className="w-full flex flex-col items-center justify-start relative pt-0 px-6 md:px-0 pb-0">
+    <div className="w-full flex flex-col items-center justify-start relative pt-0 px-0 pb-0">
       <WebLegalViewer />
 
-      <main className="w-full flex flex-col gap-12 relative z-10 px-0 lg:px-4 pb-12">
+      <main className="w-full flex flex-col gap-8 md:gap-12 relative z-10 px-0 lg:px-4 pb-12">
         <div className="absolute top-6 right-6 z-[100] hidden md:flex items-center gap-4">
         </div>
 
-        <header className="w-full flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-8 duration-700 mt-4 md:mt-0">
+        <header className="w-full flex flex-col gap-5 md:gap-8 animate-in fade-in slide-in-from-bottom-8 duration-700 mt-1 md:mt-0">
           <div className="flex flex-col gap-2">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none text-[var(--text)] drop-shadow-[0_0_20px_rgba(0,0,0,0.5)] break-words">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none text-[var(--text)] drop-shadow-[0_0_20px_rgba(0,0,0,0.5)] break-words">
               {t("landing_welcome")}
             </h1>
-            <p className="text-sm md:text-base font-bold uppercase tracking-widest opacity-80 max-w-3xl leading-relaxed text-[var(--subtext)] drop-shadow-md mt-2">
+            <p className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-wider sm:tracking-widest opacity-80 max-w-3xl leading-relaxed text-[var(--subtext)] drop-shadow-md mt-1.5 md:mt-2">
               {t("landing_subtitle")}
             </p>
           </div>
         </header>
 
-        <div className="flex flex-col gap-12 w-full animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-150 fill-mode-both">
+        <div className="flex flex-col gap-8 md:gap-12 w-full animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-150 fill-mode-both">
 
           <section id="workspaces" className="flex flex-col gap-6 scroll-mt-24">
             <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">

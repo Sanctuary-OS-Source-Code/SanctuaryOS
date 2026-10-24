@@ -2939,7 +2939,7 @@ function App() {
             unreadNotificationCount={unreadNotificationCount}
             handleQuickLaunch={handleQuickLaunch}
           />
-          <main id="sanctuary-main-scroll" className="flex-1 relative overflow-y-auto overflow-x-hidden px-6 pb-4 pt-[70px] max-md:px-4 max-md:pt-[94px] max-md:pb-[100px] custom-scrollbar" style={{ flexGrow: 1, width: '100%' }}>
+          <main id="sanctuary-main-scroll" className={`flex-1 relative overflow-y-auto overflow-x-hidden px-6 pb-4 pt-[70px] max-md:px-4 ${!isDesktop() && isRootDomain() ? 'max-md:pt-5' : 'max-md:pt-[68px]'} max-md:pb-[100px] custom-scrollbar`} style={{ flexGrow: 1, width: '100%' }}>
             <div className="relative z-10 w-full min-h-full pb-[100px] max-md:pb-[40px]">
               {isGlobalConfigLoaded && (
                 <>

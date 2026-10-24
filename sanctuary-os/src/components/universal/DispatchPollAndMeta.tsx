@@ -291,7 +291,7 @@ export function DispatchMetadataHeader({
   }, [typeValue, isAlert, t]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full my-4">
+    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 w-full my-3 sm:my-4">
       <StatBox
         icon={t("icon_category", "category")}
         iconColorClass={severityColorClass}

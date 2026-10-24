@@ -588,7 +588,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
             const isSystem = post.mason_id === 'system';
             const isAlert = isSystem && post.category?.toLowerCase().includes('alert');
             return (
-              <div className={`w-full h-64 sm:h-72 relative shrink-0 border-b border-[color-mix(in_srgb,var(--text)_15%,transparent)]`}>
+              <div className={`w-full h-44 sm:h-64 md:h-72 relative shrink-0 border-b border-[color-mix(in_srgb,var(--text)_15%,transparent)]`}>
                 {isSystem && (
                   <>
                     {isAlert && <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] z-0" />}
@@ -599,9 +599,9 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
               </div>
             );
           })()}
-          <div className="px-4 sm:px-8 md:px-12 pb-12 pt-8 gap-0 flex flex-col flex-1 relative z-20">
+          <div className="px-4 sm:px-8 md:px-12 pb-10 sm:pb-12 pt-5 sm:pt-8 gap-0 flex flex-col flex-1 relative z-20">
             <div className="flex flex-col gap-4 mb-2">
-              <h1 className={`text-4xl font-black capitalize tracking-tighter drop-shadow-sm leading-tight ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)] drop-shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]' : 'text-[var(--text)]'}`}>
+              <h1 className={`text-2xl sm:text-3xl md:text-4xl font-black capitalize tracking-tighter drop-shadow-sm leading-tight ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'text-[var(--danger)] drop-shadow-[0_0_10px_rgba(var(--danger-rgb),0.4)]' : 'text-[var(--text)]'}`}>
                 {renderTextWithIcons(post.title)}
               </h1>
 

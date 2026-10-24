@@ -347,7 +347,7 @@ export function SidePanel({
 
             {!hideHeader && (
               <div
-                className={`px-6 py-5 md:px-7 md:py-5 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.16))] ${coverImage ? "pt-48" : ""} flex flex-col-reverse md:flex-row items-start md:items-center md:justify-between gap-4 md:gap-5 w-full`}
+                className={`px-4 py-3.5 sm:px-6 sm:py-4 md:px-7 md:py-5 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.16))] ${coverImage ? "pt-36 sm:pt-48" : ""} flex flex-row items-center justify-between gap-3 md:gap-5 w-full`}
               >
                 {coverImage && (
                   <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[inherit] rounded-tr-[inherit]">
@@ -360,24 +360,24 @@ export function SidePanel({
                 )}
 
                 <div className="flex flex-col justify-center gap-3 relative z-10 flex-1 min-w-0">
-                  <h2 className="text-lg md:text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-3.5 md:gap-4 min-w-0 w-full">
+                  <h2 className="text-base sm:text-lg md:text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-3 md:gap-4 min-w-0 w-full">
                     {icon && (
                       <div
-                        className="w-11 h-11 md:w-12 md:h-12 rounded-2xl glass-surface flex items-center justify-center shrink-0 relative group/iconbox"
+                        className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-2xl glass-surface flex items-center justify-center shrink-0 relative group/iconbox"
                       >
                         <span
-                          className={`material-symbols-outlined !text-[22px] md:!text-[24px] opacity-90 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 ${(iconColorClass || "theme-text-accent").split(" ").filter((c: string) => !c.startsWith("border-") && !c.startsWith("bg-")).join(" ")}`}
+                          className={`material-symbols-outlined !text-[20px] sm:!text-[22px] md:!text-[24px] opacity-90 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 ${(iconColorClass || "theme-text-accent").split(" ").filter((c: string) => !c.startsWith("border-") && !c.startsWith("bg-")).join(" ")}`}
                         >
                           {icon}
                         </span>
                       </div>
                     )}
                     <div className="flex flex-col min-w-0 w-full justify-center">
-                      <span className="leading-tight text-xl md:text-2xl tracking-tight truncate w-full">
+                      <span className="leading-tight text-lg sm:text-xl md:text-2xl tracking-tight truncate w-full">
                         {title}
                       </span>
                       {subtitle && (
-                        <span className="text-[9px] md:text-[10px] font-black text-[var(--subtext)] opacity-70 mt-0.5 capitalize tracking-[0.22em] line-clamp-2 break-words">
+                        <span className="text-[9px] md:text-[10px] font-black text-[var(--subtext)] opacity-70 mt-0.5 capitalize tracking-[0.18em] md:tracking-[0.22em] line-clamp-1 sm:line-clamp-2 break-words">
                           {subtitle}
                         </span>
                       )}
@@ -386,7 +386,7 @@ export function SidePanel({
                 </div>
 
                 {(headerActions || !hideCloseButton) && (
-                  <div className="flex items-center z-50 glass-surface !rounded-full p-1 gap-1 shrink-0 self-end md:self-auto">
+                  <div className="flex items-center z-50 glass-surface !rounded-full p-1 gap-1 shrink-0 self-center">
                     {headerActions}
                     {headerActions && !hideCloseButton && (
                       <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
@@ -407,7 +407,7 @@ export function SidePanel({
             )}
 
             <div
-              className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-x-hidden ${noScroll ? "" : "overflow-y-auto custom-scrollbar"} ${noPadding ? "" : "p-6 md:p-7"} ${isResizing ? "pointer-events-none select-none overflow-hidden" : ""}`}
+              className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-x-hidden ${noScroll ? "" : "overflow-y-auto custom-scrollbar"} ${noPadding ? "" : "p-4 sm:p-6 md:p-7"} ${isResizing ? "pointer-events-none select-none overflow-hidden" : ""}`}
             >
               {children}
             </div>
@@ -465,7 +465,7 @@ export function ViewHeader({
       <div className="flex items-start gap-3 md:gap-4 shrink-0 min-w-0 md:max-w-[50%]">
         {icon && (
           <div
-            className={`w-8 h-8 md:w-10 md:h-10 ${shapeClass} flex items-center justify-center shrink-0 glass-panel relative group hidden sm:flex`}
+            className={`w-8 h-8 md:w-10 md:h-10 ${shapeClass} flex items-center justify-center shrink-0 glass-panel relative group`}
           >
             {typeof icon === "string" ? (
               <span
@@ -697,8 +697,8 @@ export function DashboardStatTile({
 
   const paddingClass =
     variant === "tab" || variant === "filter" || isModal
-      ? "py-3 px-4 md:py-4 md:px-4"
-      : "py-3 px-4 md:py-4 md:px-5 lg:p-5";
+      ? "py-2.5 px-3.5 sm:py-3 sm:px-4 md:py-4 md:px-4"
+      : "py-2.5 px-3.5 sm:py-3 sm:px-4 md:py-4 md:px-5 lg:p-5";
   const iconSizeClass =
     isFilter || isTextSpecial
       ? "w-8 h-8 md:w-10 md:h-10"
@@ -725,12 +725,12 @@ export function DashboardStatTile({
 
   const sizeConstraintClass =
     variant === "tab"
-      ? "w-[calc(50vw-1.5rem)] md:w-[260px] min-h-[68px] md:min-h-[88px] shrink-0"
+      ? "w-[calc(50vw-1.5rem)] md:w-[260px] min-h-[64px] md:min-h-[88px] shrink-0"
       : variant === "filter"
-        ? "w-full min-w-0 min-h-[68px] md:min-h-[80px]"
+        ? "w-full min-w-0 min-h-[64px] md:min-h-[80px]"
         : isModal
-          ? "flex-1 min-w-0 min-h-[64px] md:min-h-[76px]"
-          : "flex-1 min-w-0 min-h-[68px] md:min-h-[88px]";
+          ? "flex-1 min-w-0 min-h-[60px] md:min-h-[76px]"
+          : "flex-1 min-w-0 min-h-[64px] md:min-h-[88px]";
 
   const mergedStyle = {
     "--glass-outer-shadow": "0 0 #0000",
@@ -746,7 +746,7 @@ export function DashboardStatTile({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={mergedStyle}
-      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-3xl glass-panel ${isModal ? "before:!hidden" : ""} ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
+      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-2xl glass-panel ${isModal ? "before:!hidden" : ""} ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
     >
       {isActive && (
         <div
