@@ -1,8 +1,19 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, formatDisplayName , getFileLabel, isSupportedExtension, getExtensionRegex, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
-import { useStore } from '../store';
+import {
+  SidePanel,
+  formatDisplayName,
+  getFileLabel,
+  getExtensionRegex,
+  ActionButton,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  EmptyState,
+  SidePanelHeroCard,
+  StatBox,
+  UniversalGroup,
+} from "../shared";
+import { useStore } from "../store";
 
 interface UndoWinnersPanelProps {
   isOpen: boolean;
@@ -13,8 +24,15 @@ interface UndoWinnersPanelProps {
   onClearAll: () => Promise<void>;
 }
 
-export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoComplete, onUndo, onClearAll }: UndoWinnersPanelProps) {
-  const activeGameSchema = useStore(state => state.activeGameSchema);
+export default function UndoWinnersPanel({
+  isOpen,
+  onClose,
+  scanScope,
+  onUndoComplete,
+  onUndo,
+  onClearAll,
+}: UndoWinnersPanelProps) {
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
   const { t } = useLexicon();
   const [overrides, setOverrides] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,8 +52,12 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
         const currentSet = playsets.find((p: any) => p.name === scanScope);
         if (currentSet && Array.isArray(currentSet.mods)) {
           const blueprintOverrides = currentSet.mods
-            .map((m: any) => typeof m === 'string' ? m : (m.name || m.path || ''))
-            .filter((m: string) => m.toLowerCase().startsWith("sanctuary/") || m.toLowerCase().startsWith("sanctuary\\"))
+            .map((m: any) => (typeof m === "string" ? m : m.name || m.path || ""))
+            .filter(
+              (m: string) =>
+                m.toLowerCase().startsWith("sanctuary/") ||
+                m.toLowerCase().startsWith("sanctuary\\")
+            )
             .map((m: string) => m.replace(/^Sanctuary[/\\]/i, ""));
           for (const o of blueprintOverrides) {
             if (!list.includes(o)) list.push(o);
@@ -73,68 +95,118 @@ export default function UndoWinnersPanel({ isOpen, onClose, scanScope, onUndoCom
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("undo_title")}
-      subtitle={t("undo_subtitle")}
-      icon="history"
-      iconColorClass="text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
+      title={t("undo_title", "Undo Overrides")}
+      subtitle={t("undo_subtitle", "Restore Default Load Order")}
+      icon={t("icon_history", "history")}
+      iconColorClass="text-[var(--danger)]"
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
-      widthClass="w-[525px]"
+      widthClass="w-[90vw] md:w-[680px]"
       headerActions={
-        <PanelHeaderGroup>
-          <PanelHeaderButton
-            icon="close"
-            tooltip={t("nav_cancel")}
-            onClick={onClose}
-          />
-          <PanelHeaderButton
-            icon={t("icon_warning_amber") || "warning"}
-            tooltip={t("nav_clear_all") || "Clear All"}
-            variant="error"
-            disabled={overrides.length === 0}
-            onClick={clearAllOverrides}
-          />
-        </PanelHeaderGroup>
+        overrides.length > 0 ? (
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_warning_amber", "warning_amber")}
+              tooltip={t("nav_clear_all", "Clear All")}
+              variant="error"
+              disabled={overrides.length === 0}
+              onClick={clearAllOverrides}
+            />
+          </PanelHeaderGroup>
+        ) : undefined
       }
     >
-      <div className="flex flex-col gap-4 h-full px-2">
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_history", "history")}
+          overline={t("undo_title", "Undo Overrides")}
+          title={scanScope || t("active", "Active")}
+          description={t("undo_subtitle", "Restore Default Load Order")}
+          badge={`${overrides.length} ${t("items", "Items")}`}
+          badgeIcon={t("icon_history", "history")}
+          variant={overrides.length > 0 ? "danger" : "success"}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            <StatBox
+              label={t("bp_winning_artifact", "Winning Overrides")}
+              value={overrides.length}
+              icon={t("icon_history", "history")}
+              iconColorClass={
+                overrides.length > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"
+              }
+            />
+            <StatBox
+              label={t("stat_blueprints", "Blueprint")}
+              value={scanScope || t("active", "Active")}
+              icon={t("icon_map", "map")}
+              iconColorClass="text-[var(--accent)]"
+            />
+          </div>
+
+          {overrides.length > 0 && (
+            <ActionButton
+              variant="glass"
+              icon={t("icon_delete_sweep", "delete_sweep")}
+              label={t("nav_clear_all", "Clear All")}
+              onClick={clearAllOverrides}
+              className="w-full"
+            />
+          )}
+        </SidePanelHeroCard>
+
         {loading ? (
-          <div className="flex items-center justify-center p-12 text-white/20">
-            <span className="material-symbols-outlined animate-spin ">{t("icon_sync")}</span>
+          <div className="glass-panel rounded-2xl p-12 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)]">
+            <span className="material-symbols-outlined animate-spin">
+              {t("icon_sync", "sync")}
+            </span>
           </div>
         ) : overrides.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-12 text-white/20 text-center">
-            <span className="material-symbols-outlined mb-4">{t("icon_check_circle")}</span>
-            <p className="text-sm font-black tracking-widest capitalize">{t("no_overrides")}</p>
+          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <EmptyState
+              icon={t("icon_check_circle", "check_circle")}
+              title={t("no_overrides", "No Active Overrides")}
+            />
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            {overrides.map((file) => (
-              <div key={file} className="flex items-center justify-start p-4 rounded-2xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all">
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-xl text-[var(--accent)]">{t("icon_extension")}</span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-bold text-[var(--text)] truncate block">{formatDisplayName(file.replace(getExtensionRegex(activeGameSchema), ''))}</span>
-                    <span className="text-[9px] font-black tracking-widest capitalize text-[var(--subtext)] opacity-60">
-                      {getFileLabel(file, activeGameSchema)}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => undoOverride(file)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text)] opacity-50 hover:opacity-100 hover:text-[var(--accent)] hover:scale-110 transition-all shrink-0"
+          <UniversalGroup
+            title={`${t("bp_winning_artifact", "Winning Overrides")} (${overrides.length})`}
+            icon={t("icon_history", "history")}
+          >
+            <div className="flex flex-col gap-3">
+              {overrides.map((file) => (
+                <div
+                  key={file}
+                  className="flex items-center justify-between gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] transition-all"
                 >
-                  <span className="material-symbols-outlined !text-lg">{t("icon_undo")}</span>
-                </button>
-              </div>
-            ))}
-          </div>
+                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[20px]">
+                        {t("icon_extension", "extension")}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                      <span className="text-sm font-bold text-[var(--text)] truncate block">
+                        {formatDisplayName(
+                          file.replace(getExtensionRegex(activeGameSchema), "")
+                        )}
+                      </span>
+                      <span className="self-start px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--subtext)]">
+                        {getFileLabel(file, activeGameSchema)}
+                      </span>
+                    </div>
+                  </div>
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_undo", "undo")}
+                    label={t("undo_title", "Undo")}
+                    onClick={() => undoOverride(file)}
+                  />
+                </div>
+              ))}
+            </div>
+          </UniversalGroup>
         )}
       </div>
     </SidePanel>
   );
 }
-
-

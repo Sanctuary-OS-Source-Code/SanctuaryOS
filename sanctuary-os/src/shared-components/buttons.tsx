@@ -95,8 +95,8 @@ export function ActionButton({
   }
 
   const basePadding = iconOnly
-    ? "w-10 h-10 rounded-full !p-0 shrink-0"
-    : "px-6 py-3.5 rounded-[var(--radius)]";
+    ? "w-10 h-10 rounded-xl !p-0 shrink-0"
+    : "px-6 py-3.5 rounded-xl";
 
   return (
     <div className={`relative ${iconOnly ? "inline-block" : ""}`}>
@@ -106,7 +106,7 @@ export function ActionButton({
         onClick={onClick}
         onDoubleClick={onDoubleClick}
         disabled={disabled}
-        className={`${variant === "solid" ? "shadow-md border" : "relative overflow-hidden border backdrop-blur-md hover:shadow-xl"} ${basePadding} text-[11px] font-semibold capitalize tracking-wider transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none group ${variantClasses} ${className}`}
+        className={`${variant === "solid" ? "shadow-md border" : "relative overflow-hidden border hover:shadow-xl"} ${basePadding} text-[11px] font-semibold capitalize tracking-wider transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none group ${variantClasses} ${className}`}
         style={
           !disabled
             ? ({
@@ -235,7 +235,7 @@ export function HubActionButton({
   return (
     <button
       onClick={onClick}
-      className={`glass-surface h-10 px-5 !rounded-full transition-all duration-300 flex items-center justify-center gap-2 shrink-0 font-black capitalize tracking-widest group ${
+      className={`glass-surface h-10 px-5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shrink-0 font-black capitalize tracking-widest group ${
         isDanger
           ? "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:brightness-125"
           : isWarning
@@ -359,7 +359,7 @@ export function PanelHeaderButton({
         onClick={(e) => {
           if (!disabled && onClick) onClick(e);
         }}
-        className={`flex items-center justify-center transition-all rounded-full ${!disabled ? "active:scale-95" : ""} ${label ? "px-4 h-9 gap-2" : "w-9 h-9"} ${colorClass}`}
+        className={`flex items-center justify-center transition-all rounded-xl ${!disabled ? "active:scale-95" : ""} ${label ? "px-4 h-9 gap-2" : "w-9 h-9"} ${colorClass}`}
       >
         <span
           className={`material-symbols-outlined ${label ? "!text-[15px] normal-case" : "!text-[18px]"}`}

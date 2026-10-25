@@ -4,9 +4,10 @@
 > **Last Updated**: October 24, 2026  
 > **Sync Pipeline**: Synced bidirectionally between `Sanctuary OS Forking & Architecture Guide.md` and **Keepers Core -> System Directives (`public.system_directives`)**.
 
-Welcome to the **Sanctuary OS Forking & Spoke Architecture Guide**. Sanctuary OS is architected to support two seamless deployment models:
+Welcome to the **Sanctuary OS Forking & Spoke Architecture Guide**. Sanctuary OS is architected to support three seamless deployment and forking models:
 1. **Official Hub-and-Spoke Partner Network (Zero Code Edits)**: Connect your community's Supabase Spoke database ([`schema.sql`](./schema.sql)) to the official Sanctuary OS Hub ([`schema_os.sql`](./schema_os.sql)) using a `SANCTUARY-UPLINK://` bundle.
-2. **True Standalone Codebase Fork (Edit ONLY `src/supabase.ts`)**: Run your own completely independent build of Sanctuary OS backed by **a single Supabase database ([`schema.sql`](./schema.sql))**—requiring **no separate Hub database**, **no Edge Functions (`game-gateway`)**, and **editing only `SANCTUARY_CONFIG` at the top of [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts)**.
+2. **True Standalone Codebase Fork (1 Database — Edit ONLY `src/supabase.ts`)**: Run your own completely independent build of Sanctuary OS backed by **a single Supabase database ([`schema.sql`](./schema.sql))**—requiring **no separate Hub database**, **no Edge Functions (`game-gateway`)**, and **editing only `SANCTUARY_CONFIG` at the top of [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts)**.
+3. **Full Hub-and-Spoke Multi-Game Federation Fork (Hub DB + Multiple Spoke DBs)**: Fork the entire multi-game Hub-and-Spoke ecosystem—running your own Central Core OS Hub ([`schema_os.sql`](./schema_os.sql) + `supabase/functions/game-gateway` Edge Function) connected to multiple independent community Spoke databases ([`schema.sql`](./schema.sql)).
 
 ---
 
@@ -74,6 +75,35 @@ When `isStandaloneFork` (`mode === "standalone"`) is active:
 - **Unified Auth & Game Client**: `getActiveGameClient()` reuses the authenticated `supabaseAuth` client directly so your session JWT works natively across all Spoke tables without JWT secret collisions.
 - **Zero Edge Function Dependency**: All `secure_*` RPCs (`secure_sync_spoke_profile`, `secure_update_spoke_profile`, `secure_upsert_cloud_file`, `secure_delete_cloud_file`, `secure_update_mason_profile`, `secure_toggle_mason_follow`, `secure_fetch_notifications`, etc.) execute directly against your single Supabase database via `executeStandaloneDirectRpc` instead of calling `game-gateway`.
 - **Automatic OS-to-Spoke Table Mapping**: Any internal OS queries to `sanctuary_games`, `keeper_system_broadcasts`, `keeper_dispatch_poll_votes`, `keeper_tickets`, or `keeper_support_categories` are transparently mapped to your `standaloneWorkspace` config and your Spoke's `system_broadcasts`, `dispatch_poll_votes`, `support_tickets`, and `support_categories` tables.
+
+---
+
+## 1B. Forking the Full Multi-Game Hub & Spoke Setup (`mode: "hub_and_spoke"`)
+
+If you want to fork Sanctuary OS to operate your own **multi-game federation** (1 central Hub database for SSO, FIDO2 Passkeys, Master Schemas, and Global Heuristics + multiple separate Spoke databases for each game community):
+
+1. **Step 1 — Provision Your Central Core Hub Database (`schema_os.sql`)**:
+   - Create a central Supabase project for your Hub, open the SQL Editor, and run [`schema_os.sql`](./schema_os.sql).
+   - Register your admin account and set `role = 'keeper'` in `public.profiles` on the Hub database.
+2. **Step 2 — Deploy the `game-gateway` Edge Function to Your Hub**:
+   - Link the Supabase CLI to your Hub project and deploy [`supabase/functions/game-gateway`](./supabase/functions/game-gateway):
+     ```bash
+     supabase link --project-ref YOUR_HUB_PROJECT_ID
+     supabase functions deploy game-gateway
+     ```
+3. **Step 3 — Point `sanctuary-os/src/supabase.ts` at Your Core Hub**:
+   - Keep `mode: "hub_and_spoke"` in `SANCTUARY_CONFIG` inside [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts) and enter your Hub project's URL and Anon Key:
+     ```ts
+     export const SANCTUARY_CONFIG = {
+         uplinkBundle: "",
+         mode: "hub_and_spoke",
+         supabaseUrl: "https://YOUR_HUB_PROJECT_ID.supabase.co",
+         supabaseAnonKey: "YOUR_HUB_SUPABASE_ANON_KEY",
+     };
+     ```
+4. **Step 4 — Provision & Connect Child Spoke Databases (`schema.sql`)**:
+   - For each game workspace, create a dedicated Supabase project and run [`schema.sql`](./schema.sql).
+   - Sign into your forked app with your `keeper` account, open **Keepers Core -> Active Workspaces**, click **+ Register Game Database**, paste the Spoke's `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` (or a `SANCTUARY-UPLINK://` bundle), and click **Test Handshake & Verify Schema**.
 
 ---
 

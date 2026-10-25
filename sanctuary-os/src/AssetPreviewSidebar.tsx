@@ -9,6 +9,7 @@ import { useModalStore } from "./store/modalStore";
 import { readTextFile, writeTextFile, mkdir, exists, readDir } from "@tauri-apps/plugin-fs";
 import { appDataDir } from "@tauri-apps/api/path";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { DynamicThemePreviewBanner } from "./chameleon-components/ThemeCard";
 
 export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFlag }: { assetType: string, assetId: string, onClose: () => void, onFlag?: (assetId: string, assetType: string) => void }) {
   const { t, importLexicon, registry } = useLexicon();
@@ -80,7 +81,7 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
     let version = asset.version || '1.0.0';
     if (assetType === 'workbench_template' && asset.json_data) {
       try {
-        const parsedRaw = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+        const parsedRaw = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : data.json_data;
         const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
         if (parsed && parsed.template_version) {
           version = parsed.template_version;
@@ -271,6 +272,20 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
                 </div>
               </div>
             </div>
+
+            {assetType === 'chameleon' && data.json_data && (
+              <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-2xl relative z-10">
+                <DynamicThemePreviewBanner
+                  data={{
+                    ...(typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data),
+                    name: data.name,
+                    previewImage: data.image_url || data.json_data?.previewImage
+                  }}
+                  heightClass="h-44"
+                />
+              </div>
+            )}
+
             <div className="flex items-center gap-3 relative z-10 w-full flex-wrap">
               <div className="flex-[1.5] min-w-[200px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
                 <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("author") || "Author"}</span>
@@ -337,8 +352,6 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
               );
             })()}
 
-
-
             {(data.changelog || data.release_notes || (data.json_data && (data.json_data.changelog || data.json_data.release_notes))) && (
               <div className="flex flex-col gap-4">
                 <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("whats_new")}</h4>
@@ -356,6 +369,3 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
     </SidePanel>
   );
 }
-
-
-

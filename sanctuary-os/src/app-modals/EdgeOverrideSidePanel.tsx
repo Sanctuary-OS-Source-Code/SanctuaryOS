@@ -1,13 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { SidePanel } from "../shared";
+import React, { useState, useEffect } from "react";
+import {
+  SidePanel,
+  StatBox,
+  SidePanelHeroCard,
+  UniversalGroup,
+} from "../shared";
 import { useLexicon } from "../LexiconContext";
-import { supabase } from '../supabase';
+import { supabase } from "../supabase";
 
 export function EdgeOverrideSidePanel({
   isOpen,
   onClose,
   data,
-  modHash
+  modHash,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -19,14 +24,23 @@ export function EdgeOverrideSidePanel({
 
   useEffect(() => {
     if (data?.mason_id) {
-      if (typeof data.mason_id === 'string' && data.mason_id.length === 36 && data.mason_id.includes('-')) {
-        supabase.from('masons').select('name').eq('id', data.mason_id).single().then(({ data: mData }) => {
-          if (mData) {
-            setMasonName(mData.name);
-          } else {
-            setMasonName(data.mason_id);
-          }
-        });
+      if (
+        typeof data.mason_id === "string" &&
+        data.mason_id.length === 36 &&
+        data.mason_id.includes("-")
+      ) {
+        supabase
+          .from("masons")
+          .select("name")
+          .eq("id", data.mason_id)
+          .single()
+          .then(({ data: mData }) => {
+            if (mData) {
+              setMasonName(mData.name);
+            } else {
+              setMasonName(data.mason_id);
+            }
+          });
       } else {
         setMasonName(data.mason_id);
       }
@@ -34,8 +48,13 @@ export function EdgeOverrideSidePanel({
       setMasonName(null);
     }
   }, [data]);
-  
+
   if (!data) return null;
+
+  const activeHash = modHash || data.target_hash;
+  const archiveHashes: string[] = Array.isArray(data.archive_hashes)
+    ? data.archive_hashes
+    : [];
 
   return (
     <SidePanel
@@ -43,89 +62,101 @@ export function EdgeOverrideSidePanel({
       onClose={onClose}
       backdropZ="z-[125000]"
       panelZ="z-[125001]"
-      title={t("title_edge_override_details") || "Override Manifest Details"}
-      subtitle={t("desc_edge_override_details") || "Review the incoming network override settings."}
-      icon={t("icon_network_wifi") || "network_wifi"}
-      widthClass="w-[500px]"
+      title={t("title_edge_override_details", "Override Manifest Details")}
+      subtitle={t(
+        "desc_edge_override_details",
+        "Review incoming network override settings"
+      )}
+      icon={t("icon_network_wifi", "network_wifi")}
+      iconColorClass="theme-text-accent"
+      widthClass="w-[90vw] md:w-[620px]"
     >
-      <div className="flex flex-col gap-4 p-5">
-        <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-            <h3 className="text-[10px] font-black uppercase tracking-widest theme-text-accent mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_extension") || "extension"}</span>
-              {t("label_target_mod") || "Target Artifact"}
-            </h3>
-            <div className="text-base font-bold text-[var(--text)]">
-              {data.artifact_id || (t("unknown_label") || "Unknown")}
-            </div>
-        </div>
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_warning", "warning")}
+          overline={t("title_edge_override_details", "Edge Manifest Override")}
+          description={t(
+            "desc_override_warning",
+            "Importing this override will replace locally maintained metadata and atomic logic for this artifact family with data from the linked Edge Manifest. The override can be removed and the Local Dossier restored at any time."
+          )}
+          variant="warning"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <StatBox
+              icon={t("icon_extension", "extension")}
+              iconColorClass="text-[var(--accent)]"
+              label={t("label_target_mod", "Target Artifact")}
+              value={data.artifact_id || t("unknown_label", "Unknown")}
+            />
+            <StatBox
+              icon={t("icon_person", "person")}
+              iconColorClass="text-[var(--accent)]"
+              label={t("role_mason", "Mason")}
+              value={masonName || data.mason_id || t("unknown_label", "Unknown")}
+            />
+          </div>
+        </SidePanelHeroCard>
 
-        <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-            <h3 className="text-[10px] font-black uppercase tracking-widest theme-text-accent mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_person") || "person"}</span>
-              {t("role_mason") || "Mason"}
-            </h3>
-            <div className="text-base font-bold text-[var(--text)] truncate">
-              {masonName || data.mason_id || (t("unknown_label") || "Unknown")}
+        <UniversalGroup
+          title={t("label_manifest_source", "Manifest Source")}
+          icon={t("icon_link", "link")}
+        >
+          <div className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-mono text-xs text-[var(--text)] break-all">
+            {data.manifest_url || t("not_available", "N/A")}
+          </div>
+
+          {activeHash && (
+            <div className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
+                  {t("label_verified_signature", "Verified Local Signature")}
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-mono text-[10px] font-bold">
+                  {activeHash.substring(0, 8)}...
+                  {activeHash.substring(activeHash.length - 6)}
+                </span>
+              </div>
+              <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 m-0">
+                {t(
+                  "desc_override_signature_note",
+                  "This override can manage only the matched artifact family."
+                )}
+              </p>
             </div>
-        </div>
-        
-        <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-            <h3 className="text-[10px] font-black uppercase tracking-widest theme-text-accent mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_link") || "link"}</span>
-              {t("label_manifest_source") || "Manifest Source"}
-            </h3>
-            <div className="text-xs opacity-80 break-all bg-[var(--bg-tertiary)] p-3 rounded-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] font-mono">
-              {data.manifest_url || (t("not_available") || "N/A")}
-            </div>
-            {(modHash || data.target_hash) && (
-                <div className="flex flex-col gap-1 mt-3">
-                   <div className="text-[11px] flex items-center gap-2">
-                      <span className="font-bold opacity-80">{t("label_verified_signature") || "Verified local signature:"}</span>
-                      <span className="font-mono bg-[color-mix(in_srgb,var(--text)_5%,transparent)] px-1.5 py-0.5 rounded text-[10px]">
-                         {(modHash || data.target_hash).substring(0, 8)}...{(modHash || data.target_hash).substring((modHash || data.target_hash).length - 6)}
-                      </span>
-                   </div>
-                   <div className="text-[10px] opacity-60 italic mt-0.5 leading-snug">
-                      {t("desc_override_signature_note") || "This override can manage only the matched artifact family."}
-                   </div>
-                </div>
+          )}
+        </UniversalGroup>
+
+        <UniversalGroup
+          title={t("label_hashes_affected", "Hashes Affected")}
+          icon={t("icon_fingerprint", "fingerprint")}
+        >
+          <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
+            {activeHash && (
+              <div className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-between gap-2 font-mono text-xs">
+                <span className="truncate text-[var(--text)]">{activeHash}</span>
+                <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shrink-0">
+                  {t("label_target", "Target")}
+                </span>
+              </div>
             )}
-        </div>
-
-        <div className="p-4 rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] text-[var(--warning)] flex items-start gap-3">
-            <span className="material-symbols-outlined !text-[18px] shrink-0 mt-0.5">{t("icon_warning") || "warning"}</span>
-            <div className="text-[10px] leading-relaxed">
-              {t("desc_override_warning") || "Importing this override will replace locally maintained metadata and atomic logic for this artifact family with data from the linked Edge Manifest. The override can be removed and the Local Dossier restored at any time."}
-            </div>
-        </div>
-
-        <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-            <h3 className="text-[10px] font-black uppercase tracking-widest theme-text-accent mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_fingerprint") || "fingerprint"}</span>
-              {t("label_hashes_affected") || "Hashes Affected"}
-            </h3>
-            <div className="bg-[var(--bg-tertiary)] rounded-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] max-h-[200px] overflow-y-auto custom-scrollbar">
-              <ul className="text-[11px] opacity-80 divide-y divide-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                  {(modHash || data.target_hash) && (
-                    <li className="p-2 flex items-center gap-2 font-mono">
-                      <span className="w-2 h-2 rounded-full bg-[var(--accent)] shrink-0"></span>
-                      <span className="truncate">{modHash || data.target_hash}</span>
-                      <span className="text-[9px] uppercase tracking-wider opacity-60 ml-auto shrink-0">{t("label_target") || "(Target)"}</span>
-                    </li>
-                  )}
-                  {data.archive_hashes?.map((h: string, i: number) => (
-                    <li key={i} className="p-2 flex items-center gap-2 font-mono">
-                      <span className="w-2 h-2 rounded-full bg-[color-mix(in_srgb,var(--text)_20%,transparent)] shrink-0"></span>
-                      <span className="truncate">{h}</span>
-                      <span className="text-[9px] uppercase tracking-wider opacity-60 ml-auto shrink-0">{t("label_archive") || "(Archive)"}</span>
-                    </li>
-                  ))}
-                  {!(modHash || data.target_hash) && (!data.archive_hashes || data.archive_hashes.length === 0) && (
-                    <li className="p-3 text-center opacity-50 italic">{t("desc_none_specified") || "None specified"}</li>
-                  )}
-              </ul>
-            </div>
-        </div>
+            {archiveHashes.map((h: string, i: number) => (
+              <div
+                key={i}
+                className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2 font-mono text-xs"
+              >
+                <span className="truncate text-[var(--subtext)]">{h}</span>
+                <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] shrink-0">
+                  {t("label_archive", "Archive")}
+                </span>
+              </div>
+            ))}
+            {!activeHash && archiveHashes.length === 0 && (
+              <div className="glass-surface rounded-xl px-4 py-3 text-center text-xs text-[var(--subtext)] opacity-60">
+                {t("desc_none_specified", "None specified")}
+              </div>
+            )}
+          </div>
+        </UniversalGroup>
       </div>
     </SidePanel>
   );

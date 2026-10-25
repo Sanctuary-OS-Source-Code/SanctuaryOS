@@ -100,7 +100,7 @@ export function SystemAlertBanner({
 
       <div className="flex items-center gap-5 z-10 flex-1 min-w-0">
         <div
-          className={`w-12 h-12 rounded-full border border-current flex items-center justify-center shrink-0 shadow-md transition-transform group-hover:scale-105 opacity-80 theme-text-${themeType}`}
+          className={`w-12 h-12 rounded-xl border border-current flex items-center justify-center shrink-0 shadow-md transition-transform group-hover:scale-105 opacity-80 theme-text-${themeType}`}
         >
           <span className="material-symbols-outlined !text-[24px] drop-shadow-md">
             {typeof iconName === "string" ? iconName : iconName}
@@ -127,7 +127,7 @@ export function SystemAlertBanner({
         {onClose && (
           <button
             onClick={onClose}
-            className={`w-8 h-8 rounded-full border border-current flex items-center justify-center transition-colors opacity-50 hover:opacity-100 ml-2 hover:bg-white/10 theme-text-${themeType}`}
+            className={`w-8 h-8 rounded-xl border border-current flex items-center justify-center transition-colors opacity-50 hover:opacity-100 ml-2 hover:bg-white/10 theme-text-${themeType}`}
           >
             <span className="material-symbols-outlined !text-[16px]">
               close
@@ -377,7 +377,7 @@ export function ActionPill({
 
   return (
     <div
-      className={`flex items-center ${widthClasses} h-13 glass-panel !rounded-full shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className}`}
+      className={`flex items-center ${widthClasses} h-13 glass-panel rounded-2xl shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className}`}
     >
       {/* Integrated Search or Left Content */}
       {leftContent ? (

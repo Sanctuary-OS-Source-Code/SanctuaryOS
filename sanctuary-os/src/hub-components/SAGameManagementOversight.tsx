@@ -9,9 +9,10 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown, loadDLCMap
+  fetchAllPaginated, CustomTierDropdown, loadDLCMap, PanelHeaderGroup, PanelHeaderButton
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
+import { UniversalGroup, UniversalTextArea, SidePanelHeroCard } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
@@ -21,7 +22,6 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { CustomClassificationDropdown } from "../hub-components/SharedRegistry";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import MarkdownRenderer from "../MarkdownRenderer";
-
 
 
 export function GameManagementOversight() {
@@ -161,38 +161,44 @@ export function GameManagementOversight() {
     !versionSearch || v.version.toLowerCase().includes(versionSearch.toLowerCase())
   );
 
+  const isCommitDisabled =
+    isPanelSubmitting ||
+    !panelReason.trim() ||
+    ((sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && !panelInput1.trim()) ||
+    ((sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (!panelInput1.trim() || !panelInput2.trim()));
+
   return (
     <ElevatedHubLayout
-      headerTitle={t("tab_game_versions") || "Game Versions"}
-      headerSubtitle={t("game_management_subtitle") || "Manage patches, versions, and DLCs"}
+      headerTitle={t("tab_game_versions", "Game Versions")}
+      headerSubtitle={t("game_management_subtitle", "Manage patches, versions, and DLCs")}
       headerIcon="settings"
       headerIconColorClass="theme-text-accent"
       search={activeTab === 'versions' ? versionSearch : dlcSearch}
       onSearchChange={(e: string) => activeTab === 'versions' ? setVersionSearch(e) : setDlcSearch(e)}
-      searchPlaceholder={activeTab === 'versions' ? "Search Patches..." : "Search DLC..."}
+      searchPlaceholder={activeTab === 'versions' ? t("search_ph", "Search Patches...") : t("search_ph", "Search DLC...")}
       hideSearch={activeTab === 'overview'}
       tabs={[
-        { id: 'overview', label: t("landing_overview") || "Overview", icon: "dashboard", number: (versions.length + dlcs.length).toString() },
-        { id: 'versions', label: t("sa_game_versions") || "Game Versions", icon: "gamepad", number: versions.length.toString() },
-        { id: 'dlc', label: t("dlc_registry") || "DLC Registry", icon: "extension", number: dlcs.length.toString() }
+        { id: 'overview', label: t("landing_overview", "Overview"), icon: "dashboard", number: (versions.length + dlcs.length).toString() },
+        { id: 'versions', label: t("sa_game_versions", "Game Versions"), icon: "gamepad", number: versions.length.toString() },
+        { id: 'dlc', label: t("dlc_registry", "DLC Registry"), icon: "extension", number: dlcs.length.toString() }
       ]}
       activeTab={activeTab}
       onTabChange={setActiveTab as any}
       primaryPopover={
         activeTab === 'dlc' ? {
           icon: "tune",
-          label: t("filters") || "Filters",
+          label: t("filters", "Filters"),
           content: (
             <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "DLC Type"}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category", "DLC Type")}</span>
                 <CustomDropdown
                   flat={true}
                   variant="pill"
                   disableTint={true}
                   value={dlcTypeFilter}
                   onChange={(v: string[]) => setDlcTypeFilter(v[0])}
-                  options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? (t("ui_tab_all_types") || "All Types") : x }))}
+                  options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? t("ui_tab_all_types", "All Types") : x }))}
                 />
               </div>
             </div>
@@ -203,8 +209,8 @@ export function GameManagementOversight() {
         activeTab !== 'overview' ? [
           {
             id: "register",
-            icon: t("icon_add") || "add",
-            label: activeTab === 'versions' ? (t("btn_register_patch_naked") || "Register Patch") : (t("panel_add_dlc") || "Register DLC"),
+            icon: t("icon_add", "add"),
+            label: activeTab === 'versions' ? t("btn_register_patch_naked", "Register Patch") : t("panel_add_dlc", "Register DLC"),
             onClick: () => openPanel(activeTab === 'versions' ? 'add_version' : 'add_dlc')
           }
         ] : undefined
@@ -217,10 +223,10 @@ export function GameManagementOversight() {
             <HubOverviewSection
               icon="gamepad"
               iconColorClass="text-[var(--accent)]"
-              title={t("sa_game_versions") || "Game Versions"}
+              title={t("sa_game_versions", "Game Versions")}
               isEmpty={versions.length === 0}
               emptyIcon="gamepad"
-              emptyTitle={t("no_versions") || "No Game Versions"}
+              emptyTitle={t("no_versions", "No Game Versions")}
             >
               {versions.slice(0, 4).map(v => (
                 <UniversalCard
@@ -229,17 +235,17 @@ export function GameManagementOversight() {
                   layout="vertical"
                   icon="gamepad"
                   title={v.version}
-                  subtitle={t("patch_release")}
+                  subtitle={t("patch_release", "Patch Release")}
                 />
               ))}
             </HubOverviewSection>
             <HubOverviewSection
               icon="extension"
               iconColorClass="text-[var(--success)]"
-              title={t("dlc_registry") || "DLC Registry"}
+              title={t("dlc_registry", "DLC Registry")}
               isEmpty={dlcs.length === 0}
               emptyIcon="extension"
-              emptyTitle={t("no_dlc") || "No DLC Packs"}
+              emptyTitle={t("no_dlc", "No DLC Packs")}
             >
               {dlcs.slice(0, 4).map(d => (
                 <UniversalCard
@@ -256,67 +262,62 @@ export function GameManagementOversight() {
         )}
 
         {activeTab === 'versions' && (
-          <>
-
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
-              {filteredVersions.map(v => (
-                <UniversalCard
-                  key={v.version}
-                  onClick={() => openPanel('edit_version', v.version)}
-                  layout="vertical"
-                  icon="gamepad"
-                  title={v.version}
-                  subtitle={t("patch_release")}
-                  footer={
-                    <div className="flex justify-start items-center w-full">
-                      <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
-                        <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
-                        {v.release_date ? new Date(v.release_date).toLocaleDateString() : (v.created_at ? new Date(v.created_at).toLocaleDateString() : "UNKNOWN")}
-                      </span>
-                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                        {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
-                      </button>
-                    </div>
-                  }
-                />
-              ))}
-              {filteredVersions.length === 0 && <EmptyState icon={t("icon_gamepad")} title={t("no_versions")} className="col-span-full py-16" />}
-            </div>
-          </>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
+            {filteredVersions.map(v => (
+              <UniversalCard
+                key={v.version}
+                onClick={() => openPanel('edit_version', v.version)}
+                layout="vertical"
+                icon="gamepad"
+                title={v.version}
+                subtitle={t("patch_release", "Patch Release")}
+                footer={
+                  <div className="flex justify-between items-center w-full">
+                    <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                      <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today", "calendar_today")}</span>
+                      {v.release_date ? new Date(v.release_date).toLocaleDateString() : (v.created_at ? new Date(v.created_at).toLocaleDateString() : t("vlocal", "UNKNOWN"))}
+                    </span>
+                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                      {t("btn_view", "View")} <span className="text-lg leading-none">&rarr;</span>
+                    </button>
+                  </div>
+                }
+              />
+            ))}
+            {filteredVersions.length === 0 && <EmptyState icon={t("icon_gamepad", "gamepad")} title={t("no_versions", "No Game Versions")} className="col-span-full py-16" />}
+          </div>
         )}
 
         {activeTab === 'dlc' && (
-          <>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
-              {filteredDlcs.map(d => (
-                <UniversalCard
-                  key={d.id}
-                  onClick={() => openPanel('edit_dlc', d)}
-                  layout="vertical"
-                  icon="extension"
-                  title={d.name}
-                  subtitle={d.type ? (t(`dlc_type_${d.type.toLowerCase().replace(/ /g, '_')}`) || `${d.type}PACK`) : "UNKNOWN"}
-                  badges={[
-                    <span key="dlc-id" className="px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
-                      {d.id}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
+            {filteredDlcs.map(d => (
+              <UniversalCard
+                key={d.id}
+                onClick={() => openPanel('edit_dlc', d)}
+                layout="vertical"
+                icon="extension"
+                title={d.name}
+                subtitle={d.type ? t(`dlc_type_${d.type.toLowerCase().replace(/ /g, '_')}`, `${d.type} PACK`) : t("vlocal", "UNKNOWN")}
+                badges={[
+                  <span key="dlc-id" className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border bg-transparent shrink-0 text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)]">
+                    {d.id}
+                  </span>
+                ]}
+                footer={
+                  <div className="flex justify-between items-center w-full">
+                    <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
+                      <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today", "calendar_today")}</span>
+                      {d.release_date ? new Date(d.release_date).toLocaleDateString() : d.id}
                     </span>
-                  ]}
-                  footer={
-                    <div className="flex justify-start items-center w-full">
-                      <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
-                        <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
-                        {d.release_date ? new Date(d.release_date).toLocaleDateString() : d.id}
-                      </span>
-                      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                        {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
-                      </button>
-                    </div>
-                  }
-                />
-              ))}
-              {filteredDlcs.length === 0 && <EmptyState icon={t("icon_extension_off")} title={t("no_dlc")} className="col-span-full py-16" />}
-            </div>
-          </>
+                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
+                      {t("btn_view", "View")} <span className="text-lg leading-none">&rarr;</span>
+                    </button>
+                  </div>
+                }
+              />
+            ))}
+            {filteredDlcs.length === 0 && <EmptyState icon={t("icon_extension_off", "extension_off")} title={t("no_dlc", "No DLC Packs")} className="col-span-full py-16" />}
+          </div>
         )}
 
       </div>
@@ -325,159 +326,170 @@ export function GameManagementOversight() {
         isOpen={!!sidePanelMode}
         onClose={() => setSidePanelMode(null)}
         title={
-          sidePanelMode === 'add_version' ? (t("btn_register_patch_naked")) :
-            sidePanelMode === 'edit_version' ? (t("panel_edit_patch")) :
-              sidePanelMode === 'edit_dlc' ? (t("panel_edit_dlc")) :
-                (t("panel_add_dlc"))
+          sidePanelMode === 'add_version' ? t("btn_register_patch_naked", "Register Patch") :
+            sidePanelMode === 'edit_version' ? t("panel_edit_patch", "Edit Patch") :
+              sidePanelMode === 'edit_dlc' ? t("panel_edit_dlc", "Edit DLC Pack") :
+                t("panel_add_dlc", "Register DLC")
         }
-        subtitle={sidePanelMode?.includes('version') ? (t("panel_sub_version")) : (t("dlc_registry"))}
+        subtitle={sidePanelMode?.includes('version') ? t("panel_sub_version", "Game Version Registry") : t("dlc_registry", "DLC Registry")}
         icon={sidePanelMode?.includes('version') ? "gamepad" : "extension"}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[680px]"
+        headerActions={
+          <PanelHeaderGroup>
+            {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && (
+              <PanelHeaderButton
+                icon="delete"
+                variant="danger"
+                tooltip={isPanelSubmitting ? t("ui_btn_processing", "Processing...") : t("purge", "Purge")}
+                disabled={!panelReason.trim() || isPanelSubmitting}
+                onClick={() => handlePanelCommit(true)}
+              />
+            )}
+            <PanelHeaderButton
+              icon="save"
+              variant="accent"
+              tooltip={isPanelSubmitting ? t("ui_btn_processing", "Processing...") : t("ui_btn_commit", "Commit")}
+              disabled={isCommitDisabled}
+              onClick={() => handlePanelCommit(false)}
+            />
+          </PanelHeaderGroup>
+        }
         footer={
-          <div className="flex justify-center items-center gap-4 w-full px-8">
+          <div className="flex justify-end items-center gap-3 w-full px-6">
             {(sidePanelMode === 'add_version' || sidePanelMode === 'add_dlc') && (
               <ActionButton
+                variant="glass"
                 onClick={() => setSidePanelMode(null)}
-                label={t("nav_cancel")}
+                label={t("nav_cancel", "Cancel")}
                 icon="close"
-                className="flex-1"
               />
             )}
             {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && (
               <ActionButton
+                variant="glass"
                 disabled={!panelReason.trim() || isPanelSubmitting}
                 onClick={() => handlePanelCommit(true)}
-                label={isPanelSubmitting ? t("ui_btn_processing") : (t("purge"))}
+                label={isPanelSubmitting ? t("ui_btn_processing", "Processing...") : t("purge", "Purge")}
                 icon="delete"
-                className="flex-1 !theme-bg-danger/20 !theme-text-danger !border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
               />
             )}
             <ActionButton
+              variant="glass"
               onClick={() => handlePanelCommit(false)}
-              disabled={
-                isPanelSubmitting ||
-                !panelReason.trim() ||
-                ((sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && !panelInput1.trim()) ||
-                ((sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (!panelInput1.trim() || !panelInput2.trim()))
-              }
-              label={isPanelSubmitting ? (t("ui_btn_processing")) : (t("ui_btn_commit"))}
+              disabled={isCommitDisabled}
+              label={isPanelSubmitting ? t("ui_btn_processing", "Processing...") : t("ui_btn_commit", "Commit")}
               icon="save"
-              className="flex-1 !theme-bg-success/20 !theme-text-success !border-[color-mix(in_srgb,var(--success)_50%,transparent)]"
             />
           </div>
         }
       >
-        <div className="p-8">
-          <div className="flex flex-col gap-6">
-            {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && panelTarget && (
-              <div className="flex flex-col gap-3 shrink-0 mb-6">
-                <h2 className="text-3xl font-black text-[var(--text)] leading-tight capitalize tracking-widest truncate">
-                  {panelTarget?.name || panelTarget}
-                </h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{t("ql_targeting")}</span>
-                </div>
-              </div>
-            )}
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={sidePanelMode?.includes('version') ? "gamepad" : "extension"}
+            overline={sidePanelMode?.includes('version') ? t("sa_game_versions", "Game Versions") : t("dlc_registry", "DLC Registry")}
+            title={
+              (sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && panelTarget
+                ? (panelTarget?.name || panelTarget)
+                : sidePanelMode === 'add_version'
+                  ? t("btn_register_patch_naked", "Register Patch")
+                  : t("panel_add_dlc", "Register DLC")
+            }
+            description={t("game_management_subtitle", "Manage patches, versions, and DLCs")}
+            badge={sidePanelMode?.includes('edit') ? t("ql_targeting", "Editing") : t("ql_add", "New Entry")}
+            badgeIcon={sidePanelMode?.includes('edit') ? "edit" : "add"}
+            variant="accent"
+          />
 
-            {(sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && (
-              <div className="flex flex-col gap-6 relative">
-                <div className="flex flex-col gap-2 relative z-10">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_version")}</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("icon_gamepad")}</span>
-                    <input
-                      value={panelInput1}
-                      onChange={e => setPanelInput1(e.target.value)}
-                      placeholder={t("ph_game_version")}
-                      className="glass-surface rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {(sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (
-              <div className="flex flex-col gap-6 relative">
-                <div className="flex flex-col gap-2 relative z-50">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dlc_id_code")}</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("icon_fingerprint")}</span>
-                    <input
-                      value={panelInput1}
-                      onChange={e => setPanelInput1(e.target.value)}
-                      placeholder={t("ph_pack_code")}
-                      className="glass-surface rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] capitalize bg-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 relative z-40">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("pack_type")}</label>
-                  <CustomDropdown disableTint={true}
-                    value={panelInput3}
-                    onChange={(v: string[]) => setPanelInput3(v[0])}
-                    options={[
-                      ...[...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: t(`dlc_type_${x.toLowerCase().replace(/ /g, '_')}`) || `${x} PACK` })),
-                      { id: "CUSTOM", label: "+ CUSTOM TYPE" }
-                    ]}
-                    placeholder={t("auto_select_type")}
+          {(sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && (
+            <UniversalGroup title={t("sa_game_versions", "Version Details")} icon="gamepad">
+              <div className="flex flex-col gap-1.5 relative z-10">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("game_version", "Game Version")}</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 !text-[18px]">{t("icon_gamepad", "gamepad")}</span>
+                  <input
+                    value={panelInput1}
+                    onChange={e => setPanelInput1(e.target.value)}
+                    placeholder={t("ph_game_version", "e.g. 1.108.318")}
+                    className="w-full glass-surface rounded-xl pl-10 pr-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all"
                   />
                 </div>
+              </div>
+            </UniversalGroup>
+          )}
 
-                {panelInput3 === "CUSTOM" && (
-                  <div className="flex flex-col gap-2 relative z-30 animate-in fade-in slide-in-from-top-2">
-                    <label className="text-[9px] font-black theme-text-accent capitalize tracking-widest ml-2 flex items-center gap-2 drop-shadow-md">
-                      <span className="material-symbols-outlined !text-[12px]">{t("icon_edit")}</span>
-                      {t("auto_new_pack_type")}
-                    </label>
-                    <div className="relative">
-                      <input
-                        value={panelInput4}
-                        onChange={e => setPanelInput4(e.target.value.toUpperCase())}
-                        placeholder={t("ph_pack_type")}
-                        className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] capitalize bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-2 relative z-30">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("pack_name")}</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 text-sm">{t("icon_badge")}</span>
-                    <input
-                      value={panelInput2}
-                      onChange={e => setPanelInput2(e.target.value)}
-                      placeholder={t("ph_pack_name")}
-                      className="glass-surface rounded-xl pl-10 pr-5 py-4 text-[var(--text)] text-sm font-black focus:outline-none focus:theme-border-accent transition-all w-full border border-[color-mix(in_srgb,var(--text)_5%,transparent)] capitalize bg-transparent"
-                    />
-                  </div>
+          {(sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (
+            <UniversalGroup title={t("dlc_registry", "DLC Pack Configuration")} icon="extension">
+              <div className="flex flex-col gap-1.5 relative z-50">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("dlc_id_code", "DLC Pack Code")}</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 !text-[18px]">{t("icon_fingerprint", "fingerprint")}</span>
+                  <input
+                    value={panelInput1}
+                    onChange={e => setPanelInput1(e.target.value)}
+                    placeholder={t("ph_pack_code", "e.g. EP01")}
+                    className="w-full glass-surface rounded-xl pl-10 pr-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all uppercase"
+                  />
                 </div>
               </div>
-            )}
 
+              <div className="flex flex-col gap-1.5 relative z-40">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("pack_type", "Pack Type")}</label>
+                <CustomDropdown disableTint={true}
+                  value={panelInput3}
+                  onChange={(v: string[]) => setPanelInput3(v[0])}
+                  options={[
+                    ...[...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: t(`dlc_type_${x.toLowerCase().replace(/ /g, '_')}`, `${x} PACK`) })),
+                    { id: "CUSTOM", label: t("auto_new_pack_type", "+ CUSTOM TYPE") }
+                  ]}
+                  placeholder={t("auto_select_type", "Select Type")}
+                />
+              </div>
 
-            <div className="flex flex-col gap-2 mt-4">
-              <label className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest ml-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_5px_var(--danger)]"></span>
-                {t("audit_reason_req")}
-              </label>
-              <textarea
-                value={panelReason}
-                onChange={e => setPanelReason(e.target.value)}
-                placeholder={t("mutation_reason")}
-                className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold h-32 resize-none focus:outline-none focus:theme-border-danger transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-              />
-            </div>
+              {panelInput3 === "CUSTOM" && (
+                <div className="flex flex-col gap-1.5 relative z-30 animate-in fade-in slide-in-from-top-2">
+                  <label className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-1 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined !text-[14px]">{t("icon_edit", "edit")}</span>
+                    {t("auto_new_pack_type", "New Pack Type")}
+                  </label>
+                  <input
+                    value={panelInput4}
+                    onChange={e => setPanelInput4(e.target.value.toUpperCase())}
+                    placeholder={t("ph_pack_type", "e.g. SP")}
+                    className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all uppercase"
+                  />
+                </div>
+              )}
 
-          </div>
+              <div className="flex flex-col gap-1.5 relative z-20">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("pack_name", "Pack Name")}</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 !text-[18px]">{t("icon_badge", "badge")}</span>
+                  <input
+                    value={panelInput2}
+                    onChange={e => setPanelInput2(e.target.value)}
+                    placeholder={t("ph_pack_name", "e.g. Get to Work")}
+                    className="w-full glass-surface rounded-xl pl-10 pr-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all"
+                  />
+                </div>
+              </div>
+            </UniversalGroup>
+          )}
+
+          <UniversalGroup
+            title={t("audit_reason_req", "Audit Reason Required")}
+            icon="gavel"
+            headerColorClass="text-[var(--danger)]"
+          >
+            <UniversalTextArea
+              label={`${t("audit_reason_req", "Audit Reason Required")} *`}
+              value={panelReason}
+              onChange={setPanelReason}
+              placeholder={t("mutation_reason", "Enter reason for mutation...")}
+            />
+          </UniversalGroup>
         </div>
       </SidePanel>
     </ElevatedHubLayout>
   );
 }
-
-
-
-
-

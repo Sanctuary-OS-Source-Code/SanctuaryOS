@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SidePanel, standardAccentGlassButtonClass, standardButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { SidePanel, standardAccentGlassButtonClass, standardButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, SidePanelHeroCard } from "../shared";
 import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import WayfinderSupportSidePanel from "./WayfinderSupportSidePanel";
@@ -14,38 +14,53 @@ interface CitizenTicketsSidePanelProps {
 export default function WayfinderKeeperSidePanel({ isOpen, onClose, userId }: CitizenTicketsSidePanelProps) {
   const { t } = useLexicon();
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
   return (
     <>
       <SidePanel
         isOpen={isOpen}
         onClose={onClose}
-        title={t("wf_keeper_support_title")}
-        subtitle={t("wf_keeper_support_subtitle")}
-        icon={t("icon_admin_panel_settings")}
-        widthClass="w-[700px]"
-        noPadding={true}
+        title={t("wf_keeper_support_title", "Keeper Support Escalations")}
+        subtitle={t("wf_keeper_support_subtitle", "Direct Escalation Channel to Sanctuary Keepers")}
+        icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[760px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon="close"
-              tooltip={t("nav_cancel")}
-              onClick={onClose}
-            />
-            <PanelHeaderButton
-              icon={t("icon_add_circle") || "add_circle"}
-              tooltip={t("support_title")}
+              icon={t("icon_add_circle", "add_circle")}
+              tooltip={t("support_title", "New Escalation Ticket")}
               variant="accent"
               onClick={() => setIsCreateModalOpen(true)}
             />
           </PanelHeaderGroup>
         }
       >
-        <div className="h-full relative pb-10">
-          <WayfinderKeeperTickets 
-            userId={userId} 
-            onSelectTicket={setSelectedTicket}
-          />
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+            overline={t("wf_keeper_support_subtitle", "Keepers Direct Uplink")}
+            title={t("wf_keeper_support_title", "Keeper Support Escalations")}
+            description={t("support_desc", "Review active escalations or open a direct support dossier with Sanctuary Keepers.")}
+            variant="accent"
+          >
+            <ActionButton
+              variant="glass"
+              icon={t("icon_add_circle", "add_circle")}
+              onClick={() => setIsCreateModalOpen(true)}
+              className="w-full justify-center !py-3"
+            >
+              {t("support_title", "Create Support Escalation")}
+            </ActionButton>
+          </SidePanelHeroCard>
+
+          <div className="relative w-full">
+            <WayfinderKeeperTickets 
+              userId={userId} 
+              onSelectTicket={setSelectedTicket}
+            />
+          </div>
         </div>
       </SidePanel>
 

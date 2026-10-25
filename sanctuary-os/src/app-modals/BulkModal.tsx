@@ -1,84 +1,118 @@
-import React from 'react';
+import React from "react";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import {
+  SidePanel,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  ActionButton,
+  SidePanelHeroCard,
+  UniversalGroup,
+} from "../shared";
 
-export function BulkModal({ bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods, resolveDisplayName }: any) {
+export function BulkModal({
+  bulkModal,
+  setBulkModal,
+  bulkName,
+  setBulkName,
+  executeBulkDraft,
+  selectedMods,
+  resolveDisplayName,
+}: any) {
   const { t } = useLexicon();
 
   if (!bulkModal) return null;
+
+  const safeMods: string[] = Array.isArray(selectedMods) ? selectedMods : [];
 
   return (
     <SidePanel
       isOpen={bulkModal}
       onClose={() => setBulkModal(false)}
-      title={t("bulk_title")}
-      subtitle={`${t("bulk_desc1")} ${selectedMods?.length || 0} ${t("bulk_desc2")}`}
+      title={t("bulk_title", "Draft Blueprint")}
+      subtitle={`${t("bulk_desc1", "Bundling")} ${safeMods.length} ${t("bulk_desc2", "selected artifacts")}`}
       icon="architecture"
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[700px]"
+      widthClass="w-[90vw] md:w-[680px]"
       backdropZ="z-[115000]"
       panelZ="z-[115001]"
-      ambientGlows={
-        <>
-          <div className="absolute -top-20 -right-20 w-96 h-96 bg-[var(--accent)] opacity-20 blur-[100px] rounded-full pointer-events-none" />
-          <div className="absolute bottom-1/3 -left-32 w-96 h-96 bg-[var(--text)] opacity-10 blur-[100px] rounded-full pointer-events-none" />
-        </>
-      }
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
             icon="add_box"
-            tooltip={t("btn_draft")}
+            tooltip={t("btn_draft", "Draft Blueprint")}
             onClick={executeBulkDraft}
             variant="accent"
           />
         </PanelHeaderGroup>
       }
     >
-      <div className="flex flex-col gap-6 p-8 h-full min-h-[400px]">
-        <div className="flex items-center w-full glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0">
-          <div className="relative flex-1 h-full flex items-center">
-            <span className="absolute left-4 opacity-50 text-[18px] material-symbols-outlined pointer-events-none">architecture</span>
-            <input
-              autoFocus
-              type="text"
-              value={bulkName}
-              onChange={(e) => setBulkName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && executeBulkDraft()}
-              placeholder={t("draft_placeholder")}
-              className="w-full h-full bg-transparent border-none outline-none px-4 pl-12 text-[10px] font-black capitalize tracking-[0.2em] text-[var(--text)]"
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon="architecture"
+          overline={t("type_blueprint", "Blueprint Architect")}
+          title={t("bulk_title", "Create New Blueprint")}
+          description={`${t("bulk_desc1", "Bundling")} ${safeMods.length} ${t("bulk_desc2", "selected artifacts into a reusable Play Set.")}`}
+          badge={`${safeMods.length} ${t("items", "Items")}`}
+          badgeIcon={t("icon_inventory_2", "inventory_2")}
+          variant="accent"
+        />
+
+        <UniversalGroup
+          title={t("draft_placeholder", "Blueprint Name")}
+          icon="edit_note"
+        >
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 !text-[18px] pointer-events-none">
+                architecture
+              </span>
+              <input
+                autoFocus
+                type="text"
+                value={bulkName}
+                onChange={(e) => setBulkName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && executeBulkDraft()}
+                placeholder={t("draft_placeholder", "Enter Blueprint Name...")}
+                className="w-full glass-surface rounded-xl pl-11 pr-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+              />
+            </div>
+            <ActionButton
+              variant="glass"
+              icon="add_box"
+              label={t("btn_draft", "Draft")}
+              disabled={!bulkName?.trim() || safeMods.length === 0}
+              onClick={executeBulkDraft}
+              className="shrink-0 !text-[var(--accent)] !border-[color-mix(in_srgb,var(--accent)_42%,transparent)]"
             />
           </div>
-          <button
-            onClick={executeBulkDraft}
-            disabled={!bulkName?.trim() || selectedMods?.length === 0}
-            className="h-full px-6 text-[10px] font-black capitalize tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black flex items-center justify-center gap-2 shrink-0 border-none outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className="material-symbols-outlined text-[16px]">add_box</span>
-            {t("btn_draft")}
-          </button>
-        </div>
-        <div className="flex-1 flex flex-col min-h-0 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-          <div className="flex items-center gap-3 mb-6 shrink-0">
-            <span className="material-symbols-outlined !text-[18px] text-[var(--text)]">{t("icon_inventory_2")}</span>
-            <h3 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)]">{t("artifacts_linked")} ({(selectedMods || []).length})</h3>
-          </div>
+        </UniversalGroup>
 
-          <div className="flex-1 grid grid-cols-2 gap-2 overflow-y-auto custom-scrollbar pr-2 items-start content-start">
-            {(selectedMods || []).map((modName: string, i: number) => {
-              const displayName = resolveDisplayName ? resolveDisplayName(modName) : modName.replace(/_/g, " ").replace(/\.[^/.]+$/, "");
+        <UniversalGroup
+          title={`${t("artifacts_linked", "Linked Artifacts")} (${safeMods.length})`}
+          icon={t("icon_inventory_2", "inventory_2")}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[360px] overflow-y-auto custom-scrollbar pr-1">
+            {safeMods.map((modName: string, i: number) => {
+              const displayName = resolveDisplayName
+                ? resolveDisplayName(modName)
+                : modName.replace(/_/g, " ").replace(/\.[^/.]+$/, "");
               return (
-                <div key={i} className="glass-surface p-3 rounded-xl flex items-center gap-4 group/item transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-50">description</span>
-                  <span className="text-[11px] font-black text-[var(--text)] capitalize truncate">{displayName}</span>
+                <div
+                  key={i}
+                  className="glass-surface px-3.5 py-2.5 rounded-xl flex items-center gap-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                >
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                    description
+                  </span>
+                  <span className="text-xs font-bold text-[var(--text)] truncate">
+                    {displayName}
+                  </span>
                 </div>
               );
             })}
           </div>
-        </div>
+        </UniversalGroup>
       </div>
     </SidePanel>
   );
 }
-
-

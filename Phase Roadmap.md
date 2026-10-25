@@ -1,116 +1,170 @@
-# Sanctuary OS — Engineering Phase Roadmap & Historical Timeline
+# Sanctuary OS — Master Phase Roadmap
 
-![Version](https://img.shields.io/badge/version-0.5.8--Dev.3-blue)
-![Last Updated](https://img.shields.io/badge/last_updated-October_24,_2026-brightgreen)
-![Order](https://img.shields.io/badge/order-Reverse_Chronological_(Phase_12_→_Phase_1)-cyan)
-
-> **Engineering Phase Roadmap (Phase 12 → Phase 1)**  
+> **Live Directive Synchronization:** This master roadmap reflects the complete architectural evolution of Sanctuary OS from its initial airgapped symlink prototype (Phase 1) through the current multi-workspace, game-agnostic Liquid Glass OS & Web PWA era (Phase 12). Changes to this document synchronize bidirectionally with the `public.system_directives` cloud table (`directive_key = 'phase_roadmap'`) via the Keepers Core Directive Engine.
 
 ---
 
-## Phase 12 — Agnostic Multi-Game Future, Sovereignty & Liquid Glass (Aug–Oct 2026 • Active Phase)
-- **Status:** `IN PROGRESS — CURRENT PHASE (v0.5.8-Dev.3)`
-- **Engineering Milestones:**
-  - **Hub-and-Spoke Database Sovereignty (`schema.sql` & `schema_os.sql`):** Decoupled the Core OS Hub from community-owned Game Spoke databases via the `game-gateway` Edge Function, `SANCTUARY-UPLINK://` 1-click turnkey onboarding, Single-File Standalone Fork mode (`src/supabase.ts`), and unilateral **"Cut the Cord"** bilateral severance (`secure_sever_spoke_cord`).
-  - **Dynamic Game Schemas & Schema-Driven Load Order Engine (`compileLoadOrder`):** Replaced hardcoded game rules with declarative JSON schemas (`sanctuary_schemas`) supporting `folder_priority` (dynamic `Resource.cfg` & multi-tier overrides), `manifest_list` (`loadorder.txt`/`plugins.txt`), `numeric_prefix`, and `timestamp` strategies with topological sorting and circular rule loop breaking.
-  - **Decentralized Static Edge Polling (`manifest.json` & `override.json`):** Enabled creators to export self-contained releases with SHA-256 hash lineage and `atomic_logic` that Sanctuary polls directly via HTTP `GET` without requiring a central database.
-  - **Zero-Tearing Liquid Glass Optics & Reimagined Citizen's Workbench (`v0.5.8-Dev.3`):** Engineered continuous 3D wallpaper refraction with 6 Theme Forge optical sliders, a 60 FPS 2-column Visual Config Editor with a No-Code Visual Template Builder and 2-Column Timeline Diff Workspace, a unified **3-Tile Artifact Studio**, **1-Click Silent In-App Updates**, **FIDO2 Passkey + TOTP Vault Lockdowns**, **Full-OS Quarantine SidePanel Lockdown**, and **Bidirectional Codebase-to-Keepers-Core Directive Sync**.
+## Phase 12: Agnostic Future (July 15, 2026 — In Progress)
+**Status:** `IN PROGRESS` | **Start Date:** `July 15, 2026` | **Focus:** `Citizens Workbench / Mason IDE, Lexicon Revamp, Multi-Workspace & Sanctuary Partners, Sanctuary V6 Liquid Glass Overhaul, Website V2 / PWA`
+
+### Citizens Workbench / Mason IDE (Completed: July 17, 2026)
+- **Version Timeline:** Added support for named versions alongside semantic version numbers across the Version Timeline.
+- **Dual Vision Editor:** Visual and Raw Monaco Editor modes now display simultaneously in a synchronized split-screen layout for `.cfg`, `.ini`, `.json`, and `.xml` artifacts.
+- **Author Mode — Blank Mapping Strings:** Enabled blank mapping strings in Author Mode for rapid template scaffolding.
+- **Author Mode — Target File Selector:** Added a dedicated Target File selector in Author Mode to bind schemas directly to specific configuration payloads.
+- **Author Mode — Auto-Populate Template Code:** Automatically populates base template code when initializing a new file in Author Mode.
+- **Nexus Uploads — Version Auto-Match & 1-Click Publish:** Automatically matches version numbers from the active Workbench build and adds a 1-click "Publish Current Upload" action with localized Language Dropdowns.
+- **Mason IDE — "Create Lexicon" Template:** Added a dedicated "Create Lexicon" template in the Mason IDE with a side-by-side reference dictionary view for translators and community scribes.
+
+### Lexicon Revamp & Simplification (Completed: August 10, 2026)
+- **String Deduplication & Consolidation:** Audited and removed duplicate localization strings across all dictionaries (`en-default.json`, `en-sanctuary.json`, `en-sims.json`, `Simlish.json`).
+- **Cloud Database Lexicon Schemas:** Migrated default Lexicon JSON payloads into the cloud database alongside Master Schemas for instant over-the-air terminology updates.
+- **Sanctuary & Community Badges:** Added official `Sanctuary` and Partner `Community` badges to identify verified core vs. community-authored lexicons.
+- **Cartographer & Preferences Integration:** Integrated Lexicon selection directly into the first-boot Cartographer onboarding wizard and System Preferences.
+
+### Multi-Workspace Support & Sanctuary Partners (In Progress — October 20, 2026)
+- **Multiple Workspaces (Master Schemas):** Full multi-instance workspace isolation allowing Citizens to mount and switch between any supported game ecosystem on the fly.
+- **Sanctuary Partners Agreement:**
+  - Every Partner Community shares the unified Sanctuary OS Core App while maintaining sovereign control over their own ecosystem.
+  - Each Partner Community provisions its own game-specific file parsers, Lexicons, and Chameleon themes.
+  - Shared global User Identity Matrix with granular per-game clearance roles (`Citizen`, `Scout`, `Mason`, `Architect`, `Senior Architect`, `Wayfinder`).
+  - **100% Data Sovereignty ("Cut the Cord"):** All community data resides in the Partner's own database and connects to the Sanctuary Hub via Foreign Data Wrapper (FDW) or direct Spoke federation—if a community ever chooses to leave, they retain 100% of their data with a single click.
+  - **Zero-Cut Partner Donations:** Integrated in-app Partner Donation links where Sanctuary Foundry takes **0%** of community donations.
+  - **Cross-Community Supporter Dev Builds:** Citizens who donate to *any* Partner Community automatically unlock access to the monthly Sanctuary OS Supporter Development Builds.
+  - **1-File Standalone Fork:** Any community can fork the open-source codebase into a completely independent terminal by editing a single configuration file (`src/supabase.ts`).
+
+### Sanctuary V6 — Liquid Glass & 18-Section OS Revamp (In Progress — October 20, 2026)
+- **3D Refractive Liquid Glass Theme Engine:**
+  - Eliminated hardcoded colors and layouts across all 18 OS sections in favor of the unified 4-layer CSS optical glass pipeline (`--glass-base-fill`, `--glass-sheen`, `--glass-refracted-wallpaper`, and 3-sided specular bevels).
+  - Revamped all Default Core Themes (`Sanctuary Dark`, `Sanctuary Light`, `Midnight Aurora`, `Cyberpunk Neon`, `Vampire Nocturne`, `Tactical Stealth`, `True Glass`) and debuted **The Sims 4 ("Plumbob Crystal")** as the first official Partner Community Theme.
+  - **Chameleon Theme Forge 2.0:** Rebuilt the Chameleon Theme Forge with 1-Click Optical Material Presets, Curated Color Harmony Palettes, unlocked Semantic Status Chromatics, a Built-in Wallpaper Gallery + Custom Upload, Multi-Stop Atmospheric Gradient Forge, and live refractive OS previewing.
+  - **Dynamic Theme Preview Cards:** Added live procedural Theme Preview Cards across System Preferences, Mason Workshop, and The Nexus that dynamically render each theme's wallpaper, glass optics, border radius, and color hierarchy directly from its JSON payload (or custom preview banner).
+  - **Floating 2-Pill Title Bar & Hover Dock:** Replaced the legacy full-width top bar with two floating Liquid Glass pills (Workspace Switcher + Window Controls) and an auto-collapsing Hover Dock.
+- **Dynamic Alert Stat Tiles:**
+  - **Permissions Alert Tile:** Dynamically surfaces on the Command Center when OS filesystem or symlink elevation is required.
+  - **Global Alert Tile:** Real-time broadcast tile for network-wide DEFCON or patch events.
+  - **Critical Failures Tile:** Instant telemetry counter and drawer trigger for broken or incompatible vault artifacts.
+  - **System Alerts Tile:** Tracks unstable or conflicted packages requiring Citizen attention.
+  - **Artifact Updates Tile:** Live counter of installed mods with newer versions available on The Nexus.
+- **Full 18-Section OS Revamp:** Unified typography, `.glass-panel` / `.glass-surface` hierarchy, single-row `SidePanel` headers, and responsive mobile drawers across Command Center, Vault, Nexus, Blueprints, Comm-Link, Conflict Radar, Homestead Lab, Workbench, Time Capsule, Preferences, Help Desk, Mason Workshop, Architect Console, Oversight Command, Wayfinder Operations, Keepers Core, Side Browser, and Cartographer.
+
+### Website V2 & Progressive Web App (In Progress — October 20, 2026)
+- **Unified Single-Codebase Web OS & PWA:** Deployed the full Sanctuary OS experience to the web (`sanctuaryos.net` and workspace routes like `sanctuaryos.net/sims4`) with installable Mobile & Desktop PWA support.
+- **Hardware-Boundary Guardrails:** Automatically disables local filesystem/symlink features (`Vault`, `Conflict Radar`, `Homestead Lab`, `Workbench`, `Time Capsule`) on Web while keeping `Comm-Link`, `The Nexus`, `Support Desk`, and all `Command Hubs` 100% live and interactive.
+- **Sanctuary Foundry Main Hub:** Public landing hub featuring System Directives, Interactive Citizen Guide, Phase Chronology, Forking Matrix, Legal/EULA Codex, Partner Community Portals, and Desktop Installer Downloads.
+- **Remote Blueprint & Download Queuing:** Allows Citizens browsing The Nexus on Web or Mobile to queue mods and Blueprints (`SNC-XXXXX`) for automatic deployment the next time their Desktop App boots.
 
 ---
 
-## Phase 11 — Global Polishing, Integrated Side Browser & Security Audits (July 2026)
-- **Status:** `COMPLETED (v0.5.0 – v0.5.7)`
-- **Engineering Milestones:**
-  - **Integrated Side Browser & Download Interception (`July 20, 2026`):** Embedded a native multi-tab webview browser inside Sanctuary OS with automatic `.zip`, `.rar`, `.7z`, `.package`, and `.ts4script` download interception routed straight into the Vault, ad/footer stripping, picture-in-picture video, and custom native context menus.
-  - **Security & Forensic Audit Hardening (`July 9, 2026`):** Locked down path traversal vectors with `is_safe_user_file_path`, sanitized Dynamic SQL / RPC payloads, hardened Row-Level Security (RLS) policies against privilege escalation, and implemented append-only triggers on `audit_logs`.
-  - **Mason Linker & Unregistered Vault Sync (`July 15–19, 2026`):** Built the Oversight Mason Linker to bind Citizen identities to claimed creator profiles, added automatic background synchronization for unregistered Vault mods when they are verified on The Nexus, and introduced the unified `ActionPill` toolbar across all views.
+## Phase 11: Technical Debt Repayment & Agnostic Sprint (May 17 – July 13, 2026)
+**Status:** `COMPLETED` | **Date Range:** `May 17 – July 13, 2026` | **Focus:** `Native Intake & Support Systems, Citizens Workbench, Lexicon Sweep & Game-Agnostic Kernel`
+
+- **Native Intake Forms (June 5, 2026):** Integrated Mason UUID registration and Architect clearance intake forms directly into the Sanctuary OS application, discontinuing external website forms.
+- **Integrated Bug Reports, Support Tickets & Side Browser (June 5, 2026):** Replaced external Discord support bots with the native encrypted Support Desk Ticket Dossier system, embedded multi-tab Side Browser with automatic download interception, and Mason Linker.
+- **Citizens Workbench 1.0 (June 26, 2026):**
+  - Automatic detection of `.cfg`, `.ini`, and `.json` configuration files inside the active Vault.
+  - Embedded Monaco IDE for syntax-highlighted local configuration editing.
+  - Introduced **Sanctuary Templates** (Schema Mapping) so raw text configs automatically render as user-friendly visual sliders, toggles, and dropdowns.
+- **Comprehensive Maintenance & Lexicon Sweep (June 27, 2026):** Replaced legacy prototype code, migrated all static UI text and icons into the thematic Lexicon dictionaries, re-themed legacy views, and completed a full UI/UX bug sweep across all 11 core sections.
+- **The Agnostic Sprint (July 13, 2026):** Extracted every hardcoded Sims 4 check (`.package`, `.ts4script`, folder depth rules, and executable paths) across 17 frontend modules and the Rust backend into dynamic **Master JSON Schemas**, transforming Sanctuary OS into a truly game-agnostic engine.
 
 ---
 
-## Phase 10 — The Nexus, Chameleon Theme Forge & Lexicon Matrix (June 2026)
-- **Status:** `COMPLETED (v0.4.5 – v0.4.9)`
-- **Engineering Milestones:** 
-  - **The Nexus Global Discovery Registry (`June 19–22, 2026`):** Launched The Nexus with multi-dimensional browsing for **Artifacts**, **Blueprints**, **Lexicons**, **Chameleons**, and **Workbench Templates**, complete with automatic Game Version and Owned DLC compatibility filtering and creator Mason Profiles.
-  - **Chameleon Protocol & Theme Forge Suite (`June 21, 2026`):** Built the dynamic CSS variable theming engine (`ThemeContext`) with an interactive Background Builder, multi-stop angle gradients, Dark/Light mode adaptation, and a live Holo Sandbox preview.
-  - **Lexicon Protocol ("Word-as-a-Service") (`June 21, 2026`):** Routed 100% of UI text, labels, and tooltips through hot-swappable JSON dictionaries (`en-default.json`, `en-sanctuary.json`, `en-sims.json`, `Simlish.json`) with cloud publishing and local override support.
+## Phase 10: Post-Alpha Revamp, Protocols & Mass Tooling (May 10 – May 16, 2026)
+**Status:** `COMPLETED` | **Date Range:** `May 10 – May 16, 2026` | **Focus:** `Dev Sandbox, Visual Protocol Manager, Folder Structure Enforcer & Senior Architect Mass Update`
+
+- **Developmental / Local Mods Sandbox (May 11, 2026):** Created an isolated `Dev` Sandbox directory for creators to test work-in-progress packages without triggering constant SHA-256 hash churn in the primary Vault.
+- **Mason Dev Mode & "Sync to Network" (May 11, 2026):** Added a streamlined release pipeline in the Mason Workshop allowing creators to promote a tested local Dev mod directly into a published Nexus release.
+- **Enhanced Mod Telemetry (May 11, 2026):** Added "Last Updated" timestamps, interactive status-reason hover tooltips, and a multi-select Compatible Game Versions matrix to every mod dossier.
+- **Visual Protocol Schema Manager (May 12, 2026):** Built an interactive, database-schema-style Protocol Manager across the Mason and Architect Hubs supporting **Core & Addons**, **Flavors** (mutually exclusive sub-options), **Flavor Groups** (invisible rival rules across separate files), **Dependencies**, **Lineage**, and **DLC Folder Requirements**.
+- **Mason Mod Structure Builder (May 12, 2026):** Added a visual folder-tree builder for Masons that integrates directly with Conflict Radar's "Sanitize Vault" engine and Symlink deployment to guarantee exact subfolder placement.
+- **Advanced Vault & Nexus Filters (May 12, 2026):** Added "Game Version", "Currently Eligible" (hiding mods with missing dependencies), and "Exclude Unowned DLC" ghost-filtering across the Vault and Nexus.
+- **Monaco IDE & Senior Architect Mass Update (May 13 – May 16, 2026):** Integrated the Monaco IDE into Mason/Architect Hubs, built the Senior Architect Mass Update console (bulk-updating Status, Game Version, Safety Rating, Category, and Conflicts after major game patches), added Backup Retention Policies, and added Lexicon selection to first-boot setup.
 
 ---
 
-## Phase 9 — Oversight Command, Wayfinder Hub & Keepers Core (June 2026)
-- **Status:** `COMPLETED (v0.4.0 – v0.4.4)`
-- **Engineering Milestones:**
-  - **5-Tier Elevated Command Hub Architecture (`June 16–18, 2026`):** Constructed dedicated operational centers for **Mason Workshop**, **Architect Console**, **Oversight Command**, **Wayfinder Operations**, and **Keepers Core** using `ElevatedHubLayout` and `StatTileCarousel`.
-  - **Citizen Support Desk & Claimable Ticket Dossiers (`June 14, 2026`):** Built the end-to-end in-app support ticketing pipeline with automatic scrubbed crash log attachments, ticket claiming, macro responses, and cross-tier escalation from Architects to Oversight, Wayfinders, and Keepers.
-  - **Florida Compliance Tiers 1–4 & Blueprint Auto-Purge (`June 17, 2026`):** Implemented granular content compliance flags (Explicit, Illicit, Extreme Violence, Taboo) that permit local Vault ownership while automatically scrubbing flagged hashes from public Nexus feeds and Cloud Blueprints (`trg_purge_flagged_hash_from_blueprints`).
+## Phase 9: Infrastructure Finalization & Laboratory Diagnostics (May 8 – May 9, 2026)
+**Status:** `COMPLETED` | **Date Range:** `May 8 – May 9, 2026` | **Focus:** `Proving Grounds Simulation, Senior Architect Hub, macOS Universal Pipeline & Wayfinder Comms`
+
+- **Homestead Proving Grounds Simulation (May 9, 2026):** Transitioned the Homestead Lab from a conceptual UI into a live simulation laboratory with real-time `LastException` / crash log monitoring and 1-click conflict rule pushing to the global database.
+- **Senior Architect Command Hub (May 9, 2026):** Deployed the high-clearance Senior Architect console featuring Global DEFCON metrics, the Identity Matrix (live user role management), and Nuclear Protocol Tracking.
+- **macOS Universal Build Pipeline (May 9, 2026):** Engineered automated GitHub Actions workflows to compile and sign native `.dmg` installers for both Apple Silicon (`aarch64`) and Intel (`x86_64`) Macs.
+- **Wayfinder Comms & Florida Compliance (May 8, 2026):** Established high-clearance Wayfinder transmission channels with dynamic SQL alerting, Row-Level Security (RLS) hardening, and automated Florida Compliance Tiers 1–4.
 
 ---
 
-## Phase 8 — Global Comm-Link, DEFCON Patch Shield & Quarantine Lockdown (May–June 2026)
-- **Status:** `COMPLETED (v0.3.5 – v0.3.9)`
-- **Engineering Milestones:**
-  - **Global Comm-Link & Threaded Broadcasts (`May 29 – June 9, 2026`):** Built the real-time social and announcement feed supporting Markdown/WYSIWYG dispatches, multi-level threaded replies, `Discover` vs. `Following` feeds, pinned transmissions, and per-Mason notification toggles.
-  - **Real-Time DEFCON 1 Network Listener (`May 23, 2026`):** Wired Supabase Realtime listeners to `global_network_status` so Wayfinders and Oversight can broadcast an immediate DEFCON 1 alert during breaking game patches, intercepting `launch_game` to trigger a mandatory Pre-Patch Snapshot.
-  - **Tier 5 Malware Quarantine, External Secure Shred & Nuclear Override (`June 11–12, 2026`):** Implemented the byte-level Rust heuristic scanner, Zero-Choice Quarantine Lockdown requiring a **Citizen's Signature** for destructive multi-pass file shredding, and the hidden 5-click **Nuclear Override** backed by the privacy-first `hardware_bans` ledger.
+## Phase 8: Standardized Lexicons & Dynamic Engine Recognition (May 7 – May 8, 2026)
+**Status:** `COMPLETED` | **Date Range:** `May 7 – May 8, 2026` | **Focus:** `Rust Binary Version Ripper, Auto-Sanitization Launch, Global Lexicon Extraction & Blueprint Architect`
+
+- **Dynamic Engine Recognition ("Rip Protocol") (May 7, 2026):** Replaced brittle `GameVersion.txt` parsing with a native Rust binary inspection engine that extracts exact engine version signatures directly from `Default.ini` and PE executable headers.
+- **Auto-Sanitization Launch Sequence (May 7, 2026):** Engineered the Quick Launch sequence to automatically purge stale `LastException` logs and `localthumbcache.package` files across both the user Documents directory and the Airgap container prior to engine ignition.
+- **Global Lexicon Extraction (May 7, 2026):** Executed the first mass migration of hardcoded UI labels and system alerts into `en-sanctuary.json` for centralized thematic routing.
+- **Blueprint Architect Load Order UI (May 7, 2026):** Built the full-width Load Order Manager allowing Citizens to visually prioritize folder tiers (`!_Core` through `Z_Overrides`) and listen for real-time DEFCON 1 patch shields.
 
 ---
 
-## Phase 7 — Mason Workshop, Monaco IDE & Citizen's Workbench (May 2026)
-- **Status:** `COMPLETED (v0.3.0 – v0.3.4)`
-- **Engineering Milestones:**
-  - **Citizen's Workbench & Dual Visual/Raw Config Engine (`May 25, 2026`):** Created the schema-driven configuration studio capable of parsing `.cfg`, `.ini`, and `.json` mod files into interactive sliders, toggles, and dropdowns alongside a synchronized Monaco Raw Editor.
-  - **Mason Workshop & Isolated Dev Sandbox (`May 26–28, 2026`):** Built the creator environment with an embedded Monaco IDE, isolated Sandbox testing directory, Collections Builder, and the **Protocol Orchestrator** for mapping Twins, Flavors, and Recursive Dependencies.
-  - **Native Rust PE Executable Version Ripper (`May 24, 2026`):** Integrated `pelite` in Rust to extract genuine game patch versions directly from `.exe` PE headers (`TS4_x64.exe`) with zero subprocess overhead or false-positive antivirus flags.
+## Phase 7: Core Architecture & Time Capsule Restoration (May 6, 2026)
+**Status:** `COMPLETED` | **Date Range:** `May 6, 2026` | **Focus:** `Nested Vault Taxonomy, High-Speed Time Capsule Compression, Windows MSI Pipeline & Scout Dossiers`
+
+- **Nested Vault Hierarchy Deployment (May 6, 2026):** Restructured the local Sanctuary Vault into a strict, self-healing directory taxonomy (`Backups/World`, `Backups/Engine`, `Data/cache`, `Quarantine`, and `Profiles`).
+- **Time Capsule Compression Rework (May 6, 2026):** Optimized the Rust archive engine to compress full 78 GB Engine Cores down to 24 GB, complete World Save snapshots in ~60 seconds, and execute full state rollbacks in under 50 seconds.
+- **Automated Windows `.msi` Release Pipeline (May 6, 2026):** Configured GitHub Actions for automated, reproducible Windows `.msi` installer compilation and release signing.
+- **Scout Dossier Radar Integration (May 6, 2026):** Integrated "Unidentified Artifact" Scout Dossier submissions directly into the Conflict Radar sweep workflow.
 
 ---
 
-## Phase 6 — Homestead Lab & 100% Nuke Isolation Proving Grounds (May 2026)
-- **Status:** `COMPLETED (v0.2.5 – v0.2.9)`
-- **Engineering Milestones:**
-  - **100% Nuke Injection Sandbox (`May 19, 2026`):** Engineered the Homestead Lab to temporarily strip all active Vault symlinks and inject *only* the isolated test artifact (plus its mandatory dependencies) into the live game directory.
-  - **1v1 Conflict Stability Arena (`May 20, 2026`):** Added head-to-head collision testing where Citizens or Architects pit two suspect mods against each other in an isolated boot session to verify whether a tuning overlap causes a hard crash.
-  - **Automated Exception Log Harvester & Scrubber (`May 21, 2026`):** Built the Rust log watcher (`scan_game_logs` & `scrub_user_data_from_log`) that purges stale crash logs before launch, captures fresh `lastException.txt` stack traces on exit, and strips local OS usernames/paths before displaying or attaching them.
+## Phase 6: Modularization & The Comm-Link (May 3 – May 5, 2026)
+**Status:** `COMPLETED` | **Date Range:** `May 3 – May 5, 2026` | **Focus:** `Creator Following Feed, Comm-Link Ledger, App.tsx Modularization & Yeet Cascade Isolation`
+
+- **Creator Following System (May 5, 2026):** Added a dedicated "Following" filter to the Comm-Link Feed so Citizens can subscribe to dispatches from their favorite Masons.
+- **Comm-Link Real-Time Ledger (May 5, 2026):** Overhauled the Comm-Link into a real-time broadcast feed with inline dispatch pop-up viewers and 1-click Mason Dossier profile routing.
+- **Core Codebase Modularization (May 4, 2026):** Deconstructed the monolithic `App.tsx` into dedicated, lazy-loadable domain modules (`CommandCenter.tsx`, `Lab.tsx`, `Collection.tsx`, and `Marketplace.tsx`).
+- **Yeet Cascade & Nuke Isolation (May 4, 2026):** Extracted recursive dependency casualty tracking into `YeetConfirmAlert.tsx` and enforced 100% Nuke Isolation inside the Proving Grounds.
 
 ---
 
-## Phase 5 — Time Capsule Incremental Hardlink & Differential Rollback Engine (May 2026)
-- **Status:** `COMPLETED (v0.2.0 – v0.2.4)`
-- **Engineering Milestones:**
-  - **Dual-State Time Capsule Architecture (`May 14, 2026`):** Separated backups into **World State (Purple)** for Saves, Tray, and User Settings and **Engine Core (Pink)** for full game installation binaries.
-  - **Zero-Bloat Incremental Hardlink Engine (`May 15, 2026`):** Built the Rust snapshot pipeline using native NTFS/POSIX hardlinks for unchanged files and `.tar.zst` zstandard compression for portable archives, reducing multi-gigabyte backup times to seconds.
-  - **Differential Rollback & Archive Diff Inspector (`May 17, 2026`):** Replaced destructive wipe-and-replace restores with a differential state comparator (`diff_backup`) that removes only newly introduced rogue files and restores only modified bytes.
+## Phase 5: Defensive Protocols & Symlink Airgap 2.1 (May 1 – May 3, 2026)
+**Status:** `COMPLETED` | **Date Range:** `May 1 – May 3, 2026` | **Focus:** `Real-Time Airgap File Watcher, DNA Duplicate Intercept, Mason Protocol UI & Smart Search Fallback`
+
+- **Symlink Airgap 2.1 (`initialize_airgap_watch`) (May 3, 2026):** Implemented a non-blocking Rust `notify` filesystem watcher thread that intercepts in-game `.cfg` and `.ini` modifications in real time and mirrors them safely back to the Vault.
+- **DNA Radar Duplicate Intercept (May 3, 2026):** Added real-time SHA-256 signature interception during artifact ingestion, immediately halting duplicate files and prompting the Citizen to "Replace" or "Ignore".
+- **Mason Protocol Manager 1.0 (May 2, 2026):** Introduced the first relational UI for Masons to declare Addon, Twin, Rival, and Beta mod relationships.
+- **Intelligent Search Fallback (May 2, 2026):** Added dynamic search fallback by Display Name for local mods lacking an explicit Nexus URL.
 
 ---
 
-## Phase 4 — Conflict Radar, Severity 1–4 Matrix & Architect Console (May 2026)
-- **Status:** `COMPLETED (v0.1.5 – v0.1.9)`
-- **Engineering Milestones:**
-  - **Severity 1–4 Collision Matrix (`May 8, 2026`):** Established the 4-tier conflict classification system—Severity 1 (Minor Texture Overlap), Severity 2 (Duplicate TGI/File), Severity 3 (Tuning Overlap resolved via Priority Tier folders and dynamic `Resource.cfg`), and Severity 4 (Fatal Binary/Script Clash).
-  - **Architect Console & Scout Queue (`May 10–12, 2026`):** Built the moderator console allowing Architects to triage community Scout submissions, author global Conflict Directives, verify SHA-256 hashes, and manage structural deployment rules.
-  - **Copilot Signature Gates (`May 13, 2026`):** Enforced non-destructive Copilot confirmation prompts before executing any cascade unequip or file purge.
+## Phase 4: The Global Network & Radiant Pivot (April 28 – May 1, 2026)
+**Status:** `COMPLETED` | **Date Range:** `April 28 – May 1, 2026` | **Focus:** `Radiant Light Mode & ThemeProvider, Cloud Blueprint Codes, Architect Signature Gate & Read/Write Airgap`
+
+- **Radiant Mode & Real-Time `ThemeProvider` (May 1, 2026):** Expanded Sanctuary OS beyond its original dark "Bunker" aesthetic by introducing **Radiant** (Light Mode) and the real-time `ThemeProvider` engine supporting instant profile switching (`Architect`, `Radiant`, `Dracula`, `Synthwave`).
+- **Cloud Blueprint Transmissions (`SNC-XXXXX`) (May 1, 2026):** Launched cloud-based 6-character alphanumeric Blueprint share codes for instant load-order transmission between Citizens.
+- **Architect Signature Protocol (May 1, 2026):** Added a high-stakes confirmation gate before destructive operations, allowing Citizens to Overwrite, Backup to Time Capsule, or Abort.
+- **Auto-Deployment Intercept & Airgap Lock (April 30, 2026):** Added recursive dependency halt gates during Blueprint deployment and strict Read/Write permission toggles on core engine data files.
 
 ---
 
-## Phase 3 — Atomic Logic Engine, Ghosted States & Cloud Blueprints (April–May 2026)
-- **Status:** `COMPLETED (v0.1.0 – v0.1.4)`
-- **Engineering Milestones:**
-  - **Atomic Logic Triumvirate (`April 29 – May 3, 2026`):** Engineered **The Highlander Rule** (mutually exclusive Flavor eviction), **Nuclear Family Cohesion** (bidirectional `.package` + `.ts4script` Twin linking), and **Recursive Chain-Link Dependencies** (automatic master mod equipping).
-  - **Deep Yeet 2.0 Delete Cascade (`May 4, 2026`):** Built dependency graph traversal that intercepts attempts to delete or unequip a master library mod and queues all downstream dependent add-ons cleanly.
-  - **Blueprint Uplink Coordinates (`SNCXXX`) & DLC Ghosting (`May 6, 2026`):** Added 6-character alphanumeric Cloud Blueprint sharing codes (`SNCXXX`), offline JSON import/export, and automatic **DLC Ghosting** when a mod requires unowned expansion packs.
+## Phase 3: System Rip & Logic Intelligence (April 15 – April 28, 2026)
+**Status:** `COMPLETED` | **Date Range:** `April 15 – April 28, 2026` | **Focus:** `Deep Yeet 2.0 Cascade Scanner, UTF-16 Version Ripper, Twin Bond Protocol & Copilot Philosophy`
+
+- **Deep Yeet 2.0 (April 28, 2026):** Engineered deep-recursive dependency scanning that automatically identifies and queues orphaned downstream addons when a master core package is removed.
+- **UTF-16 System Version Ripper (April 28, 2026):** Built a native Rust byte-filter that strips UTF-16 encoding artifacts from game binaries to extract clean version strings.
+- **Twin Bond Protocol (April 25, 2026):** Created synchronized deployment links between paired `.package` and `.ts4script` files so neither half can be deployed or disabled without its twin.
+- **The Copilot Philosophy (April 25, 2026):** Established Sanctuary OS's foundational safety doctrine: the system autonomously detects cascades, conflicts, and broken dependencies, then halts and presents clear options for the Citizen's manual signature.
 
 ---
 
-## Phase 2 — Symlink Airgap 2.5, SQLite Delta Cache & Blueprints (April 2026)
-- **Status:** `COMPLETED (v0.0.5 – v0.0.9)`
-- **Engineering Milestones:**
-  - **Symlink Airgap 2.5 (`April 22, 2026`):** Replaced physical file copying with high-speed OS symlinking from the isolated `Vault/Mods/` directory into the live game folder, keeping the game directory sterile and enabling sub-second profile switches.
-  - **SQLite `.sanctuary_cache.db` & Mtime-First Delta Scanner (`April 25, 2026`):** Built the local SQLite metadata and SHA-256 DNA cache in Rust so 5,000+ mod Vaults scan in milliseconds by skipping unchanged file mtimes.
-  - **Vault Sanitizer & Local Blueprint Engine (`April 27, 2026`):** Added self-healing Vault directory creation (`Mods`, `Blueprints`, `Backups`, `Quarantine`, `Data/Cache`), automatic filename cleanup, and the first local Blueprint loadout switcher.
+## Phase 2: Visual Uplink & The Quarantine Zone (April 10 – April 15, 2026)
+**Status:** `COMPLETED` | **Date Range:** `April 10 – April 15, 2026` | **Focus:** `Glassmorphism 1.0, Bio-Hazard Quarantine Sector, Layered OS Immersion & Symlink Airgap`
+
+- **Glassmorphism Engine 1.0 (April 15, 2026):** Introduced the first generation of backdrop-blur containers, dynamic translucent borders, and deep elevation shadow layers.
+- **The Quarantine Zone (April 15, 2026):** Constructed a dedicated bio-hazard isolation sector that strips execution permissions from suspicious or corrupted artifacts and prepares them for 3-pass Secure Shredding.
+- **Layered Desktop OS Immersion (April 15, 2026):** Refactored standalone utility screens into a cohesive, single-window desktop operating system experience backed by the local SQLite cache and Symlink Airgap.
 
 ---
 
-## Phase 1 — Genesis, Tauri v2 Rust Core & The Cartographer (April 2026)
-- **Status:** `COMPLETED (v0.0.1 – v0.0.4)`
-- **Engineering Milestones:**
-  - **Tauri v2 + React 18 + Rust Workspace Genesis (`April 15, 2026`):** Initialized the Sanctuary OS desktop shell combining a zero-bloat Rust systems backend with a React 18, TypeScript, and Zustand frontend.
-  - **The Cartographer Reconnaissance Engine (`April 17, 2026`):** Built the first-boot path discovery wizard to automatically locate game installation binaries, user document directories, and external Vault storage coordinates.
-  - **Streaming SHA-256 DNA Hasher & DBPF/ZIP Inspection (`April 19, 2026`):** Implemented multi-threaded Rust SHA-256 file fingerprinting (`generate_full_dna_hash`) and archive ingestion (`ingest_dropped_file`) laying the foundation for metadata-only mod operations.
+## Phase 1: Bunker Initialization & DNA Pathing (April 1 – April 10, 2026)
+**Status:** `COMPLETED` | **Date Range:** `April 1 – April 10, 2026` | **Focus:** `The Cartographer Protocol, SHA-256 DNA & Delta Caching, and Primary Bunker Pathing`
+
+- **The Cartographer Protocol (April 10, 2026):** Engineered automated first-boot reconnaissance that scans drives to locate Game Binary installations and user Mods directories without manual path entry.
+- **SHA-256 DNA & Delta Caching (April 10, 2026):** Implemented cryptographic SHA-256 artifact hashing paired with `mtime`-first delta scanning, dropping Vault boot and scan times on multi-thousand-mod libraries from minutes to milliseconds.
+- **Core Bunker Pathing & Integrity Checks (April 10, 2026):** Established primary "Bunker" Vault deployment pathing and local registry change tracking to eliminate CPU bottlenecks on massive mod collections.

@@ -18,7 +18,12 @@ import {
   getModFallbackUrl,
   getModFallbackAuthor,
   ActionPill,
-  GlassSegmentedControl,
+  ActionButton,
+  DashboardStatTile,
+  SidePanelHeroCard,
+  SidePanelTitleInput,
+  UniversalGroup,
+  StatBox,
   standardAccentGlassButtonClass,
   standardDangerButtonClass,
 } from "../shared";
@@ -608,7 +613,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
           </button>
 
           {isBpMode && (
-            <span className="px-2 py-1 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-mono font-black text-[var(--subtext)] shrink-0">
+            <span className="px-2 py-1 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[9px] font-mono font-black text-[var(--subtext)] shrink-0">
               #{String((mod.load_order_index ?? idx) + 1).padStart(3, "0")}
             </span>
           )}
@@ -620,21 +625,21 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
               </span>
 
               {isNexusAsset ? (
-                <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/35 text-[8px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1 shrink-0">
+                <span className="px-2 py-0.5 rounded-md bg-transparent border border-emerald-500/35 text-[8px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1 shrink-0">
                   <span className="material-symbols-outlined !text-[10px]">
                     {t("icon_bolt", "bolt")}
                   </span>
                   {t("sig_queue_badge_direct_install", "Direct OS Install")}
                 </span>
               ) : mod.isOwned ? (
-                <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[8px] font-black text-[var(--success)] uppercase tracking-widest flex items-center gap-1 shrink-0">
+                <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[8px] font-black text-[var(--success)] uppercase tracking-widest flex items-center gap-1 shrink-0">
                   <span className="material-symbols-outlined !text-[10px]">
                     {t("icon_check_circle", "check_circle")}
                   </span>
                   {t("sig_queue_badge_owned", "IN VAULT")}
                 </span>
               ) : (
-                <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[8px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1 shrink-0">
+                <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[8px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1 shrink-0">
                   <span className="material-symbols-outlined !text-[10px]">
                     {t("icon_download", "download")}
                   </span>
@@ -643,7 +648,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
               )}
 
               {mod.isDependency && (
-                <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-500/35 text-[8px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1 shrink-0">
+                <span className="px-2 py-0.5 rounded-md bg-transparent border border-cyan-500/35 text-[8px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1 shrink-0">
                   <span className="material-symbols-outlined !text-[10px]">
                     {t("icon_account_tree", "account_tree")}
                   </span>
@@ -666,21 +671,21 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
             {(mod.is_paid || mod.is_early_access) && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {mod.is_early_access && (
-                  <div className="px-2 py-1 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-lg flex items-center gap-1 shadow-md">
-                    <span className="material-symbols-outlined !text-[10px] text-purple-500">
+                  <div className="px-2 py-1 bg-transparent border border-purple-500/35 rounded-lg flex items-center gap-1">
+                    <span className="material-symbols-outlined !text-[10px] text-purple-400">
                       {t("icon_science", "science")}
                     </span>
-                    <span className="text-[8px] font-black capitalize tracking-[0.1em] text-purple-500">
+                    <span className="text-[8px] font-black capitalize tracking-[0.1em] text-purple-400">
                       {t("badge_early_access", "Early Access")}
                     </span>
                   </div>
                 )}
                 {mod.is_paid && (
-                  <div className="px-2 py-1 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-lg flex items-center gap-1 shadow-md">
-                    <span className="material-symbols-outlined !text-[10px] text-yellow-500">
+                  <div className="px-2 py-1 bg-transparent border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] rounded-lg flex items-center gap-1">
+                    <span className="material-symbols-outlined !text-[10px] text-[var(--warning)]">
                       {t("icon_monetization_on", "monetization_on")}
                     </span>
-                    <span className="text-[8px] font-black capitalize tracking-[0.1em] text-yellow-500">
+                    <span className="text-[8px] font-black capitalize tracking-[0.1em] text-[var(--warning)]">
                       {t("badge_paid", "Paid")}
                     </span>
                   </div>
@@ -739,7 +744,8 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
       title={t("sig_queue_title", "Signature Queue")}
       subtitle={t("sig_queue_subtitle", "Volatile In-Memory Resolution • Awaiting Citizen's Signature")}
       icon={t("icon_draw", "draw")}
-      widthClass="w-full max-w-3xl"
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[90vw] md:w-[760px]"
       backdropZ="z-[100000]"
       panelZ="z-[100001]"
       headerActions={
@@ -765,333 +771,304 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
         </PanelHeaderGroup>
       }
     >
-      <div className="flex flex-col gap-5">
-        {/* Volatile Memory & Encryption Header Card */}
-        <div className="glass-panel p-5 md:p-6 rounded-3xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex flex-col gap-4 relative overflow-hidden shadow-xl">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={isBpMode ? t("icon_map", "map") : t("icon_download", "download")}
+          overline={queue.payload.sourceDevice || "PWA / Web"}
+          title={
+            isBpMode
+              ? t("staging_mode_blueprint", "Curated Blueprint")
+              : t("staging_mode_mod_queue", "Mod Download Queue")
+          }
+          description={
+            queue.payload.notes ||
+            t(
+              "sig_queue_step_blueprint_desc",
+              "Saves this Play Set on your PC and automatically links any mods already in your Library."
+            )
+          }
+          badge={t("sig_queue_encrypted_badge", "AES-256-GCM DECRYPTED")}
+          variant="accent"
+        >
+          <div className="flex flex-col gap-3 w-full">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[9px] font-black text-[var(--success)] tracking-widest uppercase flex items-center gap-1.5">
+              <span className="px-3 py-1 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[9px] font-black text-[var(--success)] tracking-widest uppercase flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[13px]">
                   {t("icon_memory", "memory")}
                 </span>
                 {t("sig_queue_volatile_badge", "VOLATILE RAM ONLY • 0 BYTES ON DISK")}
               </span>
-              <span className="px-3 py-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-black text-[var(--accent)] tracking-widest uppercase flex items-center gap-1.5">
+              <span className="px-3 py-1 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-black text-[var(--accent)] tracking-widest uppercase flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[13px]">
                   {t("icon_encrypted", "encrypted")}
                 </span>
                 {t("sig_queue_encrypted_badge", "AES-256-GCM DECRYPTED")}
               </span>
             </div>
-            <span className="text-[9px] font-bold text-[var(--subtext)] opacity-70 uppercase tracking-widest flex items-center gap-1">
-              <span className="material-symbols-outlined !text-[13px]">
-                {t("icon_phonelink", "phonelink")}
-              </span>
-              {queue.payload.sourceDevice || "PWA / Web"}
-            </span>
-          </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-            <div className="flex flex-col gap-1 min-w-0 flex-1">
-              <input
-                type="text"
-                value={queue.payload.blueprintName || ""}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setVolatileSignatureQueue((prev: ResolvedStagedPayload | null) =>
-                    prev ? { ...prev, payload: { ...prev.payload, blueprintName: val } } : null
-                  );
-                }}
-                placeholder={t("staging_payload_name_ph", "e.g. Weekend Loadout...")}
-                className="bg-transparent text-2xl md:text-3xl font-black text-[var(--text)] tracking-tight focus:outline-none border-b border-transparent focus:border-[var(--accent)] transition-colors"
+            <div className="grid grid-cols-3 gap-3 w-full">
+              <StatBox
+                label={t("sig_queue_stat_owned", "Owned in Vault")}
+                value={ownedSelected.length}
+                colorClass="text-[var(--success)]"
               />
-              {queue.payload.notes && (
-                <p className="text-xs text-[var(--subtext)] opacity-80 italic mt-1">
-                  "{queue.payload.notes}"
+              <StatBox
+                label={t("sig_queue_stat_missing", "Missing Artifacts")}
+                value={missingSelected.length}
+                colorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("sig_queue_stat_deps", "Child Dependencies")}
+                value={depsCount}
+                colorClass="text-cyan-400"
+              />
+            </div>
+          </div>
+        </SidePanelHeroCard>
+
+        <SidePanelTitleInput
+          value={queue.payload.blueprintName || ""}
+          onChange={(val) => {
+            setVolatileSignatureQueue((prev: ResolvedStagedPayload | null) =>
+              prev ? { ...prev, payload: { ...prev.payload, blueprintName: val } } : null
+            );
+          }}
+          placeholder={t("staging_payload_name_ph", "e.g. Weekend Loadout...")}
+          subtitle={
+            isBpMode
+              ? t("staging_mode_blueprint", "Curated Blueprint")
+              : t("staging_mode_mod_queue", "Mod Download Queue")
+          }
+        />
+
+        {/* Clear Step-by-Step Explanation Box */}
+        <UniversalGroup
+          title={t("sig_queue_what_happens_title", "What Happens When You Approve")}
+          icon={t("icon_info", "info")}
+        >
+          <div className="flex flex-col gap-2 text-[11px] font-bold text-[var(--subtext)] leading-relaxed">
+            {isBpMode && (
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--success)] shrink-0 mt-0.5">
+                  {t("icon_check_circle", "check_circle")}
+                </span>
+                <span>
+                  {t(
+                    "sig_queue_step_blueprint_desc",
+                    "Saves this Play Set on your PC and automatically links any mods already in your Library."
+                  )}
+                </span>
+              </div>
+            )}
+            {stagedAssetItems.length > 0 && (
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined !text-[15px] text-emerald-400 shrink-0 mt-0.5">
+                  {t("icon_bolt", "bolt")}
+                </span>
+                <span>
+                  {t(
+                    "sig_queue_step_assets_desc",
+                    "Automatically installs selected Themes, Lexicons, and Templates directly into Sanctuary OS."
+                  )}
+                </span>
+              </div>
+            )}
+            {missingSelected.length > 0 && (
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0 mt-0.5">
+                  {t("icon_open_in_new", "open_in_new")}
+                </span>
+                <span>
+                  {t(
+                    "sig_queue_step_browser_desc",
+                    "Opens missing mods in the Side Panel Browser to their creators' official download pages."
+                  )}
+                </span>
+              </div>
+            )}
+          </div>
+        </UniversalGroup>
+
+        {/* Search & Filter Row */}
+        <div className="flex flex-col gap-3 w-full">
+          <ActionPill
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            searchPlaceholder={t("search_artifacts", "Query Artifacts...")}
+          />
+          <div className="grid grid-cols-3 gap-3 w-full">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_list", "list")}
+              label={t("sig_queue_filter_all", "All")}
+              number={resolvedItems.length.toString()}
+              isActive={filterTab === "ALL"}
+              onClick={() => setFilterTab("ALL")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_check_circle", "check_circle")}
+              label={t("sig_queue_filter_owned", "In Vault")}
+              number={resolvedItems.filter((i) => i.isOwned).length.toString()}
+              isActive={filterTab === "OWNED"}
+              onClick={() => setFilterTab("OWNED")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_download", "download")}
+              label={t("filter_missing", "Missing")}
+              number={resolvedItems.filter((i) => !i.isOwned).length.toString()}
+              isActive={filterTab === "MISSING"}
+              onClick={() => setFilterTab("MISSING")}
+            />
+          </div>
+        </div>
+
+        {/* Premium / Early Access Notice Banner */}
+        {premiumItems.some((m) => m.selected) && (
+          <UniversalGroup
+            title={t("premium_detected", "Premium Artifacts Detected")}
+            icon={t("icon_auto_fix_high", "auto_fix_high")}
+            headerColorClass="text-[var(--warning)]"
+            headerActions={
+              <ActionButton
+                variant="glass"
+                icon={t("icon_skip_next", "skip_next")}
+                onClick={skipAllPremium}
+                className="!px-3 !py-1.5"
+              >
+                {t("btn_skip_premium", "Skip Premium")}
+              </ActionButton>
+            }
+          >
+            <span className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-wider opacity-80">
+              {premiumItems.filter((m) => m.is_paid).length} {t("badge_paid", "Paid")},{" "}
+              {premiumItems.filter((m) => m.is_early_access).length}{" "}
+              {t("badge_early_access", "Early Access")}
+            </span>
+          </UniversalGroup>
+        )}
+
+        {/* Item-by-Item Diff Queue */}
+        {premiumItems.length > 0 && (
+          <UniversalGroup
+            title={t("premium_detected", "Premium Artifacts")}
+            icon={t("icon_monetization_on", "monetization_on")}
+            headerColorClass="text-[var(--warning)]"
+          >
+            <div className="flex flex-col gap-2.5">
+              {premiumItems.map((m, i) => renderArtifactRow(m, i))}
+            </div>
+          </UniversalGroup>
+        )}
+
+        {standardItems.length > 0 && (
+          <UniversalGroup
+            title={t("standard_artifacts", "Standard Artifacts")}
+            icon={t("icon_extension", "extension")}
+          >
+            <div className="flex flex-col gap-2.5">
+              {standardItems.map((m, i) => renderArtifactRow(m, i))}
+            </div>
+          </UniversalGroup>
+        )}
+
+        {/* Citizen Signature & Zero-Trace Shredding Footer Card */}
+        <UniversalGroup
+          title={t("sig_queue_title", "Citizen Signature")}
+          icon={t("icon_verified_user", "verified_user")}
+        >
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2 text-[10px] font-black text-[var(--accent)] uppercase tracking-widest">
+                <span className="material-symbols-outlined !text-[15px]">
+                  {t("icon_verified_user", "verified_user")}
+                </span>
+                {t("sig_queue_shred_notice", "Approving or rejecting immediately shreds and wipes the temporary staging record from the cloud database.")}
+              </div>
+              {missingSelected.length > 0 && (
+                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-75 leading-relaxed">
+                  {t(
+                    "sig_queue_no_asset_hosting_note",
+                    "Zero Asset Hosting: Approved missing artifacts launch the integrated Side Panel Browser directly to the creators' official pages."
+                  )}
                 </p>
               )}
             </div>
 
-            <div className="px-3.5 py-2 rounded-xl bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-2 shrink-0 w-max">
-              <span className="material-symbols-outlined !text-[16px]">
-                {isBpMode ? t("icon_map", "map") : t("icon_download", "download")}
-              </span>
-              {isBpMode
-                ? t("staging_mode_blueprint", "Curated Blueprint")
-                : t("staging_mode_mod_queue", "Mod Download Queue")}
-            </div>
-          </div>
-
-          {/* 3-Column Diff Summary */}
-          <div className="grid grid-cols-3 gap-3 pt-2">
-            <div className="glass-surface p-3.5 rounded-2xl border border-[color-mix(in_srgb,var(--success)_25%,transparent)] flex flex-col gap-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70">
-                {t("sig_queue_stat_owned", "Owned in Vault")}
-              </span>
-              <span className="text-xl font-black text-[var(--success)] flex items-center gap-1.5">
-                <span className="material-symbols-outlined !text-[18px]">
-                  {t("icon_check_circle", "check_circle")}
-                </span>
-                {ownedSelected.length}
-              </span>
-            </div>
-
-            <div className="glass-surface p-3.5 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex flex-col gap-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70">
-                {t("sig_queue_stat_missing", "Missing Artifacts")}
-              </span>
-              <span className="text-xl font-black text-[var(--accent)] flex items-center gap-1.5">
-                <span className="material-symbols-outlined !text-[18px]">
-                  {t("icon_download", "download")}
-                </span>
-                {missingSelected.length}
-              </span>
-            </div>
-
-            <div className="glass-surface p-3.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70">
-                {t("sig_queue_stat_deps", "Child Dependencies")}
-              </span>
-              <span className="text-xl font-black text-cyan-400 flex items-center gap-1.5">
-                <span className="material-symbols-outlined !text-[18px]">
-                  {t("icon_account_tree", "account_tree")}
-                </span>
-                {depsCount}
-              </span>
-            </div>
-          </div>
-
-          {/* Clear Step-by-Step Explanation Box */}
-          <div className="p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
-            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[14px]">
-                {t("icon_info", "info")}
-              </span>
-              {t("sig_queue_what_happens_title", "What Happens When You Approve")}
-            </span>
-            <div className="flex flex-col gap-1.5 text-[11px] font-bold text-[var(--subtext)] leading-relaxed">
-              {isBpMode && (
-                <div className="flex items-start gap-2">
-                  <span className="material-symbols-outlined !text-[15px] text-[var(--success)] shrink-0 mt-0.5">
-                    {t("icon_check_circle", "check_circle")}
-                  </span>
-                  <span>
-                    {t(
-                      "sig_queue_step_blueprint_desc",
-                      "Saves this Play Set on your PC and automatically links any mods already in your Library."
-                    )}
-                  </span>
-                </div>
-              )}
-              {stagedAssetItems.length > 0 && (
-                <div className="flex items-start gap-2">
-                  <span className="material-symbols-outlined !text-[15px] text-emerald-400 shrink-0 mt-0.5">
-                    {t("icon_bolt", "bolt")}
-                  </span>
-                  <span>
-                    {t(
-                      "sig_queue_step_assets_desc",
-                      "Automatically installs selected Themes, Lexicons, and Templates directly into Sanctuary OS."
-                    )}
-                  </span>
-                </div>
-              )}
-              {missingSelected.length > 0 && (
-                <div className="flex items-start gap-2">
-                  <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0 mt-0.5">
-                    {t("icon_open_in_new", "open_in_new")}
-                  </span>
-                  <span>
-                    {t(
-                      "sig_queue_step_browser_desc",
-                      "Opens missing mods in the Side Panel Browser to their creators' official download pages."
-                    )}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Search & Filter Row */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <ActionPill
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              searchPlaceholder={t("search_artifacts", "Query Artifacts...")}
-            />
-          </div>
-          <GlassSegmentedControl
-            activeTab={filterTab}
-            setTab={setFilterTab}
-            options={[
-              { id: "ALL", label: `${t("sig_queue_filter_all", "All")} (${resolvedItems.length})` },
-              {
-                id: "OWNED",
-                label: `${t("sig_queue_filter_owned", "In Vault")} (${resolvedItems.filter((i) => i.isOwned).length})`,
-              },
-              {
-                id: "MISSING",
-                label: `${t("filter_missing", "Missing")} (${resolvedItems.filter((i) => !i.isOwned).length})`,
-              },
-            ]}
-            className="shrink-0"
-          />
-        </div>
-
-        {/* Premium / Early Access Notice Banner (Matches MissingImportsAlert) */}
-        {premiumItems.some((m) => m.selected) && (
-          <div className="flex items-center gap-3 p-4 glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] shadow-md">
-            <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-yellow-500">
-              <span className="material-symbols-outlined !text-[20px]">
-                {t("icon_auto_fix_high", "auto_fix_high")}
-              </span>
-            </div>
-            <div className="flex flex-col flex-1">
-              <span className="text-xs font-black text-yellow-500 capitalize tracking-widest">
-                {t("premium_detected", "Premium Artifacts Detected")}
-              </span>
-              <span className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-wider opacity-80">
-                {premiumItems.filter((m) => m.is_paid).length} {t("badge_paid", "Paid")},{" "}
-                {premiumItems.filter((m) => m.is_early_access).length}{" "}
-                {t("badge_early_access", "Early Access")}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={skipAllPremium}
-              className="px-3 py-1.5 flex items-center gap-2 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-yellow-500 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-xl transition-all cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[14px]">
-                {t("icon_skip_next", "skip_next")}
-              </span>
-              <span className="text-[10px] font-black capitalize tracking-widest">
-                {t("btn_skip_premium", "Skip Premium")}
-              </span>
-            </button>
-          </div>
-        )}
-
-        {/* Item-by-Item Diff Queue */}
-        <div className="flex flex-col gap-3">
-          {premiumItems.length > 0 && (
-            <div className="flex flex-col gap-2.5">
-              {premiumItems.map((m, i) => renderArtifactRow(m, i))}
-            </div>
-          )}
-
-          {standardItems.length > 0 && (
-            <div className="flex flex-col gap-2.5">
-              {premiumItems.length > 0 && (
-                <div className="flex items-center gap-4 mt-2 mb-1">
-                  <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
-                  <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest opacity-60">
-                    {t("standard_artifacts", "Standard Artifacts")}
-                  </span>
-                  <div className="h-[1px] flex-1 bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] via-transparent to-transparent" />
-                </div>
-              )}
-              {standardItems.map((m, i) => renderArtifactRow(m, i))}
-            </div>
-          )}
-        </div>
-
-        {/* Citizen Signature & Zero-Trace Shredding Footer Card */}
-        <div className="glass-panel p-5 rounded-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4 mt-2">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2 text-[10px] font-black text-[var(--accent)] uppercase tracking-widest">
-              <span className="material-symbols-outlined !text-[15px]">
-                {t("icon_verified_user", "verified_user")}
-              </span>
-              {t("sig_queue_shred_notice", "Approving or rejecting immediately shreds and wipes the temporary staging record from the cloud database.")}
-            </div>
-            {missingSelected.length > 0 && (
-              <p className="text-[10px] font-bold text-[var(--subtext)] opacity-75 leading-relaxed">
-                {t(
-                  "sig_queue_no_asset_hosting_note",
-                  "Zero Asset Hosting: Approved missing artifacts launch the integrated Side Panel Browser directly to the creators' official pages."
-                )}
-              </p>
-            )}
-          </div>
-
-          {isBpMode ? (
-            <div className="flex flex-col gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] w-full">
-              <button
-                type="button"
-                disabled={isProcessing || selectedItems.length === 0}
-                onClick={() => handleSignAndExecute(true)}
-                className={`w-full py-3.5 px-6 rounded-xl font-black text-[10.5px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 shadow-lg ${standardAccentGlassButtonClass}`}
-              >
-                <span className="material-symbols-outlined !text-[17px]">
-                  {t("icon_rocket_launch", "rocket_launch")}
-                </span>
-                {missingSelected.length > 0
-                  ? t(
-                      "sig_queue_btn_deploy_and_download",
-                      "Deploy Play Set & Open Missing Downloads"
-                    )
-                  : t("sig_queue_btn_deploy_blueprint", "Sign & Deploy Blueprint")}
-              </button>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+            {isBpMode ? (
+              <div className="flex flex-col gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] w-full">
                 <button
                   type="button"
                   disabled={isProcessing || selectedItems.length === 0}
-                  onClick={() => handleSignAndExecute(false)}
-                  className="w-full py-3 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[var(--accent)] text-[var(--text)] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40"
+                  onClick={() => handleSignAndExecute(true)}
+                  className={`w-full py-3.5 px-6 rounded-xl font-black text-[10.5px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 shadow-lg ${standardAccentGlassButtonClass}`}
                 >
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                    {t("icon_save", "save")}
+                  <span className="material-symbols-outlined !text-[17px]">
+                    {t("icon_rocket_launch", "rocket_launch")}
                   </span>
-                  {t("sig_queue_btn_save_blueprint_only", "Save Play Set Only")}
+                  {missingSelected.length > 0
+                    ? t(
+                        "sig_queue_btn_deploy_and_download",
+                        "Deploy Play Set & Open Missing Downloads"
+                      )
+                    : t("sig_queue_btn_deploy_blueprint", "Sign & Deploy Blueprint")}
                 </button>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_save", "save")}
+                    disabled={isProcessing || selectedItems.length === 0}
+                    onClick={() => handleSignAndExecute(false)}
+                    className="w-full justify-center !py-3"
+                  >
+                    {t("sig_queue_btn_save_blueprint_only", "Save Play Set Only")}
+                  </ActionButton>
+
+                  <ActionButton
+                    variant="danger"
+                    icon={t("icon_delete_forever", "delete_forever")}
+                    disabled={isProcessing}
+                    onClick={handleRejectAndShred}
+                    className="w-full justify-center !py-3"
+                  >
+                    {t("sig_queue_btn_reject_shred", "Reject & Shred")}
+                  </ActionButton>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] w-full">
+                <ActionButton
+                  variant="danger"
+                  icon={t("icon_delete_forever", "delete_forever")}
+                  disabled={isProcessing}
+                  onClick={handleRejectAndShred}
+                  className="w-full justify-center !py-3.5"
+                >
+                  {t("sig_queue_btn_reject_shred", "Reject & Shred")}
+                </ActionButton>
 
                 <button
                   type="button"
-                  disabled={isProcessing}
-                  onClick={handleRejectAndShred}
-                  className={`w-full py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer ${standardDangerButtonClass}`}
+                  disabled={isProcessing || selectedItems.length === 0}
+                  onClick={() => handleSignAndExecute(true)}
+                  className={`w-full py-3.5 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 shadow-lg ${standardAccentGlassButtonClass}`}
                 >
                   <span className="material-symbols-outlined !text-[16px]">
-                    {t("icon_delete_forever", "delete_forever")}
+                    {t("icon_open_in_new", "open_in_new")}
                   </span>
-                  {t("sig_queue_btn_reject_shred", "Reject & Shred")}
+                  {t("sig_queue_btn_continue_browser", "Continue to Creator Pages")}
                 </button>
               </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] w-full">
-              <button
-                type="button"
-                disabled={isProcessing}
-                onClick={handleRejectAndShred}
-                className={`w-full py-3.5 px-5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer ${standardDangerButtonClass}`}
-              >
-                <span className="material-symbols-outlined !text-[16px]">
-                  {t("icon_delete_forever", "delete_forever")}
-                </span>
-                {t("sig_queue_btn_reject_shred", "Reject & Shred")}
-              </button>
-
-              <button
-                type="button"
-                disabled={isProcessing || selectedItems.length === 0}
-                onClick={() => handleSignAndExecute(true)}
-                className={`w-full py-3.5 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 shadow-lg ${standardAccentGlassButtonClass}`}
-              >
-                <span className="material-symbols-outlined !text-[16px]">
-                  {t("icon_open_in_new", "open_in_new")}
-                </span>
-                {t("sig_queue_btn_continue_browser", "Continue to Creator Pages")}
-              </button>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </UniversalGroup>
       </div>
     </SidePanel>,
     document.body
   );
 }
-

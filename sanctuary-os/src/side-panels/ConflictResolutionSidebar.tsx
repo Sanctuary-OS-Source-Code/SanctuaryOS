@@ -1,7 +1,16 @@
 import { useState, Fragment } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { formatDisplayName, SidePanel, getFileLabel, isSupportedExtension, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import {
+  formatDisplayName,
+  SidePanel,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  ActionButton,
+  SidePanelHeroCard,
+  DashboardStatTile,
+  UniversalGroup,
+} from "../shared";
 
 const extractType = (name: string) => {
   const upper = String(name).toUpperCase();
@@ -15,11 +24,13 @@ const extractType = (name: string) => {
 };
 
 const cleanModName = (name: string) => {
-  let cleaned = formatDisplayName(String(name).split('/').pop()?.split('\\').pop() || name);
+  let cleaned = formatDisplayName(String(name).split("/").pop()?.split("\\").pop() || name);
   const activeGameSchema = useStore.getState().activeGameSchema;
   if (activeGameSchema?.extensions?.labels) {
     for (const [ext, label] of Object.entries(activeGameSchema.extensions.labels)) {
-      cleaned = cleaned.replace(new RegExp(`\\[${label}\\]`, 'i'), '').replace(new RegExp(ext.replace('.', '\\.'), 'i'), '');
+      cleaned = cleaned
+        .replace(new RegExp(`\\[${label}\\]`, "i"), "")
+        .replace(new RegExp(ext.replace(".", "\\."), "i"), "");
     }
   }
   cleaned = cleaned.trim();
@@ -30,11 +41,11 @@ const ModNameWithBadge = ({ name }: { name: string }) => {
   const type = extractType(name);
   const cleanName = cleanModName(name);
   return (
-    <div className="flex flex-col gap-1 min-w-0 w-full">
-      <div className="text-sm font-black text-[var(--text)] break-words whitespace-normal drop-shadow-md leading-tight">
+    <div className="flex flex-col gap-1.5 min-w-0 w-full">
+      <div className="text-sm font-black text-[var(--text)] break-words whitespace-normal leading-tight">
         {cleanName}
       </div>
-      <div className="self-start px-2 py-0.5 rounded-md border text-[9px] font-black tracking-widest shrink-0 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] backdrop-blur-md shadow-inner">
+      <div className="self-start px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[9px] font-black uppercase tracking-wider shrink-0 text-[var(--subtext)]">
         {type as any}
       </div>
     </div>
@@ -45,20 +56,32 @@ interface ConflictResolutionSidebarProps {
   conflict: any;
   onClose: () => void;
   onVault: (modName: string) => void;
-  onOverride: (winnerName: string, modPair: string, targetTierFolder?: string, loserName?: string) => void;
+  onOverride: (
+    winnerName: string,
+    modPair: string,
+    targetTierFolder?: string,
+    loserName?: string
+  ) => void;
   onUndo?: (winnerName: string) => void;
 }
 
-export default function ConflictResolutionSidebar({ conflict, onClose, onVault, onOverride, onUndo }: ConflictResolutionSidebarProps) {
+export default function ConflictResolutionSidebar({
+  conflict,
+  onClose,
+  onVault,
+  onOverride,
+}: ConflictResolutionSidebarProps) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const [selectedMod, setSelectedMod] = useState<string | null>(null);
 
-  const overrideTiers = (activeGameSchema?.load_order?.priority_tiers || [
-    { id: "tier_1", label: t("lo_tier_1", "Priority Tier 1"), folder: "Sanctuary", priority: 1000 },
-    { id: "tier_2", label: t("lo_tier_2", "Priority Tier 2"), folder: "Sanctuary2", priority: 2000 },
-    { id: "tier_3", label: t("lo_tier_3", "Priority Tier 3"), folder: "Sanctuary3", priority: 3000 },
-  ]).filter((pt: any) => pt.folder && pt.folder.length > 0);
+  const overrideTiers = (
+    activeGameSchema?.load_order?.priority_tiers || [
+      { id: "tier_1", label: t("lo_tier_1", "Priority Tier 1"), folder: "Sanctuary", priority: 1000 },
+      { id: "tier_2", label: t("lo_tier_2", "Priority Tier 2"), folder: "Sanctuary2", priority: 2000 },
+      { id: "tier_3", label: t("lo_tier_3", "Priority Tier 3"), folder: "Sanctuary3", priority: 3000 },
+    ]
+  ).filter((pt: any) => pt.folder && pt.folder.length > 0);
 
   const [selectedTierFolder, setSelectedTierFolder] = useState<string>(
     overrideTiers[0]?.folder || "Sanctuary"
@@ -68,125 +91,195 @@ export default function ConflictResolutionSidebar({ conflict, onClose, onVault, 
 
   const isTier4 = conflict.severity_rank == 4;
   const isTier3 = conflict.severity_rank == 3;
-  const isTier2 = conflict.severity_rank == 2;
+
+  const handleConfirmWinner = () => {
+    if (!selectedMod) return;
+    const loser = conflict.modA === selectedMod ? conflict.modB : conflict.modA;
+    if (isTier3) {
+      onOverride(selectedMod, conflict.mod_pair, selectedTierFolder, loser);
+    } else {
+      onVault(loser);
+    }
+    onClose();
+  };
+
+  const heroSubtitle = isTier4
+    ? t("tier4_title", "Fatal Clash")?.replace("dY>` ", "") || "Fatal Clash"
+    : isTier3
+      ? t("tier3_title", "Tuning Overlap")
+      : t("duplicate_clones", "Duplicate Clones");
+
+  const heroIcon = isTier4
+    ? t("icon_crisis_alert", "crisis_alert")
+    : isTier3
+      ? t("icon_tune", "tune")
+      : t("icon_file_copy", "file_copy");
 
   return (
     <SidePanel
       isOpen={!!conflict}
       onClose={onClose}
-      title={t("radar_title")}
-      subtitle={isTier4 ? (t("tier4_title")?.replace("dY>` ", "") || "FATAL CLASH") : isTier3 ? (t("tier3_title")) : (t("duplicate_clones"))}
-      icon="warning"
-      iconColorClass={isTier4 ? "text-[var(--danger)]" : isTier3 ? "text-[var(--warning)]" : "text-[var(--accent)]"}
-      widthClass="w-[500px]"
+      title={t("radar_title", "Conflict Resolution")}
+      subtitle={heroSubtitle}
+      icon={t("icon_warning", "warning")}
+      iconColorClass={
+        isTier4
+          ? "text-[var(--danger)]"
+          : isTier3
+            ? "text-[var(--warning)]"
+            : "text-[var(--accent)]"
+      }
+      widthClass="w-[90vw] md:w-[680px]"
       headerActions={
         selectedMod ? (
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon={t("icon_check_circle")}
-              tooltip={t("btn_set_winner")}
+              icon={t("icon_check_circle", "check_circle")}
+              tooltip={t("btn_set_winner", "Confirm Winner")}
               variant="success"
-              onClick={() => {
-                const loser = conflict.modA === selectedMod ? conflict.modB : conflict.modA;
-                if (isTier3) {
-                  onOverride(selectedMod, conflict.mod_pair, selectedTierFolder, loser);
-                } else {
-                  onVault(loser);
-                }
-                onClose();
-              }}
+              onClick={handleConfirmWinner}
             />
           </PanelHeaderGroup>
         ) : undefined
       }
     >
-      <div className="flex flex-col gap-8 h-full px-2">
-        <div className="space-y-4">
-          <h3 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest opacity-60">
-            {t("conflict_details")}
-          </h3>
-          {conflict.is_ghost && (
-       <div className={`p-4 rounded-2xl border flex flex-col gap-2 relative glass-panel backdrop-blur-md ${isTier4 ? "border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[inset_0_0_20px_rgba(239,68,68,0.05)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]" : "border-[color-mix(in_srgb,var(--warning)_20%,transparent)] shadow-[inset_0_0_20px_rgba(245,158,11,0.05)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)]"}`}>
-               <div className="flex items-center gap-2">
-                 <span className={`material-symbols-outlined !text-[16px] drop-shadow-md ${isTier4 ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>{t("icon_policy")}</span>
-                 <span className={`capitalize tracking-widest text-[10px] font-black ${isTier4 ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}`}>{t("logical_clash")}</span>
-               </div>
-               <div className="opacity-80 font-bold pl-6 text-xs leading-relaxed text-[var(--text)]">
-                 {conflict.resolution_note}
-               </div>
-             </div>
-          )}
-          <p className="text-sm text-[var(--text)] opacity-80 leading-relaxed font-bold">
-            {isTier4
-              ? (t("tier4_desc_winner"))
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={heroIcon}
+          overline={t("conflict_details", "Conflict Details")}
+          title={heroSubtitle}
+          description={
+            isTier4
+              ? t(
+                  "tier4_desc_winner",
+                  "Select the artifact to keep active. The conflicting artifact will be removed from your active blueprint."
+                )
               : isTier3
-                ? (t("tier3_desc_winner"))
-                : (t("identical_assets_winner"))
-            }
-          </p>
-        </div>
+                ? t(
+                    "tier3_desc_winner",
+                    "Select the winning artifact to override conflicting tuning resources."
+                  )
+                : t("identical_assets_winner", "Select the primary copy to retain.")
+          }
+          badge={
+            conflict.is_ghost
+              ? t("logical_clash", "Logical Clash")
+              : isTier4
+                ? t("fatal_conflict", "Fatal Conflict")
+                : t("tier3_conflict", "Tuning Overlap")
+          }
+          badgeIcon={heroIcon}
+          variant={isTier4 ? "danger" : isTier3 ? "warning" : "accent"}
+        >
+          {conflict.is_ghost && conflict.resolution_note && (
+            <div className="glass-surface rounded-xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-2.5">
+              <span
+                className={`material-symbols-outlined !text-[16px] shrink-0 mt-0.5 ${
+                  isTier4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
+                }`}
+              >
+                {t("icon_policy", "policy")}
+              </span>
+              <span className="text-xs font-bold text-[var(--text)] opacity-85 leading-relaxed">
+                {conflict.resolution_note}
+              </span>
+            </div>
+          )}
+        </SidePanelHeroCard>
 
-        <div className="flex flex-col relative mt-2">
-          {[conflict.modA, conflict.modB].map((modName, idx) => {
-            const isActive = selectedMod === modName;
-            return (
-              <Fragment key={modName}>
-                {idx === 1 && (
-                  <div className="relative h-12 flex items-center justify-center z-20 shrink-0">
-                    <div className="absolute left-8 right-8 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] z-10 pointer-events-none" />
-                    <div className={`relative z-20 w-8 h-8 rounded-full border flex items-center justify-center text-[9px] font-black shadow-xl transition-all pointer-events-none backdrop-blur-md ${isTier4 ? 'bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border-[var(--danger)] text-[var(--danger)] shadow-[0_0_15px_rgba(239,68,68,0.3)]' :
-                        isTier3 ? 'bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] border-[var(--warning)] text-[var(--warning)] shadow-[0_0_15px_rgba(245,158,11,0.3)]' :
-                          'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[var(--accent)] text-[var(--accent)] shadow-[0_0_15px_rgba(99,102,241,0.3)]'
-                      }`}>
-                      {t("vs")}
+        {isTier3 && overrideTiers.length > 1 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {overrideTiers.map((tier: any) => (
+              <DashboardStatTile
+                key={tier.id || tier.folder}
+                variant="filter"
+                className="!w-full"
+                isActive={selectedTierFolder === tier.folder}
+                icon={t("icon_tune", "tune")}
+                label={tier.label || tier.folder}
+                value={tier.folder}
+                onClick={() => setSelectedTierFolder(tier.folder)}
+              />
+            ))}
+          </div>
+        )}
+
+        <UniversalGroup
+          title={t("bp_select_winning_artifact", "Select Winner")}
+          icon={t("icon_check_circle", "check_circle")}
+        >
+          <div className="flex flex-col relative">
+            {[conflict.modA, conflict.modB].map((modName, idx) => {
+              const isActive = selectedMod === modName;
+              const vsBorderClass = isTier4
+                ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]"
+                : isTier3
+                  ? "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
+                  : "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]";
+
+              return (
+                <Fragment key={modName}>
+                  {idx === 1 && (
+                    <div className="relative h-10 flex items-center justify-center z-20 shrink-0">
+                      <div className="absolute left-6 right-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] z-10 pointer-events-none" />
+                      <div
+                        className={`relative z-20 px-2.5 py-0.5 rounded-full bg-transparent border flex items-center justify-center text-[9px] font-black uppercase tracking-wider pointer-events-none ${vsBorderClass}`}
+                      >
+                        {t("vs", "VS")}
+                      </div>
                     </div>
-                  </div>
-                )}
-                <div className="flex flex-col relative z-10">
+                  )}
                   <div
                     onClick={() => setSelectedMod(modName)}
-          className={`relative group cursor-pointer w-full rounded-2xl transition-all duration-500 border glass-panel backdrop-blur-2xl ${isActive
-                        ? `border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_20%,transparent)] scale-[1.02] z-10`
-                        : `border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:shadow-2xl`
-                      }`}
+                    className={`relative group cursor-pointer w-full rounded-xl p-4 transition-all duration-300 border glass-surface flex items-center gap-4 ${
+                      isActive
+                        ? "border-[color-mix(in_srgb,var(--accent)_55%,transparent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]"
+                    }`}
                   >
-                    {isActive && (
-                      <>
-                        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[var(--accent)] to-transparent opacity-10 pointer-events-none mix-blend-screen" />
-                        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-50" />
-                        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-20" />
-                      </>
-                    )}
+                    <div
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border bg-transparent transition-all duration-300 ${
+                        isActive
+                          ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]"
+                          : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] group-hover:text-[var(--text)]"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined !text-[22px]">
+                        {t("icon_extension", "extension")}
+                      </span>
+                    </div>
 
-                    <div className="relative p-6 flex items-center gap-6 z-10">
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 ${isActive
-                          ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent),0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] backdrop-blur-md'
-                          : 'glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] shadow-inner'
-                        }`}>
-                        <span className={`material-symbols-outlined !text-[28px] transition-colors duration-500 ${isActive ? 'text-[var(--accent)] drop-shadow-[0_0_10px_var(--accent)]' : 'text-[var(--subtext)] opacity-70 group-hover:text-[var(--text)] group-hover:opacity-100'}`}>
-                          {t("icon_extension")}
-                        </span>
-                      </div>
+                    <div className="flex-1 flex flex-col min-w-0 w-full">
+                      <ModNameWithBadge name={modName} />
+                    </div>
 
-                      <div className="flex-1 flex flex-col min-w-0 w-full gap-2">
-                        <ModNameWithBadge name={modName} />
-                      </div>
-
-                      <div className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 transition-all duration-500 ${isActive ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_40%,transparent)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent group-hover:border-[color-mix(in_srgb,var(--text)_50%,transparent)] glass-surface shadow-inner'
-                        }`}>
-                        <span className={`material-symbols-outlined font-black transition-all duration-500 ${isActive ? '!text-[18px] drop-shadow-[0_0_8px_var(--accent)] scale-110' : '!text-[16px] scale-90'}`}>{t("icon_check")}</span>
-                      </div>
+                    <div
+                      className={`w-8 h-8 rounded-full border bg-transparent flex items-center justify-center shrink-0 transition-all duration-300 ${
+                        isActive
+                          ? "border-[color-mix(in_srgb,var(--accent)_55%,transparent)] text-[var(--accent)]"
+                          : "border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent group-hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined !text-[16px] font-black">
+                        {t("icon_check", "check")}
+                      </span>
                     </div>
                   </div>
-                </div>
-              </Fragment>
-            );
-          })}
-        </div>
+                </Fragment>
+              );
+            })}
+          </div>
+
+          <ActionButton
+            variant="glass"
+            icon={t("icon_check_circle", "check_circle")}
+            label={t("btn_set_winner", "Confirm Winner")}
+            disabled={!selectedMod}
+            onClick={handleConfirmWinner}
+            className="w-full mt-1"
+          />
+        </UniversalGroup>
       </div>
     </SidePanel>
   );
 }
-
-
-

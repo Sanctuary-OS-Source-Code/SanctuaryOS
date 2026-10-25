@@ -16,9 +16,11 @@ import {
   HoverTooltip,
   ActionPill,
   InlineFilterGroup,
+  SidePanelHeroCard,
+  StatBox,
+  DashboardStatTile,
+  UniversalGroup,
 } from "../shared";
-import { UniversalCard } from "../components/universal/UniversalCard";
-import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 
@@ -399,7 +401,6 @@ export function groupBrokenMods(rawList: any[]): any[] {
       existing._groupedMods.push(mod);
       existing._groupOriginalNames.push(mod.name);
 
-      // If this item is the parent/boss mod itself, prefer its clean title
       if (hasRealFamily && String(mod.dbId) === famIdRaw) {
         existing._groupedTitle = twinNormalized;
       }
@@ -550,7 +551,6 @@ export function IncompatibleModCard({
   allow_write,
   t,
   activeGameSchema,
-  sectionKey,
 }: any) {
   const [isExpanded, setIsExpanded] = useState(false);
   const showImages = useStore((state: any) => state.showImages);
@@ -636,6 +636,7 @@ export function IncompatibleModCard({
     icon: string;
     issueLabel: string;
     detailValue?: string;
+    type: "red" | "amber";
   }[] = stackedIssues.map((iss) => {
     const hasCustomDetail = Boolean(
       iss.detail &&
@@ -648,6 +649,7 @@ export function IncompatibleModCard({
         icon: t("icon_gpp_bad", "gpp_bad"),
         issueLabel: iss.title,
         detailValue: hasCustomDetail ? iss.detail : undefined,
+        type: iss.type,
       };
     }
     if (iss.category === "unstable") {
@@ -655,6 +657,7 @@ export function IncompatibleModCard({
         icon: t("icon_warning_amber", "warning_amber"),
         issueLabel: iss.title,
         detailValue: hasCustomDetail ? iss.detail : undefined,
+        type: iss.type,
       };
     }
     if (iss.category === "version_mismatch") {
@@ -662,26 +665,21 @@ export function IncompatibleModCard({
         icon: t("icon_sports_esports", "sports_esports"),
         issueLabel: t("modal_version_mismatch", "Version Mismatch"),
         detailValue: hasCustomDetail ? iss.detail : undefined,
+        type: iss.type,
       };
     }
     return {
       icon: iss.icon || t("icon_error", "error"),
       issueLabel: iss.title,
       detailValue: hasCustomDetail ? iss.detail : undefined,
+      type: iss.type,
     };
   });
-
-  const panelResetStyle = {
-    "--glass-outer-shadow": "0 0 #0000",
-    "--glass-nested-shadow": "0 0 #0000",
-    boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.14))",
-  } as React.CSSProperties;
 
   return (
     <>
       <div
-        style={panelResetStyle}
-        className={`glass-panel shadow-none rounded-3xl p-5 flex flex-col justify-between gap-3 transition-all duration-300 relative group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] ${
+        className={`glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-3 transition-all duration-300 relative group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] ${
           effectiveIgnored ? "opacity-50 grayscale-[40%]" : ""
         }`}
       >
@@ -693,8 +691,8 @@ export function IncompatibleModCard({
                 <img src={image} alt={title} className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div className="w-8 h-8 flex items-center justify-center shrink-0 text-[var(--text)] opacity-80 group-hover:opacity-100 transition-opacity">
-                <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
+              <div className="w-8 h-8 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] bg-transparent flex items-center justify-center shrink-0 text-[var(--text)] opacity-80 group-hover:opacity-100 transition-opacity">
+                <span className="material-symbols-outlined !text-[18px]">{modIcon}</span>
               </div>
             )}
 
@@ -709,7 +707,7 @@ export function IncompatibleModCard({
                       e.stopPropagation();
                       setIsExpanded((prev) => !prev);
                     }}
-                    className="relative group/modpill inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-bold text-[var(--text)] opacity-90 hover:opacity-100 transition-all cursor-pointer shrink-0"
+                    className="relative group/modpill inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[10px] font-bold text-[var(--text)] opacity-90 hover:opacity-100 transition-all cursor-pointer shrink-0"
                   >
                     <span>
                       {groupedMods.length} {t("card_files_linked", "Linked Files")}
@@ -850,24 +848,32 @@ export function IncompatibleModCard({
 
         {/* Bottom Section: Issues Stack (1 or Multiple) + Version Update Bar (only when hasUpdate is true) */}
         <div className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-2">
-          {issueRows.map((row, idx) => (
-            <div key={idx} className="flex items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-1.5 min-w-0 font-bold text-[var(--text)]">
-                <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] opacity-85 shrink-0">
-                  {row.icon}
-                </span>
-                <span className="truncate">{row.issueLabel}</span>
-              </div>
-              {row.detailValue && (
+          {issueRows.map((row, idx) => {
+            const isRowAmber = row.type === "amber";
+            const badgeColorClass = isRowAmber
+              ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
+              : "border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]";
+            return (
+              <div key={idx} className="flex items-center justify-between gap-2 text-xs">
                 <span
-                  className="font-mono text-[11px] font-semibold text-[var(--subtext)] opacity-90 shrink-0 truncate max-w-[160px]"
-                  title={row.detailValue}
+                  className={`px-2 py-0.5 rounded-md bg-transparent border ${badgeColorClass} text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 min-w-0`}
                 >
-                  {row.detailValue}
+                  <span className="material-symbols-outlined !text-[13px] shrink-0">
+                    {row.icon}
+                  </span>
+                  <span className="truncate">{row.issueLabel}</span>
                 </span>
-              )}
-            </div>
-          ))}
+                {row.detailValue && (
+                  <span
+                    className="font-mono text-[11px] font-semibold text-[var(--subtext)] opacity-90 shrink-0 truncate max-w-[160px]"
+                    title={row.detailValue}
+                  >
+                    {row.detailValue}
+                  </span>
+                )}
+              </div>
+            );
+          })}
 
           {hasUpdate && cleanNewVer && (
             <div className="flex items-center justify-between gap-2 pt-1">
@@ -897,10 +903,7 @@ export function IncompatibleModCard({
 
       {/* Full-Width Addon / Linked Modules Drawer (Spans across both grid columns below the card row) */}
       {isExpanded && groupedMods.length > 1 && (
-        <div
-          style={panelResetStyle}
-          className="col-span-full glass-panel shadow-none rounded-3xl p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-1 duration-200"
-        >
+        <div className="col-span-full glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="flex items-center justify-between gap-2 px-1 pb-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
             <div className="flex items-center gap-2 min-w-0">
               <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">
@@ -935,7 +938,7 @@ export function IncompatibleModCard({
               return (
                 <div
                   key={`${gm.name || gIdx}-${gIdx}`}
-                  className={`glass-surface rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2 transition-all ${
+                  className={`glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2 transition-all ${
                     gmIgnored ? "opacity-50 grayscale-[40%]" : ""
                   }`}
                 >
@@ -1083,6 +1086,39 @@ export default function CommandIncompatiblePanel({
   );
   const groupedBrokenMods = useMemo(() => groupBrokenMods(brokenMods), [brokenMods]);
 
+  const corruptedCount = useMemo(
+    () =>
+      groupedBrokenMods.filter((m: any) =>
+        (Array.isArray(m._categories) ? m._categories : [m._alert_category]).includes("corrupted")
+      ).length,
+    [groupedBrokenMods]
+  );
+  const mismatchCount = useMemo(
+    () =>
+      groupedBrokenMods.filter((m: any) =>
+        (Array.isArray(m._categories) ? m._categories : [m._alert_category]).includes(
+          "version_mismatch"
+        )
+      ).length,
+    [groupedBrokenMods]
+  );
+  const missingReqsCount = useMemo(
+    () =>
+      groupedBrokenMods.filter((m: any) => {
+        const cats = Array.isArray(m._categories) ? m._categories : [m._alert_category];
+        return cats.includes("missing_dlc") || cats.includes("missing_deps");
+      }).length,
+    [groupedBrokenMods]
+  );
+  const unstableCount = useMemo(
+    () =>
+      groupedBrokenMods.filter((m: any) => {
+        const cats = Array.isArray(m._categories) ? m._categories : [m._alert_category];
+        return cats.includes("unstable") || m._alert_type === "amber";
+      }).length,
+    [groupedBrokenMods]
+  );
+
   const filteredGroupedBrokenMods = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return groupedBrokenMods.filter((mod: any) => {
@@ -1110,19 +1146,18 @@ export default function CommandIncompatiblePanel({
     });
   }, [groupedBrokenMods, searchQuery, categoryFilter]);
 
+  const panelIcon =
+    redMods.length > 0 ? t("icon_gpp_bad", "gpp_bad") : t("icon_gpp_maybe", "gpp_maybe");
+
   return (
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
       title={t("citizen_action_incompatible", "Incompatible")}
       subtitle={t("incompatible_broken", "Corrupted, Outdated & Unstable Mods")}
-      icon={
-        redMods.length > 0
-          ? t("icon_gpp_bad", "gpp_bad")
-          : t("icon_gpp_maybe", "gpp_maybe")
-      }
-      iconColorClass="theme-text-accent"
-      widthClass="w-full md:w-[760px]"
+      icon={panelIcon}
+      iconColorClass={redMods.length > 0 ? "text-[var(--danger)]" : "text-[var(--warning)]"}
+      widthClass="w-[90vw] md:w-[760px]"
       headerActions={
         allow_write && (redMods.length > 0 || amberMods.length > 0) ? (
           <PanelHeaderGroup>
@@ -1159,7 +1194,100 @@ export default function CommandIncompatiblePanel({
         ) : undefined
       }
     >
-      <div className="flex flex-col gap-6 relative z-10 w-full pb-12">
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={panelIcon}
+          overline={t("citizen_action_incompatible", "Incompatible")}
+          title={t("incompatible_broken", "Corrupted, Outdated & Unstable Mods")}
+          description={t("citizen_action_required", "Action Required")}
+          badge={`${groupedBrokenMods.length} ${t("items", "Items")}`}
+          badgeIcon={panelIcon}
+          variant={
+            redMods.length > 0
+              ? "danger"
+              : groupedBrokenMods.length > 0
+                ? "warning"
+                : "success"
+          }
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+            <StatBox
+              label={t("citizen_action_incompatible", "Incompatible")}
+              value={groupedBrokenMods.length}
+              icon={panelIcon}
+              iconColorClass={
+                redMods.length > 0 ? "text-[var(--danger)]" : "text-[var(--warning)]"
+              }
+            />
+            <StatBox
+              label={t("bp_pill_corrupted", "Corrupted")}
+              value={redMods.length}
+              icon={t("icon_broken_image", "broken_image")}
+              iconColorClass="text-[var(--danger)]"
+            />
+            <StatBox
+              label={t("bp_pill_unstable", "Unstable")}
+              value={amberMods.length}
+              icon={t("icon_warning_amber", "warning_amber")}
+              iconColorClass="text-[var(--warning)]"
+            />
+          </div>
+        </SidePanelHeroCard>
+
+        {groupedBrokenMods.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={categoryFilter === "all"}
+              icon={t("icon_tune", "tune")}
+              label={t("filter_all", "All")}
+              value={groupedBrokenMods.length}
+              onClick={() => setCategoryFilter("all")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={categoryFilter === "corrupted"}
+              icon={t("icon_broken_image", "broken_image")}
+              label={t("bp_pill_corrupted", "Corrupted")}
+              value={corruptedCount}
+              colorClass="text-[var(--danger)]"
+              onClick={() => setCategoryFilter("corrupted")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={categoryFilter === "version_mismatch"}
+              icon={t("icon_sports_esports", "sports_esports")}
+              label={t("badge_version_mismatch", "Version Mismatch")}
+              value={mismatchCount}
+              colorClass="text-[var(--danger)]"
+              onClick={() => setCategoryFilter("version_mismatch")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={categoryFilter === "missing_reqs"}
+              icon={t("icon_extension", "extension")}
+              label={t("badge_missing_dep", "Missing Dependency")}
+              value={missingReqsCount}
+              colorClass="text-[var(--danger)]"
+              onClick={() => setCategoryFilter("missing_reqs")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={categoryFilter === "unstable"}
+              icon={t("icon_warning_amber", "warning_amber")}
+              label={t("bp_pill_unstable", "Unstable")}
+              value={unstableCount}
+              colorClass="text-[var(--warning)]"
+              onClick={() => setCategoryFilter("unstable")}
+            />
+          </div>
+        )}
+
         {groupedBrokenMods.length > 0 && (
           <ActionPill
             searchQuery={searchQuery}
@@ -1193,22 +1321,27 @@ export default function CommandIncompatiblePanel({
         )}
 
         {filteredGroupedBrokenMods.length === 0 ? (
-          <div className="glass-panel rounded-3xl p-10">
+          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
             <EmptyState
               icon={t("icon_check_circle", "check_circle")}
               title={t("no_incompatible_detected", "No Incompatible Mods Detected")}
             />
           </div>
         ) : (
-          renderGroupedIncompatibleSections({
-            groupedBrokenMods: filteredGroupedBrokenMods,
-            ignoredBroken,
-            setIgnoredBroken,
-            toggleInActiveSet,
-            allow_write,
-            t,
-            activeGameSchema,
-          })
+          <UniversalGroup
+            title={`${t("citizen_action_incompatible", "Incompatible")} (${filteredGroupedBrokenMods.length})`}
+            icon={panelIcon}
+          >
+            {renderGroupedIncompatibleSections({
+              groupedBrokenMods: filteredGroupedBrokenMods,
+              ignoredBroken,
+              setIgnoredBroken,
+              toggleInActiveSet,
+              allow_write,
+              t,
+              activeGameSchema,
+            })}
+          </UniversalGroup>
         )}
       </div>
     </SidePanel>

@@ -72,7 +72,7 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
     return (
       <div className="relative group flex items-center w-full">
         {canScrollLeft && (
-            <button type="button" onClick={() => scrollBy(-300)} className="absolute left-1 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center glass-panel border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-full shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all cursor-pointer">
+            <button type="button" onClick={() => scrollBy(-300)} className="absolute left-1 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center glass-panel border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-xl shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all cursor-pointer">
                 <span className="material-symbols-outlined !text-[18px]">{t("icon_chevron_left", "chevron_left")}</span>
             </button>
         )}
@@ -80,7 +80,7 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
           {children}
         </div>
         {canScrollRight && (
-            <button type="button" onClick={() => scrollBy(300)} className="absolute right-1 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center glass-panel border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-full shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all cursor-pointer">
+            <button type="button" onClick={() => scrollBy(300)} className="absolute right-1 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center glass-panel border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-xl shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all cursor-pointer">
                 <span className="material-symbols-outlined !text-[18px]">{t("icon_chevron_right", "chevron_right")}</span>
             </button>
         )}
@@ -127,7 +127,7 @@ export function CommandScreenSectionHeading({
   iconColorClass = "text-[var(--text)] opacity-85" 
 }: any) {
   const { t } = useLexicon();
-  const shapeClass = shape === "square" ? "rounded-xl" : "rounded-2xl";
+  const shapeClass = shape === "square" ? "rounded-lg" : "rounded-xl";
   
   return (
     <div className={`flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_12%,transparent)] pb-6 w-full mb-8 relative z-10 min-w-0 ${className}`}>
@@ -341,7 +341,7 @@ export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColo
             <div className={`absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_8%,transparent)]' : 'bg-radial-[at_0%_0%] from-white/15 to-transparent'}`} />
 
             <div className="flex items-center gap-4 h-full relative z-10">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-105 ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]' : 'bg-[var(--glass-nested-surface-bg)] text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
+                <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-105 ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,rgba(255,255,255,0.22))] text-[var(--danger)] shadow-[var(--glass-card-icon-shadow)]' : 'bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] shadow-[var(--glass-card-icon-shadow)] text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
                     <span className={`material-symbols-outlined !text-[25px] opacity-85 group-hover:opacity-100 transition-all duration-300 ${isAlert ? 'animate-pulse' : ''}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">

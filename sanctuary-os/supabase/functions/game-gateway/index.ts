@@ -10,6 +10,208 @@ const corsHeaders = {
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUPABASE_URL_REGEX = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i;
 
+function b64UrlToBytes(input: string): Uint8Array {
+  const clean = (input || '')
+    .replace(/\s+/g, '')
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .replace(/=+$/, '');
+  const pad = (4 - (clean.length % 4)) % 4;
+  const bin = atob(clean + '='.repeat(pad));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) {
+    out[i] = bin.charCodeAt(i);
+  }
+  return out;
+}
+
+function bytesToB64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    bin += String.fromCharCode(bytes[i]);
+  }
+  return btoa(bin);
+}
+
+function bytesToB64Url(bytes: Uint8Array): string {
+  return bytesToB64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function decodeCborItem(bytes: Uint8Array, offset = 0): { value: any; offset: number } {
+  if (offset >= bytes.length) throw new Error('CBOR unexpected EOF');
+  const initial = bytes[offset++];
+  const major = initial >> 5;
+  const info = initial & 0x1f;
+
+  function readLength(): number {
+    if (info < 24) return info;
+    if (info === 24) return bytes[offset++];
+    if (info === 25) {
+      const v = (bytes[offset] << 8) | bytes[offset + 1];
+      offset += 2;
+      return v;
+    }
+    if (info === 26) {
+      const v =
+        ((bytes[offset] << 24) >>> 0) +
+        ((bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]);
+      offset += 4;
+      return v;
+    }
+    throw new Error('Unsupported CBOR length info: ' + info);
+  }
+
+  if (major === 0) return { value: readLength(), offset };
+  if (major === 1) return { value: -1 - readLength(), offset };
+  if (major === 2) {
+    const len = readLength();
+    const slice = bytes.subarray(offset, offset + len);
+    offset += len;
+    return { value: slice, offset };
+  }
+  if (major === 3) {
+    const len = readLength();
+    const str = new TextDecoder().decode(bytes.subarray(offset, offset + len));
+    offset += len;
+    return { value: str, offset };
+  }
+  if (major === 4) {
+    const len = readLength();
+    const arr: any[] = [];
+    for (let i = 0; i < len; i++) {
+      const res = decodeCborItem(bytes, offset);
+      arr.push(res.value);
+      offset = res.offset;
+    }
+    return { value: arr, offset };
+  }
+  if (major === 5) {
+    const len = readLength();
+    const map = new Map<any, any>();
+    for (let i = 0; i < len; i++) {
+      const k = decodeCborItem(bytes, offset);
+      offset = k.offset;
+      const v = decodeCborItem(bytes, offset);
+      offset = v.offset;
+      map.set(k.value, v.value);
+    }
+    return { value: map, offset };
+  }
+  if (major === 7) {
+    if (info === 20) return { value: false, offset };
+    if (info === 21) return { value: true, offset };
+    if (info === 22) return { value: null, offset };
+  }
+  throw new Error('Unsupported CBOR major type: ' + major);
+}
+
+function derSignatureToP1363(der: Uint8Array): Uint8Array {
+  if (der.length === 64 && der[0] !== 0x30) return der;
+  let pos = 0;
+  if (der[pos++] !== 0x30) throw new Error('Invalid DER ECDSA signature');
+  const seqLen = der[pos++];
+  if (seqLen & 0x80) {
+    const nBytes = seqLen & 0x7f;
+    pos += nBytes;
+  }
+  if (der[pos++] !== 0x02) throw new Error('Invalid DER ECDSA r-integer tag');
+  const rLen = der[pos++];
+  let r = der.subarray(pos, pos + rLen);
+  pos += rLen;
+  if (der[pos++] !== 0x02) throw new Error('Invalid DER ECDSA s-integer tag');
+  const sLen = der[pos++];
+  let s = der.subarray(pos, pos + sLen);
+
+  while (r.length > 32 && r[0] === 0x00) r = r.subarray(1);
+  while (s.length > 32 && s[0] === 0x00) s = s.subarray(1);
+  if (r.length > 32 || s.length > 32) throw new Error('Invalid ECDSA coordinate length');
+
+  const out = new Uint8Array(64);
+  out.set(r, 32 - r.length);
+  out.set(s, 64 - s.length);
+  return out;
+}
+
+async function verifyCoseSignature(
+  publicKeyCborBytes: Uint8Array,
+  signedData: Uint8Array,
+  signatureBytes: Uint8Array
+): Promise<boolean> {
+  const { value: coseMap } = decodeCborItem(publicKeyCborBytes, 0);
+  const kty = coseMap.get(1);
+  const alg = coseMap.get(3);
+
+  if (kty === 3 || alg === -257) {
+    const n = coseMap.get(-1) as Uint8Array;
+    const e = coseMap.get(-2) as Uint8Array;
+    if (!n || !e) throw new Error('Missing RSA modulus or exponent in COSE key');
+    const key = await crypto.subtle.importKey(
+      'jwk',
+      { kty: 'RSA', n: bytesToB64Url(n), e: bytesToB64Url(e), alg: 'RS256', ext: true },
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+    return await crypto.subtle.verify({ name: 'RSASSA-PKCS1-v1_5' }, key, signatureBytes, signedData);
+  }
+
+  if (kty === 2 || alg === -7) {
+    const x = coseMap.get(-2) as Uint8Array;
+    const y = coseMap.get(-3) as Uint8Array;
+    if (!x || !y) throw new Error('Missing EC P-256 coordinates in COSE key');
+    const key = await crypto.subtle.importKey(
+      'jwk',
+      { kty: 'EC', crv: 'P-256', x: bytesToB64Url(x), y: bytesToB64Url(y), ext: true },
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['verify']
+    );
+    const p1363Sig = derSignatureToP1363(signatureBytes);
+    return await crypto.subtle.verify(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      key,
+      p1363Sig,
+      signedData
+    );
+  }
+
+  if (kty === 1 || alg === -8) {
+    const x = coseMap.get(-2) as Uint8Array;
+    if (!x) throw new Error('Missing Ed25519 public key bytes in COSE key');
+    const key = await crypto.subtle.importKey(
+      'jwk',
+      { kty: 'OKP', crv: 'Ed25519', x: bytesToB64Url(x), ext: true },
+      { name: 'Ed25519' },
+      false,
+      ['verify']
+    );
+    return await crypto.subtle.verify({ name: 'Ed25519' }, key, signatureBytes, signedData);
+  }
+
+  throw new Error(`Unsupported COSE key type (${kty}) or algorithm (${alg})`);
+}
+
+function isAllowedWebAuthnOrigin(originStr: string, rpId: string): boolean {
+  try {
+    const u = new URL(originStr);
+    const host = u.hostname.toLowerCase();
+    const target = (rpId || 'sanctuaryos.net').toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    }
+    return u.protocol === 'https:' && (host === target || host.endsWith('.' + target));
+  } catch {
+    return false;
+  }
+}
+
+function formatUuidFromBytes(bytes: Uint8Array): string {
+  const hex = Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
 const STAFF_ROLES = ['wayfinder', 'oversight', 'architect', 'senior_architect', 'admin'];
 const CREATOR_OR_STAFF_ROLES = [...STAFF_ROLES, 'mason'];
 
@@ -74,22 +276,14 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Authenticate OS User on Hub
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    )
+    // 1. Parse payload & initialize Hub clients
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) throw new Error('Missing Authorization header')
-    const token = authHeader.replace('Bearer ', '')
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
-    if (authError || !user) throw new Error('Unauthorized on OS DB: ' + (authError?.message || 'No user'))
-
-    const v_user_id = user.id;
-
-    // 2. Extract payload
     const body = await req.json()
     const { game_id, action, payload } = body
 
@@ -97,11 +291,321 @@ serve(async (req) => {
       throw new Error('Missing action')
     }
 
-    // 3. Initialize Hub Admin Client (Service Role)
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const authHeader = req.headers.get('Authorization')
+    const token = authHeader ? authHeader.replace(/^Bearer\s+/i, '').trim() : ''
+
+    let user: any = null
+    let authError: any = null
+    if (token && token.includes('.')) {
+      const authRes = await supabaseClient.auth.getUser(token)
+      user = authRes?.data?.user ?? null
+      authError = authRes?.error ?? null
+    }
+
+    // Special Hub-wide action: WebAuthn Assertion Verification (supports both authenticated 2FA step-up and passwordless login across apex + www subdomains)
+    if (action === 'verify_webauthn_assertion') {
+      const { challenge_id, credential } = payload || {}
+      if (!challenge_id || !credential?.response) {
+        throw new Error('Missing WebAuthn challenge_id or credential response')
+      }
+
+      // 1) Snapshot the challenge before GoTrue consumes it
+      const { data: challengeSnap } = await supabaseAdmin.rpc('internal_get_webauthn_challenge', {
+        p_challenge_id: challenge_id,
+      })
+
+      // 2) Try native GoTrue verification first
+      const gotrueHeaders: Record<string, string> = {
+        apikey: supabaseAnonKey,
+        'Content-Type': 'application/json',
+      }
+      const nativeRes = await fetch(`${supabaseUrl}/auth/v1/passkeys/authentication/verify`, {
+        method: 'POST',
+        headers: gotrueHeaders,
+        body: JSON.stringify({ challenge_id, credential }),
+      })
+      const nativeJson = await nativeRes.json().catch(() => ({}))
+      if (nativeRes.ok) {
+        return new Response(JSON.stringify(nativeJson), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        })
+      }
+
+      // 3) Fallback cryptographic verification for subdomain origins (e.g. https://www.sanctuaryos.net)
+      if (!challengeSnap || challengeSnap.challenge_type !== 'authentication') {
+        throw new Error(
+          nativeJson?.msg ||
+            nativeJson?.error_description ||
+            nativeJson?.message ||
+            'Passkey challenge expired or not found.'
+        )
+      }
+      if (new Date(challengeSnap.expires_at).getTime() <= Date.now()) {
+        throw new Error('Passkey authentication challenge has expired.')
+      }
+
+      const expectedChallenge = challengeSnap.session_data?.challenge
+      const rpId = challengeSnap.session_data?.rpId || 'sanctuaryos.net'
+
+      const clientDataBytes = b64UrlToBytes(credential.response.clientDataJSON)
+      const clientData = JSON.parse(new TextDecoder().decode(clientDataBytes))
+      if (clientData.type !== 'webauthn.get') {
+        throw new Error('Invalid WebAuthn ceremony type.')
+      }
+      if (!expectedChallenge || clientData.challenge !== expectedChallenge) {
+        throw new Error('WebAuthn challenge mismatch.')
+      }
+      if (!isAllowedWebAuthnOrigin(clientData.origin, rpId)) {
+        throw new Error(`Origin ${clientData.origin} is not authorized for RP ID ${rpId}.`)
+      }
+
+      const authDataBytes = b64UrlToBytes(credential.response.authenticatorData)
+      if (authDataBytes.length < 37) {
+        throw new Error('Invalid authenticatorData length.')
+      }
+
+      const expectedRpIdHash = new Uint8Array(
+        await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rpId))
+      )
+      for (let i = 0; i < 32; i++) {
+        if (authDataBytes[i] !== expectedRpIdHash[i]) {
+          throw new Error('WebAuthn RP ID hash mismatch.')
+        }
+      }
+
+      const flags = authDataBytes[32]
+      if ((flags & 0x01) === 0) {
+        throw new Error('WebAuthn User Present flag not set.')
+      }
+
+      const signCount =
+        ((authDataBytes[33] << 24) >>> 0) +
+        ((authDataBytes[34] << 16) | (authDataBytes[35] << 8) | authDataBytes[36])
+
+      const credIdB64 = bytesToB64(b64UrlToBytes(credential.rawId || credential.id))
+      const { data: credRow } = await supabaseAdmin.rpc('internal_get_webauthn_credential', {
+        p_credential_id_b64: credIdB64,
+      })
+
+      if (!credRow || !credRow.public_key_b64) {
+        throw new Error('Passkey credential is not registered to any account.')
+      }
+
+      if (user?.id && credRow.user_id !== user.id) {
+        throw new Error('This Passkey belongs to a different account.')
+      }
+      if (challengeSnap.user_id && credRow.user_id !== challengeSnap.user_id) {
+        throw new Error('Passkey user mismatch for active challenge.')
+      }
+
+      const clientDataHash = new Uint8Array(await crypto.subtle.digest('SHA-256', clientDataBytes))
+      const signedData = new Uint8Array(authDataBytes.length + clientDataHash.length)
+      signedData.set(authDataBytes, 0)
+      signedData.set(clientDataHash, authDataBytes.length)
+
+      const sigBytes = b64UrlToBytes(credential.response.signature)
+      const pubKeyBytes = b64UrlToBytes(credRow.public_key_b64)
+      const isValidSig = await verifyCoseSignature(pubKeyBytes, signedData, sigBytes)
+      if (!isValidSig) {
+        throw new Error('Credential verification failed: invalid cryptographic signature.')
+      }
+
+      await supabaseAdmin.rpc('internal_complete_webauthn_authentication', {
+        p_challenge_id: challenge_id,
+        p_cred_row_id: credRow.id,
+        p_sign_count: signCount,
+      })
+
+      // If no active user session was passed (passwordless login flow), mint a session for credRow.user_id
+      if (!user) {
+        const { data: targetUserRes } = await supabaseAdmin.auth.admin.getUserById(credRow.user_id)
+        const targetEmail = targetUserRes?.user?.email
+        if (targetEmail) {
+          const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+            type: 'magiclink',
+            email: targetEmail,
+          })
+          const hashedToken = linkData?.properties?.hashed_token
+          if (hashedToken) {
+            const { data: otpData } = await supabaseClient.auth.verifyOtp({
+              token_hash: hashedToken,
+              type: 'magiclink',
+            })
+            if (otpData?.session) {
+              return new Response(
+                JSON.stringify({
+                  ...otpData.session,
+                  user: otpData.user || targetUserRes.user,
+                  passkey_verified: true,
+                  passkey_id: credRow.id,
+                }),
+                {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                  status: 200,
+                }
+              )
+            }
+          }
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          verified: true,
+          passkey_verified: true,
+          passkey_id: credRow.id,
+          user: user || { id: credRow.user_id },
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      )
+    }
+
+    // All remaining actions require an authenticated OS user
+    if (authError || !user) {
+      throw new Error('Unauthorized on OS DB: ' + (authError?.message || 'No user'))
+    }
+
+    const v_user_id = user.id;
+
+    // Special Hub-wide action: WebAuthn Registration Verification (supports apex + www subdomains)
+    if (action === 'verify_webauthn_registration') {
+      const { challenge_id, credential, friendly_name } = payload || {}
+      if (!challenge_id || !credential?.response) {
+        throw new Error('Missing WebAuthn challenge_id or credential response')
+      }
+
+      const { data: challengeSnap } = await supabaseAdmin.rpc('internal_get_webauthn_challenge', {
+        p_challenge_id: challenge_id,
+      })
+
+      const gotrueHeaders: Record<string, string> = {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      }
+
+      const nativeRes = await fetch(`${supabaseUrl}/auth/v1/passkeys/registration/verify`, {
+        method: 'POST',
+        headers: gotrueHeaders,
+        body: JSON.stringify({ challenge_id, credential }),
+      })
+      const nativeJson = await nativeRes.json().catch(() => ({}))
+      if (nativeRes.ok) {
+        if (nativeJson?.id && friendly_name) {
+          try {
+            await fetch(`${supabaseUrl}/auth/v1/passkeys/${nativeJson.id}`, {
+              method: 'PATCH',
+              headers: gotrueHeaders,
+              body: JSON.stringify({ friendly_name }),
+            })
+            nativeJson.friendly_name = friendly_name
+          } catch {}
+        }
+        return new Response(JSON.stringify(nativeJson), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        })
+      }
+
+      if (
+        !challengeSnap ||
+        challengeSnap.challenge_type !== 'registration' ||
+        challengeSnap.user_id !== v_user_id
+      ) {
+        throw new Error(
+          nativeJson?.msg ||
+            nativeJson?.error_description ||
+            nativeJson?.message ||
+            'Passkey registration challenge expired or invalid.'
+        )
+      }
+      if (new Date(challengeSnap.expires_at).getTime() <= Date.now()) {
+        throw new Error('Passkey registration challenge has expired.')
+      }
+
+      const expectedChallenge = challengeSnap.session_data?.challenge
+      const rpId = challengeSnap.session_data?.rpId || 'sanctuaryos.net'
+
+      const clientDataBytes = b64UrlToBytes(credential.response.clientDataJSON)
+      const clientData = JSON.parse(new TextDecoder().decode(clientDataBytes))
+      if (clientData.type !== 'webauthn.create') {
+        throw new Error('Invalid WebAuthn registration ceremony type.')
+      }
+      if (!expectedChallenge || clientData.challenge !== expectedChallenge) {
+        throw new Error('WebAuthn registration challenge mismatch.')
+      }
+      if (!isAllowedWebAuthnOrigin(clientData.origin, rpId)) {
+        throw new Error(`Origin ${clientData.origin} is not authorized for RP ID ${rpId}.`)
+      }
+
+      const attObjBytes = b64UrlToBytes(credential.response.attestationObject)
+      const { value: attMap } = decodeCborItem(attObjBytes, 0)
+      const fmt = String(attMap.get('fmt') || 'none')
+      const authDataBytes = attMap.get('authData') as Uint8Array
+      if (!authDataBytes || authDataBytes.length < 55) {
+        throw new Error('Invalid attestation authData.')
+      }
+
+      const expectedRpIdHash = new Uint8Array(
+        await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rpId))
+      )
+      for (let i = 0; i < 32; i++) {
+        if (authDataBytes[i] !== expectedRpIdHash[i]) {
+          throw new Error('WebAuthn registration RP ID hash mismatch.')
+        }
+      }
+
+      const flags = authDataBytes[32]
+      if ((flags & 0x01) === 0 || (flags & 0x40) === 0) {
+        throw new Error('WebAuthn registration missing required authenticator flags.')
+      }
+
+      const backupEligible = (flags & 0x08) !== 0
+      const backedUp = (flags & 0x10) !== 0
+      const signCount =
+        ((authDataBytes[33] << 24) >>> 0) +
+        ((authDataBytes[34] << 16) | (authDataBytes[35] << 8) | authDataBytes[36])
+      const aaguid = formatUuidFromBytes(authDataBytes.subarray(37, 53))
+      const credIdLen = (authDataBytes[53] << 8) | authDataBytes[54]
+      const credIdBytes = authDataBytes.subarray(55, 55 + credIdLen)
+      const pubKeyCborBytes = authDataBytes.subarray(55 + credIdLen)
+
+      const { value: coseMap } = decodeCborItem(pubKeyCborBytes, 0)
+      if (!coseMap || typeof coseMap.get !== 'function' || !coseMap.get(1)) {
+        throw new Error('Invalid COSE public key in attestation.')
+      }
+
+      const transports = Array.isArray(credential?.response?.transports)
+        ? credential.response.transports
+        : ['internal', 'hybrid']
+
+      const { data: createdPasskey, error: regErr } = await supabaseAdmin.rpc(
+        'internal_complete_webauthn_registration',
+        {
+          p_challenge_id: challenge_id,
+          p_user_id: v_user_id,
+          p_credential_id_b64: bytesToB64(credIdBytes),
+          p_public_key_b64: bytesToB64(pubKeyCborBytes),
+          p_attestation_type: fmt,
+          p_aaguid: aaguid,
+          p_sign_count: signCount,
+          p_transports: transports,
+          p_backup_eligible: backupEligible,
+          p_backed_up: backedUp,
+          p_friendly_name: friendly_name || 'FIDO2 Passkey',
+        }
+      )
+      if (regErr) throw regErr
+
+      return new Response(JSON.stringify(createdPasskey), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
 
     // Fetch authoritative Hub Profile for caller
     const { data: hubProfile } = await supabaseAdmin

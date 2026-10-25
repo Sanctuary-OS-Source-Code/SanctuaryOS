@@ -1,30 +1,39 @@
-import React, { useState } from 'react';
-import { supabase } from '../supabase';
-import { useLexicon } from '../LexiconContext';
-import { useStore } from '../store';
-import { SidePanel, CustomDropdown, standardButtonClass, standardAccentGlassButtonClass, PanelHeaderGroup, PanelHeaderButton } from '../shared';
+import React, { useState } from "react";
+import { supabase } from "../supabase";
+import { useLexicon } from "../LexiconContext";
+import { useStore } from "../store";
+import {
+  SidePanel,
+  SidePanelHeroCard,
+  UniversalGroup,
+  StatBox,
+  ActionButton,
+  CustomDropdown,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+} from "../shared";
 
-export function PushTemplateSidePanel({ 
-  isOpen, 
-  onClose, 
-  templateContent, 
+export function PushTemplateSidePanel({
+  isOpen,
+  onClose,
+  templateContent,
   onChange,
   onPushSuccess,
-  initialName = "" 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+  initialName = "",
+}: {
+  isOpen: boolean;
+  onClose: () => void;
   templateContent: string;
   onChange?: (newContent: string) => void;
   onPushSuccess?: (newName: string, newJson: string) => void;
   initialName?: string;
 }) {
   const { t } = useLexicon();
-  const pushStatus = useStore(state => state.pushStatus);
-  const session = useStore(state => state.session);
+  const pushStatus = useStore((state) => state.pushStatus);
+  const session = useStore((state) => state.session);
   const modList = useStore((state) => state.modList) || [];
   const [isUploading, setIsUploading] = useState(false);
-  
+
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState("");
   const [releaseNotes, setReleaseNotes] = useState("");
@@ -36,79 +45,95 @@ export function PushTemplateSidePanel({
   const [selectedUpdateId, setSelectedUpdateId] = useState<string>("new");
 
   React.useEffect(() => {
-     if (isOpen) {
-       try {
-          const parsed = JSON.parse(templateContent);
-          if (parsed.target_file) setTargetFile(parsed.target_file);
-          if (parsed.version || parsed.template_version) setVersion(parsed.version || parsed.template_version);
-          if (parsed.language) setLanguage(parsed.language);
-          if (parsed.name && !initialName) setName(parsed.name);
-       } catch(e) {}
-     }
+    if (isOpen) {
+      try {
+        const parsed = JSON.parse(templateContent);
+        if (parsed.target_file) setTargetFile(parsed.target_file);
+        if (parsed.version || parsed.template_version)
+          setVersion(parsed.version || parsed.template_version);
+        if (parsed.language) setLanguage(parsed.language);
+        if (parsed.name && !initialName) setName(parsed.name);
+      } catch (e) {}
+    }
   }, [isOpen]);
 
   React.useEffect(() => {
-      const fetchTemplates = async () => {
-         if (!session?.user?.id) return;
-         if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
-         let authorName = session.user.user_metadata?.username || 'Citizen';
-         let fallbackName = session.user.user_metadata?.username || 'Citizen';
-         const { data: mData } = await supabase.from('masons').select('name').eq('profile_id', session.user.id).single();
-         if (mData && mData.name) authorName = mData.name;
-         
-         const { data } = await supabase
-            .from('nexus_assets')
-            .select('*')
-            .or(`author.ilike.%${authorName}%,author.ilike.%Citizen%,author.ilike.%Sanctuary%,author.ilike.%${fallbackName}%`)
-            .eq('asset_type', 'workbench_template');
-         if (data) {
-            setExistingTemplates(data);
-            
-            let parsedName = initialName;
-            let parsedTemplateId = "";
+    const fetchTemplates = async () => {
+      if (!session?.user?.id) return;
+      if (
+        !navigator.onLine ||
+        localStorage.getItem("sanctuary_local_only") === "true"
+      )
+        return;
+      let authorName = session.user.user_metadata?.username || "Citizen";
+      const fallbackName = session.user.user_metadata?.username || "Citizen";
+      const { data: mData } = await supabase
+        .from("masons")
+        .select("name")
+        .eq("profile_id", session.user.id)
+        .single();
+      if (mData && mData.name) authorName = mData.name;
+
+      const { data } = await supabase
+        .from("nexus_assets")
+        .select("*")
+        .or(
+          `author.ilike.%${authorName}%,author.ilike.%Citizen%,author.ilike.%Sanctuary%,author.ilike.%${fallbackName}%`
+        )
+        .eq("asset_type", "workbench_template");
+      if (data) {
+        setExistingTemplates(data);
+
+        let parsedName = initialName;
+        let parsedTemplateId = "";
+        try {
+          const parsed = JSON.parse(templateContent);
+          if (parsed.name) parsedName = parsed.name;
+          if (parsed.template_id) parsedTemplateId = parsed.template_id;
+        } catch (e) {}
+        const match = data.find((tItem) => {
+          if (parsedTemplateId && tItem.json_data) {
             try {
-               const parsed = JSON.parse(templateContent);
-               if (parsed.name) parsedName = parsed.name;
-               if (parsed.template_id) parsedTemplateId = parsed.template_id;
-            } catch(e) {}
-            const match = data.find(t => {
-               if (parsedTemplateId && t.json_data) {
-                  try {
-                     const tParsed = typeof t.json_data === 'string' ? JSON.parse(t.json_data) : t.json_data;
-                     const tId = tParsed.template_id || (Array.isArray(tParsed) ? tParsed[0]?.template_id : undefined);
-                     if (tId === parsedTemplateId) return true;
-                  } catch(e) {}
-               }
-               return t.name === parsedName || t.name === initialName;
-            });
-            if (match) {
-                setSelectedUpdateId(match.id);
-                setName(match.name || "");
-                setDescription(match.description || "");
-                setReleaseNotes(match.release_notes || "");
-                if (match.language) setLanguage(match.language);
-            }
-         }
-      };
-      fetchTemplates();
+              const tParsed =
+                typeof tItem.json_data === "string"
+                  ? JSON.parse(tItem.json_data)
+                  : tItem.json_data;
+              const tId =
+                tParsed.template_id ||
+                (Array.isArray(tParsed) ? tParsed[0]?.template_id : undefined);
+              if (tId === parsedTemplateId) return true;
+            } catch (e) {}
+          }
+          return tItem.name === parsedName || tItem.name === initialName;
+        });
+        if (match) {
+          setSelectedUpdateId(match.id);
+          setName(match.name || "");
+          setDescription(match.description || "");
+          setReleaseNotes(match.release_notes || "");
+          if (match.language) setLanguage(match.language);
+        }
+      }
+    };
+    fetchTemplates();
   }, [session]);
 
   const handleSelectUpdate = (val: string[]) => {
-      const id = val[0];
-      setSelectedUpdateId(id);
-      if (id === "new") {
-          setName(initialName);
-          setDescription("");
-          setReleaseNotes("");
-      } else {
-          const tmpl = existingTemplates.find(t => t.id === id);
-          if (tmpl) {
-              setName(tmpl.name || "");
-              setDescription(tmpl.description || "");
-              setReleaseNotes(tmpl.release_notes || "");
-              if (tmpl.language) setLanguage(tmpl.language);
-          }
+    const id = val[0];
+    setSelectedUpdateId(id);
+    if (id === "new") {
+      setName(initialName);
+      setDescription("");
+      setReleaseNotes("");
+    } else {
+      const tmpl = existingTemplates.find((tItem) => tItem.id === id);
+      if (tmpl) {
+        setName(tmpl.name || "");
+        setDescription(tmpl.description || "");
+        setReleaseNotes(tmpl.release_notes || "");
+        if (tmpl.language) setLanguage(tmpl.language);
       }
+    }
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -131,19 +156,23 @@ export function PushTemplateSidePanel({
         parsed.name = name.trim();
         finalJson = JSON.stringify(parsed, null, 2);
       } catch (err) {
-        throw new Error(t("upload_invalid_json"));
+        throw new Error(t("upload_invalid_json", "Invalid JSON template."));
       }
 
-      let authorName = session?.user?.user_metadata?.username || 'Citizen';
+      let authorName = session?.user?.user_metadata?.username || "Citizen";
       if (session?.user?.id) {
-         const { data: mData } = await supabase.from('masons').select('name').eq('profile_id', session.user.id).single();
-         if (mData && mData.name) {
-            authorName = mData.name;
-         }
+        const { data: mData } = await supabase
+          .from("masons")
+          .select("name")
+          .eq("profile_id", session.user.id)
+          .single();
+        if (mData && mData.name) {
+          authorName = mData.name;
+        }
       }
 
       const payload = {
-        asset_type: 'workbench_template',
+        asset_type: "workbench_template",
         name: name.trim(),
         author: authorName,
         author_id: session?.user?.id,
@@ -154,283 +183,330 @@ export function PushTemplateSidePanel({
       };
 
       const { data: existingList, error: checkError } = await supabase
-        .from('nexus_assets')
-        .select('id')
-        .eq('name', payload.name)
+        .from("nexus_assets")
+        .select("id")
+        .eq("name", payload.name)
         .or(`author_id.eq.${session?.user?.id},author.eq.${payload.author}`)
-        .eq('asset_type', payload.asset_type);
+        .eq("asset_type", payload.asset_type);
 
       if (checkError) throw checkError;
 
       if (existingList && existingList.length > 0) {
         const { error } = await supabase
-          .from('nexus_assets')
+          .from("nexus_assets")
           .update(payload)
-          .eq('id', existingList[0].id);
+          .eq("id", existingList[0].id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('nexus_assets').insert([payload]);
+        const { error } = await supabase
+          .from("nexus_assets")
+          .insert([payload]);
         if (error) throw error;
       }
-      
-      pushStatus("Template successfully published to the Nexus!", "success");
+
+      pushStatus(
+        t("status_template_published", "Template successfully published to the Nexus!"),
+        "success"
+      );
       if (onChange) onChange(finalJson);
       if (onPushSuccess) onPushSuccess(name.trim(), finalJson);
       onClose();
     } catch (e: any) {
-      pushStatus(e.message || "Failed to push template.", "error");
+      pushStatus(
+        e.message || t("status_template_push_failed", "Failed to push template."),
+        "error"
+      );
     } finally {
       setIsUploading(false);
     }
-  };
+  };
+
   return (
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("author_push")}
-      subtitle={t("upload_push_subtitle")}
-      icon="cloud_upload"
-      iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-      widthClass="w-[500px]"
+      title={t("author_push", "Push Template")}
+      subtitle={t("upload_push_subtitle", "Publish Workbench Template to Nexus")}
+      icon={t("icon_cloud_upload", "cloud_upload")}
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[540px] max-w-[100vw]"
       headerActions={
         <PanelHeaderGroup>
-          <PanelHeaderButton icon="close" tooltip={t("nav_cancel")} onClick={onClose} />
-          <PanelHeaderButton icon="publish" variant="success" tooltip={isUploading ? t("uploading") : t("market_upload_btn")} onClick={() => handleSubmit()} disabled={!name.trim() || isUploading} />
+          <PanelHeaderButton
+            icon={t("icon_publish", "publish")}
+            variant="success"
+            tooltip={
+              isUploading
+                ? t("uploading", "Uploading...")
+                : t("market_upload_btn", "Publish")
+            }
+            onClick={() => handleSubmit()}
+            disabled={!name.trim() || isUploading}
+          />
         </PanelHeaderGroup>
       }
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6 p-4 h-full min-h-0 relative">
-        
-        <div className="flex flex-col gap-3 mt-2">
-          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_sync")}</span>
-            {t("upload_update_existing")}
-          </label>
-            <CustomDropdown
-              disableTint={true}
-              value={selectedUpdateId}
-              onChange={handleSelectUpdate}
-              options={[
-                { id: "new", label: "Create New Template" },
-                ...existingTemplates.map(t => ({ id: t.id, label: t.name }))
-              ]}
-            />
-        </div>
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8"
+      >
+        <SidePanelHeroCard
+          icon={t("icon_cloud_upload", "cloud_upload")}
+          overline={t("author_push", "Push Template")}
+          title={name.trim() || t("upload_template_name", "Workbench Template")}
+          description={t(
+            "upload_push_subtitle",
+            "Publish or update your Workbench configuration template on the Nexus."
+          )}
+          badge={`v${version}`}
+          badgeIcon={t("icon_tag", "tag")}
+          variant="accent"
+        />
 
-        <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_data_object")}</span>
-            {t("upload_template_name")}
-          </label>
-          <div className="relative group">
-            <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
-            <input 
-              type="text" 
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder={t("upload_template_name_placeholder")}
-              className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-black focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all text-[var(--text)] shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
-              autoFocus
-            />
-          </div>
-        </div>
+        <UniversalGroup
+          title={t("upload_template_name", "Template Configuration")}
+          icon={t("icon_data_object", "data_object")}
+        >
+          <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
+                {t("upload_update_existing", "Target Slot")}
+              </label>
+              <CustomDropdown
+                disableTint={true}
+                value={selectedUpdateId}
+                onChange={handleSelectUpdate}
+                options={[
+                  {
+                    id: "new",
+                    label: t("label_create_new_template", "Create New Template"),
+                  },
+                  ...existingTemplates.map((tmpl) => ({
+                    id: tmpl.id,
+                    label: tmpl.name,
+                  })),
+                ]}
+              />
+            </div>
 
-        <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_settings")}</span>
-            {t("upload_target_file")}
-          </label>
-          <div className="relative group">
-            <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
-            <input 
-              type="text" 
-              value={targetFile}
-              onChange={e => setTargetFile(e.target.value)}
-              placeholder={t("auto_e_g_mc_24")}
-              className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-3 text-sm font-black focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all text-[var(--text)] shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
-            />
-          </div>
-        </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
+                {t("upload_template_name", "Template Name")}
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t(
+                  "upload_template_name_placeholder",
+                  "Enter template name..."
+                )}
+                className="w-full h-11 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)] rounded-xl px-4 text-xs font-black text-[var(--text)] focus:outline-none transition-all"
+                autoFocus
+              />
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_translate")}</span>
-              {t("tab_lexicons")}
-            </label>
-            <CustomDropdown
-              disableTint={true}
-              value={language}
-              onChange={(val: string[]) => setLanguage(val[0])}
-              options={[
-                { id: "English", label: "English" },
-                { id: "Spanish", label: "Spanish" },
-                { id: "French", label: "French" },
-                { id: "German", label: "German" },
-                { id: "Italian", label: "Italian" },
-                { id: "Portuguese", label: "Portuguese" },
-                { id: "Russian", label: "Russian" },
-                { id: "Japanese", label: "Japanese" },
-                { id: "Korean", label: "Korean" },
-                { id: "Chinese", label: "Chinese" }
-              ]}
-            />
-          </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
+                {t("upload_target_file", "Target Config File")}
+              </label>
+              <input
+                type="text"
+                value={targetFile}
+                onChange={(e) => setTargetFile(e.target.value)}
+                placeholder={t("auto_e_g_mc_24", "e.g. mc_settings.cfg")}
+                className="w-full h-11 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)] rounded-xl px-4 text-xs font-mono text-[var(--text)] focus:outline-none transition-all"
+              />
+            </div>
 
-          <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">tag</span>
-              {t("update_version")}
-            </label>
-            <div className="relative group">
-              <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
-              <input 
-                type="text" 
-                value={version}
-                onChange={e => {
-                  const newVersion = e.target.value;
-                  setVersion(newVersion);
-                  if (onChange) {
-                    try {
-                      const parsed = JSON.parse(templateContent);
-                      if (parsed.template_version !== undefined) {
-                        parsed.template_version = newVersion;
-                      } else {
-                        parsed.version = newVersion;
-                      }
-                      onChange(JSON.stringify(parsed, null, 2));
-                    } catch(err) {}
-                  }
-                }}
-                placeholder="e.g. 1.0.0"
-                className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-3 text-sm font-black focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all text-[var(--text)] shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
+                  {t("tab_lexicons", "Language")}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={language}
+                  onChange={(val: string[]) => setLanguage(val[0])}
+                  options={[
+                    { id: "English", label: "English" },
+                    { id: "Spanish", label: "Spanish" },
+                    { id: "French", label: "French" },
+                    { id: "German", label: "German" },
+                    { id: "Italian", label: "Italian" },
+                    { id: "Portuguese", label: "Portuguese" },
+                    { id: "Russian", label: "Russian" },
+                    { id: "Japanese", label: "Japanese" },
+                    { id: "Korean", label: "Korean" },
+                    { id: "Chinese", label: "Chinese" },
+                  ]}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
+                  {t("update_version", "Version")}
+                </label>
+                <input
+                  type="text"
+                  value={version}
+                  onChange={(e) => {
+                    const newVersion = e.target.value;
+                    setVersion(newVersion);
+                    if (onChange) {
+                      try {
+                        const parsed = JSON.parse(templateContent);
+                        if (parsed.template_version !== undefined) {
+                          parsed.template_version = newVersion;
+                        } else {
+                          parsed.version = newVersion;
+                        }
+                        onChange(JSON.stringify(parsed, null, 2));
+                      } catch (err) {}
+                    }
+                  }}
+                  placeholder="1.0.0"
+                  className="w-full h-11 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)] rounded-xl px-4 text-xs font-black text-[var(--text)] focus:outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
+                {t("upload_attach_mod", "Attached Artifact")}
+              </label>
+              <CustomDropdown
+                disableTint={true}
+                value={attachedMod}
+                onChange={(val: any) => setAttachedMod(val[0] || "")}
+                options={[
+                  { id: "", label: t("upload_attach_mod_none", "None") },
+                  ...modList
+                    .filter(
+                      (m: any) =>
+                        !m.isVirtual &&
+                        !m.name?.startsWith("FOLDER_") &&
+                        !m.name?.startsWith("SET_") &&
+                        !m.name?.startsWith("LOCAL_SET_")
+                    )
+                    .map((mod: any) => ({
+                      id: mod.name || mod.id,
+                      label: mod.displayName || mod.name || "Unknown Mod",
+                    })),
+                ]}
+                placeholder={t("auto_select_a_mod", "Select a mod...")}
+                searchable={true}
               />
             </div>
           </div>
-        </div>
-        
-        <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_description")}</span>
-            {t("upload_desc")}
-          </label>
-          <div className="relative group">
-             <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
-             <textarea 
-               value={description}
-               onChange={e => setDescription(e.target.value)}
-               placeholder={t("upload_desc_placeholder")}
-               className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all min-h-[120px] text-[var(--text)] resize-none shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
-             />
-          </div>
-        </div>
+        </UniversalGroup>
 
-        <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">campaign</span>
-            {t("whats_new")}
-          </label>
-          <div className="relative group">
-             <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-md group-focus-within:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
-             <textarea 
-               value={releaseNotes}
-               onChange={e => setReleaseNotes(e.target.value)}
-               placeholder={t("update_panel_no_notes")}
-               className="w-full relative bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)] focus:shadow-[0_0_20px_rgba(var(--accent-rgb),0.15)] transition-all min-h-[100px] text-[var(--text)] resize-none shadow-inner placeholder-[var(--subtext)] placeholder:opacity-50"
-             />
-          </div>
-        </div>
-
-        {templateContent && (() => {
-           let parsed: any = null;
-           try {
-             parsed = typeof templateContent === 'string' ? JSON.parse(templateContent) : templateContent;
-             if (Array.isArray(parsed)) parsed = parsed[0];
-           } catch(e) {}
-           if (!parsed) return null;
-           return (
-             <div className="flex flex-col gap-4 p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-                <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] flex items-center gap-2 mb-1">
-                   <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                   {t("auto_detected_architecture")}
-                </h4>
-                <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-[10px] font-mono">
-                   {parsed.template_id && (
-                     <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("auto_template_id")}</span>
-                        <span className="text-[var(--text)] font-black truncate">{parsed.template_id}</span>
-                     </div>
-                   )}
-                   {parsed.schema_version && (
-                     <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("auto_schema")}</span>
-                        <span className="text-[var(--text)] font-black">{t("auto_v")}{parsed.schema_version}</span>
-                     </div>
-                   )}
-                   {parsed.template_version && (
-                     <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("update_version")}</span>
-                        <span className="text-[var(--text)] font-black">{parsed.template_version}</span>
-                     </div>
-                   )}
-                   {parsed.mod_author && (
-                     <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("auto_mod_author")}</span>
-                        <span className="text-[var(--text)] font-black truncate">{parsed.mod_author}</span>
-                     </div>
-                   )}
-                   {parsed.parser_type && (
-                     <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("auto_parser")}</span>
-                        <span className="text-[var(--text)] font-black capitalize">{parsed.parser_type}</span>
-                     </div>
-                   )}
-                   {parsed.write_scope && (
-                     <div className="flex flex-col gap-1">
-                        <span className="text-[var(--subtext)] opacity-60">{t("auto_write_scope")}</span>
-                        <span className="text-[var(--text)] font-black capitalize truncate">{parsed.write_scope}</span>
-                     </div>
-                   )}
-                </div>
-                {parsed.supported_mod_versions && Array.isArray(parsed.supported_mod_versions) && parsed.supported_mod_versions.length > 0 && (
-                  <div className="flex flex-col gap-2 mt-1 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                     <span className="text-[var(--subtext)] opacity-60 text-[9px] font-mono">{t("auto_supported_versions")}</span>
-                     <div className="flex flex-wrap gap-2">
-                       {parsed.supported_mod_versions.map((v: string) => (
-                         <span key={v} className="px-2 py-1 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-md text-[9px] font-black text-[var(--text)]">{v}</span>
-                       ))}
-                     </div>
-                  </div>
+        <UniversalGroup
+          title={t("upload_desc", "Documentation & Release Notes")}
+          icon={t("icon_description", "description")}
+        >
+          <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
+                {t("upload_desc", "Description")}
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={t(
+                  "upload_desc_placeholder",
+                  "Describe this template..."
                 )}
-             </div>
-           );
-        })()}
+                className="w-full h-28 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)] rounded-xl p-3.5 text-xs font-medium text-[var(--text)] resize-none focus:outline-none transition-all custom-scrollbar"
+              />
+            </div>
 
-        <div className="flex flex-col gap-3 relative z-[60]">
-          <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] pl-2 flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_extension")}</span>
-            {t("upload_attach_mod")}
-          </label>
-            <CustomDropdown
-              disableTint={true}
-              value={attachedMod}
-              onChange={(val: any) => setAttachedMod(val[0] || "")}
-              options={[
-                { id: "", label: t("upload_attach_mod_none") },
-                ...modList.filter((m: any) => !m.isVirtual && !m.name?.startsWith('FOLDER_') && !m.name?.startsWith('SET_') && !m.name?.startsWith('LOCAL_SET_')).map((mod: any) => ({
-                  id: mod.name || mod.id,
-                  label: mod.displayName || mod.name || "Unknown Mod"
-                }))
-              ]}
-              placeholder={t("auto_select_a_mod")}
-              searchable={true}
-            />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
+                {t("whats_new", "What's New")}
+              </label>
+              <textarea
+                value={releaseNotes}
+                onChange={(e) => setReleaseNotes(e.target.value)}
+                placeholder={t("update_panel_no_notes", "Release notes...")}
+                className="w-full h-24 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)] rounded-xl p-3.5 text-xs font-medium text-[var(--text)] resize-none focus:outline-none transition-all custom-scrollbar"
+              />
+            </div>
+          </div>
+        </UniversalGroup>
+
+        {templateContent &&
+          (() => {
+            let parsed: any = null;
+            try {
+              parsed =
+                typeof templateContent === "string"
+                  ? JSON.parse(templateContent)
+                  : templateContent;
+              if (Array.isArray(parsed)) parsed = parsed[0];
+            } catch (e) {}
+            if (!parsed) return null;
+            return (
+              <UniversalGroup
+                title={t("auto_detected_architecture", "Detected Architecture")}
+                icon={t("icon_info", "info")}
+              >
+                <div className="grid grid-cols-2 gap-2.5">
+                  {parsed.template_id && (
+                    <StatBox
+                      label={t("auto_template_id", "Template ID")}
+                      value={parsed.template_id}
+                      icon={t("icon_fingerprint", "fingerprint")}
+                    />
+                  )}
+                  {parsed.parser_type && (
+                    <StatBox
+                      label={t("auto_parser", "Parser")}
+                      value={parsed.parser_type}
+                      icon={t("icon_code", "code")}
+                    />
+                  )}
+                  {parsed.mod_author && (
+                    <StatBox
+                      label={t("auto_mod_author", "Author")}
+                      value={parsed.mod_author}
+                      icon={t("icon_person", "person")}
+                    />
+                  )}
+                  {parsed.write_scope && (
+                    <StatBox
+                      label={t("auto_write_scope", "Write Scope")}
+                      value={parsed.write_scope}
+                      icon={t("icon_folder", "folder")}
+                    />
+                  )}
+                </div>
+              </UniversalGroup>
+            );
+          })()}
+
+        <div className="grid grid-cols-2 gap-3">
+          <ActionButton
+            variant="glass"
+            icon={t("icon_close", "close")}
+            label={t("nav_cancel", "Cancel")}
+            onClick={onClose}
+            className="!w-full !h-11"
+          />
+          <ActionButton
+            variant="glass"
+            icon={t("icon_publish", "publish")}
+            label={
+              isUploading
+                ? t("uploading", "Uploading...")
+                : t("market_upload_btn", "Publish")
+            }
+            onClick={() => handleSubmit()}
+            disabled={!name.trim() || isUploading}
+            className="!w-full !h-11 !text-[var(--success)] !border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
+          />
         </div>
       </form>
     </SidePanel>
   );
 }
-
-
-
-

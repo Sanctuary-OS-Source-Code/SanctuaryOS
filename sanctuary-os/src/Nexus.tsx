@@ -15,6 +15,7 @@ import { isDesktop } from "./utils/envUtils";
 import BlueprintMatrix from "./BlueprintMatrix";
 import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
+import { DynamicThemePreviewBanner } from "./chameleon-components/ThemeCard";
 
 
 
@@ -1708,6 +1709,13 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
+                            ) : item.feed_type === 'chameleon' ? (
+                              <div className="w-full h-full">
+                                <DynamicThemePreviewBanner
+                                  data={{ ...(item.json_data || {}), name: item.name || item.title, previewImage: showImages !== false ? (item.image_url || item.json_data?.previewImage) : undefined }}
+                                  heightClass="h-full"
+                                />
+                              </div>
                             ) : (
                               <div
                                 className="w-16 h-16 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
@@ -2451,18 +2459,27 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           <span>{t("synced_badge", "Synced")}</span>
                         </div>
                       </div>
-                      <div
-                        className="w-16 h-16 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
-                        style={{
-                          backgroundColor: 'var(--glass-card-icon-bg)',
-                          borderColor: 'var(--glass-card-icon-border)',
-                          boxShadow: 'var(--glass-card-icon-shadow)',
-                        }}
-                      >
-                        <span className="material-symbols-outlined !text-[34px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
-                          {marketTab === 'BLUEPRINTS' ? t("icon_map", "map") : marketTab === 'CHAMELEONS' ? t("icon_palette", "palette") : marketTab === 'TEMPLATES' ? t("icon_draw", "draw") : t("icon_translate", "translate")}
-                        </span>
-                      </div>
+                      {marketTab === 'CHAMELEONS' ? (
+                        <div className="w-full h-full">
+                          <DynamicThemePreviewBanner
+                            data={{ ...(asset.json_data || {}), name: asset.name, previewImage: showImages !== false ? (asset.image_url || asset.json_data?.previewImage) : undefined }}
+                            heightClass="h-full"
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className="w-16 h-16 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
+                          style={{
+                            backgroundColor: 'var(--glass-card-icon-bg)',
+                            borderColor: 'var(--glass-card-icon-border)',
+                            boxShadow: 'var(--glass-card-icon-shadow)',
+                          }}
+                        >
+                          <span className="material-symbols-outlined !text-[34px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
+                            {marketTab === 'BLUEPRINTS' ? t("icon_map", "map") : marketTab === 'TEMPLATES' ? t("icon_draw", "draw") : t("icon_translate", "translate")}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-5 flex flex-col flex-1">

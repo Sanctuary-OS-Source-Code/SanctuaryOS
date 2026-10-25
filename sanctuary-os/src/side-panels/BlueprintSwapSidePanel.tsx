@@ -1,6 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { SidePanel, EmptyState, ActionPill, HoverTooltip } from "../shared";
-import { UniversalGroup } from "../components/universal/UniversalLayout";
+import {
+  SidePanel,
+  EmptyState,
+  ActionPill,
+  HoverTooltip,
+  SidePanelHeroCard,
+  UniversalGroup,
+} from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 
@@ -37,17 +43,39 @@ export default function BlueprintSwapSidePanel({
       });
   }, [playSets, searchQuery]);
 
+  const activeSetName = useMemo(() => {
+    const active = playSets?.[activePlaySetIndex];
+    if (!active?.name) return t("none", "None");
+    return (
+      String(active.name).replace(/\s*\(imported\)\s*$/i, "").trim() ||
+      String(active.name)
+    );
+  }, [playSets, activePlaySetIndex, t]);
+
   return (
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
       title={t("playsets_title", "Blueprints")}
       subtitle={t("bp_available_blueprints", "Available Blueprints")}
-      widthClass="w-full md:w-[760px]"
+      widthClass="w-[90vw] md:w-[760px]"
       icon={t("icon_map", "map")}
       iconColorClass="theme-text-accent"
     >
-      <div className="flex flex-col gap-6 relative z-10 w-full pb-12">
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_map", "map")}
+          overline={t("playsets_title", "Blueprints")}
+          title={activeSetName}
+          description={t(
+            "bp_available_blueprints",
+            "Switch active mod loadouts and synchronize your Vault deployment."
+          )}
+          badge={`${(playSets || []).length} ${t("items", "Items")}`}
+          badgeIcon={t("icon_layers", "layers")}
+          variant="accent"
+        />
+
         {playSets && playSets.length > 0 && (
           <ActionPill
             searchQuery={searchQuery}
@@ -57,7 +85,7 @@ export default function BlueprintSwapSidePanel({
         )}
 
         {!playSets || indexedPlaySets.length === 0 ? (
-          <div className="glass-panel rounded-3xl p-10">
+          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
             <EmptyState
               icon={t("icon_scan_delete", "scan_delete")}
               title={t("bp_no_blueprints_found", "No Blueprints Found")}
@@ -68,40 +96,40 @@ export default function BlueprintSwapSidePanel({
             title={`${t("bp_available_blueprints", "Available Blueprints")} (${indexedPlaySets.length})`}
             icon={t("icon_map", "map")}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
               {indexedPlaySets.map(({ bp, index }) => {
                 const isActive = activePlaySetIndex === index;
                 const rawName = String(bp.name || "");
-                const cleanName = rawName.replace(/\s*\(imported\)\s*$/i, "").trim() || rawName;
+                const cleanName =
+                  rawName.replace(/\s*\(imported\)\s*$/i, "").trim() || rawName;
                 const itemCount = bp.mods?.length || 0;
 
                 return (
                   <div
                     key={bp.name}
                     onClick={() => handleSelect(index)}
-                    className={`glass-panel rounded-[var(--radius)] p-4 flex items-center gap-3.5 transition-all duration-300 cursor-pointer border ${
+                    className={`glass-surface rounded-xl p-4 flex items-center gap-3.5 transition-all duration-200 cursor-pointer border ${
                       isActive
-                        ? "border-[color-mix(in_srgb,var(--success)_38%,transparent)] bg-[color-mix(in_srgb,var(--success)_6%,transparent)]"
-                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
+                        ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                     }`}
                   >
                     <div
-                      className={`w-10 h-10 rounded-[10px] glass-surface border flex items-center justify-center shrink-0 ${
+                      className={`w-10 h-10 rounded-xl bg-transparent border flex items-center justify-center shrink-0 ${
                         isActive
-                          ? "border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]"
-                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)]"
+                          ? "border-[color-mix(in_srgb,var(--success)_42%,transparent)] text-[var(--success)]"
+                          : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
                       }`}
                     >
                       <span className="material-symbols-outlined !text-[20px]">
-                        {isActive ? t("icon_verified_user", "verified_user") : t("icon_map", "map")}
+                        {isActive
+                          ? t("icon_verified_user", "verified_user")
+                          : t("icon_map", "map")}
                       </span>
                     </div>
 
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span
-                        className="text-[14px] font-bold text-[var(--text)] tracking-tight truncate leading-snug"
-                        title={cleanName}
-                      >
+                      <span className="text-sm font-bold text-[var(--text)] tracking-tight truncate leading-snug">
                         {cleanName}
                       </span>
                       <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] mt-0.5">
@@ -111,7 +139,7 @@ export default function BlueprintSwapSidePanel({
                         {isActive && (
                           <>
                             <span className="opacity-40">•</span>
-                            <span className="text-[var(--success)] font-semibold">
+                            <span className="text-[var(--success)] font-bold">
                               {t("active", "Active")}
                             </span>
                           </>
@@ -125,18 +153,24 @@ export default function BlueprintSwapSidePanel({
                         e.stopPropagation();
                         handleSelect(index);
                       }}
-                      className={`relative group/actionbtn w-8 h-8 rounded-[10px] glass-surface border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                      className={`relative group/actionbtn w-8 h-8 rounded-lg bg-transparent border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                         isActive
-                          ? "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]"
-                          : "bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_22%,transparent)]"
+                          ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                          : "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]"
                       }`}
                     >
                       <span className="material-symbols-outlined !text-[16px]">
-                        {isActive ? t("icon_check", "check") : t("icon_swap_horiz", "swap_horiz")}
+                        {isActive
+                          ? t("icon_check", "check")
+                          : t("icon_swap_horiz", "swap_horiz")}
                       </span>
                       <HoverTooltip
                         className="z-[100] !right-0 !translate-x-0 !left-auto"
-                        title={isActive ? t("active", "Active") : t("action_equip", "Equip Blueprint")}
+                        title={
+                          isActive
+                            ? t("active", "Active")
+                            : t("action_equip", "Equip Blueprint")
+                        }
                         icon={
                           isActive
                             ? t("icon_verified_user", "verified_user")

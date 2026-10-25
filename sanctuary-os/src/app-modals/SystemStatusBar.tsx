@@ -279,7 +279,7 @@ export function SystemStatusBar({
       {/* Mobile Top-Right Compact Alert Pod */}
       {isWorkspaceDockActive && hasQueueAlerts && !isSideBrowserOpen && !isHubLockdownActive && (
         <div data-sa-dock="true" className="md:hidden fixed top-[20px] right-4 z-[14000] pointer-events-auto">
-          <div className="glass-panel portal-glass-fix flex items-center gap-2.5 px-3.5 py-1.5 rounded-full">
+          <div className="glass-panel portal-glass-fix flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl">
             {sigQueueCount > 0 && (
               <button
                 onClick={() => setIsSignatureQueueOpen(true)}
@@ -321,7 +321,7 @@ export function SystemStatusBar({
                 transitionDuration: '400ms',
                 transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
               }}
-              className="pointer-events-auto glass-panel portal-glass-fix h-9 !rounded-full flex items-center px-3 gap-1 relative"
+              className="pointer-events-auto glass-panel portal-glass-fix h-9 rounded-2xl flex items-center px-3 gap-1 relative"
             >
               {/* 1. INLINE STATUS SEGMENT (Morphs inside the same pill on Save / Scan / Error) */}
               <div
@@ -329,7 +329,7 @@ export function SystemStatusBar({
                   e.stopPropagation();
                   setIsLogExpanded(!isLogExpanded);
                 }}
-                className={`flex items-center gap-2 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer rounded-full ${
+                className={`flex items-center gap-2 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer rounded-xl ${
                   showToast
                     ? 'max-w-[380px] opacity-100 px-2 py-1 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
                     : 'max-w-0 opacity-0 px-0 py-0 pointer-events-none'
@@ -375,7 +375,7 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setShowQuarantineModal(true);
                       }}
-                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--danger)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
+                      className="h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--danger)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
                     >
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_warning_amber") || "warning_amber"}</span>
                       <span className="text-[11px] font-black leading-none">{quarantineCount}</span>
@@ -394,7 +394,7 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsDnaModalOpen(!isDnaModalOpen);
                       }}
-                      className={`h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--warning)] group/btn relative ${
+                      className={`h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--warning)] group/btn relative ${
                         isDnaModalOpen
                           ? 'bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] opacity-100'
                           : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
@@ -417,7 +417,7 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsSignatureQueueOpen(!isSignatureQueueOpen);
                       }}
-                      className={`h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--success)] group/btn relative ${
+                      className={`h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--success)] group/btn relative ${
                         isSignatureQueueOpen
                           ? 'bg-[color-mix(in_srgb,var(--success)_14%,transparent)] opacity-100'
                           : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
@@ -440,7 +440,7 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsScoutPanelOpen(!isScoutPanelOpen);
                       }}
-                      className={`h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] group/btn relative ${
+                      className={`h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] group/btn relative ${
                         isScoutPanelOpen
                           ? 'bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] opacity-100'
                           : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
@@ -463,7 +463,7 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsNexusUpdatesPanelOpen(true);
                       }}
-                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
+                      className="h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
                     >
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_cloud_download") || "cloud_download"}</span>
                       <span className="text-[11px] font-black leading-none">{nexusCount}</span>
@@ -482,7 +482,7 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsUpdatePanelOpen(true);
                       }}
-                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
+                      className="h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
                     >
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_system_update_alt") || "system_update_alt"}</span>
                       <span className="text-[11px] font-black leading-none">1</span>
@@ -506,7 +506,7 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsNotificationSidebarOpen(!isNotificationSidebarOpen);
                       }}
-                      className="h-7 px-2 rounded-full shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
+                      className="h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
                     >
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_notifications_active") || "notifications_active"}</span>
                       <span className="text-[11px] font-black leading-none">{notifCount}</span>
@@ -542,7 +542,7 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsConflictRadarOpen(!isConflictRadarOpen);
                     }}
-                    className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
                       isConflictRadarOpen
                         ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] opacity-100'
                         : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-85 hover:opacity-100'
@@ -566,7 +566,7 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsBlueprintSwapOpen(!isBlueprintSwapOpen);
                     }}
-                    className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
                       isBlueprintSwapOpen
                         ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
                         : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100'
@@ -588,7 +588,7 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsSystemStatusOpen((prev: boolean) => !prev);
                     }}
-                    className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
                       isSystemStatusOpen
                         ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
                         : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100'
@@ -645,7 +645,7 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsLogExpanded(!isLogExpanded);
                     }}
-                    className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
                       isLogExpanded
                         ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
                         : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100'
@@ -667,7 +667,7 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsSideBrowserOpen(!isSideBrowserOpen);
                     }}
-                    className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
                       isSideBrowserOpen
                         ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
                         : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100'
@@ -697,7 +697,7 @@ export function SystemStatusBar({
                     }}
                     className={`flex items-center justify-center h-8 ${
                       notifCount > 0 ? 'px-2 gap-1.5 text-[var(--accent)]' : 'w-8'
-                    } rounded-full shrink-0 cursor-pointer transition-all group/btn relative ${
+                    } rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
                       isNotificationSidebarOpen
                         ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
                         : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-80 hover:opacity-100'

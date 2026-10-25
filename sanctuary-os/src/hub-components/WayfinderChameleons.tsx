@@ -243,6 +243,8 @@ export function WayfinderChameleons({ isKeepers = false }: { isKeepers?: boolean
         iconColorClass="theme-text-accent"
         isResizable={true}
         defaultWidth={1400}
+        noPadding={true}
+        noScroll={true}
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton

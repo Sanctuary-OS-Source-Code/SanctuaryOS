@@ -382,7 +382,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
         {depth > 0 && (
           <div className="absolute top-0 bottom-0 left-[-1.5rem] w-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
         )}
-        <div id={`comment-${c.id}`} className={`p-4 rounded-2xl border ${c.is_hidden ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all shadow-md'} flex flex-col gap-2 relative`}>
+        <div id={`comment-${c.id}`} className={`p-4 rounded-2xl border ${c.is_hidden ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : 'glass-panel hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all'} flex flex-col gap-2 relative`}>
           {depth > 0 && (
             <div className="absolute top-6 left-[-1.5rem] w-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
           )}
@@ -413,10 +413,10 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <button onClick={toggleCollapse} className="w-6 h-6 rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-colors shrink-0 flex items-center justify-center">
+                  <button onClick={toggleCollapse} className="w-6 h-6 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-colors shrink-0 flex items-center justify-center">
                     <span className="material-symbols-outlined !text-[14px]">remove</span>
                   </button>
-                  <div className="w-6 h-6 rounded-full theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-[inset_0_0_8px_rgba(var(--accent-rgb),0.3)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shrink-0">
+                  <div className="w-6 h-6 rounded-lg theme-bg-accent/20 flex items-center justify-center text-[10px] font-black theme-text-accent shadow-[inset_0_0_8px_rgba(var(--accent-rgb),0.3)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shrink-0">
                     {c.author?.username?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                   <span className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">{c.author?.username || "Citizen"}</span>
@@ -521,7 +521,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
         backdropZ="z-[50000]"
         noPadding={true}
         noScroll={true}
-        panelClass={`!border-l-[color-mix(in_srgb,var(--text)_15%,transparent)] ${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'danger-accent-override' : ''}`}
+        panelClass={`${post.mason_id === 'system' && post.category?.toLowerCase().includes('alert') ? 'danger-accent-override' : ''}`}
         subtitle={
           post.mason_id === 'system' && post.category?.toLowerCase().includes('alert')
             ? (t("alert_subtitle"))
@@ -689,7 +689,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                           <p className="text-[9px] font-bold capitalize tracking-widest text-[var(--subtext)] leading-snug hidden sm:block">{t("code_desc", "View attached code")}</p>
                         </div>
                       </div>
-                      <ActionButton onClick={() => setActiveCodeSnippet(post.code_snippet)} variant="accent" icon="visibility" label={t("show_code", "Show Code")} className="!rounded-full !px-4 !py-1.5 !text-[10px]" />
+                      <ActionButton onClick={() => setActiveCodeSnippet(post.code_snippet)} variant="accent" icon="visibility" label={t("show_code", "Show Code")} className="rounded-xl !px-4 !py-1.5 !text-[10px]" />
                     </div>
                   </div>
                 )}
@@ -708,7 +708,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                 </h3>
 
                 {userId && localStorage.getItem("sanctuary_blacklisted") !== "true" ? (
-                  <form onSubmit={handlePostComment} className="flex flex-col gap-2 relative glass-surface p-4 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl mt-2 mb-6">
+                  <form onSubmit={handlePostComment} className="flex flex-col gap-2 relative glass-panel p-4 rounded-2xl border mt-2 mb-6">
                     {replyTargetId && (
                       <div className="flex items-center justify-between bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl p-3 mb-1 shadow-inner">
                         <div className="flex flex-col gap-1 overflow-hidden">
@@ -720,7 +720,7 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                             "{renderTextWithIcons(replyTargetSnippet)}"
                           </span>
                         </div>
-                        <button type="button" onClick={() => setReplyTargetId(null)} className="theme-text-accent hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] w-6 h-6 rounded-full flex items-center justify-center transition-colors">
+                        <button type="button" onClick={() => setReplyTargetId(null)} className="theme-text-accent hover:text-white hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] w-6 h-6 rounded-lg flex items-center justify-center transition-colors">
                           <span className="material-symbols-outlined !text-[14px]">{t("icon_close")}</span>
                         </button>
                       </div>
@@ -746,14 +746,14 @@ export default function MasonPostViewer({ post, onClose, onOpenMasonProfile, onA
                     )}
                     <div className="flex items-center justify-between mt-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                       <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center justify-center sm:justify-start gap-1.5 w-9 h-9 sm:w-auto sm:h-8 sm:px-3 sm:py-0 rounded-full font-bold capitalize tracking-widest text-[9px] transition-all border ${showCodeInput ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
+                        <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`flex items-center justify-center sm:justify-start gap-1.5 w-9 h-9 sm:w-auto sm:h-8 sm:px-3 sm:py-0 rounded-xl font-bold capitalize tracking-widest text-[9px] transition-all border ${showCodeInput ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
                           <span className="material-symbols-outlined !text-[14px]">{showCodeInput ? 'close' : 'data_object'}</span> <span className="hidden sm:inline">{showCodeInput ? "HIDE CODE" : (t("add_code"))}</span>
                         </button>
-                        <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="flex items-center justify-center sm:justify-start gap-1.5 w-9 h-9 sm:w-auto sm:h-8 sm:px-3 sm:py-0 rounded-full font-bold capitalize tracking-widest text-[9px] transition-all border bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="flex items-center justify-center sm:justify-start gap-1.5 w-9 h-9 sm:w-auto sm:h-8 sm:px-3 sm:py-0 rounded-xl font-bold capitalize tracking-widest text-[9px] transition-all border bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                           <span className="material-symbols-outlined !text-[14px]">link</span> <span className="hidden sm:inline">{t("link_asset")}</span>
                         </button>
                       </div>
-                      <ActionButton type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} variant="accent" icon={t("icon_send")} label={t("btn_send")} className="!rounded-full !px-4 sm:!px-5 !h-8 !py-0 !text-[10px] !shadow-none shrink-0" />
+                      <ActionButton type="submit" disabled={!newComment.trim() && !codeSnippet.trim()} variant="accent" icon={t("icon_send")} label={t("btn_send")} className="rounded-xl !px-4 sm:!px-5 !h-8 !py-0 !text-[10px] !shadow-none shrink-0" />
                     </div>
                   </form>
                 ) : (

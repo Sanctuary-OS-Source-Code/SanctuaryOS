@@ -327,7 +327,7 @@ export function SidePanel({
             )}
 
             {hideHeader && (forceShowCloseBtn || headerActions) && (
-              <div className="absolute top-6 right-6 z-[10000] flex items-center glass-surface !rounded-full p-1 gap-1 shrink-0">
+              <div className="absolute top-6 right-6 z-[10000] flex items-center glass-surface rounded-2xl p-1 gap-1 shrink-0">
                 {headerActions}
                 {headerActions && forceShowCloseBtn && (
                   <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
@@ -386,7 +386,7 @@ export function SidePanel({
                 </div>
 
                 {(headerActions || !hideCloseButton) && (
-                  <div className="flex items-center z-50 glass-surface !rounded-full p-1 gap-1 shrink-0 self-center">
+                  <div className="flex items-center z-50 glass-surface rounded-2xl p-1 gap-1 shrink-0 self-center">
                     {headerActions}
                     {headerActions && !hideCloseButton && (
                       <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
@@ -459,7 +459,7 @@ export function ViewHeader({
   }, [hubActions]);
 
   const shapeClass =
-    shape === "square" ? "rounded-[var(--radius)]" : "rounded-full";
+    shape === "square" ? "rounded-lg" : "rounded-xl";
   return (
     <header className="flex flex-col md:flex-row w-full justify-start items-start md:items-center mb-4 md:mb-6 shrink-0 gap-4 md:gap-6">
       <div className="flex items-start gap-3 md:gap-4 shrink-0 min-w-0 md:max-w-[50%]">
@@ -702,12 +702,11 @@ export function DashboardStatTile({
   const iconSizeClass =
     isFilter || isTextSpecial
       ? "w-8 h-8 md:w-10 md:h-10"
-      : "w-8 h-8 md:w-14 md:h-14";
+      : "w-9 h-9 md:w-12 md:h-12";
   const iconTextClass =
     isFilter || isTextSpecial
-      ? "!text-[20px] md:!text-[24px]"
-      : "!text-[20px] md:!text-[32px]";
-  const shadowClass = "shadow-none";
+      ? "!text-[18px] md:!text-[22px]"
+      : "!text-[20px] md:!text-[26px]";
   const activeTint =
     isActive && isSpecial
       ? "var(--accent)"
@@ -733,9 +732,6 @@ export function DashboardStatTile({
           : "flex-1 min-w-0 min-h-[64px] md:min-h-[88px]";
 
   const mergedStyle = {
-    "--glass-outer-shadow": "0 0 #0000",
-    "--glass-nested-shadow": "0 0 #0000",
-    boxShadow: "var(--glass-inset-highlight, inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.24), inset 1px 0 1px 0 rgba(255, 255, 255, 0.12))",
     ...(isModal ? { "--glassBeforeDisplay": "none" } : {}),
     ...style,
   } as React.CSSProperties;
@@ -746,7 +742,7 @@ export function DashboardStatTile({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={mergedStyle}
-      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-2xl glass-panel ${isModal ? "before:!hidden" : ""} ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${shadowClass} ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
+      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-2xl glass-panel ${isModal ? "before:!hidden" : ""} ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
     >
       {isActive && (
         <div
@@ -760,7 +756,7 @@ export function DashboardStatTile({
 
       {icon && (
         <div
-          className={`${iconSizeClass} rounded-2xl flex items-center justify-center shrink-0 relative transition-all duration-500`}
+          className={`${iconSizeClass} rounded-xl border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 relative transition-all duration-500`}
         >
           <span
             className={`material-symbols-outlined ${iconTextClass} transition-opacity`}

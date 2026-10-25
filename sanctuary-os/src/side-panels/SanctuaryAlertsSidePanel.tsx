@@ -3,6 +3,9 @@ import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import {
   SidePanel,
+  SidePanelHeroCard,
+  UniversalGroup,
+  DashboardStatTile,
   extractPostImage,
   stripMarkdown,
   ActionPill,
@@ -120,12 +123,56 @@ export function SanctuaryAlertsSidePanel({
             ? t("icon_priority_high", "priority_high")
             : t("icon_notifications", "notifications")
         }
-        iconColorClass="theme-text-accent"
-        widthClass="w-full md:w-[820px]"
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[760px]"
         title={t("title_sanctuary_alerts", "Sanctuary Alerts")}
         subtitle={t("subtitle_sanctuary_alerts", "Official System & Security Advisories")}
       >
-        <div className="flex flex-col gap-6 relative z-10 w-full pb-12">
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={
+              hasActiveAlert
+                ? t("icon_priority_high", "priority_high")
+                : t("icon_notifications", "notifications")
+            }
+            overline={t("title_sanctuary_alerts", "Sanctuary Alerts")}
+            title={t("subtitle_sanctuary_alerts", "Official System & Security Advisories")}
+            description={t(
+              "alert_card_read_more",
+              "Real-time system dispatches, game version alerts, and security advisories."
+            )}
+            badge={`${filteredPosts.length}`}
+            badgeIcon={t("icon_podcasts", "podcasts")}
+            variant={hasActiveAlert ? "warning" : "accent"}
+          />
+
+          <div className="grid grid-cols-3 gap-3">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_check_circle", "check_circle")}
+              label={t("status_active", "Active")}
+              isActive={filterStatus === "Active"}
+              onClick={() => setFilterStatus("Active")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_history", "history")}
+              label={t("status_inactive", "Inactive")}
+              isActive={filterStatus === "Inactive"}
+              onClick={() => setFilterStatus("Inactive")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_all_inclusive", "all_inclusive")}
+              label={t("alert_filter_status_all", "All Statuses")}
+              isActive={filterStatus === "All"}
+              onClick={() => setFilterStatus("All")}
+            />
+          </div>
+
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -179,136 +226,136 @@ export function SanctuaryAlertsSidePanel({
             }}
           />
 
-          {loading ? (
-            <div className="glass-panel rounded-3xl p-12 flex flex-col items-center justify-center opacity-70">
-              <span className="material-symbols-outlined animate-spin-slow text-[var(--accent)] mb-3 !text-[28px]">
-                {t("icon_sync", "sync")}
-              </span>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--text)]">
-                {t("ui_loading", "Loading...")}
-              </span>
-            </div>
-          ) : filteredPosts.length === 0 ? (
-            <div className="glass-panel rounded-3xl p-10">
+          <UniversalGroup
+            title={t("title_sanctuary_alerts", "Active Advisories")}
+            icon={t("icon_podcasts", "podcasts")}
+          >
+            {loading ? (
+              <div className="glass-surface rounded-xl p-12 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col items-center justify-center opacity-70">
+                <span className="material-symbols-outlined animate-spin-slow text-[var(--accent)] mb-3 !text-[28px]">
+                  {t("icon_sync", "sync")}
+                </span>
+                <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--text)]">
+                  {t("ui_loading", "Loading...")}
+                </span>
+              </div>
+            ) : filteredPosts.length === 0 ? (
               <EmptyState
                 icon={t("icon_satellite_alt", "satellite_alt")}
                 title={t("system_no_broadcasts", "No Active Broadcasts")}
               />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-              {filteredPosts.map((post) => {
-                const isPinned = isPostPinned(post);
-                const isInactive = !post.is_active;
-                const postImg = extractPostImage(post);
-                const meta = extractDispatchMetadata(post);
-                const cleanSummary = post.description
-                  ? post.description
-                  : stripMarkdown(meta.cleanContent || post.message || "");
-                const categoryLabel = formatDispatchCategory(
-                  meta.alertOrDispatchType || post.category,
-                  t
-                );
-                const audienceLabel = (meta.audience || post.target_audience || "All")
-                  .split(",")
-                  .map((a: string) =>
-                    a.trim() === "Senior Architects" ? "Oversight" : a.trim()
-                  )
-                  .join(", ");
-                const actionLabel =
-                  meta.actionRequired ||
-                  (isPinned
-                    ? t("urgent_alert", "Urgent Advisory")
-                    : t("alert_card_read_more", "Open Full Advisory"));
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                {filteredPosts.map((post) => {
+                  const isPinned = isPostPinned(post);
+                  const isInactive = !post.is_active;
+                  const postImg = extractPostImage(post);
+                  const meta = extractDispatchMetadata(post);
+                  const cleanSummary = post.description
+                    ? post.description
+                    : stripMarkdown(meta.cleanContent || post.message || "");
+                  const categoryLabel = formatDispatchCategory(
+                    meta.alertOrDispatchType || post.category,
+                    t
+                  );
+                  const audienceLabel = (meta.audience || post.target_audience || "All")
+                    .split(",")
+                    .map((a: string) =>
+                      a.trim() === "Senior Architects" ? "Oversight" : a.trim()
+                    )
+                    .join(", ");
+                  const actionLabel =
+                    meta.actionRequired ||
+                    (isPinned
+                      ? t("urgent_alert", "Urgent Advisory")
+                      : t("alert_card_read_more", "Open Full Advisory"));
 
-                return (
-                  <div
-                    key={post.id}
-                    onClick={() =>
-                      setViewingPost({
-                        ...post,
-                        content: post.message,
-                        mason_id: "system",
-                        views: 0,
-                        likes: 0,
-                        replies: 0,
-                      })
-                    }
-                    className={`glass-panel rounded-2xl overflow-hidden flex flex-col justify-between transition-all duration-300 cursor-pointer group hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] ${
-                      isInactive ? "opacity-60 hover:opacity-95 grayscale-[35%]" : ""
-                    }`}
-                  >
-                    {/* Top Visual Area (Matches Comm-Link Feed Card Layout) */}
-                    <div className="w-full h-36 overflow-hidden relative border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-center shrink-0">
-                      {postImg ? (
-                        <>
+                  return (
+                    <div
+                      key={post.id}
+                      onClick={() =>
+                        setViewingPost({
+                          ...post,
+                          content: post.message,
+                          mason_id: "system",
+                          views: 0,
+                          likes: 0,
+                          replies: 0,
+                        })
+                      }
+                      className={`glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between transition-all duration-300 cursor-pointer group hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] ${
+                        isInactive ? "opacity-60 hover:opacity-95 grayscale-[35%]" : ""
+                      }`}
+                    >
+                      {/* Top Header Bar */}
+                      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                        <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1">
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {isPinned
+                              ? t("icon_warning", "warning")
+                              : t("icon_podcasts", "podcasts")}
+                          </span>
+                          <span>{categoryLabel}</span>
+                        </span>
+                        {isPinned && (
+                          <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] text-[9px] font-black uppercase tracking-wider">
+                            {t("urgent_alert", "Urgent")}
+                          </span>
+                        )}
+                      </div>
+
+                      {postImg && (
+                        <div className="w-full h-32 overflow-hidden relative border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-center shrink-0">
                           <img
                             src={postImg}
                             alt={post.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent pointer-events-none" />
-                        </>
-                      ) : (
-                        <div className="w-14 h-14 rounded-2xl glass-surface flex items-center justify-center text-[var(--text)] opacity-80 group-hover:scale-105 transition-transform duration-300">
-                          <span className="material-symbols-outlined !text-[28px]">
-                            {isPinned
-                              ? t("icon_warning", "warning")
-                              : t("icon_podcasts", "podcasts")}
-                          </span>
                         </div>
                       )}
 
-                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 pointer-events-none">
-                        <span className="px-2.5 py-1 rounded-lg glass-surface backdrop-blur-md text-[10px] font-semibold text-[var(--text)] inline-flex items-center">
-                          <span>{categoryLabel}</span>
-                        </span>
-                        {isPinned && (
-                          <span className="px-2.5 py-1 rounded-lg glass-surface backdrop-blur-md text-[10px] font-semibold text-[var(--text)]">
-                            {t("urgent_alert", "Urgent")}
+                      {/* Card Content */}
+                      <div className="p-4 flex flex-col gap-2.5 flex-1 justify-between">
+                        <div className="flex flex-col gap-1.5">
+                          <span
+                            className="text-sm font-black text-[var(--text)] tracking-tight leading-snug line-clamp-1 group-hover:text-[var(--accent)] transition-colors"
+                            title={post.title}
+                          >
+                            {post.title}
                           </span>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* Card Content */}
-                    <div className="p-4 flex flex-col gap-2.5 flex-1 justify-between">
-                      <div className="flex flex-col gap-1.5">
-                        <span
-                          className="text-[15px] font-bold text-[var(--text)] tracking-tight leading-snug line-clamp-1"
-                          title={post.title}
-                        >
-                          {post.title}
-                        </span>
+                          <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] opacity-80">
+                            <span className="truncate">
+                              {post.masons?.name ||
+                                t("author_sanctuary_team", "Sanctuary Foundry")}
+                            </span>
+                            <span>•</span>
+                            <span className="truncate">{audienceLabel}</span>
+                          </div>
 
-                        <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] opacity-80">
-                          <span className="truncate">
-                            {post.masons?.name || t("author_sanctuary_team", "Sanctuary Foundry")}
-                          </span>
-                          <span>•</span>
-                          <span className="truncate">{audienceLabel}</span>
+                          {cleanSummary && (
+                            <p className="text-xs text-[var(--subtext)] opacity-85 line-clamp-2 leading-relaxed mt-1 m-0">
+                              {cleanSummary}
+                            </p>
+                          )}
                         </div>
 
-                        {cleanSummary && (
-                          <p className="text-[12px] text-[var(--subtext)] opacity-85 line-clamp-2 leading-relaxed mt-1">
-                            {cleanSummary}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Footer Row */}
-                      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[11px] text-[var(--subtext)] opacity-75">
-                        <span className="truncate">{actionLabel}</span>
-                        <span className="font-mono shrink-0">
-                          {new Date(post.created_at).toLocaleDateString()}
-                        </span>
+                        {/* Footer Row */}
+                        <div className="glass-surface rounded-xl px-3 py-2 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2 text-[11px] text-[var(--subtext)] mt-1">
+                          <span className="truncate font-bold text-[var(--text)]">
+                            {actionLabel}
+                          </span>
+                          <span className="font-mono shrink-0 text-[10px]">
+                            {new Date(post.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </UniversalGroup>
         </div>
       </SidePanel>
       {viewingPost && (
@@ -321,7 +368,3 @@ export function SanctuaryAlertsSidePanel({
     </>
   );
 }
-
-
-
-

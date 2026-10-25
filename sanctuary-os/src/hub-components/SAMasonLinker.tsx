@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase, getActiveGameClient } from "../supabase";
@@ -14,7 +13,7 @@ import {
   fetchAllPaginated, CustomTierDropdown, PanelHeaderGroup, PanelHeaderButton, HeaderActionPortal, ActionPill,
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput, SidePanelPillToggle } from "../components/layouts/ElevatedHubLayout";
-import { UniversalGroup } from "../components/universal/UniversalLayout";
+import { UniversalGroup, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
@@ -26,7 +25,6 @@ import { CustomClassificationDropdown } from "../hub-components/SharedRegistry";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { StatTileCarousel } from "./SharedCommandScreenLayout";
-
 
 
 export function MasonLinker() {
@@ -85,12 +83,12 @@ export function MasonLinker() {
 
   const handleSave = async () => {
     if (!editName.trim()) {
-      setStatus(t("err_mason_name_req") || "Mason Name is required.");
+      setStatus(t("err_mason_name_req", "Mason Name is required."));
       return;
     }
 
     setIsSubmitting(true);
-    setStatus(t("status_linking") || "Linking...");
+    setStatus(t("status_linking", "Linking..."));
 
     let masonId = selectedMason?.id;
 
@@ -102,7 +100,7 @@ export function MasonLinker() {
       }).select().single();
 
       if (error) {
-        setStatus((t("identities_failed_prefix") || "Failed to create:") + " " + error.message);
+        setStatus(t("identities_failed_prefix", "Failed to create:") + " " + error.message);
         setIsSubmitting(false);
         return;
       }
@@ -123,7 +121,7 @@ export function MasonLinker() {
       }).eq('id', masonId).select();
 
       if (error || !data || data.length === 0) {
-        setStatus((t("identities_failed_prefix") || "Failed to update:") + " " + (error?.message || "Permission Denied."));
+        setStatus(t("identities_failed_prefix", "Failed to update:") + " " + (error?.message || t("auth_permission_denied", "Permission Denied.")));
         setIsSubmitting(false);
         return;
       }
@@ -147,7 +145,7 @@ export function MasonLinker() {
       }
     }
 
-    setStatus(t("identities_updated") || "Updated successfully.");
+    setStatus(t("identities_updated", "Updated successfully."));
     fetchData();
     setTimeout(() => {
       handleClosePanel();
@@ -167,12 +165,12 @@ export function MasonLinker() {
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview") || "Overview",
+      label: t("landing_overview", "Overview"),
       icon: "dashboard",
       number: masons.length.toString()
     },
-    { id: 'pending', label: t("pending") || "Pending", icon: 'pending', number: pendingMasons.length.toString() },
-    { id: 'linked', label: t("linked") || "Linked", icon: 'link', number: linkedMasons.length.toString() }
+    { id: 'pending', label: t("pending", "Pending"), icon: 'pending', number: pendingMasons.length.toString() },
+    { id: 'linked', label: t("linked", "Linked"), icon: 'link', number: linkedMasons.length.toString() }
   ];
 
   const renderMasonCard = (m: any) => (
@@ -181,23 +179,23 @@ export function MasonLinker() {
       onClick={() => handleOpenPanel(m)}
       layout="vertical"
       icon="architecture"
-      title={m.name || t("vlocal") || "Unknown"}
+      title={m.name || t("vlocal", "Unknown")}
       subtitle={
         <span className="flex gap-1.5 items-center">
-          <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_fingerprint") || "fingerprint"}</span>
+          <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_fingerprint", "fingerprint")}</span>
           {m.id.substring(0, 8)}
         </span>
       }
       statusColor={m.is_verified ? "border-[var(--success)]" : undefined}
       badges={[
-        <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors ${m.is_verified ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] opacity-60 border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-          {m.is_verified ? (t("verified") || "Verified") : (t("unverified") || "Unverified")}
+        <span key="status" className={`px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border bg-transparent shrink-0 transition-colors ${m.is_verified ? 'text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)]' : 'text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]'}`}>
+          {m.is_verified ? t("verified", "Verified") : t("unverified", "Unverified")}
         </span>
       ]}
       footer={
         <span className={`text-[10px] font-bold capitalize flex items-center gap-1.5 truncate ${m.profile_id ? 'text-[var(--text)] opacity-80' : 'text-[var(--danger)] opacity-80'}`}>
           <span className="material-symbols-outlined !text-[12px] opacity-70">{m.profile_id ? "link" : "link_off"}</span>
-          {m.profile_id ? (profiles.find(p => p.id === m.profile_id)?.username || m.profile_id.substring(0, 8)) : (t("sa_unlinked") || "Unlinked")}
+          {m.profile_id ? (profiles.find(p => p.id === m.profile_id)?.username || m.profile_id.substring(0, 8)) : t("sa_unlinked", "Unlinked")}
         </span>
       }
     />
@@ -208,10 +206,10 @@ export function MasonLinker() {
       <HubOverviewSection
         icon="pending"
         iconColorClass="text-[var(--warning)]"
-        title={t("pending") || "Unlinked / Pending Masons"}
+        title={t("pending", "Unlinked / Pending Masons")}
         isEmpty={pendingMasons.length === 0}
-        emptyIcon={t("ui_icon_group_off") || "group_off"}
-        emptyTitle={t("no_masons") || "No pending masons"}
+        emptyIcon={t("ui_icon_group_off", "group_off")}
+        emptyTitle={t("no_masons", "No pending masons")}
       >
         {pendingMasons.slice(0, 4).map((m: any) => renderMasonCard(m))}
       </HubOverviewSection>
@@ -219,10 +217,10 @@ export function MasonLinker() {
       <HubOverviewSection
         icon="link"
         iconColorClass="text-[var(--success)]"
-        title={t("linked") || "Linked Masons"}
+        title={t("linked", "Linked Masons")}
         isEmpty={linkedMasons.length === 0}
-        emptyIcon={t("ui_icon_group_off") || "group_off"}
-        emptyTitle={t("no_masons") || "No linked masons"}
+        emptyIcon={t("ui_icon_group_off", "group_off")}
+        emptyTitle={t("no_masons", "No linked masons")}
       >
         {linkedMasons.slice(0, 4).map((m: any) => renderMasonCard(m))}
       </HubOverviewSection>
@@ -231,13 +229,13 @@ export function MasonLinker() {
 
   return (
     <ElevatedHubLayout
-      headerTitle={t("tab_linker") || "Mason Linker"}
-      headerSubtitle={t("mason_linker_subtitle") || "Manage Masons and their linked profiles"}
+      headerTitle={t("tab_linker", "Mason Linker")}
+      headerSubtitle={t("mason_linker_subtitle", "Manage Masons and their linked profiles")}
       headerIcon="link"
       headerIconColorClass="theme-text-accent"
       search={search}
       onSearchChange={setSearch}
-      searchPlaceholder={(t("linker_search_mason") || "Search masons...") as string}
+      searchPlaceholder={t("linker_search_mason", "Search masons...") as string}
       hideSearch={activeTab === 'overview'}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
@@ -246,15 +244,15 @@ export function MasonLinker() {
         activeTab !== 'overview' ? [
           {
             id: "create_mason",
-            icon: (t("icon_add") || "add") as string,
-            label: (t("btn_create_mason_naked") || "Create Mason") as string,
+            icon: t("icon_add", "add") as string,
+            label: t("btn_create_mason_naked", "Create Mason") as string,
             onClick: () => handleOpenPanel(null)
           }
         ] : undefined
       }
     >
       {loading ? (
-        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("audit_fetching") || "Fetching masons..."}</div>
+        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("audit_fetching", "Fetching masons...")}</div>
       ) : activeTab === 'overview' ? (
         renderLanding()
       ) : (
@@ -262,7 +260,7 @@ export function MasonLinker() {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
             {filteredMasons.map((m: any) => renderMasonCard(m))}
             {filteredMasons.length === 0 && (
-              <EmptyState icon={t("ui_icon_group_off") || "group_off"} title={t("no_masons") || "No masons found"} className="col-span-full py-16" />
+              <EmptyState icon={t("ui_icon_group_off", "group_off")} title={t("no_masons", "No masons found")} className="col-span-full py-16" />
             )}
           </div>
         </div>
@@ -271,14 +269,16 @@ export function MasonLinker() {
       <SidePanel
         isOpen={!!selectedMason || isCreating}
         onClose={handleClosePanel}
-        title={isCreating ? (t("link_new_mason") || "LINK NEW MASON") : (t("edit_mason") || "EDIT MASON")}
-        icon={t("icon_link") || "link"}
-        subtitle={selectedMason ? `UUID: ${selectedMason.id}` : (t("create_mason_subtitle") || "Create a new mason entry")}
+        title={isCreating ? t("link_new_mason", "Link New Mason") : t("edit_mason", "Edit Mason")}
+        icon={t("icon_link", "link")}
+        iconColorClass="text-[var(--accent)]"
+        subtitle={selectedMason ? `${t("lbl_uuid", "UUID")}: ${selectedMason.id}` : t("create_mason_subtitle", "Create a new mason entry")}
+        widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon="save"
-              tooltip={isSubmitting ? (t("identities_updating") || "Updating...") : (isCreating ? (t("btn_create_mason_naked") || "Create Mason") : (t("ui_btn_commit") || "Commit"))}
+              tooltip={isSubmitting ? t("identities_updating", "Updating...") : (isCreating ? t("btn_create_mason_naked", "Create Mason") : t("ui_btn_commit", "Commit"))}
               variant="accent"
               disabled={isSubmitting || !editName.trim()}
               onClick={handleSave}
@@ -286,23 +286,53 @@ export function MasonLinker() {
           </PanelHeaderGroup>
         }
       >
-        <div className="flex flex-col h-full gap-8">
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={isCreating ? "person_add" : "architecture"}
+            overline={t("tab_linker", "Mason Linker")}
+            title={editName || (isCreating ? t("link_new_mason", "Link New Mason") : t("edit_mason", "Edit Mason"))}
+            description={t("mason_linker_subtitle", "Manage Masons and their linked profiles")}
+            badge={isVerified ? t("verified", "Verified") : t("unverified", "Unverified")}
+            badgeIcon={isVerified ? "verified" : "pending"}
+            variant={isVerified ? "success" : "accent"}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <StatBox
+                label={t("link_profile", "Linked Profile")}
+                value={
+                  linkedProfileId
+                    ? profiles.find((p: any) => p.id === linkedProfileId)?.username || linkedProfileId.substring(0, 8)
+                    : t("sa_unlinked", "Unlinked")
+                }
+                icon={linkedProfileId ? "link" : "link_off"}
+                iconColorClass={linkedProfileId ? "text-[var(--accent)]" : "text-[var(--danger)]"}
+              />
+              <StatBox
+                label={t("status", "Status")}
+                value={isVerified ? t("verified", "Verified") : t("unverified", "Unverified")}
+                icon={isVerified ? "verified" : "pending"}
+                iconColorClass={isVerified ? "text-[var(--success)]" : "text-[var(--warning)]"}
+              />
+            </div>
+          </SidePanelHeroCard>
+
           {status && (
-            <div className="text-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] w-full">
-              <p className={`text-[10px] font-black capitalize tracking-widest ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-[var(--danger)]' : 'theme-text-accent'}`}>{status}</p>
+            <div className="glass-panel p-3.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-center w-full">
+              <p className={`text-[10px] font-black uppercase tracking-widest m-0 ${status.toLowerCase().includes('failed') || status.toLowerCase().includes('required') ? 'text-[var(--danger)]' : 'text-[var(--accent)]'}`}>{status}</p>
             </div>
           )}
 
           <SidePanelTitleInput
             value={editName}
             onChange={setEditName}
-            placeholder={t("placeholder_mason_name") || "Mason Name"}
-            subtitle={t("mason_name") || "Mason Handle"}
+            label={t("mason_name", "Mason Handle")}
+            placeholder={t("placeholder_mason_name", "Mason Name")}
+            subtitle={selectedMason ? `${t("lbl_uuid", "UUID")}: ${String(selectedMason.id || "").substring(0, 8)}` : undefined}
           />
 
-          <UniversalGroup title={t("linking_verification") || "Linking & Verification"} icon={t("icon_link") || "link"}>
-            <div className="flex flex-col gap-2 relative z-40 w-full">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("link_profile") || "Linked Profile"}</label>
+          <UniversalGroup title={t("linking_verification", "Linking & Verification")} icon={t("icon_link", "link")}>
+            <div className="flex flex-col gap-1.5 relative z-40 w-full">
+              <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("link_profile", "Linked Profile")}</label>
               <ProfileSearchDropdown
                 value={linkedProfileId}
                 profiles={profiles}
@@ -310,11 +340,11 @@ export function MasonLinker() {
               />
             </div>
 
-            <div className="mt-2 w-full">
+            <div className="w-full">
               <SidePanelPillToggle
                 checked={isVerified}
                 onChange={setIsVerified}
-                label={t("mark_verified") || "Mark Verified"}
+                label={t("mark_verified", "Mark Verified")}
                 icon="verified"
                 variant="success"
               />
@@ -355,7 +385,7 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
   }, [isOpen]);
 
   const selectedProfile = profiles.find((p: any) => p.id === value);
-  const displayValue = selectedProfile ? `${selectedProfile.username || 'Unknown'} (${selectedProfile.id.substring(0, 8)})` : query;
+  const displayValue = selectedProfile ? `${selectedProfile.username || t("vlocal", "Unknown")} (${selectedProfile.id.substring(0, 8)})` : query;
 
   const filtered = profiles.filter((p: any) =>
     !query ||
@@ -377,13 +407,13 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
             }
           }}
           onFocus={() => { if (!value) setIsOpen(true); }}
-          placeholder={t("search_profile") || "Search profile..."}
+          placeholder={t("search_profile", "Search profile...")}
           readOnly={!!value}
-          className={`w-full h-12 glass-surface rounded-xl px-5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all relative cursor-text ${value ? 'theme-text-accent' : ''}`}
+          className={`w-full h-12 glass-surface rounded-xl px-4 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all relative cursor-text ${value ? 'text-[var(--accent)]' : ''}`}
         />
         {value ? (
           <button className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] opacity-80 hover:opacity-100 font-bold" onClick={() => { onChange(""); setQuery(""); setIsOpen(true); inputRef.current?.focus(); }}>
-            {t("icon_close") || "close"}
+            {t("icon_close", "close")}
           </button>
         ) : (
           <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60" onClick={() => setIsOpen(!isOpen)}>
@@ -407,11 +437,11 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
                 onClick={() => { onChange(p.id); setIsOpen(false); setQuery(""); }}
                 className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col gap-0.5"
               >
-                <span className="text-[11px] font-black capitalize text-[var(--text)]">{p.username || (t("vlocal") || "UNKNOWN")}</span>
+                <span className="text-[11px] font-black capitalize text-[var(--text)]">{p.username || t("vlocal", "UNKNOWN")}</span>
                 <span className="text-[8px] font-mono opacity-50">&rarr; {p.id}</span>
               </button>
             ))}
-            {filtered.length === 0 && <EmptyState icon={t("ui_icon_person_off") || "person_off"} title={t("no_profiles") || "No profiles found"} className="col-span-full py-16" />}
+            {filtered.length === 0 && <EmptyState icon={t("ui_icon_person_off", "person_off")} title={t("no_profiles", "No profiles found")} className="col-span-full py-16" />}
           </div>
         </>,
         document.getElementById('sa-portals') || document.body
@@ -419,11 +449,3 @@ export function ProfileSearchDropdown({ value, onChange, profiles }: any) {
     </div>
   );
 }
-
-
-
-
-
-
-
-

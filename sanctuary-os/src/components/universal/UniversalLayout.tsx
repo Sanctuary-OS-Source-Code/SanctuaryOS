@@ -100,12 +100,106 @@ export function HubListGrid({
 
 // ==========================================
 // SIDEPANEL GOLD STANDARD PRIMITIVES
+// (Modeled after Login, Malware, Metadata & Defcon)
 // ==========================================
+export interface SidePanelHeroCardProps {
+  icon: string;
+  overline?: React.ReactNode;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  badge?: React.ReactNode;
+  badgeIcon?: string;
+  variant?: "accent" | "danger" | "warning" | "success";
+  children?: React.ReactNode;
+  className?: string;
+}
+
+export function SidePanelHeroCard({
+  icon,
+  overline,
+  title,
+  description,
+  badge,
+  badgeIcon,
+  variant = "accent",
+  children,
+  className = "",
+}: SidePanelHeroCardProps) {
+  const colorVar =
+    variant === "danger"
+      ? "--danger"
+      : variant === "warning"
+        ? "--warning"
+        : variant === "success"
+          ? "--success"
+          : "--accent";
+
+  return (
+    <div
+      className={`glass-panel rounded-2xl p-4 sm:p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3.5 shrink-0 ${className}`}
+    >
+      <div className="flex items-start justify-between gap-3.5">
+        <div className="flex items-start gap-3.5 min-w-0 flex-1">
+          <div
+            className="w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0"
+            style={{
+              borderColor: `color-mix(in srgb, var(${colorVar}) 42%, transparent)`,
+              color: `var(${colorVar})`,
+            }}
+          >
+            <span className="material-symbols-outlined !text-[22px]">{icon}</span>
+          </div>
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            {overline && (
+              <span
+                className="text-[10px] font-black uppercase tracking-[0.18em]"
+                style={{ color: `var(${colorVar})` }}
+              >
+                {overline}
+              </span>
+            )}
+            {title && (
+              <h3 className="text-sm sm:text-base font-black tracking-tight text-[var(--text)] m-0 leading-snug">
+                {title}
+              </h3>
+            )}
+            {description && (
+              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                {description}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {badge && (
+          <span
+            className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border bg-transparent flex items-center gap-1 shrink-0"
+            style={{
+              borderColor: `color-mix(in srgb, var(${colorVar}) 42%, transparent)`,
+              color: `var(${colorVar})`,
+            }}
+          >
+            {badgeIcon && (
+              <span className="material-symbols-outlined !text-[12px]">
+                {badgeIcon}
+              </span>
+            )}
+            {badge}
+          </span>
+        )}
+      </div>
+
+      {children}
+    </div>
+  );
+}
+
 export interface SidePanelTitleInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
   value: string;
   onChange?: (value: string) => void;
   label?: React.ReactNode;
   subtitle?: React.ReactNode;
+  icon?: string;
   wrapperClassName?: string;
 }
 
@@ -114,32 +208,47 @@ export function SidePanelTitleInput({
   onChange,
   label,
   subtitle,
+  icon,
   placeholder,
   readOnly = false,
   wrapperClassName = "",
   className = "",
   ...rest
 }: SidePanelTitleInputProps) {
+  const headerLabel = label || subtitle || placeholder;
+  const secondaryMeta = label && subtitle ? subtitle : undefined;
+
   return (
-    <div className={`glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-md flex flex-col gap-2 shrink-0 ${wrapperClassName}`}>
-      {label && (
-        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 tracking-wide">
-          {label}
-        </span>
+    <div
+      className={`glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col shrink-0 ${wrapperClassName}`}
+    >
+      {headerLabel && (
+        <div className="px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+              {icon || (readOnly || !onChange ? "label" : "edit_note")}
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text)] truncate">
+              {headerLabel}
+            </span>
+          </div>
+          {secondaryMeta && (
+            <span className="text-[10px] font-mono font-bold text-[var(--subtext)] opacity-75 truncate shrink-0">
+              {secondaryMeta}
+            </span>
+          )}
+        </div>
       )}
-      <input
-        {...rest}
-        value={value}
-        readOnly={readOnly || !onChange}
-        onChange={(e) => onChange?.(e.target.value)}
-        placeholder={placeholder}
-        className={`bg-transparent text-xl md:text-2xl font-bold text-[var(--text)] tracking-tight leading-snug truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 ${!readOnly && onChange ? "border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] pb-1.5" : ""} w-full ${className}`}
-      />
-      {subtitle && (
-        <span className="text-xs font-medium text-[var(--subtext)] opacity-75 tracking-normal">
-          {subtitle}
-        </span>
-      )}
+      <div className="p-3.5 flex flex-col gap-1.5">
+        <input
+          {...rest}
+          value={value}
+          readOnly={readOnly || !onChange}
+          onChange={(e) => onChange?.(e.target.value)}
+          placeholder={placeholder}
+          className={`w-full glass-surface rounded-xl px-4 py-3 text-sm md:text-base font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all placeholder:opacity-40 ${className}`}
+        />
+      </div>
     </div>
   );
 }
@@ -150,6 +259,7 @@ export interface SidePanelPillToggleProps {
   label: React.ReactNode;
   icon?: string;
   variant?: "accent" | "warning" | "success" | "danger";
+  activeColor?: string;
   disabled?: boolean;
   className?: string;
 }
@@ -160,36 +270,37 @@ export function SidePanelPillToggle({
   label,
   icon,
   variant = "accent",
+  activeColor,
   disabled = false,
   className = ""
 }: SidePanelPillToggleProps) {
   const colorVar =
-    variant === "warning" ? "--warning" :
-    variant === "success" ? "--success" :
-    variant === "danger" ? "--danger" :
+    activeColor?.includes("--warning") || variant === "warning" ? "--warning" :
+    activeColor?.includes("--success") || variant === "success" ? "--success" :
+    activeColor?.includes("--danger") || variant === "danger" ? "--danger" :
     "--accent";
 
   return (
     <label
-      className={`w-full glass-surface rounded-2xl px-5 h-12 flex items-center justify-between cursor-pointer transition-all border shadow-inner group hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] ${
+      className={`w-full glass-surface rounded-xl px-4 h-12 flex items-center justify-between cursor-pointer transition-all border group hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] ${
         checked
-          ? `bg-[color-mix(in_srgb,var(${colorVar})_10%,transparent)] !border-[color-mix(in_srgb,var(${colorVar})_35%,transparent)]`
-          : "border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+          ? `!border-[color-mix(in_srgb,var(${colorVar})_45%,transparent)]`
+          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
       } ${disabled ? "opacity-50 pointer-events-none" : ""} ${className}`}
     >
       <span
-        className={`text-xs font-bold tracking-wide transition-colors flex items-center gap-2 ${
+        className={`text-xs font-bold tracking-wide transition-colors flex items-center gap-2 min-w-0 truncate ${
           checked ? `text-[var(${colorVar})]` : "text-[var(--subtext)] group-hover:text-[var(--text)]"
         }`}
       >
-        {icon && <span className="material-symbols-outlined !text-[16px]">{icon}</span>}
-        {label}
+        {icon && <span className="material-symbols-outlined !text-[16px] shrink-0">{icon}</span>}
+        <span className="truncate">{label}</span>
       </span>
       <div
-        className={`w-11 h-6 rounded-full transition-all relative shrink-0 border backdrop-blur-md ${
+        className={`w-11 h-6 rounded-full transition-all relative shrink-0 border bg-transparent ${
           checked
-            ? `bg-[color-mix(in_srgb,var(${colorVar})_15%,transparent)] border-[color-mix(in_srgb,var(${colorVar})_50%,transparent)]`
-            : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-inner"
+            ? `border-[color-mix(in_srgb,var(${colorVar})_55%,transparent)]`
+            : "border-[color-mix(in_srgb,var(--text)_18%,transparent)]"
         }`}
       >
         <div
@@ -211,7 +322,7 @@ export function SidePanelPillToggle({
 }
 
 // ==========================================
-// UNIVERSAL GROUP
+// UNIVERSAL GROUP (STRUCTURED SIDEPANEL CARD)
 // ==========================================
 export interface UniversalGroupProps {
   title?: string | React.ReactNode;
@@ -231,7 +342,7 @@ export function UniversalGroup({
   title,
   label,
   icon,
-  headerColorClass = "text-[var(--text)] opacity-85",
+  headerColorClass = "text-[var(--text)]",
   headerAction,
   children,
   className = "",
@@ -240,23 +351,27 @@ export function UniversalGroup({
 }: UniversalGroupProps) {
   const heading = title || label;
   return (
-    <div className={`flex flex-col gap-3.5 relative ${delayClass} ${className}`}>
+    <div
+      className={`glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${delayClass} ${className}`}
+    >
       {heading && (
-        <div className="flex items-center gap-2.5 px-1">
-          {icon && (
-            <span className="material-symbols-outlined !text-[17px] text-[var(--accent)] opacity-90">
-              {icon}
-            </span>
-          )}
-          <h4 className={`text-xs font-semibold tracking-wide capitalize flex items-center gap-2 ${headerColorClass}`}>
-            {heading}
-          </h4>
+        <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {icon && (
+              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                {icon}
+              </span>
+            )}
+            <h4
+              className={`text-[11px] font-black uppercase tracking-wider m-0 truncate flex items-center gap-2 ${headerColorClass}`}
+            >
+              {heading}
+            </h4>
+          </div>
           {headerAction && <div className="ml-auto shrink-0">{headerAction}</div>}
         </div>
       )}
-      <div className={innerClassName}>
-        {children}
-      </div>
+      <div className={`p-4 ${innerClassName}`}>{children}</div>
     </div>
   );
 }
@@ -286,17 +401,18 @@ export function UniversalSearch({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`w-full h-14 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-2xl px-6 pl-12 text-[12px] capitalize tracking-widest font-black text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner ${inputClassName}`}
+        className={`w-full h-11 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] rounded-xl px-4 pl-10 text-xs font-bold text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none ${inputClassName}`}
       />
-      <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 !text-[20px] pointer-events-none">
+      <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 !text-[18px] pointer-events-none">
         search
       </span>
       {value.trim() !== "" && (
         <button
+          type="button"
           onClick={() => onChange("")}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-50 hover:opacity-100 hover:text-[var(--danger)] transition-all"
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 hover:opacity-100 hover:text-[var(--danger)] transition-all"
         >
-          <span className="material-symbols-outlined !text-[18px]">close</span>
+          <span className="material-symbols-outlined !text-[16px]">close</span>
         </button>
       )}
     </div>
@@ -322,13 +438,17 @@ export function UniversalInput({
   ...rest
 }: UniversalInputProps) {
   return (
-    <div className={`flex flex-col gap-2 ${wrapperClassName}`}>
-      {label && <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{label}</label>}
+    <div className={`flex flex-col gap-1.5 ${wrapperClassName}`}>
+      {label && (
+        <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+          {label}
+        </label>
+      )}
       <input
         {...rest}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all ${className}`}
+        className={`w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all ${className}`}
       />
     </div>
   );
@@ -353,13 +473,17 @@ export function UniversalTextArea({
   ...rest
 }: UniversalTextAreaProps) {
   return (
-    <div className={`flex flex-col gap-2 ${wrapperClassName}`}>
-      {label && <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{label}</label>}
+    <div className={`flex flex-col gap-1.5 ${wrapperClassName}`}>
+      {label && (
+        <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+          {label}
+        </label>
+      )}
       <textarea
         {...rest}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all resize-y overflow-y-auto min-h-[88px] custom-scrollbar ${className}`}
+        className={`w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all resize-y overflow-y-auto min-h-[88px] custom-scrollbar ${className}`}
       />
     </div>
   );

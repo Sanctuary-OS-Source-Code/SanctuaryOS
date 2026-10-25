@@ -8,9 +8,12 @@ import {
   ActionPill,
   InlineFilterGroup,
   getModIcon,
+  SidePanelHeroCard,
+  StatBox,
+  DashboardStatTile,
+  UniversalGroup,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { useLexicon } from "../LexiconContext";
 import { tauriBridge } from "../lib/tauri-bridge";
 import { useStore } from "../store";
@@ -189,6 +192,7 @@ export default function CommandConflictsPanel({
   };
 
   const tier4Count = activeConflicts.filter((c: any) => c.conflict.severity_rank === 4).length;
+  const tier3Count = activeConflicts.length - tier4Count;
 
   const filteredConflicts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -208,6 +212,11 @@ export default function CommandConflictsPanel({
   const headerIcon =
     tier4Count > 0 ? t("icon_crisis_alert", "crisis_alert") : t("icon_tune", "tune");
 
+  const winnerBadgeClass =
+    "px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--success)] flex items-center gap-1.5 shrink-0";
+  const loserBadgeClass =
+    "px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1.5 shrink-0";
+
   return (
     <SidePanel
       isOpen={isOpen}
@@ -216,9 +225,83 @@ export default function CommandConflictsPanel({
       subtitle={t("bp_load_order_conflicts", "Load Order & Tuning Conflicts")}
       icon={headerIcon}
       iconColorClass={headerIconColorClass}
-      widthClass="w-full md:w-[760px]"
+      widthClass="w-[90vw] md:w-[760px]"
     >
-      <div className="flex flex-col gap-6 relative z-10 w-full pb-12">
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={headerIcon}
+          overline={t("tab_matrix", "Conflicts")}
+          title={activeSetName || t("bp_load_order_conflicts", "Load Order & Tuning Conflicts")}
+          description={
+            tier4Count > 0
+              ? t("conflict_sev4_desc", "Fatal Collision — Cannot be installed together")
+              : t(
+                  "conflict_sev3_desc",
+                  "Tuning Overlap — Load order override or minor feature overlap"
+                )
+          }
+          badge={`${activeConflicts.length} ${t("items", "Items")}`}
+          badgeIcon={headerIcon}
+          variant={
+            tier4Count > 0 ? "danger" : activeConflicts.length > 0 ? "warning" : "success"
+          }
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+            <StatBox
+              label={t("tab_matrix", "Conflicts")}
+              value={activeConflicts.length}
+              icon={headerIcon}
+              iconColorClass={headerIconColorClass}
+            />
+            <StatBox
+              label={t("fatal_conflict", "Fatal Conflict")}
+              value={tier4Count}
+              icon={t("icon_crisis_alert", "crisis_alert")}
+              iconColorClass="text-[var(--danger)]"
+            />
+            <StatBox
+              label={t("tier3_conflict", "Tuning Overlap")}
+              value={tier3Count}
+              icon={t("icon_tune", "tune")}
+              iconColorClass="text-[var(--warning)]"
+            />
+          </div>
+        </SidePanelHeroCard>
+
+        {activeConflicts.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={severityFilter === "all"}
+              icon={t("icon_tune", "tune")}
+              label={t("filter_all", "All")}
+              value={activeConflicts.length}
+              onClick={() => setSeverityFilter("all")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={severityFilter === "fatal"}
+              icon={t("icon_crisis_alert", "crisis_alert")}
+              label={t("fatal_conflict", "Fatal Conflict")}
+              value={tier4Count}
+              colorClass="text-[var(--danger)]"
+              onClick={() => setSeverityFilter("fatal")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={severityFilter === "overlap"}
+              icon={t("icon_tune", "tune")}
+              label={t("tier3_conflict", "Tuning Overlap")}
+              value={tier3Count}
+              colorClass="text-[var(--warning)]"
+              onClick={() => setSeverityFilter("overlap")}
+            />
+          </div>
+        )}
+
         {activeConflicts.length > 0 && (
           <ActionPill
             searchQuery={searchQuery}
@@ -250,7 +333,7 @@ export default function CommandConflictsPanel({
         )}
 
         {filteredConflicts.length === 0 ? (
-          <div className="glass-panel rounded-3xl p-10">
+          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
             <EmptyState
               icon={t("icon_security", "security")}
               title={t("bp_no_conflicts_detected", "No Conflicts Detected")}
@@ -282,9 +365,9 @@ export default function CommandConflictsPanel({
                 const iconName = isTier4
                   ? t("icon_crisis_alert", "crisis_alert")
                   : t("icon_tune", "tune");
-                const badgeBg = isTier4
-                  ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]"
-                  : "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)]";
+                const badgeOutline = isTier4
+                  ? "bg-transparent border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]"
+                  : "bg-transparent border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]";
 
                 const imageA =
                   showImages &&
@@ -310,9 +393,12 @@ export default function CommandConflictsPanel({
                     }
                     badges={
                       <div
-                        className={`glass-surface border px-2 py-0.5 rounded-[max(0px,calc(var(--radius)-8px))] shadow-sm flex items-center gap-1.5 ${badgeBg}`}
+                        className={`border px-2.5 py-1 rounded-lg flex items-center gap-1.5 ${badgeOutline}`}
                       >
-                        <span className="text-[8px] font-black uppercase tracking-widest">
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {iconName}
+                        </span>
+                        <span className="text-[9px] font-black uppercase tracking-wider">
                           {isTier4
                             ? t("fatal_conflict", "Fatal Conflict")
                             : t("tier3_conflict", "Tuning Overlap")}
@@ -330,7 +416,7 @@ export default function CommandConflictsPanel({
                           else newSet.add(ac.pairId);
                           setIgnoredConflicts(newSet);
                         }}
-                        className="relative group/actionbtn w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 cursor-pointer bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                        className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center transition-all cursor-pointer text-[var(--subtext)] hover:text-[var(--text)]"
                       >
                         <span className="material-symbols-outlined !text-[16px]">
                           {isIgnored
@@ -378,7 +464,7 @@ export default function CommandConflictsPanel({
                                       true
                                     )
                                   }
-                                  className="relative w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:scale-105 cursor-pointer bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]"
+                                  className="relative w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] flex items-center justify-center transition-all hover:scale-105 cursor-pointer text-[var(--danger)]"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">
                                     {t("icon_delete", "delete")}
@@ -392,18 +478,18 @@ export default function CommandConflictsPanel({
                               )
                             ) : ac.conflict.severity_rank === 3 ? (
                               isWinnerA ? (
-                                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                <div className={winnerBadgeClass}>
                                   <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                                     {t("icon_check_circle", "check_circle")}
                                   </span>
                                   <span>{t("bp_winning_artifact", "Winning Override")}</span>
                                 </div>
                               ) : isWinnerB ? (
-                                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                <div className={loserBadgeClass}>
                                   <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
                                     {t("icon_block", "block")}
                                   </span>
-                                  <span className="text-[var(--subtext)]">{t("bp_overridden_by_winner", "Overridden")}</span>
+                                  <span>{t("bp_overridden_by_winner", "Overridden")}</span>
                                 </div>
                               ) : (
                                 applyConflictOverride &&
@@ -417,7 +503,7 @@ export default function CommandConflictsPanel({
                                         activeSetName
                                       )
                                     }
-                                    className="relative w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:scale-105 cursor-pointer bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]"
+                                    className="relative w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center transition-all hover:scale-105 cursor-pointer text-[var(--accent)]"
                                   >
                                     <span className="material-symbols-outlined !text-[16px]">
                                       {t("icon_check_circle", "check_circle")}
@@ -460,7 +546,7 @@ export default function CommandConflictsPanel({
                                       true
                                     )
                                   }
-                                  className="relative w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:scale-105 cursor-pointer bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]"
+                                  className="relative w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] flex items-center justify-center transition-all hover:scale-105 cursor-pointer text-[var(--danger)]"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">
                                     {t("icon_delete", "delete")}
@@ -474,18 +560,18 @@ export default function CommandConflictsPanel({
                               )
                             ) : ac.conflict.severity_rank === 3 ? (
                               isWinnerB ? (
-                                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                <div className={winnerBadgeClass}>
                                   <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                                     {t("icon_check_circle", "check_circle")}
                                   </span>
                                   <span>{t("bp_winning_artifact", "Winning Override")}</span>
                                 </div>
                               ) : isWinnerA ? (
-                                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                <div className={loserBadgeClass}>
                                   <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
                                     {t("icon_block", "block")}
                                   </span>
-                                  <span className="text-[var(--subtext)]">{t("bp_overridden_by_winner", "Overridden")}</span>
+                                  <span>{t("bp_overridden_by_winner", "Overridden")}</span>
                                 </div>
                               ) : (
                                 applyConflictOverride &&
@@ -499,7 +585,7 @@ export default function CommandConflictsPanel({
                                         activeSetName
                                       )
                                     }
-                                    className="relative w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:scale-105 cursor-pointer bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]"
+                                    className="relative w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center transition-all hover:scale-105 cursor-pointer text-[var(--accent)]"
                                   >
                                     <span className="material-symbols-outlined !text-[16px]">
                                       {t("icon_check_circle", "check_circle")}

@@ -1029,3 +1029,159 @@ END $$;
 SELECT 'Sanctuary OS Spoke Schema V0.5.7 Initialized Successfully' AS status;
 
 
+
+-- ============================================================================
+-- 11. INTERNAL WEBAUTHN SUBDOMAIN ORIGIN VERIFICATION HELPERS (SERVICE_ROLE ONLY)
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.internal_get_webauthn_challenge(p_challenge_id uuid)
+RETURNS TABLE(
+    id uuid,
+    user_id uuid,
+    challenge_type text,
+    session_data jsonb,
+    created_at timestamptz,
+    expires_at timestamptz
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+    SELECT c.id, c.user_id, c.challenge_type, c.session_data, c.created_at, c.expires_at
+    FROM auth.webauthn_challenges c
+    WHERE c.id = p_challenge_id
+      AND c.expires_at > now();
+$$;
+
+CREATE OR REPLACE FUNCTION public.internal_get_webauthn_credential(p_credential_id_b64 text)
+RETURNS TABLE(
+    id uuid,
+    user_id uuid,
+    credential_id_b64 text,
+    public_key_b64 text,
+    attestation_type text,
+    aaguid uuid,
+    sign_count bigint,
+    transports jsonb,
+    backup_eligible boolean,
+    backed_up boolean,
+    friendly_name text,
+    created_at timestamptz,
+    updated_at timestamptz,
+    last_used_at timestamptz
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+    SELECT
+        w.id,
+        w.user_id,
+        encode(w.credential_id, 'base64') AS credential_id_b64,
+        encode(w.public_key, 'base64') AS public_key_b64,
+        w.attestation_type,
+        w.aaguid,
+        w.sign_count,
+        w.transports,
+        w.backup_eligible,
+        w.backed_up,
+        w.friendly_name,
+        w.created_at,
+        w.updated_at,
+        w.last_used_at
+    FROM auth.webauthn_credentials w
+    WHERE w.credential_id = decode(p_credential_id_b64, 'base64')
+    LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.internal_complete_webauthn_authentication(
+    p_challenge_id uuid,
+    p_cred_row_id uuid,
+    p_sign_count bigint
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+    DELETE FROM auth.webauthn_challenges WHERE id = p_challenge_id;
+    UPDATE auth.webauthn_credentials
+    SET sign_count = GREATEST(COALESCE(sign_count, 0), COALESCE(p_sign_count, 0)),
+        last_used_at = now(),
+        updated_at = now()
+    WHERE id = p_cred_row_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.internal_complete_webauthn_registration(
+    p_challenge_id uuid,
+    p_user_id uuid,
+    p_credential_id_b64 text,
+    p_public_key_b64 text,
+    p_attestation_type text,
+    p_aaguid uuid,
+    p_sign_count bigint,
+    p_transports jsonb,
+    p_backup_eligible boolean,
+    p_backed_up boolean,
+    p_friendly_name text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+    v_row auth.webauthn_credentials%ROWTYPE;
+BEGIN
+    DELETE FROM auth.webauthn_challenges WHERE id = p_challenge_id;
+
+    INSERT INTO auth.webauthn_credentials (
+        user_id,
+        credential_id,
+        public_key,
+        attestation_type,
+        aaguid,
+        sign_count,
+        transports,
+        backup_eligible,
+        backed_up,
+        friendly_name,
+        created_at,
+        updated_at
+    ) VALUES (
+        p_user_id,
+        decode(p_credential_id_b64, 'base64'),
+        decode(p_public_key_b64, 'base64'),
+        COALESCE(p_attestation_type, 'none'),
+        p_aaguid,
+        COALESCE(p_sign_count, 0),
+        COALESCE(p_transports, '["internal", "hybrid"]'::jsonb),
+        COALESCE(p_backup_eligible, true),
+        COALESCE(p_backed_up, false),
+        COALESCE(NULLIF(TRIM(p_friendly_name), ''), 'FIDO2 Passkey'),
+        now(),
+        now()
+    )
+    RETURNING * INTO v_row;
+
+    RETURN jsonb_build_object(
+        'id', v_row.id,
+        'user_id', v_row.user_id,
+        'friendly_name', v_row.friendly_name,
+        'created_at', v_row.created_at,
+        'updated_at', v_row.updated_at,
+        'last_used_at', v_row.last_used_at
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.internal_get_webauthn_challenge(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.internal_get_webauthn_credential(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.internal_complete_webauthn_authentication(uuid, uuid, bigint) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.internal_complete_webauthn_registration(uuid, uuid, text, text, text, uuid, bigint, jsonb, boolean, boolean, text) FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.internal_get_webauthn_challenge(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.internal_get_webauthn_credential(text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.internal_complete_webauthn_authentication(uuid, uuid, bigint) TO service_role;
+GRANT EXECUTE ON FUNCTION public.internal_complete_webauthn_registration(uuid, uuid, text, text, text, uuid, bigint, jsonb, boolean, boolean, text) TO service_role;

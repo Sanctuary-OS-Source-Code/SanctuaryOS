@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
-import { useLexicon } from '../LexiconContext';
-import { SidePanel } from '../shared';
+import React, { useState, useEffect } from "react";
+import { supabase } from "../supabase";
+import { useLexicon } from "../LexiconContext";
+import { SidePanel, SidePanelHeroCard, UniversalGroup } from "../shared";
 import WORKBENCH_TEMPLATES from "../data/workbench_templates.json";
 
-export function ImportTemplateSidePanel({ 
-  isOpen, 
-  onClose, 
-  onSelectTemplate 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+export function ImportTemplateSidePanel({
+  isOpen,
+  onClose,
+  onSelectTemplate,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
   onSelectTemplate: (templateContent: string) => void;
 }) {
   const { t } = useLexicon();
@@ -24,17 +24,19 @@ export function ImportTemplateSidePanel({
         setIsLoading(true);
         try {
           const { data, error } = await supabase
-            .from('nexus_assets')
-            .select('*')
-            .eq('asset_type', 'workbench_template');
+            .from("nexus_assets")
+            .select("*")
+            .eq("asset_type", "workbench_template");
           if (!error && data) {
-            const parsed = data.map(d => {
-              try {
-                return JSON.parse(d.json_data);
-              } catch {
-                return null;
-              }
-            }).filter(Boolean);
+            const parsed = data
+              .map((d) => {
+                try {
+                  return JSON.parse(d.json_data);
+                } catch {
+                  return null;
+                }
+              })
+              .filter(Boolean);
             setFetchedTemplates(parsed);
           }
         } catch (e) {
@@ -48,13 +50,16 @@ export function ImportTemplateSidePanel({
   }, [isOpen]);
 
   const allTemplates = [WORKBENCH_TEMPLATES, ...fetchedTemplates];
-  
+
   const filteredTemplates = allTemplates.filter((template: any) => {
     const searchLower = searchQuery.toLowerCase();
     return (
-      (template.template_id && template.template_id.toLowerCase().includes(searchLower)) ||
-      (template.mod_author && template.mod_author.toLowerCase().includes(searchLower)) ||
-      (template.target_file && template.target_file.toLowerCase().includes(searchLower))
+      (template.template_id &&
+        template.template_id.toLowerCase().includes(searchLower)) ||
+      (template.mod_author &&
+        template.mod_author.toLowerCase().includes(searchLower)) ||
+      (template.target_file &&
+        template.target_file.toLowerCase().includes(searchLower))
     );
   });
 
@@ -62,90 +67,117 @@ export function ImportTemplateSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("template_title")}
-      subtitle={t("ql_templates_desc")}
-      icon="drive_folder_upload"
-      iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-      widthClass="w-[600px]"
+      title={t("template_title", "Workbench Templates")}
+      subtitle={t("ql_templates_desc", "Import Pre-Configured Settings Templates")}
+      icon={t("icon_drive_folder_upload", "drive_folder_upload")}
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[580px] max-w-[100vw]"
     >
-      <div className="flex flex-col gap-6 p-8 h-full min-h-0 relative">
-        <div className="relative shrink-0 group">
-          <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]  blur-xl group-hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors pointer-events-none"></div>
-          <div className="relative flex items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl shadow-inner overflow-hidden transition-all group-focus-within:border-[var(--accent)] group-focus-within:shadow-[0_0_25px_rgba(var(--accent-rgb),0.1)]">
-            <div className="pl-6 pr-2 py-4 flex items-center justify-center">
-               <span className="material-symbols-outlined text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">{t("icon_search")}</span>
-            </div>
-            <input 
-              type="text" 
-              placeholder={t("ui_search_templates")}
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_drive_folder_upload", "drive_folder_upload")}
+          overline={t("template_title", "Workbench Templates")}
+          title={t("ql_templates_desc", "Select a Template to Import")}
+          badge={String(filteredTemplates.length)}
+          badgeIcon={t("icon_data_object", "data_object")}
+          variant="accent"
+        >
+          <div className="relative flex items-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:border-[var(--accent)] rounded-xl px-3.5 h-11 transition-all">
+            <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] mr-2.5">
+              {t("icon_search", "search")}
+            </span>
+            <input
+              type="text"
+              placeholder={t("ui_search_templates", "Search templates...")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent border-none px-4 py-4 text-sm font-black text-[var(--text)] focus:outline-none placeholder-[var(--subtext)] placeholder:opacity-50 tracking-wider"
+              className="w-full bg-transparent border-none text-xs font-bold text-[var(--text)] focus:outline-none placeholder:text-[var(--subtext)] placeholder:opacity-50"
             />
           </div>
-        </div>
+        </SidePanelHeroCard>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 pb-8">
+        <UniversalGroup
+          title={`${t("template_title", "Templates")} (${filteredTemplates.length})`}
+          icon={t("icon_data_object", "data_object")}
+        >
           {isLoading ? (
-             <div className="flex flex-col items-center justify-center p-12 opacity-40 glass-panel rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-               <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)] animate-spin">{t("icon_sync")}</span>
-               <p className="text-sm font-black capitalize tracking-widest">{t("ui_loading")}</p>
-             </div>
+            <div className="flex flex-col items-center justify-center py-10 px-6 text-center gap-2 glass-surface rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+              <span className="material-symbols-outlined !text-[28px] text-[var(--accent)] animate-spin">
+                {t("icon_sync", "sync")}
+              </span>
+              <p className="text-xs font-black text-[var(--subtext)] uppercase tracking-wider">
+                {t("ui_loading", "Loading...")}
+              </p>
+            </div>
           ) : filteredTemplates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 opacity-40 glass-panel rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-              <span className="material-symbols-outlined !text-5xl mb-4 text-[var(--text)]">{t("icon_search_off")}</span>
-              <p className="text-sm font-black capitalize tracking-widest">{t("empty_title_templates")}</p>
+            <div className="flex flex-col items-center justify-center py-10 px-6 text-center gap-2 glass-surface rounded-xl border border-dashed border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+              <span className="material-symbols-outlined !text-[28px] text-[var(--subtext)] opacity-40">
+                {t("icon_search_off", "search_off")}
+              </span>
+              <p className="text-xs font-black text-[var(--subtext)] uppercase tracking-wider">
+                {t("empty_title_templates", "No Templates Found")}
+              </p>
             </div>
           ) : (
-            filteredTemplates.map((template: any, i: number) => (
-              <button 
-                key={i}
-                onClick={() => {
-                  onSelectTemplate(JSON.stringify(template, null, 2));
-                }}
-        className="flex flex-col items-start gap-4 p-6 glass-panel rounded-2xl hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:shadow-[0_10px_30px_rgba(var(--accent-rgb),0.15)] transition-all duration-300 group text-left border border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative w-full"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-full blur-3xl group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
-                
-                <div className="flex items-center justify-between w-full relative z-10">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
-                       <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] drop-shadow-[0_0_5px_rgba(var(--accent-rgb),0.5)]">{t("icon_data_object")}</span>
+            <div className="flex flex-col gap-2.5">
+              {filteredTemplates.map((template: any, i: number) => (
+                <button
+                  key={i}
+                  onClick={() =>
+                    onSelectTemplate(JSON.stringify(template, null, 2))
+                  }
+                  className="flex flex-col gap-2.5 p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all text-left group w-full cursor-pointer"
+                >
+                  <div className="flex items-center justify-between gap-3 w-full">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                        <span className="material-symbols-outlined !text-[18px]">
+                          {t("icon_data_object", "data_object")}
+                        </span>
+                      </div>
+                      <span className="font-black text-xs text-[var(--text)] truncate group-hover:text-[var(--accent)] transition-colors">
+                        {template.template_id}
+                      </span>
                     </div>
-                    <span className="font-black text-sm text-[var(--text)] tracking-wider drop-shadow-sm">{template.template_id}</span>
+                    {template.target_file && (
+                      <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] shrink-0">
+                        {template.target_file}
+                      </span>
+                    )}
                   </div>
-                  <span className="text-[9px] font-black capitalize tracking-widest text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] px-3 py-1.5 rounded-full shadow-inner">{template.target_file}</span>
-                </div>
-                
-                <div className="flex items-center justify-start w-full mt-2 relative z-10 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-4">
-                   <div className="flex items-center gap-6">
-                       {template.mod_author && (
-                         <div className="flex items-center gap-2">
-                           <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">{t("icon_person")}</span>
-                           <span className="text-[10px] capitalize font-bold tracking-widest text-[var(--text)] opacity-80">{t("role_mason")} <span className="text-[var(--accent)]">{template.mod_author}</span></span>
-                         </div>
-                       )}
-                       {template.template_version && (
-                         <div className="flex items-center gap-2">
-                           <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)]">{t("icon_tag")}</span>
-                           <span className="text-[10px] capitalize font-bold tracking-widest text-[var(--text)] opacity-80">{t("label_version")} <span className="text-[var(--accent)]">{template.template_version}</span></span>
-                         </div>
-                       )}
-                   </div>
-                   <div className="flex items-center gap-2 text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 duration-300">
-                     <span className="text-[9px] font-black capitalize tracking-widest">{t("btn_import")}</span>
-                     <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_forward")}</span>
-                   </div>
-                </div>
-              </button>
-            ))
+
+                  <div className="flex items-center justify-between w-full pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <div className="flex items-center gap-4">
+                      {template.mod_author && (
+                        <span className="text-[10px] font-bold text-[var(--subtext)] flex items-center gap-1">
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {t("icon_person", "person")}
+                          </span>
+                          {template.mod_author}
+                        </span>
+                      )}
+                      {template.template_version && (
+                        <span className="text-[10px] font-bold text-[var(--subtext)] flex items-center gap-1">
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {t("icon_tag", "tag")}
+                          </span>
+                          {template.template_version}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1">
+                      {t("btn_import", "Import")}
+                      <span className="material-symbols-outlined !text-[13px]">
+                        {t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
-        </div>
+        </UniversalGroup>
       </div>
     </SidePanel>
   );
 }
-
-
-
-

@@ -1,7 +1,15 @@
-import React from 'react';
+import React from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { SidePanel, ActionButton, HoverTooltip, formatDisplayName } from "../shared";
-import { UniversalCard } from "../components/universal/UniversalCard";
+import {
+  SidePanel,
+  ActionButton,
+  HoverTooltip,
+  formatDisplayName,
+  SidePanelHeroCard,
+  StatBox,
+  DashboardStatTile,
+  UniversalGroup,
+} from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { EdgeOverrideSidePanel } from "./EdgeOverrideSidePanel";
@@ -9,15 +17,13 @@ import { EdgeOverrideSidePanel } from "./EdgeOverrideSidePanel";
 export function DnaMatchQueueSidePanel({
   dnaMatchQueue,
   setDnaMatchQueue,
-  edgeOverrideQueue,
-  setEdgeOverrideQueue,
   ignoredHashesRef,
   runRadarSweep,
   setPlaySets,
   activePlaySetIndex,
   setStatus,
   modList = [],
-  config = {}
+  config = {},
 }: any) {
   const { t } = useLexicon();
   const prevQueueLength = React.useRef(dnaMatchQueue?.length || 0);
@@ -25,16 +31,22 @@ export function DnaMatchQueueSidePanel({
   const [isSuccess, setIsSuccess] = React.useState(false);
   const [resolveStats, setResolveStats] = React.useState({ kept: 0, skipped: 0 });
   const [selectedOverrideData, setSelectedOverrideData] = React.useState<any>(null);
-  const [selectedOverrideName, setSelectedOverrideName] = React.useState<string>("");
+  const [, setSelectedOverrideName] = React.useState<string>("");
   const [selectedOverrideHash, setSelectedOverrideHash] = React.useState<string>("");
+  const [queueFilter, setQueueFilter] = React.useState<"all" | "files" | "settings" | "edge">(
+    "all"
+  );
 
   React.useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
-    
+
     if (dnaMatchQueue?.length === 0 && prevQueueLength.current > 0) {
       if (isResolvingRef.current) {
         setIsSuccess(true);
-        const finalMsg = resolveStats.kept > 0 ? t("status_ingest_success") : (t("status_conflicts_resolved"));
+        const finalMsg =
+          resolveStats.kept > 0
+            ? t("status_ingest_success", "Ingest Complete")
+            : t("status_conflicts_resolved", "Conflicts Resolved");
         if (setStatus) setStatus(finalMsg);
         timer = setTimeout(() => {
           setIsSuccess(false);
@@ -44,17 +56,21 @@ export function DnaMatchQueueSidePanel({
         }, 2000);
       }
     }
-    
+
     prevQueueLength.current = dnaMatchQueue?.length || 0;
-    
+
     return () => {
       if (timer) clearTimeout(timer);
     };
   }, [dnaMatchQueue?.length, t]);
 
-  const edgeOverrides = dnaMatchQueue.filter((m: any) => m.reason === "EDGE_OVERRIDE");
-  const settingsConflicts = dnaMatchQueue.filter((m: any) => m.reason === "SETTINGS_CONFLICT");
-  const fileConflicts = dnaMatchQueue.filter((m: any) => m.reason !== "SETTINGS_CONFLICT" && m.reason !== "EDGE_OVERRIDE");
+  const edgeOverrides = (dnaMatchQueue || []).filter((m: any) => m.reason === "EDGE_OVERRIDE");
+  const settingsConflicts = (dnaMatchQueue || []).filter(
+    (m: any) => m.reason === "SETTINGS_CONFLICT"
+  );
+  const fileConflicts = (dnaMatchQueue || []).filter(
+    (m: any) => m.reason !== "SETTINGS_CONFLICT" && m.reason !== "EDGE_OVERRIDE"
+  );
 
   const applyAcceptedEdgeOverride = async (
     rawOverrideJson: string,
@@ -71,13 +87,15 @@ export function DnaMatchQueueSidePanel({
       const masonId = data.mason_id || "Unknown";
       const gameId = data.game_id || "";
 
-      const currentModList = (modList && modList.length > 0) ? modList : (useStore.getState().modList || []);
+      const currentModList =
+        modList && modList.length > 0 ? modList : useStore.getState().modList || [];
       const familySet = new Set<string>([targetHash, ...archiveHashes].filter(Boolean));
 
-      // Include any local mod or flavor family hashes that match targetHash or archiveHashes
       currentModList.forEach((m: any) => {
-        const modMatches = (m.hash && familySet.has(m.hash)) ||
-          (Array.isArray(m.flavors) && m.flavors.some((f: any) => f.hash && familySet.has(f.hash)));
+        const modMatches =
+          (m.hash && familySet.has(m.hash)) ||
+          (Array.isArray(m.flavors) &&
+            m.flavors.some((f: any) => f.hash && familySet.has(f.hash)));
         if (modMatches) {
           if (m.hash) familySet.add(m.hash);
           if (Array.isArray(m.flavors)) {
@@ -143,12 +161,19 @@ export function DnaMatchQueueSidePanel({
         for (const h of hashes) {
           localOverrides[h] = {
             ...(localOverrides[h] || {}),
-            displayName: fetchedManifest?.artifact?.name || localOverrides[h]?.displayName || data.artifact_id || undefined,
+            displayName:
+              fetchedManifest?.artifact?.name ||
+              localOverrides[h]?.displayName ||
+              data.artifact_id ||
+              undefined,
             author: fetchedManifest?.artifact?.author || masonId,
-            version: fetchedManifest?.artifact?.version || localOverrides[h]?.version || undefined,
-            url: fetchedManifest?.payload?.download_url || localOverrides[h]?.url || edgeUrl,
+            version:
+              fetchedManifest?.artifact?.version || localOverrides[h]?.version || undefined,
+            url:
+              fetchedManifest?.payload?.download_url || localOverrides[h]?.url || edgeUrl,
             manifest_url: edgeUrl,
-            requiredDLC: fetchedManifest?.atomic_logic?.required_dlc || localOverrides[h]?.requiredDLC,
+            requiredDLC:
+              fetchedManifest?.atomic_logic?.required_dlc || localOverrides[h]?.requiredDLC,
             compatible_versions: fetchedManifest?.artifact?.game_version
               ? [fetchedManifest.artifact.game_version]
               : localOverrides[h]?.compatible_versions,
@@ -176,52 +201,63 @@ export function DnaMatchQueueSidePanel({
   const handleBulkResolve = async (group: any[], action: "ignore" | "replace") => {
     const queueCopy = [...group];
     isResolvingRef.current = true;
-    setResolveStats(s => ({ 
-      kept: action === "replace" ? s.kept + group.length : s.kept, 
-      skipped: action === "ignore" ? s.skipped + group.length : s.skipped 
+    setResolveStats((s) => ({
+      kept: action === "replace" ? s.kept + group.length : s.kept,
+      skipped: action === "ignore" ? s.skipped + group.length : s.skipped,
     }));
-    setDnaMatchQueue((prev: any[]) => prev.filter(m => !group.includes(m)));
+    setDnaMatchQueue((prev: any[]) => prev.filter((m) => !group.includes(m)));
 
     let localOverrides: any = {};
     let edgeLogicMap: any = {};
     if (action === "replace") {
       try {
-        localOverrides = JSON.parse(localStorage.getItem('sanctuary_local_overrides') || '{}');
-      } catch(e) {}
+        localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+      } catch (e) {}
       try {
-        edgeLogicMap = JSON.parse(localStorage.getItem('sanctuary_edge_logic') || '{}');
-      } catch(e) {}
+        edgeLogicMap = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+      } catch (e) {}
     }
 
     for (const match of queueCopy) {
       try {
         if (action === "ignore") ignoredHashesRef.current.add(match.hash || match.path);
         if (match.path) {
-          await invoke("resolve_dna_match", { path: match.path, existingName: match.existing_name || "", action });
+          await invoke("resolve_dna_match", {
+            path: match.path,
+            existingName: match.existing_name || "",
+            action,
+          });
         }
-        
+
         if (action === "replace" && match.override_json) {
-          await applyAcceptedEdgeOverride(match.override_json, match.hash, localOverrides, edgeLogicMap);
+          await applyAcceptedEdgeOverride(
+            match.override_json,
+            match.hash,
+            localOverrides,
+            edgeLogicMap
+          );
         }
 
         if (action === "replace" && match.existing_name && setPlaySets) {
           const oldName = match.existing_name.split(/[/\\]/).pop();
           const newName = match.path?.split(/[/\\]/).pop();
           if (oldName && newName && oldName !== newName) {
-            setPlaySets((prev: any) => prev.map((s: any, idx: number) => {
-              if (idx === activePlaySetIndex) {
-                return { ...s, mods: s.mods.filter((m: string) => m !== oldName) };
-              }
-              return s;
-            }));
+            setPlaySets((prev: any) =>
+              prev.map((s: any, idx: number) => {
+                if (idx === activePlaySetIndex) {
+                  return { ...s, mods: s.mods.filter((m: string) => m !== oldName) };
+                }
+                return s;
+              })
+            );
           }
         }
-      } catch(e) {}
+      } catch (e) {}
     }
-    
+
     if (action === "replace") {
-      localStorage.setItem('sanctuary_local_overrides', JSON.stringify(localOverrides));
-      localStorage.setItem('sanctuary_edge_logic', JSON.stringify(edgeLogicMap));
+      localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOverrides));
+      localStorage.setItem("sanctuary_edge_logic", JSON.stringify(edgeLogicMap));
     }
 
     if (queueCopy.length > 0) runRadarSweep(true);
@@ -230,267 +266,449 @@ export function DnaMatchQueueSidePanel({
   const handleEdgeResolve = async (group: any[], action: "ignore" | "replace") => {
     const queueCopy = [...group];
     isResolvingRef.current = true;
-    setResolveStats(s => ({ 
-      kept: action === "replace" ? s.kept + group.length : s.kept, 
-      skipped: action === "ignore" ? s.skipped + group.length : s.skipped 
+    setResolveStats((s) => ({
+      kept: action === "replace" ? s.kept + group.length : s.kept,
+      skipped: action === "ignore" ? s.skipped + group.length : s.skipped,
     }));
-    setDnaMatchQueue((prev: any[]) => prev.filter(m => !group.includes(m)));
+    setDnaMatchQueue((prev: any[]) => prev.filter((m) => !group.includes(m)));
 
     if (action === "replace") {
       let localOverrides: any = {};
       let edgeLogicMap: any = {};
       try {
-        localOverrides = JSON.parse(localStorage.getItem('sanctuary_local_overrides') || '{}');
-      } catch(e) {}
+        localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+      } catch (e) {}
       try {
-        edgeLogicMap = JSON.parse(localStorage.getItem('sanctuary_edge_logic') || '{}');
-      } catch(e) {}
+        edgeLogicMap = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+      } catch (e) {}
 
       for (const event of queueCopy) {
         if (event.override_json) {
-          await applyAcceptedEdgeOverride(event.override_json, event.hash, localOverrides, edgeLogicMap);
+          await applyAcceptedEdgeOverride(
+            event.override_json,
+            event.hash,
+            localOverrides,
+            edgeLogicMap
+          );
         }
       }
-      localStorage.setItem('sanctuary_local_overrides', JSON.stringify(localOverrides));
-      localStorage.setItem('sanctuary_edge_logic', JSON.stringify(edgeLogicMap));
+      localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOverrides));
+      localStorage.setItem("sanctuary_edge_logic", JSON.stringify(edgeLogicMap));
     }
-    
+
     if (queueCopy.length > 0) runRadarSweep(false, true);
   };
 
   const renderEdgeGroup = (group: any[]) => {
     if (group.length === 0) return null;
     return (
-      <details className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner group/details" open>
-        <summary className="cursor-pointer select-none p-5 flex items-center justify-between font-black text-xs capitalize tracking-widest text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-t-2xl transition-all">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">{t("icon_network_wifi") || "network_wifi"}</span>
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="truncate">{t("title_edge_override_detected") || "Edge Network Override"}</span>
-              <span className="shrink-0">({group.length})</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0 ml-4 pointer-events-auto">
+      <UniversalGroup
+        title={`${t("title_edge_override_detected", "Edge Network Override")} (${group.length})`}
+        icon={t("icon_network_wifi", "network_wifi")}
+        headerAction={
+          <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleEdgeResolve(group, "ignore"); }}
-              className="relative group/actionbtn w-8 h-8 rounded-lg border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)]"
+              type="button"
+              onClick={(e: any) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleEdgeResolve(group, "ignore");
+              }}
+              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] flex items-center justify-center transition-all text-[var(--danger)] cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[16px]">{t("icon_close") || "close"}</span>
-              <HoverTooltip title={t("btn_reject_all") || "Reject All"} variant="danger" className="!hidden group-hover/actionbtn:!flex z-[100]" />
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_close", "close")}
+              </span>
+              <HoverTooltip
+                title={t("btn_reject_all", "Reject All")}
+                variant="danger"
+                className="!hidden group-hover/actionbtn:!flex z-[100]"
+              />
             </button>
             <button
-              onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleEdgeResolve(group, "replace"); }}
-              className="relative group/actionbtn w-8 h-8 rounded-lg border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+              type="button"
+              onClick={(e: any) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleEdgeResolve(group, "replace");
+              }}
+              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center transition-all text-[var(--accent)] cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[16px]">{t("icon_done_all") || "done_all"}</span>
-              <HoverTooltip title={t("btn_accept_all") || "Accept All"} variant="accent" className="!hidden group-hover/actionbtn:!flex z-[100]" />
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_done_all", "done_all")}
+              </span>
+              <HoverTooltip
+                title={t("btn_accept_all", "Accept All")}
+                variant="accent"
+                className="!hidden group-hover/actionbtn:!flex z-[100]"
+              />
             </button>
-            <span className="material-symbols-outlined !text-[18px] opacity-50 group-open/details:rotate-180 transition-transform duration-300 ml-2">{t("icon_expand_more") || "expand_more"}</span>
           </div>
-        </summary>
-        <div className="p-5 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] grid grid-cols-2 gap-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+        }
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[500px] overflow-y-auto custom-scrollbar">
           {group.map((match: any, index: number) => {
             let data: any = {};
-            try { data = JSON.parse(match.override_json); } catch(e) {}
+            try {
+              data = JSON.parse(match.override_json);
+            } catch (e) {}
             return (
-              <UniversalCard
+              <div
                 key={index}
-                layout="vertical-compact"
-                icon={t("icon_network_wifi") || "network_wifi"}
-                title={match.matched_mod_name || data.artifact_id || (t("label_unknown_mod") || "Unknown Mod")}
-                subtitle={
-                  <div className="flex flex-col gap-0.5 opacity-80 mt-1">
-                    <span className="text-[10px] font-bold text-[var(--text-muted)] truncate">
-                      {data.mason_id || (t("label_unknown_author") || "Unknown Author")}
-                    </span>
-                    <span className="text-[9px] font-black text-[var(--accent)] tracking-widest flex items-center gap-1 mt-1">
-                      <span className="material-symbols-outlined !text-[12px]">{t("icon_network_wifi") || "network_wifi"}</span>
-                      {t("desc_edge_override_prompt") || "This mod author has provided an Edge Network manifest URL."}
-                    </span>
-                    <span className="text-[9px] mt-1 bg-[var(--bg-tertiary)] p-1 rounded-sm break-all font-mono">{data.manifest_url}</span>
-                  </div>
-                }
-                className="min-h-[240px] shadow-xl z-10 hover:z-[100] cursor-pointer"
                 onClick={() => {
                   setSelectedOverrideData(data);
                   setSelectedOverrideName(match.matched_mod_name || "");
                   setSelectedOverrideHash(match.hash || data.target_hash || "");
                 }}
-                badges={
-                  <div className="flex w-full mt-2 mb-1 pointer-events-auto rounded-lg overflow-hidden border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-sm">
-                    <button
-                      onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleEdgeResolve([match], "ignore"); }}
-                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center justify-center transition-all text-[9px] font-black tracking-wider uppercase border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 cursor-pointer"
-                    >
-                      <span className="truncate">{t("btn_reject") || "Deny"}</span>
-                    </button>
-                    <button
-                      onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleEdgeResolve([match], "replace"); }}
-                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all text-[9px] font-black tracking-wider uppercase px-1.5 cursor-pointer"
-                    >
-                      <span className="truncate">{t("ui_btn_approve") || "Authorize"}</span>
-                    </button>
+                className="glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex flex-col justify-between gap-3 cursor-pointer transition-all"
+              >
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[18px]">
+                        {t("icon_network_wifi", "network_wifi")}
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] shrink-0">
+                      {t("title_edge_override_detected", "Edge Override")}
+                    </span>
                   </div>
-                }
-              />
+
+                  <span className="text-sm font-black text-[var(--text)] truncate">
+                    {match.matched_mod_name ||
+                      data.artifact_id ||
+                      t("label_unknown_mod", "Unknown Mod")}
+                  </span>
+                  <span className="text-[10px] font-bold text-[var(--subtext)] truncate">
+                    {data.mason_id || t("label_unknown_author", "Unknown Author")}
+                  </span>
+                  {data.manifest_url && (
+                    <span className="text-[9px] font-mono text-[var(--subtext)] opacity-80 break-all">
+                      {data.manifest_url}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                  <ActionButton
+                    variant="glass"
+                    label={t("btn_reject", "Deny")}
+                    onClick={(e: any) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleEdgeResolve([match], "ignore");
+                    }}
+                    className="flex-1"
+                  />
+                  <ActionButton
+                    variant="glass"
+                    label={t("ui_btn_approve", "Authorize")}
+                    onClick={(e: any) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleEdgeResolve([match], "replace");
+                    }}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
             );
           })}
         </div>
-      </details>
+      </UniversalGroup>
     );
   };
 
   const renderGroup = (title: string, icon: string, group: any[]) => {
     if (group.length === 0) return null;
     return (
-      <details className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl shadow-inner group/details" open>
-        <summary className="cursor-pointer select-none p-5 flex items-center justify-between font-black text-xs capitalize tracking-widest text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-t-2xl transition-all">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">{icon}</span>
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="truncate">{title}</span>
-              <span className="shrink-0">({group.length})</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0 ml-4 pointer-events-auto">
+      <UniversalGroup
+        title={`${title} (${group.length})`}
+        icon={icon}
+        headerAction={
+          <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve(group, "ignore"); }}
-              className="relative group/actionbtn w-8 h-8 rounded-lg border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)]"
+              type="button"
+              onClick={(e: any) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleBulkResolve(group, "ignore");
+              }}
+              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] flex items-center justify-center transition-all text-[var(--danger)] cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
-              <HoverTooltip title={t("dna_btn_keep_all_existing", "Keep All Existing")} className="!hidden group-hover/actionbtn:!flex z-[100]" />
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_close", "close")}
+              </span>
+              <HoverTooltip
+                title={t("dna_btn_keep_all_existing", "Keep All Existing")}
+                className="!hidden group-hover/actionbtn:!flex z-[100]"
+              />
             </button>
             <button
-              onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve(group, "replace"); }}
-              className="relative group/actionbtn w-8 h-8 rounded-lg border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+              type="button"
+              onClick={(e: any) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleBulkResolve(group, "replace");
+              }}
+              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center transition-all text-[var(--accent)] cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[16px]">{t("icon_done_all")}</span>
-              <HoverTooltip title={t("dna_btn_overwrite_all", "Overwrite All")} variant="accent" className="!hidden group-hover/actionbtn:!flex z-[100]" />
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_done_all", "done_all")}
+              </span>
+              <HoverTooltip
+                title={t("dna_btn_overwrite_all", "Overwrite All")}
+                variant="accent"
+                className="!hidden group-hover/actionbtn:!flex z-[100]"
+              />
             </button>
-            <span className="material-symbols-outlined !text-[18px] opacity-50 group-open/details:rotate-180 transition-transform duration-300 ml-2">expand_more</span>
           </div>
-        </summary>
-        <div className="p-5 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] grid grid-cols-2 gap-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+        }
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[500px] overflow-y-auto custom-scrollbar">
           {group.map((match: any, index: number) => {
-            const newName = match.path?.split(/[\\/]/).pop()?.replace('.tmp_sanctuary_conflict', '');
-            const oldName = match.existing_name ? match.existing_name.split(/[\\/]/).pop() : 'Unknown';
+            const newName = match.path
+              ?.split(/[\\/]/)
+              .pop()
+              ?.replace(".tmp_sanctuary_conflict", "");
+            const oldName = match.existing_name
+              ? match.existing_name.split(/[\\/]/).pop()
+              : t("unknown", "Unknown");
             let overrideData: any = null;
             if (match.override_json) {
-              try { overrideData = JSON.parse(match.override_json); } catch(e) {}
+              try {
+                overrideData = JSON.parse(match.override_json);
+              } catch (e) {}
             }
-            
-            const displayTitle = overrideData?.artifact_id ? overrideData.artifact_id : formatDisplayName(newName);
-            
+
+            const displayTitle = overrideData?.artifact_id
+              ? overrideData.artifact_id
+              : formatDisplayName(newName);
+
             return (
-              <UniversalCard
+              <div
                 key={index}
-                layout="vertical-compact"
-                icon="difference"
-                title={displayTitle}
-                subtitle={
-                  <div className="flex flex-col gap-0.5 opacity-80 mt-1">
-                    {overrideData ? (
-                      <>
-                        <span className="text-[9px] font-black text-[var(--accent)] tracking-widest flex items-center gap-1 mt-1">
-                          <span className="material-symbols-outlined !text-[12px]">network_wifi</span>
-                          {t("title_edge_override_detected") || "Edge Network Override"}
-                        </span>
-                        <span className="text-[9px] truncate text-[var(--accent)]">{t("desc_override_authority")}</span>
-                        {oldName && oldName.toLowerCase() === 'override.json' && (
-                          <span className="text-[9px] truncate opacity-80">{t("desc_override_replaces_existing")}</span>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-[9px] font-black theme-text-accent capitalize tracking-widest flex items-center gap-1">
-                          <span className="material-symbols-outlined !text-[12px]">{t("icon_call_received")}</span>
-                          {t("overlay_dna_incoming")}
-                        </span>
-                        <span className="text-[9px] truncate">{t("overlay_dna_existing", "Existing")}: {oldName}</span>
-                      </>
-                    )}
-                  </div>
+                onClick={
+                  overrideData
+                    ? () => {
+                        setSelectedOverrideData(overrideData);
+                        setSelectedOverrideName(oldName);
+                        setSelectedOverrideHash(match.hash);
+                      }
+                    : undefined
                 }
-                className={`min-h-[240px] shadow-xl z-10 hover:z-[100] ${overrideData ? "cursor-pointer" : ""}`}
-                onClick={overrideData ? () => {
-                  setSelectedOverrideData(overrideData);
-                  setSelectedOverrideName(oldName);
-                  setSelectedOverrideHash(match.hash);
-                } : undefined}
-                badges={
-                  <div className="flex w-full mt-2 mb-1 pointer-events-auto rounded-lg overflow-hidden border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-sm">
-                    <button
-                      onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve([match], "ignore"); }}
-                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center justify-center transition-all text-[9px] font-black tracking-wider uppercase border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 cursor-pointer"
-                    >
-                      <span className="truncate">{overrideData ? t("btn_keep_local", "Keep Local") : t("dna_btn_keep_existing", "Keep Existing")}</span>
-                    </button>
-                    <button
-                      onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleBulkResolve([match], "replace"); }}
-                      className="flex-1 h-8 bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all text-[9px] font-black tracking-wider uppercase px-1.5 cursor-pointer"
-                    >
-                      <span className="truncate">{overrideData ? t("btn_import_override", "Import Override") : t("dna_btn_overwrite", "Overwrite")}</span>
-                    </button>
+                className={`glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex flex-col justify-between gap-3 transition-all ${
+                  overrideData ? "cursor-pointer" : ""
+                }`}
+              >
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[18px]">
+                        {t("icon_difference", "difference")}
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] shrink-0">
+                      {overrideData
+                        ? t("title_edge_override_detected", "Edge Override")
+                        : t("overlay_dna_incoming", "Incoming")}
+                    </span>
                   </div>
-                }
-              />
+
+                  <span className="text-sm font-black text-[var(--text)] truncate">
+                    {displayTitle}
+                  </span>
+
+                  {overrideData ? (
+                    <span className="text-[10px] font-medium text-[var(--subtext)] truncate">
+                      {t("desc_override_authority", "Author Edge Authority")}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 truncate">
+                      {t("overlay_dna_existing", "Existing")}: {oldName}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                  <ActionButton
+                    variant="glass"
+                    label={
+                      overrideData
+                        ? t("btn_keep_local", "Keep Local")
+                        : t("dna_btn_keep_existing", "Keep Existing")
+                    }
+                    onClick={(e: any) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleBulkResolve([match], "ignore");
+                    }}
+                    className="flex-1"
+                  />
+                  <ActionButton
+                    variant="glass"
+                    label={
+                      overrideData
+                        ? t("btn_import_override", "Import Override")
+                        : t("dna_btn_overwrite", "Overwrite")
+                    }
+                    onClick={(e: any) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleBulkResolve([match], "replace");
+                    }}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
             );
           })}
-          <div className="col-span-2 h-2 shrink-0 pointer-events-none" />
         </div>
-      </details>
+      </UniversalGroup>
     );
   };
 
+  const totalCount = (dnaMatchQueue || []).length;
+  const showMultipleCategories =
+    [edgeOverrides.length > 0, settingsConflicts.length > 0, fileConflicts.length > 0].filter(
+      Boolean
+    ).length > 1;
+
   return (
     <SidePanel
-      isOpen={dnaMatchQueue.length > 0 || isSuccess}
-      onClose={() => { 
-        isResolvingRef.current = false; 
-        setDnaMatchQueue([]); 
-        setIsSuccess(false); 
+      isOpen={totalCount > 0 || isSuccess}
+      onClose={() => {
+        isResolvingRef.current = false;
+        setDnaMatchQueue([]);
+        setIsSuccess(false);
         setResolveStats({ kept: 0, skipped: 0 });
       }}
       backdropZ="z-[115000]"
       panelZ="z-[115001]"
-      title={t("overlay_dna_match_title")}
-      subtitle={t("overlay_dna_match_desc")}
-      icon="difference"
-      widthClass="w-[650px]"
-    >
-      {isSuccess ? (
-        <div className="flex flex-col items-center justify-center gap-4 py-12 text-center h-full">
-          <div className="w-16 h-16 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center mb-2">
-            <span className="material-symbols-outlined text-[var(--accent)]">
-              {resolveStats.kept > 0 ? "check_circle" : "done_all"}
-            </span>
-          </div>
-          <h2 className="text-xl font-bold text-[var(--text)] capitalize tracking-widest">
-            {resolveStats.kept > 0 ? (t("status_ingest_success")) : (t("status_conflicts_resolved"))}
-          </h2>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {renderEdgeGroup(edgeOverrides)}
-          {renderGroup(t("overlay_dna_settings_conflicts"), "settings", settingsConflicts)}
-          {renderGroup(t("overlay_dna_file_conflicts"), "file_copy", fileConflicts)}
-        </div>
+      title={t("overlay_dna_match_title", "DNA Match & Collision Queue")}
+      subtitle={t(
+        "overlay_dna_match_desc",
+        "Resolve duplicate artifacts, settings collisions, and Edge overrides."
       )}
-      
-      <EdgeOverrideSidePanel 
-        isOpen={!!selectedOverrideData}
-        onClose={() => {
-          setSelectedOverrideData(null);
-          setSelectedOverrideName("");
-          setSelectedOverrideHash("");
-        }}
-        data={selectedOverrideData}
-        modHash={selectedOverrideHash}
-      />
+      icon={t("icon_difference", "difference")}
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[90vw] md:w-[760px]"
+    >
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={
+            isSuccess
+              ? t("icon_check_circle", "check_circle")
+              : t("icon_difference", "difference")
+          }
+          overline={t("overlay_dna_match_title", "DNA Match & Collision Queue")}
+          title={
+            isSuccess
+              ? resolveStats.kept > 0
+                ? t("status_ingest_success", "Ingest Complete")
+                : t("status_conflicts_resolved", "Conflicts Resolved")
+              : t(
+                  "overlay_dna_match_desc",
+                  "Resolve duplicate artifacts, settings collisions, and Edge overrides."
+                )
+          }
+          badge={`${totalCount} ${t("items", "Items")}`}
+          badgeIcon={t("icon_difference", "difference")}
+          variant={isSuccess ? "success" : "accent"}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+            <StatBox
+              label={t("overlay_dna_file_conflicts", "File Conflicts")}
+              value={fileConflicts.length}
+              icon={t("icon_file_copy", "file_copy")}
+              iconColorClass="text-[var(--accent)]"
+            />
+            <StatBox
+              label={t("overlay_dna_settings_conflicts", "Settings Conflicts")}
+              value={settingsConflicts.length}
+              icon={t("icon_settings", "settings")}
+              iconColorClass="text-[var(--warning)]"
+            />
+            <StatBox
+              label={t("title_edge_override_detected", "Edge Overrides")}
+              value={edgeOverrides.length}
+              icon={t("icon_network_wifi", "network_wifi")}
+              iconColorClass="text-[var(--accent)]"
+            />
+          </div>
+        </SidePanelHeroCard>
+
+        {!isSuccess && showMultipleCategories && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={queueFilter === "all"}
+              icon={t("icon_tune", "tune")}
+              label={t("filter_all", "All")}
+              value={totalCount}
+              onClick={() => setQueueFilter("all")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={queueFilter === "files"}
+              icon={t("icon_file_copy", "file_copy")}
+              label={t("overlay_dna_file_conflicts", "Files")}
+              value={fileConflicts.length}
+              onClick={() => setQueueFilter("files")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={queueFilter === "settings"}
+              icon={t("icon_settings", "settings")}
+              label={t("overlay_dna_settings_conflicts", "Settings")}
+              value={settingsConflicts.length}
+              onClick={() => setQueueFilter("settings")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={queueFilter === "edge"}
+              icon={t("icon_network_wifi", "network_wifi")}
+              label={t("title_edge_override_detected", "Edge")}
+              value={edgeOverrides.length}
+              onClick={() => setQueueFilter("edge")}
+            />
+          </div>
+        )}
+
+        {!isSuccess && (
+          <div className="flex flex-col gap-4">
+            {(queueFilter === "all" || queueFilter === "edge") &&
+              renderEdgeGroup(edgeOverrides)}
+            {(queueFilter === "all" || queueFilter === "settings") &&
+              renderGroup(
+                t("overlay_dna_settings_conflicts", "Settings Conflicts"),
+                t("icon_settings", "settings"),
+                settingsConflicts
+              )}
+            {(queueFilter === "all" || queueFilter === "files") &&
+              renderGroup(
+                t("overlay_dna_file_conflicts", "File Conflicts"),
+                t("icon_file_copy", "file_copy"),
+                fileConflicts
+              )}
+          </div>
+        )}
+
+        <EdgeOverrideSidePanel
+          isOpen={!!selectedOverrideData}
+          onClose={() => {
+            setSelectedOverrideData(null);
+            setSelectedOverrideName("");
+            setSelectedOverrideHash("");
+          }}
+          data={selectedOverrideData}
+          modHash={selectedOverrideHash}
+        />
+      </div>
     </SidePanel>
   );
 }
-
-
-
-

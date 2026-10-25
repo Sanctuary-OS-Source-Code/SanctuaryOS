@@ -509,33 +509,59 @@ export async function registerFidoPasskey(friendlyName: string): Promise<{
       serializedCredential = serializeRegistrationCredential(cred);
     }
 
-    // 3. Verify registration with Supabase Auth
-    const verifyRes = await fetch(
-      `${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/auth/v1/passkeys/registration/verify`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          challenge_id: optJson.challenge_id,
-          credential: serializedCredential,
-        }),
-      }
-    );
-    const createdPasskey = await verifyRes.json().catch(() => ({}));
-    if (!verifyRes.ok) {
+    // 3. Verify registration with Supabase Auth (on Web in Hub & Spoke mode, route through
+    //    game-gateway so both https://sanctuaryos.net and https://www.sanctuaryos.net origins
+    //    are verified against the snapshotted WebAuthn challenge without consuming it on origin mismatch)
+    let verifyRes: Response;
+    let createdPasskey: any = {};
+
+    if (!isDesktop() && RESOLVED_SANCTUARY_CONFIG.mode !== "standalone") {
+      verifyRes = await fetch(
+        `${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/functions/v1/game-gateway`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            action: "verify_webauthn_registration",
+            payload: {
+              challenge_id: optJson.challenge_id,
+              credential: serializedCredential,
+              friendly_name: cleanName,
+            },
+          }),
+        }
+      );
+      createdPasskey = await verifyRes.json().catch(() => ({}));
+    } else {
+      verifyRes = await fetch(
+        `${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/auth/v1/passkeys/registration/verify`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            challenge_id: optJson.challenge_id,
+            credential: serializedCredential,
+          }),
+        }
+      );
+      createdPasskey = await verifyRes.json().catch(() => ({}));
+    }
+
+    if (!verifyRes.ok || createdPasskey?.error) {
       return {
         data: null,
         error: new Error(
           createdPasskey?.msg ||
             createdPasskey?.error_description ||
             createdPasskey?.message ||
+            createdPasskey?.error ||
             "Failed to verify Passkey registration."
         ),
       };
     }
 
-    // 4. Save user's custom friendly name
-    if (createdPasskey?.id && cleanName) {
+    // 4. Save user's custom friendly name (if not already persisted by game-gateway)
+    if (createdPasskey?.id && cleanName && createdPasskey?.friendly_name !== cleanName) {
       try {
         await fetch(
           `${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/auth/v1/passkeys/${createdPasskey.id}`,
@@ -624,33 +650,63 @@ export async function authenticateFidoPasskey(_factorId?: string): Promise<{
       serializedCredential = serializeAuthenticationCredential(cred);
     }
 
-    // 3. Verify authentication with Supabase Auth and hydrate session
-    const verifyRes = await fetch(
-      `${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/auth/v1/passkeys/authentication/verify`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          challenge_id: optJson.challenge_id,
-          credential: serializedCredential,
-        }),
+    // 3. Verify authentication with Supabase Auth and hydrate session.
+    //    On Web in Hub & Spoke mode, route through game-gateway so both https://sanctuaryos.net
+    //    and https://www.sanctuaryos.net origins are verified without losing the challenge row.
+    const { data: existingSessionData } = await supabaseAuth.auth.getSession();
+    const existingSession = existingSessionData?.session;
+
+    let verifyRes: Response;
+    let verifyJson: any = {};
+
+    if (!isDesktop() && RESOLVED_SANCTUARY_CONFIG.mode !== "standalone") {
+      const gatewayHeaders: Record<string, string> = { ...headers };
+      if (existingSession?.access_token && !gatewayHeaders.Authorization) {
+        gatewayHeaders.Authorization = `Bearer ${existingSession.access_token}`;
       }
-    );
-    const verifyJson = await verifyRes.json().catch(() => ({}));
-    if (!verifyRes.ok) {
+      verifyRes = await fetch(
+        `${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/functions/v1/game-gateway`,
+        {
+          method: "POST",
+          headers: gatewayHeaders,
+          body: JSON.stringify({
+            action: "verify_webauthn_assertion",
+            payload: {
+              challenge_id: optJson.challenge_id,
+              credential: serializedCredential,
+            },
+          }),
+        }
+      );
+      verifyJson = await verifyRes.json().catch(() => ({}));
+    } else {
+      verifyRes = await fetch(
+        `${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/auth/v1/passkeys/authentication/verify`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            challenge_id: optJson.challenge_id,
+            credential: serializedCredential,
+          }),
+        }
+      );
+      verifyJson = await verifyRes.json().catch(() => ({}));
+    }
+
+    if (!verifyRes.ok || verifyJson?.error) {
       return {
         data: null,
         error: new Error(
           verifyJson?.msg ||
             verifyJson?.error_description ||
             verifyJson?.message ||
+            verifyJson?.error ||
             "Failed to verify Passkey authentication."
         ),
       };
     }
 
-    const { data: existingSessionData } = await supabaseAuth.auth.getSession();
-    const existingSession = existingSessionData?.session;
     const verifiedUserId = verifyJson?.user?.id || existingSession?.user?.id;
 
     markPasskeySessionVerified(verifiedUserId);

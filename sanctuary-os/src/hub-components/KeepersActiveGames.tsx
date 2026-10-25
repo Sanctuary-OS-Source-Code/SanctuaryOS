@@ -5,7 +5,7 @@ import { SidePanel, ActionButton, EmptyState, PanelHeaderGroup, PanelHeaderButto
 import { useLexicon } from '../LexiconContext';
 import { logArchitectAction } from '../lib/audit';
 import { UniversalCard } from '../components/universal/UniversalCard';
-import { UniversalGroup, UniversalInput } from '../components/universal/UniversalLayout';
+import { UniversalGroup, UniversalInput, SidePanelHeroCard, StatBox } from '../components/universal/UniversalLayout';
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput, SidePanelPillToggle } from '../components/layouts/ElevatedHubLayout';
 
 export default function KeepersActiveGames() {
@@ -209,7 +209,7 @@ export default function KeepersActiveGames() {
       await fetchGames();
       await syncGameDatabases();
     } else {
-      alert(`Error saving game: ${result.error.message}`);
+      alert(`${t("identities_failed_prefix", "Error saving game:")} ${result.error.message}`);
     }
   };
 
@@ -305,23 +305,27 @@ export default function KeepersActiveGames() {
         title={
           <span className="flex items-center gap-2">
             {game.name}
-            {game.is_active === false && <span className="text-[9px] font-black capitalize bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] px-2 py-0.5 rounded-full">{t("filter_inactive", "Inactive")}</span>}
+            {game.is_active === false && (
+              <span className="text-[9px] font-black uppercase bg-transparent border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)] px-2 py-0.5 rounded-lg">
+                {t("filter_inactive", "Inactive")}
+              </span>
+            )}
           </span>
         }
         subtitle={game.schema_id}
         actions={
           <div className="flex gap-2">
-            <button onClick={(e) => { e.stopPropagation(); handleToggleActive(game.id, game.name, game.is_active); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:scale-110 group"><span className="material-symbols-outlined !text-[14px]">{game.is_active === false ? 'toggle_off' : 'toggle_on'}</span></button>
-            <button onClick={(e) => { e.stopPropagation(); handleSeverFDW(game.schema_id, game.name, game.id); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:scale-110 group"><span className="material-symbols-outlined !text-[14px]">link_off</span></button>
-            <button onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:scale-110 group"><span className="material-symbols-outlined !text-[14px]">delete</span></button>
+            <button onClick={(e) => { e.stopPropagation(); handleToggleActive(game.id, game.name, game.is_active); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-transparent border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:scale-110 group"><span className="material-symbols-outlined !text-[14px]">{game.is_active === false ? 'toggle_off' : 'toggle_on'}</span></button>
+            <button onClick={(e) => { e.stopPropagation(); handleSeverFDW(game.schema_id, game.name, game.id); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-transparent border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_40%,transparent)] hover:scale-110 group"><span className="material-symbols-outlined !text-[14px]">link_off</span></button>
+            <button onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id, game.name); }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-xl bg-transparent border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:scale-110 group"><span className="material-symbols-outlined !text-[14px]">delete</span></button>
           </div>
         }
       >
         <div className="flex flex-col gap-2 mt-4">
-          <div className="text-[10px] text-[var(--text)] opacity-70 break-all font-mono bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-2 rounded-lg">
+          <div className="text-[10px] text-[var(--text)] opacity-70 break-all font-mono glass-surface p-2 rounded-lg border border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
             {t("ui_url", "URL")}: {game.supabase_url}
           </div>
-          <div className="text-[10px] text-[var(--text)] opacity-70 break-all font-mono bg-[color-mix(in_srgb,var(--text)_5%,transparent)] p-2 rounded-lg">
+          <div className="text-[10px] text-[var(--text)] opacity-70 break-all font-mono glass-surface p-2 rounded-lg border border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
             {t("ui_key", "Key")}: {game.supabase_anon_key?.substring(0, 20)}...
           </div>
         </div>
@@ -390,9 +394,11 @@ export default function KeepersActiveGames() {
       <SidePanel
         isOpen={sidePanelMode !== null}
         onClose={() => setSidePanelMode(null)}
-        title={sidePanelMode === 'edit' ? t("edit_db_node", "EDIT DATABASE NODE") : t("ui_register_game_db", "Register Game Database")}
-        subtitle={sidePanelMode === 'edit' ? t("update_config", "UPDATE CONFIGURATION") : t("ui_add_network_node", "Add Network Node")}
+        title={sidePanelMode === 'edit' ? t("edit_db_node", "Edit Database Node") : t("ui_register_game_db", "Register Game Database")}
+        subtitle={sidePanelMode === 'edit' ? t("update_config", "Update Configuration") : t("ui_add_network_node", "Add Network Node")}
         icon="dns"
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton icon="content_copy" tooltip={t("spoke_copy_uplink_bundle", "Copy Uplink Bundle")} onClick={handleCopyUplinkBundle} />
@@ -401,18 +407,34 @@ export default function KeepersActiveGames() {
           </PanelHeaderGroup>
         }
       >
-        <div className="flex flex-col gap-6 w-full">
-          <UniversalGroup label={t("spoke_quick_bundle_label", "Quick-Paste Uplink Bundle / Credentials")}>
-            <UniversalInput
-              type="text"
-              value={bundleInput}
-              onChange={handleParseBundle}
-              placeholder={t("spoke_quick_bundle_ph", "Paste a SANCTUARY-UPLINK:// token, JSON bundle, or raw Supabase URL & keys...")}
-            />
-          </UniversalGroup>
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon="dns"
+            overline={t("ui_active_games", "Game Databases")}
+            title={formData.name || (sidePanelMode === 'edit' ? t("edit_db_node", "Edit Database Node") : t("ui_register_game_db", "Register Game Database"))}
+            description={t("ui_active_games_subtitle", "Manage Sanctuary game databases and FDW connections.")}
+            badge={formData.is_active !== false ? t("filter_active", "Active") : t("filter_inactive", "Inactive")}
+            badgeIcon={formData.is_active !== false ? "toggle_on" : "toggle_off"}
+            variant={formData.is_active !== false ? "success" : "warning"}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <StatBox
+                label={t("ui_schema_id", "Schema ID")}
+                value={formData.schema_id || t("oversight_na", "N/A")}
+                icon="fingerprint"
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("wf_donation_processor_label", "Payment Processor")}
+                value={formData.payment_processor || "STRIPE"}
+                icon="volunteer_activism"
+                iconColorClass="text-[var(--success)]"
+              />
+            </div>
+          </SidePanelHeroCard>
 
           {handshakeStatus && (
-            <div className={`glass-panel rounded-2xl p-4 border flex items-center justify-between gap-3 ${handshakeStatus.ok ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'theme-panel-danger border-[color-mix(in_srgb,var(--danger)_40%,transparent)]'}`}>
+            <div className={`glass-panel rounded-2xl p-4 border flex items-center justify-between gap-3 ${handshakeStatus.ok ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)]' : 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]'}`}>
               <div className="flex items-center gap-3 min-w-0">
                 <span className={`material-symbols-outlined !text-[20px] ${handshakeStatus.ok ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                   {handshakeStatus.ok ? 'verified' : 'error'}
@@ -439,69 +461,109 @@ export default function KeepersActiveGames() {
           <SidePanelTitleInput
             value={formData.name}
             onChange={val => setFormData({ ...formData, name: val })}
+            label={t("ui_game_name", "Game Workspace Name")}
             placeholder={t("ui_game_name", "e.g. The Sims 4")}
+            subtitle={formData.schema_id ? `${t("ui_schema_id", "SCHEMA")}: ${formData.schema_id}` : undefined}
           />
 
-          <SidePanelPillToggle
-            checked={formData.is_active !== false}
-            onChange={checked => setFormData({ ...formData, is_active: checked })}
-            label={t("filter_active", "Active Schema Engine")}
-            icon="dns"
-            variant="success"
-          />
-
-          <UniversalGroup label={t("ui_schema_id", "Schema ID")}>
-            <UniversalInput type="text" value={formData.schema_id} onChange={val => setFormData({ ...formData, schema_id: val })} placeholder="e.g. SIMS4" />
-          </UniversalGroup>
-          <UniversalGroup label={t("ui_supabase_url", "Supabase Project URL")}>
-            <UniversalInput type="text" value={formData.supabase_url} onChange={val => setFormData({ ...formData, supabase_url: val })} placeholder="https://xyz.supabase.co" />
-          </UniversalGroup>
-          <UniversalGroup label={t("ui_supabase_key", "Supabase Anon Key")}>
-            <UniversalInput type="text" value={formData.supabase_anon_key} onChange={val => setFormData({ ...formData, supabase_anon_key: val })} placeholder="ey..." />
-          </UniversalGroup>
-          <UniversalGroup label={t("ui_supabase_service_key", "Supabase Service Key")}>
-            <UniversalInput type="password" value={formData.supabase_service_key || ''} onChange={val => setFormData({ ...formData, supabase_service_key: val })} placeholder="secret..." />
-          </UniversalGroup>
-          <UniversalGroup label={t("spoke_founder_label", "Founding Community Manager (Username or UUID)")}>
+          <UniversalGroup
+            title={t("spoke_quick_bundle_label", "Quick-Paste Uplink Bundle / Credentials")}
+            icon="bolt"
+          >
             <UniversalInput
+              type="text"
+              value={bundleInput}
+              onChange={handleParseBundle}
+              placeholder={t("spoke_quick_bundle_ph", "Paste a SANCTUARY-UPLINK:// token, JSON bundle, or raw Supabase URL & keys...")}
+            />
+            <SidePanelPillToggle
+              checked={formData.is_active !== false}
+              onChange={checked => setFormData({ ...formData, is_active: checked })}
+              label={t("filter_active", "Active Schema Engine")}
+              icon="dns"
+              variant="success"
+            />
+          </UniversalGroup>
+
+          <UniversalGroup
+            title={t("ui_supabase_url", "Spoke Database & Handshake Credentials")}
+            icon="dns"
+          >
+            <UniversalInput
+              label={t("ui_schema_id", "Schema ID")}
+              type="text"
+              value={formData.schema_id}
+              onChange={val => setFormData({ ...formData, schema_id: val })}
+              placeholder={t("ui_schema_id", "e.g. SIMS4")}
+            />
+            <UniversalInput
+              label={t("ui_supabase_url", "Supabase Project URL")}
+              type="text"
+              value={formData.supabase_url}
+              onChange={val => setFormData({ ...formData, supabase_url: val })}
+              placeholder={t("ui_supabase_url", "https://xyz.supabase.co")}
+            />
+            <UniversalInput
+              label={t("ui_supabase_key", "Supabase Anon Key")}
+              type="text"
+              value={formData.supabase_anon_key}
+              onChange={val => setFormData({ ...formData, supabase_anon_key: val })}
+              placeholder={t("ui_supabase_key", "ey...")}
+            />
+            <UniversalInput
+              label={t("ui_supabase_service_key", "Supabase Service Key")}
+              type="password"
+              value={formData.supabase_service_key || ''}
+              onChange={val => setFormData({ ...formData, supabase_service_key: val })}
+              placeholder={t("ui_supabase_service_key", "secret...")}
+            />
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+              <ActionButton
+                variant="glass"
+                icon="content_copy"
+                label={t("spoke_copy_uplink_bundle", "Copy Uplink Bundle")}
+                onClick={handleCopyUplinkBundle}
+              />
+              <ActionButton
+                variant="glass"
+                icon={verifyingHandshake ? "sync" : "network_check"}
+                label={
+                  verifyingHandshake
+                    ? t("spoke_verifying_handshake", "Testing Spoke Handshake...")
+                    : t("spoke_btn_verify_handshake", "Test Handshake & Verify Schema")
+                }
+                disabled={verifyingHandshake}
+                onClick={handleVerifyHandshake}
+              />
+            </div>
+          </UniversalGroup>
+
+          <UniversalGroup
+            title={t("spoke_founder_label", "Founding Community & Non-Custodial Donations")}
+            icon="volunteer_activism"
+          >
+            <UniversalInput
+              label={t("spoke_founder_label", "Founding Community Manager (Username or UUID)")}
               type="text"
               value={formData.founder_identifier}
               onChange={val => setFormData({ ...formData, founder_identifier: val })}
               placeholder={t("spoke_founder_ph", "Optional: Hub username or UUID to auto-promote to Wayfinder")}
             />
-          </UniversalGroup>
-          <UniversalGroup label={t("wf_donation_processor_label", "Community Payment Processor")}>
             <UniversalInput
+              label={t("wf_donation_processor_label", "Community Payment Processor")}
               type="text"
               value={formData.payment_processor}
               onChange={val => setFormData({ ...formData, payment_processor: val })}
-              placeholder="STRIPE / KO-FI / PATREON / PAYPAL"
+              placeholder={t("wf_donation_processor_label", "STRIPE / KO-FI / PATREON / PAYPAL")}
             />
-          </UniversalGroup>
-          <UniversalGroup label={t("wf_donation_url_label", "Donation / Checkout URL (Leave blank to hide from directory)")}>
             <UniversalInput
+              label={t("wf_donation_url_label", "Donation / Checkout URL (Leave blank to hide from directory)")}
               type="text"
               value={formData.donation_url}
               onChange={val => setFormData({ ...formData, donation_url: val })}
               placeholder={t("wf_donation_url_ph", "https://donate.stripe.com/... or https://ko-fi.com/...")}
             />
           </UniversalGroup>
-
-          <button
-            type="button"
-            onClick={handleVerifyHandshake}
-            disabled={verifyingHandshake}
-            className="w-full glass-panel rounded-2xl px-5 py-3.5 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] transition-all flex items-center justify-center gap-2 text-xs font-black tracking-widest text-[var(--text)]"
-          >
-            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
-              {verifyingHandshake ? 'sync' : 'network_check'}
-            </span>
-            <span>
-              {verifyingHandshake
-                ? t("spoke_verifying_handshake", "Testing Spoke Handshake...")
-                : t("spoke_btn_verify_handshake", "Test Handshake & Verify Schema")}
-            </span>
-          </button>
         </div>
       </SidePanel>
 
@@ -522,6 +584,3 @@ export default function KeepersActiveGames() {
     </ElevatedHubLayout>
   );
 }
-
-
-

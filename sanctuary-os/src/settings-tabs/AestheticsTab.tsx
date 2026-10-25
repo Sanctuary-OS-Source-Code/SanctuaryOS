@@ -21,7 +21,7 @@ export default function AestheticsTab({ config }: any) {
             icon={t("icon_palette", "palette")}
             onClick={() => setIsChameleonOpen(true)}
             actions={
-              <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">
+              <div className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center transition-all">
                 <span className="material-symbols-outlined !text-[20px] theme-text-accent">{t("icon_open_in_new", "open_in_new")}</span>
               </div>
             }
@@ -39,7 +39,7 @@ export default function AestheticsTab({ config }: any) {
             icon={t("icon_language", "language")}
             onClick={() => setIsLexiconOpen(true)}
             actions={
-              <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">
+              <div className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center transition-all">
                 <span className="material-symbols-outlined !text-[20px] theme-text-accent">{t("icon_open_in_new", "open_in_new")}</span>
               </div>
             }

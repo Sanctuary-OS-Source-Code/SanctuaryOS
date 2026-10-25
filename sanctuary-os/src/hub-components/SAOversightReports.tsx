@@ -1,11 +1,9 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { CustomDropdown, CustomDatePicker, EmptyState, standardSuccessButtonClass, standardDangerButtonClass, SidePanel, FilterTabs, FilterTabButton, ActionPill, HeaderActionPortal, DashboardStatTile } from "../shared";
+import { CustomDropdown, CustomDatePicker, EmptyState, SidePanel, ActionPill, DashboardStatTile, SidePanelHeroCard, StatBox, SidePanelTitleInput, UniversalGroup } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
-import { StatTileCarousel } from "./SharedCommandScreenLayout";
 
 export default function SAOversightReports() {
   const { t } = useLexicon();
@@ -35,7 +33,7 @@ export default function SAOversightReports() {
   }, []);
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return "N/A";
+    if (!dateString) return t("oversight_na", "N/A");
     const date = new Date(dateString);
     return date.toLocaleString();
   };
@@ -67,30 +65,12 @@ export default function SAOversightReports() {
     });
   }, [reports, search, filterTab, dateStart, dateEnd]);
 
-  const newReportsCount = useMemo(() => {
-    return reports.filter(r => {
-      const rDate = new Date(r.detected_at || r.created_at);
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return rDate >= thirtyDaysAgo;
-    }).length;
-  }, [reports]);
-
-  const archiveReportsCount = useMemo(() => {
-    return reports.filter(r => {
-      const rDate = new Date(r.detected_at || r.created_at);
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return rDate < thirtyDaysAgo;
-    }).length;
-  }, [reports]);
-
   const timeOptions = [
-    { id: "all", label: t("time_all") },
-    { id: "24h", label: t("time_24h") },
-    { id: "week", label: t("time_week") },
-    { id: "month", label: t("time_month") },
-    { id: "year", label: t("time_year") }
+    { id: "all", label: t("time_all", "All Time") },
+    { id: "24h", label: t("time_24h", "Last 24 Hours") },
+    { id: "week", label: t("time_week", "Last Week") },
+    { id: "month", label: t("time_month", "Last Month") },
+    { id: "year", label: t("time_year", "Last Year") }
   ];
 
   const groupedReports = useMemo(() => {
@@ -132,25 +112,25 @@ export default function SAOversightReports() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const isNew = rDate >= thirtyDaysAgo;
-    const displayStatus = report.status === 'pending' ? (isNew ? t("ui_tab_new") : t("oversight_tab_archive")) : report.status;
+    const displayStatus = report.status === 'pending' ? (isNew ? t("ui_tab_new", "New") : t("oversight_tab_archive", "Archive")) : report.status;
 
     return (
       <UniversalCard
         key={report.id}
         layout="vertical-compact"
         icon="threat_intelligence"
-        title={report.artifact_name || t("oversight_unknown_artifact")}
+        title={report.artifact_name || t("oversight_unknown_artifact", "Unknown Artifact")}
         badges={
           <div className="w-full flex flex-wrap items-center gap-2">
             {group.length > 1 && (
-              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+              <div className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5 shrink-0">
                 <span className={`material-symbols-outlined !text-[12px] ${isMalware ? 'text-[var(--danger)]' : 'text-[var(--accent)]'}`}>
                   {t("icon_account_tree", "account_tree")}
                 </span>
-                <span>{group.length} {t("oversight_hits_count")}</span>
+                <span>{group.length} {t("oversight_hits_count", "Hits")}</span>
               </div>
             )}
-            <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+            <div className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--danger)] flex items-center gap-1.5 shrink-0">
               <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
                 {isMalware ? t("icon_coronavirus", "coronavirus") : t("icon_warning", "warning")}
               </span>
@@ -170,11 +150,11 @@ export default function SAOversightReports() {
         <div className="flex flex-col gap-1 mt-2 text-[10px] font-mono text-[var(--subtext)]">
           <span className="flex flex-wrap items-center justify-center gap-1.5 opacity-80 break-all text-center">
             <span className="material-symbols-outlined !text-[12px] opacity-70">fingerprint</span>
-            {report.detected_hash ? report.detected_hash.substring(0,8) : t("oversight_na")}
+            {report.detected_hash ? report.detected_hash.substring(0,8) : t("oversight_na", "N/A")}
           </span>
-          <span className="flex flex-wrap items-center justify-center gap-1.5 text-red-400 opacity-90 break-words text-center">
+          <span className="flex flex-wrap items-center justify-center gap-1.5 text-[var(--danger)] opacity-90 break-words text-center">
             <span className="material-symbols-outlined !text-[12px] opacity-70">warning</span>
-            {report.signature === "N/A" ? (t("oversight_na")) : (report.signature || t("oversight_unknown_threat"))}
+            {report.signature === "N/A" ? t("oversight_na", "N/A") : (report.signature || t("oversight_unknown_threat", "Unknown Threat"))}
           </span>
         </div>
       </UniversalCard>
@@ -189,12 +169,12 @@ export default function SAOversightReports() {
             <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[24px] text-[var(--danger)] opacity-90 drop-shadow-lg">new_releases</span>
             </div>
-            {t("recent_new_reports") || "Recent New Reports"}
+            {t("recent_new_reports", "Recent New Reports")}
           </h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
           {recentNew.length > 0 ? recentNew.map(renderReportCard) : (
-            <EmptyState icon="check_circle" title={t("comp_no_alerts")} className="py-8" />
+            <EmptyState icon="check_circle" title={t("comp_no_alerts", "No Alerts")} className="py-8" />
           )}
         </div>
       </div>
@@ -205,12 +185,12 @@ export default function SAOversightReports() {
             <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[24px] text-[var(--accent)] opacity-90 drop-shadow-lg">archive</span>
             </div>
-            {t("recent_archived_reports") || "Recent Archived Reports"}
+            {t("recent_archived_reports", "Recent Archived Reports")}
           </h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
           {recentArchive.length > 0 ? recentArchive.map(renderReportCard) : (
-            <EmptyState icon="history" title={t("no_history") || "No History"} className="py-8" />
+            <EmptyState icon="history" title={t("no_history", "No History")} className="py-8" />
           )}
         </div>
       </div>
@@ -220,34 +200,34 @@ export default function SAOversightReports() {
   return (
     <>
       <ElevatedHubLayout
-        headerTitle={t("tab_oversight") || "Nexus Reports"}
-        headerSubtitle={t("oversight_reports_desc") || "Security scans and anomaly tracking."}
+        headerTitle={t("tab_oversight", "Nexus Reports")}
+        headerSubtitle={t("oversight_reports_desc", "Security scans and anomaly tracking.")}
         headerIcon="threat_intelligence"
         headerIconColorClass="theme-text-danger"
         search={search}
         onSearchChange={setSearch}
-        searchPlaceholder={t("oversight_search") as string}
+        searchPlaceholder={t("oversight_search", "Search reports...") as string}
         hideSearch={filterTab === 'overview'}
         activeTab={filterTab}
         onTabChange={(tabId: string) => setFilterTab(tabId as any)}
         tabs={[
-            { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
-            { id: "pending", label: t("pending") || "Pending", icon: "schedule", number: reports.filter(r => r.status === 'pending').length.toString() },
-            { id: "resolved", label: t("resolved") || "Resolved", icon: "verified_user", number: reports.filter(r => r.status === 'blacklisted').length.toString() },
-            { id: "dismissed", label: t("dismissed") || "Dismissed", icon: "cancel", number: reports.filter(r => r.status === 'cleared').length.toString() }
+            { id: "overview", label: t("landing_overview", "Overview"), icon: "dashboard" },
+            { id: "pending", label: t("pending", "Pending"), icon: "schedule", number: reports.filter(r => r.status === 'pending').length.toString() },
+            { id: "resolved", label: t("resolved", "Resolved"), icon: "verified_user", number: reports.filter(r => r.status === 'blacklisted').length.toString() },
+            { id: "dismissed", label: t("dismissed", "Dismissed"), icon: "cancel", number: reports.filter(r => r.status === 'cleared').length.toString() }
         ]}
         primaryPopover={filterTab !== 'overview' ? {
             icon: "tune",
-            label: t("filters") || "Filters",
+            label: t("filters", "Filters"),
             content: (
                 <div className="flex flex-col w-[300px] p-4 text-left">
                     <div className="flex flex-col gap-4 w-full">
                         <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1 flex items-center gap-2">
-                            DATE RANGE
+                            {t("sort_date", "Date Range")}
                         </div>
                         <div className="flex flex-col gap-2">
-                            <CustomDatePicker flat={true} value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start")} />
-                            <CustomDatePicker flat={true} value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end")} />
+                            <CustomDatePicker flat={true} value={dateStart || null} onChange={val => setDateStart(val || "")} placeholder={t("auto_start", "Start Date")} />
+                            <CustomDatePicker flat={true} value={dateEnd || null} onChange={val => setDateEnd(val || "")} placeholder={t("auto_end", "End Date")} />
                         </div>
                     </div>
                 </div>
@@ -261,7 +241,7 @@ export default function SAOversightReports() {
         ) : filterTab === "overview" ? (
           renderLanding()
         ) : groupedReports.length === 0 ? (
-          <EmptyState icon={t("icon_threat_intelligence")} title={t("sa_no_reports")} className="col-span-full py-16" />
+          <EmptyState icon={t("icon_threat_intelligence", "threat_intelligence")} title={t("sa_no_reports", "No Reports Found")} className="col-span-full py-16" />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
             {groupedReports.map(renderReportCard)}
@@ -271,57 +251,76 @@ export default function SAOversightReports() {
 
       {viewingGroup && (
         <SidePanel
-          title={t("oversight_group_sidepanel_title")}
+          title={t("oversight_group_sidepanel_title", "Grouped Threat Reports")}
           isOpen={true}
-          widthClass="w-[700px]"
+          widthClass="w-[90vw] md:w-[680px]"
           onClose={() => setViewingGroup(null)}
-          subtitle={t("oversight_group_sidepanel_subtitle")}
-          icon={t("icon_threat_intelligence")}
+          subtitle={t("oversight_group_sidepanel_subtitle", "Multiple telemetry detections for this signature hash.")}
+          icon={t("icon_threat_intelligence", "threat_intelligence")}
+          iconColorClass="text-[var(--danger)]"
         >
-          <div className="flex flex-col gap-4 h-full">
-             <div className="flex items-center gap-3 w-full border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 shrink-0 flex-wrap">
-               <ActionPill
-                 searchQuery={groupSearch}
-                 setSearchQuery={setGroupSearch}
-                 searchPlaceholder={t("oversight_search")}
-                 rightContent={
-                   <>
-                     <FilterTabs>
-                       <FilterTabButton
-                         id="all"
-                         label={t("ql_all")}
-                         activeTab={groupFilterTab}
-                         setTab={setGroupFilterTab}
-                       />
-                       <FilterTabButton
-                         id="new"
-                         label={t("badge_new")}
-                         activeTab={groupFilterTab}
-                         setTab={setGroupFilterTab}
-                       />
-                       <FilterTabButton
-                         id="archive"
-                         label={t("auto_archive")}
-                         activeTab={groupFilterTab}
-                         setTab={setGroupFilterTab}
-                       />
-                     </FilterTabs>
+          <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+            <SidePanelHeroCard
+              icon={t("icon_threat_intelligence", "threat_intelligence")}
+              overline={t("tab_oversight", "Nexus Reports")}
+              title={viewingGroup[0]?.artifact_name || t("oversight_group_sidepanel_title", "Grouped Threat Reports")}
+              description={t("oversight_group_sidepanel_subtitle", "Multiple telemetry detections for this signature hash.")}
+              badge={`${viewingGroup.length} ${t("oversight_hits_count", "Hits")}`}
+              badgeIcon="account_tree"
+              variant="danger"
+            />
 
-                     <CustomDropdown 
-                       flat={true}
-                       variant="pill"
-                       value={groupTimeRange}
-                       onChange={setGroupTimeRange}
-                       options={timeOptions}
-                       disableTint
-                     />
-                   </>
-                 }
-               />
-             </div>
-             
-             <div className="grid grid-cols-2 gap-4 auto-rows-max overflow-y-auto custom-scrollbar flex-1 pr-2">
-               {viewingGroup.filter((r) => {
+            <div className="grid grid-cols-3 gap-3">
+              <DashboardStatTile
+                variant="filter"
+                className="!w-full"
+                isActive={groupFilterTab === "all"}
+                icon="list"
+                label={t("ql_all", "All")}
+                number={viewingGroup.length.toString()}
+                onClick={() => setGroupFilterTab("all")}
+              />
+              <DashboardStatTile
+                variant="filter"
+                className="!w-full"
+                isActive={groupFilterTab === "new"}
+                icon="new_releases"
+                label={t("badge_new", "New")}
+                onClick={() => setGroupFilterTab("new")}
+              />
+              <DashboardStatTile
+                variant="filter"
+                className="!w-full"
+                isActive={groupFilterTab === "archive"}
+                icon="archive"
+                label={t("auto_archive", "Archive")}
+                onClick={() => setGroupFilterTab("archive")}
+              />
+            </div>
+
+            <ActionPill
+              className="!max-w-none !w-full"
+              searchQuery={groupSearch}
+              setSearchQuery={setGroupSearch}
+              searchPlaceholder={t("oversight_search", "Search reports...")}
+              rightContent={
+                <CustomDropdown 
+                  flat={true}
+                  variant="pill"
+                  value={groupTimeRange}
+                  onChange={setGroupTimeRange}
+                  options={timeOptions}
+                  disableTint
+                />
+              }
+            />
+
+            <UniversalGroup
+              title={t("oversight_group_sidepanel_title", "Detection Instances")}
+              icon="threat_intelligence"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {viewingGroup.filter((r) => {
                   const searchLower = groupSearch.toLowerCase();
                   if (groupSearch && !r.artifact_name?.toLowerCase().includes(searchLower)) return false;
 
@@ -342,32 +341,33 @@ export default function SAOversightReports() {
                   }
                   
                   return true;
-               }).map((r, i) => {
+                }).map((r) => {
                   const rDate = new Date(r.detected_at || r.created_at);
                   const thirtyDaysAgo = new Date();
                   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
                   const isNew = rDate >= thirtyDaysAgo;
-                  const displayStatus = r.status === 'pending' ? (isNew ? t("ui_tab_new") : t("oversight_tab_archive")) : r.status;
+                  const displayStatus = r.status === 'pending' ? (isNew ? t("ui_tab_new", "New") : t("oversight_tab_archive", "Archive")) : r.status;
                   const isMalware = r.status === 'blacklisted';
 
                   return (
                     <div 
                       key={r.id} 
                       onClick={() => setViewingReport(r)}
-           className={`p-4 glass-panel rounded-2xl cursor-pointer transition-colors flex flex-col gap-1 border relative group/item ${isMalware ? 'border-red-900/30 hover:border-red-500' : 'border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]'}`}
+                      className={`p-4 glass-surface rounded-xl cursor-pointer transition-colors flex flex-col gap-1 border relative group/item ${isMalware ? 'border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)]' : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)]'}`}
                     >
-                       <div className="flex justify-between items-start gap-2 relative z-10 mb-1">
-                          <span className="text-sm font-black text-[var(--text)] tracking-widest">{rDate.toLocaleDateString()}</span>
-                          <span className={`px-2 py-1 rounded-md text-[8px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] ${isMalware ? 'text-red-500 border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : 'theme-text-danger border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'}`}>
-                              {displayStatus}
-                          </span>
-                       </div>
-                       <span className="text-[10px] font-mono opacity-60 text-[var(--subtext)] relative z-10 font-bold">{rDate.toLocaleTimeString()}</span>
-                       <span className="text-[9px] capitalize font-black tracking-widest opacity-40 text-[var(--subtext)] truncate mt-2 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] pt-2 relative z-10">{r.artifact_name || t("oversight_unknown_artifact")}</span>
+                      <div className="flex justify-between items-start gap-2 relative z-10 mb-1">
+                        <span className="text-sm font-black text-[var(--text)] tracking-widest">{rDate.toLocaleDateString()}</span>
+                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase border bg-transparent shrink-0 ${isMalware ? 'text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' : 'text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_40%,transparent)]'}`}>
+                          {displayStatus}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono opacity-60 text-[var(--subtext)] relative z-10 font-bold">{rDate.toLocaleTimeString()}</span>
+                      <span className="text-[9px] capitalize font-black tracking-widest opacity-60 text-[var(--subtext)] truncate mt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] pt-2 relative z-10">{r.artifact_name || t("oversight_unknown_artifact", "Unknown Artifact")}</span>
                     </div>
                   );
-               })}
-             </div>
+                })}
+              </div>
+            </UniversalGroup>
           </div>
         </SidePanel>
       )}
@@ -377,78 +377,88 @@ export default function SAOversightReports() {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const isNew = rDate >= thirtyDaysAgo;
-        const viewingDisplayStatus = viewingReport.status === 'pending' ? (isNew ? t("ui_tab_new") : t("oversight_tab_archive")) : viewingReport.status;
+        const viewingDisplayStatus = viewingReport.status === 'pending' ? (isNew ? t("ui_tab_new", "New") : t("oversight_tab_archive", "Archive")) : viewingReport.status;
 
         return (
           <SidePanel
-            title={t("oversight_manifest_panel")}
-            icon={t("icon_threat_intelligence")}
+            title={t("oversight_manifest_panel", "Threat Manifest")}
+            icon={t("icon_threat_intelligence", "threat_intelligence")}
+            iconColorClass="text-[var(--danger)]"
             isOpen={true}
-            widthClass="w-[625px]"
+            widthClass="w-[90vw] md:w-[680px]"
             onClose={() => setViewingReport(null)}
-            subtitle={`${t("oversight_report_id")}: ${viewingReport.id}`}
+            subtitle={`${t("oversight_report_id", "Report ID")}: ${viewingReport.id}`}
           >
-            <div className="flex flex-col gap-8 h-full">
-              <div className="flex flex-col gap-6 relative">
-                <h4 className="text-[10px] font-black text-[var(--text)] opacity-80 capitalize tracking-widest flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 mb-2">
-                  <span className="material-symbols-outlined !text-[14px]">{t("icon_info")}</span>
-                  {t("report_details")}
-                </h4>
-                
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-2 w-full">
-                     <span className="text-[9px] capitalize tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("label_modname")}</span>
-                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
-                       <span className="text-sm font-bold text-[var(--text)] break-all">{viewingReport.artifact_name || t("oversight_unknown_artifact")}</span>
-                     </div>
-                  </div>
-                  <div className="flex flex-col gap-2 w-full">
-                     <span className="text-[9px] capitalize tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("status")}</span>
-                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
-                       <span className={`text-sm font-black capitalize tracking-widest bg-clip-text text-transparent drop-shadow-md ${viewingReport.status === 'blacklisted' ? 'bg-gradient-to-r from-amber-400 to-yellow-500' : viewingReport.status === 'cleared' ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-red-400 to-rose-500'}`}>
-                         {viewingDisplayStatus}
-                       </span>
-                     </div>
-                  </div>
-                  <div className="flex flex-col gap-2 w-full">
-                     <span className="text-[9px] capitalize tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("oversight_lbl_signature")}</span>
-                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
-                       <span className={`text-sm font-black capitalize tracking-widest bg-clip-text text-transparent drop-shadow-md ${viewingReport.signature === "N/A" ? 'bg-gradient-to-r from-gray-400 to-gray-500' : 'bg-gradient-to-r from-red-400 to-rose-500'}`}>
-                         {viewingReport.signature === "N/A" ? (t("oversight_na")) : (viewingReport.signature || t("oversight_unknown_threat"))}
-                       </span>
-                     </div>
-                  </div>
-                  <div className="flex flex-col gap-2 w-full">
-                     <span className="text-[9px] capitalize tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("dna_hash")}</span>
-                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
-                       <span className="text-sm font-bold text-[var(--text)] break-all opacity-90">{viewingReport.detected_hash || t("oversight_na")}</span>
-                     </div>
-                  </div>
-                  <div className="flex flex-col gap-2 w-full">
-                     <span className="text-[9px] capitalize tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("oversight_lbl_detected_at")}</span>
-                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
-                       <span className="text-sm font-bold text-[var(--text)]">{formatDate(viewingReport.detected_at || viewingReport.created_at)}</span>
-                     </div>
-                  </div>
+            <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+              <SidePanelHeroCard
+                icon={t("icon_threat_intelligence", "threat_intelligence")}
+                overline={t("oversight_manifest_panel", "Threat Manifest")}
+                title={viewingReport.artifact_name || t("oversight_unknown_artifact", "Unknown Artifact")}
+                description={viewingReport.signature === "N/A" ? t("oversight_na", "N/A") : (viewingReport.signature || t("oversight_unknown_threat", "Unknown Threat"))}
+                badge={viewingDisplayStatus}
+                badgeIcon={viewingReport.status === 'blacklisted' ? 'coronavirus' : 'warning'}
+                variant={viewingReport.status === 'cleared' ? 'success' : 'danger'}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <StatBox
+                    label={t("status", "Status")}
+                    value={viewingDisplayStatus}
+                    icon="gavel"
+                    iconColorClass={viewingReport.status === 'cleared' ? "text-[var(--success)]" : "text-[var(--danger)]"}
+                  />
+                  <StatBox
+                    label={t("oversight_lbl_detected_at", "Detected At")}
+                    value={formatDate(viewingReport.detected_at || viewingReport.created_at)}
+                    icon="schedule"
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                </div>
+              </SidePanelHeroCard>
 
-                  <div className="flex flex-col gap-2 w-full">
-                     <span className="text-[9px] capitalize tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("oversight_lbl_orig_status")}</span>
-                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
-                       <span className={`text-sm font-black capitalize tracking-widest bg-clip-text text-transparent drop-shadow-md ${viewingReport.original_exists === true ? 'bg-gradient-to-r from-amber-400 to-yellow-500' : viewingReport.original_exists === false ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-gray-400 to-gray-500'}`}>
-                         {viewingReport.original_exists === true ? t("oversight_status_present") : viewingReport.original_exists === false ? t("oversight_status_removed") : t("vlocal")}
-                       </span>
-                     </div>
-                  </div>
-                  <div className="flex flex-col gap-2 w-full">
-                     <span className="text-[9px] capitalize tracking-widest font-black opacity-50 text-[var(--subtext)] ml-1">{t("oversight_lbl_shredded_status")}</span>
-                     <div className="w-full p-3.5 glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner flex items-center min-h-[48px]">
-                       <span className={`text-sm font-black capitalize tracking-widest bg-clip-text text-transparent drop-shadow-md ${(viewingReport.original_shredded === true || viewingReport.quarantined_file_shredded === true) ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : viewingReport.original_shredded === false ? 'bg-gradient-to-r from-red-400 to-rose-500' : 'bg-gradient-to-r from-gray-400 to-gray-500'}`}>
-                         {(viewingReport.original_shredded === true || viewingReport.quarantined_file_shredded === true) ? t("oversight_status_removed") : viewingReport.original_shredded === false ? t("oversight_status_not_shredded") : t("vlocal")}
-                       </span>
-                     </div>
+              <SidePanelTitleInput
+                value={viewingReport.artifact_name || t("oversight_unknown_artifact", "Unknown Artifact")}
+                readOnly
+                label={t("label_modname", "Artifact Name")}
+                subtitle={`${t("oversight_report_id", "Report ID")}: ${viewingReport.id}`}
+              />
+
+              <UniversalGroup title={t("report_details", "Report Details")} icon={t("icon_info", "info")}>
+                <div className="flex flex-col gap-1.5 w-full">
+                  <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("oversight_lbl_signature", "Heuristic Signature")}</span>
+                  <div className="w-full px-4 py-3 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center">
+                    <span className={`text-sm font-black tracking-wide ${viewingReport.signature === "N/A" ? 'text-[var(--subtext)]' : 'text-[var(--danger)]'}`}>
+                      {viewingReport.signature === "N/A" ? t("oversight_na", "N/A") : (viewingReport.signature || t("oversight_unknown_threat", "Unknown Threat"))}
+                    </span>
                   </div>
                 </div>
-              </div>
+
+                <div className="flex flex-col gap-1.5 w-full">
+                  <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("dna_hash", "DNA Hash")}</span>
+                  <div className="w-full px-4 py-3 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center">
+                    <span className="text-xs font-mono font-bold text-[var(--text)] break-all">{viewingReport.detected_hash || t("oversight_na", "N/A")}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("oversight_lbl_orig_status", "Original File Status")}</span>
+                    <div className="w-full px-4 py-3 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center">
+                      <span className={`text-xs font-black uppercase tracking-wider ${viewingReport.original_exists === true ? 'text-[var(--warning)]' : viewingReport.original_exists === false ? 'text-[var(--success)]' : 'text-[var(--subtext)]'}`}>
+                        {viewingReport.original_exists === true ? t("oversight_status_present", "Present") : viewingReport.original_exists === false ? t("oversight_status_removed", "Removed") : t("vlocal", "Unknown")}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("oversight_lbl_shredded_status", "Quarantine Shred Status")}</span>
+                    <div className="w-full px-4 py-3 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center">
+                      <span className={`text-xs font-black uppercase tracking-wider ${(viewingReport.original_shredded === true || viewingReport.quarantined_file_shredded === true) ? 'text-[var(--success)]' : viewingReport.original_shredded === false ? 'text-[var(--danger)]' : 'text-[var(--subtext)]'}`}>
+                        {(viewingReport.original_shredded === true || viewingReport.quarantined_file_shredded === true) ? t("oversight_status_removed", "Shredded") : viewingReport.original_shredded === false ? t("oversight_status_not_shredded", "Not Shredded") : t("vlocal", "Unknown")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </UniversalGroup>
             </div>
           </SidePanel>
         );
@@ -456,7 +466,3 @@ export default function SAOversightReports() {
     </>
   );
 }
-
-
-
-

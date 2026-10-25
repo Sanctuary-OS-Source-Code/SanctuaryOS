@@ -8,7 +8,13 @@ export * from "./shared-components/stringUtils";
 export * from "./shared-components/modUtils";
 export * from "./shared-components/misc";
 export * from "./shared/LinkAssetSidePanel";
-export { UniversalGroup, StatBox } from "./components/universal/UniversalLayout";
+export {
+  UniversalGroup,
+  StatBox,
+  SidePanelHeroCard,
+  SidePanelTitleInput,
+  SidePanelPillToggle,
+} from "./components/universal/UniversalLayout";
 
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";

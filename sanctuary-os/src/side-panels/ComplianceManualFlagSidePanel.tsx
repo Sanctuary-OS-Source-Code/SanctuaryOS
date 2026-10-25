@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, supabaseAuth, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown, ActionButton, FilterTabs, FilterTabButton, ViewToggle, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile } from "../shared";
+import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown, ActionButton, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, SidePanelHeroCard, SidePanelPillToggle } from "../shared";
 import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from '../components/universal/UniversalLayout';
 import { useStore } from '../store';
 import { createPortal } from 'react-dom';
@@ -127,7 +127,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
 
   const handleManualFlag = async () => {
     if ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim()) {
-      useStore.getState().pushStatus(t("comp_manual_alert_req") || "Required fields missing");
+      useStore.getState().pushStatus(t("comp_manual_alert_req", "Required fields missing"));
       return;
     }
     setIsSubmitting(true);
@@ -176,14 +176,14 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
          reason: registryReason.trim()
       }});
 
-      useStore.getState().pushStatus(t("comp_manual_alert_success") || "Flagged successfully");
+      useStore.getState().pushStatus(t("comp_manual_alert_success", "Flagged successfully"));
       onClose();
       if (onSuccess) onSuccess();
       if (manualTier === 5) {
          window.dispatchEvent(new CustomEvent('force-radar-sweep'));
       }
     } catch (err: any) {
-      useStore.getState().pushStatus((t("comp_manual_alert_fail") || "Failed:") + " " + err.message);
+      useStore.getState().pushStatus(t("comp_manual_alert_fail", "Failed:") + " " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -223,7 +223,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       await loadSignatures();
       
       resetHeuristicForm();
-      useStore.getState().pushStatus(t("auto_heuristic_signature_saved") || "Heuristic signature saved");
+      useStore.getState().pushStatus(t("auto_heuristic_signature_saved", "Heuristic signature saved"));
       window.dispatchEvent(new CustomEvent('force-heuristics-refresh'));
       onClose();
       if (onSuccess) onSuccess();
@@ -262,7 +262,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
 
       await loadSignatures();
       resetHeuristicForm();
-      useStore.getState().pushStatus(t("btn_delete") || "Deleted");
+      useStore.getState().pushStatus(t("btn_delete", "Deleted"));
       window.dispatchEvent(new CustomEvent('force-heuristics-refresh'));
       onClose();
       if (onSuccess) onSuccess();
@@ -277,16 +277,17 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("comp_manual_title") || "Manual Flag"}
-      subtitle={t("comp_manual_subtitle") || "Oversight Intervention"}
-      icon={t("icon_flag") || "flag"}
-      iconColorClass={isMalwareOnly ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" : "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"}
+      title={t("comp_manual_title", "Manual Flag")}
+      subtitle={t("comp_manual_subtitle", "Oversight Intervention")}
+      icon={t("icon_flag", "flag")}
+      iconColorClass={isMalwareOnly ? "text-[var(--danger)]" : "text-[var(--accent)]"}
+      widthClass="w-[90vw] md:w-[680px]"
       headerActions={
         <PanelHeaderGroup>
           {activeTab === 'heuristic' && editingId && (
             <PanelHeaderButton
-              icon={confirmDelete ? (t("icon_warning") || "warning") : (t("icon_delete") || "delete")}
-              tooltip={confirmDelete ? (t("btn_confirm_delete") || "Confirm Delete") : (t("btn_delete") || "Delete")}
+              icon={confirmDelete ? t("icon_warning", "warning") : t("icon_delete", "delete")}
+              tooltip={confirmDelete ? t("btn_confirm_delete", "Confirm Delete") : t("btn_delete", "Delete")}
               variant="danger"
               disabled={isSubmitting}
               onClick={() => {
@@ -299,43 +300,54 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
             />
           )}
           <PanelHeaderButton
-            icon={t("icon_flag") || "flag"}
-            tooltip={isSubmitting ? (t("btn_submitting") || "Submitting...") : (t("comp_manual_btn_insert") || "Save")}
+            icon={t("icon_flag", "flag")}
+            tooltip={isSubmitting ? t("btn_submitting", "Submitting...") : t("comp_manual_btn_insert", "Save")}
+            variant={isMalwareOnly ? "danger" : "accent"}
             disabled={isSubmitting || (activeTab === 'registry' && ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())) || (activeTab === 'heuristic' && (!newSig.trim() || !notes.trim()))}
             onClick={activeTab === 'registry' ? handleManualFlag : handleAddHeuristic}
           />
         </PanelHeaderGroup>
       }
     >
-      <div className="p-6 flex flex-col h-full gap-8">
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_flag", "flag")}
+          overline={t("comp_manual_subtitle", "Oversight Intervention")}
+          title={t("comp_manual_title", "Manual Flag")}
+          description={isMalwareOnly ? t("malware_subtitle", "Flag malicious artifacts or inject heuristic signatures") : t("comp_manual_search_placeholder", "Search or enter artifact identifier to enforce compliance tier")}
+          badge={activeTab === 'heuristic' ? t("heuristics_tab", "Heuristics") : t("auto_global_registry", "Registry")}
+          variant={isMalwareOnly ? "danger" : "accent"}
+        />
+
         {isMalwareOnly && (
-          <div className="flex gap-4 w-full h-16 md:h-20 mb-4 shrink-0">
-            <div 
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_assignment", "assignment")}
+              label={t("auto_global_registry", "Global Registry")}
+              isActive={activeTab === 'registry'}
               onClick={() => setActiveTab('registry')}
-              className={`flex-1 rounded-2xl flex flex-row md:flex-col items-center justify-center p-3 gap-1 md:gap-2 transition-all duration-300 ${activeTab !== 'registry' ? 'opacity-50 hover:opacity-100 cursor-pointer glass-panel' : 'cursor-pointer theme-glass-panel shadow-lg border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}
-            >
-              <span className={`hidden md:block material-symbols-outlined !text-xl ${activeTab === 'registry' ? 'theme-text-accent' : 'text-[var(--text)]'}`}>assignment</span>
-              <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest text-center truncate w-full ${activeTab === 'registry' ? 'theme-text-accent' : 'text-[var(--text)]'}`}>{t("auto_global_registry")}</span>
-            </div>
-            
-            <div 
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_science", "science")}
+              label={t("heuristics_tab", "Heuristics")}
+              isActive={activeTab === 'heuristic'}
               onClick={() => setActiveTab('heuristic')}
-              className={`flex-1 rounded-2xl flex flex-row md:flex-col items-center justify-center p-3 gap-1 md:gap-2 transition-all duration-300 ${activeTab !== 'heuristic' ? 'opacity-50 hover:opacity-100 cursor-pointer glass-panel' : 'cursor-pointer bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-lg'}`}
-            >
-              <span className={`hidden md:block material-symbols-outlined !text-xl ${activeTab === 'heuristic' ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>science</span>
-              <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest text-center truncate w-full ${activeTab === 'heuristic' ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>{t("heuristics_tab")}</span>
-            </div>
+            />
           </div>
         )}
 
         {activeTab === 'registry' ? (
           <UniversalGroup 
-            title={t("comp_manual_title")} 
-            icon={t("icon_flag")} 
+            title={t("comp_manual_title", "Manual Flag")} 
+            icon={t("icon_flag", "flag")} 
             headerColorClass={isMalwareOnly ? "text-[var(--danger)]" : "theme-text-accent"} 
           >
             <div className="flex flex-col gap-2 relative z-[60]">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("comp_manual_search_label")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("comp_manual_search_label", "Target Artifact")}</label>
               <div className="relative">
                 <input 
                   ref={inputRef}
@@ -343,18 +355,18 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                   onChange={e => setManualSearchQuery(e.target.value)} 
                   readOnly={!!manualSelectedMod}
                   onFocus={() => { if (!manualSelectedMod) setIsDropdownOpen(true); }}
-                  className="w-full glass-panel rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40" 
-                  placeholder={t("comp_manual_search_placeholder")} 
+                  className="w-full glass-surface rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40" 
+                  placeholder={t("comp_manual_search_placeholder", "Search mod name, UUID, or SHA-256 hash...")} 
                 />
                 {manualSelectedMod && (
-                  <button onClick={() => { setManualSelectedMod(null); setManualSearchQuery(""); inputRef.current?.focus(); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] font-black text-[10px] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-2 py-1 rounded-md">{t("_")} {t("clear")}</button>
+                  <button onClick={() => { setManualSelectedMod(null); setManualSearchQuery(""); inputRef.current?.focus(); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--danger)] font-black text-[10px] bg-transparent border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] px-2 py-1 rounded-md">{t("clear", "Clear")}</button>
                 )}
               </div>
 
               {isDropdownOpen && !manualSelectedMod && manualSearchResults.length > 0 && createPortal(
                 <>
                   <div className="fixed inset-0 z-[50000]" onClick={() => setIsDropdownOpen(false)} />
-         <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
+                  <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
                     top: inputRef.current?.getBoundingClientRect().bottom,
                     left: inputRef.current?.getBoundingClientRect().left,
                     width: inputRef.current?.getBoundingClientRect().width,
@@ -362,7 +374,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                     {manualSearchResults.map(m => (
                       <button key={m.id} onClick={() => { setManualSelectedMod(m); setIsDropdownOpen(false); }} className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col group transition-all">
                         <span className="text-[11px] font-black capitalize text-[var(--text)] group-hover:theme-text-accent truncate">{m.name}</span>
-                        <span className="text-[9px] font-bold capitalize tracking-widest opacity-60">{m.master_author || t("vlocal")}</span>
+                        <span className="text-[9px] font-bold capitalize tracking-widest opacity-60">{m.master_author || t("vlocal", "Local")}</span>
                       </button>
                     ))}
                   </div>
@@ -372,46 +384,46 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
 
             {!isMalwareOnly && (
               <div className="flex flex-col gap-2 relative z-40 mt-4">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("Vault_stat_tier")}</label>
+                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("Vault_stat_tier", "Compliance Tier")}</label>
                 <CustomComplianceDropdown value={manualTier} onChange={setManualTier} maxTier={5} />
               </div>
             )}
 
             <div className="relative z-30 mt-4">
               <UniversalTextArea 
-                  label={t("reason")}
+                  label={t("reason", "Reason")}
                   value={registryReason}
                   onChange={setRegistryReason}
                   className="min-h-[80px]" 
-                  placeholder={t("comp_reason_ph")}
+                  placeholder={t("comp_reason_ph", "Enter enforcement reason...")}
               />
             </div>
           </UniversalGroup>
         ) : (
           <UniversalGroup 
-            title={t("heuristics_tab")} 
-            icon={t("icon_flag")} 
+            title={t("heuristics_tab", "Heuristics")} 
+            icon={t("icon_flag", "flag")} 
             headerColorClass="text-[var(--danger)]" 
           >
             <div className="flex flex-col gap-4 relative z-[60]">
               <UniversalInput 
-                label={t("auto_file_signature")}
+                label={t("auto_file_signature", "File Signature")}
                 value={newSig}
                 onChange={setNewSig}
-                placeholder={t("heuristics_placeholder")}
+                placeholder={t("heuristics_placeholder", "Enter signature pattern...")}
               />
 
               <div className="flex flex-col gap-4 z-[90] relative">
                 <div className="flex flex-col gap-2 relative">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("comp_match_type")}</label>
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("comp_match_type", "Match Type")}</label>
                   <CustomDropdown
                     value={matchType}
                     options={[
-                      { id: "archive_entry_exact", label: t("comp_match_type_archive_exact") },
-                      { id: "archive_entry_contains", label: t("comp_match_type_archive_contains") },
-                      { id: "file_name_exact", label: t("comp_match_type_file_exact") },
-                      { id: "file_name_contains", label: t("comp_match_type_file_contains") },
-                      { id: "file_content_contains", label: t("comp_match_type_content_contains") }
+                      { id: "archive_entry_exact", label: t("comp_match_type_archive_exact", "Archive Entry Exact") },
+                      { id: "archive_entry_contains", label: t("comp_match_type_archive_contains", "Archive Entry Contains") },
+                      { id: "file_name_exact", label: t("comp_match_type_file_exact", "File Name Exact") },
+                      { id: "file_name_contains", label: t("comp_match_type_file_contains", "File Name Contains") },
+                      { id: "file_content_contains", label: t("comp_match_type_content_contains", "File Content Contains") }
                     ]}
                     onChange={(v: string[]) => setMatchType(v[0])}
                     disableTint={true}
@@ -420,21 +432,20 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               </div>
 
               <UniversalTextArea 
-                label={t("reason")}
+                label={t("reason", "Reason")}
                 value={notes}
                 onChange={setNotes}
                 className="min-h-[80px]" 
-                placeholder={t("comp_reason_ph")}
+                placeholder={t("comp_reason_ph", "Enter heuristic notes...")}
               />
 
-              <div className="flex items-center gap-4">
-                <UniversalToggle
-                  label={enabled ? t("comp_enabled") : t("comp_disabled")}
-                  checked={enabled}
-                  onChange={setEnabled}
-                  layout="horizontal-reverse"
-                />
-              </div>
+              <SidePanelPillToggle
+                label={t("comp_enabled", "Heuristic Active")}
+                description={enabled ? t("comp_enabled", "Enabled") : t("comp_disabled", "Disabled")}
+                icon={t("icon_shield", "shield")}
+                checked={enabled}
+                onChange={setEnabled}
+              />
             </div>
           </UniversalGroup>
         )}
@@ -442,5 +453,3 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     </SidePanel>
   );
 }
-
-

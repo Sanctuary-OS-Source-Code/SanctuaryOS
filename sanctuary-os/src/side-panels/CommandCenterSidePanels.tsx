@@ -11,8 +11,10 @@ import {
   EmptyState,
   ActionPill,
   getHighestVersion,
+  SidePanelHeroCard,
+  StatBox,
+  UniversalGroup,
 } from "../shared";
-import { UniversalGroup } from "../components/universal/UniversalLayout";
 import {
   normalizeModGroupTitle,
   extractValidCreator,
@@ -223,99 +225,101 @@ function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: any) {
       ? getHighestVersion(update.compatible_versions)
       : update.newGameVersion || null;
 
-  const panelResetStyle = {
-    "--glass-outer-shadow": "0 0 #0000",
-    "--glass-nested-shadow": "0 0 #0000",
-    boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.14))",
-  } as React.CSSProperties;
-
   return (
     <>
       <div
         onClick={openUpdateTarget}
-        style={panelResetStyle}
-        className="glass-panel shadow-none rounded-3xl p-5 flex flex-col justify-between gap-3 transition-all duration-300 cursor-pointer group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+        className="glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-3 transition-all duration-300 cursor-pointer group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
       >
-        {/* Top Row: Mod Icon & Metadata */}
-        <div className="flex items-center gap-2 min-w-0">
-          {image ? (
-            <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0">
-              <img src={image} alt={title} className="w-full h-full object-cover" />
-            </div>
-          ) : (
-            <div className="w-8 h-8 flex items-center justify-center shrink-0 text-[var(--text)] opacity-80 group-hover:opacity-100 transition-opacity">
-              <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
-            <span className="truncate opacity-85">{validCreator || fallbackTypeLabel}</span>
-            {groupedMods.length > 1 && (
-              <>
-                <span className="opacity-40 shrink-0">&bull;</span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsExpanded((prev) => !prev);
-                  }}
-                  className="relative group/modpill inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-bold text-[var(--text)] opacity-90 hover:opacity-100 transition-all cursor-pointer shrink-0"
-                >
-                  <span>
-                    {groupedMods.length} {t("card_files_linked", "Linked Files")}
-                  </span>
-                  <span
-                    className={`material-symbols-outlined !text-[13px] opacity-75 transition-transform duration-300 ${
-                      isExpanded ? "rotate-180" : ""
-                    }`}
-                  >
-                    {t("icon_expand_more", "expand_more")}
-                  </span>
-
-                  {!isExpanded && (
-                    <HoverTooltip
-                      align="left"
-                      vAlign="bottom"
-                      content={
-                        <div className="glass-panel rounded-2xl p-3.5 min-w-[230px] max-w-[300px] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl flex flex-col gap-2 pointer-events-none">
-                          <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
-                              {groupedMods.length} {t("card_files_linked", "Linked Files")}
-                            </span>
-                          </div>
-                          <div className="flex flex-col gap-1.5">
-                            {groupedMods.slice(0, 14).map((gm: any, gIdx: number) => {
-                              const gmName =
-                                formatAddonModuleName(gm, activeGameSchema) ||
-                                formatDisplayName(gm.displayName || gm.name);
-                              const isScript = /\.ts4script$/i.test(
-                                String(gm?.name || gm?._originalSetName || "")
-                              );
-                              return (
-                                <div
-                                  key={`${gm.name || gIdx}-${gIdx}`}
-                                  className="flex items-center justify-between gap-3 text-[11px]"
-                                >
-                                  <span className="font-bold text-[var(--text)] truncate">
-                                    {gmName}
-                                  </span>
-                                  <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-75 shrink-0">
-                                    {isScript
-                                      ? t("card_file_script", "Script")
-                                      : t("card_file_package", "Package")}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      }
-                    />
-                  )}
-                </button>
-              </>
+        {/* Top Row: Mod Icon & Metadata + Outline Badge */}
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {image ? (
+              <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0">
+                <img src={image} alt={title} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-8 h-8 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] bg-transparent flex items-center justify-center shrink-0 text-[var(--text)] opacity-80 group-hover:opacity-100 transition-opacity">
+                <span className="material-symbols-outlined !text-[18px]">{modIcon}</span>
+              </div>
             )}
+
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+              <span className="truncate opacity-85">{validCreator || fallbackTypeLabel}</span>
+              {groupedMods.length > 1 && (
+                <>
+                  <span className="opacity-40 shrink-0">&bull;</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsExpanded((prev) => !prev);
+                    }}
+                    className="relative group/modpill inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[10px] font-bold text-[var(--text)] opacity-90 hover:opacity-100 transition-all cursor-pointer shrink-0"
+                  >
+                    <span>
+                      {groupedMods.length} {t("card_files_linked", "Linked Files")}
+                    </span>
+                    <span
+                      className={`material-symbols-outlined !text-[13px] opacity-75 transition-transform duration-300 ${
+                        isExpanded ? "rotate-180" : ""
+                      }`}
+                    >
+                      {t("icon_expand_more", "expand_more")}
+                    </span>
+
+                    {!isExpanded && (
+                      <HoverTooltip
+                        align="left"
+                        vAlign="bottom"
+                        content={
+                          <div className="glass-panel rounded-2xl p-3.5 min-w-[230px] max-w-[300px] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl flex flex-col gap-2 pointer-events-none">
+                            <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
+                                {groupedMods.length} {t("card_files_linked", "Linked Files")}
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              {groupedMods.slice(0, 14).map((gm: any, gIdx: number) => {
+                                const gmName =
+                                  formatAddonModuleName(gm, activeGameSchema) ||
+                                  formatDisplayName(gm.displayName || gm.name);
+                                const isScript = /\.ts4script$/i.test(
+                                  String(gm?.name || gm?._originalSetName || "")
+                                );
+                                return (
+                                  <div
+                                    key={`${gm.name || gIdx}-${gIdx}`}
+                                    className="flex items-center justify-between gap-3 text-[11px]"
+                                  >
+                                    <span className="font-bold text-[var(--text)] truncate">
+                                      {gmName}
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-75 shrink-0">
+                                      {isScript
+                                        ? t("card_file_script", "Script")
+                                        : t("card_file_package", "Package")}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        }
+                      />
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
+
+          <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] inline-flex items-center gap-1 shrink-0">
+            <span className="material-symbols-outlined !text-[12px]">
+              {t("icon_update", "update")}
+            </span>
+            <span>{t("comms_btn_update", "Update")}</span>
+          </span>
         </div>
 
         {/* Middle Row: Full-Width Mod Title */}
@@ -369,10 +373,7 @@ function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: any) {
 
       {/* Full-Width Addon / Linked Modules Drawer */}
       {isExpanded && groupedMods.length > 1 && (
-        <div
-          style={panelResetStyle}
-          className="col-span-full glass-panel shadow-none rounded-3xl p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-1 duration-200"
-        >
+        <div className="col-span-full glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="flex items-center justify-between gap-2 px-1 pb-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
             <div className="flex items-center gap-2 min-w-0">
               <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">
@@ -404,7 +405,7 @@ function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: any) {
               return (
                 <div
                   key={`${gm.name || gIdx}-${gIdx}`}
-                  className="glass-surface rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5"
+                  className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-2.5"
                 >
                   <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] shrink-0">
                     {getModIcon(gm, activeGameSchema, t)}
@@ -461,10 +462,39 @@ export function UpdatesSidePanel({
       title={t("updates_modal_title", "Updates")}
       subtitle={t("updates_summary_desc", "Available Mod & Blueprint Updates")}
       icon={t("icon_update", "update")}
-      iconColorClass="theme-text-accent"
-      widthClass="w-full md:w-[760px]"
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[90vw] md:w-[760px]"
     >
-      <div className="flex flex-col gap-6 relative z-10 w-full pb-12">
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_update", "update")}
+          overline={t("updates_modal_title", "Updates")}
+          title={t("updates_summary_desc", "Available Mod & Blueprint Updates")}
+          description={
+            groupedUpdates.length > 0
+              ? t("updates_det", "Updates Detected")
+              : t("no_updates", "All Mods Up to Date")
+          }
+          badge={`${groupedUpdates.length} ${t("items", "Items")}`}
+          badgeIcon={t("icon_update", "update")}
+          variant={groupedUpdates.length > 0 ? "accent" : "success"}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            <StatBox
+              label={t("updates_avail", "Updates Available")}
+              value={groupedUpdates.length}
+              icon={t("icon_update", "update")}
+              iconColorClass="text-[var(--accent)]"
+            />
+            <StatBox
+              label={t("card_files_linked", "Linked Files")}
+              value={(activeUpdates || []).length}
+              icon={t("icon_inventory_2", "inventory_2")}
+              iconColorClass="text-[var(--accent)]"
+            />
+          </div>
+        </SidePanelHeroCard>
+
         {groupedUpdates.length > 0 && (
           <ActionPill
             searchQuery={searchQuery}
@@ -491,7 +521,7 @@ export function UpdatesSidePanel({
             </div>
           </UniversalGroup>
         ) : (
-          <div className="glass-panel rounded-3xl p-10">
+          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
             <EmptyState
               icon={t("icon_check_circle", "check_circle")}
               title={t("no_updates", "All Mods Up to Date")}

@@ -1,10 +1,17 @@
-import React from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { SidePanel, PanelHeaderGroup, PanelHeaderButton } from '../shared';
-import { useLexicon } from '../LexiconContext';
-import { useStore } from '../store';
-import { scrubLogUserData } from '../utils/logScrubber';
+import React from "react";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import {
+  SidePanel,
+  SidePanelHeroCard,
+  UniversalGroup,
+  ActionButton,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+} from "../shared";
+import { useLexicon } from "../LexiconContext";
+import { useStore } from "../store";
+import { scrubLogUserData } from "../utils/logScrubber";
 
 interface CodeSnippetSidebarProps {
   code: string;
@@ -13,7 +20,11 @@ interface CodeSnippetSidebarProps {
   widthClass?: string;
 }
 
-export default function CodeSnippetSidebar({ code, title, onClose, widthClass = "w-[50vw] max-w-4xl" }: CodeSnippetSidebarProps) {
+export default function CodeSnippetSidebar({
+  code,
+  title,
+  onClose,
+}: CodeSnippetSidebarProps) {
   const { t } = useLexicon();
   const [wrapText, setWrapText] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -27,19 +38,23 @@ export default function CodeSnippetSidebar({ code, title, onClose, widthClass = 
 
   React.useEffect(() => {
     if (markRefs.current[currentMatchIndex]) {
-      markRefs.current[currentMatchIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      markRefs.current[currentMatchIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
     }
   }, [currentMatchIndex, searchTerm]);
 
-  
   const escapeRegExp = (string: string) => {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   };
 
-  const matchCount = searchTerm ? (safeCode.match(new RegExp(escapeRegExp(searchTerm), 'gi')) || []).length : 0;
+  const matchCount = searchTerm
+    ? (safeCode.match(new RegExp(escapeRegExp(searchTerm), "gi")) || []).length
+    : 0;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       if (matchCount > 0) {
         if (e.shiftKey) {
@@ -51,110 +66,185 @@ export default function CodeSnippetSidebar({ code, title, onClose, widthClass = 
     }
   };
 
+  const lineCount = safeCode ? safeCode.split(/\r\n|\r|\n/).length : 0;
+
   return (
     <SidePanel
       isOpen={true}
       onClose={onClose}
-      title={title || t("code_snippet")}
-      icon="data_object"
+      title={title || t("code_snippet", "Code Snippet")}
+      subtitle={`${lineCount} ${t("label_lines", "Lines")}`}
+      icon={t("icon_data_object", "data_object")}
+      iconColorClass="text-[var(--accent)]"
       panelZ="z-[60001]"
       backdropZ="z-[60000]"
       isResizable={true}
       defaultWidth={750}
       headerActions={
         <PanelHeaderGroup>
-          <PanelHeaderButton 
-            icon={t("icon_content_copy")}
-            tooltip={t("ui_btn_copy_all") || "Copy All"}
-            onClick={() => { navigator.clipboard.writeText(safeCode); useStore.getState().pushStatus(t("alert_copied")); }}
+          <PanelHeaderButton
+            icon={t("icon_content_copy", "content_copy")}
+            tooltip={t("ui_btn_copy_all", "Copy All")}
+            onClick={() => {
+              navigator.clipboard.writeText(safeCode);
+              useStore.getState().pushStatus(t("alert_copied", "Copied!"));
+            }}
           />
         </PanelHeaderGroup>
       }
     >
-      <div className="flex-1 overflow-hidden p-2 lg:p-2 flex flex-col gap-6">
-        
-        <div className="flex flex-col md:flex-row items-center justify-between w-full shrink-0 gap-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-3 rounded-2xl backdrop-blur-md shadow-sm">
-          <div className="flex items-center gap-2 relative flex-1 w-full max-w-2xl">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text)] text-[20px] opacity-50 z-10">{t("icon_search")}</span>
-            <input 
-              type="text" 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-              onKeyDown={handleKeyDown}
-              placeholder={t("ui_placeholder_search_code")}
-              className="w-full h-12 bg-black/20 rounded-xl pl-12 pr-12 text-[13px] font-bold text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] border border-transparent focus:bg-black/40 transition-all shadow-inner relative z-0 focus:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)]"
-            />
-            {searchTerm && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-3 z-10">
-                <span className="text-[11px] font-black text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] px-2.5 py-1 rounded-md border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-sm">{matchCount > 0 ? `${currentMatchIndex + 1} / ${matchCount}` : '0'}</span>
-                <button onClick={() => setSearchTerm("")} className="w-6 h-6 flex items-center justify-center rounded-md bg-black/30 text-[var(--subtext)] hover:text-white hover:bg-black/50 transition-colors">
-                  <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
-                </button>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <button 
-              onClick={() => setWrapText(!wrapText)}
-              className={`flex items-center justify-center gap-2 h-12 px-6 rounded-xl text-xs font-black capitalize tracking-widest transition-all flex-1 md:flex-none ${wrapText ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.2)]' : 'bg-black/20 text-[var(--subtext)] hover:text-[var(--text)] border border-transparent hover:bg-black/40 hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}
-            >
-              <span className="material-symbols-outlined !text-[18px]">{wrapText ? 'wrap_text' : 'segment'}</span>
-              {t("ui_btn_wrap_text")}
-            </button>
-          </div>
-        </div>
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_data_object", "data_object")}
+          overline={t("code_snippet", "Code Snippet")}
+          title={title || t("code_snippet", "Source Output")}
+          badge={`${lineCount} ${t("label_lines", "Lines")}`}
+          badgeIcon={t("icon_terminal", "terminal")}
+          variant="accent"
+        >
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full">
+            <div className="relative flex-1 w-full flex items-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:border-[var(--accent)] rounded-xl px-3.5 h-11 transition-all">
+              <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] mr-2.5">
+                {t("icon_search", "search")}
+              </span>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={t(
+                  "ui_placeholder_search_code",
+                  "Search within code..."
+                )}
+                className="w-full bg-transparent border-none text-xs font-bold text-[var(--text)] focus:outline-none placeholder:text-[var(--subtext)] placeholder:opacity-50"
+              />
+              {searchTerm && (
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <span className="text-[10px] font-black text-[var(--accent)] bg-transparent px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]">
+                    {matchCount > 0
+                      ? `${currentMatchIndex + 1} / ${matchCount}`
+                      : "0"}
+                  </span>
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="w-6 h-6 flex items-center justify-center rounded-md text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {t("icon_close", "close")}
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
 
-        <div className="w-full flex-1 min-h-0 rounded-2xl overflow-hidden shadow-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-xl flex flex-col relative">
-          
-          <div className="flex-1 overflow-auto custom-scrollbar relative z-0">
+            <ActionButton
+              variant="glass"
+              icon={
+                wrapText
+                  ? t("icon_wrap_text", "wrap_text")
+                  : t("icon_segment", "segment")
+              }
+              label={t("ui_btn_wrap_text", "Wrap Text")}
+              onClick={() => setWrapText(!wrapText)}
+              className={`!h-11 ${
+                wrapText
+                  ? "!text-[var(--accent)] !border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                  : ""
+              }`}
+            />
+          </div>
+        </SidePanelHeroCard>
+
+        <UniversalGroup
+          title={title || t("code_snippet", "Code Output")}
+          icon={t("icon_terminal", "terminal")}
+          headerAction={
+            <ActionButton
+              variant="glass"
+              icon={t("icon_content_copy", "content_copy")}
+              label={t("ui_btn_copy_all", "Copy")}
+              onClick={() => {
+                navigator.clipboard.writeText(safeCode);
+                useStore.getState().pushStatus(t("alert_copied", "Copied!"));
+              }}
+            />
+          }
+        >
+          <div className="w-full rounded-xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] glass-surface max-h-[65vh] overflow-y-auto custom-scrollbar">
             {!searchTerm ? (
-              <SyntaxHighlighter 
-                language="javascript" 
-                style={vscDarkPlus} 
+              <SyntaxHighlighter
+                language="javascript"
+                style={vscDarkPlus}
                 showLineNumbers={!wrapText}
-                codeTagProps={wrapText ? { style: { wordBreak: 'break-all', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' } } : undefined}
-                customStyle={{ 
-                  margin: 0, 
-                  padding: '2rem', 
-                  background: 'transparent', 
-                  fontSize: '13px', 
-                  lineHeight: '1.6', 
-                  minHeight: '100%',
-                  ...(wrapText ? { whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere' } : {})
+                codeTagProps={
+                  wrapText
+                    ? {
+                        style: {
+                          wordBreak: "break-all",
+                          overflowWrap: "anywhere",
+                          whiteSpace: "pre-wrap",
+                        },
+                      }
+                    : undefined
+                }
+                customStyle={{
+                  margin: 0,
+                  padding: "1.25rem",
+                  background: "transparent",
+                  fontSize: "12px",
+                  lineHeight: "1.6",
+                  ...(wrapText
+                    ? {
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-all",
+                        overflowWrap: "anywhere",
+                      }
+                    : {}),
                 }}
               >
                 {safeCode}
               </SyntaxHighlighter>
             ) : (
-              <pre className="m-0 p-8 bg-transparent text-[13px] leading-[1.6] text-[#d4d4d4] font-mono" style={{ whiteSpace: wrapText ? 'pre-wrap' : 'pre', wordBreak: wrapText ? 'break-all' : 'normal', overflowWrap: 'anywhere' }}>
+              <pre
+                className="m-0 p-5 bg-transparent text-xs leading-[1.6] text-[var(--text)] font-mono"
+                style={{
+                  whiteSpace: wrapText ? "pre-wrap" : "pre",
+                  wordBreak: wrapText ? "break-all" : "normal",
+                  overflowWrap: "anywhere",
+                }}
+              >
                 {(() => {
-                  markRefs.current = []; // Reset refs on every render when there's a search
+                  markRefs.current = [];
                   let matchIndexCounter = -1;
-                  return safeCode.split(new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi')).map((part, i) => {
-                    if (part.toLowerCase() === searchTerm.toLowerCase()) {
-                      matchIndexCounter++;
-                      const isCurrent = matchIndexCounter === currentMatchIndex;
-                      return (
-                        <mark 
-                          key={i} 
-                          ref={(el) => { if (el) markRefs.current.push(el); }}
-                          className={`bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-white font-black px-1 py-0.5 rounded-md shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] backdrop-blur-sm ${isCurrent ? 'ring-2 ring-white ring-offset-1 ring-offset-black scale-110 inline-block z-10 relative' : ''}`}
-                        >
-                          {part}
-                        </mark>
-                      );
-                    }
-                    return <span key={i}>{part}</span>;
-                  });
+                  return safeCode
+                    .split(new RegExp(`(${escapeRegExp(searchTerm)})`, "gi"))
+                    .map((part, i) => {
+                      if (part.toLowerCase() === searchTerm.toLowerCase()) {
+                        matchIndexCounter++;
+                        const isCurrent =
+                          matchIndexCounter === currentMatchIndex;
+                        return (
+                          <mark
+                            key={i}
+                            ref={(el) => {
+                              if (el) markRefs.current.push(el);
+                            }}
+                            className={`bg-transparent border border-[var(--accent)] text-[var(--accent)] font-black px-1 py-0.5 rounded ${
+                              isCurrent ? "ring-2 ring-[var(--accent)]" : ""
+                            }`}
+                          >
+                            {part}
+                          </mark>
+                        );
+                      }
+                      return <span key={i}>{part}</span>;
+                    });
                 })()}
               </pre>
             )}
           </div>
-        </div>
+        </UniversalGroup>
       </div>
     </SidePanel>
   );
 }
-
-

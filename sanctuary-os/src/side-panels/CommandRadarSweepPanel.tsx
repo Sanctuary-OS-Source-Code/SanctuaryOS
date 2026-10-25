@@ -1,10 +1,17 @@
 import React from "react";
-import { SidePanel, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import {
+  SidePanel,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  ActionButton,
+  SidePanelHeroCard,
+  StatBox,
+  UniversalGroup,
+} from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useTheme } from "../ThemeContext";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { UniversalGroup } from "../components/universal/UniversalLayout";
 
 export default function CommandRadarSweepPanel({
   isOpen,
@@ -12,7 +19,6 @@ export default function CommandRadarSweepPanel({
   status,
   runRadarSweep,
   isScanning,
-  networkUpdates,
   tier3Count = 0,
   tier4Count = 0,
   brokenCount = 0,
@@ -92,7 +98,7 @@ export default function CommandRadarSweepPanel({
     ).length;
   }, [relevantMods]);
 
-  let radarState = "optimal";
+  let radarState: "optimal" | "critical" | "warning" | "update" = "optimal";
   if (tier4Count > 0 || brokenCount > 0) {
     radarState = "critical";
   } else if (tier3Count > 0 || unstableCount > 0) {
@@ -110,14 +116,16 @@ export default function CommandRadarSweepPanel({
           ? "--accent"
           : "--success";
 
+  const heroVariant: "danger" | "warning" | "accent" | "success" =
+    radarState === "critical"
+      ? "danger"
+      : radarState === "warning"
+        ? "warning"
+        : radarState === "update"
+          ? "accent"
+          : "success";
+
   const c_iconColor = `text-[var(${themeVar})]`;
-  const c_panelBorder = `border-[color-mix(in_srgb,var(${themeVar})_20%,transparent)]`;
-  const c_bgGradient = `from-[color-mix(in_srgb,var(${themeVar})_10%,transparent)]`;
-  const c_ringBorder = `border-[color-mix(in_srgb,var(${themeVar})_30%,transparent)]`;
-  const c_ringBg = `bg-[color-mix(in_srgb,var(${themeVar})_10%,transparent)]`;
-  const c_ringIcon = `text-[color-mix(in_srgb,var(${themeVar})_80%,transparent)]`;
-  const c_titleText = `text-[var(${themeVar})]`;
-  const c_subText = `text-[color-mix(in_srgb,var(${themeVar})_80%,transparent)]`;
 
   const topTitle = t("optimal", "Optimal");
   let subtext = t("sys_stable", "System Stable");
@@ -151,7 +159,7 @@ export default function CommandRadarSweepPanel({
       subtitle={t("system_core", "System Core & Sub-Systems")}
       icon={t("icon_radar", "radar")}
       iconColorClass={c_iconColor}
-      widthClass="w-full md:w-[680px]"
+      widthClass="w-[90vw] md:w-[680px]"
       backdropZ="z-[10001]"
       panelZ="z-[10002]"
       headerActions={
@@ -166,57 +174,75 @@ export default function CommandRadarSweepPanel({
         </PanelHeaderGroup>
       }
     >
-      <div className="flex flex-col gap-6 w-full pb-12">
-        {/* Centered Radar Hero Card */}
-        <div
-          className={`glass-panel rounded-2xl p-8 py-10 relative group border ${c_panelBorder} shadow-xl flex flex-col justify-center shrink-0`}
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_radar", "radar")}
+          overline={t("system_core", "System Core & Sub-Systems")}
+          title={
+            isScanning
+              ? t("scanning", "Scanning...")
+              : radarState === "optimal"
+                ? `${topTitle} • ${subtext}`
+                : subtext
+          }
+          description={breakdownText}
+          badge={bottomText}
+          badgeIcon={
+            radarState === "critical"
+              ? t("icon_crisis_alert", "crisis_alert")
+              : radarState === "warning"
+                ? t("icon_warning_amber", "warning_amber")
+                : t("icon_check_circle", "check_circle")
+          }
+          variant={heroVariant}
         >
-          <div
-            className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${c_bgGradient} via-transparent to-transparent opacity-50 pointer-events-none`}
-          />
-          <div className="relative z-10 flex flex-col items-center text-center">
-            <button
-              type="button"
-              onClick={() => {
-                if (!isScanning && runRadarSweep) runRadarSweep();
-              }}
-              disabled={isScanning}
-              className={`w-20 h-20 rounded-full flex items-center justify-center border ${c_ringBorder} ${c_ringBg} mb-6 shadow-md ${
-                isScanning
-                  ? "animate-pulse opacity-50 cursor-not-allowed"
-                  : "cursor-pointer hover:scale-105 active:scale-95 hover:shadow-[0_0_40px_rgba(var(--accent-rgb),0.3)] transition-all group/radarbtn"
-              }`}
-            >
-              <span
-                className={`material-symbols-outlined !text-[28px] ${c_ringIcon} ${
-                  isScanning
-                    ? "animate-spin"
-                    : "group-hover/radarbtn:scale-110 transition-transform"
-                }`}
-              >
-                {t("icon_radar", "radar")}
-              </span>
-            </button>
-            <h3
-              className={`text-xl font-black capitalize tracking-tighter ${c_titleText} mb-1 flex flex-col gap-1`}
-            >
-              {isScanning ? t("scanning", "Scanning...") : topTitle}
-              {!isScanning && <span className="text-sm opacity-80">{subtext}</span>}
-            </h3>
-            <span className={`text-[10px] font-bold capitalize tracking-widest ${c_subText} mt-3`}>
-              {breakdownText}
-            </span>
-            {radarState === "critical" ? (
-              <div className="mt-4 px-4 py-1.5 bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_50%,transparent)] rounded-xl animate-pulse shadow-md">
-                <span className="text-xs font-black capitalize tracking-[0.2em] text-red-400 drop-shadow-md">
-                  {bottomText}
-                </span>
-              </div>
-            ) : (
-              <span className="text-xs font-bold mt-2 opacity-70">{bottomText}</span>
-            )}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+            <StatBox
+              label={t("updates_modal_title", "Updates")}
+              value={updatesCount}
+              icon={t("icon_update", "update")}
+              iconColorClass="text-[var(--accent)]"
+              onClick={onOpenUpdates}
+            />
+            <StatBox
+              label={t("tab_matrix", "Conflicts")}
+              value={tier3Count + tier4Count}
+              icon={t("icon_crisis_alert", "crisis_alert")}
+              iconColorClass={
+                tier4Count > 0
+                  ? "text-[var(--danger)]"
+                  : tier3Count > 0
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--success)]"
+              }
+              onClick={onOpenConflicts}
+            />
+            <StatBox
+              label={t("citizen_action_incompatible", "Incompatible")}
+              value={brokenCount + unstableCount}
+              icon={t("icon_gpp_bad", "gpp_bad")}
+              iconColorClass={
+                brokenCount > 0
+                  ? "text-[var(--danger)]"
+                  : unstableCount > 0
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--success)]"
+              }
+              onClick={onOpenIncompatible}
+            />
           </div>
-        </div>
+
+          <ActionButton
+            variant="glass"
+            icon={t("icon_radar", "radar")}
+            label={isScanning ? t("scanning", "Scanning...") : t("btn_radar", "Radar Sweep")}
+            disabled={isScanning}
+            onClick={() => {
+              if (!isScanning && runRadarSweep) runRadarSweep();
+            }}
+            className="w-full"
+          />
+        </SidePanelHeroCard>
 
         <UniversalGroup
           title={t("citizen_action_required", "Action Required")}
@@ -239,8 +265,8 @@ export default function CommandRadarSweepPanel({
                   className={`material-symbols-outlined !text-[22px] transition-colors ${
                     brokenCount + unstableCount > 0
                       ? brokenCount > 0
-                        ? "text-red-500"
-                        : "text-orange-500"
+                        ? "text-[var(--danger)]"
+                        : "text-[var(--warning)]"
                       : "opacity-50 group-hover:opacity-80"
                   }`}
                 >
@@ -275,8 +301,8 @@ export default function CommandRadarSweepPanel({
                   className={`material-symbols-outlined !text-[22px] transition-colors ${
                     tier4Count + tier3Count > 0
                       ? tier4Count > 0
-                        ? "text-red-500"
-                        : "text-orange-500"
+                        ? "text-[var(--danger)]"
+                        : "text-[var(--warning)]"
                       : "opacity-50 group-hover:opacity-80"
                   }`}
                 >

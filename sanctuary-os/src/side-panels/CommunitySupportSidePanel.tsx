@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { useModalStore } from "../store/modalStore";
 import {
   SidePanel,
+  SidePanelHeroCard,
+  UniversalGroup,
+  StatBox,
+  DashboardStatTile,
   ActionButton,
   CustomDropdown,
   handleOpenUrl,
@@ -59,11 +62,11 @@ export function CommunitySupportSidePanel({
       },
     });
   const [keepersConfig, setKeepersConfig] = useState<KeepersPipelineConfig>(
-    DEFAULT_KEEPERS_PIPELINE_CONFIG,
+    DEFAULT_KEEPERS_PIPELINE_CONFIG
   );
   const [partners, setPartners] = useState<any[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>(
-    initialPartnerId || "active_spoke",
+    initialPartnerId || "active_spoke"
   );
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -84,7 +87,7 @@ export function CommunitySupportSidePanel({
     }
 
     const activeWs = (workspaces || []).find(
-      (w: any) => w.id === activeWorkspaceId,
+      (w: any) => w.id === activeWorkspaceId
     );
     const activeSchemaId = (
       activeWs?.schema_id ||
@@ -101,10 +104,11 @@ export function CommunitySupportSidePanel({
 
     const matchedPartner = partnerList.find(
       (p) =>
-        String(p.id).toLowerCase() === String(activeWorkspaceId).toLowerCase() ||
+        String(p.id).toLowerCase() ===
+          String(activeWorkspaceId).toLowerCase() ||
         (activeSchemaId &&
           String(p.schema_id).toLowerCase() === activeSchemaId) ||
-        (activeName && String(p.name).toLowerCase() === activeName),
+        (activeName && String(p.name).toLowerCase() === activeName)
     );
 
     if (matchedPartner) {
@@ -131,26 +135,26 @@ export function CommunitySupportSidePanel({
     };
     window.addEventListener(
       "sanctuary-supporter-updated",
-      handleSupporterUpdated,
+      handleSupporterUpdated
     );
     window.addEventListener(
       "sanctuary-supporter-celebration",
-      handleCelebrationOpened,
+      handleCelebrationOpened
     );
     return () => {
       window.removeEventListener(
         "sanctuary-supporter-updated",
-        handleSupporterUpdated,
+        handleSupporterUpdated
       );
       window.removeEventListener(
         "sanctuary-supporter-celebration",
-        handleCelebrationOpened,
+        handleCelebrationOpened
       );
     };
   }, [isOpen, initialPartnerId, activeWorkspaceId]);
 
   const activeWs = (workspaces || []).find(
-    (w: any) => w.id === activeWorkspaceId,
+    (w: any) => w.id === activeWorkspaceId
   );
   const activeSpokeName =
     activeWs?.name ||
@@ -162,11 +166,12 @@ export function CommunitySupportSidePanel({
     {
       id: "keepers_core",
       label: t("supporter_keepers_title", "Sanctuary OS (Keepers Core)"),
+      icon: t("icon_rocket_launch", "rocket_launch"),
     },
     ...partners
       .filter((p) => {
         const isConfigured = Boolean(
-          p.donation_url && String(p.donation_url).trim().length > 0,
+          p.donation_url && String(p.donation_url).trim().length > 0
         );
         const isSelected = String(p.id) === String(selectedPartnerId);
         const isCurrentSpoke =
@@ -178,6 +183,7 @@ export function CommunitySupportSidePanel({
       .map((p) => ({
         id: String(p.id),
         label: p.name,
+        icon: p.icon || t("icon_sports_esports", "sports_esports"),
       })),
   ];
 
@@ -189,7 +195,8 @@ export function CommunitySupportSidePanel({
           icon: t("icon_rocket_launch", "rocket_launch"),
           donation_url: keepersConfig.keepers_donation_url || "",
           payment_processor:
-            keepersConfig.keepers_payment_processor || "STRIPE / GITHUB SPONSORS",
+            keepersConfig.keepers_payment_processor ||
+            "STRIPE / GITHUB SPONSORS",
         }
       : partners.find((p) => String(p.id) === String(selectedPartnerId)) || {
           id: activeWorkspaceId || "active_spoke",
@@ -201,7 +208,7 @@ export function CommunitySupportSidePanel({
 
   const hasConfiguredUrl = Boolean(
     selectedPartner.donation_url &&
-      String(selectedPartner.donation_url).trim().length > 0,
+      String(selectedPartner.donation_url).trim().length > 0
   );
   const isSandbox = isSandboxDonationUrl(selectedPartner.donation_url);
 
@@ -240,9 +247,9 @@ export function CommunitySupportSidePanel({
           .pushStatus(
             t(
               "supporter_sandbox_toast",
-              "Sandbox checkout completed! Verified receipt and added Global Daily Dev Build time.",
+              "Sandbox checkout completed! Verified receipt and added Global Daily Dev Build time."
             ),
-            "success",
+            "success"
           );
       } catch (err: any) {
         useStore.getState().pushStatus(err?.message || String(err), "error");
@@ -255,7 +262,7 @@ export function CommunitySupportSidePanel({
     const checkoutUrl = buildPartnerCheckoutUrl(
       selectedPartner.donation_url,
       session?.user?.id,
-      session?.user?.email,
+      session?.user?.email
     );
     handleOpenUrl(checkoutUrl);
 
@@ -276,7 +283,7 @@ export function CommunitySupportSidePanel({
           clearInterval(pollTimer);
           const addedMonths = Math.max(
             1,
-            (latest.dev_build.total_months_unlocked || 0) - baselineMonths,
+            (latest.dev_build.total_months_unlocked || 0) - baselineMonths
           );
           presentSupporterCelebrationModal({
             devBuildUntil: latest.dev_build.dev_build_until,
@@ -288,9 +295,9 @@ export function CommunitySupportSidePanel({
             .pushStatus(
               t(
                 "supporter_status_stacked",
-                "Global Daily Dev Build access updated! +30 days per $5 stacked to your account.",
+                "Global Daily Dev Build access updated! +30 days per $5 stacked to your account."
               ),
-              "success",
+              "success"
             );
         }
       } catch {
@@ -309,9 +316,9 @@ export function CommunitySupportSidePanel({
         .pushStatus(
           t(
             "supporter_status_synced_toast",
-            "Supporter status synced with the Hub!",
+            "Supporter status synced with the Hub!"
           ),
-          "info",
+          "info"
         );
     } finally {
       setIsSyncing(false);
@@ -325,73 +332,61 @@ export function CommunitySupportSidePanel({
       title={t("supporter_spoke_panel_title", "Support Community & Perks")}
       subtitle={t(
         "supporter_spoke_panel_subtitle",
-        "0% Platform Fee • Every $5 adds +30 days of Global Daily Dev Builds",
+        "0% Platform Fee • Every $5 adds +30 days of Global Daily Dev Builds"
       )}
       icon={t("icon_volunteer_activism", "volunteer_activism")}
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[90vw] md:w-[680px]"
     >
-      <div className="flex flex-col gap-5 w-full">
-        {/* TARGET PARTNER SELECTOR */}
-        {dropdownOptions.length > 1 && (
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-              {t("supporter_claim_partner_label", "Partner Community")}
-            </label>
-            <CustomDropdown
-              disableTint={true}
-              value={selectedPartnerId}
-              onChange={(val: any) =>
-                setSelectedPartnerId(Array.isArray(val) ? val[0] : val)
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        {/* SELECTED COMMUNITY DONATION HERO CARD */}
+        <SidePanelHeroCard
+          icon={
+            selectedPartner.icon || t("icon_sports_esports", "sports_esports")
+          }
+          overline={t(
+            "landing_support_card_badge",
+            "0% Platform Fee • +30 Days Dev Builds per $5"
+          )}
+          title={selectedPartner.name}
+          description={t(
+            "supporter_webhook_auto_note",
+            "Donations are verified automatically by the payment processor's webhook using your Sanctuary ID—no manual receipt entry required."
+          )}
+          badge={
+            isSandbox
+              ? t("supporter_sandbox_mode_badge", "Sandbox Mode")
+              : selectedPartner.payment_processor
+          }
+          badgeIcon={
+            isSandbox
+              ? t("icon_science", "science")
+              : t("icon_payments", "payments")
+          }
+          variant="accent"
+        >
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <StatBox
+              label={t("supporter_stat_time_remaining", "Active Time Remaining")}
+              value={
+                isDevBuildUnlocked
+                  ? `${remainingDays} ${t("supporter_days_remaining_suffix", "Days")}`
+                  : t("supporter_no_active_time", "No Active Time")
               }
-              options={dropdownOptions}
+              icon={t("icon_schedule", "schedule")}
+              iconColorClass="text-[var(--accent)]"
+            />
+            <StatBox
+              label={t("supporter_stat_rollover_credit", "Next Month Rollover")}
+              value={`$${creditDollars} / $5.00`}
+              icon={t("icon_savings", "savings")}
+              iconColorClass="text-[var(--accent)]"
             />
           </div>
-        )}
-
-        {/* SELECTED COMMUNITY DONATION CARD */}
-        <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,rgba(var(--bg-rgb),0.86))] flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-3 min-w-0">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[24px]">
-                  {selectedPartner.icon || t("icon_sports_esports", "sports_esports")}
-                </span>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-base font-black text-[var(--text)] truncate">
-                  {selectedPartner.name}
-                </span>
-                <span className="text-xs font-medium text-[var(--subtext)] opacity-90 truncate">
-                  {t(
-                    "landing_support_card_badge",
-                    "0% Platform Fee • +30 Days Dev Builds per $5",
-                  )}
-                </span>
-              </div>
-            </div>
-            <div className="px-3 py-1.5 rounded-xl glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center gap-1.5 shrink-0 shadow-sm">
-              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                {isSandbox
-                  ? t("icon_science", "science")
-                  : t("icon_payments", "payments")}
-              </span>
-              <span className="text-[10px] font-bold text-[var(--text)] tracking-wide">
-                {isSandbox
-                  ? t("supporter_sandbox_mode_badge", "Sandbox Mode")
-                  : selectedPartner.payment_processor}
-              </span>
-            </div>
-          </div>
-
-          <p className="text-xs font-medium text-[var(--text)] opacity-90 leading-relaxed">
-            {t(
-              "supporter_webhook_auto_note",
-              "Donations are verified automatically by the payment processor's webhook using your Sanctuary ID—no manual receipt entry required.",
-            )}
-          </p>
 
           {hasConfiguredUrl ? (
             <ActionButton
-              variant="accent"
+              variant="glass"
               icon={
                 isSandbox
                   ? t("icon_science", "science")
@@ -401,7 +396,7 @@ export function CommunitySupportSidePanel({
                 isSandbox
                   ? t(
                       "supporter_spoke_sandbox_checkout_btn",
-                      "Simulate Sandbox Checkout (Test Mode)",
+                      "Simulate Sandbox Checkout (Test Mode)"
                     )
                   : `${t("supporter_btn_donate_partner", "Support Community")} (${selectedPartner.payment_processor})`
               }
@@ -410,42 +405,80 @@ export function CommunitySupportSidePanel({
               className="w-full"
             />
           ) : (
-            <div className="p-4 rounded-xl bg-[color-mix(in_srgb,var(--warning)_15%,rgba(var(--bg-rgb),0.9))] border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] flex flex-col gap-2">
-              <span className="text-xs font-black text-[var(--warning)] flex items-center gap-1.5">
-                <span className="material-symbols-outlined !text-[16px]">
+            <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] flex flex-col gap-1.5">
+              <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 w-fit">
+                <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_warning", "warning")}
                 </span>
                 {t(
                   "supporter_spoke_not_setup_title",
-                  "Payment Processor Not Configured Yet",
+                  "Payment Processor Not Configured Yet"
                 )}
               </span>
-              <p className="text-xs font-medium text-[var(--text)] opacity-90 leading-relaxed">
+              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                 {t(
                   "supporter_spoke_not_setup_desc",
-                  "The Wayfinders for this community haven't linked a payment processor in the Wayfinder Hub yet. You can support Sanctuary OS (Keepers Core) or enable the Sandbox Test Processor in the Wayfinder Hub.",
+                  "The Wayfinders for this community haven't linked a payment processor in the Wayfinder Hub yet. You can support Sanctuary OS (Keepers Core) or enable the Sandbox Test Processor in the Wayfinder Hub."
                 )}
               </p>
             </div>
           )}
-        </div>
+        </SidePanelHeroCard>
+
+        {/* TARGET PARTNER SELECTOR */}
+        {dropdownOptions.length > 1 && (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {dropdownOptions.slice(0, 3).map((opt) => (
+                <DashboardStatTile
+                  key={opt.id}
+                  variant="filter"
+                  className="!w-full"
+                  icon={opt.icon || t("icon_sports_esports", "sports_esports")}
+                  label={opt.label}
+                  isActive={String(selectedPartnerId) === String(opt.id)}
+                  onClick={() => setSelectedPartnerId(String(opt.id))}
+                />
+              ))}
+            </div>
+
+            {dropdownOptions.length > 3 && (
+              <UniversalGroup
+                title={t("supporter_claim_partner_label", "Partner Community")}
+                icon={t("icon_groups", "groups")}
+              >
+                <CustomDropdown
+                  disableTint={true}
+                  value={selectedPartnerId}
+                  onChange={(val: any) =>
+                    setSelectedPartnerId(Array.isArray(val) ? val[0] : val)
+                  }
+                  options={dropdownOptions}
+                />
+              </UniversalGroup>
+            )}
+          </>
+        )}
 
         {/* YOUR GLOBAL DAILY DEV BUILD STATUS */}
-        <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                {t("supporter_stat_time_remaining", "Active Time Remaining")}
-              </span>
-              <span className="text-lg font-black text-[var(--text)]">
+        <UniversalGroup
+          title={t(
+            "supporter_dev_builds_channel_toggle",
+            "Daily Dev Build Channel"
+          )}
+          icon={t("icon_rocket_launch", "rocket_launch")}
+        >
+          <div className="glass-surface px-4 py-3.5 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-xs font-black text-[var(--text)] truncate">
                 {isDevBuildUnlocked
                   ? `${remainingDays} ${t("supporter_days_remaining_suffix", "Days Remaining")}`
                   : t("supporter_no_active_time", "No Active Time")}
               </span>
-              <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80">
+              <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">
                 {supporterState.dev_build.total_months_unlocked || 0}{" "}
-                {t("supporter_months_suffix", "Months")} • ${creditDollars} / $5.00{" "}
-                {t("supporter_stat_rollover_credit", "Next Month Rollover")}
+                {t("supporter_months_suffix", "Months")} • ${creditDollars} /
+                $5.00 {t("supporter_stat_rollover_credit", "Next Month Rollover")}
               </span>
             </div>
 
@@ -453,7 +486,7 @@ export function CommunitySupportSidePanel({
               onClick={async () => {
                 if (!isDevBuildUnlocked) return;
                 const updated = await setDevBuildChannelPreference(
-                  !supporterState.dev_build.channel_enabled,
+                  !supporterState.dev_build.channel_enabled
                 );
                 const nextState = {
                   ...supporterState,
@@ -462,7 +495,7 @@ export function CommunitySupportSidePanel({
                 setSupporterState(nextState);
                 if (onSuccess) onSuccess(nextState);
               }}
-              className={`flex flex-col items-end gap-1.5 ${
+              className={`flex flex-col items-end gap-1 shrink-0 ${
                 isDevBuildUnlocked
                   ? "cursor-pointer"
                   : "opacity-50 cursor-not-allowed"
@@ -473,41 +506,37 @@ export function CommunitySupportSidePanel({
                   isDevBuildUnlocked && supporterState.dev_build.channel_enabled
                 }
               />
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                {t(
-                  "supporter_dev_builds_channel_toggle",
-                  "Daily Dev Build Channel",
-                )}
-              </span>
             </div>
           </div>
 
           <ActionButton
             variant="glass"
-            icon={isSyncing ? t("icon_sync", "sync") : t("icon_refresh", "refresh")}
-            label={t("supporter_sync_and_check_btn", "Sync Status & Check Updates")}
+            icon={
+              isSyncing
+                ? t("icon_sync", "sync")
+                : t("icon_refresh", "refresh")
+            }
+            label={t(
+              "supporter_sync_and_check_btn",
+              "Sync Status & Check Updates"
+            )}
             disabled={isSyncing}
             onClick={handleSyncStatus}
             className="w-full"
           />
-        </div>
+        </UniversalGroup>
 
         {onNavigateSettings && (
-          <button
-            type="button"
+          <ActionButton
+            variant="glass"
+            icon={t("icon_settings", "settings")}
+            label={t(
+              "supporter_spoke_open_settings_btn",
+              "Open Full Support & Perks Settings"
+            )}
             onClick={onNavigateSettings}
-            className="w-full py-2.5 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center gap-2 transition-all"
-          >
-            <span className="material-symbols-outlined !text-[16px]">
-              {t("icon_settings", "settings")}
-            </span>
-            <span>
-              {t(
-                "supporter_spoke_open_settings_btn",
-                "Open Full Support & Perks Settings",
-              )}
-            </span>
-          </button>
+            className="w-full"
+          />
         )}
       </div>
     </SidePanel>

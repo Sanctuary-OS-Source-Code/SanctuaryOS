@@ -1,88 +1,163 @@
-import React from 'react';
+import React from "react";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, HubTabs, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import {
+  SidePanel,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  DashboardStatTile,
+  ActionButton,
+  SidePanelHeroCard,
+  UniversalGroup,
+} from "../shared";
 
-export function LocalFolderModal({ localFolderModal, setLocalFolderModal, localFolderType, setLocalFolderType, localFolderName, setLocalFolderName, createLocalFolder, selectedMods = [], resolveDisplayName }: any) {
+export function LocalFolderModal({
+  localFolderModal,
+  setLocalFolderModal,
+  localFolderType,
+  setLocalFolderType,
+  localFolderName,
+  setLocalFolderName,
+  createLocalFolder,
+  selectedMods = [],
+  resolveDisplayName,
+}: any) {
   const { t } = useLexicon();
 
   if (!localFolderModal) return null;
+
+  const isCollection = localFolderType === "CC_SET";
 
   return (
     <SidePanel
       isOpen={localFolderModal}
       onClose={() => setLocalFolderModal(false)}
-      title={t("local_folder_title")}
-      subtitle={t("local_folder_desc")}
+      title={t("local_folder_title", "Create Local Folder")}
+      subtitle={t("local_folder_desc", "Group selected Vault artifacts together")}
       icon="create_new_folder"
-      iconColorClass="text-[var(--success)]"
-      widthClass="w-[700px]"
+      iconColorClass={isCollection ? "text-[var(--accent)]" : "text-[var(--success)]"}
+      widthClass="w-[90vw] md:w-[680px]"
       backdropZ="z-[115000]"
       panelZ="z-[115001]"
-      ambientGlows={
-        <>
-          <div className="absolute -top-20 -right-20 w-96 h-96 bg-[var(--success)] opacity-20 blur-[100px] rounded-full pointer-events-none" />
-          <div className="absolute bottom-1/3 -left-32 w-96 h-96 bg-[var(--text)] opacity-10 blur-[100px] rounded-full pointer-events-none" />
-        </>
-      }
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
             icon="folder_open"
-            tooltip={t("btn_create_folder")}
+            tooltip={t("btn_create_folder", "Create Folder")}
             onClick={createLocalFolder}
             variant="success"
           />
         </PanelHeaderGroup>
       }
     >
-      <div className="flex flex-col gap-6 p-8 h-full min-h-[400px]">
-        <div className="flex items-center w-full glass-panel rounded-2xl divide-x divide-white/5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner h-12 shrink-0">
-          <div className="relative flex-1 h-full flex items-center">
-            <span className="absolute left-4 opacity-50 text-[18px] material-symbols-outlined pointer-events-none">
-              {localFolderType === "CC_SET" ? 'category' : 'folder'}
-            </span>
-            <input
-              autoFocus
-              type="text"
-              value={localFolderName}
-              onChange={(e) => setLocalFolderName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && createLocalFolder()}
-              placeholder={localFolderType === "CC_SET" ? t("ph_collection_name") : t("ph_folder_name")}
-              className="w-full h-full bg-transparent border-none outline-none px-4 pl-12 text-[10px] font-black capitalize tracking-[0.2em] text-[var(--text)]"
-            />
-          </div>
-          <button
-            onClick={() => setLocalFolderType(localFolderType === 'FOLDER' ? 'CC_SET' : 'FOLDER')}
-            className={`h-full px-6 text-[10px] font-black capitalize tracking-widest transition-all ${localFolderType === 'CC_SET' ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black' : 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] hover:bg-[var(--success)] hover:text-black'} flex items-center justify-center gap-2 shrink-0 border-none outline-none`}
-          >
-            <span className="material-symbols-outlined text-[16px]">{localFolderType === "CC_SET" ? 'category' : 'folder'}</span>
-            {localFolderType === "CC_SET" ? t('collection') : t('folder')}
-          </button>
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={isCollection ? "category" : "create_new_folder"}
+          overline={
+            isCollection
+              ? t("collection", "Collection")
+              : t("folder", "Local Folder")
+          }
+          title={t("local_folder_title", "Organize Selected Artifacts")}
+          description={t(
+            "local_folder_desc",
+            "Bundle multiple Vault packages into a collapsible folder or Custom Content collection."
+          )}
+          badge={`${selectedMods.length} ${t("items", "Items")}`}
+          badgeIcon={t("icon_inventory_2", "inventory_2")}
+          variant={isCollection ? "accent" : "success"}
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon="folder"
+            label={t("local_folder_title", "Container Type")}
+            value={t("folder", "Folder")}
+            isActive={!isCollection}
+            onClick={() => setLocalFolderType("FOLDER")}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon="category"
+            label={t("local_folder_title", "Container Type")}
+            value={t("collection", "Collection")}
+            isActive={isCollection}
+            onClick={() => setLocalFolderType("CC_SET")}
+          />
         </div>
 
-        <div className="flex-1 flex flex-col min-h-0 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-          <div className="flex items-center gap-3 mb-6 shrink-0">
-            <span className="material-symbols-outlined !text-[18px] text-[var(--text)] opacity-50">{t("icon_inventory_2")}</span>
-            <h3 className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--subtext)]">{t("artifacts_linked")} ({selectedMods.length})</h3>
+        <UniversalGroup
+          title={
+            isCollection
+              ? t("ph_collection_name", "Collection Name")
+              : t("ph_folder_name", "Folder Name")
+          }
+          icon={isCollection ? "category" : "folder"}
+        >
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 !text-[18px] pointer-events-none">
+                {isCollection ? "category" : "folder"}
+              </span>
+              <input
+                autoFocus
+                type="text"
+                value={localFolderName}
+                onChange={(e) => setLocalFolderName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && createLocalFolder()}
+                placeholder={
+                  isCollection
+                    ? t("ph_collection_name", "Enter Collection Name...")
+                    : t("ph_folder_name", "Enter Folder Name...")
+                }
+                className="w-full glass-surface rounded-xl pl-11 pr-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+              />
+            </div>
+            <ActionButton
+              variant="glass"
+              icon="create_new_folder"
+              label={t("btn_create_folder", "Create")}
+              disabled={!localFolderName?.trim()}
+              onClick={createLocalFolder}
+              className="shrink-0 !text-[var(--success)] !border-[color-mix(in_srgb,var(--success)_42%,transparent)]"
+            />
           </div>
+        </UniversalGroup>
 
-          <div className="flex-1 grid grid-cols-2 gap-2 overflow-y-auto custom-scrollbar pr-2 items-start content-start">
+        <UniversalGroup
+          title={`${t("artifacts_linked", "Linked Artifacts")} (${selectedMods.length})`}
+          icon={t("icon_inventory_2", "inventory_2")}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
             {selectedMods.map((modName: string, i: number) => {
-              const displayName = resolveDisplayName ? resolveDisplayName(modName) : modName.replace(/_/g, " ").replace(/\.[^/.]+$/, "");
+              const displayName = resolveDisplayName
+                ? resolveDisplayName(modName)
+                : modName.replace(/_/g, " ").replace(/\.[^/.]+$/, "");
               return (
-                <div key={i} className="glass-surface p-3 rounded-xl flex items-center gap-4 group/item transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <span className={`material-symbols-outlined !text-[16px] ${localFolderType === "CC_SET" ? 'text-[var(--accent)]' : 'text-[var(--success)]'} opacity-50`}>
-                    {localFolderType === "CC_SET" ? 'category' : 'folder'}
+                <div
+                  key={i}
+                  className="glass-surface px-3.5 py-2.5 rounded-xl flex items-center gap-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                >
+                  <span
+                    className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                      isCollection
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--success)]"
+                    }`}
+                  >
+                    {isCollection ? "category" : "folder"}
                   </span>
-                  <span className="text-[11px] font-black text-[var(--text)] capitalize truncate">{displayName}</span>
+                  <span className="text-xs font-bold text-[var(--text)] truncate">
+                    {displayName}
+                  </span>
                 </div>
               );
             })}
           </div>
-        </div>
+        </UniversalGroup>
       </div>
     </SidePanel>
   );
 }
-
-

@@ -3,22 +3,25 @@ import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
-  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker, HubTabButton, ModSearchDropdown, EmptyState,
-  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion, PanelHeaderGroup, PanelHeaderButton
+  SidePanel,
+  SidePanelHeroCard,
+  ActionButton,
+  PanelHeaderGroup,
+  PanelHeaderButton,
 } from "../shared";
 import { UniversalGroup, UniversalInput, UniversalTextArea } from "../components/layouts/ElevatedHubLayout";
-import { ArtifactCard, VaultCard } from "../Cards";
-import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
-import { MasonStatusDropdown } from "../MasonHub";
-import { logArchitectAction } from "../lib/audit";
 
-import MasonPostViewer from "./MasonPostViewer";
-
-
-export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: { isOpen: boolean, onClose: () => void, profile: any, onUpdate: (p: any) => void }) {
+export function MasonSettingsSidePanel({
+  isOpen,
+  onClose,
+  profile,
+  onUpdate,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  profile: any;
+  onUpdate: (p: any) => void;
+}) {
   const { t } = useLexicon();
   const [formData, setFormData] = useState({
     name: profile.name || "",
@@ -29,7 +32,7 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
     discord_url: profile.discord_url || "",
     donation_url: profile.donation_url || "",
     payment_processor: profile.payment_processor || "Patreon",
-    patreon_campaign_id: profile.patreon_campaign_id || ""
+    patreon_campaign_id: profile.patreon_campaign_id || "",
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -44,7 +47,7 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
         discord_url: profile.discord_url || "",
         donation_url: profile.donation_url || "",
         payment_processor: profile.payment_processor || "Patreon",
-        patreon_campaign_id: profile.patreon_campaign_id || ""
+        patreon_campaign_id: profile.patreon_campaign_id || "",
       });
     }
   }, [isOpen, profile]);
@@ -56,26 +59,33 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
       const token = state.session?.access_token;
 
       if (token) {
-        const { data, error } = await supabase.rpc('secure_update_mason_profile', {
+        const { data, error } = await supabase.rpc("secure_update_mason_profile", {
           p_token: token,
           p_mason_id: profile.id,
-          p_payload: formData
+          p_payload: formData,
         });
 
         if (error) throw error;
 
         onUpdate(data);
-        useStore.getState().pushStatus(t("alert_saved") || "Saved successfully", 'success');
+        useStore.getState().pushStatus(t("alert_saved", "Saved successfully"), "success");
         onClose();
       } else {
-        const { data, error } = await supabase.from('masons').update(formData).eq('id', profile.id).select().single();
+        const { data, error } = await supabase
+          .from("masons")
+          .update(formData)
+          .eq("id", profile.id)
+          .select()
+          .single();
         if (error) throw error;
         onUpdate(data);
-        useStore.getState().pushStatus(t("alert_saved") || "Saved successfully", 'success');
+        useStore.getState().pushStatus(t("alert_saved", "Saved successfully"), "success");
         onClose();
       }
     } catch (err: any) {
-      useStore.getState().pushStatus(t("alert_error") || `Failed to save: ${err.message}`, 'error');
+      useStore
+        .getState()
+        .pushStatus(t("alert_error", `Failed to save: ${err.message}`), "error");
     } finally {
       setIsSaving(false);
     }
@@ -85,14 +95,20 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("masonhub_settings_title") || "Mason Settings"}
-      icon={t("icon_settings") || "settings"}
-      widthClass="w-[500px]"
+      title={t("masonhub_settings_title", "Mason Settings")}
+      subtitle={t("creator_identity", "Creator Identity")}
+      icon={t("icon_settings", "settings")}
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[90vw] md:w-[680px]"
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
-            icon={isSaving ? (t("icon_sync") || "sync") : (t("icon_save") || "save")}
-            tooltip={isSaving ? (t("saving_settings") || "Saving...") : (t("save_configuration") || "Save Configuration")}
+            icon={isSaving ? t("icon_sync", "sync") : t("icon_save", "save")}
+            tooltip={
+              isSaving
+                ? t("saving_settings", "Saving...")
+                : t("save_configuration", "Save Configuration")
+            }
             variant="accent"
             disabled={isSaving}
             className={isSaving ? "animate-pulse" : ""}
@@ -101,52 +117,84 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
         </PanelHeaderGroup>
       }
     >
-      <div className="w-full flex flex-col gap-6">
-        <UniversalGroup title={t("creator_identity") || "Creator Identity"} icon={t("icon_badge") || "badge"}>
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_badge", "badge")}
+          overline={t("creator_identity", "Creator Identity")}
+          title={formData.name || t("masonhub_settings_title", "Mason Settings")}
+          description={t(
+            "supporter_liability_notice",
+            "Non-Custodial Notice: Partner Communities and Creators run their own payment processors and receive 100% of your contribution. Sanctuary OS takes a 0% cut, never touches the funds, and does not process refunds or chargebacks."
+          )}
+          badge={t("supporter_zero_fee_badge", "0% PLATFORM FEE • NON-CUSTODIAL")}
+          badgeIcon={t("icon_verified", "verified")}
+          variant="accent"
+        />
+
+        <UniversalGroup
+          title={t("creator_identity", "Creator Identity")}
+          icon={t("icon_badge", "badge")}
+        >
           <UniversalInput
-            label={t("public_name") || "Public Name"}
+            label={t("public_name", "Public Name")}
             value={formData.name}
             onChange={(val) => setFormData({ ...formData, name: val })}
           />
           <UniversalInput
-            label={t("avatar_url") || "Avatar URL"}
+            label={t("avatar_url", "Avatar URL")}
             value={formData.avatar_url}
             onChange={(val) => setFormData({ ...formData, avatar_url: val })}
           />
           <UniversalTextArea
-            label={t("biography") || "Biography"}
+            label={t("biography", "Biography")}
             value={formData.bio}
             onChange={(val) => setFormData({ ...formData, bio: val })}
             rows={4}
           />
         </UniversalGroup>
 
-        <UniversalGroup title={t("social_links") || "External Links"} icon={t("icon_link") || "link"}>
+        <UniversalGroup
+          title={t("social_links", "External Links")}
+          icon={t("icon_link", "link")}
+        >
           <UniversalInput
-            label={t("patreon_url") || "Patreon URL"}
+            label={t("patreon_url", "Patreon URL")}
             value={formData.patreon_url}
             onChange={(val) => setFormData({ ...formData, patreon_url: val })}
           />
           <UniversalInput
-            label={t("personal_website") || "Personal Website"}
+            label={t("personal_website", "Personal Website")}
             value={formData.website_url}
             onChange={(val) => setFormData({ ...formData, website_url: val })}
           />
           <UniversalInput
-            label={t("discord_url") || "Discord URL"}
+            label={t("discord_url", "Discord URL")}
             value={formData.discord_url}
             onChange={(val) => setFormData({ ...formData, discord_url: val })}
           />
         </UniversalGroup>
 
-        <UniversalGroup title={t("supporter_mason_settings_group", "Non-Custodial Supporter & API Bridge (0% Fee)")} icon={t("icon_volunteer_activism", "volunteer_activism")}>
-          <div className="glass-surface rounded-xl p-3 border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] flex flex-col gap-1.5">
-            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[14px]">{t("icon_verified", "verified")}</span>
-              {t("supporter_zero_fee_badge", "0% PLATFORM FEE • NON-CUSTODIAL")}
-            </span>
-            <p className="text-[11px] font-semibold text-[var(--subtext)] leading-relaxed">
-              {t("supporter_liability_notice", "Non-Custodial Notice: Partner Communities and Creators run their own payment processors and receive 100% of your contribution. Sanctuary OS takes a 0% cut, never touches the funds, and does not process refunds or chargebacks.")}
+        <UniversalGroup
+          title={t(
+            "supporter_mason_settings_group",
+            "Non-Custodial Supporter & API Bridge (0% Fee)"
+          )}
+          icon={t("icon_volunteer_activism", "volunteer_activism")}
+        >
+          <div className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 w-fit">
+                <span className="material-symbols-outlined !text-[12px]">
+                  {t("icon_verified", "verified")}
+                </span>
+                {t("supporter_zero_fee_badge", "0% PLATFORM FEE • NON-CUSTODIAL")}
+              </span>
+            </div>
+            <p className="text-[11px] font-medium text-[var(--subtext)] leading-relaxed m-0">
+              {t(
+                "supporter_liability_notice",
+                "Non-Custodial Notice: Partner Communities and Creators run their own payment processors and receive 100% of your contribution. Sanctuary OS takes a 0% cut, never touches the funds, and does not process refunds or chargebacks."
+              )}
             </p>
           </div>
           <UniversalInput
@@ -155,19 +203,38 @@ export function MasonSettingsSidePanel({ isOpen, onClose, profile, onUpdate }: {
             onChange={(val) => setFormData({ ...formData, payment_processor: val })}
           />
           <UniversalInput
-            label={t("supporter_mason_donation_url", "Direct Tip / Checkout URL (Ko-fi, Stripe, PayPal)")}
+            label={t(
+              "supporter_mason_donation_url",
+              "Direct Tip / Checkout URL (Ko-fi, Stripe, PayPal)"
+            )}
             value={formData.donation_url}
             onChange={(val) => setFormData({ ...formData, donation_url: val })}
           />
           <UniversalInput
-            label={t("supporter_mason_patreon_campaign", "Patreon Campaign ID (For Local API Bridge)")}
+            label={t(
+              "supporter_mason_patreon_campaign",
+              "Patreon Campaign ID (For Local API Bridge)"
+            )}
             value={formData.patreon_campaign_id}
-            onChange={(val) => setFormData({ ...formData, patreon_campaign_id: val })}
+            onChange={(val) =>
+              setFormData({ ...formData, patreon_campaign_id: val })
+            }
           />
         </UniversalGroup>
+
+        <ActionButton
+          variant="glass"
+          icon={isSaving ? t("icon_sync", "sync") : t("icon_save", "save")}
+          label={
+            isSaving
+              ? t("saving_settings", "Saving...")
+              : t("save_configuration", "Save Configuration")
+          }
+          disabled={isSaving}
+          onClick={handleSave}
+          className="w-full"
+        />
       </div>
     </SidePanel>
   );
 }
-
-

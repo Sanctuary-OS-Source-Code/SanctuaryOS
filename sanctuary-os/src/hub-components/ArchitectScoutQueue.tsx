@@ -1,6 +1,6 @@
-import { ActionPill, FilterTabs, FilterTabButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { ActionPill, FilterTabs, FilterTabButton, PanelHeaderGroup, PanelHeaderButton, ActionButton } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "../components/layouts/ElevatedHubLayout";
-import { UniversalGroup } from "../components/universal/UniversalLayout";
+import { UniversalGroup, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { StatTileCarousel } from "../hub-components/SharedCommandScreenLayout";
 import React, { useState, useEffect } from "react";
 import { fetchAllPaginated, isSupportedExtension } from "../shared";
@@ -285,26 +285,26 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview") || "Overview",
+      label: t("landing_overview", "Overview"),
       icon: "dashboard",
       number: (pendingSubmissions.length + completedSubmissions.length).toString(),
     },
     {
       id: "pending",
-      label: t("pending") || "Pending",
+      label: t("pending", "Pending"),
       icon: "pending_actions",
       number: pendingSubmissions.length.toString(),
     },
     {
       id: "completed",
-      label: t("status_completed") || "Completed",
+      label: t("status_completed", "Completed"),
       icon: "check_circle",
       number: completedSubmissions.length.toString(),
     }
   ];
 
   const renderScoutCard = (mod: any) => (
-    <ArtifactCard key={mod.id} mod={{ ...mod, name: mod.suggested_name, category_override: mod.suggested_type || "Scout Suggestion" }} onClick={() => setActiveScout(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view") || "View"} />
+    <ArtifactCard key={mod.id} mod={{ ...mod, name: mod.suggested_name, category_override: mod.suggested_type || "Scout Suggestion" }} onClick={() => setActiveScout(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view", "View")} />
   );
 
   const renderLanding = () => (
@@ -312,10 +312,10 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
       <HubOverviewSection
         icon="pending_actions"
         iconColorClass="text-[var(--accent)]"
-        title={t("recent_pending") || "Recent Pending"}
+        title={t("recent_pending", "Recent Pending")}
         isEmpty={pendingSubmissions.length === 0}
         emptyIcon="check_circle"
-        emptyTitle={t("no_pending") || "No Pending Submissions"}
+        emptyTitle={t("no_pending", "No Pending Submissions")}
       >
         {pendingSubmissions.slice(0, 4).map(renderScoutCard)}
       </HubOverviewSection>
@@ -323,10 +323,10 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
       <HubOverviewSection
         icon="check_circle"
         iconColorClass="text-[var(--success)]"
-        title={t("recent_completed") || "Recent Completed"}
+        title={t("recent_completed", "Recent Completed")}
         isEmpty={completedSubmissions.length === 0}
         emptyIcon="history"
-        emptyTitle={t("no_history") || "No History"}
+        emptyTitle={t("no_history", "No History")}
       >
         {completedSubmissions.slice(0, 4).map(renderScoutCard)}
       </HubOverviewSection>
@@ -336,13 +336,13 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
   return (
     <>
       <ElevatedHubLayout
-        headerTitle={t("scout_queue") || "Scout Queue"}
-        headerSubtitle={t("scout_queue_desc") || "Review automated network anomaly submissions."}
+        headerTitle={t("scout_queue", "Scout Queue")}
+        headerSubtitle={t("scout_queue_desc", "Review automated network anomaly submissions.")}
         headerIcon="radar"
         headerIconColorClass="theme-text-accent"
         search={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={(t("search_queue") || "Search queue...") as string}
+        searchPlaceholder={t("search_queue", "Search queue...") as string}
         hideSearch={filterTab === 'overview'}
         activeTab={filterTab}
         onTabChange={(tabId: string) => setFilterTab(tabId as any)}
@@ -351,9 +351,9 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
         {filterTab === 'overview' ? renderLanding() : (
           <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {loading ? (
-              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting") || "Intercepting..."}</div>
+              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting", "Intercepting...")}</div>
             ) : filteredSubmissions.length === 0 ? (
-              <EmptyState icon={t("icon_account_balance") || "account_balance"} title={t("no_pending_submissions") || "No pending submissions"} className="col-span-full py-16" />
+              <EmptyState icon={t("icon_account_balance", "account_balance")} title={t("no_pending_submissions", "No pending submissions")} className="col-span-full py-16" />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
                 {filteredSubmissions.slice(0, visibleCount).map(renderScoutCard)}
@@ -362,9 +362,9 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
             {filteredSubmissions.length > visibleCount && (
               <button
                 onClick={() => setVisibleCount(v => v + 100)}
-                className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
+                className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-transparent hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
               >
-                {t("ui_btn_load_more") || "Load More"} ({visibleCount} / {filteredSubmissions.length})
+                {t("ui_btn_load_more", "Load More")} ({visibleCount} / {filteredSubmissions.length})
               </button>
             )}
           </div>
@@ -374,15 +374,17 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
       <SidePanel
         isOpen={!!activeScout}
         onClose={() => setActiveScout(null)}
-        title={t("reviewing") || "Reviewing Submission"}
-        icon={t("icon_search") || "search"}
-        subtitle={`HASH: ${activeScout?.dna_hash}`}
+        title={t("reviewing", "Reviewing Submission")}
+        icon={t("icon_search", "search")}
+        iconColorClass="text-[var(--accent)]"
+        subtitle={activeScout ? `${t("dna_hash", "HASH")}: ${activeScout.dna_hash}` : t("scout_queue_desc", "Review automated network anomaly submissions.")}
+        widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon="delete"
               variant="danger"
-              tooltip={t("discard") || "Discard"}
+              tooltip={t("discard", "Discard")}
               onClick={() => handleAction('rejected')}
               disabled={isProcessing}
             />
@@ -395,8 +397,8 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                       ? t("lab_badge_short_failed", "Lab Failed")
                       : t("lab_tooltip_approve_locked", "Approval Locked (Lab Test Required)"))
                   : isProcessing
-                  ? (t("btn_saving") || "Saving...")
-                  : (t("approve") || "Approve")
+                  ? t("btn_saving", "Saving...")
+                  : t("approve", "Approve")
               }
               onClick={() => handleAction('approved')}
               disabled={isProcessing || (requireScoutLabTest && (!isActiveVerified || isActiveFailed))}
@@ -405,17 +407,47 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
         }
       >
         {activeScout && (
-          <div className="flex flex-col min-h-full gap-8">
+          <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+            <SidePanelHeroCard
+              icon={t("icon_radar", "radar")}
+              overline={t("scout_queue", "Scout Queue")}
+              title={editForm.name || activeScout.suggested_name || t("reviewing", "Reviewing Submission")}
+              description={t("scout_queue_desc", "Review automated network anomaly submissions.")}
+              badge={(activeScout.status || t("pending", "Pending")).replace(/_/g, " ")}
+              badgeIcon={activeScout.status === "approved" ? "verified" : "pending_actions"}
+              variant={activeScout.status === "approved" ? "success" : "accent"}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <StatBox
+                  label={t("dna_hash", "DNA Hash")}
+                  value={activeScout.dna_hash ? `${String(activeScout.dna_hash).substring(0, 12)}...` : t("oversight_na", "N/A")}
+                  icon="fingerprint"
+                  iconColorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("mason", "Mason")}
+                  value={
+                    masonsList.find((m: any) => m.id === editForm.mason_id)?.name ||
+                    activeScout.suggested_author ||
+                    t("unknown_mason", "Unknown Mason")
+                  }
+                  icon="architecture"
+                  iconColorClass="text-[var(--accent)]"
+                />
+              </div>
+            </SidePanelHeroCard>
+
             <SidePanelTitleInput
               value={editForm.name}
               onChange={val => setEditForm({ ...editForm, name: val })}
-              placeholder={t("label_modname") || "Artifact Name"}
-              subtitle={t("label_modname") || "Artifact Name"}
+              label={t("label_modname", "Artifact Name")}
+              placeholder={t("label_modname", "Artifact Name")}
+              subtitle={`${t("dna_hash", "HASH")}: ${String(activeScout.dna_hash || "").substring(0, 12)}`}
             />
 
             <LabVerificationGate
               dnaHash={activeScout.dna_hash}
-              modName={editForm.name || activeScout.suggested_name || "Scout Artifact"}
+              modName={editForm.name || activeScout.suggested_name || t("reviewing", "Scout Artifact")}
               physicalPath={
                 (modList || []).find(
                   (m: any) =>
@@ -432,84 +464,89 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               }}
             />
 
-            <UniversalGroup title={t("label_lineage") || "Artifact Lineage"} icon={t("icon_account_tree") || "account_tree"}>
+            <UniversalGroup title={t("label_lineage", "Artifact Lineage")} icon={t("icon_account_tree", "account_tree")}>
               <ModSearchDropdown
                 modList={cloudModsList || []}
                 onSelect={(m: any) => setLineageId(m.id)}
                 selectedItem={cloudModsList?.find((m: any) => m.id === lineageId)}
                 onClear={() => setLineageId("")}
-                placeholder={t("ph_link_lineage") || "Link existing lineage..."}
+                placeholder={t("ph_link_lineage", "Link existing lineage...")}
               />
-              <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 mt-1 ml-2">
-                {t("label_lineage_desc") || "Link to an existing artifact to append this hash."}
+              <p className="text-[10px] font-bold text-[var(--subtext)] opacity-70 mt-1 px-1">
+                {t("label_lineage_desc", "Link to an existing artifact to append this hash.")}
               </p>
             </UniversalGroup>
 
-            <UniversalGroup title={t("btn_view") || "Classification"} icon={t("icon_info") || "info"}>
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("mason") || "Mason"}</label>
-                <div className="flex gap-2 relative">
+            <UniversalGroup title={t("btn_view", "Classification")} icon={t("icon_info", "info")}>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("mason", "Mason")}</label>
+                <div className="flex items-center gap-2 relative">
                   <div className="flex-1 min-w-0">
                     <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({ ...editForm, mason_id: id })} />
                   </div>
-                  <button onClick={() => setIsMasonPanelOpen(true)} className="bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] text-[var(--text)] px-5 rounded-xl font-black transition-colors shrink-0">
-                    +
-                  </button>
+                  <ActionButton
+                    onClick={() => setIsMasonPanelOpen(true)}
+                    variant="glass"
+                    icon="person_add"
+                    label={t("create_title", "Create Mason")}
+                    iconOnly={true}
+                    className="!h-11 !w-11 !px-0 rounded-xl shrink-0"
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category") || "Category"}</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("category", "Category")}</label>
                   <CustomClassificationDropdown value={editForm.category_override} onChange={(newType: string) => setEditForm({ ...editForm, category_override: newType })} />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("label_file_ext") || "File Extension"}</label>
-                  <input value={editForm.file_extension} onChange={e => setEditForm({ ...editForm, file_extension: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("ph_file_ext") || ".package"} />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("label_file_ext", "File Extension")}</label>
+                  <input value={editForm.file_extension} onChange={e => setEditForm({ ...editForm, file_extension: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all" placeholder={t("ph_file_ext", ".package")} />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_col_subcat") || "Subcategory"}</label>
-                  <input value={editForm.sub_type} onChange={e => setEditForm({ ...editForm, sub_type: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent" placeholder={t("auto_e_g_tuning_26") || "e.g. Tuning"} />
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("registry_col_subcat", "Subcategory")}</label>
+                  <input value={editForm.sub_type} onChange={e => setEditForm({ ...editForm, sub_type: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all" placeholder={t("auto_e_g_tuning_26", "e.g. Tuning")} />
                 </div>
               </div>
             </UniversalGroup>
 
-            <UniversalGroup title={t("label_resources") || "Resources"} icon={t("icon_link") || "link"}>
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("registry_label_url") || "Source URL"}</label>
-                <input value={editForm.url || ""} onChange={e => setEditForm({ ...editForm, url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--success)_50%,transparent)]" />
+            <UniversalGroup title={t("label_resources", "Resources")} icon={t("icon_link", "link")}>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("registry_label_url", "Source URL")}</label>
+                <input value={editForm.url || ""} onChange={e => setEditForm({ ...editForm, url: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all" />
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("cc_cover_url") || "Cover Image URL"}</label>
-                <input value={editForm.image_url || ""} onChange={e => setEditForm({ ...editForm, image_url: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--success)_50%,transparent)]" />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("cc_cover_url", "Cover Image URL")}</label>
+                <input value={editForm.image_url || ""} onChange={e => setEditForm({ ...editForm, image_url: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all" />
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("upload_desc") || "Description"}</label>
-                <textarea value={editForm.description || ""} onChange={e => setEditForm({ ...editForm, description: e.target.value })} className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold h-28 resize-none focus:outline-none focus:border-[color-mix(in_srgb,var(--success)_50%,transparent)] custom-scrollbar" />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("upload_desc", "Description")}</label>
+                <textarea value={editForm.description || ""} onChange={e => setEditForm({ ...editForm, description: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold min-h-[112px] resize-y border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all custom-scrollbar" />
               </div>
             </UniversalGroup>
 
-            <UniversalGroup title={t("compliance_tier") || "Compliance & Compatibility"} icon={t("icon_verified") || "verified"} className="pb-24">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("compliance_tier") || "Compliance Tier"}</label>
+            <UniversalGroup title={t("compliance_tier", "Compliance & Compatibility")} icon={t("icon_verified", "verified")}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("compliance_tier", "Compliance Tier")}</label>
                   <CustomComplianceDropdown value={editForm.compliance_tier || 0} onChange={(val: number) => setEditForm({ ...editForm, compliance_tier: val })} maxTier={4} />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 flex items-center gap-1">
-                    {t("registry_label_version") || "Version"}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1 flex items-center gap-1">
+                    {t("registry_label_version", "Version")}
                   </label>
-                  <input value={editForm.latest_version} onChange={e => setEditForm({ ...editForm, latest_version: e.target.value })} placeholder={t("ph_mod_version") || "1.0.0"} className="glass-surface rounded-xl px-5 py-3 text-[var(--accent)] text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]" />
+                  <input value={editForm.latest_version} onChange={e => setEditForm({ ...editForm, latest_version: e.target.value })} placeholder={t("ph_mod_version", "1.0.0")} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--accent)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all" />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("game_versions") || "Compatible Game Versions"}</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("game_versions", "Compatible Game Versions")}</label>
                 <GameVersionMultiSelect selectedVersions={editForm.compatible_versions || []} onChange={(v: string[]) => setEditForm({ ...editForm, compatible_versions: v })} />
               </div>
             </UniversalGroup>
@@ -520,36 +557,50 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
       <SidePanel
         isOpen={isMasonPanelOpen}
         onClose={() => setIsMasonPanelOpen(false)}
-        title={t("create_title") || "Create Mason"}
-        icon={t("icon_person_add") || "person_add"}
+        title={t("create_title", "Create Mason")}
+        subtitle={t("create_mason_subtitle", "Create a new mason entry")}
+        icon={t("icon_person_add", "person_add")}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon="check"
               variant="accent"
-              tooltip={t("create_btn_create") || "Create Mason"}
+              tooltip={t("create_btn_create", "Create Mason")}
               onClick={handleCreateMason}
               disabled={isCreatingMason || !newMasonName.trim()}
             />
           </PanelHeaderGroup>
         }
       >
-        <div className="flex flex-col h-full gap-8">
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t("icon_person_add", "person_add")}
+            overline={t("mason", "Mason")}
+            title={t("create_title", "Create Mason")}
+            description={t("create_mason_subtitle", "Create a new mason entry")}
+            variant="accent"
+          />
+
           <SidePanelTitleInput
             value={newMasonName}
             onChange={setNewMasonName}
-            placeholder={t("create_ph_name") || "Mason Name"}
-            subtitle={t("mason_name") || "Mason Name"}
+            label={t("mason_name", "Mason Name")}
+            placeholder={t("create_ph_name", "Mason Name")}
           />
+
+          <div className="flex justify-end">
+            <ActionButton
+              variant="glass"
+              icon="check"
+              label={t("create_btn_create", "Create Mason")}
+              onClick={handleCreateMason}
+              disabled={isCreatingMason || !newMasonName.trim()}
+            />
+          </div>
         </div>
       </SidePanel>
     </>
   );
 }
-
-
-
-
-
-
-

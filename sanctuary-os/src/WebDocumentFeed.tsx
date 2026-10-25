@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabaseAuth } from "./supabase";
 import { useStore } from "./store";
@@ -27,6 +27,10 @@ import {
   SystemDirectiveRecord,
   DirectiveSlug,
 } from "./utils/directivesSync";
+import {
+  extractDirectiveBuilderSchema,
+  stripDirectiveBuilderComment,
+} from "./utils/directivesBuilderSchema";
 
 type DirectiveModuleId =
   | "guide"
@@ -52,6 +56,18 @@ const STANDALONE_MANUAL_SNIPPET = `export const SANCTUARY_CONFIG = {
     schema_id: "sims4",
     icon: "sports_esports",
   },
+};`;
+
+const HUB_AND_SPOKE_FORK_SNIPPET = `// 1. Deploy the Gateway Edge Function to your Central Hub Supabase Project:
+//    supabase link --project-ref YOUR_HUB_PROJECT_ID
+//    supabase functions deploy game-gateway
+
+// 2. Point SANCTUARY_CONFIG in sanctuary-os/src/supabase.ts to your Central Hub:
+export const SANCTUARY_CONFIG = {
+  uplinkBundle: "",
+  mode: "hub_and_spoke",
+  supabaseUrl: "https://YOUR_HUB_PROJECT_ID.supabase.co",
+  supabaseAnonKey: "YOUR_HUB_SUPABASE_ANON_KEY",
 };`;
 
 const DYNAMIC_SCHEMA_SNIPPET = `{
@@ -93,17 +109,20 @@ export default function WebDocumentFeed() {
   const [activeModule, setActiveModule] = useState<DirectiveModuleId | null>(null);
   const [showRawDoc, setShowRawDoc] = useState(false);
 
-  // 1. Citizen Guide & Neural Walkthrough State (3 Static Top Tiles + Hero Card with Bottom Stepper)
+  // 1. Citizen Guide & Neural Walkthrough State (3 Static Top Tiles + 2-Column Cards with Inline Drawer)
   const [guideMode, setGuideMode] = useState<"walkthrough" | "modules" | "roles">("walkthrough");
   const [walkIdx, setWalkIdx] = useState(0);
   const [guideStepIdx, setGuideStepIdx] = useState(0);
+  const [roleTierIdx, setRoleTierIdx] = useState(0);
 
-  // 2. Phase Roadmap Timeline State (3 Static Top Tiles + Vertical Reverse-Chronological Timeline)
+  // 2. Phase Roadmap Timeline State (3 Static Top Tiles + 2-Column Cards with Inline Drawer)
   const [roadmapFilter, setRoadmapFilter] = useState<"all" | "active" | "completed">("all");
   const [selectedPhaseNum, setSelectedPhaseNum] = useState<number>(12);
 
   // 3. Forking & Spoke Provisioning Guide State (3 Static Top Tiles)
   const [forkTab, setForkTab] = useState<"spoke" | "standalone" | "sql">("spoke");
+  const [forkModeIdx, setForkModeIdx] = useState<0 | 1>(0);
+  const [sqlSchemaTab, setSqlSchemaTab] = useState<"spoke" | "hub">("spoke");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // 4. Master Architecture Explorer State (3 Static Top Tiles)
@@ -111,6 +130,21 @@ export default function WebDocumentFeed() {
 
   // 5. Master Protocol & Clearance Matrix State (3 Static Top Tiles)
   const [protoTab, setProtoTab] = useState<"roles" | "compliance" | "list">("roles");
+  const [protoRoleIdx, setProtoRoleIdx] = useState(0);
+  const [protoCompIdx, setProtoCompIdx] = useState(0);
+  const [protoDomainIdx, setProtoDomainIdx] = useState(0);
+
+  const guideDrawerRef = useRef<HTMLDivElement | null>(null);
+  const roadmapDrawerRef = useRef<HTMLDivElement | null>(null);
+  const protoDrawerRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollDrawerIntoCenter = (
+    ref: React.RefObject<HTMLDivElement | null>
+  ) => {
+    setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+  };
 
   useEffect(() => {
     const loadDirectivesAndBroadcasts = async () => {
@@ -983,359 +1017,443 @@ export default function WebDocumentFeed() {
     [t]
   );
 
-  // 12 Phases for the Interactive Roadmap Timeline (Reverse Chronological: Phase 12 -> Phase 1, enriched from Foundry Comm-Logs)
+  // 12 Phases for the Interactive Roadmap Timeline (Reverse Chronological: Phase 12 -> Phase 1, enriched from Phase Roadmaps.txt & Foundry Comm-Logs)
   const roadmapPhases = useMemo(
     () => [
       {
         num: 12,
         status: "active" as const,
         icon: t("icon_rocket_launch", "rocket_launch"),
-        code: t("dir_phase_12_num", "PHASE 12 • AUG–OCT 2026"),
+        code: t("sd_roadmap_p12_period", "PHASE 12 • JULY 15, 2026 — IN PROGRESS"),
         title: t(
-          "dir_phase_12_title",
-          "Agnostic Multi-Game Future, Sovereignty & Liquid Glass"
+          "sd_roadmap_p12_title",
+          "Agnostic Future — Multi-Workspace, Sanctuary V6 Liquid Glass & Web PWA"
         ),
-        sub: t("sd_roadmap_p12_sub", "Multi-Game Schemas, 1-File Forks & Liquid Glass"),
+        sub: t("sd_roadmap_p12_focus", "Citizens Workbench / Mason IDE, Lexicon Revamp, Sanctuary Partners, V6 Theme Overhaul & Website V2"),
         desc: t(
-          "dir_phase_12_summary",
-          "Hub-and-Spoke database sovereignty (SANCTUARY-UPLINK:// & Cut the Cord), Dynamic Game Schemas, Static Edge Polling, Zero-Tearing Liquid Glass, 2-Column Visual Workbench, 3-Tile Artifact Studio, FIDO2 Passkeys, Full-OS Quarantine SidePanel, and Bilateral Directives Sync."
+          "sd_roadmap_p12_summary",
+          "The culminating evolution of Sanctuary OS: Dual-Vision Mason IDE & Lexicon Cloud Schemas (Completed), Multi-Workspace Master Schemas & the 0%-cut Sanctuary Partners Agreement, the Sanctuary V6 3D Liquid Glass Engine & 18-Section OS Revamp, and the unified Website V2 / Mobile PWA."
         ),
         milestones: [
-          t(
-            "dir_phase_12_m1",
-            "Hub-and-Spoke Sovereignty (schema.sql & schema_os.sql) + Single-File Standalone Fork (src/supabase.ts) + Cut the Cord"
-          ),
-          t(
-            "dir_phase_12_m2",
-            "Dynamic Game Schemas & Schema-Driven Load Order Compiler (folder_priority, manifest_list, numeric_prefix, timestamp)"
-          ),
-          t(
-            "dir_phase_12_m3",
-            "Zero-Tearing Liquid Glass Optics, 2-Column Visual Workbench & Timeline Diff, and Unified 3-Tile Artifact Studio"
-          ),
-          t(
-            "dir_phase_12_m4",
-            "FIDO2 Passkey Vault, Full-OS Quarantine SidePanel Lockdown, Silent In-App Updater & Bilateral Codebase-to-Hub Directives Sync"
-          ),
+          {
+            title: t("sd_roadmap_p12_m5_title", "Citizens Workbench & Mason IDE 2.0"),
+            desc: t("sd_roadmap_p12_m5_desc", "Named Version Timeline entries, simultaneous Dual-Vision (Visual + Raw Monaco) split editing, Author Mode scaffolding, and the side-by-side Lexicon Builder."),
+            pending: false,
+          },
+          {
+            title: t("sd_roadmap_p12_m6_title", "Lexicon Revamp & Cloud Schemas"),
+            desc: t("sd_roadmap_p12_m6_desc", "Deduplicated all localization dictionaries, moved default Lexicon JSONs to the cloud database, and added official Sanctuary & Community badges."),
+            pending: false,
+          },
+          {
+            title: t("sd_roadmap_p12_m7_title", "Multi-Workspace & Sanctuary Partners"),
+            desc: t("sd_roadmap_p12_m7_desc", "Shared Core App and SSO with per-game Master Schemas, 100% Partner DB ownership ('Cut the Cord'), 0%-cut Partner Donations, and 1-File Standalone Forking."),
+            pending: true,
+          },
+          {
+            title: t("sd_roadmap_p12_m8_title", "Sanctuary V6 & Liquid Glass Engine"),
+            desc: t("sd_roadmap_p12_m8_desc", "4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + The Sims 4 ('Plumbob Crystal') Partner Theme, and Chameleon Theme Forge 2.0."),
+            pending: true,
+          },
+          {
+            title: t("sd_roadmap_p12_m10_title", "Dynamic Alert Tiles & 18-Section Revamp"),
+            desc: t("sd_roadmap_p12_m10_desc", "Floating 2-Pill Title Bar, Hover Dock, 5 Dynamic Alert Stat Tiles (Permissions, Global, Critical, System, Updates), and a full 18-section UI overhaul."),
+            pending: true,
+          },
+          {
+            title: t("sd_roadmap_p12_m9_title", "Website V2, Mobile PWA & Remote Queuing"),
+            desc: t("sd_roadmap_p12_m9_desc", "Unified single-codebase Web OS & PWA (sanctuaryos.net/sims4) with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC Blueprint queuing."),
+            pending: true,
+          },
+          {
+            title: t("sd_roadmap_p12_m11_title", "Schema-Driven Load Order Compiler"),
+            desc: t("sd_roadmap_p12_m11_desc", "Declarative Master Game Schemas powering multi-strategy topological compilation across folder priority, manifest lists, numeric prefixes, and timestamps."),
+            pending: false,
+          },
+          {
+            title: t("sd_roadmap_p12_m12_title", "FIDO2 Passkey Vault & Quarantine Lockdown"),
+            desc: t("sd_roadmap_p12_m12_desc", "Hardware WebAuthn Passkey gates for Elevated Hubs, Full-OS Malware Quarantine SidePanel Lockdown, Silent Updater, and Bilateral Directives Sync."),
+            pending: false,
+          },
         ],
       },
       {
         num: 11,
         status: "completed" as const,
         icon: t("icon_public", "public"),
-        code: t("dir_phase_11_num", "PHASE 11 • JULY 2026"),
+        code: t("sd_roadmap_p11_period", "PHASE 11 • MAY 17 – JULY 13, 2026"),
         title: t(
-          "dir_phase_11_title",
-          "Integrated Side Browser, Mason Linker & Security Audit"
+          "sd_roadmap_p11_title",
+          "Technical Debt Repayment, Citizens Workbench & The Agnostic Sprint"
         ),
-        sub: t("sd_roadmap_p11_sub", "In-App Download Interception & Forensic Audit"),
+        sub: t("sd_roadmap_p11_focus", "Native Intake & Support, Citizens Workbench & Game-Agnostic Kernel"),
         desc: t(
-          "dir_phase_11_summary",
-          "Embedded multi-tab Side Browser with automatic download interception, full-stack path-traversal & RLS security audit hardening, Mason Linker, and unified ActionPill navigation."
+          "sd_roadmap_p11_summary",
+          "Integrated Mason & Architect intake forms, native Bug Reports & Support Ticket Dossiers, Citizens Workbench 1.0 (.cfg/.ini/.json + Monaco IDE + Sanctuary Templates), full 11-section Lexicon/UI maintenance sweep, and the Agnostic Sprint extracting hardcoded Sims 4 logic into Master JSON Schemas."
         ),
         milestones: [
-          t(
-            "dir_phase_11_m1",
-            "Integrated Side Browser with automatic .zip/.rar/.7z/.package/.ts4script download interception directly into the Vault"
-          ),
-          t(
-            "dir_phase_11_m2",
-            "Full-stack Security & Forensic Audit: path traversal guards (is_safe_user_file_path), RLS hardening & append-only audit_logs"
-          ),
-          t(
-            "dir_phase_11_m3",
-            "Oversight Mason Linker, Unregistered Vault auto-sync on Nexus verification & unified ActionPill toolbar"
-          ),
+          {
+            title: t("sd_roadmap_p11_m5_title", "Native Intake Forms & Support Desk"),
+            desc: t("sd_roadmap_p11_m5_desc", "Integrated Mason UUID registration, Architect intake forms, Bug Reports, and encrypted Support Ticket dossiers directly into the Desktop App."),
+          },
+          {
+            title: t("sd_roadmap_p11_m6_title", "Citizens Workbench 1.0 & Sanctuary Templates"),
+            desc: t("sd_roadmap_p11_m6_desc", "Automatic .cfg, .ini, and .json detection in the Vault with an embedded Monaco IDE and visual slider/toggle Schema Mapping."),
+          },
+          {
+            title: t("sd_roadmap_p11_m7_title", "The Agnostic Sprint & Master Schemas"),
+            desc: t("sd_roadmap_p11_m7_desc", "Extracted all hardcoded Sims 4 (.package / .ts4script) checks across 17 frontend modules and the Rust backend into dynamic Master JSON Schemas."),
+          },
+          {
+            title: t("sd_roadmap_p11_m8_title", "Integrated Side Browser & Vault Intercept"),
+            desc: t("sd_roadmap_p11_m8_desc", "Embedded multi-tab Side Browser that automatically intercepts .zip, .rar, .7z, .package, and .ts4script downloads straight into the Vault."),
+          },
+          {
+            title: t("sd_roadmap_p11_m9_title", "Full-Stack Security & Forensic Audit"),
+            desc: t("sd_roadmap_p11_m9_desc", "Hardened Rust path-traversal guards (is_safe_user_file_path), Supabase Row-Level Security (RLS) policies, and immutable append-only audit logs."),
+          },
+          {
+            title: t("sd_roadmap_p11_m10_title", "Oversight Mason Linker & Lexicon Sweep"),
+            desc: t("sd_roadmap_p11_m10_desc", "Deployed the Oversight Mason Linker, automatic Unregistered Vault syncing on Nexus verification, and a full 11-section Lexicon/UI sweep."),
+          },
         ],
       },
       {
         num: 10,
         status: "completed" as const,
         icon: t("icon_palette", "palette"),
-        code: t("dir_phase_10_num", "PHASE 10 • JUNE 2026"),
+        code: t("sd_roadmap_p10_period", "PHASE 10 • MAY 10 – MAY 16, 2026"),
         title: t(
-          "dir_phase_10_title",
-          "The Nexus Registry, Theme Forge & Lexicon Matrix"
+          "sd_roadmap_p10_title",
+          "Post-Alpha Revamp, Visual Protocol Manager & Senior Architect Mass Update"
         ),
-        sub: t("sd_roadmap_p6_sub", "Word-as-a-Service Localization & Live Theme Forge"),
+        sub: t("sd_roadmap_p10_focus", "Dev Sandbox, Visual Protocol Schema, Theme Forge & Mass Triage"),
         desc: t(
-          "dir_phase_10_summary",
-          "Launched The Nexus global discovery registry, the Chameleon Theme Forge Suite with live Holo Sandbox, and the 4-dictionary Lexicon Word-as-a-Service engine."
+          "sd_roadmap_p10_summary",
+          "Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Senior Architect Mass Update console, The Nexus discovery registry, and the Chameleon Theme Forge."
         ),
         milestones: [
-          t(
-            "dir_phase_10_m1",
-            "The Nexus Discovery Registry for Artifacts, Blueprints, Lexicons, Chameleons & Templates with version/DLC auto-filtering"
-          ),
-          t(
-            "dir_phase_10_m2",
-            "Chameleon Theme Forge Suite with multi-stop Background Builder, Dark/Light adaptation & live Holo Sandbox"
-          ),
-          t(
-            "dir_phase_10_m3",
-            "Lexicon Protocol routing 100% of UI strings and icons through hot-swappable JSON dictionaries"
-          ),
+          {
+            title: t("sd_roadmap_p10_m5_title", "Isolated Dev Sandbox & Sync to Network"),
+            desc: t("sd_roadmap_p10_m5_desc", "Dedicated local Dev Sandbox folder bypassing radar hash churn for WIP mods, paired with 1-click 'Sync to Network' release promotion."),
+          },
+          {
+            title: t("sd_roadmap_p10_m6_title", "Visual Protocol & Folder Structure Builder"),
+            desc: t("sd_roadmap_p10_m6_desc", "Database-schema visual Protocol Manager (Core & Addons, Flavors, Dependencies, DLC) and visual Folder Structure builder enforced by Sanitize Vault."),
+          },
+          {
+            title: t("sd_roadmap_p10_m7_title", "Senior Architect Mass Update & Filters"),
+            desc: t("sd_roadmap_p10_m7_desc", "Bulk post-patch triage console for Senior Architects alongside 'Game Version', 'Currently Eligible', and 'Exclude Unowned DLC' filters."),
+          },
+          {
+            title: t("sd_roadmap_p10_m8_title", "The Nexus Discovery Registry"),
+            desc: t("sd_roadmap_p10_m8_desc", "Global metadata catalog for Artifacts, Blueprints, Lexicons, Chameleons, and Templates with automatic game patch and DLC compatibility filtering."),
+          },
+          {
+            title: t("sd_roadmap_p10_m9_title", "Chameleon Theme Forge & Holo Sandbox"),
+            desc: t("sd_roadmap_p10_m9_desc", "Interactive Theme Forge suite featuring a multi-stop atmospheric Background Builder, Dark/Light adaptation, and live Holo Sandbox previewing."),
+          },
+          {
+            title: t("sd_roadmap_p10_m10_title", "Hot-Swappable Lexicon Protocol"),
+            desc: t("sd_roadmap_p10_m10_desc", "Word-as-a-Service localization engine routing 100% of UI labels and icons through hot-swappable JSON dictionaries."),
+          },
         ],
       },
       {
         num: 9,
         status: "completed" as const,
         icon: t("icon_admin_panel_settings", "admin_panel_settings"),
-        code: t("dir_phase_9_num", "PHASE 9 • JUNE 2026"),
+        code: t("sd_roadmap_p9_period", "PHASE 9 • MAY 8 – MAY 9, 2026"),
         title: t(
-          "dir_phase_9_title",
-          "Oversight Command, Wayfinder Hub & Keepers Core"
+          "sd_roadmap_p9_title",
+          "Infrastructure Finalization, Laboratory Diagnostics & Command Hubs"
         ),
-        sub: t("sd_roadmap_p8_sub", "Elevated Command Hubs, Support Desk & Compliance"),
+        sub: t("sd_roadmap_p9_focus", "Proving Grounds Simulation, macOS Universal Pipeline & Command Hubs"),
         desc: t(
-          "dir_phase_9_summary",
-          "Constructed the 5 Elevated Command Hubs, claimable Citizen Support Desk Ticket Dossiers, and Florida Compliance Tiers 1–4 with Cloud Blueprint auto-purge."
+          "sd_roadmap_p9_summary",
+          "Transitioned Homestead Proving Grounds into a live simulation laboratory with real-time log monitoring, deployed the Senior Architect & Wayfinder Command Hubs, automated signed macOS Universal (.dmg) builds, and enforced Florida Compliance Tiers 1–4."
         ),
         milestones: [
-          t(
-            "dir_phase_9_m1",
-            "Dedicated ElevatedHubLayout command centers for Mason, Architect, Oversight, Wayfinder & Keepers Core"
-          ),
-          t(
-            "dir_phase_9_m2",
-            "Claimable Citizen Support Desk Ticket Dossiers with scrubbed crash logs, macros & cross-tier escalation"
-          ),
-          t(
-            "dir_phase_9_m3",
-            "Florida Compliance Tiers 1–4 with automatic public feed scrubbing and Cloud Blueprint hash purge triggers"
-          ),
+          {
+            title: t("sd_roadmap_p9_m5_title", "Live Proving Grounds & macOS Pipeline"),
+            desc: t("sd_roadmap_p9_m5_desc", "Real-time crash log monitoring with 1-click conflict rule pushing in the Homestead Lab, plus signed macOS Universal (.dmg) GitHub Actions builds."),
+          },
+          {
+            title: t("sd_roadmap_p9_m6_title", "Five Elevated Command Hubs"),
+            desc: t("sd_roadmap_p9_m6_desc", "Dedicated ElevatedHubLayout command centers for Mason Workshop, Architect Console, Oversight Command, Wayfinder Operations, and Keepers Core."),
+          },
+          {
+            title: t("sd_roadmap_p9_m7_title", "Claimable Support Desk Ticket Dossiers"),
+            desc: t("sd_roadmap_p9_m7_desc", "Interactive ticket dossiers equipped with PII-scrubbed crash logs, response macros, and cross-tier escalation between Architects and Oversight."),
+          },
+          {
+            title: t("sd_roadmap_p9_m8_title", "Florida Compliance Tiers 1–4"),
+            desc: t("sd_roadmap_p9_m8_desc", "Automated public feed scrubbing and Cloud Blueprint hash purge triggers protecting public discovery while preserving local Vault freedom."),
+          },
         ],
       },
       {
         num: 8,
         status: "completed" as const,
         icon: t("icon_cell_tower", "cell_tower"),
-        code: t("dir_phase_8_num", "PHASE 8 • MAY–JUNE 2026"),
+        code: t("sd_roadmap_p8_period", "PHASE 8 • MAY 7 – MAY 8, 2026"),
         title: t(
-          "dir_phase_8_title",
-          "Global Comm-Link, DEFCON Patch Shield & Quarantine"
+          "sd_roadmap_p8_title",
+          "Standardized Lexicons, Dynamic Engine Recognition & DEFCON Shield"
         ),
-        sub: t("sd_roadmap_p9_sub", "Social Broadcasts, Patch Shield & Malware Shred"),
+        sub: t("sd_roadmap_p8_focus", "Rust Rip Protocol, Auto-Sanitization Launch & DEFCON 1 Shield"),
         desc: t(
-          "dir_phase_8_summary",
-          "Real-time Comm-Link social broadcast feed, Supabase Realtime DEFCON 1 patch shield listener, Tier 5 Malware Secure Shred, and the 5-click Nuclear Override."
+          "sd_roadmap_p8_summary",
+          "Engineered the Rust 'Rip Protocol' for dynamic engine version recognition, Auto-Sanitization Launch purging stale crash logs & caches, Global Lexicon Extraction, the Blueprint Architect Load Order UI, and the real-time DEFCON 1 patch shield."
         ),
         milestones: [
-          t(
-            "dir_phase_8_m1",
-            "Global Comm-Link feed with WYSIWYG/Markdown dispatches, multi-level threaded replies & Discover/Following tabs"
-          ),
-          t(
-            "dir_phase_8_m2",
-            "Real-time DEFCON 1 network listener intercepting game launches during breaking patches to force emergency backups"
-          ),
-          t(
-            "dir_phase_8_m3",
-            "Tier 5 Malware byte-level heuristic scanner, Citizen-signed Secure Shred & privacy-first hardware_bans Nuclear Override"
-          ),
+          {
+            title: t("sd_roadmap_p8_m5_title", "Rust 'Rip Protocol' & Auto-Sanitization"),
+            desc: t("sd_roadmap_p8_m5_desc", "Dynamic engine version recognition parsing Default.ini and PE headers in Rust, plus pre-launch purging of stale LastException and cache files."),
+          },
+          {
+            title: t("sd_roadmap_p8_m6_title", "Global Comm-Link Broadcast Feed"),
+            desc: t("sd_roadmap_p8_m6_desc", "Real-time community feed supporting WYSIWYG/Markdown dispatches, multi-level threaded replies, and dedicated Discover & Following tabs."),
+          },
+          {
+            title: t("sd_roadmap_p8_m7_title", "DEFCON 1 Pre-Patch Network Shield"),
+            desc: t("sd_roadmap_p8_m7_desc", "Real-time network listener that intercepts game launches during breaking engine patches to prompt an emergency Time Capsule backup."),
+          },
+          {
+            title: t("sd_roadmap_p8_m8_title", "Tier 5 Malware Scanner & Secure Shred"),
+            desc: t("sd_roadmap_p8_m8_desc", "Byte-level heuristic malware scanner, Citizen-signed 3-pass Secure Shredding, and the privacy-first hardware_bans Nuclear Override."),
+          },
         ],
       },
       {
         num: 7,
         status: "completed" as const,
         icon: t("icon_construction", "construction"),
-        code: t("dir_phase_7_num", "PHASE 7 • MAY 2026"),
+        code: t("sd_roadmap_p7_period", "PHASE 7 • MAY 6, 2026"),
         title: t(
-          "dir_phase_7_title",
-          "Mason Workshop, Monaco IDE & Citizen's Workbench"
+          "sd_roadmap_p7_title",
+          "Core Architecture, Time Capsule Compression & Windows MSI Pipeline"
         ),
-        sub: t("sd_roadmap_p7_sub", "Visual Config Sliders, Monaco IDE & Creator Suite"),
+        sub: t("sd_roadmap_p7_focus", "Nested Vault Taxonomy, 78GB→24GB Compression & MSI Pipeline"),
         desc: t(
-          "dir_phase_7_summary",
-          "Created the Citizen's Workbench dual Visual/Raw Config Studio, the Mason Workshop with embedded Monaco IDE & Dev Sandbox, and the native Rust pelite PE version ripper."
+          "sd_roadmap_p7_summary",
+          "Deployed the nested Vault directory hierarchy, optimized Time Capsule Engine Core compression (78GB → 24GB) with <50s rollbacks, automated Windows .msi GitHub Actions builds, and integrated Scout Dossiers into Conflict Radar."
         ),
         milestones: [
-          t(
-            "dir_phase_7_m1",
-            "Citizen's Workbench schema-driven Visual Config Editor synchronized in real time with a Monaco Raw Editor"
-          ),
-          t(
-            "dir_phase_7_m2",
-            "Mason Workshop with isolated Dev Sandbox, Collections Builder & Protocol Orchestrator for Twins/Flavors/Dependencies"
-          ),
-          t(
-            "dir_phase_7_m3",
-            "In-process Rust pelite PE executable parser extracting genuine patch versions from .exe headers with zero AV false positives"
-          ),
+          {
+            title: t("sd_roadmap_p7_m5_title", "Nested Vault Taxonomy & 24 GB Compression"),
+            desc: t("sd_roadmap_p7_m5_desc", "Self-healing Vault hierarchy (Backups/World, Backups/Engine, Data/cache, Quarantine) and 78 GB → 24 GB Engine Core compression with <50s rollbacks."),
+          },
+          {
+            title: t("sd_roadmap_p7_m6_title", "Schema-Driven Visual Config Workbench"),
+            desc: t("sd_roadmap_p7_m6_desc", "Visual configuration studio rendering raw mod settings as interactive sliders and toggles synchronized live with a Monaco Raw Editor."),
+          },
+          {
+            title: t("sd_roadmap_p7_m7_title", "Mason Workshop & Collections Orchestrator"),
+            desc: t("sd_roadmap_p7_m7_desc", "Creator suite featuring an isolated Dev Sandbox, Collections Builder, and relational Protocol Orchestrator for Twins, Flavors, and Dependencies."),
+          },
+          {
+            title: t("sd_roadmap_p7_m8_title", "In-Process Rust PE Executable Parser"),
+            desc: t("sd_roadmap_p7_m8_desc", "Native Rust pelite binary parser extracting genuine patch versions directly from .exe headers with zero antivirus false positives."),
+          },
         ],
       },
       {
         num: 6,
         status: "completed" as const,
         icon: t("icon_science", "science"),
-        code: t("dir_phase_6_num", "PHASE 6 • MAY 2026"),
+        code: t("sd_roadmap_p6_period", "PHASE 6 • MAY 3 – MAY 5, 2026"),
         title: t(
-          "dir_phase_6_title",
-          "Homestead Lab & 100% Nuke Isolation Proving Grounds"
+          "sd_roadmap_p6_title",
+          "Codebase Modularization, Comm-Link Ledger & Homestead Proving Grounds"
         ),
-        sub: t("sd_roadmap_p4_sub", "Isolated Sandbox Testing & Crash Log Scrubber"),
+        sub: t("sd_roadmap_p6_focus", "Creator Following Feed, App.tsx Modularization & Nuke Sandbox"),
         desc: t(
-          "dir_phase_6_summary",
-          "Engineered the Homestead Lab to strip active Vault symlinks for 100% isolated mod testing, 1v1 conflict stability arenas, and automated crash log harvesting."
+          "sd_roadmap_p6_summary",
+          "Launched the Creator Following system and real-time Comm-Link discovery ledger, modularized App.tsx into dedicated domain views, extracted Yeet Cascade casualty tracking, and built the 100% Nuke Isolation Proving Grounds."
         ),
         milestones: [
-          t(
-            "dir_phase_6_m1",
-            "100% Nuke Injection Sandbox stripping active symlinks to inject only the isolated test subject and its mandatory dependencies"
-          ),
-          t(
-            "dir_phase_6_m2",
-            "1v1 Conflict Stability Arena pitting two colliding mods head-to-head while monitoring real-time engine stability"
-          ),
-          t(
-            "dir_phase_6_m3",
-            "Automated lastException.txt crash log harvester and local PII/path scrubber (scrub_user_data_from_log)"
-          ),
+          {
+            title: t("sd_roadmap_p6_m5_title", "Creator Following & Domain Modularization"),
+            desc: t("sd_roadmap_p6_m5_desc", "Added the Creator Following feed to Comm-Link, modularized App.tsx into dedicated domain views, and extracted Yeet Cascade casualty tracking."),
+          },
+          {
+            title: t("sd_roadmap_p6_m6_title", "100% Nuke Injection Sandbox"),
+            desc: t("sd_roadmap_p6_m6_desc", "Temporarily strips active Vault symlinks during Proving Grounds runs to inject only the isolated test subject and its mandatory dependencies."),
+          },
+          {
+            title: t("sd_roadmap_p6_m7_title", "1v1 Conflict Stability Arena"),
+            desc: t("sd_roadmap_p6_m7_desc", "Pits two suspected colliding mods head-to-head in an airgapped test environment while monitoring real-time engine stability."),
+          },
+          {
+            title: t("sd_roadmap_p6_m8_title", "Automated Crash Log Harvester & Scrubber"),
+            desc: t("sd_roadmap_p6_m8_desc", "Captures lastException.txt crash logs automatically and scrubs local filesystem paths and PII (scrub_user_data_from_log) before sharing."),
+          },
         ],
       },
       {
         num: 5,
         status: "completed" as const,
         icon: t("icon_history", "history"),
-        code: t("dir_phase_5_num", "PHASE 5 • MAY 2026"),
+        code: t("sd_roadmap_p5_period", "PHASE 5 • MAY 1 – MAY 3, 2026"),
         title: t(
-          "dir_phase_5_title",
-          "Time Capsule Hardlink & Differential Rollback Engine"
+          "sd_roadmap_p5_title",
+          "Defensive Protocols, Symlink Airgap 2.1 & Mason Protocol Manager"
         ),
-        sub: t("sd_roadmap_p5_sub", "Zero-Duplication Incremental Backups & Restore"),
+        sub: t("sd_roadmap_p5_focus", "Real-Time Airgap Watcher, DNA Duplicate Intercept & Time Capsule"),
         desc: t(
-          "dir_phase_5_summary",
-          "Built the dual-state Time Capsule (World State & Engine Core) using native OS hardlinks for zero-bloat incremental snapshots and differential state rollbacks."
+          "sd_roadmap_p5_summary",
+          "Implemented Symlink Airgap 2.1 real-time .cfg/.ini file watching in Rust, SHA-256 DNA duplicate interception, Mason Protocol Manager 1.0, intelligent Google Search fallback, and hardlink Time Capsule snapshots."
         ),
         milestones: [
-          t(
-            "dir_phase_5_m1",
-            "Dual-State Time Capsule separating World State (Saves/Settings) from Engine Core (Game Installation Binaries)"
-          ),
-          t(
-            "dir_phase_5_m2",
-            "Zero-bloat NTFS/POSIX hardlink snapshot engine paired with .tar.zst zstandard compression"
-          ),
-          t(
-            "dir_phase_5_m3",
-            "Differential rollback comparator (diff_backup) restoring only modified bytes and purging rogue files"
-          ),
+          {
+            title: t("sd_roadmap_p5_m5_title", "Real-Time Airgap Watcher & DNA Intercept"),
+            desc: t("sd_roadmap_p5_m5_desc", "Non-blocking Rust notify thread syncing live in-game .cfg/.ini edits back to the Vault, plus SHA-256 duplicate interception on drop."),
+          },
+          {
+            title: t("sd_roadmap_p5_m6_title", "Dual-State Time Capsule Architecture"),
+            desc: t("sd_roadmap_p5_m6_desc", "Independently snapshots World State (Saves, Tray & Settings) and Engine Core (Game Installation Binaries) before patches or mod tests."),
+          },
+          {
+            title: t("sd_roadmap_p5_m7_title", "Zero-Bloat OS Hardlink Snapshot Engine"),
+            desc: t("sd_roadmap_p5_m7_desc", "Pairs native NTFS/POSIX hardlink deduplication with .tar.zst Zstandard compression so unchanged files consume zero extra disk space."),
+          },
+          {
+            title: t("sd_roadmap_p5_m8_title", "Differential Rollback Comparator"),
+            desc: t("sd_roadmap_p5_m8_desc", "High-speed diff_backup engine that restores only modified bytes and purges rogue files without re-copying the entire installation."),
+          },
         ],
       },
       {
         num: 4,
         status: "completed" as const,
         icon: t("icon_radar", "radar"),
-        code: t("dir_phase_4_num", "PHASE 4 • MAY 2026"),
+        code: t("sd_roadmap_p4_period", "PHASE 4 • APRIL 28 – MAY 1, 2026"),
         title: t(
-          "dir_phase_4_title",
-          "Conflict Radar Severity 1–4 & Architect Console"
+          "sd_roadmap_p4_title",
+          "The Global Network, Radiant Light Mode & Cloud Blueprints"
         ),
-        sub: t("sd_roadmap_p10_sub", "Collision Matrix, Priority Folders & Scout Queue"),
+        sub: t("sd_roadmap_p4_focus", "Radiant ThemeProvider, SNC-XXXXX Cloud Codes & Conflict Radar"),
         desc: t(
-          "dir_phase_4_summary",
-          "Established the Severity 1–4 collision classification matrix, Priority Tier folders with dynamic Resource.cfg, and the Architect Console with Scout Queue triage."
+          "sd_roadmap_p4_summary",
+          "Pivoted from dark-only Bunker to Radiant Light Mode with real-time ThemeProvider profile switching, launched 6-digit Cloud Blueprint transmissions (SNC-XXXXX), added the Architect Signature confirmation gate, and established Conflict Radar Severity 1–4."
         ),
         milestones: [
-          t(
-            "dir_phase_4_m1",
-            "Severity 1–4 Collision Matrix distinguishing Minor/Duplicate overlaps from Severity 3 Tuning Overlaps and Severity 4 Clashes"
-          ),
-          t(
-            "dir_phase_4_m2",
-            "Priority Tier override folders (Sanctuary1–Sanctuary3) and automated Resource.cfg priority compilation"
-          ),
-          t(
-            "dir_phase_4_m3",
-            "Architect Console & crowd-sourced Scout Queue with Copilot confirmation gates"
-          ),
+          {
+            title: t("sd_roadmap_p4_m5_title", "Radiant Mode, ThemeProvider & Signature Gate"),
+            desc: t("sd_roadmap_p4_m5_desc", "Introduced Radiant (Light Mode) and real-time ThemeProvider profile switching, 6-digit Cloud Blueprint codes, and the Architect Signature gate."),
+          },
+          {
+            title: t("sd_roadmap_p4_m6_title", "Severity 1–4 Collision Matrix"),
+            desc: t("sd_roadmap_p4_m6_desc", "Proactive conflict classifier distinguishing minor overlaps from Severity 3 Tuning Overlaps and Severity 4 Fatal Clashes."),
+          },
+          {
+            title: t("sd_roadmap_p4_m7_title", "Priority Tier Folders & Dynamic Resource.cfg"),
+            desc: t("sd_roadmap_p4_m7_desc", "Multi-tier override directories (Sanctuary1–Sanctuary3) paired with automated Resource.cfg priority depth compilation."),
+          },
+          {
+            title: t("sd_roadmap_p4_m8_title", "Architect Console & Crowd-Sourced Scout Queue"),
+            desc: t("sd_roadmap_p4_m8_desc", "Dedicated moderation console for verifying community Scout Dossier submissions behind Copilot confirmation gates."),
+          },
         ],
       },
       {
         num: 3,
         status: "completed" as const,
         icon: t("icon_hub", "hub"),
-        code: t("dir_phase_3_num", "PHASE 3 • APR–MAY 2026"),
+        code: t("sd_roadmap_p3_period", "PHASE 3 • APRIL 15 – APRIL 28, 2026"),
         title: t(
-          "dir_phase_3_title",
-          "Atomic Logic Engine, Ghosted States & Cloud Uplinks"
+          "sd_roadmap_p3_title",
+          "System Rip, Deep Yeet 2.0 & Logic Intelligence"
         ),
-        sub: t("sd_roadmap_p3_sub", "Highlander Flavors, Twins, Cascades & SNCXXX"),
+        sub: t("sd_roadmap_p3_focus", "Deep Yeet 2.0, UTF-16 Version Ripper, Twin Bonds & Copilot"),
         desc: t(
-          "dir_phase_3_summary",
-          "Engineered the Atomic Logic Triumvirate (Highlander Flavors, Nuclear Family Twins, Recursive Dependencies), Deep Yeet 2.0 Delete Cascade, and SNCXXX Cloud Blueprints."
+          "sd_roadmap_p3_summary",
+          "Engineered Deep Yeet 2.0 recursive dependency cascade scanning, the Rust UTF-16 byte-filter System Version Ripper, Twin Bond synchronized script/package links, and the Copilot Philosophy halting for manual Citizen signature."
         ),
         milestones: [
-          t(
-            "dir_phase_3_m1",
-            "Atomic Logic Triumvirate: Highlander Flavor eviction, bidirectional .package/.ts4script Twins & Recursive Chain-Link Dependencies"
-          ),
-          t(
-            "dir_phase_3_m2",
-            "Deep Yeet 2.0 Delete Cascade intercepting master mod removal to queue dependent child add-ons cleanly"
-          ),
-          t(
-            "dir_phase_3_m3",
-            "6-character SNCXXX Cloud Blueprint Uplink codes, portable JSON exports & automatic Missing DLC Ghosting"
-          ),
+          {
+            title: t("sd_roadmap_p3_m5_title", "Deep Yeet 2.0 & UTF-16 Version Ripper"),
+            desc: t("sd_roadmap_p3_m5_desc", "Recursive dependency cascade scanner queuing orphaned addons on master removal, paired with the Rust UTF-16 binary version ripper."),
+          },
+          {
+            title: t("sd_roadmap_p3_m6_title", "Atomic Logic Triumvirate"),
+            desc: t("sd_roadmap_p3_m6_desc", "Relational mod rules enforcing Highlander Flavor eviction, bidirectional .package/.ts4script Twin bonds, and Recursive Chain-Link Dependencies."),
+          },
+          {
+            title: t("sd_roadmap_p3_m7_title", "Orphaned Addon Cascade Protection"),
+            desc: t("sd_roadmap_p3_m7_desc", "Intercepts master library removal and halts for the Citizen's manual signature before cleanly unequipping or removing dependent child add-ons."),
+          },
+          {
+            title: t("sd_roadmap_p3_m8_title", "SNCXXX Cloud Blueprints & Ghosted States"),
+            desc: t("sd_roadmap_p3_m8_desc", "6-character alphanumeric Cloud Blueprint share codes, portable offline JSON exports, and automatic Missing DLC Ghosting diagnostics."),
+          },
         ],
       },
       {
         num: 2,
         status: "completed" as const,
         icon: t("icon_map", "map"),
-        code: t("dir_phase_2_num", "PHASE 2 • APRIL 2026"),
+        code: t("sd_roadmap_p2_period", "PHASE 2 • APRIL 10 – APRIL 15, 2026"),
         title: t(
-          "dir_phase_2_title",
-          "Symlink Airgap 2.5, SQLite Delta Cache & Blueprints"
+          "sd_roadmap_p2_title",
+          "Visual Uplink, Glassmorphism 1.0 & The Quarantine Zone"
         ),
-        sub: t("sd_roadmap_p2_sub", "Zero-Copy Symlinks & Sub-Second SQLite Indexing"),
+        sub: t("sd_roadmap_p2_focus", "Glassmorphism 1.0, Quarantine Bio-Hazard Sector & Symlink Airgap"),
         desc: t(
-          "dir_phase_2_summary",
-          "Replaced physical file copying with Symlink Airgap 2.5 projection, built the mtime-first .sanctuary_cache.db SQLite delta scanner, and launched local Blueprints."
+          "sd_roadmap_p2_summary",
+          "Introduced the Glassmorphism 1.0 backdrop-blur engine, constructed the dedicated bio-hazard Quarantine Zone for isolating malicious files, and unified the app into a layered desktop OS experience backed by Symlink Airgap and SQLite caching."
         ),
         milestones: [
-          t(
-            "dir_phase_2_m1",
-            "Symlink Airgap 2.5 projecting mods from the isolated Vault into the live game directory in milliseconds"
-          ),
-          t(
-            "dir_phase_2_m2",
-            "SQLite .sanctuary_cache.db mtime-first delta scanner indexing 5,000+ mod Vaults in sub-second sweeps"
-          ),
-          t(
-            "dir_phase_2_m3",
-            "Self-healing Vault Sanitizer directory hierarchy and local Blueprint profile switching"
-          ),
+          {
+            title: t("sd_roadmap_p2_m5_title", "Glassmorphism 1.0 & Bio-Hazard Quarantine"),
+            desc: t("sd_roadmap_p2_m5_desc", "Translucent backdrop-blur glass containers with deep elevation shadows and a dedicated Quarantine Zone for isolating and shredding threats."),
+          },
+          {
+            title: t("sd_roadmap_p2_m6_title", "Symlink Airgap 2.5 Projection Engine"),
+            desc: t("sd_roadmap_p2_m6_desc", "Projects active mods from the isolated Vault into the live game directory via zero-copy OS symlinks in milliseconds."),
+          },
+          {
+            title: t("sd_roadmap_p2_m7_title", "Sub-Second SQLite Delta Scanner"),
+            desc: t("sd_roadmap_p2_m7_desc", "Local .sanctuary_cache.db SQLite engine using mtime-first delta checks to index 5,000+ mod Vaults in sub-second sweeps."),
+          },
+          {
+            title: t("sd_roadmap_p2_m8_title", "Self-Healing Vault Sanitizer & Profiles"),
+            desc: t("sd_roadmap_p2_m8_desc", "Automatically maintains the isolated Vault directory structure and powers instant local Blueprint loadout switching."),
+          },
         ],
       },
       {
         num: 1,
         status: "completed" as const,
         icon: t("icon_inventory_2", "inventory_2"),
-        code: t("dir_phase_1_num", "PHASE 1 • APRIL 2026"),
+        code: t("sd_roadmap_p1_period", "PHASE 1 • APRIL 1 – APRIL 10, 2026"),
         title: t(
-          "dir_phase_1_title",
-          "Genesis, Tauri v2 Rust Core & The Cartographer"
+          "sd_roadmap_p1_title",
+          "Bunker Initialization, Cartographer Protocol & SHA-256 DNA Pathing"
         ),
-        sub: t("sd_roadmap_p1_sub", "Zero-Pollution Symlink Projection & SHA-256 DNA"),
+        sub: t("sd_roadmap_p1_focus", "First-Boot Cartographer Recon & Millisecond Delta Caching"),
         desc: t(
-          "dir_phase_1_summary",
-          "Initialized the Tauri v2 + Rust + React 18 workspace, built The Cartographer first-boot reconnaissance wizard, and engineered multi-threaded SHA-256 DNA hashing."
+          "sd_roadmap_p1_summary",
+          "Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & Mods directories, and engineered SHA-256 DNA delta caching."
         ),
         milestones: [
-          t(
-            "dir_phase_1_m1",
-            "Tauri v2 + Rust + React 18 + TypeScript + Zustand desktop architecture initialization"
-          ),
-          t(
-            "dir_phase_1_m2",
-            "The Cartographer automated path discovery wizard for Game Bin, Mods & Vault coordinates"
-          ),
-          t(
-            "dir_phase_1_m3",
-            "Multi-threaded streaming SHA-256 DNA file hashing and DBPF/ZIP archive inspection in Rust"
-          ),
+          {
+            title: t("sd_roadmap_p1_m5_title", "Cartographer Recon & Millisecond Delta Cache"),
+            desc: t("sd_roadmap_p1_m5_desc", "Automated first-boot drive reconnaissance locating Game Bin & Mods folders, paired with SHA-256 delta caching for instant startup."),
+          },
+          {
+            title: t("sd_roadmap_p1_m6_title", "Tauri v2 + Rust + React 18 Kernel"),
+            desc: t("sd_roadmap_p1_m6_desc", "Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 18, TypeScript, and Zustand."),
+          },
+          {
+            title: t("sd_roadmap_p1_m7_title", "Automated Coordinate Discovery Wizard"),
+            desc: t("sd_roadmap_p1_m7_desc", "Guided first-launch Cartographer setup linking Game Binaries, live Mods folders, and airgapped Bunker Vault coordinates."),
+          },
+          {
+            title: t("sd_roadmap_p1_m8_title", "Streaming SHA-256 DNA & Archive Inspector"),
+            desc: t("sd_roadmap_p1_m8_desc", "Multi-threaded Rust cryptographic hashing and in-memory DBPF/ZIP header inspection without extracting archives to disk."),
+          },
         ],
       },
     ],
@@ -1364,25 +1482,41 @@ export default function WebDocumentFeed() {
   // Resolve matching raw reference document synced two-way between Keepers Core (`system_directives`) and Codebase `.md` files
   const activeReferenceMarkdown = useMemo(() => {
     if (!activeModule) return "";
+    let raw = "";
     if (activeModule === "guide") {
-      return directivesMap.citizen_guide?.content || bundledCitizenGuide;
+      raw = directivesMap.citizen_guide?.content || bundledCitizenGuide;
+    } else if (activeModule === "roadmap") {
+      raw = directivesMap.phase_roadmap?.content || bundledRoadmapDoc;
+    } else if (activeModule === "forking") {
+      raw = directivesMap.forking_guide?.content || bundledForkingGuide;
+    } else if (activeModule === "architecture") {
+      raw =
+        directivesMap.master_architecture?.content || bundledArchitectureDoc;
+    } else if (activeModule === "protocols") {
+      raw = directivesMap.master_protocols?.content || bundledProtocolList;
     }
-    if (activeModule === "roadmap") {
-      return directivesMap.phase_roadmap?.content || bundledRoadmapDoc;
-    }
-    if (activeModule === "forking") {
-      return directivesMap.forking_guide?.content || bundledForkingGuide;
-    }
-    if (activeModule === "architecture") {
-      return (
-        directivesMap.master_architecture?.content || bundledArchitectureDoc
-      );
-    }
-    if (activeModule === "protocols") {
-      return directivesMap.master_protocols?.content || bundledProtocolList;
-    }
-    return "";
+    return stripDirectiveBuilderComment(raw);
   }, [activeModule, directivesMap]);
+
+  // Extract any Keepers Core Visual Builder overrides saved in `system_directives` / `.md`
+  const customGuideSchema = useMemo(
+    () => extractDirectiveBuilderSchema(directivesMap.citizen_guide?.content),
+    [directivesMap.citizen_guide?.content]
+  );
+  const customRoadmapSchema = useMemo(
+    () => extractDirectiveBuilderSchema(directivesMap.phase_roadmap?.content),
+    [directivesMap.phase_roadmap?.content]
+  );
+  const customArchSchema = useMemo(
+    () =>
+      extractDirectiveBuilderSchema(directivesMap.master_architecture?.content),
+    [directivesMap.master_architecture?.content]
+  );
+  const customProtoSchema = useMemo(
+    () =>
+      extractDirectiveBuilderSchema(directivesMap.master_protocols?.content),
+    [directivesMap.master_protocols?.content]
+  );
 
   const activePanelMeta = useMemo(() => {
     switch (activeModule) {
@@ -1432,8 +1566,64 @@ export default function WebDocumentFeed() {
     }
   }, [activeModule, t]);
 
-  // Render Interactive OS Walkthrough (3 Static Top Tiles + Submit-a-Ticket Stacked Click-to-Jump Stepper)
+  // Render Interactive OS Walkthrough (3 Static Top Tiles + 2-Column Cards where Selected Card Expands Alone on Its Row)
   const renderInteractiveGuide = () => {
+    const customWalkTab = customGuideSchema?.tabs.find(
+      (tb) => tb.id === "walkthrough"
+    );
+    const customModTab = customGuideSchema?.tabs.find(
+      (tb) => tb.id === "modules"
+    );
+    const customRoleTab = customGuideSchema?.tabs.find(
+      (tb) => tb.id === "roles"
+    );
+
+    const effectiveWalkStages = customWalkTab?.cards?.length
+      ? customWalkTab.cards.map((c, idx) => ({
+          num: idx + 1,
+          short: c.badge,
+          overline: c.overline,
+          icon: c.icon,
+          title: c.title,
+          sub: c.footerMeta,
+          desc: c.desc,
+          controls: (c.subCards || []).map((sc) => ({
+            icon: sc.icon,
+            name: sc.title,
+            desc: sc.desc,
+          })),
+        }))
+      : walkthroughStages;
+
+    const effectiveCitizenSteps = customModTab?.cards?.length
+      ? customModTab.cards.map((c) => ({
+          short: c.badge,
+          overline: c.overline,
+          title: c.title,
+          badge: c.footerMeta,
+          icon: c.icon,
+          desc: c.desc,
+          tip: c.tip || "",
+          cards: (c.subCards || []).map((sc) => ({
+            icon: sc.icon,
+            title: sc.title,
+            desc: sc.desc,
+          })),
+        }))
+      : citizenSteps;
+
+    const effectiveRoles = customRoleTab?.cards?.length
+      ? customRoleTab.cards.map((c) => ({
+          short: c.title,
+          icon: c.icon,
+          title: c.title,
+          badge: c.overline || c.footerMeta,
+          desc: c.desc,
+          requiresPasskey: c.status !== "citizen",
+          subCards: c.subCards || [],
+        }))
+      : elevatedRoles;
+
     return (
       <div className="flex flex-col gap-6">
         {/* 1x3 Static Top Tiles (Uniform font size, zero scrolling, zero truncation) */}
@@ -1467,494 +1657,905 @@ export default function WebDocumentFeed() {
           />
         </div>
 
-        {/* Mode 1: 7-Stage Interactive UI Walkthrough (Submit-A-Ticket Stacked Click-to-Jump Stepper) */}
+        {/* Mode 1: 7-Stage Interactive UI Walkthrough (Single-Column Stacked Cards: Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         {guideMode === "walkthrough" && (
-          <div className="flex flex-col gap-3">
-            {walkthroughStages.map((stg, idx) => {
+          <div className="flex flex-col gap-3.5 w-full">
+            {effectiveWalkStages.map((stg, idx) => {
               const isActive = walkIdx === idx;
-              const isCompleted = idx < walkIdx;
-
-              if (!isActive) {
-                return (
-                  <div
-                    key={stg.num}
-                    onClick={() => setWalkIdx(idx)}
-                    className="glass-panel rounded-2xl px-5 py-4 flex items-center justify-between gap-4 cursor-pointer transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                  >
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span
-                        className={`text-[9px] font-black uppercase tracking-widest ${
-                          isCompleted
-                            ? "text-[var(--success)] opacity-85"
-                            : "text-[var(--subtext)] opacity-60"
-                        }`}
-                      >
-                        {isCompleted
-                          ? `${t("sd_roadmap_status_completed", "COMPLETED")} • ${t("dir_walk_step_counter", "STAGE {0} OF {1}").replace("{0}", String(idx + 1)).replace("{1}", String(walkthroughStages.length))}`
-                          : t("dir_walk_step_counter", "STAGE {0} OF {1}")
-                              .replace("{0}", String(idx + 1))
-                              .replace("{1}", String(walkthroughStages.length))}
-                      </span>
-                      <span className="text-sm font-black text-[var(--text)] truncate">
-                        {stg.title}
-                      </span>
-                    </div>
-                    <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-60 shrink-0">
-                      {t("icon_expand_more", "expand_more")}
-                    </span>
-                  </div>
-                );
-              }
+              const stageOverline =
+                (stg as any).overline ||
+                t("dir_walk_step_counter", "STAGE {0} OF {1}")
+                  .replace("{0}", String(idx + 1))
+                  .replace("{1}", String(effectiveWalkStages.length));
 
               return (
                 <div
-                  key={stg.num}
-                  className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-5 border border-[color-mix(in_srgb,var(--accent)_60%,transparent)] shadow-[0_0_24px_color-mix(in_srgb,var(--accent)_14%,transparent)]"
+                  key={`${stg.num}-${idx}`}
+                  ref={isActive ? guideDrawerRef : undefined}
+                  role={!isActive ? "button" : undefined}
+                  tabIndex={!isActive ? 0 : undefined}
+                  onClick={
+                    !isActive
+                      ? () => {
+                          setWalkIdx(idx);
+                          scrollDrawerIntoCenter(guideDrawerRef);
+                        }
+                      : undefined
+                  }
+                  onKeyDown={
+                    !isActive
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setWalkIdx(idx);
+                            scrollDrawerIntoCenter(guideDrawerRef);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                    isActive
+                      ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                      : "px-4 py-3.5 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+                  }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
-                      {stg.sub}
-                    </span>
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-75">
-                      {t("dir_walk_step_counter", "STAGE {0} OF {1}")
-                        .replace("{0}", String(idx + 1))
-                        .replace("{1}", String(walkthroughStages.length))}
-                    </span>
-                  </div>
+                  {!isActive ? (
+                    /* Compact Unselected Row */
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {stg.icon}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80">
+                            {stageOverline}
+                          </span>
+                          <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
+                            {stg.title}
+                          </h3>
+                          <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                            {stg.sub}
+                          </span>
+                        </div>
+                      </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text)] leading-snug">
-                      {stg.title}
-                    </h2>
-                    <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-85 leading-relaxed">
-                      {stg.desc}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col gap-2.5">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
-                      {t(
-                        "dir_walk_controls_hdr",
-                        "What Each Control & Button Does"
-                      )}
-                    </span>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                      {stg.controls.map((ctrl, cIdx) => (
-                        <div
-                          key={`${ctrl.name}-${cIdx}`}
-                          className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]">
-                              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                                {ctrl.icon}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                          {stg.short}
+                        </span>
+                        <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {t("icon_expand_more", "expand_more")}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Expanded Active Card (100% Opaque) */
+                    <>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setWalkIdx(-1)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setWalkIdx(-1);
+                          }
+                        }}
+                        className="flex flex-col gap-3 cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-11 h-11 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[22px]">
+                                {stg.icon}
                               </span>
                             </div>
-                            <h3 className="text-xs sm:text-sm font-bold text-[var(--text)] leading-snug">
-                              {ctrl.name}
-                            </h3>
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                                {stageOverline}
+                              </span>
+                              <h3 className="text-base sm:text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                                {stg.title}
+                              </h3>
+                            </div>
                           </div>
-                          <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
-                            {ctrl.desc}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <ActionButton
-                      variant="glass"
-                      icon={t("icon_navigate_before", "navigate_before")}
-                      disabled={walkIdx <= 0}
-                      onClick={() =>
-                        setWalkIdx((prev) => Math.max(0, prev - 1))
-                      }
-                    >
-                      {t("dir_walk_prev", "Previous Stage")}
-                    </ActionButton>
-                    <ActionButton
-                      variant="accent"
-                      icon={t("icon_navigate_next", "navigate_next")}
-                      disabled={walkIdx >= walkthroughStages.length - 1}
-                      onClick={() =>
-                        setWalkIdx((prev) =>
-                          Math.min(walkthroughStages.length - 1, prev + 1)
-                        )
-                      }
-                    >
-                      {t("dir_walk_next", "Next Stage")}
-                    </ActionButton>
-                  </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                              <span className="material-symbols-outlined !text-[12px]">
+                                {t("icon_check_circle", "check_circle")}
+                              </span>
+                              {stg.short}
+                            </span>
+                            <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
+                              <span className="material-symbols-outlined !text-[16px]">
+                                {t("icon_expand_less", "expand_less")}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                          {stg.desc}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                          {stg.controls.map((ctrl, cIdx) => (
+                            <div
+                              key={`${ctrl.name}-${cIdx}`}
+                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                                  {ctrl.icon}
+                                </span>
+                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                                  {ctrl.name}
+                                </h4>
+                              </div>
+                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                                {ctrl.desc}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                          <ActionButton
+                            variant="glass"
+                            icon={t("icon_navigate_before", "navigate_before")}
+                            disabled={walkIdx <= 0}
+                            onClick={() => {
+                              setWalkIdx((prev) => Math.max(0, prev - 1));
+                              scrollDrawerIntoCenter(guideDrawerRef);
+                            }}
+                          >
+                            {t("dir_walk_prev", "Previous Stage")}
+                          </ActionButton>
+                          <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                            {stg.sub}
+                          </span>
+                          <ActionButton
+                            variant="accent"
+                            icon={t("icon_navigate_next", "navigate_next")}
+                            disabled={
+                              walkIdx >= effectiveWalkStages.length - 1
+                            }
+                            onClick={() => {
+                              setWalkIdx((prev) =>
+                                Math.min(
+                                  effectiveWalkStages.length - 1,
+                                  prev + 1
+                                )
+                              );
+                              scrollDrawerIntoCenter(guideDrawerRef);
+                            }}
+                          >
+                            {t("dir_walk_next", "Next Stage")}
+                          </ActionButton>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
 
-        {/* Mode 2: 9 Citizen Modules Deep-Dive (Submit-A-Ticket Stacked Click-to-Jump Stepper) */}
+        {/* Mode 2: 9 Citizen Modules Deep-Dive (Single-Column Stacked Cards: Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         {guideMode === "modules" && (
-          <div className="flex flex-col gap-3">
-            {citizenSteps.map((step, idx) => {
+          <div className="flex flex-col gap-3.5 w-full">
+            {effectiveCitizenSteps.map((step, idx) => {
               const isActive = guideStepIdx === idx;
-              const isCompleted = idx < guideStepIdx;
-
-              if (!isActive) {
-                return (
-                  <div
-                    key={step.short}
-                    onClick={() => setGuideStepIdx(idx)}
-                    className="glass-panel rounded-2xl px-5 py-4 flex items-center justify-between gap-4 cursor-pointer transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                  >
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span
-                        className={`text-[9px] font-black uppercase tracking-widest ${
-                          isCompleted
-                            ? "text-[var(--success)] opacity-85"
-                            : "text-[var(--subtext)] opacity-60"
-                        }`}
-                      >
-                        {isCompleted
-                          ? `${t("sd_roadmap_status_completed", "COMPLETED")} • ${t("sd_guide_step_progress", "Module {0} of {1}").replace("{0}", String(idx + 1)).replace("{1}", String(citizenSteps.length))}`
-                          : t("sd_guide_step_progress", "Module {0} of {1}")
-                              .replace("{0}", String(idx + 1))
-                              .replace("{1}", String(citizenSteps.length))}
-                      </span>
-                      <span className="text-sm font-black text-[var(--text)] truncate">
-                        {step.title}
-                      </span>
-                    </div>
-                    <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-60 shrink-0">
-                      {t("icon_expand_more", "expand_more")}
-                    </span>
-                  </div>
-                );
-              }
+              const modOverline =
+                (step as any).overline ||
+                t("sd_guide_step_progress", "Module {0} of {1}")
+                  .replace("{0}", String(idx + 1))
+                  .replace("{1}", String(effectiveCitizenSteps.length));
 
               return (
                 <div
-                  key={step.short}
-                  className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-5 border border-[color-mix(in_srgb,var(--accent)_60%,transparent)] shadow-[0_0_24px_color-mix(in_srgb,var(--accent)_14%,transparent)]"
+                  key={`${step.short}-${idx}`}
+                  ref={isActive ? guideDrawerRef : undefined}
+                  role={!isActive ? "button" : undefined}
+                  tabIndex={!isActive ? 0 : undefined}
+                  onClick={
+                    !isActive
+                      ? () => {
+                          setGuideStepIdx(idx);
+                          scrollDrawerIntoCenter(guideDrawerRef);
+                        }
+                      : undefined
+                  }
+                  onKeyDown={
+                    !isActive
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setGuideStepIdx(idx);
+                            scrollDrawerIntoCenter(guideDrawerRef);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                    isActive
+                      ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                      : "px-4 py-3.5 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+                  }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
-                      {step.badge}
-                    </span>
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-75">
-                      {t("sd_guide_step_progress", "Module {0} of {1}")
-                        .replace("{0}", String(idx + 1))
-                        .replace("{1}", String(citizenSteps.length))}
-                    </span>
-                  </div>
+                  {!isActive ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {step.icon}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80">
+                            {modOverline}
+                          </span>
+                          <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
+                            {step.title}
+                          </h3>
+                          <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                            {step.badge}
+                          </span>
+                        </div>
+                      </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text)] leading-snug">
-                      {step.title}
-                    </h2>
-                    <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-85 leading-relaxed">
-                      {step.desc}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col gap-2.5">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
-                      {t(
-                        "sd_guide_key_mechanics_label",
-                        "Interactive Breakdown & Core Mechanics"
-                      )}
-                    </span>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                      {step.cards.map((card, cIdx) => (
-                        <div
-                          key={`${card.title}-${cIdx}`}
-                          className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
-                              <span
-                                className={`material-symbols-outlined !text-[16px] ${
-                                  (card as any).colorClass ||
-                                  "text-[var(--accent)]"
-                                }`}
-                              >
-                                {card.icon}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                          {step.short}
+                        </span>
+                        <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {t("icon_expand_more", "expand_more")}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setGuideStepIdx(-1)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setGuideStepIdx(-1);
+                          }
+                        }}
+                        className="flex flex-col gap-3 cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-11 h-11 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[22px]">
+                                {step.icon}
                               </span>
                             </div>
-                            <h3 className="text-xs sm:text-sm font-bold text-[var(--text)] leading-snug">
-                              {card.title}
-                            </h3>
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                                {modOverline}
+                              </span>
+                              <h3 className="text-base sm:text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                                {step.title}
+                              </h3>
+                            </div>
                           </div>
-                          <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
-                            {card.desc}
-                          </p>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                              <span className="material-symbols-outlined !text-[12px]">
+                                {t("icon_check_circle", "check_circle")}
+                              </span>
+                              {step.short}
+                            </span>
+                            <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
+                              <span className="material-symbols-outlined !text-[16px]">
+                                {t("icon_expand_less", "expand_less")}
+                              </span>
+                            </span>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  <div className="glass-surface rounded-2xl p-4 flex items-start gap-3 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
-                    <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0 mt-0.5">
-                      {t("icon_lightbulb", "lightbulb")}
-                    </span>
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
-                        {t("sd_guide_pro_tip_label", "Citizen Pro Tip")}
-                      </span>
-                      <p className="text-xs text-[var(--text)] opacity-85 leading-relaxed">
-                        {step.tip}
-                      </p>
-                    </div>
-                  </div>
+                        <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                          {step.desc}
+                        </p>
+                      </div>
 
-                  <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <ActionButton
-                      variant="glass"
-                      icon={t("icon_navigate_before", "navigate_before")}
-                      disabled={guideStepIdx <= 0}
-                      onClick={() =>
-                        setGuideStepIdx((prev) => Math.max(0, prev - 1))
-                      }
-                    >
-                      {t("sd_btn_prev_step", "Previous Module")}
-                    </ActionButton>
-                    <ActionButton
-                      variant="accent"
-                      icon={t("icon_navigate_next", "navigate_next")}
-                      disabled={guideStepIdx >= citizenSteps.length - 1}
-                      onClick={() =>
-                        setGuideStepIdx((prev) =>
-                          Math.min(citizenSteps.length - 1, prev + 1)
-                        )
-                      }
-                    >
-                      {t("sd_btn_next_step", "Next Module")}
-                    </ActionButton>
-                  </div>
+                      <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                          {step.cards.map((card, cIdx) => (
+                            <div
+                              key={`${card.title}-${cIdx}`}
+                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                                    (card as any).colorClass ||
+                                    "text-[var(--accent)]"
+                                  }`}
+                                >
+                                  {card.icon}
+                                </span>
+                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                                  {card.title}
+                                </h4>
+                              </div>
+                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                                {card.desc}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {step.tip && (
+                          <div className="glass-surface rounded-2xl p-4 flex items-start gap-2.5 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
+                            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0 mt-0.5">
+                              {t("icon_lightbulb", "lightbulb")}
+                            </span>
+                            <div className="flex flex-col gap-1 min-w-0">
+                              <span className="text-sm font-bold text-[var(--text)] leading-snug">
+                                {t("sd_guide_pro_tip_label", "Citizen Pro Tip")}
+                              </span>
+                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                                {step.tip}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                          <ActionButton
+                            variant="glass"
+                            icon={t("icon_navigate_before", "navigate_before")}
+                            disabled={guideStepIdx <= 0}
+                            onClick={() => {
+                              setGuideStepIdx((prev) => Math.max(0, prev - 1));
+                              scrollDrawerIntoCenter(guideDrawerRef);
+                            }}
+                          >
+                            {t("sd_btn_prev_step", "Previous Module")}
+                          </ActionButton>
+                          <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                            {step.badge}
+                          </span>
+                          <ActionButton
+                            variant="accent"
+                            icon={t("icon_navigate_next", "navigate_next")}
+                            disabled={
+                              guideStepIdx >= effectiveCitizenSteps.length - 1
+                            }
+                            onClick={() => {
+                              setGuideStepIdx((prev) =>
+                                Math.min(
+                                  effectiveCitizenSteps.length - 1,
+                                  prev + 1
+                                )
+                              );
+                              scrollDrawerIntoCenter(guideDrawerRef);
+                            }}
+                          >
+                            {t("sd_btn_next_step", "Next Module")}
+                          </ActionButton>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
 
-        {/* Mode 3: 6-Tier Role Hierarchy & Open Workshop Inheritance */}
+        {/* Mode 3: 6-Tier Role Hierarchy (Single-Column Stacked Cards: Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         {guideMode === "roles" && (
-          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <span className="w-fit px-2.5 py-1 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[13px]">
-                {t("icon_admin_panel_settings", "admin_panel_settings")}
-              </span>
-              {t(
-                "dir_proto_matrix_badge",
-                "6-TIER CLEARANCE & INHERITANCE MATRIX"
-              )}
-            </span>
+          <div className="flex flex-col gap-3.5 w-full">
+            {effectiveRoles.map((role, rIdx) => {
+              const isActive = roleTierIdx === rIdx;
 
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text)] leading-snug">
-              {t(
-                "dir_guide_s11_title",
-                "6-Tier Role Hierarchy & Passkey Command Hubs"
-              )}
-            </h2>
-
-            <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-85 leading-relaxed">
-              {t(
-                "dir_guide_s11_desc",
-                "Every Citizen automatically inherits the local Open Mason Workshop with zero passkey friction, while Verified Masons and Community Command Hubs are protected by hardware FIDO2 WebAuthn Passkeys."
-              )}
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-              {elevatedRoles.map((role, rIdx) => (
+              return (
                 <div
                   key={`${role.short}-${rIdx}`}
-                  className="glass-surface rounded-2xl p-4 flex flex-col gap-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                  ref={isActive ? guideDrawerRef : undefined}
+                  role={!isActive ? "button" : undefined}
+                  tabIndex={!isActive ? 0 : undefined}
+                  onClick={
+                    !isActive
+                      ? () => {
+                          setRoleTierIdx(rIdx);
+                          scrollDrawerIntoCenter(guideDrawerRef);
+                        }
+                      : undefined
+                  }
+                  onKeyDown={
+                    !isActive
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setRoleTierIdx(rIdx);
+                            scrollDrawerIntoCenter(guideDrawerRef);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                    isActive
+                      ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                      : "px-4 py-3.5 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+                  }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="px-2 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
-                      <span className="material-symbols-outlined !text-[12px]">
-                        {role.icon}
-                      </span>
-                      {role.badge}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 bg-transparent border text-[8px] font-black uppercase tracking-widest rounded-md flex items-center gap-1 ${
-                        role.requiresPasskey
-                          ? "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
-                          : "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[11px]">
-                        {role.requiresPasskey
-                          ? t("icon_passkey", "passkey")
-                          : t("icon_check_circle", "check_circle")}
-                      </span>
-                      {role.requiresPasskey
-                        ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
-                        : t("dir_proto_r1_role", "Citizen")}
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-black text-[var(--text)]">
-                    {role.title}
-                  </h3>
-                  <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
-                    {role.desc}
-                  </p>
+                  {!isActive ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {role.icon}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80">
+                            {role.badge}
+                          </span>
+                          <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
+                            {role.title}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                            role.requiresPasskey
+                              ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
+                              : "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {role.requiresPasskey
+                              ? t("icon_passkey", "passkey")
+                              : t("icon_check_circle", "check_circle")}
+                          </span>
+                          {role.requiresPasskey
+                            ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
+                            : t("dir_proto_r1_role", "Citizen")}
+                        </span>
+                        <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {t("icon_expand_more", "expand_more")}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setRoleTierIdx(-1)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setRoleTierIdx(-1);
+                          }
+                        }}
+                        className="flex flex-col gap-3 cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-11 h-11 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[22px]">
+                                {role.icon}
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                                {role.badge}
+                              </span>
+                              <h3 className="text-base sm:text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                                {role.title}
+                              </h3>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                                role.requiresPasskey
+                                  ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
+                                  : "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
+                              }`}
+                            >
+                              <span className="material-symbols-outlined !text-[12px]">
+                                {role.requiresPasskey
+                                  ? t("icon_passkey", "passkey")
+                                  : t("icon_check_circle", "check_circle")}
+                              </span>
+                              {role.requiresPasskey
+                                ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
+                                : t("dir_proto_r1_role", "Citizen")}
+                            </span>
+                            <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
+                              <span className="material-symbols-outlined !text-[16px]">
+                                {t("icon_expand_less", "expand_less")}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                          {role.desc}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <ActionButton
+                          variant="glass"
+                          icon={t("icon_navigate_before", "navigate_before")}
+                          disabled={roleTierIdx <= 0}
+                          onClick={() => {
+                            setRoleTierIdx((prev) => Math.max(0, prev - 1));
+                            scrollDrawerIntoCenter(guideDrawerRef);
+                          }}
+                        >
+                          {t("sd_proto_prev_tier", "Previous Tier")}
+                        </ActionButton>
+                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                          {role.badge}
+                        </span>
+                        <ActionButton
+                          variant="accent"
+                          icon={t("icon_navigate_next", "navigate_next")}
+                          disabled={roleTierIdx >= effectiveRoles.length - 1}
+                          onClick={() => {
+                            setRoleTierIdx((prev) =>
+                              Math.min(effectiveRoles.length - 1, prev + 1)
+                            );
+                            scrollDrawerIntoCenter(guideDrawerRef);
+                          }}
+                        >
+                          {t("sd_proto_next_tier", "Next Tier")}
+                        </ActionButton>
+                      </div>
+                    </>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
       </div>
     );
   };
 
-  // Render Interactive Phase Roadmap Timeline (3 Static Top Tiles + Collapsible Reverse-Chronological Timeline)
+  // Render Interactive Phase Roadmap Timeline (3 Filter Tabs + 2-Column Card Grid where Selected Phase Expands Alone on Its Row)
   const renderInteractiveRoadmap = () => {
-    const filteredPhases = roadmapPhases.filter((p) => {
+    const customPhasesTab = customRoadmapSchema?.tabs?.find(
+      (tab) => tab.id === "all"
+    );
+    const effectivePhases =
+      customPhasesTab && customPhasesTab.cards.length > 0
+        ? customPhasesTab.cards.map((c, idx) => ({
+            num:
+              parseInt((c.overline || "").replace(/\D+/g, ""), 10) ||
+              Math.max(1, 12 - idx),
+            code: c.overline || `PHASE ${Math.max(1, 12 - idx)}`,
+            title: c.title,
+            sub: c.footerMeta || "",
+            status: (c.status || (idx === 0 ? "active" : "completed")) as
+              | "active"
+              | "completed",
+            icon: c.icon || t("icon_rocket_launch", "rocket_launch"),
+            desc: c.desc,
+            milestones: (c.subCards || []).map((sc) => ({
+              title: sc.title,
+              desc: sc.desc,
+              pending: Boolean(sc.pending),
+            })),
+          }))
+        : roadmapPhases;
+
+    const filteredPhases = effectivePhases.filter((p) => {
       if (roadmapFilter === "active") return p.status === "active";
       if (roadmapFilter === "completed") return p.status === "completed";
       return true;
     });
 
+    const activePhaseIdx = filteredPhases.findIndex(
+      (p) => p.num === selectedPhaseNum
+    );
+
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Static Top Filter Tiles */}
+        {/* 1x3 Interactive Filter Tabs (Uniform font size, zero scrolling, zero truncation) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_timeline", "timeline")}
-            label={t("dir_roadmap_tile_all", "All Phases")}
-            number="12"
+            label={t("dir_roadmap_tile_all", "12 Phases")}
+            number={t("sd_roadmap_filter_all_val", "Full Timeline")}
             colorClass="text-[var(--accent)]"
             isActive={roadmapFilter === "all"}
-            onClick={() => setRoadmapFilter("all")}
+            onClick={() => {
+              setRoadmapFilter("all");
+              setSelectedPhaseNum(12);
+            }}
           />
           <DashboardStatTile
             variant="filter"
             icon={t("icon_rocket_launch", "rocket_launch")}
-            label={t("dir_roadmap_tile_active", "Active Phase")}
-            number="1"
+            label={t("dir_phase_tab_active_lbl", "Current Era")}
+            number={t("dir_phase_tab_active_val", "Phase 12 Active")}
             colorClass="text-[var(--accent)]"
             isActive={roadmapFilter === "active"}
-            onClick={() => setRoadmapFilter("active")}
+            onClick={() => {
+              setRoadmapFilter("active");
+              setSelectedPhaseNum(12);
+            }}
           />
           <DashboardStatTile
             variant="filter"
             icon={t("icon_check_circle", "check_circle")}
             label={t("dir_roadmap_tile_done", "Completed")}
-            number="11"
+            number={t("dir_phase_tab_done_val", "Phases 11 → 1")}
             colorClass="text-[var(--success)]"
             isActive={roadmapFilter === "completed"}
-            onClick={() => setRoadmapFilter("completed")}
+            onClick={() => {
+              setRoadmapFilter("completed");
+              setSelectedPhaseNum(11);
+            }}
           />
         </div>
 
-        {/* Reverse-Chronological Vertical Timeline (Collapsed by default minus Active Phase) */}
-        <div className="relative flex flex-col gap-4 pl-6 sm:pl-8">
-          <div className="pointer-events-none absolute left-2.5 sm:left-3.5 top-4 bottom-4 w-0.5 bg-gradient-to-b from-[var(--accent)] via-[var(--success)] to-transparent opacity-70" />
-
+        {/* Single-Column Stacked Phase Cards (Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
+        <div className="flex flex-col gap-3.5 w-full">
           {filteredPhases.map((phase) => {
             const isActivePhase = phase.status === "active";
             const isExpanded = selectedPhaseNum === phase.num;
 
             return (
-              <div key={phase.code} className="relative flex flex-col">
-                {/* Timeline Spine Node Marker */}
-                <div
-                  onClick={() =>
-                    setSelectedPhaseNum(isExpanded ? 0 : phase.num)
-                  }
-                  className={`absolute -left-6 sm:-left-8 top-4 w-6 h-6 sm:w-7 sm:h-7 rounded-xl glass-panel flex items-center justify-center cursor-pointer z-10 border ${
-                    isActivePhase
-                      ? "border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)]"
-                      : "border-[color-mix(in_srgb,var(--success)_55%,transparent)] text-[var(--success)]"
-                  }`}
-                >
-                  <span className="material-symbols-outlined !text-[14px]">
-                    {phase.icon}
-                  </span>
-                </div>
+              <div
+                key={phase.code}
+                ref={isExpanded ? roadmapDrawerRef : undefined}
+                role={!isExpanded ? "button" : undefined}
+                tabIndex={!isExpanded ? 0 : undefined}
+                onClick={
+                  !isExpanded
+                    ? () => {
+                        setSelectedPhaseNum(phase.num);
+                        scrollDrawerIntoCenter(roadmapDrawerRef);
+                      }
+                    : undefined
+                }
+                onKeyDown={
+                  !isExpanded
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedPhaseNum(phase.num);
+                          scrollDrawerIntoCenter(roadmapDrawerRef);
+                        }
+                      }
+                    : undefined
+                }
+                className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                  isExpanded
+                    ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                    : "px-4 py-3.5 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+                }`}
+              >
+                {!isExpanded ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                        <span className="material-symbols-outlined !text-[20px]">
+                          {phase.icon}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80">
+                          {phase.code}
+                        </span>
+                        <h3 className="text-sm sm:text-base font-black tracking-tight text-[var(--text)] leading-snug truncate m-0">
+                          {phase.title}
+                        </h3>
+                        <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                          {phase.sub}
+                        </span>
+                      </div>
+                    </div>
 
-                {/* Phase Timeline Card */}
-                <div
-                  onClick={() =>
-                    setSelectedPhaseNum(isExpanded ? 0 : phase.num)
-                  }
-                  className={`glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-3 cursor-pointer transition-all border ${
-                    isExpanded
-                      ? isActivePhase
-                        ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-                        : "border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
-                      : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <span
-                        className={`px-2.5 py-0.5 bg-transparent border text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5 ${
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
                           isActivePhase
-                            ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]"
-                            : "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                            ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
+                            : "border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)]"
                         }`}
                       >
                         <span className="material-symbols-outlined !text-[12px]">
-                          {phase.icon}
+                          {isActivePhase
+                            ? t("icon_rocket_launch", "rocket_launch")
+                            : t("icon_check_circle", "check_circle")}
                         </span>
-                        {phase.code}
-                      </span>
-                      <span className="text-xs font-bold text-[var(--subtext)] opacity-85">
-                        {phase.sub}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2.5 py-0.5 bg-transparent border text-[9px] font-black uppercase tracking-widest rounded-lg ${
-                          isActivePhase
-                            ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
-                            : "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
-                        }`}
-                      >
                         {isActivePhase
                           ? t("sd_roadmap_status_active", "ACTIVE PHASE")
                           : t("sd_roadmap_status_completed", "COMPLETED")}
                       </span>
-                      <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-70">
-                        {isExpanded
-                          ? t("icon_expand_less", "expand_less")
-                          : t("icon_expand_more", "expand_more")}
+                      <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {t("icon_expand_more", "expand_more")}
+                        </span>
                       </span>
                     </div>
                   </div>
-
-                  <h3 className="text-base sm:text-lg font-black tracking-tight text-[var(--text)] leading-snug">
-                    {phase.title}
-                  </h3>
-
-                  {isExpanded && (
-                    <>
-                      <p className="text-xs text-[var(--text)] opacity-85 leading-relaxed">
-                        {phase.desc}
-                      </p>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                        {phase.milestones.map((m, mIdx) => (
+                ) : (
+                  <>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedPhaseNum(0)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedPhaseNum(0);
+                        }
+                      }}
+                      className="flex flex-col gap-3 cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3.5 min-w-0">
                           <div
-                            key={mIdx}
-                            className="glass-surface rounded-2xl p-3.5 flex items-start gap-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                            className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                              isActivePhase
+                                ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]"
+                                : "border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)]"
+                            }`}
                           >
-                            <span className="material-symbols-outlined !text-[15px] text-[var(--success)] shrink-0 mt-0.5">
-                              {t("icon_check_circle", "check_circle")}
-                            </span>
-                            <span className="text-xs text-[var(--text)] opacity-90 leading-relaxed">
-                              {m}
+                            <span className="material-symbols-outlined !text-[22px]">
+                              {phase.icon}
                             </span>
                           </div>
-                        ))}
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span
+                              className={`text-[10px] font-black uppercase tracking-[0.18em] ${
+                                isActivePhase
+                                  ? "text-[var(--accent)]"
+                                  : "text-[var(--success)]"
+                              }`}
+                            >
+                              {phase.code}
+                            </span>
+                            <h3 className="text-base sm:text-lg font-black tracking-tight text-[var(--text)] leading-snug m-0">
+                              {phase.title}
+                            </h3>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                              isActivePhase
+                                ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
+                                : "border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)]"
+                            }`}
+                          >
+                            <span className="material-symbols-outlined !text-[12px]">
+                              {isActivePhase
+                                ? t("icon_rocket_launch", "rocket_launch")
+                                : t("icon_check_circle", "check_circle")}
+                            </span>
+                            {isActivePhase
+                              ? t("sd_roadmap_status_active", "ACTIVE PHASE")
+                              : t("sd_roadmap_status_completed", "COMPLETED")}
+                          </span>
+                          <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
+                            <span className="material-symbols-outlined !text-[16px]">
+                              {t("icon_expand_less", "expand_less")}
+                            </span>
+                          </span>
+                        </div>
                       </div>
-                    </>
-                  )}
-                </div>
+
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                        {phase.desc}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        {phase.milestones.map((m, mIdx) => {
+                          const isPendingItem = Boolean(
+                            (m as { pending?: boolean }).pending
+                          );
+                          return (
+                            <div
+                              key={mIdx}
+                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                                    isPendingItem
+                                      ? "text-[var(--accent)]"
+                                      : "text-[var(--success)]"
+                                  }`}
+                                >
+                                  {isPendingItem
+                                    ? t("icon_rocket_launch", "rocket_launch")
+                                    : t("icon_check_circle", "check_circle")}
+                                </span>
+                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                                  {m.title.replace(/^(✅|⏳)\s*/, "")}
+                                </h4>
+                              </div>
+                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                                {m.desc}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {filteredPhases.length > 1 && (
+                        <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                          <ActionButton
+                            variant="glass"
+                            icon={t("icon_navigate_before", "navigate_before")}
+                            disabled={activePhaseIdx <= 0}
+                            onClick={() => {
+                              const prevPhase =
+                                filteredPhases[Math.max(0, activePhaseIdx - 1)];
+                              if (prevPhase) {
+                                setSelectedPhaseNum(prevPhase.num);
+                                scrollDrawerIntoCenter(roadmapDrawerRef);
+                              }
+                            }}
+                          >
+                            {t("sd_roadmap_prev_phase", "Previous Phase")}
+                          </ActionButton>
+                          <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                            {phase.sub}
+                          </span>
+                          <ActionButton
+                            variant="accent"
+                            icon={t("icon_navigate_next", "navigate_next")}
+                            disabled={
+                              activePhaseIdx >= filteredPhases.length - 1
+                            }
+                            onClick={() => {
+                              const nextPhase =
+                                filteredPhases[
+                                  Math.min(
+                                    filteredPhases.length - 1,
+                                    activePhaseIdx + 1
+                                  )
+                                ];
+                              if (nextPhase) {
+                                setSelectedPhaseNum(nextPhase.num);
+                                scrollDrawerIntoCenter(roadmapDrawerRef);
+                              }
+                            }}
+                          >
+                            {t("sd_roadmap_next_phase", "Next Phase")}
+                          </ActionButton>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
@@ -1963,10 +2564,13 @@ export default function WebDocumentFeed() {
     );
   };
 
-  // Render Interactive Forking & Spoke Provisioning Guide (3 Static Top Tiles + 1 Clean Hero Card — Zero Scrolling Tiles)
+  // Render Interactive Forking & Spoke Provisioning Guide (3 Static Top Tiles + 2-Column Cards & Full-Width Terminals)
   const renderInteractiveForking = () => {
     const spokeSqlLineCount = SPOKE_SCHEMA_SQL.split(/\r?\n/).length;
     const hubSqlLineCount = HUB_SCHEMA_SQL.split(/\r?\n/).length;
+    const isSpokeSqlActive = sqlSchemaTab === "spoke";
+    const activeSqlCode = isSpokeSqlActive ? SPOKE_SCHEMA_SQL : HUB_SCHEMA_SQL;
+    const activeSqlCopyId = isSpokeSqlActive ? "sql_spoke" : "sql_hub";
 
     return (
       <div className="flex flex-col gap-6">
@@ -1984,8 +2588,8 @@ export default function WebDocumentFeed() {
           <DashboardStatTile
             variant="filter"
             icon={t("icon_call_split", "call_split")}
-            label={t("dir_fk_t2_lbl", "STEP 2")}
-            number={t("dir_fk_t2_val", "1-File Fork")}
+            label={t("dir_fk_t2_lbl", "FORK MODES")}
+            number={t("dir_fk_t2_val", "Standalone & Hub")}
             colorClass="text-[var(--accent)]"
             isActive={forkTab === "standalone"}
             onClick={() => setForkTab("standalone")}
@@ -2001,67 +2605,99 @@ export default function WebDocumentFeed() {
           />
         </div>
 
+        {/* Tab 1: Official Partner Spoke Setup & Cut the Cord */}
         {forkTab === "spoke" && (
-          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <span className="w-fit px-2.5 py-1 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[13px]">
-                {t("icon_hub", "hub")}
-              </span>
-              {t(
-                "sd_fork_spoke_hero_badge",
-                "OFFICIAL PARTNER NETWORK • ZERO CODE EDITS"
-              )}
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text)]">
-              {t(
-                "sd_fork_spoke_hero_title",
-                "Connect a Sovereign Community Spoke in 3 Steps"
-              )}
-            </h2>
-            <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-85 leading-relaxed">
-              {t(
-                "sd_fork_spoke_hero_desc",
-                "Join the official Sanctuary OS multi-game network while retaining 100% ownership of your community's Supabase PostgreSQL database. No client forking or code edits required."
-              )}
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <span className="text-xs font-black text-[var(--accent)]">
-                  {t(
-                    "sd_fork_spoke_step1_title",
-                    "Step 1: Initialize Your Supabase Spoke (schema.sql)"
-                  )}
+          <div className="glass-panel rounded-2xl p-5 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="w-11 h-11 rounded-xl border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined !text-[22px]">
+                  {t("icon_hub", "hub")}
                 </span>
-                <p className="text-xs text-[var(--subtext)] leading-relaxed">
+              </div>
+
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                <span className="material-symbols-outlined !text-[12px]">
+                  {t("icon_verified", "verified")}
+                </span>
+                {t("workspace_badge_active", "Active")}
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1 mt-0.5">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                {t(
+                  "sd_fork_spoke_hero_badge",
+                  "OFFICIAL PARTNER NETWORK • ZERO CODE EDITS"
+                )}
+              </span>
+              <h3 className="text-base sm:text-lg font-black tracking-tight text-[var(--text)] leading-snug m-0">
+                {t(
+                  "sd_fork_spoke_hero_title",
+                  "Connect a Sovereign Community Spoke in 3 Steps"
+                )}
+              </h3>
+              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                {t(
+                  "sd_fork_spoke_hero_desc",
+                  "Join the official Sanctuary OS multi-game network while retaining 100% ownership of your community's Supabase PostgreSQL database. No client forking or code edits required."
+                )}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                    {t("icon_database", "database")}
+                  </span>
+                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                    {t(
+                      "sd_fork_spoke_step1_title",
+                      "Step 1: Initialize Your Supabase Spoke (schema.sql)"
+                    )}
+                  </h4>
+                </div>
+                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
                   {t(
                     "sd_fork_spoke_step1_desc",
                     "Create a free Supabase project, open the SQL Editor, and run schema.sql. This single script provisions all 36 community tables, RLS policies, immutable audit triggers, and role functions."
                   )}
                 </p>
               </div>
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <span className="text-xs font-black text-[var(--accent)]">
-                  {t(
-                    "sd_fork_spoke_step2_title",
-                    "Step 2: Generate Your SANCTUARY-UPLINK:// Bundle"
-                  )}
-                </span>
-                <p className="text-xs text-[var(--subtext)] leading-relaxed">
+
+              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                    {t("icon_key", "key")}
+                  </span>
+                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                    {t(
+                      "sd_fork_spoke_step2_title",
+                      "Step 2: Generate Your SANCTUARY-UPLINK:// Bundle"
+                    )}
+                  </h4>
+                </div>
+                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
                   {t(
                     "sd_fork_spoke_step2_desc",
                     "In Keepers Core -> Active Workspaces (or Wayfinder Hub), paste your Supabase URL, Anon Key, and Service Role Key to generate an encrypted SANCTUARY-UPLINK:// handshake bundle."
                   )}
                 </p>
               </div>
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <span className="text-xs font-black text-[var(--accent)]">
-                  {t(
-                    "sd_fork_spoke_step3_title",
-                    "Step 3: Verify Handshake & Provision Founding Wayfinder"
-                  )}
-                </span>
-                <p className="text-xs text-[var(--subtext)] leading-relaxed">
+
+              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                    {t("icon_rocket_launch", "rocket_launch")}
+                  </span>
+                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                    {t(
+                      "sd_fork_spoke_step3_title",
+                      "Step 3: Verify Handshake & Provision Founding Wayfinder"
+                    )}
+                  </h4>
+                </div>
+                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
                   {t(
                     "sd_fork_spoke_step3_desc",
                     "Click 'Test Handshake & Verify Schema'. The game-gateway Edge Function verifies table readiness, seeds global_network_status, and automatically promotes your founder account to Wayfinder."
@@ -2070,20 +2706,20 @@ export default function WebDocumentFeed() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[18px] text-[var(--warning)]">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] shrink-0">
                     {t("icon_link_off", "link_off")}
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-[var(--text)]">
+                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
                     {t(
                       "sd_fork_cord_community_title",
                       "Community-Initiated Severance (Wayfinder Hub)"
                     )}
-                  </span>
+                  </h4>
                 </div>
-                <p className="text-xs text-[var(--subtext)] leading-relaxed">
+                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
                   {t(
                     "sd_fork_cord_community_desc",
                     "A Wayfinder can double-click 'Cut the Cord' in Wayfinder Hub -> Spoke Uplink & Sovereignty at any time. This writes an immutable audit log, sets is_active = false on the Hub, and permanently scrubs (NULLs) the Spoke's supabase_service_key from the Hub while leaving 100% of the community's database intact."
@@ -2091,19 +2727,19 @@ export default function WebDocumentFeed() {
                 </p>
               </div>
 
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--success)_35%,transparent)]">
+              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--success)_35%,transparent)]">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[18px] text-[var(--success)]">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--success)] shrink-0">
                     {t("icon_verified", "verified")}
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-[var(--text)]">
+                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
                     {t(
                       "sd_fork_cord_keeper_title",
                       "Zero Platform Tax & 100% Data Ownership"
                     )}
-                  </span>
+                  </h4>
                 </div>
-                <p className="text-xs text-[var(--subtext)] leading-relaxed">
+                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
                   {t(
                     "sd_fork_cord_keeper_desc",
                     "Sanctuary OS takes 0% of creator Patreon/Ko-fi revenue and 0% of community donations. Export your SANCTUARY-UPLINK:// bundle before severing to paste directly into a standalone fork."
@@ -2114,202 +2750,592 @@ export default function WebDocumentFeed() {
           </div>
         )}
 
+        {/* Tab 2: Forking Modes (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
         {forkTab === "standalone" && (
-          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <span className="w-fit px-2.5 py-1 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[13px]">
-                {t("icon_call_split", "call_split")}
-              </span>
-              {t(
-                "sd_fork_standalone_hero_badge",
-                "TRUE CODEBASE FORK • EDIT ONLY SRC/SUPABASE.TS"
-              )}
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text)]">
-              {t(
-                "sd_fork_standalone_hero_title",
-                "Launch an Independent Standalone Fork with 1 Database"
-              )}
-            </h2>
-            <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-85 leading-relaxed">
-              {t(
-                "sd_fork_standalone_hero_desc",
-                "Want to run your own completely independent build of Sanctuary OS—or transition an existing Spoke after clicking Cut the Cord? You only need a single Supabase database (schema.sql) and a 1-file edit in src/supabase.ts. Zero Edge Functions required."
-              )}
-            </p>
+          <div className="flex flex-col gap-3.5 w-full">
+            {/* Mode Card 1: 1-File Standalone Fork */}
+            <div
+              role={forkModeIdx !== 0 ? "button" : undefined}
+              tabIndex={forkModeIdx !== 0 ? 0 : undefined}
+              onClick={
+                forkModeIdx !== 0 ? () => setForkModeIdx(0) : undefined
+              }
+              onKeyDown={
+                forkModeIdx !== 0
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setForkModeIdx(0);
+                      }
+                    }
+                  : undefined
+              }
+              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                forkModeIdx === 0
+                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                  : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                  <div
+                    className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                      forkModeIdx === 0
+                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[20px]">
+                      {t("icon_call_split", "call_split")}
+                    </span>
+                  </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <span className="text-xs font-bold text-[var(--text)]">
-                  {t(
-                    "sd_fork_standalone_s1_title",
-                    "1. Unified Auth & Direct RPC Engine"
-                  )}
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${
+                        forkModeIdx === 0
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--subtext)]"
+                      }`}
+                    >
+                      {t(
+                        "sd_fork_mode_standalone_badge",
+                        "MODE 1 • 1-DATABASE STANDALONE"
+                      )}
+                    </span>
+                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                      {t(
+                        "sd_fork_mode_standalone_title",
+                        "1-File Standalone Fork (Single Database)"
+                      )}
+                    </h3>
+                  </div>
+                </div>
+
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap shrink-0 ${
+                    forkModeIdx === 0
+                      ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
+                      : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[12px]">
+                    {forkModeIdx === 0
+                      ? t("icon_check_circle", "check_circle")
+                      : t("icon_storage", "storage")}
+                  </span>
+                  {forkModeIdx === 0
+                    ? t("workspace_badge_active", "Active")
+                    : t("dir_fk_t2_val", "1-File Fork")}
                 </span>
-                <p className="text-xs text-[var(--subtext)] leading-relaxed">
-                  {t(
-                    "sd_fork_standalone_s1_desc",
-                    "When mode is set to 'standalone', Sanctuary OS automatically routes all 15 secure_* RPCs directly against your single Supabase database with zero Edge Function dependency."
-                  )}
-                </p>
               </div>
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <span className="text-xs font-bold text-[var(--text)]">
-                  {t(
-                    "sd_fork_standalone_s2_title",
-                    "2. Automatic Founding Wayfinder Promotion"
-                  )}
-                </span>
-                <p className="text-xs text-[var(--subtext)] leading-relaxed">
-                  {t(
-                    "sd_fork_standalone_s2_desc",
-                    "The on_auth_user_created_spoke trigger in schema.sql detects when your standalone database has 0 Wayfinders and automatically promotes the very first registered user to Founding Wayfinder."
-                  )}
-                </p>
-              </div>
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <span className="text-xs font-bold text-[var(--text)]">
-                  {t(
-                    "sd_fork_standalone_s3_title",
-                    "3. Transparent OS-to-Spoke Table Mapping"
-                  )}
-                </span>
-                <p className="text-xs text-[var(--subtext)] leading-relaxed">
-                  {t(
-                    "sd_fork_standalone_s3_desc",
-                    "All internal queries to global broadcasts, polls, and support categories automatically map to your single database's system_broadcasts, dispatch_poll_votes, and support_tickets tables."
-                  )}
-                </p>
-              </div>
+
+              {forkModeIdx === 0 && (
+                <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                  <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                    {t(
+                      "sd_fork_mode_standalone_desc",
+                      "Run your own independent Sanctuary OS build backed by a single Supabase project (schema.sql) and a 1-file edit in src/supabase.ts with zero Edge Functions."
+                    )}
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                        {t(
+                          "sd_fork_standalone_s1_title",
+                          "1. Unified Auth & Direct RPC Engine"
+                        )}
+                      </h4>
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                        {t(
+                          "sd_fork_standalone_s1_desc",
+                          "When mode is set to 'standalone', Sanctuary OS automatically routes all 15 secure_* RPCs directly against your single Supabase database with zero Edge Function dependency."
+                        )}
+                      </p>
+                    </div>
+                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                        {t(
+                          "sd_fork_standalone_s2_title",
+                          "2. Automatic Founding Wayfinder Promotion"
+                        )}
+                      </h4>
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                        {t(
+                          "sd_fork_standalone_s2_desc",
+                          "The on_auth_user_created_spoke trigger in schema.sql detects when your standalone database has 0 Wayfinders and automatically promotes the very first registered user to Founding Wayfinder."
+                        )}
+                      </p>
+                    </div>
+                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                        {t(
+                          "sd_fork_standalone_s3_title",
+                          "3. Transparent OS-to-Spoke Table Mapping"
+                        )}
+                      </h4>
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                        {t(
+                          "sd_fork_standalone_s3_desc",
+                          "All internal queries to global broadcasts, polls, and support categories automatically map to your single database's system_broadcasts, dispatch_poll_votes, and support_tickets tables."
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="glass-surface rounded-2xl p-4 flex flex-col gap-3 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <span className="text-xs font-bold text-[var(--accent)]">
+                        {t(
+                          "sd_fork_standalone_opt_b",
+                          "Option B: Manual Standalone Config"
+                        )}{" "}
+                        • sanctuary-os/src/supabase.ts
+                      </span>
+                      <ActionButton
+                        variant="accent"
+                        icon={
+                          copiedId === "supabase_cfg_manual"
+                            ? t("icon_check_circle", "check_circle")
+                            : t("icon_content_copy", "content_copy")
+                        }
+                        onClick={() =>
+                          handleCopyCode(
+                            "supabase_cfg_manual",
+                            STANDALONE_MANUAL_SNIPPET
+                          )
+                        }
+                      >
+                        {copiedId === "supabase_cfg_manual"
+                          ? t("sd_btn_copied", "Copied to Clipboard!")
+                          : t("sd_btn_copy_snippet", "Copy Code Snippet")}
+                      </ActionButton>
+                    </div>
+                    <pre className="text-xs font-mono text-[var(--text)] opacity-90 overflow-x-auto custom-scrollbar leading-relaxed p-2 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)]">
+                      <code>{STANDALONE_MANUAL_SNIPPET}</code>
+                    </pre>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="glass-surface rounded-2xl p-4 flex flex-col gap-3 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <span className="px-2.5 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-md">
-                  {t(
-                    "sd_fork_standalone_opt_b",
-                    "Option B: Manual Standalone Config"
-                  )}{" "}
-                  • sanctuary-os/src/supabase.ts
-                </span>
-                <ActionButton
-                  variant="glass"
-                  icon={
-                    copiedId === "supabase_cfg_manual"
-                      ? t("icon_check_circle", "check_circle")
-                      : t("icon_content_copy", "content_copy")
-                  }
-                  onClick={() =>
-                    handleCopyCode(
-                      "supabase_cfg_manual",
-                      STANDALONE_MANUAL_SNIPPET
-                    )
-                  }
+            {/* Mode Card 2: Full Hub & Spoke Multi-Game Federation Fork */}
+            <div
+              role={forkModeIdx !== 1 ? "button" : undefined}
+              tabIndex={forkModeIdx !== 1 ? 0 : undefined}
+              onClick={
+                forkModeIdx !== 1 ? () => setForkModeIdx(1) : undefined
+              }
+              onKeyDown={
+                forkModeIdx !== 1
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setForkModeIdx(1);
+                      }
+                    }
+                  : undefined
+              }
+              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                forkModeIdx === 1
+                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                  : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                  <div
+                    className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                      forkModeIdx === 1
+                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[20px]">
+                      {t("icon_hub", "hub")}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${
+                        forkModeIdx === 1
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--subtext)]"
+                      }`}
+                    >
+                      {t(
+                        "sd_fork_mode_hub_badge",
+                        "MODE 2 • FULL HUB & SPOKE FEDERATION"
+                      )}
+                    </span>
+                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                      {t(
+                        "sd_fork_mode_hub_title",
+                        "Full Hub & Spoke Multi-Game Fork (Hub + Child Spokes)"
+                      )}
+                    </h3>
+                  </div>
+                </div>
+
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap shrink-0 ${
+                    forkModeIdx === 1
+                      ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
+                      : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
+                  }`}
                 >
-                  {copiedId === "supabase_cfg_manual"
-                    ? t("sd_btn_copied", "Copied to Clipboard!")
-                    : t("sd_btn_copy_snippet", "Copy Code Snippet")}
-                </ActionButton>
+                  <span className="material-symbols-outlined !text-[12px]">
+                    {forkModeIdx === 1
+                      ? t("icon_check_circle", "check_circle")
+                      : t("icon_hub", "hub")}
+                  </span>
+                  {forkModeIdx === 1
+                    ? t("workspace_badge_active", "Active")
+                    : t("dir_ar_t2_val", "Hub & Spokes")}
+                </span>
               </div>
-              <pre className="text-xs font-mono text-[var(--text)] opacity-90 overflow-x-auto custom-scrollbar leading-relaxed">
-                <code>{STANDALONE_MANUAL_SNIPPET}</code>
-              </pre>
+
+              {forkModeIdx === 1 && (
+                <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                  <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                    {t(
+                      "sd_fork_mode_hub_desc",
+                      "Self-host your own central Sanctuary OS Hub (schema_os.sql + game-gateway Edge Function) that authenticates users once and routes across multiple independent community Spoke databases (schema.sql)."
+                    )}
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                          {t("icon_memory", "memory")}
+                        </span>
+                        <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                          {t(
+                            "sd_fork_hub_s1_title",
+                            "1. Provision Core Hub Database (schema_os.sql)"
+                          )}
+                        </h4>
+                      </div>
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                        {t(
+                          "sd_fork_hub_s1_desc",
+                          "Create your central Hub Supabase project and run schema_os.sql in the SQL Editor. This provisions global SSO profiles, FIDO2 user_passkeys, sanctuary_games, sanctuary_schemas, system_directives, and keeper_heuristic_signatures."
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                          {t("icon_cloud_done", "cloud_done")}
+                        </span>
+                        <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                          {t(
+                            "sd_fork_hub_s2_title",
+                            "2. Deploy game-gateway Edge Function"
+                          )}
+                        </h4>
+                      </div>
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                        {t(
+                          "sd_fork_hub_s2_desc",
+                          "Deploy supabase/functions/game-gateway to your Hub project (supabase functions deploy game-gateway). It validates Hub JWTs, checks roles, and executes cross-database mutations against each Spoke."
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                          {t("icon_code", "code")}
+                        </span>
+                        <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                          {t(
+                            "sd_fork_hub_s3_title",
+                            "3. Point src/supabase.ts at Your Core Hub"
+                          )}
+                        </h4>
+                      </div>
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                        {t(
+                          "sd_fork_hub_s3_desc",
+                          "Keep mode set to 'hub_and_spoke' in src/supabase.ts (or set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env) pointing to your central Hub project's URL and Anon Key."
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                          {t("icon_storage", "storage")}
+                        </span>
+                        <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                          {t(
+                            "sd_fork_hub_s4_title",
+                            "4. Provision & Link Child Spoke Databases (schema.sql)"
+                          )}
+                        </h4>
+                      </div>
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                        {t(
+                          "sd_fork_hub_s4_desc",
+                          "For each game community, create a separate Supabase project, run schema.sql, and register its URL, Anon Key, and Service Role Key (or SANCTUARY-UPLINK:// bundle) in Keepers Core -> Active Workspaces."
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="glass-surface rounded-2xl p-4 flex flex-col gap-3 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <span className="text-xs font-bold text-[var(--accent)]">
+                        {t(
+                          "sd_fork_hub_snippet_label",
+                          "Hub & Spoke Federation Config • sanctuary-os/src/supabase.ts"
+                        )}
+                      </span>
+                      <ActionButton
+                        variant="accent"
+                        icon={
+                          copiedId === "supabase_cfg_hub"
+                            ? t("icon_check_circle", "check_circle")
+                            : t("icon_content_copy", "content_copy")
+                        }
+                        onClick={() =>
+                          handleCopyCode(
+                            "supabase_cfg_hub",
+                            HUB_AND_SPOKE_FORK_SNIPPET
+                          )
+                        }
+                      >
+                        {copiedId === "supabase_cfg_hub"
+                          ? t("sd_btn_copied", "Copied to Clipboard!")
+                          : t("sd_btn_copy_snippet", "Copy Code Snippet")}
+                      </ActionButton>
+                    </div>
+                    <pre className="text-xs font-mono text-[var(--text)] opacity-90 overflow-x-auto custom-scrollbar leading-relaxed p-2 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)]">
+                      <code>{HUB_AND_SPOKE_FORK_SNIPPET}</code>
+                    </pre>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
 
+        {/* Tab 3: SQL Schema Cards (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
         {forkTab === "sql" && (
-          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <span className="w-fit px-2.5 py-1 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[13px]">
-                {t("icon_database", "database")}
-              </span>
-              {t(
-                "dir_fork_sql_badge",
-                "TURNKEY POSTGRESQL PROVISIONING"
-              )}
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text)]">
-              {t(
-                "dir_fork_sql_title",
-                "Complete SQL Schemas (Spoke & Core Hub)"
-              )}
-            </h2>
-            <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-85 leading-relaxed">
-              {t(
-                "dir_fork_sql_desc",
-                "Copy or inspect the complete PostgreSQL provisioning scripts directly. Run schema.sql for Partner Spokes and Standalone Forks; run schema_os.sql only if operating a multi-game Hub."
-              )}
-            </p>
+          <div className="flex flex-col gap-3.5 w-full">
+            {/* SQL Card 1: schema.sql (Spoke & Standalone DB) */}
+            <div
+              role={!isSpokeSqlActive ? "button" : undefined}
+              tabIndex={!isSpokeSqlActive ? 0 : undefined}
+              onClick={
+                !isSpokeSqlActive ? () => setSqlSchemaTab("spoke") : undefined
+              }
+              onKeyDown={
+                !isSpokeSqlActive
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSqlSchemaTab("spoke");
+                      }
+                    }
+                  : undefined
+              }
+              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                isSpokeSqlActive
+                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                  : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                  <div
+                    className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                      isSpokeSqlActive
+                        ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_14%,transparent)] text-[var(--success)]"
+                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[20px]">
+                      {t("icon_storage", "storage")}
+                    </span>
+                  </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-3 border border-[color-mix(in_srgb,var(--success)_30%,transparent)]">
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
-                      <span className="material-symbols-outlined !text-[13px]">
-                        {t("icon_storage", "storage")}
-                      </span>
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${
+                        isSpokeSqlActive
+                          ? "text-[var(--success)]"
+                          : "text-[var(--subtext)]"
+                      }`}
+                    >
+                      {t(
+                        "dir_fork_sql_spoke_sub",
+                        "SPOKE & STANDALONE DB • 36 TABLES"
+                      )}
+                    </span>
+                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
                       {t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {isSpokeSqlActive && (
+                    <ActionButton
+                      variant="accent"
+                      icon={
+                        copiedId === activeSqlCopyId
+                          ? t("icon_check_circle", "check_circle")
+                          : t("icon_content_copy", "content_copy")
+                      }
+                      onClick={() =>
+                        handleCopyCode(activeSqlCopyId, activeSqlCode)
+                      }
+                    >
+                      {copiedId === activeSqlCopyId
+                        ? t("dir_fork_sql_copied", "SQL Copied")
+                        : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
+                    </ActionButton>
+                  )}
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                      isSpokeSqlActive
+                        ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
+                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {isSpokeSqlActive
+                        ? t("icon_check_circle", "check_circle")
+                        : t("icon_database", "database")}
                     </span>
-                    <span className="px-2 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] text-[9px] font-mono rounded-md">
-                      {spokeSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
+                    {spokeSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
+                  </span>
+                </div>
+              </div>
+
+              {isSpokeSqlActive && (
+                <div className="flex flex-col gap-3.5 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                  <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                    {t(
+                      "dir_fork_sql_spoke_desc",
+                      "Complete community registry schema (mods, blueprints, masons, conflicts, tickets, heuristics, RLS policies, and Founding Wayfinder trigger)."
+                    )}
+                  </p>
+                  <pre className="text-[11px] font-mono text-[var(--text)] opacity-90 overflow-x-auto max-h-[380px] overflow-y-auto custom-scrollbar leading-relaxed p-3 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)] m-0">
+                    <code>{SPOKE_SCHEMA_SQL}</code>
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* SQL Card 2: schema_os.sql (Core Hub DB) */}
+            <div
+              role={isSpokeSqlActive ? "button" : undefined}
+              tabIndex={isSpokeSqlActive ? 0 : undefined}
+              onClick={
+                isSpokeSqlActive ? () => setSqlSchemaTab("hub") : undefined
+              }
+              onKeyDown={
+                isSpokeSqlActive
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSqlSchemaTab("hub");
+                      }
+                    }
+                  : undefined
+              }
+              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                !isSpokeSqlActive
+                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                  : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                  <div
+                    className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                      !isSpokeSqlActive
+                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[20px]">
+                      {t("icon_memory", "memory")}
                     </span>
                   </div>
 
-                  <ActionButton
-                    variant="accent"
-                    icon={
-                      copiedId === "sql_spoke"
-                        ? t("icon_check_circle", "check_circle")
-                        : t("icon_content_copy", "content_copy")
-                    }
-                    onClick={() =>
-                      handleCopyCode("sql_spoke", SPOKE_SCHEMA_SQL)
-                    }
-                  >
-                    {copiedId === "sql_spoke"
-                      ? t("dir_fork_sql_copied", "SQL Copied")
-                      : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
-                  </ActionButton>
-                </div>
-                <pre className="text-[11px] font-mono text-[var(--text)] opacity-90 overflow-x-auto max-h-[260px] overflow-y-auto custom-scrollbar leading-relaxed p-2 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)]">
-                  <code>{SPOKE_SCHEMA_SQL}</code>
-                </pre>
-              </div>
-
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-3 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
-                      <span className="material-symbols-outlined !text-[13px]">
-                        {t("icon_memory", "memory")}
-                      </span>
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${
+                        !isSpokeSqlActive
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--subtext)]"
+                      }`}
+                    >
+                      {t(
+                        "dir_fork_sql_hub_sub",
+                        "CENTRAL CORE HUB DB • 16 TABLES"
+                      )}
+                    </span>
+                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
                       {t("dir_fork_sql_hub_val", "schema_os.sql (Hub DB)")}
-                    </span>
-                    <span className="px-2 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] text-[9px] font-mono rounded-md">
-                      {hubSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
-                    </span>
+                    </h3>
                   </div>
-
-                  <ActionButton
-                    variant="accent"
-                    icon={
-                      copiedId === "sql_hub"
-                        ? t("icon_check_circle", "check_circle")
-                        : t("icon_content_copy", "content_copy")
-                    }
-                    onClick={() => handleCopyCode("sql_hub", HUB_SCHEMA_SQL)}
-                  >
-                    {copiedId === "sql_hub"
-                      ? t("dir_fork_sql_copied", "SQL Copied")
-                      : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
-                  </ActionButton>
                 </div>
-                <pre className="text-[11px] font-mono text-[var(--text)] opacity-90 overflow-x-auto max-h-[260px] overflow-y-auto custom-scrollbar leading-relaxed p-2 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)]">
-                  <code>{HUB_SCHEMA_SQL}</code>
-                </pre>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {!isSpokeSqlActive && (
+                    <ActionButton
+                      variant="accent"
+                      icon={
+                        copiedId === activeSqlCopyId
+                          ? t("icon_check_circle", "check_circle")
+                          : t("icon_content_copy", "content_copy")
+                      }
+                      onClick={() =>
+                        handleCopyCode(activeSqlCopyId, activeSqlCode)
+                      }
+                    >
+                      {copiedId === activeSqlCopyId
+                        ? t("dir_fork_sql_copied", "SQL Copied")
+                        : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
+                    </ActionButton>
+                  )}
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                      !isSpokeSqlActive
+                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {!isSpokeSqlActive
+                        ? t("icon_check_circle", "check_circle")
+                        : t("icon_database", "database")}
+                    </span>
+                    {hubSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
+                  </span>
+                </div>
               </div>
+
+              {!isSpokeSqlActive && (
+                <div className="flex flex-col gap-3.5 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                  <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                    {t(
+                      "dir_fork_sql_hub_desc",
+                      "Central multi-game federation schema (global SSO profiles, FIDO2 passkeys, sanctuary_games directory, master schemas, global lexicons/themes, and core heuristics)."
+                    )}
+                  </p>
+                  <pre className="text-[11px] font-mono text-[var(--text)] opacity-90 overflow-x-auto max-h-[380px] overflow-y-auto custom-scrollbar leading-relaxed p-3 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)] m-0">
+                    <code>{HUB_SCHEMA_SQL}</code>
+                  </pre>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2317,7 +3343,7 @@ export default function WebDocumentFeed() {
     );
   };
 
-  // Render Expanded Interactive Master Architecture Explorer (Single 4-Pillar StatTileCarousel + 1 Hero Card)
+  // Render Expanded Interactive Master Architecture Explorer (3 Top Tiles + Clean 3-Tier Pillar Card)
   const renderInteractiveArchitecture = () => {
     const pillarMeta = {
       p1: {
@@ -2509,7 +3535,24 @@ export default function WebDocumentFeed() {
       },
     };
 
-    const activePillar = pillarMeta[archTab] || pillarMeta.p1;
+    const defaultPillar = pillarMeta[archTab] || pillarMeta.p1;
+    const customArchTab = customArchSchema?.tabs?.find(
+      (tab) => tab.id === archTab
+    );
+    const customArchCard = customArchTab?.cards?.[0];
+    const activePillar = customArchCard
+      ? {
+          icon: customArchCard.icon || defaultPillar.icon,
+          badge: customArchCard.overline || defaultPillar.badge,
+          heading: customArchCard.title || defaultPillar.heading,
+          summary: customArchCard.desc || defaultPillar.summary,
+          cards: (customArchCard.subCards || []).map((sc) => ({
+            icon: sc.icon || defaultPillar.icon,
+            title: sc.title,
+            desc: sc.desc,
+          })),
+        }
+      : defaultPillar;
 
     return (
       <div className="flex flex-col gap-6">
@@ -2544,40 +3587,50 @@ export default function WebDocumentFeed() {
           />
         </div>
 
-        {/* Single Unified Hero Container Below 1x3 Tiles */}
-        <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-          <span className="w-fit px-2.5 py-1 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
-            <span className="material-symbols-outlined !text-[13px]">
-              {activePillar.icon}
+        {/* Clean 3-Tier Hero Container Below 1x3 Tiles */}
+        <div className="relative glass-panel rounded-2xl p-5 flex flex-col gap-4 border !border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="w-11 h-11 rounded-xl border bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined !text-[22px]">
+                {activePillar.icon}
+              </span>
+            </div>
+
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+              <span className="material-symbols-outlined !text-[12px]">
+                {activePillar.icon}
+              </span>
+              {t("workspace_badge_active", "Active")}
             </span>
-            {activePillar.badge}
-          </span>
+          </div>
 
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text)] leading-snug">
-            {activePillar.heading}
-          </h2>
+          <div className="flex flex-col gap-1 mt-0.5">
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+              {activePillar.badge}
+            </span>
+            <h3 className="text-base sm:text-lg font-black tracking-tight text-[var(--text)] leading-snug m-0">
+              {activePillar.heading}
+            </h3>
+            <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+              {activePillar.summary}
+            </p>
+          </div>
 
-          <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-85 leading-relaxed">
-            {activePillar.summary}
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
             {activePillar.cards.map((c, idx) => (
               <div
                 key={`${c.title}-${idx}`}
-                className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
               >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]">
-                    <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                      {c.icon}
-                    </span>
-                  </div>
-                  <h3 className="text-xs sm:text-sm font-bold text-[var(--text)] leading-snug">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                    {c.icon}
+                  </span>
+                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
                     {c.title}
-                  </h3>
+                  </h4>
                 </div>
-                <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
+                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
                   {c.desc}
                 </p>
               </div>
@@ -2588,7 +3641,7 @@ export default function WebDocumentFeed() {
     );
   };
 
-  // Render Interactive Master Protocol & Clearance Matrix (3 Static Top Tiles + 1 Unified Hero Card — Zero Scrolling Tiles)
+  // Render Interactive Master Protocol & Clearance Matrix (3 Static Top Tiles + 2-Column 3-Tier Cards & Inline Drawers Across All 3 Tabs)
   const renderInteractiveProtocols = () => {
     const complianceTiers = [
       {
@@ -2600,6 +3653,7 @@ export default function WebDocumentFeed() {
         ),
         colorClass:
           "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]",
+        textColor: "text-[var(--success)]",
         icon: t("icon_check_circle", "check_circle"),
       },
       {
@@ -2614,6 +3668,7 @@ export default function WebDocumentFeed() {
         ),
         colorClass:
           "border-[color-mix(in_srgb,var(--info)_45%,transparent)] text-[var(--info)]",
+        textColor: "text-[var(--info)]",
         icon: t("icon_visibility_off", "visibility_off"),
       },
       {
@@ -2628,6 +3683,7 @@ export default function WebDocumentFeed() {
         ),
         colorClass:
           "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]",
+        textColor: "text-[var(--warning)]",
         icon: t("icon_lock", "lock"),
       },
       {
@@ -2642,7 +3698,26 @@ export default function WebDocumentFeed() {
         ),
         colorClass:
           "border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]",
+        textColor: "text-[var(--danger)]",
         icon: t("icon_gpp_bad", "gpp_bad"),
+      },
+      {
+        badge: t(
+          "sd_proto_heuristics_badge",
+          "DUAL-TIER RUST AV • BYTECODE & ARCHIVE SCAN"
+        ),
+        title: t(
+          "sd_proto_heuristics_title",
+          "Multi-Format Heuristic & Bytecode Scanner"
+        ),
+        desc: t(
+          "sd_proto_heuristics_desc",
+          "Combines global Core Heuristics (keeper_heuristic_signatures) and community Spoke Heuristics (heuristic_signatures) to inspect .zip, .package, .ts4script, .dll, .exe, and compiled Python .pyc bytecode before execution."
+        ),
+        colorClass:
+          "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]",
+        textColor: "text-[var(--accent)]",
+        icon: t("icon_security", "security"),
       },
       {
         badge: t(
@@ -2659,9 +3734,369 @@ export default function WebDocumentFeed() {
         ),
         colorClass:
           "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]",
+        textColor: "text-[var(--accent)]",
         icon: t("icon_policy", "policy"),
       },
     ];
+
+    const protocolDomains = [
+      {
+        icon: t("icon_hub", "hub"),
+        badge: t("sd_proto_d1_badge", "DOMAIN 1 • 7 PROTOCOLS"),
+        title: t(
+          "sd_proto_d1_title",
+          "System Foundation, Hub-and-Spoke & Bilateral Sync"
+        ),
+        desc: t(
+          "sd_proto_d1_desc",
+          "Core kernel protocols governing first-boot reconnaissance, SANCTUARY-UPLINK:// spoke onboarding, Cut the Cord severance, 1-file standalone forks, and two-way .md directive sync."
+        ),
+        rules: [
+          {
+            icon: t("icon_explore", "explore"),
+            title: t("sd_proto_d1_r1_title", "The Cartographer (First-Boot Recon)"),
+            desc: t(
+              "sd_proto_d1_r1_desc",
+              "Automated first-boot reconnaissance scanner that locates the Game Bin, live Mods directory, and external Vault archive path."
+            ),
+          },
+          {
+            icon: t("icon_hub", "hub"),
+            title: t(
+              "sd_proto_d1_r2_title",
+              "Turnkey Spoke Uplink (SANCTUARY-UPLINK://)"
+            ),
+            desc: t(
+              "sd_proto_d1_r2_desc",
+              "1-click onboarding handshake on game-gateway that validates all 36 tables in schema.sql, seeds global_network_status, and auto-provisions the Founding Wayfinder."
+            ),
+          },
+          {
+            icon: t("icon_link_off", "link_off"),
+            title: t(
+              "sd_proto_d1_r3_title",
+              "Bilateral Severance ('Cut the Cord')"
+            ),
+            desc: t(
+              "sd_proto_d1_r3_desc",
+              "Self-service sovereignty protocol executable by either a Keeper or Wayfinder that logs to audit_logs, sets is_active = false, and permanently scrubs supabase_service_key from the Hub."
+            ),
+          },
+          {
+            icon: t("icon_call_split", "call_split"),
+            title: t(
+              "sd_proto_d1_r4_title",
+              "Single-File Standalone Fork (src/supabase.ts)"
+            ),
+            desc: t(
+              "sd_proto_d1_r4_desc",
+              "Allows any community to fork Sanctuary OS against a single schema.sql Supabase project by editing only SANCTUARY_CONFIG in src/supabase.ts without Edge Functions."
+            ),
+          },
+          {
+            icon: t("icon_dns", "dns"),
+            title: t(
+              "sd_proto_d1_r5_title",
+              "Full Hub & Spoke Federation Fork"
+            ),
+            desc: t(
+              "sd_proto_d1_r5_desc",
+              "Allows self-hosting a complete multi-game Hub (schema_os.sql + game-gateway Edge Function) connected to multiple independent child Spoke databases (schema.sql)."
+            ),
+          },
+          {
+            icon: t("icon_sync", "sync"),
+            title: t(
+              "sd_proto_d1_r6_title",
+              "Bilateral Directives Sync & System Version Ripper"
+            ),
+            desc: t(
+              "sd_proto_d1_r6_desc",
+              "Two-way sync between local .md docs and Keepers Core (public.system_directives), plus in-process Rust pelite PE header version extraction and declarative Game Schemas."
+            ),
+          },
+        ],
+      },
+      {
+        icon: t("icon_inventory_2", "inventory_2"),
+        badge: t("sd_proto_d2_badge", "DOMAIN 2 • 6 PROTOCOLS"),
+        title: t(
+          "sd_proto_d2_title",
+          "Vault Airgap, Static Edge & Mod Management"
+        ),
+        desc: t(
+          "sd_proto_d2_desc",
+          "Zero-copy symlink projection, decentralized creator manifest polling, multi-file parent suite grouping, 3-Tile Artifact Studio, and the 2-column Citizen's Workbench."
+        ),
+        rules: [
+          {
+            icon: t("icon_inventory_2", "inventory_2"),
+            title: t("sd_proto_d2_r1_title", "Symlink Airgap 2.5"),
+            desc: t(
+              "sd_proto_d2_r1_desc",
+              "Projects active mods from the isolated Vault/Mods/ archive into the live game directory via zero-copy OS symlinks in milliseconds."
+            ),
+          },
+          {
+            icon: t("icon_cloud_done", "cloud_done"),
+            title: t(
+              "sd_proto_d2_r2_title",
+              "Decentralized Static Edge Polling"
+            ),
+            desc: t(
+              "sd_proto_d2_r2_desc",
+              "Binds a mod's SHA-256 lineage in .sanctuary_cache.db and polls creator manifest.json & override.json endpoints directly via HTTP GET during Radar Sweeps."
+            ),
+          },
+          {
+            icon: t("icon_folder_open", "folder_open"),
+            title: t("sd_proto_d2_r3_title", "Mod Suite Parent Grouping"),
+            desc: t(
+              "sd_proto_d2_r3_desc",
+              "Automatically groups multi-file mod suites and .package + .ts4script companions into one clean Parent Card with an expandable Linked Modules drawer."
+            ),
+          },
+          {
+            icon: t("icon_view_quilt", "view_quilt"),
+            title: t("sd_proto_d2_r4_title", "Unified 3-Tile Artifact Studio"),
+            desc: t(
+              "sd_proto_d2_r4_desc",
+              "Standardized 3-step publishing workflow (Details & Versions, Files & Folders, Rules & Upload) shared across Mason Workshop and Architect Console."
+            ),
+          },
+          {
+            icon: t("icon_construction", "construction"),
+            title: t(
+              "sd_proto_d2_r5_title",
+              "2-Column Citizen's Workbench & Timeline Diff"
+            ),
+            desc: t(
+              "sd_proto_d2_r5_desc",
+              "60 FPS Visual Config Editor with category pills, Min/Max range steppers, No-Code Template Builder, and side-by-side Visual + Raw Monaco Timeline Diff."
+            ),
+          },
+          {
+            icon: t("icon_public", "public"),
+            title: t(
+              "sd_proto_d2_r6_title",
+              "Integrated Side Browser Interception"
+            ),
+            desc: t(
+              "sd_proto_d2_r6_desc",
+              "Intercepts .zip, .rar, .7z, .package, .ts4script, and override.json downloads inside the built-in browser and routes them straight into the Vault scanner."
+            ),
+          },
+        ],
+      },
+      {
+        icon: t("icon_radar", "radar"),
+        badge: t("sd_proto_d3_badge", "DOMAIN 3 • 7 PROTOCOLS"),
+        title: t("sd_proto_d3_title", "Stability, Load Order & Atomic Logic"),
+        desc: t(
+          "sd_proto_d3_desc",
+          "Schema-driven topological load order compilation, Casual vs. Advanced Conflict Radar, Highlander flavors, Twin bonds, Deep Yeet 2.0 cascades, Homestead Lab, and Time Capsule hardlinks."
+        ),
+        rules: [
+          {
+            icon: t("icon_layers", "layers"),
+            title: t(
+              "sd_proto_d3_r1_title",
+              "Schema-Driven Load Order Compiler"
+            ),
+            desc: t(
+              "sd_proto_d3_r1_desc",
+              "Compiles priority via folder_priority (dynamic Resource.cfg + Sanctuary1–3 folders), manifest_list, numeric_prefix, or timestamp with DFS cycle breaking."
+            ),
+          },
+          {
+            icon: t("icon_radar", "radar"),
+            title: t(
+              "sd_proto_d3_r2_title",
+              "Conflict Radar (Casual vs. Advanced Mode)"
+            ),
+            desc: t(
+              "sd_proto_d3_r2_desc",
+              "Casual Mode provides 1-click 'Pick a Winner' resolution for Severity 3 Tuning Overlaps; Advanced Mode unlocks directional Must Load After/Before rules."
+            ),
+          },
+          {
+            icon: t("icon_swap_horiz", "swap_horiz"),
+            title: t(
+              "sd_proto_d3_r3_title",
+              "The Highlander Rule & Twin Cohesion"
+            ),
+            desc: t(
+              "sd_proto_d3_r3_desc",
+              "Automatically evicts rival Flavor files when equipping a chosen Flavor, and bidirectionally links companion .package and .ts4script Twins."
+            ),
+          },
+          {
+            icon: t("icon_account_tree", "account_tree"),
+            title: t(
+              "sd_proto_d3_r4_title",
+              "Chain-Link Dependencies & Deep Yeet 2.0"
+            ),
+            desc: t(
+              "sd_proto_d3_r4_desc",
+              "Auto-equips required master mods when enabling an add-on, and halts for Citizen confirmation to cleanly cascade-unequip orphaned child mods on removal."
+            ),
+          },
+          {
+            icon: t("icon_science", "science"),
+            title: t(
+              "sd_proto_d3_r5_title",
+              "Homestead Lab (100% Nuke & 1v1 Arena)"
+            ),
+            desc: t(
+              "sd_proto_d3_r5_desc",
+              "Strips active symlinks to test suspect mods or 1v1 conflicts in an isolated sandbox save while harvesting and PII-scrubbing crash logs."
+            ),
+          },
+          {
+            icon: t("icon_history", "history"),
+            title: t(
+              "sd_proto_d3_r6_title",
+              "Hardlink Time Capsule & Differential Rollback"
+            ),
+            desc: t(
+              "sd_proto_d3_r6_desc",
+              "Snapshots World State (Saves/Settings) and Engine Core (Binaries) using zero-bloat OS hardlinks and restores modified bytes via differential comparison."
+            ),
+          },
+        ],
+      },
+      {
+        icon: t("icon_shield", "shield"),
+        badge: t("sd_proto_d4_badge", "DOMAIN 4 • 6 PROTOCOLS"),
+        title: t(
+          "sd_proto_d4_title",
+          "Security, FIDO2 Passkeys & Quarantine Lockdown"
+        ),
+        desc: t(
+          "sd_proto_d4_desc",
+          "Hardware WebAuthn FIDO2 gates, Dual-Tier Rust Heuristics, Full-OS Malware Quarantine SidePanel Lockdown with Secure Shred, DEFCON 1 pre-patch shield, and decoupled hardware_bans."
+        ),
+        rules: [
+          {
+            icon: t("icon_passkey", "passkey"),
+            title: t(
+              "sd_proto_d4_r1_title",
+              "FIDO2 Passkey & TOTP Security Vault"
+            ),
+            desc: t(
+              "sd_proto_d4_r1_desc",
+              "Requires hardware-bound WebAuthn Passkeys or TOTP verification for all Elevated Clearances (Verified Mason through Keeper) inside the right-hand Security Vault SidePanel."
+            ),
+          },
+          {
+            icon: t("icon_security", "security"),
+            title: t(
+              "sd_proto_d4_r2_title",
+              "Dual-Tier Multi-Format Heuristic Scanner"
+            ),
+            desc: t(
+              "sd_proto_d4_r2_desc",
+              "Merges global Core Heuristics and community Spoke Heuristics to scan archives, raw binaries, UTF-16LE strings, and Python bytecode symbol chains."
+            ),
+          },
+          {
+            icon: t("icon_gpp_bad", "gpp_bad"),
+            title: t(
+              "sd_proto_d4_r3_title",
+              "Full-OS Quarantine Lockdown & Secure Shred"
+            ),
+            desc: t(
+              "sd_proto_d4_r3_desc",
+              "Confirmed Tier 5 Malware locks the OS shell, displays Triggered By & Detection Source attribution, and requires a Citizen signature for multi-pass Secure Shredding."
+            ),
+          },
+          {
+            icon: t("icon_visibility_off", "visibility_off"),
+            title: t(
+              "sd_proto_d4_r4_title",
+              "Florida Compliance Tiers 1–4 & Auto-Purge"
+            ),
+            desc: t(
+              "sd_proto_d4_r4_desc",
+              "Permits Tiers 1–4 in local Vaults while scrubbing public Nexus feeds and stripping flagged hashes from Cloud Blueprints automatically."
+            ),
+          },
+          {
+            icon: t("icon_cell_tower", "cell_tower"),
+            title: t(
+              "sd_proto_d4_r5_title",
+              "DEFCON 1 Pre-Patch Network Shield"
+            ),
+            desc: t(
+              "sd_proto_d4_r5_desc",
+              "Real-time listener on global_network_status that intercepts game launches during breaking engine patches to prompt an emergency Time Capsule backup."
+            ),
+          },
+          {
+            icon: t("icon_policy", "policy"),
+            title: t(
+              "sd_proto_d4_r6_title",
+              "Nuclear Override & Decoupled hardware_bans"
+            ),
+            desc: t(
+              "sd_proto_d4_r6_desc",
+              "Revealed by clicking the System Preferences subtitle 5 times; bypasses local quarantine while recording a one-way hash in hardware_bans to sever cloud access."
+            ),
+          },
+        ],
+      },
+    ];
+
+    const customProtoRolesTab = customProtoSchema?.tabs?.find(
+      (tab) => tab.id === "roles"
+    );
+    const customProtoCompTab = customProtoSchema?.tabs?.find(
+      (tab) => tab.id === "compliance"
+    );
+    const customProtoListTab = customProtoSchema?.tabs?.find(
+      (tab) => tab.id === "list"
+    );
+
+    const effectiveProtoRoles =
+      customProtoRolesTab && customProtoRolesTab.cards.length > 0
+        ? customProtoRolesTab.cards.map((c) => ({
+            short: c.title,
+            icon: c.icon,
+            title: c.title,
+            badge: c.overline || c.footerMeta,
+            desc: c.desc,
+            requiresPasskey: c.status !== "citizen",
+          }))
+        : elevatedRoles;
+
+    const effectiveComplianceTiers =
+      customProtoCompTab && customProtoCompTab.cards.length > 0
+        ? customProtoCompTab.cards.map((c, idx) => ({
+            badge: c.overline || c.badge,
+            title: c.title,
+            desc: c.desc,
+            colorClass:
+              complianceTiers[idx]?.colorClass ||
+              "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]",
+            textColor: complianceTiers[idx]?.textColor || "text-[var(--accent)]",
+            icon: c.icon || complianceTiers[idx]?.icon || "shield",
+          }))
+        : complianceTiers;
+
+    const effectiveProtocolDomains =
+      customProtoListTab && customProtoListTab.cards.length > 0
+        ? customProtoListTab.cards.map((c) => ({
+            icon: c.icon,
+            badge: c.overline || c.badge,
+            title: c.title,
+            desc: c.desc,
+            rules: (c.subCards || []).map((sc) => ({
+              icon: sc.icon,
+              title: sc.title,
+              desc: sc.desc,
+            })),
+          }))
+        : protocolDomains;
 
     return (
       <div className="flex flex-col gap-6">
@@ -2696,130 +4131,487 @@ export default function WebDocumentFeed() {
           />
         </div>
 
+        {/* Tab 1: 6-Tier Role Matrix (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
         {protoTab === "roles" && (
-          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <span className="w-fit px-2.5 py-1 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[13px]">
-                {t("icon_admin_panel_settings", "admin_panel_settings")}
-              </span>
-              {t(
-                "dir_proto_roles_hero_badge",
-                "6-TIER ROLE HIERARCHY • CITIZEN TO KEEPER"
-              )}
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text)] leading-snug">
-              {t(
-                "dir_proto_roles_hero_title",
-                "Role Clearances, Open Workshop Inheritance & FIDO2 Passkey Gates"
-              )}
-            </h2>
-            <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-85 leading-relaxed">
-              {t(
-                "dir_proto_roles_hero_desc",
-                "Citizens inherit the complete local Mason Workshop (Sandbox, Mason IDE, 3-Tile Studio, Theme Forge, Static Edge packaging) with zero passkey requirement. Verified Masons and Community Command Hubs require a bound FIDO2 Passkey."
-              )}
-            </p>
+          <div className="flex flex-col gap-3.5 w-full">
+            {effectiveProtoRoles.map((role, rIdx) => {
+              const isActive = protoRoleIdx === rIdx;
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-              {elevatedRoles.map((role, idx) => (
+              return (
                 <div
-                  key={idx}
-                  className="glass-surface rounded-2xl p-4 flex flex-col gap-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="px-2 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
-                      <span className="material-symbols-outlined !text-[12px]">
-                        {role.icon}
-                      </span>
-                      {role.badge}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 bg-transparent border text-[8px] font-black uppercase tracking-widest rounded-md flex items-center gap-1 ${
-                        role.requiresPasskey
-                          ? "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
-                          : "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[11px]">
-                        {role.requiresPasskey
-                          ? t("icon_passkey", "passkey")
-                          : t("icon_check_circle", "check_circle")}
-                      </span>
-                      {role.requiresPasskey
-                        ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
-                        : t("dir_proto_r1_role", "Citizen")}
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-black text-[var(--text)]">
-                    {role.title}
-                  </h3>
-                  <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
-                    {role.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {protoTab === "compliance" && (
-          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <span className="w-fit px-2.5 py-1 bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[13px]">
-                {t("icon_shield", "shield")}
-              </span>
-              {t(
-                "dir_proto_tiers_hero_badge",
-                "COMPLIANCE TIERS 0–5 • AUTOMATED DEFENSE MATRIX"
-              )}
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text)] leading-snug">
-              {t(
-                "dir_proto_tiers_hero_title",
-                "Public Feed Safety, Local Vault Autonomy & Malware Lockdown"
-              )}
-            </h2>
-            <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-85 leading-relaxed">
-              {t(
-                "dir_proto_tiers_hero_desc",
-                "Sanctuary OS balances uncompromised public feed safety with local Vault freedom—allowing Adult/NSFW mods locally while automatically scrubbing public feeds and enforcing a full-OS Quarantine Lockdown on confirmed Tier 5 Malware."
-              )}
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-              {complianceTiers.map((tier, idx) => (
-                <div
-                  key={idx}
-                  className={`glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] ${
-                    idx === complianceTiers.length - 1 ? "md:col-span-2" : ""
+                  key={`${role.short}-${rIdx}`}
+                  ref={isActive ? protoDrawerRef : undefined}
+                  role={!isActive ? "button" : undefined}
+                  tabIndex={!isActive ? 0 : undefined}
+                  onClick={
+                    !isActive
+                      ? () => {
+                          setProtoRoleIdx(rIdx);
+                          scrollDrawerIntoCenter(protoDrawerRef);
+                        }
+                      : undefined
+                  }
+                  onKeyDown={
+                    !isActive
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setProtoRoleIdx(rIdx);
+                            scrollDrawerIntoCenter(protoDrawerRef);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                    isActive
+                      ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                      : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
                   }`}
                 >
-                  <span
-                    className={`w-fit px-2.5 py-0.5 bg-transparent border text-[9px] font-black uppercase tracking-widest rounded-md flex items-center gap-1.5 ${tier.colorClass}`}
+                  <div
+                    role={isActive ? "button" : undefined}
+                    tabIndex={isActive ? 0 : undefined}
+                    onClick={isActive ? () => setProtoRoleIdx(-1) : undefined}
+                    onKeyDown={
+                      isActive
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setProtoRoleIdx(-1);
+                            }
+                          }
+                        : undefined
+                    }
+                    className={`flex items-start justify-between gap-3 ${
+                      isActive ? "cursor-pointer" : ""
+                    }`}
                   >
-                    <span className="material-symbols-outlined !text-[12px]">
-                      {tier.icon}
-                    </span>
-                    {tier.badge}
-                  </span>
-                  <h3 className="text-sm font-black text-[var(--text)]">
-                    {tier.title}
-                  </h3>
-                  <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
-                    {tier.desc}
-                  </p>
+                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                      <div
+                        className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                          isActive
+                            ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]"
+                            : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined !text-[20px]">
+                          {role.icon}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span
+                          className={`text-[10px] font-black uppercase tracking-[0.18em] ${
+                            isActive
+                              ? "text-[var(--accent)]"
+                              : "text-[var(--subtext)]"
+                          }`}
+                        >
+                          {role.badge}
+                        </span>
+                        <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                          {role.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                          role.requiresPasskey
+                            ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
+                            : "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {role.requiresPasskey
+                            ? t("icon_passkey", "passkey")
+                            : t("icon_check_circle", "check_circle")}
+                        </span>
+                        {role.requiresPasskey
+                          ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
+                          : t("dir_proto_r1_role", "Citizen")}
+                      </span>
+                      <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {isActive
+                            ? t("icon_expand_less", "expand_less")
+                            : t("icon_expand_more", "expand_more")}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {isActive && (
+                    <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                        {role.desc}
+                      </p>
+                      <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <ActionButton
+                          variant="glass"
+                          icon={t("icon_navigate_before", "navigate_before")}
+                          disabled={protoRoleIdx <= 0}
+                          onClick={() => {
+                            setProtoRoleIdx((prev) => Math.max(0, prev - 1));
+                            scrollDrawerIntoCenter(protoDrawerRef);
+                          }}
+                        >
+                          {t("sd_proto_prev_tier", "Previous Tier")}
+                        </ActionButton>
+                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                          {role.badge}
+                        </span>
+                        <ActionButton
+                          variant="accent"
+                          icon={t("icon_navigate_next", "navigate_next")}
+                          disabled={
+                            protoRoleIdx >= effectiveProtoRoles.length - 1
+                          }
+                          onClick={() => {
+                            setProtoRoleIdx((prev) =>
+                              Math.min(
+                                effectiveProtoRoles.length - 1,
+                                prev + 1
+                              )
+                            );
+                            scrollDrawerIntoCenter(protoDrawerRef);
+                          }}
+                        >
+                          {t("sd_proto_next_tier", "Next Tier")}
+                        </ActionButton>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
 
+        {/* Tab 2: Compliance Tiers 0–5 & Heuristics Defense Matrix (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
+        {protoTab === "compliance" && (
+          <div className="flex flex-col gap-3.5 w-full">
+            {effectiveComplianceTiers.map((tier, cIdx) => {
+              const isActive = protoCompIdx === cIdx;
+
+              return (
+                <div
+                  key={`${tier.badge}-${cIdx}`}
+                  ref={isActive ? protoDrawerRef : undefined}
+                  role={!isActive ? "button" : undefined}
+                  tabIndex={!isActive ? 0 : undefined}
+                  onClick={
+                    !isActive
+                      ? () => {
+                          setProtoCompIdx(cIdx);
+                          scrollDrawerIntoCenter(protoDrawerRef);
+                        }
+                      : undefined
+                  }
+                  onKeyDown={
+                    !isActive
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setProtoCompIdx(cIdx);
+                            scrollDrawerIntoCenter(protoDrawerRef);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                    isActive
+                      ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                      : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+                  }`}
+                >
+                  <div
+                    role={isActive ? "button" : undefined}
+                    tabIndex={isActive ? 0 : undefined}
+                    onClick={isActive ? () => setProtoCompIdx(-1) : undefined}
+                    onKeyDown={
+                      isActive
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setProtoCompIdx(-1);
+                            }
+                          }
+                        : undefined
+                    }
+                    className={`flex items-start justify-between gap-3 ${
+                      isActive ? "cursor-pointer" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                      <div
+                        className={`w-10 h-10 rounded-xl border bg-transparent flex items-center justify-center shrink-0 transition-colors ${tier.colorClass}`}
+                      >
+                        <span className="material-symbols-outlined !text-[20px]">
+                          {tier.icon}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span
+                          className={`text-[10px] font-black uppercase tracking-[0.18em] ${
+                            isActive ? tier.textColor : "text-[var(--subtext)]"
+                          }`}
+                        >
+                          {tier.badge}
+                        </span>
+                        <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                          {tier.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${tier.colorClass}`}
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {tier.icon}
+                        </span>
+                        {tier.badge.split("•")[0].trim()}
+                      </span>
+                      <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {isActive
+                            ? t("icon_expand_less", "expand_less")
+                            : t("icon_expand_more", "expand_more")}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {isActive && (
+                    <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                        {tier.desc}
+                      </p>
+                      <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <ActionButton
+                          variant="glass"
+                          icon={t("icon_navigate_before", "navigate_before")}
+                          disabled={protoCompIdx <= 0}
+                          onClick={() => {
+                            setProtoCompIdx((prev) => Math.max(0, prev - 1));
+                            scrollDrawerIntoCenter(protoDrawerRef);
+                          }}
+                        >
+                          {t("sd_proto_prev_tier", "Previous Tier")}
+                        </ActionButton>
+                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                          {tier.badge}
+                        </span>
+                        <ActionButton
+                          variant="accent"
+                          icon={t("icon_navigate_next", "navigate_next")}
+                          disabled={
+                            protoCompIdx >=
+                            effectiveComplianceTiers.length - 1
+                          }
+                          onClick={() => {
+                            setProtoCompIdx((prev) =>
+                              Math.min(
+                                effectiveComplianceTiers.length - 1,
+                                prev + 1
+                              )
+                            );
+                            scrollDrawerIntoCenter(protoDrawerRef);
+                          }}
+                        >
+                          {t("sd_proto_next_tier", "Next Tier")}
+                        </ActionButton>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Tab 3: 32 OS Protocols Organized into 4 Interactive Domain Cards (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
         {protoTab === "list" && (
-          <StructuredReleaseNotesView
-            content={
-              directivesMap.master_protocols?.content || bundledProtocolList
-            }
-          />
+          <div className="flex flex-col gap-3.5 w-full">
+            {effectiveProtocolDomains.map((dom, dIdx) => {
+              const isActive = protoDomainIdx === dIdx;
+
+              return (
+                <div
+                  key={dom.badge}
+                  ref={isActive ? protoDrawerRef : undefined}
+                  role={!isActive ? "button" : undefined}
+                  tabIndex={!isActive ? 0 : undefined}
+                  onClick={
+                    !isActive
+                      ? () => {
+                          setProtoDomainIdx(dIdx);
+                          scrollDrawerIntoCenter(protoDrawerRef);
+                        }
+                      : undefined
+                  }
+                  onKeyDown={
+                    !isActive
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setProtoDomainIdx(dIdx);
+                            scrollDrawerIntoCenter(protoDrawerRef);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                    isActive
+                      ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                      : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+                  }`}
+                >
+                  <div
+                    role={isActive ? "button" : undefined}
+                    tabIndex={isActive ? 0 : undefined}
+                    onClick={
+                      isActive ? () => setProtoDomainIdx(-1) : undefined
+                    }
+                    onKeyDown={
+                      isActive
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setProtoDomainIdx(-1);
+                            }
+                          }
+                        : undefined
+                    }
+                    className={`flex items-start justify-between gap-3 ${
+                      isActive ? "cursor-pointer" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                      <div
+                        className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                          isActive
+                            ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]"
+                            : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined !text-[20px]">
+                          {dom.icon}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span
+                          className={`text-[10px] font-black uppercase tracking-[0.18em] ${
+                            isActive
+                              ? "text-[var(--accent)]"
+                              : "text-[var(--subtext)]"
+                          }`}
+                        >
+                          {dom.badge}
+                        </span>
+                        <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                          {dom.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                          isActive
+                            ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
+                            : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {isActive
+                            ? t("icon_check_circle", "check_circle")
+                            : dom.icon}
+                        </span>
+                        {dom.badge.split("•")[0].trim()}
+                      </span>
+                      <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {isActive
+                            ? t("icon_expand_less", "expand_less")
+                            : t("icon_expand_more", "expand_more")}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {isActive && (
+                    <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                        {dom.desc}
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        {dom.rules.map((r, rIdx) => (
+                          <div
+                            key={`${r.title}-${rIdx}`}
+                            className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                                {r.icon}
+                              </span>
+                              <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                                {r.title}
+                              </h4>
+                            </div>
+                            <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                              {r.desc}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <ActionButton
+                          variant="glass"
+                          icon={t("icon_navigate_before", "navigate_before")}
+                          disabled={protoDomainIdx <= 0}
+                          onClick={() => {
+                            setProtoDomainIdx((prev) => Math.max(0, prev - 1));
+                            scrollDrawerIntoCenter(protoDrawerRef);
+                          }}
+                        >
+                          {t("sd_proto_prev_rule", "Previous Domain")}
+                        </ActionButton>
+                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                          {dom.badge}
+                        </span>
+                        <ActionButton
+                          variant="accent"
+                          icon={t("icon_navigate_next", "navigate_next")}
+                          disabled={
+                            protoDomainIdx >=
+                            effectiveProtocolDomains.length - 1
+                          }
+                          onClick={() => {
+                            setProtoDomainIdx((prev) =>
+                              Math.min(
+                                effectiveProtocolDomains.length - 1,
+                                prev + 1
+                              )
+                            );
+                            scrollDrawerIntoCenter(protoDrawerRef);
+                          }}
+                        >
+                          {t("sd_proto_next_rule", "Next Domain")}
+                        </ActionButton>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     );

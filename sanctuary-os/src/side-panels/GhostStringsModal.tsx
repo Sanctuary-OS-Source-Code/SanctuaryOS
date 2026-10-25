@@ -1,6 +1,16 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
-import { HoverTooltip, cleanSearchName, SidePanel, handleOpenUrl, getModFallbackUrl, getModFallbackAuthor } from "../shared";
+import {
+  HoverTooltip,
+  cleanSearchName,
+  SidePanel,
+  SidePanelHeroCard,
+  UniversalGroup,
+  ActionButton,
+  handleOpenUrl,
+  getModFallbackUrl,
+  getModFallbackAuthor,
+} from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { useStore } from "../store";
 import { supabase } from "../supabase";
@@ -11,10 +21,11 @@ export function GhostStringsModal({
   onClose,
   onIgnore,
   onPurge,
-  onSearch,
 }: any) {
   const { t } = useLexicon();
-  const [ghostsMeta, setGhostsMeta] = useState<Record<string, { is_paid?: boolean, is_early_access?: boolean }>>({});
+  const [ghostsMeta, setGhostsMeta] = useState<
+    Record<string, { is_paid?: boolean; is_early_access?: boolean }>
+  >({});
 
   useEffect(() => {
     if (!ghosts || ghosts.length === 0) return;
@@ -25,173 +36,233 @@ export function GhostStringsModal({
       for (const ghost of ghosts) {
         if (ghostsMeta[ghost]) continue;
         const words = ghost.match(/[a-zA-Z0-9]+/g) || [];
-        const longestWord = words.reduce((a: string, b: string) => a.length > b.length ? a : b, "");
+        const longestWord = words.reduce(
+          (a: string, b: string) => (a.length > b.length ? a : b),
+          ""
+        );
         const baseQuery = longestWord.length >= 4 ? longestWord : "";
-        
+
         if (baseQuery.length > 0) {
-          const { data, error } = await supabase.from('mods').select('id, name, is_paid, is_early_access').ilike('name', `%${baseQuery}%`).limit(30);
+          const { data, error } = await supabase
+            .from("mods")
+            .select("id, name, is_paid, is_early_access")
+            .ilike("name", `%${baseQuery}%`)
+            .limit(30);
           if (!error && data && data.length > 0) {
             const cleanMissingName = cleanSearchName(ghost, schema);
             const cleanMissingNameLower = cleanMissingName.toLowerCase();
-            let dbMatch = data.find((dm: any) => cleanSearchName(dm.name || '', schema).toLowerCase() === cleanMissingNameLower);
+            let dbMatch = data.find(
+              (dm: any) =>
+                cleanSearchName(dm.name || "", schema).toLowerCase() ===
+                cleanMissingNameLower
+            );
             if (!dbMatch) {
               dbMatch = data.find((dm: any) => {
-                const cleanLLower = cleanSearchName(dm.name || '', schema).toLowerCase();
-                const str1 = cleanLLower.replace(/\s+/g, '');
-                const str2 = cleanMissingNameLower.replace(/\s+/g, '');
-                return cleanLLower.length > 10 && (str1.includes(str2) || str2.includes(str1));
+                const cleanLLower = cleanSearchName(
+                  dm.name || "",
+                  schema
+                ).toLowerCase();
+                const str1 = cleanLLower.replace(/\s+/g, "");
+                const str2 = cleanMissingNameLower.replace(/\s+/g, "");
+                return (
+                  cleanLLower.length > 10 &&
+                  (str1.includes(str2) || str2.includes(str1))
+                );
               });
             }
             if (dbMatch) {
-              newMeta[ghost] = { is_paid: dbMatch.is_paid, is_early_access: dbMatch.is_early_access };
+              newMeta[ghost] = {
+                is_paid: dbMatch.is_paid,
+                is_early_access: dbMatch.is_early_access,
+              };
             }
           }
         }
       }
       if (Object.keys(newMeta).length > 0) {
-        setGhostsMeta(prev => ({ ...prev, ...newMeta }));
+        setGhostsMeta((prev) => ({ ...prev, ...newMeta }));
       }
     };
     fetchMeta();
   }, [ghosts]);
 
+  const premiumGhosts = ghosts.filter(
+    (mod: string) => ghostsMeta[mod]?.is_paid || ghostsMeta[mod]?.is_early_access
+  );
+  const standardGhosts = ghosts.filter(
+    (mod: string) =>
+      !ghostsMeta[mod]?.is_paid && !ghostsMeta[mod]?.is_early_access
+  );
+
+  const renderGhostList = (modList: string[]) => (
+    <div className="flex flex-col gap-2.5">
+      {modList.map((mod: string, idx: number) => {
+        const meta = ghostsMeta[mod] || {};
+        const playSet = useStore
+          .getState()
+          .playSets.find((s: any) => s.name === setName);
+        const modHash = playSet?.modHashes?.[mod];
+        const blueprintMeta = playSet?.modMeta?.[mod];
+        const activeSchema = useStore.getState().activeGameSchema;
+        const targetUrl = getModFallbackUrl(
+          mod,
+          modHash,
+          activeSchema,
+          blueprintMeta
+        );
+        const customAuthor = getModFallbackAuthor(
+          modHash,
+          blueprintMeta,
+          mod,
+          activeSchema
+        );
+
+        return (
+          <UniversalCard
+            key={idx}
+            layout="vertical-compact"
+            title={cleanSearchName(mod, activeSchema)}
+            subtitle={
+              customAuthor ? `${customAuthor}` : mod.split("/").pop() || mod
+            }
+            badges={
+              (meta.is_paid || meta.is_early_access) && (
+                <>
+                  {meta.is_early_access && (
+                    <div className="px-2 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] rounded-md flex items-center gap-1">
+                      <span className="material-symbols-outlined !text-[10px] text-[var(--accent)]">
+                        {t("icon_science", "science")}
+                      </span>
+                      <span className="text-[9px] font-black uppercase tracking-wider text-[var(--accent)]">
+                        {t("badge_early_access", "Early Access")}
+                      </span>
+                    </div>
+                  )}
+                  {meta.is_paid && (
+                    <div className="px-2 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] rounded-md flex items-center gap-1">
+                      <span className="material-symbols-outlined !text-[10px] text-[var(--warning)]">
+                        {t("icon_monetization_on", "monetization_on")}
+                      </span>
+                      <span className="text-[9px] font-black uppercase tracking-wider text-[var(--warning)]">
+                        {t("badge_paid", "Paid")}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )
+            }
+            actions={
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handleOpenUrl(targetUrl)}
+                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all text-[var(--subtext)] group/btn relative cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {t("icon_search", "search")}
+                  </span>
+                  <HoverTooltip
+                    title={t("btn_search_network", "Search Web")}
+                    variant="default"
+                    className="group-hover/btn:flex z-[200]"
+                  />
+                </button>
+                <button
+                  onClick={() => onIgnore(mod)}
+                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--warning)] hover:text-[var(--warning)] transition-all text-[var(--subtext)] group/btn relative cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {t("icon_visibility_off", "visibility_off")}
+                  </span>
+                  <HoverTooltip
+                    title={t("btn_ignore_alert", "Ignore")}
+                    variant="default"
+                    className="group-hover/btn:flex z-[200]"
+                  />
+                </button>
+                <button
+                  onClick={() => onPurge(mod)}
+                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[var(--danger)] text-[var(--danger)] transition-all group/btn relative cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {t("icon_delete", "delete")}
+                  </span>
+                  <HoverTooltip
+                    title={t("btn_purge_string", "Remove Reference")}
+                    variant="danger"
+                    className="group-hover/btn:flex z-[200]"
+                  />
+                </button>
+              </div>
+            }
+          />
+        );
+      })}
+    </div>
+  );
+
   return (
     <SidePanel
       isOpen={true}
       onClose={onClose}
-      title={t("title_missing_artifacts")}
-      subtitle={`Found ${ghosts.length} ghosts in ${setName}`}
-      icon="cleaning_services"
-      iconColorClass="text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
+      title={t("title_missing_artifacts", "Missing Artifacts")}
+      subtitle={`${ghosts.length} ${t("vault_missing_artifacts", "Missing")} • ${setName}`}
+      icon={t("icon_cleaning_services", "cleaning_services")}
+      iconColorClass="text-[var(--danger)]"
+      widthClass="w-[580px] max-w-[100vw]"
     >
-      <div className="flex flex-col gap-3 pb-8">
-        {(() => {
-          const premiumGhosts = ghosts.filter((mod: string) => ghostsMeta[mod]?.is_paid || ghostsMeta[mod]?.is_early_access);
-          const standardGhosts = ghosts.filter((mod: string) => !ghostsMeta[mod]?.is_paid && !ghostsMeta[mod]?.is_early_access);
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_cleaning_services", "cleaning_services")}
+          overline={t("title_missing_artifacts", "Missing Artifacts")}
+          title={setName}
+          description={`${ghosts.length} ${t(
+            "vault_missing_artifacts",
+            "Missing Artifacts"
+          )}`}
+          badge={String(ghosts.length)}
+          badgeIcon={t("icon_warning", "warning")}
+          variant="danger"
+        />
 
-          const renderGhostList = (modList: string[]) => (
-            <div className="flex flex-col gap-3">
-              {modList.map((mod: string, idx: number) => {
-                const meta = ghostsMeta[mod] || {};
-                const playSet = useStore.getState().playSets.find((s: any) => s.name === setName);
-                const modHash = playSet?.modHashes?.[mod];
-                const blueprintMeta = playSet?.modMeta?.[mod];
-                const activeSchema = useStore.getState().activeGameSchema;
-                const targetUrl = getModFallbackUrl(mod, modHash, activeSchema, blueprintMeta);
-                const customAuthor = getModFallbackAuthor(modHash, blueprintMeta, mod, activeSchema);
-                
-                return (
-                  <UniversalCard
-                    key={idx}
-                    layout="vertical-compact"
-                    title={cleanSearchName(mod, activeSchema)}
-                    subtitle={customAuthor ? `By ${customAuthor}` : (mod.split('/').pop() || mod)}
-                    badges={
-                      (meta.is_paid || meta.is_early_access) && (
-                        <>
-                          {meta.is_early_access && (
-                            <div className="px-2 py-1 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-lg flex items-center gap-1 shadow-md">
-                              <span className="material-symbols-outlined !text-[10px] text-purple-500">science</span>
-                              <span className="text-[8px] font-black capitalize tracking-[0.1em] text-purple-500">{t("badge_early_access")}</span>
-                            </div>
-                          )}
-                          {meta.is_paid && (
-                            <div className="px-2 py-1 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-lg flex items-center gap-1 shadow-md">
-                              <span className="material-symbols-outlined !text-[10px] text-yellow-500">monetization_on</span>
-                              <span className="text-[8px] font-black capitalize tracking-[0.1em] text-yellow-500">{t("badge_paid")}</span>
-                            </div>
-                          )}
-                        </>
-                      )
-                    }
-                    actions={
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleOpenUrl(targetUrl)}
-                          className="w-8 h-8 shrink-0 flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] rounded-lg transition-all text-[var(--text)] opacity-70 hover:opacity-100 group/btn relative"
-                        >
-                          <span className="material-symbols-outlined !text-[16px]">search</span>
-                          <HoverTooltip title={t("btn_search_network")} variant="default" className="group-hover/btn:flex z-[200]" />
-                        </button>
-                        <button
-                          onClick={() => onIgnore(mod)}
-                          className="w-8 h-8 shrink-0 flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:text-amber-500 rounded-lg transition-all text-[var(--text)] opacity-70 hover:opacity-100 group/btn relative"
-                        >
-                          <span className="material-symbols-outlined !text-[16px]">visibility_off</span>
-                          <HoverTooltip title={t("btn_ignore_alert")} variant="default" className="group-hover/btn:flex z-[200]" />
-                        </button>
-                        <button
-                          onClick={() => onPurge(mod)}
-                          className="w-8 h-8 shrink-0 flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:text-red-500 rounded-lg transition-all text-[var(--text)] opacity-70 hover:opacity-100 group/btn relative"
-                        >
-                          <span className="material-symbols-outlined !text-[16px]">delete</span>
-                          <HoverTooltip title={t("btn_purge_string")} variant="danger" className="group-hover/btn:flex z-[200]" />
-                        </button>
-                      </div>
-                    }
-                  />
-                );
-              })}
-            </div>
-          );
+        {premiumGhosts.length > 0 && (
+          <UniversalGroup
+            title={`${t("premium_detected", "Premium / Early Access")} (${premiumGhosts.length})`}
+            icon={t("icon_auto_fix_high", "auto_fix_high")}
+            headerAction={
+              <div className="flex items-center gap-2">
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_visibility_off", "visibility_off")}
+                  label={t("btn_ignore_issue", "Ignore All")}
+                  onClick={() =>
+                    premiumGhosts.forEach((mod: string) => onIgnore(mod))
+                  }
+                />
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_delete", "delete")}
+                  label={t("btn_purge_issue", "Purge All")}
+                  onClick={() =>
+                    premiumGhosts.forEach((mod: string) => onPurge(mod))
+                  }
+                  className="!text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
+                />
+              </div>
+            }
+          >
+            {renderGhostList(premiumGhosts)}
+          </UniversalGroup>
+        )}
 
-          return (
-            <>
-              {premiumGhosts.length > 0 && (
-                <div className="flex flex-col gap-3 mb-4">
-                  <div className="flex items-center gap-3 p-4 glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] shadow-md">
-                    <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-yellow-500">
-                      <span className="material-symbols-outlined !text-[20px]">auto_fix_high</span>
-                    </div>
-                    <div className="flex flex-col flex-1">
-                      <span className="text-xs font-black text-yellow-500 capitalize tracking-widest">{t("premium_detected")}</span>
-                      <span className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-wider opacity-80">
-                        {premiumGhosts.filter((m: string) => ghostsMeta[m]?.is_paid).length} Paid, {premiumGhosts.filter((m: string) => ghostsMeta[m]?.is_early_access).length} Early Access
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          premiumGhosts.forEach((mod: string) => onIgnore(mod));
-                        }}
-                        className="px-3 py-1.5 flex items-center gap-2 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl transition-all"
-                      >
-                        <span className="material-symbols-outlined !text-[14px]">visibility_off</span>
-                        <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_ignore_issue")}</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          premiumGhosts.forEach((mod: string) => onPurge(mod));
-                        }}
-                        className="px-3 py-1.5 flex items-center gap-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl transition-all"
-                      >
-                        <span className="material-symbols-outlined !text-[14px]">delete</span>
-                        <span className="text-[10px] font-black capitalize tracking-widest">{t("btn_purge_issue")}</span>
-                      </button>
-                    </div>
-                  </div>
-                  {renderGhostList(premiumGhosts)}
-                </div>
-              )}
-
-              {standardGhosts.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  {premiumGhosts.length > 0 && (
-                    <div className="flex items-center gap-4 mt-2 mb-2">
-                      <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
-                      <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest opacity-60">{t("standard_artifacts")}</span>
-                      <div className="h-[1px] flex-1 bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] via-transparent to-transparent" />
-                    </div>
-                  )}
-                  {renderGhostList(standardGhosts)}
-                </div>
-              )}
-            </>
-          );
-        })()}
+        {standardGhosts.length > 0 && (
+          <UniversalGroup
+            title={`${t("standard_artifacts", "Standard Artifacts")} (${standardGhosts.length})`}
+            icon={t("icon_inventory_2", "inventory_2")}
+          >
+            {renderGhostList(standardGhosts)}
+          </UniversalGroup>
+        )}
       </div>
     </SidePanel>
   );
 }
-
-

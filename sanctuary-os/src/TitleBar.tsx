@@ -54,7 +54,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
           {workspaces?.length > 0 ? (
             <button
               type="button"
-              className="pointer-events-auto glass-panel portal-glass-fix h-8 px-3.5 !rounded-full flex items-center gap-2 cursor-pointer group/launcher hover:-translate-y-0.5 transition-all duration-300"
+              className="pointer-events-auto glass-panel portal-glass-fix h-8 px-3.5 rounded-xl flex items-center gap-2 cursor-pointer group/launcher hover:-translate-y-0.5 transition-all duration-300"
               onClick={() => setIsWorkspacePanelOpen(true)}
             >
               {activeGameIcon ? (
@@ -72,7 +72,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
               </span>
             </button>
           ) : (
-            <div className="pointer-events-none glass-panel portal-glass-fix h-8 px-3.5 !rounded-full flex items-center gap-2">
+            <div className="pointer-events-none glass-panel portal-glass-fix h-8 px-3.5 rounded-xl flex items-center gap-2">
               <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] opacity-90">
                 {t("icon_sports_esports") || "sports_esports"}
               </span>
@@ -86,7 +86,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
         {/* Right Window Controls Pill */}
         {isDesktop() && (
           <div
-            className="pointer-events-auto glass-panel portal-glass-fix h-8 px-1 !rounded-full flex items-center gap-1"
+            className="pointer-events-auto glass-panel portal-glass-fix h-8 px-1 rounded-xl flex items-center gap-1"
             data-tauri-drag-region
             onMouseDown={async (e) => {
               if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
@@ -103,7 +103,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
             <button
               type="button"
               onClick={async () => { await getCurrentWebviewWindow().minimize(); }}
-              className="w-6 h-6 !rounded-full flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer"
+              className="w-6 h-6 rounded-lg flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-[var(--text)] opacity-70 group-hover/btn:text-[var(--accent)] group-hover/btn:opacity-100 transition-all group-active/btn:scale-90">
                 <path d="M1.75 5H8.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -117,7 +117,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
                 await getCurrentWebviewWindow().toggleMaximize();
                 setTimeout(() => { (window as any).__sanc_manual_max = false; }, 1000);
               }}
-              className="w-6 h-6 !rounded-full flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer"
+              className="w-6 h-6 rounded-lg flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-[var(--text)] opacity-70 group-hover/btn:text-[var(--warning)] group-hover/btn:opacity-100 transition-all group-active/btn:scale-90">
                 <rect x="2" y="2" width="6" height="6" rx="1.4" stroke="currentColor" strokeWidth="1.4" />
@@ -127,7 +127,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
             <button
               type="button"
               onClick={async () => { await getCurrentWebviewWindow().close(); }}
-              className="w-6 h-6 !rounded-full flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer"
+              className="w-6 h-6 rounded-lg flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-[var(--text)] opacity-70 group-hover/btn:text-[var(--danger)] group-hover/btn:opacity-100 transition-all group-active/btn:scale-90">
                 <path d="M2.5 2.5L7.5 7.5M7.5 2.5L2.5 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

@@ -7,92 +7,114 @@ import { isDesktop } from './utils/envUtils';
 
 import { useStore } from './store';
 
-const DEFAULT_CORE_THEMES: any = {
-  // Flagship Premium Dark
+export const DEFAULT_CORE_THEMES: any = {
+  // Flagship Premium Dark — Smoked Obsidian Liquid Glass
   architect: {
     name: "Architect", bg: "#000000", sidebar: "#000000", sidebartext: "#f8fafc", accent: "#38bdf8",
-    text: "#ffffff", subtext: "#94a3b8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
+    text: "#f8fafc", subtext: "#94a3b8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
     panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "10%", glassBlur: "36px", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.3)",
+    glassOpacity: "0.10", glassBlur: "36px", glassSaturation: "185%", glassBorderOpacity: "0.14",
+    glassSpecular: "0.24", glassShadow: "0.42", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.45)",
     bgGradient: "transparent",
     bgImage: "/themes/architect.png",
-    animated: true, ambientOrb: false, ambientNoise: true,
+    animated: true, ambientOrb: false, ambientNoise: false,
     volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
-  // Flagship Premium Light
+  // Flagship Premium Light — Alabaster Crystal Quartz
   radiant: {
-    name: "Radiant", bg: "#fdfdfd", sidebar: "#fdfdfd", sidebartext: "#0f172a", accent: "#ec4899",
-    text: "#020617", subtext: "#475569", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
-    panelTint: "#ffffff", headerText: "#020617", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "30%", glassBlur: "48px", radius: "1rem", shadowColor: "rgba(0,0,0,0.06)",
+    name: "Radiant", bg: "#f1f5f9", sidebar: "#f8fafc", sidebartext: "#0f172a", accent: "#0284c7",
+    text: "#0f172a", subtext: "#475569", success: "#059669", warning: "#d97706", danger: "#dc2626",
+    panelTint: "#ffffff", headerText: "#0f172a", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.18", glassBlur: "34px", glassSaturation: "185%", glassBorderOpacity: "0.46",
+    glassSpecular: "0.52", glassShadow: "0.16", radius: "1.25rem", shadowColor: "rgba(15,23,42,0.08)",
     bgGradient: "transparent",
     bgImage: "/themes/radiant.png",
-    animated: true, ambientOrb: false, ambientNoise: true,
+    animated: true, ambientOrb: false, ambientNoise: false,
     volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
-  // Personality Themes
+  // First Official Partner Community Theme — The Sims 4 ("Plumbob Crystal" — Light Mint & Emerald Quartz)
+  sims4: {
+    name: "Plumbob Crystal", badge: "The Sims 4", bg: "#eefbf5", sidebar: "#f4fdf9", sidebartext: "#064e3b", accent: "#10b981",
+    text: "#064e3b", subtext: "#047857", success: "#059669", warning: "#d97706", danger: "#e11d48",
+    panelTint: "#ffffff", headerText: "#064e3b", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.18", glassBlur: "32px", glassSaturation: "190%", glassBorderOpacity: "0.48",
+    glassSpecular: "0.54", glassShadow: "0.16", radius: "1.5rem", shadowColor: "rgba(6,78,59,0.08)",
+    bgGradient: "transparent",
+    bgImage: "/themes/sims4.png",
+    animated: true, ambientOrb: false, ambientNoise: false,
+    volumetricOrbs: [],
+    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
+    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
+  },
+  // Midnight Boreal Crystal
   aurora: {
-    name: "Aurora", bg: "#000000", sidebar: "#000000", sidebartext: "#f8fafc", accent: "#06b6d4",
+    name: "Aurora", bg: "#030712", sidebar: "#030712", sidebartext: "#f8fafc", accent: "#06b6d4",
     text: "#f8fafc", subtext: "#94a3b8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
-    panelTint: "#0a0a0a", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "10%", glassBlur: "48px", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.8)",
+    panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.10", glassBlur: "36px", glassSaturation: "195%", glassBorderOpacity: "0.14",
+    glassSpecular: "0.26", glassShadow: "0.42", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.45)",
     bgGradient: "transparent",
     bgImage: "/themes/aurora.png",
-    animated: true, ambientOrb: false, ambientNoise: true,
+    animated: true, ambientOrb: false, ambientNoise: false,
     volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
+  // Tactical Stealth Matrix
   bunker: {
-    name: "Bunker", bg: "#020602", sidebar: "#020602", sidebartext: "#00ff41", accent: "#00ff41",
-    text: "#00ff41", subtext: "#008f11", success: "#0ce471", warning: "#ffea00", danger: "#ff003c",
-    panelTint: "#050a05", headerText: "#00ff41", fontFamily: "'Space Mono', monospace", fontSizeBase: "16px",
-    glassOpacity: "5%", glassBlur: "16px", radius: "0rem", shadowColor: "rgba(0,255,65,0.15)",
+    name: "Bunker", bg: "#020604", sidebar: "#020604", sidebartext: "#ecfdf5", accent: "#10b981",
+    text: "#ecfdf5", subtext: "#6ee7b7", success: "#10b981", warning: "#f59e0b", danger: "#f43f5e",
+    panelTint: "#050d08", headerText: "#ecfdf5", fontFamily: "'JetBrains Mono', monospace", fontSizeBase: "16px",
+    glassOpacity: "0.14", glassBlur: "28px", glassSaturation: "180%", glassBorderOpacity: "0.16",
+    glassSpecular: "0.24", glassShadow: "0.48", radius: "0.875rem", shadowColor: "rgba(0,0,0,0.50)",
     bgGradient: "transparent",
     bgImage: "/themes/bunker.png",
-    animated: true, ambientOrb: false, ambientNoise: true, scanlines: true,
+    animated: true, ambientOrb: false, ambientNoise: false,
     volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
+  // Cyberpunk Neon Outrun
   synthwave: {
-    name: "Miami Vice", bg: "#050110", sidebar: "#050110", sidebartext: "#fdf2f8", accent: "#f92aad",
-    text: "#fdf2f8", subtext: "#d8b4e2", success: "#0ce471", warning: "#f9df6d", danger: "#fe4450",
-    panelTint: "#1a0b2e", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "20%", glassBlur: "32px", radius: "1rem", shadowColor: "rgba(0,0,0,0.6)",
+    name: "Miami Vice", bg: "#090214", sidebar: "#090214", sidebartext: "#fdf2f8", accent: "#f43f5e",
+    text: "#fdf2f8", subtext: "#d8b4e2", success: "#10b981", warning: "#facc15", danger: "#fb7185",
+    panelTint: "#120622", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.12", glassBlur: "34px", glassSaturation: "205%", glassBorderOpacity: "0.16",
+    glassSpecular: "0.28", glassShadow: "0.46", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.48)",
     bgGradient: "transparent",
     bgImage: "/themes/synthwave.png",
-    animated: true, ambientOrb: false, ambientNoise: true,
+    animated: true, ambientOrb: false, ambientNoise: false,
     volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
+  // Vampire Nocturne Obsidian
   dracula: {
-    name: "Dracula", bg: "#282a36", sidebar: "#282a36", sidebartext: "#f8f8f2", accent: "#bd93f9",
-    text: "#f8f8f2", subtext: "#6272a4", success: "#50fa7b", warning: "#f1fa8c", danger: "#ff5555",
-    panelTint: "#282a36", headerText: "#f8f8f2", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.25", glassBlur: "32px", radius: "1rem", shadowColor: "rgba(0,0,0,0.6)",
+    name: "Dracula", bg: "#12101b", sidebar: "#12101b", sidebartext: "#f8f8f2", accent: "#c084fc",
+    text: "#f8fafc", subtext: "#a5b4fc", success: "#34d399", warning: "#fbbf24", danger: "#f87171",
+    panelTint: "#161224", headerText: "#f8f8f2", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.12", glassBlur: "34px", glassSaturation: "190%", glassBorderOpacity: "0.16",
+    glassSpecular: "0.26", glassShadow: "0.46", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.48)",
     bgGradient: "transparent",
     bgImage: "/themes/dracula.png",
-    panelBackground: "linear-gradient(135deg, rgba(189,147,249,0.15) 0%, rgba(255,121,198,0.05) 100%)",
-    panelBorder: "1px solid rgba(189, 147, 249, 0.4)",
-    panelShadow: "0 16px 32px rgba(0, 0, 0, 0.5), 0 0 30px rgba(189, 147, 249, 0.15)",
-    panelInnerShadow: "inset 0 1px 2px rgba(189, 147, 249, 0.3), inset 0 0 15px rgba(255, 121, 198, 0.1)",
-    animated: true, ambientOrb: false, ambientNoise: true,
+    animated: true, ambientOrb: false, ambientNoise: false,
+    volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
+  // Pure Window-Pane Optical Crystal
   true_glass: {
-    name: "True Glass", bg: "transparent", sidebar: "transparent", sidebartext: "#f8fafc", accent: "#ffffff",
-    text: "#ffffff", subtext: "#94a3b8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
+    name: "True Glass", bg: "#000000", sidebar: "#000000", sidebartext: "#f8fafc", accent: "#38bdf8",
+    text: "#ffffff", subtext: "#cbd5e1", success: "#34d399", warning: "#fbbf24", danger: "#f87171",
     panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.05", glassBlur: "16px", radius: "1rem", shadowColor: "rgba(0,0,0,0.15)",
+    glassOpacity: "0.06", glassBlur: "40px", glassSaturation: "200%", glassBorderOpacity: "0.20",
+    glassSpecular: "0.32", glassShadow: "0.38", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.36)",
     bgGradient: "transparent",
-    bgImage: "",
+    bgImage: "/themes/architect.png",
     animated: true, ambientOrb: false, ambientNoise: false,
     volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
@@ -176,130 +198,143 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
   };
 
   if (isLight) {
-    // 3D Crystal Quartz Optical Model for Light Themes:
-    // Genuinely translucent (14%–22% base tint) with soft, borderless-feeling edges (zero dark 1px rings!)
-    const lightPanelAlpha = Math.max(0.12, Math.min(0.28, rawOpacity * 0.55));
-    const lightSurfaceAlpha = Math.max(0.08, Math.min(0.20, surfaceOpacity * 0.45));
-    const lightShadowScale = Math.max(0.05, Math.min(0.14, shadowOpacity * 0.18));
+    // 3D Liquid Crystal Optical Model for Light Themes:
+    // Clear, glossy water-droplet quartz with tight curved meniscus rim (never chalky/opaque)
+    const lightPanelAlpha = Math.max(0.12, Math.min(0.68, rawOpacity * 0.90));
+    const lightSurfaceAlpha = Math.max(0.08, Math.min(0.55, lightPanelAlpha * 0.72));
+    const lightShadowScale = Math.max(0.06, Math.min(0.24, shadowOpacity * 0.50));
+    const lightBorderTop = Math.max(0.45, Math.min(0.95, borderOpacity * 1.65));
+    const lightSpecTop = Math.max(0.45, Math.min(0.95, specularOpacity * 1.55));
 
     vars['--glass-base-fill'] = `rgba(${tr}, ${tg}, ${tb}, ${lightPanelAlpha.toFixed(3)})`;
     vars['--glass-surface-fill'] = `rgba(${tr}, ${tg}, ${tb}, ${lightSurfaceAlpha.toFixed(3)})`;
-    vars['--glass-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.08) 38%, transparent 68%, rgba(${accR}, ${accG}, ${accB}, 0.04) 100%)`;
-    vars['--glass-surface-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0.04) 45%, transparent 75%)`;
+    vars['--glass-meniscus-top'] = `linear-gradient(180deg, rgba(255, 255, 255, ${(lightSpecTop * 0.58).toFixed(3)}) 0%, rgba(255, 255, 255, ${(lightSpecTop * 0.12).toFixed(3)}) 9%, transparent 20%, transparent 86%, rgba(255, 255, 255, ${(lightSpecTop * 0.24).toFixed(3)}) 100%)`;
+    vars['--glass-sheen'] = `radial-gradient(85% 55% at 15% 0%, rgba(255, 255, 255, ${(lightSpecTop * 0.48).toFixed(3)}) 0%, rgba(255, 255, 255, ${(lightSpecTop * 0.10).toFixed(3)}) 42%, transparent 72%)`;
+    vars['--glass-surface-sheen'] = `linear-gradient(180deg, rgba(255, 255, 255, ${(lightSpecTop * 0.38).toFixed(3)}) 0%, rgba(255, 255, 255, 0.04) 18%, transparent 45%)`;
 
-    // Delicate, semi-translucent white glass bevel (never a solid white or dark outline)
-    vars['--glass-border-top'] = `rgba(255, 255, 255, 0.50)`;
-    vars['--glass-border-left'] = `rgba(255, 255, 255, 0.38)`;
-    vars['--glass-border-right'] = `rgba(255, 255, 255, 0.22)`;
-    vars['--glass-border-bottom'] = `rgba(255, 255, 255, 0.18)`;
-    vars['--glass-surface-border'] = `rgba(255, 255, 255, 0.26)`;
+    // Crisp 4-sided wet-quartz rim
+    vars['--glass-border-top'] = `rgba(255, 255, 255, ${lightBorderTop.toFixed(3)})`;
+    vars['--glass-border-left'] = `rgba(255, 255, 255, ${(lightBorderTop * 0.80).toFixed(3)})`;
+    vars['--glass-border-right'] = `rgba(255, 255, 255, ${(lightBorderTop * 0.55).toFixed(3)})`;
+    vars['--glass-border-bottom'] = `rgba(255, 255, 255, ${(lightBorderTop * 0.62).toFixed(3)})`;
+    vars['--glass-surface-border'] = `rgba(255, 255, 255, ${(lightBorderTop * 0.60).toFixed(3)})`;
 
-    // 3-sided 3D Liquid Glass Specular Bevel (Light Theme)
-    vars['--glass-inset-highlight'] = `inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.62), inset 1px 0 1px 0 rgba(255, 255, 255, 0.34), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.16)`;
-    vars['--glass-surface-inset-highlight'] = `inset 0 1px 1px 0 rgba(255, 255, 255, 0.44), inset 1px 0 1px 0 rgba(255, 255, 255, 0.22)`;
+    // Tight 4-sided 3D Liquid Meniscus Ring (Light Theme)
+    vars['--glass-inset-highlight'] = `inset 0 1.5px 0.5px 0 rgba(255, 255, 255, ${lightSpecTop.toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.68).toFixed(3)}), inset 0 -1.5px 1px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.45).toFixed(3)}), inset -1.5px 0 1px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.32).toFixed(3)}), inset 0 4px 10px -2px rgba(255, 255, 255, ${(lightSpecTop * 0.36).toFixed(3)}), inset 0 -4px 10px -2px rgba(255, 255, 255, ${(lightSpecTop * 0.18).toFixed(3)})`;
+    vars['--glass-surface-inset-highlight'] = `inset 0 1px 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.82).toFixed(3)}), inset 1px 0 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.50).toFixed(3)}), inset 0 -1px 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.28).toFixed(3)})`;
 
-    // Pure soft ambient elevation shadows (NO 0 0 0 1px dark slate ring!)
-    vars['--glass-outer-shadow'] = `0 16px 36px -8px rgba(15, 23, 42, ${lightShadowScale.toFixed(3)}), 0 4px 12px -2px rgba(15, 23, 42, ${(lightShadowScale * 0.50).toFixed(3)})`;
+    // Pure soft ambient elevation shadows
+    vars['--glass-outer-shadow'] = `0 18px 38px -8px rgba(15, 23, 42, ${lightShadowScale.toFixed(3)}), 0 6px 14px -3px rgba(15, 23, 42, ${(lightShadowScale * 0.52).toFixed(3)})`;
     vars['--glass-surface-outer-shadow'] = `0 6px 14px -3px rgba(15, 23, 42, ${(lightShadowScale * 0.45).toFixed(3)})`;
 
     // Nested Glass inside SidePanels / Modals
-    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.30)`;
-    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.22)`;
-    vars['--glass-nested-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.05) 55%, rgba(255, 255, 255, 0.15) 100%)`;
-    vars['--glass-nested-shadow'] = `0 8px 22px -6px rgba(15, 23, 42, 0.07), 0 2px 6px -1px rgba(15, 23, 42, 0.04), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.58)`;
+    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.20)`;
+    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.14)`;
+    vars['--glass-nested-sheen'] = `radial-gradient(85% 55% at 15% 0%, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.06) 45%, transparent 75%)`;
+    vars['--glass-nested-shadow'] = `0 10px 24px -6px rgba(15, 23, 42, 0.08), 0 3px 8px -2px rgba(15, 23, 42, 0.04), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.78)`;
 
     // Chrome & Containers (Sidebar, SidePanel Drawer, Floating Pills, Card Banner/Icon)
-    vars['--glass-sidebar-bg'] = `rgba(${sbR}, ${sbG}, ${sbB}, ${Math.max(0.18, Math.min(0.32, rawOpacity * 0.62)).toFixed(3)})`;
-    vars['--glass-sidebar-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.48) 0%, rgba(255, 255, 255, 0.08) 38%, rgba(${accR}, ${accG}, ${accB}, 0.06) 72%, rgba(255, 255, 255, 0.16) 100%)`;
-    vars['--glass-sidebar-shadow'] = `0 22px 48px -10px rgba(15, 23, 42, 0.12), 0 6px 18px -4px rgba(15, 23, 42, 0.07), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.68), inset 1.5px 0 1px 0 rgba(255, 255, 255, 0.42), inset -1px 0 1px 0 rgba(${accR}, ${accG}, ${accB}, 0.12), inset 0 -1.5px 1px 0 rgba(255, 255, 255, 0.22)`;
-    vars['--glass-drawer-bg'] = `rgba(255, 255, 255, ${Math.max(0.24, Math.min(0.42, rawOpacity * 0.72)).toFixed(3)})`;
-    vars['--glass-drawer-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.46) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(${accR}, ${accG}, ${accB}, 0.05) 100%)`;
-    vars['--glass-drawer-shadow'] = `-20px 0 50px rgba(15, 23, 42, 0.12), 0 20px 50px rgba(15, 23, 42, 0.10), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.65), inset 1.5px 0 1px 0 rgba(255, 255, 255, 0.40)`;
-    vars['--glass-portal-bg'] = `rgba(255, 255, 255, 0.36)`;
-    vars['--glass-portal-sheen'] = `linear-gradient(165deg, rgba(255, 255, 255, 0.52) 0%, rgba(255, 255, 255, 0.10) 42%, rgba(${accR}, ${accG}, ${accB}, 0.07) 100%)`;
-    vars['--glass-portal-shadow'] = `0 18px 40px -8px rgba(15, 23, 42, 0.15), 0 6px 16px -4px rgba(15, 23, 42, 0.09), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.70), inset 1px 0 1px 0 rgba(255, 255, 255, 0.40), inset 0 -1.5px 1.5px 0 rgba(${accR}, ${accG}, ${accB}, 0.12)`;
+    vars['--glass-sidebar-bg'] = `rgba(${sbR}, ${sbG}, ${sbB}, ${Math.max(0.16, Math.min(0.58, lightPanelAlpha + 0.02)).toFixed(3)})`;
+    vars['--glass-sidebar-sheen'] = `radial-gradient(90% 45% at 20% 0%, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.06) 45%, transparent 75%)`;
+    vars['--glass-sidebar-shadow'] = `0 22px 48px -10px rgba(15, 23, 42, 0.12), 0 6px 18px -4px rgba(15, 23, 42, 0.07), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.80), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, 0.52), inset 0 -1.5px 1px 0 rgba(255, 255, 255, 0.34), inset 0 4px 12px -2px rgba(255, 255, 255, 0.28)`;
+    vars['--glass-drawer-bg'] = `rgba(255, 255, 255, ${Math.max(0.20, Math.min(0.62, lightPanelAlpha + 0.04)).toFixed(3)})`;
+    vars['--glass-drawer-sheen'] = `radial-gradient(90% 45% at 20% 0%, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.05) 45%, transparent 75%)`;
+    vars['--glass-drawer-shadow'] = `-20px 0 50px rgba(15, 23, 42, 0.12), 0 20px 50px rgba(15, 23, 42, 0.10), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.78), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, 0.48), inset 0 4px 12px -2px rgba(255, 255, 255, 0.25)`;
+    vars['--glass-portal-bg'] = `rgba(255, 255, 255, ${Math.max(0.24, Math.min(0.66, lightPanelAlpha + 0.08)).toFixed(3)})`;
+    vars['--glass-portal-sheen'] = `radial-gradient(85% 55% at 15% 0%, rgba(255, 255, 255, 0.48) 0%, rgba(255, 255, 255, 0.08) 45%, transparent 75%)`;
+    vars['--glass-portal-shadow'] = `0 18px 40px -8px rgba(15, 23, 42, 0.15), 0 6px 16px -4px rgba(15, 23, 42, 0.09), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.80), inset 1px 0 0.5px 0 rgba(255, 255, 255, 0.48)`;
     vars['--glass-backdrop-dim'] = `rgba(15, 23, 42, 0.06)`;
-    vars['--glass-card-banner-bg'] = `linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 70%, rgba(15, 23, 42, 0.03) 100%)`;
-    vars['--glass-card-icon-bg'] = `rgba(255, 255, 255, 0.34)`;
-    vars['--glass-card-icon-border'] = `rgba(255, 255, 255, 0.48)`;
-    vars['--glass-card-icon-shadow'] = `0 8px 18px -4px rgba(15, 23, 42, 0.08), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.62)`;
-    vars['--glass-nav-active-bg'] = `rgba(255, 255, 255, 0.38)`;
-    vars['--glass-nav-active-shadow'] = `0 4px 12px -2px rgba(15, 23, 42, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.48)`;
+    vars['--glass-card-banner-bg'] = `linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.03) 65%, transparent 100%)`;
+    vars['--glass-card-icon-bg'] = `rgba(255, 255, 255, 0.32)`;
+    vars['--glass-card-icon-border'] = `rgba(255, 255, 255, 0.65)`;
+    vars['--glass-card-icon-shadow'] = `0 8px 18px -4px rgba(15, 23, 42, 0.08), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.78), inset 1px 0 0.5px 0 rgba(255, 255, 255, 0.45)`;
+    vars['--glass-nav-active-bg'] = `rgba(255, 255, 255, 0.36)`;
+    vars['--glass-nav-active-shadow'] = `0 6px 14px -2px rgba(15, 23, 42, 0.06), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.72), inset 1px 0 0.5px 0 rgba(255, 255, 255, 0.40)`;
   } else {
-    // 3D Liquid Glass Optical Model for Dark Themes:
-    // Sheer smoked optical crystal base (8%–18% tint so ~86% of refracted background shines through)
+    // 3D Water-Droplet Liquid Glass Optical Model for Dark Themes (visionOS / iOS 26 Physics):
+    // Unlike matte "Frosted Glass" (which clouds the middle of the card with a milky grey haze),
+    // true "Liquid Glass" is CRYSTAL-CLEAR and deep in the center (low base tint opacity, zero milky fog across the middle)
+    // while concentrating intense 3D specular refraction & wet meniscus light along the curved perimeter rim!
     const tintYiq = ((tr * 299) + (tg * 587) + (tb * 114)) / 1000;
     const isBrightTint = tintYiq >= 160;
     const darkPanelAlpha = currentTheme.bg === 'transparent'
-      ? Math.max(0.05, Math.min(0.16, rawOpacity))
-      : Math.max(0.08, Math.min(0.18, 0.05 + rawOpacity * 0.38));
-    const darkSurfaceAlpha = Math.max(0.06, Number((darkPanelAlpha * 0.68).toFixed(3)));
+      ? Math.max(0.05, Math.min(0.65, rawOpacity))
+      : rawOpacity <= 0.18
+        ? Math.max(0.08, Math.min(0.18, 0.04 + rawOpacity * 0.65))
+        : Math.max(0.18, Math.min(0.70, 0.18 + (rawOpacity - 0.18) * 0.85));
+    const darkSurfaceAlpha = Math.max(0.06, Number((darkPanelAlpha * 0.72).toFixed(3)));
 
-    const baseR = isBrightTint ? Math.max(4, bgR) : tr;
-    const baseG = isBrightTint ? Math.max(8, bgG) : tg;
-    const baseB = isBrightTint ? Math.max(14, bgB) : tb;
+    // Deep, crystal-clear dark obsidian base (never milky grey!) so refracted colors & black depth shine through clearly
+    const baseR = isBrightTint ? Math.max(4, Math.min(12, bgR + 4)) : Math.round(tr * 0.85);
+    const baseG = isBrightTint ? Math.max(6, Math.min(16, bgG + 6)) : Math.round(tg * 0.85);
+    const baseB = isBrightTint ? Math.max(12, Math.min(24, bgB + 12)) : Math.round(tb * 0.85);
 
-    const sheenEdgeAlpha = Math.max(0.09, Math.min(0.15, rawOpacity * 0.82));
-    const surfaceSheenEdgeAlpha = Math.max(0.065, sheenEdgeAlpha * 0.75);
+    const specScale = Math.max(0.40, Math.min(2.2, specularOpacity / 0.24));
+    // Tight top/bottom meniscus curve (fades to 0% transparent by 13% so the center 76% of the card is 100% crystal-clear!)
+    const meniscusTopAlpha = Math.max(0.10, Math.min(0.32, 0.18 * specScale));
+    // Crisp wet-lens corner catchlight (kisses top-left 0–16% and bottom-right 84–100%, with 28–84% 100% transparent!)
+    const sheenEdgeAlpha = Math.max(0.08, Math.min(0.26, 0.15 * specScale));
+    const surfaceSheenEdge = Math.max(0.06, sheenEdgeAlpha * 0.78);
 
-    const topBorderAlpha = Math.max(0.18, Math.min(0.28, borderOpacity * 1.45));
-    const leftBorderAlpha = Math.max(0.12, Math.min(0.20, borderOpacity * 1.05));
-    const rightBorderAlpha = Math.max(0.06, Math.min(0.11, borderOpacity * 0.55));
-    const bottomBorderAlpha = Math.max(0.05, Math.min(0.09, borderOpacity * 0.45));
-    const outerShadowMain = Math.min(0.58, shadowOpacity * 1.05);
-    const outerShadowAmbient = Math.min(0.36, shadowOpacity * 0.60);
+    const topBorderAlpha = Math.max(0.32, Math.min(0.78, borderOpacity * 2.85));
+    const leftBorderAlpha = Math.max(0.20, Math.min(0.55, borderOpacity * 1.85));
+    const rightBorderAlpha = Math.max(0.12, Math.min(0.38, borderOpacity * 1.15));
+    const bottomBorderAlpha = Math.max(0.16, Math.min(0.45, borderOpacity * 1.45));
+    const outerShadowMain = Math.max(0.28, Math.min(0.74, shadowOpacity * 1.22));
+    const outerShadowAmbient = Math.max(0.16, Math.min(0.48, shadowOpacity * 0.72));
 
     vars['--glass-base-fill'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${darkPanelAlpha.toFixed(3)})`;
     vars['--glass-surface-fill'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${darkSurfaceAlpha.toFixed(3)})`;
+    vars['--glass-meniscus-top'] = `linear-gradient(180deg, rgba(255, 255, 255, ${meniscusTopAlpha.toFixed(3)}) 0%, rgba(255, 255, 255, ${(meniscusTopAlpha * 0.18).toFixed(3)}) 6%, transparent 13%, transparent 90%, rgba(255, 255, 255, ${(meniscusTopAlpha * 0.36).toFixed(3)}) 100%)`;
+    vars['--glass-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${sheenEdgeAlpha.toFixed(3)}) 0%, rgba(255, 255, 255, ${(sheenEdgeAlpha * 0.20).toFixed(3)}) 16%, transparent 28%, transparent 84%, rgba(255, 255, 255, ${(sheenEdgeAlpha * 0.32).toFixed(3)}) 100%)`;
+    vars['--glass-surface-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${surfaceSheenEdge.toFixed(3)}) 0%, rgba(255, 255, 255, 0.02) 18%, transparent 32%, transparent 86%, rgba(255, 255, 255, ${(surfaceSheenEdge * 0.28).toFixed(3)}) 100%)`;
 
-    // Single-layer 3D Liquid Glass Specular Sheen (MUST be 1 gradient layer so 4-layer background-size matches 1:1!)
-    vars['--glass-sheen'] = `linear-gradient(125deg, rgba(255, 255, 255, ${sheenEdgeAlpha.toFixed(3)}) 0%, rgba(255, 255, 255, 0.025) 32%, rgba(${accR}, ${accG}, ${accB}, 0.075) 68%, rgba(${baseR}, ${baseG}, ${baseB}, 0.14) 100%)`;
-    vars['--glass-surface-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${surfaceSheenEdgeAlpha.toFixed(3)}) 0%, rgba(255, 255, 255, 0.015) 42%, transparent 72%)`;
-
-    // Luminous 3D crystal borders (bright top-left light source, soft bottom-right rim)
+    // Crisp 4-sided wet crystal rim (including refractive bottom counter-rim)
     vars['--glass-border-top'] = `rgba(255, 255, 255, ${topBorderAlpha.toFixed(3)})`;
     vars['--glass-border-left'] = `rgba(255, 255, 255, ${leftBorderAlpha.toFixed(3)})`;
     vars['--glass-border-right'] = `rgba(255, 255, 255, ${rightBorderAlpha.toFixed(3)})`;
     vars['--glass-border-bottom'] = `rgba(255, 255, 255, ${bottomBorderAlpha.toFixed(3)})`;
-    vars['--glass-surface-border'] = `rgba(255, 255, 255, ${Math.min(0.14, borderOpacity * 0.75).toFixed(3)})`;
+    vars['--glass-surface-border'] = `rgba(255, 255, 255, ${Math.max(0.15, Math.min(0.40, borderOpacity * 1.25)).toFixed(3)})`;
 
-    // 3-sided 3D Liquid Glass Curved Specular Rim (top catchlight + left bevel + bottom internal reflection)
-    const specTop = Math.max(0.18, Math.min(0.28, specularOpacity * 0.78));
-    const specLeft = Math.max(0.09, Math.min(0.15, specularOpacity * 0.38));
-    const specBottom = Math.max(0.04, Math.min(0.07, specularOpacity * 0.18));
-    vars['--glass-inset-highlight'] = `inset 0 1.5px 1px 0 rgba(255, 255, 255, ${specTop.toFixed(3)}), inset 1px 0 1px 0 rgba(255, 255, 255, ${specLeft.toFixed(3)}), inset 0 -1px 1px 0 rgba(255, 255, 255, ${specBottom.toFixed(3)})`;
-    vars['--glass-surface-inset-highlight'] = `inset 0 1px 1px 0 rgba(255, 255, 255, ${(specTop * 0.72).toFixed(3)}), inset 1px 0 1px 0 rgba(255, 255, 255, ${(specLeft * 0.72).toFixed(3)})`;
+    // Tight, High-Intensity 4-Sided 3D Liquid Meniscus Ring (Zero wide cloudy inner fog!)
+    const specTop = Math.max(0.48, Math.min(0.92, specularOpacity * 2.65));
+    const specLeft = Math.max(0.25, Math.min(0.58, specularOpacity * 1.45));
+    const specBottom = Math.max(0.18, Math.min(0.42, specularOpacity * 0.95));
+    const meniscusLipTop = Math.max(0.10, Math.min(0.24, specularOpacity * 0.58));
+    const meniscusLipBottom = Math.max(0.05, Math.min(0.14, specularOpacity * 0.32));
+    vars['--glass-inset-highlight'] = `inset 0 1.5px 0.5px 0 rgba(255, 255, 255, ${specTop.toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, ${specLeft.toFixed(3)}), inset 0 -1.5px 1px 0 rgba(255, 255, 255, ${specBottom.toFixed(3)}), inset -1.5px 0 1px 0 rgba(255, 255, 255, ${(specBottom * 0.74).toFixed(3)}), inset 0 3px 7px -1px rgba(255, 255, 255, ${meniscusLipTop.toFixed(3)}), inset 0 -3px 7px -1px rgba(255, 255, 255, ${meniscusLipBottom.toFixed(3)})`;
+    vars['--glass-surface-inset-highlight'] = `inset 0 1px 0.5px 0 rgba(255, 255, 255, ${(specTop * 0.82).toFixed(3)}), inset 1px 0 0.5px 0 rgba(255, 255, 255, ${(specLeft * 0.80).toFixed(3)}), inset 0 -1px 0.5px 0 rgba(255, 255, 255, ${(specBottom * 0.70).toFixed(3)})`;
 
     // Deep External 3D Elevation Shadow
-    vars['--glass-outer-shadow'] = `0 18px 40px -10px rgba(0, 0, 0, ${outerShadowMain.toFixed(3)}), 0 6px 16px -4px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)})`;
-    vars['--glass-surface-outer-shadow'] = `0 6px 16px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 0.70).toFixed(3)})`;
+    vars['--glass-outer-shadow'] = `0 20px 44px -10px rgba(0, 0, 0, ${outerShadowMain.toFixed(3)}), 0 8px 20px -4px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)})`;
+    vars['--glass-surface-outer-shadow'] = `0 8px 18px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 0.78).toFixed(3)})`;
 
-    // Nested Glass inside SidePanels / Modals (Sheer luminous Liquid Glass!)
-    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.055)`;
-    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.045)`;
-    vars['--glass-nested-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.018) 45%, rgba(255, 255, 255, 0.03) 100%)`;
-    vars['--glass-nested-shadow'] = `0 12px 28px -6px rgba(0, 0, 0, 0.34), 0 4px 10px -2px rgba(0, 0, 0, 0.20), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.22), inset 1px 0 1px 0 rgba(255, 255, 255, 0.10)`;
+    // Nested Glass inside SidePanels / Modals (Crystal-clear raised lenses with sharp 3D liquid rims)
+    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.032)`;
+    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.024)`;
+    vars['--glass-nested-sheen'] = `radial-gradient(80% 50% at 14% 0%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 40%, transparent 70%)`;
+    vars['--glass-nested-shadow'] = `0 12px 28px -6px rgba(0, 0, 0, 0.36), 0 4px 10px -2px rgba(0, 0, 0, 0.22), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, ${Math.max(0.40, specTop * 0.90).toFixed(3)}), inset 1px 0 0.5px 0 rgba(255, 255, 255, ${Math.max(0.20, specLeft * 0.90).toFixed(3)}), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.14)`;
 
     // Chrome & Containers (Sidebar, SidePanel Drawer, Floating Pills, Card Banner/Icon)
-    const drawerTintR = isBrightTint ? baseR : tr;
-    const drawerTintG = isBrightTint ? baseG : tg;
-    const drawerTintB = isBrightTint ? baseB : tb;
-    vars['--glass-sidebar-bg'] = `rgba(${Math.max(6, sbR)}, ${Math.max(10, sbG)}, ${Math.max(18, sbB)}, 0.24)`;
-    vars['--glass-sidebar-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.025) 32%, rgba(${accR}, ${accG}, ${accB}, 0.055) 68%, rgba(255, 255, 255, 0.06) 100%)`;
-    vars['--glass-sidebar-shadow'] = `0 24px 52px -10px rgba(0, 0, 0, 0.62), 0 8px 22px -4px rgba(0, 0, 0, 0.38), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.32), inset 1.5px 0 1px 0 rgba(255, 255, 255, 0.16), inset -1px 0 1px 0 rgba(${accR}, ${accG}, ${accB}, 0.10), inset 0 -1.5px 1px 0 rgba(255, 255, 255, 0.08)`;
-    vars['--glass-drawer-bg'] = `rgba(${drawerTintR}, ${drawerTintG}, ${drawerTintB}, ${Math.max(0.14, Math.min(0.22, darkPanelAlpha + 0.02)).toFixed(3)})`;
-    vars['--glass-drawer-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 44%, transparent 68%, rgba(${accR}, ${accG}, ${accB}, 0.04) 100%)`;
-    vars['--glass-drawer-shadow'] = `-24px 0 60px rgba(0, 0, 0, 0.52), 0 24px 60px rgba(0, 0, 0, 0.42), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.28), inset 1.5px 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.06)`;
-    vars['--glass-portal-bg'] = `rgba(${Math.max(8, drawerTintR)}, ${Math.max(13, drawerTintG)}, ${Math.max(24, drawerTintB)}, 0.36)`;
-    vars['--glass-portal-sheen'] = `linear-gradient(165deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 38%, rgba(8, 13, 24, 0.18) 68%, rgba(${accR}, ${accG}, ${accB}, 0.085) 100%)`;
-    vars['--glass-portal-shadow'] = `0 18px 38px -6px rgba(0, 0, 0, 0.62), 0 6px 14px -2px rgba(0, 0, 0, 0.40), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.36), inset 1px 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1.5px 1.5px 0 rgba(${accR}, ${accG}, ${accB}, 0.12)`;
-    vars['--glass-backdrop-dim'] = `rgba(0, 0, 0, 0.22)`;
-    vars['--glass-card-banner-bg'] = `linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.008) 65%, rgba(0, 0, 0, 0.08) 100%)`;
-    vars['--glass-card-icon-bg'] = `rgba(255, 255, 255, 0.07)`;
-    vars['--glass-card-icon-border'] = `rgba(255, 255, 255, ${Math.min(0.22, borderOpacity * 1.05).toFixed(3)})`;
-    vars['--glass-card-icon-shadow'] = `0 8px 20px -4px rgba(0, 0, 0, 0.34), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.24), inset 1px 0 1px 0 rgba(255, 255, 255, 0.12)`;
-    vars['--glass-nav-active-bg'] = `rgba(255, 255, 255, 0.065)`;
-    vars['--glass-nav-active-shadow'] = `0 8px 20px -4px rgba(0, 0, 0, 0.32), inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.24), inset 1px 0 1px 0 rgba(255, 255, 255, 0.10), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.04)`;
+    const sbGlassR = Math.max(4, Math.min(14, sbR + 4));
+    const sbGlassG = Math.max(6, Math.min(18, sbG + 6));
+    const sbGlassB = Math.max(12, Math.min(26, sbB + 12));
+    vars['--glass-sidebar-bg'] = `rgba(${sbGlassR}, ${sbGlassG}, ${sbGlassB}, ${Math.max(0.18, Math.min(0.58, darkPanelAlpha + 0.04)).toFixed(3)})`;
+    vars['--glass-sidebar-sheen'] = `radial-gradient(90% 40% at 18% 0%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.025) 42%, transparent 72%)`;
+    vars['--glass-sidebar-shadow'] = `0 24px 52px -10px rgba(0, 0, 0, 0.65), 0 8px 22px -4px rgba(0, 0, 0, 0.40), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.55), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, 0.28), inset 0 -1.5px 1px 0 rgba(255, 255, 255, 0.18), inset 0 4px 12px -2px rgba(255, 255, 255, 0.12)`;
+    vars['--glass-drawer-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${Math.max(0.22, Math.min(0.62, darkPanelAlpha + 0.08)).toFixed(3)})`;
+    vars['--glass-drawer-sheen'] = `radial-gradient(90% 40% at 18% 0%, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.02) 42%, transparent 72%)`;
+    vars['--glass-drawer-shadow'] = `-24px 0 60px rgba(0, 0, 0, 0.58), 0 24px 60px rgba(0, 0, 0, 0.46), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.52), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, 0.26), inset 0 -1.5px 1px 0 rgba(255, 255, 255, 0.16), inset 0 4px 12px -2px rgba(255, 255, 255, 0.10)`;
+    vars['--glass-portal-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${Math.max(0.26, Math.min(0.68, darkPanelAlpha + 0.12)).toFixed(3)})`;
+    vars['--glass-portal-sheen'] = `radial-gradient(85% 50% at 15% 0%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 42%, transparent 72%)`;
+    vars['--glass-portal-shadow'] = `0 20px 42px -6px rgba(0, 0, 0, 0.64), 0 8px 18px -2px rgba(0, 0, 0, 0.42), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.58), inset 1px 0 0.5px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.18)`;
+    vars['--glass-backdrop-dim'] = `rgba(0, 0, 0, 0.24)`;
+    vars['--glass-card-banner-bg'] = `linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 50%, transparent 100%)`;
+    vars['--glass-card-icon-bg'] = `rgba(255, 255, 255, 0.045)`;
+    vars['--glass-card-icon-border'] = `rgba(255, 255, 255, ${Math.max(0.24, Math.min(0.45, borderOpacity * 1.65)).toFixed(3)})`;
+    vars['--glass-card-icon-shadow'] = `0 8px 20px -4px rgba(0, 0, 0, 0.38), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.48), inset 1px 0 0.5px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0.5px 0 rgba(255, 255, 255, 0.12)`;
+    vars['--glass-nav-active-bg'] = `rgba(255, 255, 255, 0.055)`;
+    vars['--glass-nav-active-shadow'] = `0 8px 20px -4px rgba(0, 0, 0, 0.36), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.52), inset 1px 0 0.5px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0.5px 0 rgba(255, 255, 255, 0.12)`;
   }
 
   return vars;
@@ -307,7 +342,7 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
 
 const refractedWallpaperCache = new Map<string, string>();
 
-function generateRefractedWallpaperDataUrl(
+export function generateRefractedWallpaperDataUrl(
   bgImage: string,
   blurPx: number,
   saturation: string,
@@ -315,11 +350,14 @@ function generateRefractedWallpaperDataUrl(
   vw: number,
   vh: number
 ): Promise<string> {
+  const isMobileViewport = vw <= 768;
   const viewportAspect = vw / Math.max(1, vh);
   const aspectBucket = Math.round(viewportAspect * 100) / 100;
-  const isMobileViewport = vw <= 768;
-  const modeTag = isMobileViewport ? 'mob' : 'desk';
-  const cacheKey = `${bgImage}::${blurPx}::${saturation}::${fallbackBg}::${aspectBucket}::${modeTag}::v6`;
+  const satPct = Math.max(80, Math.min(280, Math.round(parseFloat(String(saturation || '185')) || 185)));
+  // Natural optical saturation (128% at default 185%) so dark concrete stays deep obsidian while neon beams refract vividly
+  const effectiveSat = Math.max(100, Math.min(165, Math.round(128 * (satPct / 185))));
+  const cleanBlur = Math.max(0, Math.min(80, Math.round(blurPx || 36)));
+  const cacheKey = `${bgImage}::${cleanBlur}::${effectiveSat}::${fallbackBg}::${aspectBucket}::${isMobileViewport ? 'm' : 'd'}::v17`;
   const cached = refractedWallpaperCache.get(cacheKey);
   if (cached) return Promise.resolve(cached);
 
@@ -333,7 +371,7 @@ function generateRefractedWallpaperDataUrl(
         const imgAspect = nw / nh;
         const targetAspect = viewportAspect > 0.2 ? viewportAspect : (16 / 9);
 
-        // Match SystemBackground's `object-fit: cover; object-position: center` crop exactly
+        // Match SystemBackground's `object-fit: cover; object-position: center` crop
         let sx = 0;
         let sy = 0;
         let sw = nw;
@@ -346,12 +384,12 @@ function generateRefractedWallpaperDataUrl(
           sy = (nh - sh) * 0.5;
         }
 
-        const W = isMobileViewport ? Math.max(360, Math.min(540, Math.round(vw))) : 1280;
-        const H = Math.max(1, Math.round(W / targetAspect));
-        const scaleRatio = W / 1920;
+        // High-definition 1280px optical lens canvas (preserves recognizable refracted neon beams & shapes behind each card!)
+        const W = isMobileViewport ? Math.max(360, Math.min(520, Math.round(vw))) : 1280;
+        const H = Math.max(180, Math.round(W / targetAspect));
         const scaledBlur = isMobileViewport
-          ? Math.max(22, Math.min(36, Math.round(blurPx * 0.95)))
-          : Math.max(12, Math.min(24, Math.round(blurPx * scaleRatio * 0.68)));
+          ? Math.max(6, Math.min(16, Math.round(cleanBlur * 0.28)))
+          : Math.max(7, Math.min(18, Math.round(cleanBlur * 0.30)));
         const pad = Math.max(48, scaledBlur * 3);
 
         const padCanvas = document.createElement('canvas');
@@ -378,6 +416,22 @@ function generateRefractedWallpaperDataUrl(
         // Center cropped image
         padCtx.drawImage(img, sx, sy, sw, sh, pad, pad, W, H);
 
+        let blurSource: HTMLCanvasElement = padCanvas;
+        if (isMobileViewport && cleanBlur > 4) {
+          const downFactor = 0.45;
+          const midCanvas = document.createElement('canvas');
+          midCanvas.width = Math.max(140, Math.round(padCanvas.width * downFactor));
+          midCanvas.height = Math.max(140, Math.round(padCanvas.height * downFactor));
+          const midCtx = midCanvas.getContext('2d');
+          if (midCtx) {
+            midCtx.imageSmoothingEnabled = true;
+            midCtx.imageSmoothingQuality = 'high';
+            midCtx.filter = `blur(4px) saturate(${effectiveSat}%)`;
+            midCtx.drawImage(padCanvas, 0, 0, midCanvas.width, midCanvas.height);
+            blurSource = midCanvas;
+          }
+        }
+
         const outCanvas = document.createElement('canvas');
         outCanvas.width = W;
         outCanvas.height = H;
@@ -389,34 +443,16 @@ function generateRefractedWallpaperDataUrl(
 
         outCtx.fillStyle = fallbackBg;
         outCtx.fillRect(0, 0, W, H);
+        outCtx.imageSmoothingEnabled = true;
+        outCtx.imageSmoothingQuality = 'high';
 
-        if (isMobileViewport) {
-          // Progressive downscale + Gaussian blur pass guarantees deep, silky diffusion on mobile portrait crops
-          // even on mobile browsers where ctx.filter has reduced radius or hardware limits
-          const midW = Math.max(64, Math.round(padCanvas.width * 0.28));
-          const midH = Math.max(64, Math.round(padCanvas.height * 0.28));
-          const midCanvas = document.createElement('canvas');
-          midCanvas.width = midW;
-          midCanvas.height = midH;
-          const midCtx = midCanvas.getContext('2d');
-          if (midCtx) {
-            midCtx.imageSmoothingEnabled = true;
-            midCtx.imageSmoothingQuality = 'high';
-            midCtx.filter = `blur(7px) saturate(135%)`;
-            midCtx.drawImage(padCanvas, 0, 0, midW, midH);
-
-            outCtx.imageSmoothingEnabled = true;
-            outCtx.imageSmoothingQuality = 'high';
-            outCtx.filter = `blur(${scaledBlur}px) saturate(135%)`;
-            outCtx.drawImage(midCanvas, -pad, -pad, padCanvas.width, padCanvas.height);
-          } else {
-            outCtx.filter = `blur(${scaledBlur}px) saturate(135%)`;
-            outCtx.drawImage(padCanvas, -pad, -pad, padCanvas.width, padCanvas.height);
-          }
-        } else {
-          outCtx.filter = `blur(${scaledBlur}px) saturate(135%)`;
-          outCtx.drawImage(padCanvas, -pad, -pad, padCanvas.width, padCanvas.height);
-        }
+        // Single-pass crystal-clear optical lens refraction:
+        // Crisp contrast (106%) & vibrant saturation (128%) with gentle lens softening so dark obsidian stays deep black
+        // and neon cyan/purple beams remain recognizable and luminous behind each card!
+        outCtx.globalCompositeOperation = 'source-over';
+        outCtx.globalAlpha = 1.0;
+        outCtx.filter = `blur(${scaledBlur}px) saturate(${effectiveSat}%) contrast(106%) brightness(102%)`;
+        outCtx.drawImage(blurSource, 0, 0, blurSource.width, blurSource.height, -pad, -pad, padCanvas.width, padCanvas.height);
 
         const dataUrl = `url("${outCanvas.toDataURL('image/jpeg', 0.92)}")`;
         refractedWallpaperCache.set(cacheKey, dataUrl);
@@ -432,7 +468,7 @@ function generateRefractedWallpaperDataUrl(
   });
 }
 
-const GLASS_OPTICS_REV = "rev_16";
+const GLASS_OPTICS_REV = "rev_27";
 
 const ThemeContext = createContext<any>(null);
 
@@ -555,7 +591,9 @@ export const ThemeProvider = ({ children }: any) => {
                 const { data } = await client.from('sanctuary_themes').select('*');
                 if (data && data.length > 0) {
                   data.forEach((row: any) => {
-                    fetchedGameThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name, badge: game.name || "Community" };
+                    if (!DEFAULT_CORE_THEMES[row.id]) {
+                      fetchedGameThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name, badge: game.name || "Community" };
+                    }
                   });
                 }
               } catch (err) {
@@ -580,7 +618,9 @@ export const ThemeProvider = ({ children }: any) => {
             
             if (!error && data && data.length > 0) {
               data.forEach((row: any) => {
-                fetchedGameThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name, badge: ws.name || ws.display_name || "Community" };
+                if (!DEFAULT_CORE_THEMES[row.id]) {
+                  fetchedGameThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name, badge: ws.name || ws.display_name || "Community" };
+                }
               });
             }
           } catch (err) {
@@ -597,9 +637,48 @@ export const ThemeProvider = ({ children }: any) => {
     fetchGameThemes();
   }, [wsId, workspaces]);
 
-  const allThemes = { ...customThemes, ...devThemes, ...gameThemes, ...CORE_THEMES };
-  const currentThemeRaw = allThemes[activeThemeIdState] || CORE_THEMES.architect || DEFAULT_CORE_THEMES.architect;
+  const mergedCoreThemes = { ...CORE_THEMES, ...DEFAULT_CORE_THEMES };
+  const allThemes = { ...mergedCoreThemes, ...gameThemes, ...devThemes, ...customThemes };
+  const currentThemeRaw = allThemes[activeThemeIdState] || DEFAULT_CORE_THEMES.architect;
   const currentTheme = { ...currentThemeRaw };
+
+  // Migrate stale auto-forked custom themes that were created from the old navy #091326 / #081121 defaults
+  useEffect(() => {
+    const legacyTints = new Set(['#091326', '#081121', '#1a0628', '#151126', '#0e1116', '#211d1a', '#061524', '#081020']);
+    let hasChanges = false;
+    const nextCustoms: Record<string, any> = { ...customThemes };
+
+    Object.entries(nextCustoms).forEach(([id, th]: [string, any]) => {
+      if (!th || typeof th !== 'object') return;
+      const tint = String(th.panelTint || '').toLowerCase();
+      if (id.startsWith('custom_') && legacyTints.has(tint)) {
+        const baseMatch = id.match(/^custom_([a-z0-9]+)_/i);
+        const baseId = baseMatch ? baseMatch[1] : 'architect';
+        const baseCore = DEFAULT_CORE_THEMES[baseId] || DEFAULT_CORE_THEMES.architect;
+        nextCustoms[id] = {
+          ...th,
+          bg: baseCore.bg,
+          sidebar: baseCore.sidebar,
+          panelTint: baseCore.panelTint,
+          glassOpacity: baseCore.glassOpacity,
+          glassBlur: baseCore.glassBlur,
+          glassSaturation: baseCore.glassSaturation,
+          glassBorderOpacity: baseCore.glassBorderOpacity,
+          glassSpecular: baseCore.glassSpecular,
+          glassShadow: baseCore.glassShadow,
+        };
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      setCustomThemes(nextCustoms);
+      localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(nextCustoms));
+      Object.entries(nextCustoms).forEach(([id, th]) => {
+        saveThemeToVault(id, th, false);
+      });
+    }
+  }, [wsId, customThemes]);
 
   useEffect(() => {
     const scanVault = async () => {
@@ -721,20 +800,12 @@ export const ThemeProvider = ({ children }: any) => {
         root.style.setProperty(`--glassFilter`, `none`);
         root.style.setProperty(`--glassFilterSurface`, `none`);
 
-        const aspect = vw / Math.max(1, vh);
-        const aspectBucket = Math.round(aspect * 100) / 100;
-        const modeTag = vw <= 768 ? 'mob' : 'desk';
-        const cacheKey = `${currentTheme.bgImage}::${blurPx}::${saturation}::${rawBg}::${aspectBucket}::${modeTag}::v6`;
-        const cached = refractedWallpaperCache.get(cacheKey);
-        if (cached) {
-          root.style.setProperty(`--glass-refracted-wallpaper`, cached);
-        } else {
-          generateRefractedWallpaperDataUrl(currentTheme.bgImage, blurPx, saturation, rawBg, vw, vh).then((dataUrl) => {
-            if (!isCancelled) {
-              root.style.setProperty(`--glass-refracted-wallpaper`, dataUrl);
-            }
-          });
-        }
+        const cleanBlur = Math.max(0, Math.min(80, Math.round(blurPx || 32)));
+        generateRefractedWallpaperDataUrl(currentTheme.bgImage, cleanBlur, saturation, rawBg, vw, vh).then((dataUrl) => {
+          if (!isCancelled) {
+            root.style.setProperty(`--glass-refracted-wallpaper`, dataUrl);
+          }
+        });
       } else if (currentTheme.bgGradient && currentTheme.bgGradient !== 'transparent' && currentTheme.bgGradient !== 'none' && currentTheme.bgGradient !== currentTheme.bg) {
         root.style.setProperty(`--bgGradient`, currentTheme.bgGradient);
         root.style.setProperty(`--glass-refracted-wallpaper`, currentTheme.bgGradient);
@@ -785,71 +856,6 @@ export const ThemeProvider = ({ children }: any) => {
       window.removeEventListener('resize', handleResizeWallpaper);
     };
   }, [activeThemeIdState, JSON.stringify(currentTheme), GLASS_OPTICS_REV]);
-
-  useEffect(() => {
-    let rafId = 0;
-    const SELECTOR = '.glass-panel, .glass-surface, nav.firefox-safe-glass, .sa-side-panel-window, .portal-glass-fix';
-
-    const syncGlassViewportCoords = () => {
-      rafId = 0;
-      const vw = window.innerWidth || 1920;
-      const vh = window.innerHeight || 1080;
-      const root = document.documentElement;
-      const vwStr = `${vw}px`;
-      const vhStr = `${vh}px`;
-      if (root.style.getPropertyValue('--sanctuary-vw') !== vwStr) {
-        root.style.setProperty('--sanctuary-vw', vwStr);
-      }
-      if (root.style.getPropertyValue('--sanctuary-vh') !== vhStr) {
-        root.style.setProperty('--sanctuary-vh', vhStr);
-      }
-
-      const nodes = document.querySelectorAll<HTMLElement>(SELECTOR);
-      for (let i = 0; i < nodes.length; i++) {
-        const el = nodes[i];
-        const rect = el.getBoundingClientRect();
-        if (rect.width === 0 && rect.height === 0) continue;
-        const xStr = `${Math.round(rect.left)}px`;
-        const yStr = `${Math.round(rect.top)}px`;
-        if (el.style.getPropertyValue('--glass-x') !== xStr) {
-          el.style.setProperty('--glass-x', xStr);
-        }
-        if (el.style.getPropertyValue('--glass-y') !== yStr) {
-          el.style.setProperty('--glass-y', yStr);
-        }
-      }
-    };
-
-    const scheduleSync = () => {
-      if (rafId === 0) {
-        rafId = requestAnimationFrame(syncGlassViewportCoords);
-      }
-    };
-
-    // Synchronous update on scroll so --glass-y updates in the exact same paint frame with zero lag
-    const onScrollSync = () => {
-      syncGlassViewportCoords();
-    };
-
-    syncGlassViewportCoords();
-    window.addEventListener('scroll', onScrollSync, { capture: true, passive: true });
-    window.addEventListener('resize', scheduleSync, { passive: true });
-
-    const observer = new MutationObserver(scheduleSync);
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    return () => {
-      if (rafId !== 0) cancelAnimationFrame(rafId);
-      window.removeEventListener('scroll', onScrollSync, { capture: true } as any);
-      window.removeEventListener('resize', scheduleSync);
-      observer.disconnect();
-    };
-  }, []);
 
   const saveThemeToVault = (id: string, json: any, isDev: boolean = false) => {
     (async () => {
@@ -922,26 +928,29 @@ export const ThemeProvider = ({ children }: any) => {
   const createNewTheme = () => {
     const id = `signature_${Date.now()}`;
     const newTheme = {
-      name: "NEW SIGNATURE", bg: "#0f172a", sidebar: "#0f172a", sidebartext: "#ffffff", accent: "#ffffff",
-      text: "#ffffff", subtext: "#666666", success: "#00ff41", warning: "#ffea00", danger: "#ff003c",
-      panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px", glassOpacity: "0.03", glassBlur: "16px", radius: "1.5rem", bgGradient: "none", animated: false
+      ...DEFAULT_CORE_THEMES.architect,
+      name: "New Signature",
     };
     const updated = { ...customThemes, [id]: newTheme };
     setCustomThemes(updated);
     setActiveThemeId(id);
-    localStorage.setItem("sanctuary_custom_themes", JSON.stringify(updated));
+    localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(updated));
+    saveThemeToVault(id, newTheme, false);
+    return id;
   };
 
   const createNewDevTheme = (baseTheme: any = null) => {
     const id = `dev_${Date.now()}`;
-    const newTheme = baseTheme ? { ...baseTheme, name: `${baseTheme.name} (Copy)` } : {
-      name: "NEW SIGNATURE", bg: "#0f172a", sidebar: "#0f172a", sidebartext: "#ffffff", accent: "#ffffff",
-      text: "#ffffff", subtext: "#666666", success: "#00ff41", warning: "#ffea00", danger: "#ff003c",
-      panelTint: "#ffffff", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px", glassOpacity: "0.03", glassBlur: "16px", radius: "1.5rem", bgGradient: "none", animated: false
-    };
+    const newTheme = baseTheme
+      ? { ...baseTheme, name: `${baseTheme.name} (Copy)` }
+      : {
+          ...DEFAULT_CORE_THEMES.architect,
+          name: "New Signature",
+        };
     const updated = { ...devThemes, [id]: newTheme };
     setDevThemes(updated);
-    localStorage.setItem("sanctuary_dev_themes", JSON.stringify(updated));
+    localStorage.setItem(`sanctuary_${wsId}_dev_themes`, JSON.stringify(updated));
+    saveThemeToVault(id, newTheme, true);
     return id;
   };
 
@@ -954,7 +963,7 @@ export const ThemeProvider = ({ children }: any) => {
     const newTheme = { ...themeToCopy, name: themeToCopy.name };
     const updatedCustoms = { ...customThemes, [newId]: newTheme };
     setCustomThemes(updatedCustoms);
-    localStorage.setItem("sanctuary_custom_themes", JSON.stringify(updatedCustoms));
+    localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(updatedCustoms));
     saveThemeToVault(newId, newTheme, false);
   };
 
@@ -994,26 +1003,28 @@ export const ThemeProvider = ({ children }: any) => {
       const updatedTheme = { ...devThemes[id], name: newName };
       const updated = { ...devThemes, [id]: updatedTheme };
       setDevThemes(updated);
-      localStorage.setItem("sanctuary_dev_themes", JSON.stringify(updated));
+      localStorage.setItem(`sanctuary_${wsId}_dev_themes`, JSON.stringify(updated));
       saveThemeToVault(id, updatedTheme, true);
     } else {
       if (!customThemes[id]) return;
       const updatedTheme = { ...customThemes[id], name: newName };
       const updated = { ...customThemes, [id]: updatedTheme };
       setCustomThemes(updated);
-      localStorage.setItem("sanctuary_custom_themes", JSON.stringify(updated));
+      localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(updated));
       saveThemeToVault(id, updatedTheme, false);
     }
   };
 
   return (
     <ThemeContext.Provider value={{
-      activeThemeId: activeThemeIdState, setActiveThemeId, currentTheme, CORE_THEMES, setCoreThemes, customThemes, devThemes, gameThemes,
+      activeThemeId: activeThemeIdState, setActiveThemeId, currentTheme, CORE_THEMES: mergedCoreThemes, setCoreThemes, customThemes, devThemes, gameThemes,
       updateActiveTheme, updateTheme, renameTheme, createNewTheme, createNewDevTheme, exportDevThemeToCustom, deleteTheme,
       useGlobalTheme: useGlobalThemeState, setUseGlobalTheme,
       importTheme: (json: any) => {
         const id = `import_${Date.now()}`;
-        setCustomThemes((prev: any) => ({ ...prev, [id]: json }));
+        const nextCustoms = { ...customThemes, [id]: json };
+        setCustomThemes(nextCustoms);
+        localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(nextCustoms));
         setActiveThemeId(id);
         saveThemeToVault(id, json, false);
       }

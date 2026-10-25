@@ -1,4 +1,4 @@
-import { ElevatedHubLayout } from '../components/layouts/ElevatedHubLayout';
+import { ElevatedHubLayout, SidePanelHeroCard, SidePanelTitleInput } from '../components/layouts/ElevatedHubLayout';
 import React, { useState, useEffect } from "react";
 import { supabase, getActiveGameClient, supabaseAuth } from "../supabase";
 import { createClient } from "@supabase/supabase-js";
@@ -10,7 +10,7 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown, ActionPill
+  fetchAllPaginated, CustomTierDropdown, ActionPill, ActionButton, UniversalGroup, StatBox
 } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
@@ -167,7 +167,7 @@ export function AuditLogViewer({
   const uniqueTargets = ["ALL", "MALWARE", ...Array.from(new Set([...ALL_KNOWN_TABLES, ...logs.map(log => log.target_table).filter(Boolean)]))];
   const filterOptions = uniqueTargets.map(target => ({
     id: target,
-    label: target === "ALL" ? (t("all_logs")?.toUpperCase() || "ALL LOGS") : (target === "MALWARE" ? (t("filter_malware_edits")?.toUpperCase() || "MALWARE EDITS") : target.replace(/_/g, ' ').toUpperCase())
+    label: target === "ALL" ? (t("all_logs", "All Logs")?.toUpperCase() || "ALL LOGS") : (target === "MALWARE" ? (t("filter_malware_edits", "Malware Edits")?.toUpperCase() || "MALWARE EDITS") : target.replace(/_/g, ' ').toUpperCase())
   }));
 
   const ALL_KNOWN_GAMES = ["Core OS", ...partnerGames.map(db => db.name)];
@@ -191,28 +191,28 @@ export function AuditLogViewer({
   const content = (
     <ElevatedHubLayout
       hideHeader={isSidePanel}
-      headerTitle={t("audit_logs") || "Audit Logs"}
-      headerSubtitle={t("audit_logs_desc") || "System and user activity logs"}
+      headerTitle={t("audit_logs", "Audit Logs")}
+      headerSubtitle={t("audit_logs_desc", "System and user activity logs")}
       headerIcon="history"
       headerIconColorClass="theme-text-accent"
       search={search}
       onSearchChange={setSearch}
-      searchPlaceholder={t("audit_search") as string}
+      searchPlaceholder={t("audit_search", "Search logs...") as string}
       hideSearch={filterAction === 'overview'}
       activeTab={filterAction === 'overview' ? 'overview' : 'all'}
       onTabChange={(tabId: string) => setFilterAction(tabId === 'overview' ? 'overview' : 'ALL')}
       tabs={isSidePanel ? [] : [
-        { id: "overview", label: t("landing_overview") || "Overview", icon: "dashboard" },
-        { id: "all", label: t("all_logs") || "All Logs", icon: "list", number: logs.length.toString() }
+        { id: "overview", label: t("landing_overview", "Overview"), icon: "dashboard" },
+        { id: "all", label: t("all_logs", "All Logs"), icon: "list", number: logs.length.toString() }
       ]}
       primaryPopover={
         filterAction !== 'overview' ? {
           icon: "tune",
-          label: t("filters") || "Filters",
+          label: t("filters", "Filters"),
           content: (
             <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("auto_filter_logs") || "Action Type"}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("auto_filter_logs", "Action Type")}</span>
                 <CustomDropdown
                   flat={true}
                   disableTint={true}
@@ -220,7 +220,7 @@ export function AuditLogViewer({
                   value={filterAction === 'overview' ? 'ALL' : filterAction}
                   onChange={(v: string[]) => setFilterAction(v[0])}
                   options={filterOptions}
-                  placeholder={t("auto_filter_logs") as string}
+                  placeholder={t("auto_filter_logs", "Action Type") as string}
                   searchable={true}
                 />
               </div>
@@ -234,21 +234,21 @@ export function AuditLogViewer({
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
               <span className="material-symbols-outlined text-[var(--accent)]">schedule</span>
-              <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("recent_activity") || "Recent Activity"}</h3>
+              <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("recent_activity", "Recent Activity")}</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
               {logs.slice(0, 10).map(log => (
                 <div key={"oa_" + log.id} onClick={() => setSelectedLog(log)} className="glass-panel rounded-2xl flex flex-col group cursor-pointer border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] min-h-[160px] p-5 relative overflow-hidden">
                   <div className="flex items-center gap-2 mb-2 w-full">
                     <span className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 truncate">{log.target_table?.replace(/_/g, ' ') || 'Unknown'}</span>
-                    {log.game_name && <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] text-[8px] font-black capitalize tracking-widest shrink-0 shadow-inner ml-auto">{log.game_name}</span>}
+                    {log.game_name && <span className="px-1.5 py-0.5 rounded bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[8px] font-black capitalize tracking-widest shrink-0 ml-auto">{log.game_name}</span>}
                   </div>
                   <span className="text-xs font-black capitalize tracking-widest text-[var(--text)] mb-2 truncate">{log.action}</span>
                   <span className="text-[10px] font-bold text-[var(--subtext)] line-clamp-2">{log.reason || log.actor?.username || ''}</span>
                 </div>
               ))}
               {logs.length === 0 && !loading && (
-                <EmptyState icon="history" title={t("no_logs") || "No Activity Logs"} className="col-span-full py-8" />
+                <EmptyState icon="history" title={t("no_logs", "No Activity Logs")} className="col-span-full py-8" />
               )}
             </div>
           </div>
@@ -256,18 +256,18 @@ export function AuditLogViewer({
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
               <span className="material-symbols-outlined text-purple-400">monitoring</span>
-              <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("system_stats") || "System Stats"}</h3>
+              <h3 className="text-sm font-black text-[var(--text)] tracking-widest uppercase">{t("system_stats", "System Stats")}</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
               <div className="glass-panel rounded-2xl flex flex-col items-center justify-center p-6 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] min-h-[160px]">
                 <span className="material-symbols-outlined !text-[32px] theme-text-accent mb-2">list_alt</span>
                 <span className="text-3xl font-black text-[var(--text)] tracking-widest">{logs.length}</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60 mt-2">{t("total_records") || "Total Records"}</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60 mt-2">{t("total_records", "Total Records")}</span>
               </div>
               <div className="glass-panel rounded-2xl flex flex-col items-center justify-center p-6 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] min-h-[160px]">
                 <span className="material-symbols-outlined !text-[32px] text-purple-400 mb-2">shield</span>
                 <span className="text-3xl font-black text-[var(--text)] tracking-widest">{filterOptions.length - 2}</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60 mt-2">{t("monitored_systems") || "Monitored Systems"}</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--subtext)] opacity-60 mt-2">{t("monitored_systems", "Monitored Systems")}</span>
               </div>
             </div>
           </div>
@@ -303,13 +303,13 @@ export function AuditLogViewer({
                   <div className="flex justify-start items-start w-full relative z-10 mb-4">
                     <div className="flex items-start gap-4 w-full">
                       <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.3)] flex items-center justify-center shrink-0 group-hover:-translate-y-1 transition-transform duration-500">
-                        <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">{t("icon_history")}</span>
+                        <span className="material-symbols-outlined !text-[24px] theme-text-accent drop-shadow-md">{t("icon_history", "history")}</span>
                       </div>
                       <div className="flex flex-col pt-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1 w-full">
                           <span className="text-[9px] font-bold capitalize tracking-[0.2em] text-[var(--subtext)] opacity-60 truncate">{log.target_table?.replace(/_/g, ' ') || 'Unknown'}</span>
                           {log.game_name && (
-                            <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] text-[8px] font-black capitalize tracking-widest shrink-0 shadow-inner ml-auto">
+                            <span className="px-1.5 py-0.5 rounded bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[8px] font-black capitalize tracking-widest shrink-0 ml-auto">
                               {log.game_name}
                             </span>
                           )}
@@ -324,15 +324,15 @@ export function AuditLogViewer({
 
                   <div className="flex justify-between items-end w-full relative z-10 mt-auto pt-4 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
                     <div className="flex flex-col min-w-0 flex-1 pr-2">
-                      <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("audit_actor")}</span>
+                      <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("audit_actor", "Actor")}</span>
                       <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1 flex items-center gap-1 truncate">
-                        <span className="material-symbols-outlined !text-[12px] theme-text-accent shrink-0">{t("icon_person")}</span>
+                        <span className="material-symbols-outlined !text-[12px] theme-text-accent shrink-0">{t("icon_person", "person")}</span>
                         <span className="truncate">{log.actor?.username || log.actor_id?.substring(0, 8) || 'SYSTEM'}</span>
                       </span>
                     </div>
 
                     <div className="flex flex-col items-end shrink-0 pl-2 border-l border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                      <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("sort_date")}</span>
+                      <span className="text-[8px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("sort_date", "Date")}</span>
                       <span className="text-[10px] font-bold text-[var(--text)] opacity-90 mt-1">
                         {new Date(log.created_at).toLocaleDateString()}
                       </span>
@@ -340,85 +340,108 @@ export function AuditLogViewer({
                   </div>
                 </div>
               ))}
-              {filteredLogs.length === 0 && <EmptyState icon={t("icon_history")} title={t("audit_no_logs")} className="col-span-full py-16" />}
+              {filteredLogs.length === 0 && <EmptyState icon={t("icon_history", "history")} title={t("audit_no_logs", "No Audit Logs")} className="col-span-full py-16" />}
             </div>
           )}
         </div>
-
-
       )}
+
       <SidePanel
         isOpen={!!selectedLog}
         onClose={() => setSelectedLog(null)}
-        title={t("audit_details_title")}
-        subtitle={`${t("audit_log_id")}: ${selectedLog?.id?.substring(0, 8).toUpperCase()}`}
-        icon="history"
+        title={t("audit_details_title", "Audit Log Details")}
+        subtitle={`${t("audit_log_id", "Log ID")}: ${selectedLog?.id?.substring(0, 8).toUpperCase() || "--"}`}
+        icon={t("icon_history", "history")}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[680px]"
       >
         {selectedLog && (
-          <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8 pb-32">
-              {selectedLog.game_name && (
-                <div className="flex flex-col gap-2">
-                  <h3 className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)]">{t("env_title")}</h3>
-                  <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)] text-sm font-black tracking-widest capitalize shadow-inner">
-                    {selectedLog.game_name}
+          <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+            <SidePanelHeroCard
+              icon={t("icon_history", "history")}
+              overline={t("audit_logs", "Audit Logs")}
+              title={selectedLog.action || t("audit_action", "Action")}
+              description={selectedLog.reason || t("audit_logs_desc", "System and user activity logs")}
+              badge={selectedLog.game_name || selectedLog.target_table}
+              variant="accent"
+            >
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <StatBox
+                  label={t("audit_target_table", "Target Table")}
+                  value={selectedLog.target_table || "UNKNOWN"}
+                  colorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("audit_timestamp", "Timestamp")}
+                  value={new Date(selectedLog.created_at).toLocaleDateString()}
+                />
+              </div>
+            </SidePanelHeroCard>
+
+            <SidePanelTitleInput
+              value={selectedLog.target_name || selectedLog.target_id || "UNKNOWN"}
+              readOnly
+              subtitle={`${t("audit_target_key", "Target Identifier")} • ${selectedLog.target_table || "Unknown"}`}
+            />
+
+            <UniversalGroup title={t("audit_details_title", "Audit Telemetry")} icon={t("icon_info", "info")}>
+              <div className="flex flex-col gap-3 w-full">
+                {selectedLog.game_name && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-60 text-[var(--subtext)] ml-2">{t("env_title", "Workspace Environment")}</span>
+                    <div className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] text-xs font-black tracking-widest capitalize">
+                      {selectedLog.game_name}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[9px] font-black uppercase tracking-widest opacity-60 text-[var(--subtext)] ml-2">{t("audit_action", "Action Executed")}</span>
+                  <div className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--text)] break-all whitespace-pre-wrap">
+                    {selectedLog.action}
                   </div>
                 </div>
-              )}
 
-              <div className="flex flex-col gap-2">
-                <h3 className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_target_table")}</h3>
-                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)]">
-                  {selectedLog.target_table}
+                {selectedLog.reason && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-60 text-[var(--subtext)] ml-2">{t("audit_reason", "Audit Reason")}</span>
+                    <div className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-xs font-bold text-[var(--text)] whitespace-pre-wrap">
+                      {selectedLog.reason}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[9px] font-black uppercase tracking-widest opacity-60 text-[var(--subtext)] ml-2">{t("audit_timestamp", "Exact Timestamp")}</span>
+                  <div className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-mono font-bold text-[var(--text)]">
+                    {new Date(selectedLog.created_at).toLocaleString()}
+                  </div>
                 </div>
               </div>
+            </UniversalGroup>
 
-              <div className="flex flex-col gap-2">
-                <h3 className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_target_key")}</h3>
-                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)] break-all">
-                  {selectedLog.target_name || selectedLog.target_id || 'UNKNOWN'}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <h3 className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_action")}</h3>
-                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-md text-sm font-bold text-[var(--text)] break-all whitespace-pre-wrap">
-                  {selectedLog.action}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <h3 className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_reason")}</h3>
-                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-md text-sm font-bold text-[var(--text)] whitespace-pre-wrap">
-                  {selectedLog.reason}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <h3 className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_timestamp")}</h3>
-                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)]">
-                  {new Date(selectedLog.created_at).toLocaleString()}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <h3 className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)]">{t("audit_actor")}</h3>
-                <div className="glass-panel rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-sm font-bold text-[var(--text)] flex items-center justify-start">
-                  <span>
-                    {selectedLog.actor ? `${selectedLog.actor.username} ${selectedLog.actor.is_banned ? '(BANNED)' : ''}` : selectedLog.actor_id}
+            <UniversalGroup title={t("audit_actor", "Actor Identity")} icon={t("icon_person", "person")}>
+              <div className="glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--text)] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
+                    {t("icon_person", "person")}
                   </span>
-                  {selectedLog.actor && !hideEditIdentity && (
-                    <button
-                      onClick={() => setSelectedProfile(selectedLog.actor)}
-                      className={`h-10 !py-0 px-6 ${standardButtonClass}`}
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_person")}</span>
-                      {t("edit_identity")}
-                    </button>
-                  )}
+                  <span className="truncate">
+                    {selectedLog.actor ? `${selectedLog.actor.username} ${selectedLog.actor.is_banned ? '(BANNED)' : ''}` : (selectedLog.actor_id || 'SYSTEM')}
+                  </span>
                 </div>
+                {selectedLog.actor && !hideEditIdentity && (
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_person", "person")}
+                    onClick={() => setSelectedProfile(selectedLog.actor)}
+                    className="!px-4 !py-2 shrink-0"
+                  >
+                    {t("edit_identity", "Edit Identity")}
+                  </ActionButton>
+                )}
               </div>
-            </div>
+            </UniversalGroup>
           </div>
         )}
       </SidePanel>
@@ -432,10 +455,11 @@ export function AuditLogViewer({
       <SidePanel
         isOpen={isOpen}
         onClose={onClose || (() => { })}
-        title={t("audit_title")}
-        subtitle={t("audit_desc")}
-        icon="history"
-        widthClass="w-full md:w-[700px]"
+        title={t("audit_title", "Audit Logs")}
+        subtitle={t("audit_desc", "System Activity & Security Ledger")}
+        icon={t("icon_history", "history")}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[760px]"
         noPadding={true}
       >
         <div className="h-full relative pb-10">
@@ -447,6 +471,3 @@ export function AuditLogViewer({
 
   return content;
 }
-
-
-
